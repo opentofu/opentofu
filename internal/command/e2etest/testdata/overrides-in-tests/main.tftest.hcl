@@ -221,3 +221,91 @@ run "check_for_each_n_count_overridden" {
         error_message = "Mocked random integer should be 101"
     }
 }
+
+# ensures non-aliased provider is mocked by default
+mock_provider "aws" {
+  mock_resource "aws_s3_bucket" {
+    defaults = {
+      arn = "arn:aws:s3:::mocked"
+    }
+  }
+
+  mock_data "aws_s3_bucket" {
+    defaults = {
+      bucket_domain_name = "mocked.com"
+    }
+  }
+}
+
+# ensures non-aliased provider works as intended
+# and aliased one is mocked
+mock_provider "local" {
+  alias = "aliased"
+}
+
+# ensures we can use this provider in run's providers block
+# to use mocked one only for a specific test
+mock_provider "random" {
+  alias = "for_pets"
+
+  mock_resource "random_pet" {
+    defaults = {
+      id = "my lovely cat"
+    }
+  }
+}
+
+mock_provider "random" {
+  alias = "aliased"
+
+  mock_resource "random_integer" {
+    defaults = {
+      id = "11"
+    }
+  }
+}
+
+run "check_mock_providers" {
+  assert {
+    condition     = resource.aws_s3_bucket.test.arn == "arn:aws:s3:::mocked"
+    error_message = "aws s3 bucket resource doesn't have mocked values"
+  }
+
+  assert {
+    condition     = data.aws_s3_bucket.test.bucket_domain_name == "mocked.com"
+    error_message = "aws s3 bucket data doesn't have mocked values"
+  }
+
+  assert {
+    condition     = !fileexists(local_file.mocked.filename)
+    error_message = "file should not be created due to provider being mocked"
+  }
+
+  assert {
+    condition     = data.local_file.maintf.content != file("main.tf")
+    error_message = "file should not be read due to provider being mocked"
+  }
+
+  assert {
+    condition     = resource.random_integer.aliased.id == "11"
+    error_message = "random integer should be 11 due to provider being mocked"
+  }
+}
+
+run "check_providers_block" {
+  providers = {
+    aws           = aws
+    local.aliased = local.aliased
+    random        = random.for_pets
+  }
+
+  assert {
+    condition     = resource.random_pet.cat.id == "my lovely cat"
+    error_message = "providers block in run should allow replacing real providers by mocked"
+  }
+
+  assert {
+    condition     = resource.random_integer.aliased.id != "11"
+    error_message = "random integer should not be mocked if providers block present"
+  }
+}

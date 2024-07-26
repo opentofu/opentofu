@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -297,9 +298,16 @@ func TestFmt_workingDirectory(t *testing.T) {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
 
-	expected := fmt.Sprintf("%s\n", fmtFixture.filename)
-	if actual := ui.OutputWriter.String(); actual != expected {
-		t.Fatalf("got: %q\nexpected: %q", actual, expected)
+	output := strings.Split(strings.TrimSpace(ui.OutputWriter.String()), "\n")
+
+	// Consistent order
+	sort.Strings(output)
+
+	for i, expected := range []string{fmtFixture.filename, fmtFixture.altFilename} {
+		actual := output[i]
+		if actual != expected {
+			t.Fatalf("got: %q\nexpected: %q", actual, expected)
+		}
 	}
 }
 
@@ -319,14 +327,21 @@ func TestFmt_directoryArg(t *testing.T) {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
 
-	got, err := filepath.Abs(strings.TrimSpace(ui.OutputWriter.String()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := filepath.Join(tempDir, fmtFixture.filename)
+	output := strings.Split(strings.TrimSpace(ui.OutputWriter.String()), "\n")
 
-	if got != want {
-		t.Fatalf("wrong output\ngot:  %s\nwant: %s", got, want)
+	// Consistent order
+	sort.Strings(output)
+
+	for i, check := range []string{fmtFixture.filename, fmtFixture.altFilename} {
+		got, err := filepath.Abs(output[i])
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := filepath.Join(tempDir, check)
+
+		if got != want {
+			t.Fatalf("wrong output\ngot:  %s\nwant: %s", got, want)
+		}
 	}
 }
 
@@ -464,9 +479,11 @@ func TestFmt_checkStdin(t *testing.T) {
 
 var fmtFixture = struct {
 	filename      string
+	altFilename   string
 	input, golden []byte
 }{
 	"main.tf",
+	"main.tofu",
 	[]byte(`  foo  =  "bar"
 `),
 	[]byte(`foo = "bar"
@@ -476,7 +493,12 @@ var fmtFixture = struct {
 func fmtFixtureWriteDir(t *testing.T) string {
 	dir := testTempDir(t)
 
-	err := os.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0644)
+	err := os.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = os.WriteFile(filepath.Join(dir, fmtFixture.altFilename), fmtFixture.input, 0600)
 	if err != nil {
 		t.Fatal(err)
 	}

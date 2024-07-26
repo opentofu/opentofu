@@ -26,6 +26,8 @@ type Validate struct {
 
 	// ViewType specifies which output format to use: human, JSON, or "raw".
 	ViewType ViewType
+
+	Vars *Vars
 }
 
 // ParseValidate processes CLI arguments, returning a Validate value and errors.
@@ -35,10 +37,11 @@ func ParseValidate(args []string) (*Validate, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	validate := &Validate{
 		Path: ".",
+		Vars: &Vars{},
 	}
 
 	var jsonOutput bool
-	cmdFlags := defaultFlagSet("validate")
+	cmdFlags := extendedFlagSet("validate", nil, nil, validate.Vars)
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.StringVar(&validate.TestDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&validate.NoTests, "no-tests", false, "no-tests")

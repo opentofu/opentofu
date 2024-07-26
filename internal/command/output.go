@@ -35,6 +35,8 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
+	c.View.SetShowSensitive(args.ShowSensitive)
+
 	view := views.NewOutput(args.ViewType, c.View)
 
 	// Inject variables from args into meta for static evaluation
@@ -135,19 +137,30 @@ Usage: tofu [global options] output [options] [NAME]
 
 Options:
 
-  -state=path      Path to the state file to read. Defaults to
-                   "terraform.tfstate". Ignored when remote 
-                   state is used.
+  -state=path        Path to the state file to read. Defaults to
+                     "terraform.tfstate". Ignored when remote 
+                     state is used.
 
-  -no-color        If specified, output won't contain any color.
+  -no-color          If specified, output won't contain any color.
 
-  -json            If specified, machine readable output will be
-                   printed in JSON format.
+  -json              If specified, machine readable output will be
+                     printed in JSON format.
 
-  -raw             For value types that can be automatically
-                   converted to a string, will print the raw
-                   string directly, rather than a human-oriented
-                   representation of the value.
+  -raw               For value types that can be automatically
+                     converted to a string, will print the raw
+                     string directly, rather than a human-oriented
+                     representation of the value.
+
+  -show-sensitive    If specified, sensitive values will be displayed.
+
+  -var 'foo=bar'     Set a value for one of the input variables in the root
+                     module of the configuration. Use this option more than
+                     once to set more than one variable.
+
+  -var-file=filename Load variable values from the given file, in addition
+                     to the default files terraform.tfvars and *.auto.tfvars.
+                     Use this option more than once to include more than one
+                     variables file.
 `
 	return strings.TrimSpace(helpText)
 }

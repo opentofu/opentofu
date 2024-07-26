@@ -17,7 +17,7 @@ import (
 
 // This exercises most of the logic in StaticEvaluator and staticScopeData
 //
-//nolint:gocognit,cyclop // it's a test
+//nolint:cyclop // it's a test
 func TestStaticEvaluator_Evaluate(t *testing.T) {
 	// Synthetic file for building test components
 	testData := `
@@ -96,7 +96,7 @@ resource "foo" "bar" {}
 	dummyIdentifier := StaticIdentifier{Subject: "local.test"}
 
 	t.Run("Empty Eval", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 		emptyEval := StaticEvaluator{}
 
 		// Expr with no traversals shouldn't access any fields
@@ -119,7 +119,7 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Simple static cases", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -156,7 +156,7 @@ resource "foo" "bar" {}
 			}
 			return v.Default, nil
 		}, "<testing>", "")
-		mod, _ := NewModule([]*File{file}, nil, call, "dir")
+		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, call)
 
 		locals := []struct {
@@ -182,7 +182,7 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Bad References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -202,7 +202,7 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Circular References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -239,7 +239,7 @@ resource "foo" "bar" {}
 				Subject:  v.DeclRange.Ptr(),
 			}}
 		}, "<testing>", "")
-		mod, _ := NewModule([]*File{file}, nil, call, "dir")
+		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, call)
 
 		badref := mod.Locals["ref_c"]
@@ -253,7 +253,7 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Missing References", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		locals := []struct {
@@ -274,7 +274,7 @@ resource "foo" "bar" {}
 
 	t.Run("Workspace", func(t *testing.T) {
 		call := NewStaticModuleCall(nil, nil, "<testing>", "my-workspace")
-		mod, _ := NewModule([]*File{file}, nil, call, "dir")
+		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, call)
 
 		value, diags := eval.Evaluate(mod.Locals["ws"].Expr, dummyIdentifier)
@@ -287,7 +287,7 @@ resource "foo" "bar" {}
 	})
 
 	t.Run("Functions", func(t *testing.T) {
-		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 		value, diags := eval.Evaluate(mod.Locals["func"].Expr, dummyIdentifier)
@@ -312,7 +312,7 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 	if fileDiags.HasErrors() {
 		t.Fatal(fileDiags)
 	}
-	mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+	mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 	eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
 	cases := []struct {
@@ -382,7 +382,7 @@ terraform {
 				t.Fatal(fileDiags)
 			}
 
-			mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir")
+			mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 			_, diags := mod.Backend.Decode(&configschema.Block{
 				Attributes: map[string]*configschema.Attribute{
 					"thing": &configschema.Attribute{

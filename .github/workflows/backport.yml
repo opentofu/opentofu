@@ -1,0 +1,40 @@
+name: Backport Merged Pull Request
+
+on:
+  pull_request:
+    types:
+      - closed
+      - labeled
+
+jobs:
+  backport:
+    name: Backport pull request
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+    - name: Checkout
+      uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+    - name: Check if backport label exists in any of the labels on the pull request
+      id: check_backport_label
+      run: |
+        label_names="${{ join(github.event.pull_request.labels.*.name, ' ') }}"
+        if [[ "$label_names" == *"backport"* ]]; then
+          echo "has_backport_label=true" | tee -a "${GITHUB_OUTPUT}"
+        else
+          echo "has_backport_label=false" | tee -a "${GITHUB_OUTPUT}"
+        fi
+    - name: Run custom bash script for backporting
+      if: ${{ github.event.pull_request.state == 'closed' && github.event.pull_request.merged && steps.check_backport_label.outputs.has_backport_label == 'true' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        PR_NUMBER: ${{ github.event.pull_request.number }}
+        OWNER: ${{ github.event.repository.owner.login }}
+        REPO: ${{ github.event.repository.name }}
+        ISSUE_NUMBER: ${{ github.event.pull_request.number }}
+        HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+        LABELS: ${{ toJson(github.event.pull_request.labels.*.name) }}
+      run: |
+        bash ./.github/scripts/backport/main.sh
+      shell: bash

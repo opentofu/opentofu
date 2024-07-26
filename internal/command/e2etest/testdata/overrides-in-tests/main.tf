@@ -57,3 +57,44 @@ module "rand_count" {
 
     source = "./rand"
 }
+
+resource "aws_s3_bucket" "test" {
+  bucket = "must not be used anyway"
+}
+
+data "aws_s3_bucket" "test" {
+  bucket = "must not be used anyway"
+}
+
+provider "local" {
+  alias = "aliased"
+}
+
+resource "local_file" "mocked" {
+  provider = local.aliased
+  filename = "mocked.txt"
+  content  = "I am mocked file, do not create me please"
+}
+
+data "local_file" "maintf" {
+  provider = local.aliased
+  filename = "main.tf"
+}
+
+resource "random_pet" "cat" {}
+
+provider random {
+  alias = "aliased"
+}
+
+resource "random_integer" "aliased" {
+  provider = random.aliased
+
+  # helps create a new value when test with mocked pet runs
+  keepers = {
+    pet = random_pet.cat.id
+  }
+
+  min = 1
+  max = 10
+}

@@ -218,7 +218,7 @@ func (c *WorkspaceDeleteCommand) AutocompleteFlags() complete.Flags {
 
 func (c *WorkspaceDeleteCommand) Help() string {
 	helpText := `
-Usage: tofu [global options] workspace delete [OPTIONS] NAME
+Usage: tofu [global options] workspace delete [options] NAME
 
   Delete a OpenTofu workspace
 
@@ -234,6 +234,15 @@ Options:
                      against the same workspace.
 
   -lock-timeout=0s   Duration to retry a state lock.
+
+  -var 'foo=bar'     Set a value for one of the input variables in the root
+                     module of the configuration. Use this option more than
+                     once to set more than one variable.
+
+  -var-file=filename Load variable values from the given file, in addition
+                     to the default files terraform.tfvars and *.auto.tfvars.
+                     Use this option more than once to include more than one
+                     variables file.
 
 `
 	return strings.TrimSpace(helpText)

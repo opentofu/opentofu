@@ -69,9 +69,6 @@ func (c *StateMeta) State(enc encryption.Encryption) (statemgr.Full, error) {
 		}
 		localB := localRaw.(*backendLocal.Local)
 		_, stateOutPath, _ = localB.StatePaths(workspace)
-		if err != nil {
-			return nil, err
-		}
 
 		realState = s
 	}

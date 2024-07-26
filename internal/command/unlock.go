@@ -133,7 +133,7 @@ func (c *UnlockCommand) Run(args []string) int {
 
 func (c *UnlockCommand) Help() string {
 	helpText := `
-Usage: tofu [global options] force-unlock LOCK_ID
+Usage: tofu [global options] force-unlock [options] LOCK_ID
 
   Manually unlock the state for the defined configuration.
 
@@ -145,6 +145,15 @@ Usage: tofu [global options] force-unlock LOCK_ID
 Options:
 
   -force                 Don't ask for input for unlock confirmation.
+
+  -var 'foo=bar'         Set a value for one of the input variables in the root
+                         module of the configuration. Use this option more than
+                         once to set more than one variable.
+
+  -var-file=filename     Load variable values from the given file, in addition
+                         to the default files terraform.tfvars and *.auto.tfvars.
+                         Use this option more than once to include more than one
+                         variables file.
 `
 	return strings.TrimSpace(helpText)
 }

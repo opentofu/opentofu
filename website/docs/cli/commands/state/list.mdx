@@ -25,11 +25,35 @@ For complex infrastructures, the state can contain thousands of resources.
 To filter these, provide one or more patterns to the command. Patterns are
 in [resource addressing format](../../../cli/state/resource-addressing.mdx).
 
+:::note
+Use of variables in [backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals)
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu state list`.
+:::
+
 The command-line flags are all optional. The following flags are available:
 
 * `-state=path` - Path to the state file. Defaults to "terraform.tfstate".
   Ignored when [remote state](../../../language/state/remote.mdx) is used.
+
 * `-id=id` - ID of resources to show. Ignored when unset.
+
+* `-var 'NAME=VALUE'` - Sets a value for a single
+  [input variable](../../../language/values/variables.mdx) declared in the
+  root module of the configuration. Use this option multiple times to set
+  more than one variable. Refer to
+  [Input Variables on the Command Line](../plan.mdx#input-variables-on-the-command-line) for more information.
+
+* `-var-file=FILENAME` - Sets values for potentially many
+  [input variables](../../../language/values/variables.mdx) declared in the
+  root module of the configuration, using definitions from a
+  ["tfvars" file](../../../language/values/variables.mdx#variable-definitions-tfvars-files).
+  Use this option multiple times to include values from more than one file.
+
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 ## Example: All Resources
 

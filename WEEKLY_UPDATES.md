@@ -1,5 +1,22 @@
 # Weekly Updates
 
+## 2024-07-18
+
+Hey folks, sorry for the sporadic updates, we'll try to make these more frequent. Here's what happened since the last update:
+
+- [OpenTofu 1.8.0-beta2](https://opentofu.org/blog/opentofu-1-8-0-beta1/) is now here with a lot of long-requested functionality, such as early evaluation for variables and locals, as well as support for `.tofu` files with an override functionality. We are currently working towards a 1.8.0 release candidate.
+- [OpenTofu 1.7.3](https://github.com/opentofu/opentofu/releases/tag/v1.7.3) and [1.6.3](https://github.com/opentofu/opentofu/releases/tag/v1.6.3) are also available with some bugfixes.
+- Recent developments:
+  - We are currently planning the 1.9.0 release to add on top of the 1.8.0 early evaluation features. The new improvements include passing providers to modules in loops.
+  - We are working with the community and vendors to provide better OpenTofu support in Visual Studio Code and other IDEs.
+  - We are working on a user interface for the registry. This includes creating a general-purpose library for working with the registry data in Go. If you would like to build on top of the registry data set, stay tuned for more news on this.
+  - [tofudl](https://github.com/opentofu/tofudl) is a new standalone Go library that makes it easier to download and run OpenTofu from Go programs securely. If yo uare a tool vendor, check it out.
+  - Last but not least, for the 1.9.0 we are aiming to bring some much-needed improvements in terms of testing the OpenTofu codebase and merging performance improvements.
+- How can I help?
+  - Please test the 1.8.0 preview releases. Early community feedback on the functionality and potential edge cases we may have missed is critical for releases.
+  - If you are experienced in TypeScript/React, please stay tuned as we may be putting out `help-wanted` issues on GitHub and Slack related to the registry UI.
+  - If you are a tool author, please keep an eye out of the libraries we release on GitHub and Slack. We would like to make OpenTofu more modular and your early feedback on these libraries helps us make them better. If you have feedback, please use the GitHub review functionality to provide it.
+
 ## 2024-06-14
 
 Hello! It's been a busy month since the last "Weekly Update" and there is a lot to cover!

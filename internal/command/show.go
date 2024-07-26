@@ -12,6 +12,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
@@ -66,6 +69,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 	c.viewType = args.ViewType
+	c.View.SetShowSensitive(args.ShowSensitive)
 
 	// Set up view
 	view := views.NewShow(args.ViewType, c.View)
@@ -111,8 +115,20 @@ Usage: tofu [global options] show [options] [path]
 Options:
 
   -no-color           If specified, output won't contain any color.
+
   -json               If specified, output the OpenTofu plan or state in
                       a machine-readable form.
+
+  -show-sensitive     If specified, sensitive values will be displayed.
+
+  -var 'foo=bar'      Set a value for one of the input variables in the root
+                      module of the configuration. Use this option more than
+                      once to set more than one variable.
+
+  -var-file=filename  Load variable values from the given file, in addition
+                      to the default files terraform.tfvars and *.auto.tfvars.
+                      Use this option more than once to include more than one
+                      variables file.
 
 `
 	return strings.TrimSpace(helpText)
@@ -355,8 +371,34 @@ func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.Sta
 		return nil, nil, nil, err
 	}
 
+	subCall := rootCall.WithVariables(func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+		var diags hcl.Diagnostics
+
+		name := variable.Name
+		v, ok := plan.VariableValues[name]
+		if !ok {
+			if variable.Required() {
+				// This should not happen...
+				return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing plan variable " + variable.Name,
+				})
+			}
+			return variable.Default, nil
+		}
+
+		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
+		if parsedErr != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  parsedErr.Error(),
+			})
+		}
+		return parsed, diags
+	})
+
 	// Get config
-	config, diags := planReader.ReadConfig(rootCall)
+	config, diags := planReader.ReadConfig(subCall)
 	if diags.HasErrors() {
 		return nil, nil, nil, errUnusable(diags.Err(), "local plan")
 	}

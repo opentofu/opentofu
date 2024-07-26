@@ -34,6 +34,14 @@ behavior. For more information on this assumption, see
 [the State section](../../language/state/index.mdx).
 :::
 
+:::note
+Use of variables in [module sources](../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu import`.
+:::
+
 The command-line flags are all optional. The following flags are available:
 
 - `-config=path` - Path to directory of OpenTofu configuration files that

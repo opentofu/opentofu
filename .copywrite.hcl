@@ -14,7 +14,7 @@ project {
   header_ignore = [
     "**/*.tf",
     "**/*.tftest.hcl",
-    "testing/equivalence-tests/**/.terraform.lock.hcl",
+    "**/*.terraform.lock.hcl",
     "website/docs/**/examples/**",
     "**/testdata/**",
     "**/*.pb.go",

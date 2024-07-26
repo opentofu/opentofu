@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
 )
 
@@ -34,6 +35,10 @@ func (c *StateShowCommand) Run(args []string) int {
 	cmdFlags := c.Meta.defaultFlagSet("state show")
 	c.Meta.varFlagSet(cmdFlags)
 	cmdFlags.StringVar(&c.Meta.statePath, "state", "", "path")
+
+	showSensitive := false
+	cmdFlags.BoolVar(&showSensitive, "show-sensitive", false, "displays sensitive values")
+
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error())
 		return 1
@@ -93,6 +98,12 @@ func (c *StateShowCommand) Run(args []string) int {
 	opReq := c.Operation(b, arguments.ViewHuman, enc)
 	opReq.AllowUnsetVariables = true
 	opReq.ConfigDir = cwd
+	var callDiags tfdiags.Diagnostics
+	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+	if callDiags.HasErrors() {
+		c.showDiagnostics(callDiags)
+		return 1
+	}
 
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
@@ -180,6 +191,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		Streams:             c.Streams,
 		Colorize:            c.Colorize(),
 		RunningInAutomation: c.RunningInAutomation,
+		ShowSensitive:       showSensitive,
 	}
 
 	renderer.RenderHumanState(jstate)
@@ -201,6 +213,17 @@ Options:
   -state=statefile    Path to a OpenTofu state file to use to look
                       up OpenTofu-managed resources. By default it will
                       use the state "terraform.tfstate" if it exists.
+
+  -show-sensitive     If specified, sensitive values will be displayed.
+
+  -var 'foo=bar'      Set a value for one of the input variables in the root
+                      module of the configuration. Use this option more than
+                      once to set more than one variable.
+
+  -var-file=filename  Load variable values from the given file, in addition
+                      to the default files terraform.tfvars and *.auto.tfvars.
+                      Use this option more than once to include more than one
+                      variables file.
 
 `
 	return strings.TrimSpace(helpText)

@@ -105,6 +105,7 @@ func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
 		RunningInAutomation: v.inAutomation,
+		ShowSensitive:       v.view.showSensitive,
 	}
 
 	jplan := jsonformat.Plan{

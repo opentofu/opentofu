@@ -31,8 +31,10 @@ const (
 var (
 	fmtSupportedExts = []string{
 		".tf",
+		".tofu",
 		".tfvars",
 		".tftest.hcl",
+		".tofutest.hcl",
 	}
 )
 

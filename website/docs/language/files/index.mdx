@@ -8,12 +8,25 @@ description: >-
 
 ## File Extension
 
-Code in the OpenTofu language is stored in plain text files with the `.tf` file
-extension. There is also
-[a JSON-based variant of the language](../../language/syntax/json.mdx) that is named with
-the `.tf.json` file extension.
+Code in the OpenTofu language is stored in plain text files with the `.tf`
+or `.tofu` file extensions. There is also
+[a JSON-based variant of the language](../../language/syntax/json.mdx) that is
+named with the `.tf.json` or `.tofu.json` file extensions.
 
 Files containing OpenTofu code are often called _configuration files._
+
+### Extension Precedence
+
+When both `.tf` and `.tofu` files with the same base name are present in a
+directory, OpenTofu will prioritize the `.tofu` file and ignore the `.tf` file.
+For example:
+
+- If both `foo.tf` and `foo.tofu` exist in the same directory, OpenTofu will
+only load `foo.tofu` and ignore `foo.tf`.
+
+This ensures that `.tofu` files always take precedence over `.tf` files when
+both are available. This scenario can be useful for module authors who want
+their modules to support both OpenTofu and Terraform.
 
 ## Text Encoding
 
@@ -23,8 +36,8 @@ line endings (CRLF), though both are accepted.
 
 ## Directories and Modules
 
-A _module_ is a collection of `.tf` and/or `.tf.json` files kept together in a
-directory.
+A _module_ is a collection of one or many `.tf`, `.tf.json`, `.tofu`,
+`.tofu.json` files kept together in a directory.
 
 An OpenTofu module only consists of the top-level configuration files in a
 directory; nested directories are treated as completely separate modules, and
@@ -51,7 +64,7 @@ called by those modules, etc.).
 - In OpenTofu CLI, the root module is the working directory where OpenTofu is
   invoked. (You can use command line options to specify a root module outside
   the working directory, but in practice this is rare.)
-- In TACOS (TF Automation and Collaboration Software), the root module for a workspace
+- In [TACOS](../../intro/tacos.mdx) (TF Automation and Collaboration Software), the root module for a workspace
   defaults to the top level of the configuration directory (supplied via version
   control repository or direct upload), but the workspace settings can specify a
   subdirectory to use instead.

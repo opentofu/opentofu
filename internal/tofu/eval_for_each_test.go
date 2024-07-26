@@ -320,7 +320,6 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 					t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
 				}
 			}
-
 		})
 	}
 }

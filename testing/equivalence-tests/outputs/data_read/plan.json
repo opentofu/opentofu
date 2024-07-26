@@ -138,7 +138,9 @@
               "name": "data_file",
               "provider_name": "registry.opentofu.org/hashicorp/local",
               "schema_version": 0,
-              "sensitive_values": {},
+              "sensitive_values": {
+                "sensitive_content": true
+              },
               "type": "local_file",
               "values": {
                 "content_base64": null,

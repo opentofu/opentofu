@@ -6,10 +6,10 @@ description: >-
 
 # Override Files
 
-OpenTofu normally loads all of the `.tf` and `.tf.json` files within a
-directory and expects each one to define a distinct set of configuration
-objects. If two files attempt to define the same object, OpenTofu returns
-an error.
+OpenTofu normally loads all of the `.tf`, `.tofu`, `.tf.json` and `.tofu.json`
+files within a directory and expects each one to define a distinct set of
+configuration objects. If two files attempt to define the same object, OpenTofu
+returns an error.
 
 In some rare cases, it is convenient to be able to override specific portions
 of an existing configuration object in a separate file. For example, a
@@ -18,9 +18,20 @@ could be partially overridden using a programmatically-generated file
 in JSON syntax.
 
 For these rare situations, OpenTofu has special handling of any configuration
-file whose name ends in `_override.tf` or `_override.tf.json`. This special
-handling also applies to a file named literally `override.tf` or
-`override.tf.json`.
+file whose name ends in `_override.tf`, `_override.tofu`, `_override.tf.json`
+or `_override.tofu.json`. This special handling also applies to a file named
+literally `override.tf`, `override.tofu`, `override.tf.json` or
+`override.tofu.json`.
+
+:::note
+[Extension Precedence](./index.mdx#extension-precedence) is important when
+dealing with override files. If both `foo_override.tf` and `foo_override.tofu`
+exist in the same directory, OpenTofu will only load `foo_override.tofu` and
+disregard `foo_override.tf`. The same rule applies to JSON-based files - if
+both `foo_override.tofu.json` and `foo_override.tf.json` exist in the same
+directory, OpenTofu will only load `foo_override.tofu.json` and ignore
+`foo_override.tf.json`.
+:::
 
 OpenTofu initially skips these _override files_ when loading configuration,
 and then afterwards processes each one in turn (in lexicographical order). For

@@ -213,7 +213,8 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.58
-          only-new-issues: true
+          # Only compare with changes from when we introduced linting.  Eventually we can get rid of this and lint the whole project
+          args: --new-from-rev dd5f9afe8948186c76fe6b8b1193d7a8f46919d8
       
       - name: "Copyright headers"
         run: |

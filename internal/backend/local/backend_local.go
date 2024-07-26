@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -248,8 +249,49 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 		))
 		return nil, snap, diags
 	}
+
+	plan, err := pf.ReadPlan()
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			errSummary,
+			fmt.Sprintf("Failed to read plan from plan file: %s.", err),
+		))
+		return nil, snap, diags
+	}
+	// When we're applying a saved plan, we populate Plan instead of PlanOpts,
+	// because a plan object incorporates the subset of data from PlanOps that
+	// we need to apply the plan.
+	run.Plan = plan
+
+	subCall := op.RootCall.WithVariables(func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+		var diags hcl.Diagnostics
+
+		name := variable.Name
+		v, ok := plan.VariableValues[name]
+		if !ok {
+			if variable.Required() {
+				// This should not happen...
+				return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing plan variable " + variable.Name,
+				})
+			}
+			return variable.Default, nil
+		}
+
+		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
+		if parsedErr != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  parsedErr.Error(),
+			})
+		}
+		return parsed, diags
+	})
+
 	loader := configload.NewLoaderFromSnapshot(snap)
-	config, configDiags := loader.LoadConfig(snap.Modules[""].Dir, op.RootCall)
+	config, configDiags := loader.LoadConfig(snap.Modules[""].Dir, subCall)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, snap, diags
@@ -341,20 +383,6 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 	// recorded in the plan, which incorporates the result of all of the
 	// refreshing we did while building the plan.
 	run.InputState = priorStateFile.State
-
-	plan, err := pf.ReadPlan()
-	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			errSummary,
-			fmt.Sprintf("Failed to read plan from plan file: %s.", err),
-		))
-		return nil, snap, diags
-	}
-	// When we're applying a saved plan, we populate Plan instead of PlanOpts,
-	// because a plan object incorporates the subset of data from PlanOps that
-	// we need to apply the plan.
-	run.Plan = plan
 
 	tfCtx, moreDiags := tofu.NewContext(coreOpts)
 	diags = diags.Append(moreDiags)
