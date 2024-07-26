@@ -232,7 +232,17 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		log.Printf("[WARN] managedResourceExecute: no Managed config value found in instance state for %q", n.Addr)
 	} else {
 		if instanceRefreshState != nil {
-			instanceRefreshState.CreateBeforeDestroy = n.Config.Managed.CreateBeforeDestroy || n.ForceCreateBeforeDestroy
+			// If there is a discrepancy between the state's CBD value and
+			// the config CBD value, update the state to reflect the new CBD value.
+			// This prevens state and config discrepancies when skipping refresh.
+			newCBD := n.Config.Managed.CreateBeforeDestroy || n.ForceCreateBeforeDestroy
+			if instanceRefreshState.CreateBeforeDestroy != newCBD {
+				instanceRefreshState.CreateBeforeDestroy = newCBD
+				diags = diags.Append(n.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
+				if diags.HasErrors() {
+					return diags
+				}
+			}
 		}
 	}
 
