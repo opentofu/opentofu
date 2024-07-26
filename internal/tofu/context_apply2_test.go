@@ -1247,10 +1247,10 @@ output "out" {
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{Block: simpleTestSchema()},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{Block: simpleTestSchema()},
+				"test_object": {Block: simpleTestSchema()},
 			},
 			DataSources: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"test_string": {
@@ -1302,7 +1302,7 @@ output "out" {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"other_object": providers.Schema{Block: simpleTestSchema()},
+				"other_object": {Block: simpleTestSchema()},
 			},
 		},
 	}
@@ -2305,5 +2305,108 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 
 	if hook.PostApplyCalled {
 		t.Fatalf("PostApply hook should not be called as part of forget")
+	}
+}
+
+func TestContext2Apply_createBeforeDestroySkipRefresh(t *testing.T) {
+	resourceDestroyed := false
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_instance" "a" {
+				id      = "foo_id"
+				lifecycle {
+					create_before_destroy = true
+				}
+			}`,
+	})
+
+	p := testProvider("test")
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+		// Return the same state without modification if no changes are proposed.
+		if req.ProposedNewState.IsNull() {
+			resp.PlannedState = req.ProposedNewState
+			return resp
+		}
+		stateMap := req.ProposedNewState.AsValueMap()
+		// If id is null, set it to unknown to ensure proper handling.
+		if stateMap["id"].IsNull() {
+			stateMap["id"] = cty.UnknownVal(cty.String)
+			resp.PlannedState = cty.ObjectVal(stateMap)
+			return resp
+		}
+		resp.PlannedState = cty.ObjectVal(stateMap)
+		resp.RequiresReplace = []cty.Path{cty.GetAttrPath("id")}
+		return resp
+	}
+
+	p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
+		if req.PlannedState.IsNull() {
+			// Null PlannedState means resource will be destroyed.
+			resourceDestroyed = true
+			resp.NewState = req.PlannedState
+			return resp
+		}
+
+		// Update the PlannedState with simulated values for testing purposes.
+		stateMap := req.PlannedState.AsValueMap()
+		if id, exists := stateMap["id"]; exists && id.AsString() == "bar_id" {
+			stateMap["id"] = cty.StringVal("bar_id")
+			resp.NewState = cty.ObjectVal(stateMap)
+		} else {
+			stateMap["id"] = cty.StringVal("foo_id")
+			resp.NewState = cty.ObjectVal(stateMap)
+		}
+		return resp
+	}
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+
+	testResourceAddr := mustResourceInstanceAddr("test_instance.a")
+
+	root.SetResourceInstanceCurrent(
+		testResourceAddr.Resource,
+		&states.ResourceInstanceObjectSrc{
+			AttrsJSON:           []byte(`{"id":"foo_id"}`),
+			CreateBeforeDestroy: true,
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		SkipRefresh: false,
+		Mode:        plans.NormalMode,
+	})
+	assertNoErrors(t, diags)
+
+	_, diags = ctx.Apply(plan, m)
+	assertNoErrors(t, diags)
+
+	// Now remove create_before_destroy=true and apply with refresh=false.
+	m = testModuleInline(t, map[string]string{
+		"main.tf": `
+		resource "test_instance" "a" {
+			id      = "bar_id"
+			}`,
+	})
+
+	plan, diags = ctx.Plan(m, state, &PlanOpts{
+		SkipRefresh: true,
+		Mode:        plans.NormalMode,
+	})
+	assertNoErrors(t, diags)
+
+	_, diags = ctx.Apply(plan, m)
+	assertNoErrors(t, diags)
+
+	// Verify that the resource was destroyed.
+	if !resourceDestroyed {
+		t.Fatal("Expected destroy call for old instance (foo_id) was not made")
 	}
 }
