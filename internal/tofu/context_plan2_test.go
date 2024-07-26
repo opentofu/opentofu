@@ -4646,6 +4646,171 @@ import {
 	}
 }
 
+func TestContext2Plan_importToInvalidDynamicAddress(t *testing.T) {
+	type TestConfiguration struct {
+		Description         string
+		expectedError       string
+		inlineConfiguration map[string]string
+	}
+	configurations := []TestConfiguration{
+		{
+			Description:   "To address index value is null",
+			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is null. Please ensure the expression for the index is not null",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "index" {
+  default = null
+}
+
+resource "test_object" "a" {
+  count = 1
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[var.index]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:   "To address index is not a number or a string",
+			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please ensure the expression for the index is correct, and returns either a string or a number",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = toset(["foo"])
+}
+
+resource "test_object" "a" {
+  for_each = toset(["foo"])
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[local.index]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:   "To address index value is sensitive",
+			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is sensitive. Please ensure indexes used in the resource address of an import target are not sensitive",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = sensitive("foo")
+}
+
+resource "test_object" "a" {
+  for_each = toset(["foo"])
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[local.index]
+  id   = "123"
+}
+`,
+			},
+		},
+		{
+			Description:   "To address index value will only be known after apply",
+			expectedError: "Import block contained a resource address using an index that will only be known after apply. Please ensure to use expressions that are known at plan time for the index of an import target address",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+resource "test_object" "a" {
+  count = 1
+  test_string = "foo"
+}
+
+import {
+  to   = test_object.a[test_object.reference.id]
+  id   = "123"
+}
+`,
+			},
+		},
+	}
+
+	for _, configuration := range configurations {
+		t.Run(configuration.Description, func(t *testing.T) {
+			m := testModuleInline(t, configuration.inlineConfiguration)
+
+			providerSchema := &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"test_string": {
+						Type:     cty.String,
+						Optional: true,
+					},
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+				},
+			}
+
+			p := &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					Provider: providers.Schema{Block: providerSchema},
+					ResourceTypes: map[string]providers.Schema{
+						"test_object": providers.Schema{Block: providerSchema},
+					},
+				},
+			}
+
+			hook := new(MockHook)
+			ctx := testContext2(t, &ContextOpts{
+				Hooks: []Hook{hook},
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			p.ReadResourceResponse = &providers.ReadResourceResponse{
+				NewState: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("foo"),
+				}),
+			}
+
+			p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+				testStringVal := req.ProposedNewState.GetAttr("test_string")
+				return providers.PlanResourceChangeResponse{
+					PlannedState: cty.ObjectVal(map[string]cty.Value{
+						"test_string": testStringVal,
+						"id":          cty.UnknownVal(cty.String),
+					}),
+				}
+			}
+
+			p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_object",
+						State: cty.ObjectVal(map[string]cty.Value{
+							"test_string": cty.StringVal("foo"),
+						}),
+					},
+				},
+			}
+
+			_, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+
+			if !diags.HasErrors() {
+				t.Fatal("succeeded; want errors")
+			}
+			if got, want := diags.Err().Error(), configuration.expectedError; !strings.Contains(got, want) {
+				t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+			}
+		})
+	}
+}
+
 func TestContext2Plan_importForEach(t *testing.T) {
 	type ImportResult struct {
 		ResolvedAddress string
@@ -4831,7 +4996,7 @@ import {
 	}
 }
 
-func TestContext2Plan_importToInvalidDynamicAddress(t *testing.T) {
+func TestContext2Plan_importWithInvalidForEach(t *testing.T) {
 	type TestConfiguration struct {
 		Description         string
 		expectedError       string
@@ -4839,84 +5004,221 @@ func TestContext2Plan_importToInvalidDynamicAddress(t *testing.T) {
 	}
 	configurations := []TestConfiguration{
 		{
-			Description:   "To address index value is null",
-			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is null. Please ensure the expression for the index is not null",
+			Description:   "for_each value is null",
+			expectedError: "Invalid import id argument: The import ID cannot be null",
 			inlineConfiguration: map[string]string{
 				"main.tf": `
-variable "index" {
+locals {
+  map = {
+    "key1" = null
+  }
+}
+
+resource "test_object" "a" {
+  for_each = local.map
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each key is null",
+			expectedError: "Null value as key: Can't use a null value as a key.",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "nil" {
+	default = null
+}
+
+locals {
+  map = {
+    (var.nil) = "val1"
+  }
+}
+
+resource "test_object" "a" {
+  for_each = local.map
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each expression is null",
+			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the "for_each" argument must be a map, set of strings, or a tuple, and you have provided a value of type dynamic.`,
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+variable "map" {
   default = null
 }
 
 resource "test_object" "a" {
-  count = 1
-  test_string = "foo"
 }
 
 import {
-  to   = test_object.a[var.index]
-  id   = "123"
+  for_each = var.map
+  to = test_object.a[each.key]
+  id = each.value
 }
 `,
 			},
 		},
 		{
-			Description:   "To address index is not a number or a string",
-			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is not valid for a resource instance (not a string or a number). Please ensure the expression for the index is correct, and returns either a string or a number",
-			inlineConfiguration: map[string]string{
-				"main.tf": `
-locals {
-  index = toset(["foo"])
-}
-
-resource "test_object" "a" {
-  for_each = toset(["foo"])
-  test_string = "foo"
-}
-
-import {
-  to   = test_object.a[local.index]
-  id   = "123"
-}
-`,
-			},
-		},
-		{
-			Description:   "To address index value is sensitive",
-			expectedError: "Import block 'to' address contains an invalid key: Import block contained a resource address using an index which is sensitive. Please ensure indexes used in the resource address of an import target are not sensitive",
-			inlineConfiguration: map[string]string{
-				"main.tf": `
-locals {
-  index = sensitive("foo")
-}
-
-resource "test_object" "a" {
-  for_each = toset(["foo"])
-  test_string = "foo"
-}
-
-import {
-  to   = test_object.a[local.index]
-  id   = "123"
-}
-`,
-			},
-		},
-		{
-			Description:   "To address index value will only be known after apply",
-			expectedError: "Import block contained a resource address using an index that will only be known after apply. Please ensure to use expressions that are known at plan time for the index of an import target address",
+			Description:   "for_each key is unknown",
+			expectedError: `Invalid for_each argument: The "for_each" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
 }
 
+locals {
+  map = {
+    (test_object.reference.id) = "val1"
+  }
+}
+
 resource "test_object" "a" {
   count = 1
-  test_string = "foo"
 }
 
 import {
-  to   = test_object.a[test_object.reference.id]
-  id   = "123"
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each value is unknown",
+			expectedError: `Invalid import id argument: The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`,
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+locals {
+  map = {
+    "key1" = (test_object.reference.id)
+  }
+}
+
+resource "test_object" "a" {
+  count = 1
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each expression is unknown",
+			expectedError: `Invalid for_each argument: The "for_each" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+locals {
+  map = (test_object.reference.id)
+}
+
+resource "test_object" "a" {
+  count = 1
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each value is sensitive",
+			expectedError: "Invalid import id argument: The import ID cannot be sensitive.",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = sensitive("foo")
+  map = {
+    "key1" = local.index
+  }
+}
+
+resource "test_object" "a" {
+  for_each = local.map
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each key is sensitive",
+			expectedError: "Invalid for_each argument: Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+locals {
+  index = sensitive("foo")
+  map = {
+    (local.index) = "val1"
+  }
+}
+
+resource "test_object" "a" {
+  count = 1
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
+}
+`,
+			},
+		},
+		{
+			Description:   "for_each expression is sensitive",
+			expectedError: "Invalid for_each argument: Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+			inlineConfiguration: map[string]string{
+				"main.tf": `
+resource "test_object" "reference" {
+}
+
+locals {
+  map = sensitive({
+    "key1" = "val1"
+  })
+}
+
+resource "test_object" "a" {
+  count = 0
+}
+
+import {
+  for_each = local.map
+  to = test_object.a[each.key]
+  id = each.value
 }
 `,
 			},
