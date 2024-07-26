@@ -456,7 +456,15 @@ func marshalModuleCalls(c *configs.Config, schemas *tofu.Schemas) map[string]mod
 
 	for name, mc := range c.Module.ModuleCalls {
 		mcConfig := c.Children[name]
-		ret[name] = marshalModuleCall(mcConfig, mc, schemas)
+		if mcConfig != nil {
+			ret[name] = marshalModuleCall(mcConfig, mc, schemas)
+		} else {
+			// TODO: Investigate if adding this data is going to break things
+			ret[name] = moduleCall{
+				Source:            mc.SourceAddrRaw,
+				VersionConstraint: mc.Version.Required.String(),
+			}
+		}
 	}
 
 	return ret
