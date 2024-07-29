@@ -13,8 +13,6 @@ OpenTofu is an infrastructure as code tool that lets you define both cloud and o
 
 OpenTofu creates and manages resources on cloud platforms and other services through their application programming interfaces (APIs). Providers enable OpenTofu to work with virtually any platform or service with an accessible API.
 
-![OpenTofu creates and manages cloud platforms and services through their APIs](/img/docs/intro-opentf-apis.png)
-
 The OpenTofu community have already written **thousands of providers** to manage many different types of resources and services. You can find all publicly available providers on the [Public OpenTofu Registry](https://github.com/opentofu/registry/tree/main/providers), including Amazon Web Services (AWS), Azure, Google Cloud Platform (GCP), Kubernetes, Helm, GitHub, Splunk, DataDog, and many more.
 
 The core OpenTofu workflow consists of three stages:
@@ -22,8 +20,6 @@ The core OpenTofu workflow consists of three stages:
 - **Write:** You define resources, which may be across multiple cloud providers and services. For example, you might create a configuration to deploy an application on virtual machines in a Virtual Private Cloud (VPC) network with security groups and a load balancer.
 - **Plan:** OpenTofu creates an execution plan describing the infrastructure it will create, update, or destroy based on the existing infrastructure and your configuration.
 - **Apply:** On approval, OpenTofu performs the proposed operations in the correct order, respecting any resource dependencies. For example, if you update the properties of a VPC and change the number of virtual machines in that VPC, OpenTofu will recreate the VPC before scaling the virtual machines.
-
-![The OpenTofu workflow has three steps: Write, Plan, and Apply](/img/docs/intro-opentf-workflow.png)
 
 ## Why OpenTofu?
 
