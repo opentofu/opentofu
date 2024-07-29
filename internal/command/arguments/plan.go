@@ -34,6 +34,9 @@ type Plan struct {
 
 	// ViewType specifies which output format to use
 	ViewType ViewType
+
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive bool
 }
 
 // ParsePlan processes CLI arguments, returning a Plan value and errors.
@@ -52,6 +55,7 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 	cmdFlags.BoolVar(&plan.InputEnabled, "input", true, "input")
 	cmdFlags.StringVar(&plan.OutPath, "out", "", "out")
 	cmdFlags.StringVar(&plan.GenerateConfigPath, "generate-config-out", "", "generate-config-out")
+	cmdFlags.BoolVar(&plan.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 
 	var json bool
 	cmdFlags.BoolVar(&json, "json", false, "json")

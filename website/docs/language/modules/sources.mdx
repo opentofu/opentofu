@@ -95,7 +95,7 @@ community.
 
 You can also use a
 [private registry](../../internals/module-registry-protocol.mdx), either
-via TACOS (TF Automation and Collaboration Software), or by running a custom
+via [TACOS](../../intro/tacos.mdx) (TF Automation and Collaboration Software), or by running a custom
 service that implements
 [the module registry protocol](../../internals/module-registry-protocol.mdx).
 
@@ -135,7 +135,7 @@ You can learn more about the registry at the
 To access modules from a private registry, you may need to configure an access
 token [in the CLI config](../../cli/config/config-file.mdx#credentials). Use the
 same hostname as used in the module source string. For a private registry
-within TACOS (TF Automation and Collaboration Software), use the same authentication token as you would
+within [TACOS](../../intro/tacos.mdx) (TF Automation and Collaboration Software), use the same authentication token as you would
 use with the API or command-line clients.
 
 ## GitHub
@@ -464,7 +464,7 @@ the module from the subdirectory. As a result, it is safe for a module in
 a sub-directory of a package to use [a local path](#local-paths) to another
 module as long as it is in the _same_ package.
 
-## Support for Variable and Local Interpolation
+## Support for Variable and Local Evaluation
 
 As projects grow in complexity and requirements, it is prudent to consider using locals and variables in the module source and version fields.
 
@@ -486,5 +486,5 @@ module "compute" {
 It is quite easy to then update the version for a patch release, or to switch to a fork of the repository.
 
 :::note
-The source and version fields may not contain any references to data in the state or provider defined functions. All value must be able to be resolved during `tofu init` before the state is available.
+The source and version fields may not contain any references to data in the state or provider defined functions. All values must be able to be resolved during `tofu init` before the state is available.
 :::

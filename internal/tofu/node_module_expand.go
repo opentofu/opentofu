@@ -258,7 +258,9 @@ func (n *nodeValidateModule) Execute(ctx EvalContext, op walkOperation) (diags t
 			diags = diags.Append(countDiags)
 
 		case n.ModuleCall.ForEach != nil:
-			_, forEachDiags := evaluateForEachExpressionValue(n.ModuleCall.ForEach, ctx, true, false)
+			const unknownsAllowed = true
+			const tupleNotAllowed = false
+			_, forEachDiags := evaluateForEachExpressionValue(n.ModuleCall.ForEach, ctx, unknownsAllowed, tupleNotAllowed)
 			diags = diags.Append(forEachDiags)
 		}
 

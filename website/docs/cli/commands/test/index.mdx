@@ -44,8 +44,8 @@ the required conditions (assertions) are met. Once the test is complete, OpenTof
 
 Usage: `tofu test [options]`.
 
-This command will execute all `*.tftest.hcl` files in the current directory or in a directory called `tests`. You can
-customize this behavior using the [options](#options) below.
+This command will execute all `*.tftest.hcl`, `*.tftest.json`, `*.tofutest.hcl`, and `*.tofutest.json` files in the
+current directory or in a directory called `tests`. You can customize this behavior using the [options](#options) below.
 
 :::info Example
 
@@ -67,6 +67,22 @@ below.
 
 :::
 
+## Extension Precedence
+When both `.tftest.hcl` and `.tofutest.hcl` files with the same base name are present in a
+directory, OpenTofu will prioritize the `.tofutest.hcl` file and ignore the `.tftest.hcl` file.
+For example:
+
+- If both `main.tftest.hcl` and `main.tofutest.hcl` exist in the same directory, OpenTofu will
+only load `main.tofutest.hcl` and ignore `main.tftest.hcl`.
+
+This ensures that `.tofu` files always take precedence over `.tf` files when
+both are available. This scenario can be useful for module authors who want
+their modules to support both OpenTofu and Terraform and want to create different tests for each.
+
+The same rule applies to JSON-based test files:
+- if both `main.tftest.json` and `main.tofutest.json` exist in the same directory, OpenTofu will
+only load `main.tofutest.json` and ignore `main.tftest.json`.
+
 ## Options
 
 * `-test-directory=path` Set the test directory (default: "tests"). OpenTofu will search for test files in the specified
@@ -81,6 +97,14 @@ below.
 * `-json` Change the output format to JSON.
 * `-no-color` Disable colorized output in the command output.
 * `-verbose` Print the plan or state for each test run block as it executes.
+
+:::note
+Use of variables in [module sources](../../../language/modules/sources.mdx#support-for-variable-and-local-evaluation),
+[backend configuration](../../../language/settings/backends/configuration.mdx#variables-and-locals),
+or [encryption block](../../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu test`.
+:::
 
 ## Directory structure
 
@@ -124,7 +148,7 @@ times to run more than one test file.
 
 :::
 
-## The `*.tftest.hcl` file structure
+## The `*.tftest.hcl` / `*.tofutest.hcl` file structure
 
 The testing language of OpenTofu is similar to the main OpenTofu language and uses the same block structure.
 

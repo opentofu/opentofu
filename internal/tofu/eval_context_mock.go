@@ -275,10 +275,6 @@ func (c *MockEvalContext) EvaluateReplaceTriggeredBy(hcl.Expression, instances.R
 	return nil, false, nil
 }
 
-func (c *MockEvalContext) EvaluateImportAddress(expression hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
-	return addrs.AbsResourceInstance{}, nil
-}
-
 // installSimpleEval is a helper to install a simple mock implementation of
 // both EvaluateBlock and EvaluateExpr into the receiver.
 //

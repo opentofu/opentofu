@@ -17,19 +17,45 @@ With no additional arguments, `output` will display all the outputs for
 the root module. If an output `NAME` is specified, only the value of that
 output is printed.
 
+:::note
+Use of variables in [backend configuration](../../language/settings/backends/configuration.mdx#variables-and-locals)
+or [encryption block](../../language/state/encryption.mdx#configuration)
+requires [assigning values to root module variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables)
+when running `tofu output`.
+:::
+
 The command-line flags are all optional. The following flags are available:
 
 * `-json` - If specified, the outputs are formatted as a JSON object, with
   a key per output. If `NAME` is specified, only the output specified will be
   returned. This can be piped into tools such as `jq` for further processing.
+
 * `-raw` - If specified, OpenTofu will convert the specified output value to a
   string and print that string directly to the output, without any special
   formatting. This can be convenient when working with shell scripts, but
   it only supports string, number, and boolean values. Use `-json` instead
   for processing complex data types.
+
 * `-no-color` - If specified, output won't contain any color.
+
 * `-state=path` - Path to the state file. Defaults to "terraform.tfstate".
   Ignored when [remote state](../../language/state/remote.mdx) is used.
+
+* `-var 'NAME=VALUE'` - Sets a value for a single
+  [input variable](../../language/values/variables.mdx) declared in the
+  root module of the configuration. Use this option multiple times to set
+  more than one variable. Refer to
+  [Input Variables on the Command Line](plan.mdx#input-variables-on-the-command-line) for more information.
+
+* `-var-file=FILENAME` - Sets values for potentially many
+  [input variables](../../language/values/variables.mdx) declared in the
+  root module of the configuration, using definitions from a
+  ["tfvars" file](../../language/values/variables.mdx#variable-definitions-tfvars-files).
+  Use this option multiple times to include values from more than one file.
+
+There are several other ways to set values for input variables in the root
+module, aside from the `-var` and `-var-file` options. Refer to
+[Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
 
 :::note
 When using the `-json` or `-raw` command-line flag, any sensitive

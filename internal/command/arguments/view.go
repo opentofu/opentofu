@@ -20,6 +20,9 @@ type View struct {
 	// only the important details.
 	Concise bool
 
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive bool
+
 	// Pedantic mode is used to treat warnings as errors
 	PedanticMode bool
 }

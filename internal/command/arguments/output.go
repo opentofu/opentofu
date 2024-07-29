@@ -23,6 +23,9 @@ type Output struct {
 	ViewType ViewType
 
 	Vars *Vars
+
+	// ShowSensitive is used to display the value of variables marked as sensitive.
+	ShowSensitive bool
 }
 
 // ParseOutput processes CLI arguments, returning an Output value and errors.
@@ -40,6 +43,7 @@ func ParseOutput(args []string) (*Output, tfdiags.Diagnostics) {
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&rawOutput, "raw", false, "raw")
 	cmdFlags.StringVar(&statePath, "state", "", "path")
+	cmdFlags.BoolVar(&output.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(

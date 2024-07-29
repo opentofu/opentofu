@@ -314,9 +314,10 @@ The available options are:
 
   OpenTofu will allow any filename for the plan file, but a typical
   convention is to name it `tfplan`. **Do not** name the file with a suffix
-  that OpenTofu recognizes as another file format; if you use a `.tf` suffix
-  then OpenTofu will try to interpret the file as a configuration source
-  file, which will then cause syntax errors for subsequent commands.
+  that OpenTofu recognizes as another file format; if you use a `.tf` or
+  `.tofu` suffix then OpenTofu will try to interpret the file as a
+  configuration source file, which will then cause syntax errors for subsequent
+  commands.
 
   The generated file is not in any standard format intended for consumption
   by other software, but the file _does_ contain your full configuration,

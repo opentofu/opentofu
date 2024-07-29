@@ -10,8 +10,8 @@ description: >-
 A _module_ is a container for multiple resources that are used together.
 
 Every OpenTofu configuration has at least one module, known as its
-_root module_, which consists of the resources defined in the `.tf` files in
-the main working directory.
+_root module_, which consists of the resources defined in the `.tf` and `.tofu`
+files in the main working directory.
 
 A module can call other modules, which lets you include the child module's
 resources into the configuration in a concise way. Modules
@@ -98,7 +98,7 @@ version that meets the constraint.
 
 Version constraints are supported only for modules installed from a module
 registry, such as the [Public OpenTofu Registry](https://registry.opentofu.org/)
-or any TACOS (TF Automation and Collaboration Software) private modules registry.
+or any [TACOS](../../intro/tacos.mdx) (TF Automation and Collaboration Software) private modules registry.
 Other module sources can provide their own versioning mechanisms within the
 source string itself, or might not support versions at all. In particular,
 modules sourced from local file paths do not support `version`; since
