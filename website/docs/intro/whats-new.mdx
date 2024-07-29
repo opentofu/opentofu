@@ -1,209 +1,245 @@
 ---
 sidebar_position: 2
-sidebar_label: What's new in version 1.7?
+sidebar_label: What's new in version 1.8?
 description: |-
-  Learn all about the new features in OpenTofu 1.7.
+  Learn all about the new features in OpenTofu 1.8.
 ---
 
-# What's new in OpenTofu 1.7?
+# What's new in OpenTofu 1.8?
 
-This page will run you through the most important changes in OpenTofu 1.7:
+This page will run you through the most important changes in OpenTofu 1.8:
 
-- [State encryption](#state-encryption)
-- [Provider-defined functions](#provider-defined-functions)
-- [Removed block](#removed-block)
-- [Loopable import blocks](#loopable-import-blocks)
-- [Built-in function changes](#built-in-function-changes)
-- [CLI changes](#cli-changes)
-- [Testing feature changes](#testing-feature-changes)
+- [Early variable/locals evaluation](#early-variablelocals-evaluation)
+- [Provider mocking in `tofu test`](#provider-mocking-in-tofu-test)
+- [Resource overrides in `tofu test`](#resource-overrides-in-tofu-test)
+- [Override files for OpenTofu: keeping compatibility](#override-files-for-opentofu-keeping-compatibility)
+- [Deprecation: `use_legacy_workflow` has been removed from the S3 backend](#deprecation-use_legacy_workflow-has-been-removed-from-the-s3-backend)
+- [Smaller improvements](#smaller-improvements)
+- [Bugfixes](#bugfixes)
 
-## State encryption
+## Early variable/locals evaluation
 
-State encryption is one of the flagship features of this release. We have prepared a [full documentation](../language/state/encryption.mdx) for this feature.
+This feature lets you use variables and locals for **backends**, **module sources** and **encryption configuration** as long as they are not dependent on resources, data sources or module outputs. This works even if a local is referencing a variable, for example. This is only the first in a series of improvements that will make the .tf code more flexible with more improvements coming in future releases.
 
-Before you test this feature, please **make a backup** of your state file. You can then add the following block to enable state encryption:
+The `tofu init` command will now consume your `.tfvars` file and let you specify variables using the `-var` and `-var-file` options. Please note that this alpha release will *not* prompt you for missing variables, which is a feature we will add later. Note, that `tofu init` will fail if it is missing variables needed for static evaluation.
+
+For example, if you wanted to use the same configuration for your S3 backend and your AWS provider, you can now do this:
 
 ```hcl
+variable "aws_region" {
+  default = "us-east-1"
+}
+
+terraform {
+  backend "s3" {
+    region = var.aws_region
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+```
+
+You can also use this to manage module versions with both registry references and git URLs.
+
+```hcl
+locals {
+  aws_module_version = "5.6.1"
+}
+
+module "webserver" {
+  source  = "terraform-aws-modules/ec2-instance/aws"
+  version = local.aws_module_version
+
+  // Other ec2_instance options
+}
+
+module "db" {
+  source  = "https://github.com/terraform-aws-modules/terraform-aws-ec2-instance?ref=v${local.aws_module_version}"
+
+  // Other ec2_instance options
+}
+```
+
+Finally, here's how you can set up encryption with a passphrase using a variable:
+
+```hcl
+variable "passphrase" {
+  type = string
+}
+
 terraform {
   encryption {
     key_provider "pbkdf2" "my_passphrase" {
-      ## Enter a passphrase here:
-      passphrase = ""
+      passphrase = var.passphrase
     }
 
     method "aes_gcm" "my_method" {
       keys = key_provider.pbkdf2.my_passphrase
-    }
-
-    ## Remove this after the migration:
-    method "unencrypted" "migration" {
     }
 
     state {
       method = method.aes_gcm.my_method
-
-      ## Remove the fallback block after migration:
-      fallback{
-        method = method.unencrypted.migration
-      }
-      ## Enable this after migration:
-      #enforced = true
     }
   }
 }
 ```
 
-You can migrate back using the following syntax:
+## Provider mocking in `tofu test`
+
+Building on the existing ability to override specific data sources, resources, and module calls, `tofu test` now supports mocking entire provider definitions. This new feature allows you to automatically generate mock values for resources and data sources on a per-provider basis. As an example, consider the following code that spins up an m6i.2xlarge instance on AWS:
 
 ```hcl
-terraform {
-  encryption {
-    key_provider "pbkdf2" "my_passphrase" {
-      ## Enter a passphrase here:
-      passphrase = ""
-    }
+provider "aws" {
+    region = "us-east-1"
+}
 
-    method "aes_gcm" "my_method" {
-      keys = key_provider.pbkdf2.my_passphrase
+data "aws_ami" "ubuntu" {
+    most_recent = true
+    filter {
+      name   = "name"
+      values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-24.04-amd64-server-*"]
     }
+    owners = ["099720109477"]
+}
 
-    method "unencrypted" "migration" {
-    }
-
-    state {
-      method  = method.unencrypted.migration
-      enforced = false
-      fallback{
-        method = method.aes_gcm.my_method
-      }
-    }
-  }
+resource "aws_instance" "web" {
+    ami           = data.aws_ami.ubuntu.id
+    instance_type = "m6i.2xlarge"
 }
 ```
 
-If you have access to an AWS, GCP account, or an OpenBao/MPL-licensed HashiCorp Vault installation, you can also [test these key providers](../language/state/encryption.mdx#key-providers).
-
-## Provider-defined functions
-
-The new Terraform Plugin SDK added support for [provider-defined functions](../language/functions/index.mdx#provider-defined-functions) that you can use directly in OpenTofu. This is a significant improvement over using data sources as provider-defined functions don't increase the size of your state file and require less code to write.
-
-If you want to test provider-defined functions, you can use the [corefunc](https://library.tf/providers/northwood-labs/corefunc/latest) provider by [Ryan Parman](https://github.com/skyzyx):
-
+Instead of querying the AMI ID and spinning up the instance, we can write test code as follows:
 ```hcl
-terraform {
-  required_providers {
-    corefunc = {
-      source = "northwood-labs/corefunc"
-      version = "1.4.0"
+// This block will prevent OpenTofu from configuring aws provider.
+// All provider's resources and data sources will be mocked.
+mock_provider "aws" {
+  mock_data "aws_ami" {
+    defaults = {
+      id = "ami-12345"
     }
   }
 }
 
-provider "corefunc" {
-}
-
-output "test" {
-  value = provider::corefunc::str_snake("Hello world!")
-  # Prints: hello_world
-}
-```
-
-What's more, we added an OpenTofu-only feature to let providers dynamically define custom functions based on your configuration. This enhancement allows you to fully integrate other programming languages as [shown in our live stream](https://www.youtube.com/watch?v=6OXBv0MYalY). You can try out this functionality with our experimental [Lua](https://github.com/opentofu/terraform-provider-lua) and [Go](https://github.com/opentofu/terraform-provider-go) providers.
-
-## Removed block
-
-The removed block lets you remove a resource from the state file but keep it on the infrastructure. We have prepared a [full documentation](../language/resources/syntax.mdx#removing-resources) for this feature. You can test it by creating a resource first:
-
-```hcl
-resource "local_file" "test" {
-  content = "Hello world!"
-  filename = "test.txt"
+run "test" {
+  assert {
+    condition     = aws_instance.web.ami == "ami-12345"
+    error_message = "Incorrect AMI ID passed to aws_instance.web: ${aws_instance.web.ami}"
+  }
 }
 ```
 
-After applying, you can replace the resource with a removed block:
+While this will not fully test the entire provisioning, it will highlight errors that may be caused by incorrectly connecting resources together without the need for an actual AWS account.
+
+## Resource overrides in `tofu test`
+
+You can now override resources, data sources and entire modules from your tests, allowing you to create similar behavior to mocks in traditional software testing. As an example, consider the following code that spins up an `m6i.2xlarge` instance on AWS:
 
 ```hcl
-removed {
-  from = local_file.test
+provider "aws" {
+    region = "us-east-1"
+}
+
+data "aws_ami" "ubuntu" {
+    most_recent = true
+    filter {
+      name   = "name"
+      values = ["ubuntu/images/hvm-ssd/ubuntu-jammy-24.04-amd64-server-*"]
+    }
+    owners = ["099720109477"]
+}
+
+resource "aws_instance" "web" {
+    ami           = data.aws_ami.ubuntu.id
+    instance_type = "m6i.2xlarge"
 }
 ```
 
-After the next apply, you will see that the `local_file.test` resource no longer exists in your state file, but the `test.txt` file should still exist on your disk. You can now remove the removed block safely.
-
-## Loopable import blocks
-
-We made several improvements to the declarative import blocks, most prominently you can now use the `for_each` instruction on the block. We have prepared a [full documentation](../language/import/index.mdx#importing-multiple-resources) for this feature.
-
-In previous OpenTofu versions, you could already use the `import` block to declaratively import resources, for example:
+Instead of querying the AMI ID and spinning up the instance, we can write test code as follows:
 
 ```hcl
-resource "random_id" "test_id" {
-  byte_length = 8
+provider "aws" {
+  access_key = "foo"
+  secret_key = "bar"
+
+  skip_credentials_validation = true
+  skip_region_validation      = true
+  skip_metadata_api_check     = true
+  skip_requesting_account_id  = true
 }
 
-import {
-  to = random_id.test_id
-  id = "Y2FpOGV1Mkk"
-}
-
-output "id" {
-  value = random_id.test_id.b64_url
-}
-```
-
-In this new version you can now also declaratively import resources in a loop:
-
-```hcl
-variable "server_ids" {
-  type = list(string)
-}
-
-resource "random_id" "test_id" {
-  byte_length = 8
-  count = 2
-}
-
-import {
-  to = random_id.test_id[tonumber(each.key)]
-  id = each.value
-  for_each = {
-    for idx, item in var.server_ids: idx => item
+# This block disables refreshing the aws_ami.ubuntu data source
+# and lets you manually specify the values:
+override_data {
+  target = data.aws_ami.ubuntu
+  values = {
+    id = "ami-12345"
   }
 }
 
-output "id" {
-  value = random_id.test_id.*.b64_url
+run "test" {
+  # This block disables provisioning the aws_instance.web resource:
+  override_resource {
+    target = aws_instance.web
+    values = {
+      # You can add values here.
+    }
+  }
+
+  assert {
+    condition     = aws_instance.web.ami == "ami-12345"
+    error_message = "Incorrect AMI ID passed to aws_instance.web: ${aws_instance.web.ami}"
+  }
 }
 ```
 
-The example above will let you specify some random IDs from a variable, and let others be automatically generated.
+While this will not fully test the entire provisioning, it will highlight errors that may be caused by incorrectly connecting resources together without the need for an actual AWS account. Similarly, you can use `override_module` to override an entire module.
 
-## Built-in function changes
+## Override files for OpenTofu: keeping compatibility
 
-This release also contains several new functions and changes to existing functions:
+Since we are now adding features to OpenTofu that are not present in Terraform, we want to give module authors the ability to write code for both OpenTofu and Terraform without needing to maintain two copies of their modules. You can now create files named `.tofu` that are exclusive to OpenTofu. If you create a file named `foo.tofu`, OpenTofu will ignore the similarly-named `foo.tf` file. You can use this functionality to put your Terraform-specific code in the `.tf` file and then override it for OpenTofu in the `.tofu` file.
 
-- New function: [templatestring](../language/functions/templatestring.mdx)
-- New function: [base64gunzip](../language/functions/base64gunzip.mdx)
-- New function: [cidrcontains](../language/functions/cidrcontains.mdx)
-- New function: [urldecode](../language/functions/urldecode.mdx)
-- New function: [issensitive](../language/functions/issensitive.mdx)
-- [nonsensitive](../language/functions/nonsensitive.mdx) no longer returns an error when the applied values are not sensitive.
-- [templatefile](../language/functions/templatefile.mdx) now supports recursion up to a depth of 1024.
+The following replacement files are available:
 
-## CLI changes
+- `foo.tf` &rarr; `foo.tofu`
+- `foo.tf.json` &rarr; `foo.tofu.json`
+- `foo.tftest.hcl` &rarr; `foo.tofutest.hcl`
+- `foo.tftest.json` &rarr; `foo.tofutest.json`
+- `foo_override.tf` &rarr; `foo_override.tofu`
+- `foo_override.tf.json` &rarr; `foo_override.tofu.json`
 
-There are also several changes to the CLI:
+You can still use the `.tf` extension for all your code, this functionality is intended for module authors who want to provide compatible code for both OpenTofu and Terraform while using new OpenTofu features.
 
-- `tofu init` now supports the `-json` flag for JSON output.
-- `tofu plan` now has a `-concise` flag to shorten the plan output.
-- `tofu console` now works on Solaris and AIX.
-- The CLI now supports the XDG directory specification.
-- Aliases for:
-    - `state list` &rarr; `state ls`
-    - `state mv` &rarr; `state move`
-    - `state rm` &rarr; `state remove`
+## Bugfixes, improvements, deprecations
 
-## Testing feature changes
+### Deprecation: `use_legacy_workflow` has been removed from the S3 backend
 
-- Tofu now reads the `.tfvars` file from the tests folder.
+The `use_legacy_workflow` option has now been removed from the S3 backend configuration.
+
+### Smaller improvements
+
+- The machine-readable UI documentation now contains the `tofu test -json` types.
+- `tofu plan` now generates `jsonencode()` when using `generate-config-out`.
+- The state persistence interval is now configurable with the `TF_STATE_PERSIST_INTERVAL` environment variable.
+- Improved performance when writing state files and reducing state file size using compact JSON encoding.
+- You can now reference variables inside the `variables` block of a test file.
+- Provider functions are now included in the `tofu providers schema` command.
+
+### Bugfixes
+
+* Fixed validation for `enforced` flag in encryption configuration. ([#1711](https://github.com/opentofu/opentofu/pull/1711))
+* Fixed crash in gcs backend when using certain commands. ([#1618](https://github.com/opentofu/opentofu/pull/1618))
+* Fixed inmem backend crash due to missing struct field. ([#1619](https://github.com/opentofu/opentofu/pull/1619))
+* Added a check in the `tofu test` to validate that the names of test run blocks do not contain spaces. ([#1489](https://github.com/opentofu/opentofu/pull/1489))
+* `tofu test` now supports accessing module outputs when the module has no resources. ([#1409](https://github.com/opentofu/opentofu/pull/1409))
+* Fixed support for provider functions in tests ([#1603](https://github.com/opentofu/opentofu/pull/1603))
+* Only hide sensitive attributes in plan detail when plan on a set of resources ([#1313](https://github.com/opentofu/opentofu/pull/1313))
+* Added a better error message on `for_each` block with sensitive value of unsuitable type. ([#1485](https://github.com/opentofu/opentofu/pull/1485))
+* Fix race condition on locking in gcs backend ([#1342](https://github.com/opentofu/opentofu/pull/1342))
+* Fix bug where provider functions were unusable in variables and outputs ([#1689](https://github.com/opentofu/opentofu/pull/1689))
+* Fix bug where lower-case `http_proxy`/`https_proxy` env variables were no longer supported in the S3 backend ([#1594](https://github.com/opentofu/opentofu/issues/1594))
+* Fixed issue with migration between versions can cause an update in-place for resources when no changes are needed. ([#1640](https://github.com/opentofu/opentofu/pull/1640))
+* Add source context for the 'insufficient feature blocks' error ([#1777](https://github.com/opentofu/opentofu/pull/1777))
+* Remove encryption diags from autocomplete ([#1793](https://github.com/opentofu/opentofu/pull/1793))
+* Ensure that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
