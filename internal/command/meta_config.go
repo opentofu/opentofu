@@ -380,7 +380,7 @@ func (m *Meta) inputForSchema(given cty.Value, schema *configschema.Block) (cty.
 //
 // If a config loader has not yet been instantiated then no files could have
 // been loaded already, so this method returns a nil map in that case.
-func (m *Meta) configSources() map[string][]byte {
+func (m *Meta) configSources() map[string]*hcl.File {
 	if m.configLoader == nil {
 		return nil
 	}
