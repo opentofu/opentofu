@@ -115,3 +115,7 @@ Mainly:
 ### Future Considerations
 
 ## Potential Alternatives
+
+CLI tools or scripts could simulate this. One could get all resources from the state, and then run a plan or apply with `-target` flags for all non-excluded resources (with some adjustments, due to having to deal with dependencies).
+
+However, such alternatives would be slow or inaccurate, and not really suitable for what we're trying to accomplish here.  
