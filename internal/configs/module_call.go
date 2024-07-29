@@ -287,9 +287,12 @@ func (mc *ModuleCall) EntersNewPackage() bool {
 
 // PassedProviderConfig represents a provider config explicitly passed down to
 // a child module, possibly giving it a new local address in the process.
+// Ex: child = parent.alias
+// Ex: child.alias = parent.alias
+// Ex: child = parent[each.value]
 type PassedProviderConfig struct {
 	InChild  *ProviderConfigRef
-	InParent *ProviderConfigRef
+	InParent *ProviderConfigRefMapping
 }
 
 func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, hcl.Diagnostics) {

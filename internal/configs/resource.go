@@ -29,7 +29,7 @@ type Resource struct {
 	Count   hcl.Expression
 	ForEach hcl.Expression
 
-	ProviderConfigRef *ProviderConfigRef
+	ProviderConfigRef *ProviderConfigRefMapping
 	Provider          addrs.Provider
 
 	Preconditions  []*CheckRule
@@ -651,6 +651,20 @@ type ProviderConfigRef struct {
 	Name       string
 	NameRange  hcl.Range
 	Alias      string
+	AliasRange *hcl.Range // nil if alias not set
+
+	// TODO: this may not be set in some cases, so it is not yet suitable for
+	// use outside of this package. We currently only use it for internal
+	// validation, but once we verify that this can be set in all cases, we can
+	// export this so providers don't need to be re-resolved.
+	// This same field is also added to the Provider struct.
+	providerType addrs.Provider
+}
+
+type ProviderConfigRefMapping struct {
+	Name       string
+	NameRange  hcl.Range
+	Alias      map[addrs.InstanceKey]string
 	AliasRange *hcl.Range // nil if alias not set
 
 	// TODO: this may not be set in some cases, so it is not yet suitable for
