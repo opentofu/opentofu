@@ -19,7 +19,7 @@ jobs:
   release:
     name: Release
     runs-on:
-      group: fix-the-build-group
+      group: larger-runners
     environment: gpg
     permissions:
       contents: write
