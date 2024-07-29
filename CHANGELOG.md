@@ -1,4 +1,4 @@
-## 1.8.0 (Unreleased)
+## 1.8.0
 
 UPGRADE NOTES:
 * BREAKING CHANGE - `use_legacy_workflow` field has been removing from the S3 backend configuration. ([#1730](https://github.com/opentofu/opentofu/pull/1730))
