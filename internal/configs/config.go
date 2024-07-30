@@ -484,8 +484,8 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					})
 					continue
 				}
-
-				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || i.ProviderConfigRef.Alias != target.ProviderConfigRef.Alias {
+				// TODO Ronny: Fix to run this validation with multiple providers
+				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || i.ProviderConfigRef.Alias != target.ProviderConfigRef.Aliases[addrs.NoKey] {
 					// This means we have a provider specified in both the
 					// import block and the resource block, and they disagree.
 					// This is bad as OpenTofu now has different instructions
@@ -622,8 +622,8 @@ func (c *Config) resolveProviderTypes() map[string]addrs.Provider {
 	// connect module call providers to the correct type
 	for _, mod := range c.Module.ModuleCalls {
 		for _, p := range mod.Providers {
-			if addr, known := providers[p.InParent.Name]; known {
-				p.InParent.providerType = addr
+			if addr, known := providers[p.InParentMapping.Name]; known {
+				p.InParentMapping.providerType = addr
 			}
 		}
 	}
@@ -709,19 +709,19 @@ func (c *Config) resolveProviderTypesForTests(providers map[string]addrs.Provide
 					// If we have previously assigned a type to the provider
 					// for the parent reference, then we use that for the
 					// parent type.
-					if addr, exists := matchedProviders[p.InParent.Name]; exists {
-						p.InParent.providerType = addr
+					if addr, exists := matchedProviders[p.InParentMapping.Name]; exists {
+						p.InParentMapping.providerType = addr
 						continue
 					}
 
 					// Otherwise, we'll define the parent type based on the
 					// child and reference that backwards.
-					p.InParent.providerType = p.InChild.providerType
+					p.InParentMapping.providerType = p.InChild.providerType
 
-					if aliases, exists := testProviders[p.InParent.Name]; exists {
-						matchedProviders[p.InParent.Name] = p.InParent.providerType
+					if aliases, exists := testProviders[p.InParentMapping.Name]; exists {
+						matchedProviders[p.InParentMapping.Name] = p.InParentMapping.providerType
 						for _, alias := range aliases {
-							alias.providerType = p.InParent.providerType
+							alias.providerType = p.InParentMapping.providerType
 						}
 					}
 				}
@@ -949,35 +949,39 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// Then we'll only copy over and overwrite the specific providers asked
 		// for by this run block.
 
-		for _, ref := range run.Providers {
-			testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
-			if !ok {
-				// Then this reference was invalid as we didn't have the
-				// specified provider in the parent. This should have been
-				// caught earlier in validation anyway so is unlikely to happen.
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
-					Detail:   "This provider block references a provider definition that does not exist.",
-					Subject:  ref.InParent.NameRange.Ptr(),
-				})
-				continue
-			}
-
-			next[ref.InChild.String()] = &Provider{
-				ProviderCommon: ProviderCommon{
-					Name:          ref.InChild.Name,
-					NameRange:     ref.InChild.NameRange,
-					Version:       testProvider.Version,
-					Config:        testProvider.Config,
-					DeclRange:     testProvider.DeclRange,
-					IsMocked:      testProvider.IsMocked,
-					MockResources: testProvider.MockResources,
-				},
-				Alias: ref.InChild.Alias,
-			}
-
-		}
+		// TODO Ronny: reimplement logic to support multiple providers in tests
+		panic("TODO")
+		//
+		//for _, ref := range run.Providers {
+		//
+		//	testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
+		//	if !ok {
+		//		// Then this reference was invalid as we didn't have the
+		//		// specified provider in the parent. This should have been
+		//		// caught earlier in validation anyway so is unlikely to happen.
+		//		diags = append(diags, &hcl.Diagnostic{
+		//			Severity: hcl.DiagError,
+		//			Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
+		//			Detail:   "This provider block references a provider definition that does not exist.",
+		//			Subject:  ref.InParent.NameRange.Ptr(),
+		//		})
+		//		continue
+		//	}
+		//
+		//	next[ref.InChild.String()] = &Provider{
+		//		ProviderCommon: ProviderCommon{
+		//			Name:          ref.InChild.Name,
+		//			NameRange:     ref.InChild.NameRange,
+		//			Version:       testProvider.Version,
+		//			Config:        testProvider.Config,
+		//			DeclRange:     testProvider.DeclRange,
+		//			IsMocked:      testProvider.IsMocked,
+		//			MockResources: testProvider.MockResources,
+		//		},
+		//		Alias: ref.InChild.Alias,
+		//	}
+		//
+		//}
 	} else {
 		// Otherwise, let's copy over and overwrite all providers specified by
 		// the test file itself.
