@@ -57,7 +57,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			input: `
 			var.counts.lalala
 			var.counts.lololo`,
-			expected: "1\n2\n",
+			expected: "\n1\n2\n",
 		},
 		"backets_multi_line": {
 			input: `
@@ -66,7 +66,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			"_",
 			"lalala_lolol_lelelele"
 			)`,
-			expected: "1\ntolist([\n  \"lalala\",\n  \"lolol\",\n  \"lelelele\",\n])\n",
+			expected: "\n1\ntolist([\n  \"lalala\",\n  \"lolol\",\n  \"lelelele\",\n])\n",
 		},
 		"baces_multi_line": {
 			input: `
@@ -74,7 +74,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			for key, value in var.counts : key => value 
 			if value == 1
 			}`,
-			expected: "{\n  \"lalala\" = 1\n}\n",
+			expected: "\n{\n  \"lalala\" = 1\n}\n",
 		},
 	}
 
@@ -94,7 +94,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 
 			got := output.String()
 			if got != tc.expected {
-				t.Fatalf("unexpected output\ngot: %q\nexpected: %q", got, tc.expected)
+				t.Fatalf("unexpected output. For input: %s\ngot: %q\nexpected: %q", tc.input, got, tc.expected)
 			}
 		})
 	}

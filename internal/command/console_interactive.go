@@ -37,8 +37,6 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 	}
 	defer l.Close()
 
-	cmds := make([]string, 0, commandBufferIntitialSize)
-
 	var consoleState consoleBracketState
 
 	for {
@@ -53,34 +51,23 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 		} else if errors.Is(err, io.EOF) {
 			break
 		}
+		line = strings.TrimSpace(line)
 
 		// we update the state with the new line, so if we have open
 		// brackets we know not to execute the command just yet
 		consoleState.UpdateState(line)
 
 		switch {
-		case len(line) == 0:
-			// here we have an empty line, so can ignore
-			continue
 		case strings.HasSuffix(line, "\\"):
-			// here the new line is escaped, so we fallthough to the open brackets case as
-			// we handle them the same way
-			line = strings.TrimSuffix(line, "\\")
-			fallthrough
+			// here the new line is escaped, so we just update the prompt
+			l.SetPrompt(fmt.Sprintf("%s ", strings.Repeat(".", consoleState.BracketsOpen())))
 		case consoleState.BracketsOpen() > 0:
-			// here there are open brackets somewhere, so we remember the command
-			// but don't execute it
+			// here there are open brackets somewhere, so we don't execute it
 			// as we are in a bracket we update the prompt. we use one . per layer pf brackets
 			l.SetPrompt(fmt.Sprintf("%s ", strings.Repeat(".", consoleState.BracketsOpen())))
-			cmds = append(cmds, line)
-		case consoleState.BracketsOpen() <= 0:
-			// here we either have no more open brackets or an invalid amount of brackets
-			// either way we fall through to execute the command and let hcl parse it
-			fallthrough
 		default:
-			cmds = append(cmds, line)
-			bigLine := strings.Join(cmds, "\n")
-			out, exit, diags := session.Handle(bigLine)
+			fullCommand := consoleState.GetFullCommand()
+			out, exit, diags := session.Handle(fullCommand)
 			if diags.HasErrors() {
 				c.showDiagnostics(diags)
 			}
@@ -92,7 +79,6 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 			// we also reset the prompt
 			l.SetPrompt("> ")
 			consoleState.ClearState()
-			cmds = make([]string, 0, commandBufferIntitialSize)
 
 			ui.Output(out)
 		}

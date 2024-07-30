@@ -21,12 +21,6 @@ import (
 	"github.com/mitchellh/cli"
 )
 
-const (
-	// no real reason for this size, just seemed like a nice initial size.
-	// we append to the buffer, so it can grow beyond this is needs be
-	commandBufferIntitialSize = 128
-)
-
 // ConsoleCommand is a Command implementation that starts an interactive
 // console that can be used to try expressions with the current config.
 type ConsoleCommand struct {
@@ -187,8 +181,6 @@ func (c *ConsoleCommand) Run(args []string) int {
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 	scanner := bufio.NewScanner(os.Stdin)
 
-	cmds := make([]string, 0, commandBufferIntitialSize)
-
 	var consoleState consoleBracketState
 
 	for scanner.Scan() {
@@ -198,28 +190,11 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 		// brackets we know not to execute the command just yet
 		consoleState.UpdateState(line)
 
-		switch {
-		case len(line) == 0:
-			// here the line is empty, so we can ignore
-			continue
-		case strings.HasSuffix(line, "\\"):
-			// here the new line is escaped, so we fallthough to the open brackets case as
-			// we handle them the same way
-			line = strings.TrimSuffix(line, "\\")
-			fallthrough
-		case consoleState.BracketsOpen() > 0:
-			// here there are open brackets somewhere, so we remember the command
-			// but don't execute it
-			cmds = append(cmds, line)
-		case consoleState.BracketsOpen() <= 0:
-			// here we either have no more open brackets or an invalid amount of brackets
-			// either way we fall through to execut the command and let hcl parse it
-			fallthrough
-		default:
-			// here we send the command to session
-			cmds = append(cmds, line)
-			bigLine := strings.Join(cmds, "\n")
-			result, exit, diags := session.Handle(bigLine)
+		// we check if there is no escaped new line at the end, or any open brackets
+		// if we have neither, then we can execute
+		if !strings.HasSuffix(line, "\\") && consoleState.BracketsOpen() <= 0 && len(line) != 0 {
+			fullcommand := consoleState.GetFullCommand()
+			result, exit, diags := session.Handle(fullcommand)
 			if diags.HasErrors() {
 				// We're in piped mode, so we'll exit immediately on error.
 				c.showDiagnostics(diags)
@@ -233,9 +208,7 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 
 			// clear the state and buffer as we have executed a command
 			consoleState.ClearState()
-			cmds = make([]string, 0, commandBufferIntitialSize)
 		}
-
 	}
 
 	return 0

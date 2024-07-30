@@ -148,3 +148,101 @@ func Test_UpdateState(t *testing.T) {
 		})
 	}
 }
+
+func Test_ClearState(t *testing.T) {
+	type testCase struct {
+		inputs   []string
+		expected int
+	}
+
+	tests := map[string]testCase{
+		"plain braces": {
+			inputs:   []string{"{", "}"},
+			expected: 0,
+		},
+		"open brackets": {
+			inputs:   []string{"[", "[", "]"},
+			expected: 0,
+		},
+		"invalid parenthesis": {
+			inputs:   []string{"(", ")", ")"},
+			expected: 0,
+		},
+		"a fake brace": {
+			inputs:   []string{"{", "\"}\"", "}"},
+			expected: 0,
+		},
+		"a mixed bag": {
+			inputs:   []string{"{", "}", "[", "...", "()", "]"},
+			expected: 0,
+		},
+		"multiple open": {
+			inputs:   []string{"{", "[", "("},
+			expected: 0,
+		},
+	}
+
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			state := consoleBracketState{}
+			for _, input := range tc.inputs {
+				state.UpdateState(input)
+			}
+
+			state.ClearState()
+
+			actual := state.BracketsOpen()
+			if actual != tc.expected {
+				t.Fatalf("Actual: %d, expected %d", actual, tc.expected)
+			}
+		})
+	}
+}
+
+func Test_GetFullCommand(t *testing.T) {
+	type testCase struct {
+		inputs   []string
+		expected string
+	}
+
+	tests := map[string]testCase{
+		"plain braces": {
+			inputs:   []string{"{", "}"},
+			expected: "{\n}",
+		},
+		"open brackets": {
+			inputs:   []string{"[", "[", "]"},
+			expected: "[\n[\n]",
+		},
+		"invalid parenthesis": {
+			inputs:   []string{"(", ")", ")"},
+			expected: "(\n)\n)",
+		},
+		"a fake brace": {
+			inputs:   []string{"{", "\"}\"", "}"},
+			expected: "{\n\"}\"\n}",
+		},
+		"a mixed bag": {
+			inputs:   []string{"{", "}", "[", "...", "", "()", "]"},
+			expected: "{\n}\n[\n...\n()\n]",
+		},
+		"multiple open": {
+			inputs:   []string{"{", "[", "("},
+			expected: "{\n[\n(",
+		},
+	}
+
+	for testName, tc := range tests {
+		t.Run(testName, func(t *testing.T) {
+			state := consoleBracketState{}
+			for _, input := range tc.inputs {
+				state.UpdateState(input)
+			}
+
+			actual := state.GetFullCommand()
+			if actual != tc.expected {
+				t.Fatalf("Actual: %s, expected %s", actual, tc.expected)
+			}
+		})
+	}
+}

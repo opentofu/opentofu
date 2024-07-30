@@ -6,6 +6,8 @@
 package command
 
 import (
+	"strings"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
@@ -17,6 +19,7 @@ type consoleBracketState struct {
 	cBracket     int
 	oParentheses int
 	cParentheses int
+	buffer       []string
 }
 
 // BracketsOpen return an int to inform if brackets are open
@@ -48,9 +51,15 @@ func (c *consoleBracketState) BracketsOpen() int {
 
 // UpdateState updates the state of the console with the latest line data
 func (c *consoleBracketState) UpdateState(line string) {
+	if len(line) == 0 {
+		// we can skip empty lines
+		return
+	}
+	c.buffer = append(c.buffer, strings.TrimSuffix(line, "\\"))
+
 	tokens, _ := hclsyntax.LexConfig([]byte(line), "<console-input>", hcl.Pos{Line: 1, Column: 1})
 	for _, token := range tokens {
-		switch token.Type {
+		switch token.Type { //nolint:exhaustive // we only care about these specific types
 		case hclsyntax.TokenOBrace:
 			c.oBrace++
 		case hclsyntax.TokenCBrace:
@@ -63,9 +72,6 @@ func (c *consoleBracketState) UpdateState(line string) {
 			c.oParentheses++
 		case hclsyntax.TokenCParen:
 			c.cParentheses++
-		// we don't care about these types, but the linter doesn't like it if we don't mention them, so we just NOOP on them
-		case hclsyntax.TokenOQuote, hclsyntax.TokenCQuote, hclsyntax.TokenOHeredoc, hclsyntax.TokenCHeredoc, hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPlus, hclsyntax.TokenMinus, hclsyntax.TokenPercent, hclsyntax.TokenEqual, hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual, hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq, hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq, hclsyntax.TokenAnd, hclsyntax.TokenOr, hclsyntax.TokenBang, hclsyntax.TokenDot, hclsyntax.TokenComma, hclsyntax.TokenDoubleColon, hclsyntax.TokenEllipsis, hclsyntax.TokenFatArrow, hclsyntax.TokenQuestion, hclsyntax.TokenColon, hclsyntax.TokenTemplateInterp, hclsyntax.TokenTemplateControl, hclsyntax.TokenTemplateSeqEnd, hclsyntax.TokenQuotedLit, hclsyntax.TokenStringLit, hclsyntax.TokenNumberLit, hclsyntax.TokenIdent, hclsyntax.TokenComment, hclsyntax.TokenNewline, hclsyntax.TokenEOF, hclsyntax.TokenBitwiseAnd, hclsyntax.TokenBitwiseOr, hclsyntax.TokenBitwiseNot, hclsyntax.TokenBitwiseXor, hclsyntax.TokenStarStar, hclsyntax.TokenApostrophe, hclsyntax.TokenBacktick, hclsyntax.TokenSemicolon, hclsyntax.TokenTabs, hclsyntax.TokenInvalid, hclsyntax.TokenBadUTF8, hclsyntax.TokenQuotedNewline, hclsyntax.TokenNil:
-		default:
 		}
 	}
 }
@@ -78,4 +84,10 @@ func (c *consoleBracketState) ClearState() {
 	c.cBracket = 0
 	c.oParentheses = 0
 	c.cParentheses = 0
+	c.buffer = []string{}
+}
+
+// GetFullCommand joins the buffer and returns it
+func (c *consoleBracketState) GetFullCommand() string {
+	return strings.Join(c.buffer, "\n")
 }
