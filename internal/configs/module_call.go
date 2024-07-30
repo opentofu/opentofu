@@ -291,8 +291,30 @@ func (mc *ModuleCall) EntersNewPackage() bool {
 // Ex: child.alias = parent.alias
 // Ex: child = parent[each.value]
 type PassedProviderConfig struct {
-	InChild  *ProviderConfigRef
-	InParent *ProviderConfigRefMapping
+	InChild         *ProviderConfigRef
+	InParentMapping *ProviderConfigRefMapping
+}
+
+func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
+	if c.InParentMapping == nil {
+		return nil
+	}
+
+	inParent := &ProviderConfigRef{
+		Name:         c.InParentMapping.Name,
+		NameRange:    c.InParentMapping.NameRange,
+		providerType: c.InParentMapping.providerType,
+	}
+
+	alias, ok := c.InParentMapping.Aliases[k]
+	if !ok {
+		return inParent
+	}
+
+	inParent.Alias = alias
+	inParent.AliasRange = c.InParentMapping.AliasRange
+
+	return inParent
 }
 
 func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, hcl.Diagnostics) {
