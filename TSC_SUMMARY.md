@@ -8,6 +8,103 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Yevgeniy Brikman ([@brikis98](https://github.com/brikis98)) representing Gruntwork, Inc.
 
+## 2024-06-04
+
+### Attendees
+
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+
+### Agenda
+
+#### IBM acquisition of Hashicorp
+
+Shall we publish anything as OpenTofu regarding the acquision?
+
+##### Discussion/Decision
+
+- Have a joined meeting with the Core team.
+- Use it as opportunity to improve the communication between TSC and the Core team.
+
+#### RFC should be MPL-licensed
+
+##### Decision
+
+All in favor (WB, IS, ZG, and RS)
+
+#### Backend-as-Plugins
+
+Continuation of the discussion from 2024-05-21.
+
+##### Discussion
+
+- Igor: we need a RFC before making a decision;
+- Igor: The core team should decide which RFCs should be selected before the TSC.
+- All: we see why it is important to make it easier to support for more backends out-of-the-box
+
+#### 3rd party review service
+
+@Wojciech Barczynski shared what 3rd party review services we could use in OpenTofu.
+
+##### External funding and grants
+
+@Igor Savchenko will explore sponsorship programs for Open Source, we could apply for.
+
+#### Shall we join the openinventionnetwork?
+
+@Roger Simms will reach out to them directly.
+
+## 2024-05-21
+
+### Attendees
+
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople)) 
+
+### Agenda
+
+#### Christian Mesh, new Tech Lead of OpenTofu project
+
+##### Discussion
+
+- What is the definition of this role? Responsibilities?
+- Who should define the roles/responsibilities?
+- The team is very focused on 1.8, we do not want to context switch them to bureaucratic tasks.
+- We might want to write down the TL's responsibilities after 1.8.x.
+
+##### Decision
+
+All in favor (WB, IS, ZG, RF, and RS)
+
+#### Backend-as-Plugins
+
+Continuation of the discussion from 2024-05-07.
+
+##### Discussion
+
+- A written-down product/project vision would help us to make decisions on topics such as e.g. backends as plugins.
+- Do we need a RFC in order to vote on something as a steering committee?
+
+  - Want to avoid appearance of bias as TACOs putting thumb on the scale for the roadmap
+  - Is there a chicken-egg — companies want the idea to be accepted before investing in RFC, and the steering committee similarly wants a real RFC before agreeing.
+
+- Backends as Plugins
+
+  - @Roni Frantchi - Not convinced this is the right solution or something really worth prioritizing
+  
+  - @Igor Savchenko - it really needs an RFC for us to know what we’re voting on, it’s too abstract right now
+
+  - @Roni Frantchi - if the steering committee says “OK lets see an RFC” is that actually interpreted as a green light for the community - once the RFC is up we’d move on it?
+
+##### Decision
+
+We cannot vote without a RFC. 
+
 ## 2024-05-07
 
 ## Agenda
