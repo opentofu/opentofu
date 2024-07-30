@@ -622,8 +622,8 @@ func (c *Config) resolveProviderTypes() map[string]addrs.Provider {
 	// connect module call providers to the correct type
 	for _, mod := range c.Module.ModuleCalls {
 		for _, p := range mod.Providers {
-			if addr, known := providers[p.InParentMapping.Name]; known {
-				p.InParentMapping.providerType = addr
+			if addr, known := providers[p.InParentTODO().Name]; known {
+				p.InParentTODO().providerType = addr
 			}
 		}
 	}
@@ -709,19 +709,19 @@ func (c *Config) resolveProviderTypesForTests(providers map[string]addrs.Provide
 					// If we have previously assigned a type to the provider
 					// for the parent reference, then we use that for the
 					// parent type.
-					if addr, exists := matchedProviders[p.InParentMapping.Name]; exists {
-						p.InParentMapping.providerType = addr
+					if addr, exists := matchedProviders[p.InParentTODO().Name]; exists {
+						p.InParentTODO().providerType = addr
 						continue
 					}
 
 					// Otherwise, we'll define the parent type based on the
 					// child and reference that backwards.
-					p.InParentMapping.providerType = p.InChild.providerType
+					p.InParentTODO().providerType = p.InChild.providerType
 
-					if aliases, exists := testProviders[p.InParentMapping.Name]; exists {
-						matchedProviders[p.InParentMapping.Name] = p.InParentMapping.providerType
+					if aliases, exists := testProviders[p.InParentTODO().Name]; exists {
+						matchedProviders[p.InParentTODO().Name] = p.InParentTODO().providerType
 						for _, alias := range aliases {
-							alias.providerType = p.InParentMapping.providerType
+							alias.providerType = p.InParentTODO().providerType
 						}
 					}
 				}
@@ -949,38 +949,35 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// Then we'll only copy over and overwrite the specific providers asked
 		// for by this run block.
 
-		// TODO Ronny: reimplement logic to support multiple providers in tests
-		panic("TODO")
-		//
-		//for _, ref := range run.Providers {
-		//
-		//	testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
-		//	if !ok {
-		//		// Then this reference was invalid as we didn't have the
-		//		// specified provider in the parent. This should have been
-		//		// caught earlier in validation anyway so is unlikely to happen.
-		//		diags = append(diags, &hcl.Diagnostic{
-		//			Severity: hcl.DiagError,
-		//			Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
-		//			Detail:   "This provider block references a provider definition that does not exist.",
-		//			Subject:  ref.InParent.NameRange.Ptr(),
-		//		})
-		//		continue
-		//	}
-		//
-		//	next[ref.InChild.String()] = &Provider{
-		//		Name:          ref.InChild.Name,
-		//		NameRange:     ref.InChild.NameRange,
-		//		Alias:         ref.InChild.Alias,
-		//		AliasRange:    ref.InChild.AliasRange,
-		//		Version:       testProvider.Version,
-		//		Config:        testProvider.Config,
-		//		DeclRange:     testProvider.DeclRange,
-		//		IsMocked:      testProvider.IsMocked,
-		//		MockResources: testProvider.MockResources,
-		//	}
-		//
-		//}
+		for _, ref := range run.Providers {
+
+			testProvider, ok := file.getTestProviderOrMock(ref.InParentTODO().String())
+			if !ok {
+				// Then this reference was invalid as we didn't have the
+				// specified provider in the parent. This should have been
+				// caught earlier in validation anyway so is unlikely to happen.
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParentTODO().String()),
+					Detail:   "This provider block references a provider definition that does not exist.",
+					Subject:  ref.InParentTODO().NameRange.Ptr(),
+				})
+				continue
+			}
+
+			next[ref.InChild.String()] = &Provider{
+				Name:          ref.InChild.Name,
+				NameRange:     ref.InChild.NameRange,
+				Alias:         ref.InChild.Alias,
+				AliasRange:    ref.InChild.AliasRange,
+				Version:       testProvider.Version,
+				Config:        testProvider.Config,
+				DeclRange:     testProvider.DeclRange,
+				IsMocked:      testProvider.IsMocked,
+				MockResources: testProvider.MockResources,
+			}
+
+		}
 	} else {
 		// Otherwise, let's copy over and overwrite all providers specified by
 		// the test file itself.
