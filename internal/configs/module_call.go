@@ -295,27 +295,27 @@ type PassedProviderConfig struct {
 	InParentMapping *ProviderConfigRefMapping
 }
 
-func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
-	if c.InParentMapping == nil {
-		return nil
-	}
-
-	inParent := &ProviderConfigRef{
-		Name:         c.InParentMapping.Name,
-		NameRange:    c.InParentMapping.NameRange,
-		providerType: c.InParentMapping.providerType,
-	}
-
-	alias, ok := c.InParentMapping.Aliases[k]
-	if !ok {
-		return inParent
-	}
-
-	inParent.Alias = alias
-	inParent.AliasRange = c.InParentMapping.AliasRange
-
-	return inParent
-}
+//func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
+//	if c.InParentMapping == nil {
+//		return nil
+//	}
+//
+//	inParent := &ProviderConfigRef{
+//		Name:         c.InParentMapping.Name,
+//		NameRange:    c.InParentMapping.NameRange,
+//		providerType: c.InParentMapping.providerType,
+//	}
+//
+//	alias, ok := c.InParentMapping.Aliases[k]
+//	if !ok {
+//		return inParent
+//	}
+//
+//	inParent.Alias = alias
+//	inParent.AliasRange = c.InParentMapping.AliasRange
+//
+//	return inParent
+//}
 
 func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
@@ -346,9 +346,17 @@ func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, h
 
 		rng := hcl.RangeBetween(pair.Key.Range(), pair.Value.Range())
 		seen[matchKey] = rng
+
+		// TODO Ronny: pass multiple providers instead of a single one
+		tempInParentMapping := &ProviderConfigRefMapping{
+			Name:       value.Name,
+			NameRange:  value.NameRange,
+			Aliases:    map[addrs.InstanceKey]string{addrs.NoKey: value.Alias},
+			AliasRange: value.AliasRange,
+		}
 		providers = append(providers, PassedProviderConfig{
-			InChild:  key,
-			InParent: value,
+			InChild:         key,
+			InParentMapping: tempInParentMapping,
 		})
 	}
 	return providers, diags
