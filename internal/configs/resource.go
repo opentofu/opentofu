@@ -107,7 +107,7 @@ func (r *Resource) ProviderConfigAddr() addrs.LocalProviderConfig {
 
 	return addrs.LocalProviderConfig{
 		LocalName: r.ProviderConfigRef.Name,
-		Alias:     r.ProviderConfigRef.Alias,
+		Alias:     r.ProviderConfigRef.GetNoKeyAlias(),
 	}
 }
 
@@ -168,7 +168,7 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 
 	if attr, exists := content.Attributes["provider"]; exists {
 		var providerDiags hcl.Diagnostics
-		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
+		r.ProviderConfigRef, providerDiags = decodeProviderConfigRefMapping(attr.Expr, "provider")
 		diags = append(diags, providerDiags...)
 	}
 
@@ -437,7 +437,7 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 
 	if attr, exists := content.Attributes["provider"]; exists {
 		var providerDiags hcl.Diagnostics
-		r.ProviderConfigRef, providerDiags = decodeProviderConfigRef(attr.Expr, "provider")
+		r.ProviderConfigRef, providerDiags = decodeProviderConfigRefMapping(attr.Expr, "provider")
 		diags = append(diags, providerDiags...)
 	}
 
@@ -661,7 +661,7 @@ type ProviderConfigRef struct {
 	providerType addrs.Provider
 }
 
-// TODO: comments
+// TODO/Oleksandr: comments for ProviderConfigRefMapping
 type ProviderConfigRefMapping struct {
 	Name       string
 	NameRange  hcl.Range
@@ -674,6 +674,61 @@ type ProviderConfigRefMapping struct {
 	// export this so providers don't need to be re-resolved.
 	// This same field is also added to the Provider struct.
 	providerType addrs.Provider
+}
+
+// TODO/Oleksandr: review the calls and make a proper initialization for multialias
+func NewProviderConfigRefMapping(p *Provider) *ProviderConfigRefMapping {
+	m := &ProviderConfigRefMapping{
+		Name:         p.Name,
+		NameRange:    p.NameRange,
+		providerType: p.providerType,
+	}
+
+	if p.Alias == "" {
+		return m
+	}
+
+	m.Aliases = map[addrs.InstanceKey]string{
+		addrs.NoKey: p.Alias,
+	}
+	m.AliasRange = p.AliasRange
+
+	return m
+}
+
+// TODO/Oleksandr: review the calls and provide a proper mapping
+func NewProviderConfigMappingFromRef(ref *ProviderConfigRef) *ProviderConfigRefMapping {
+	m := &ProviderConfigRefMapping{
+		Name:         ref.Name,
+		NameRange:    ref.NameRange,
+		providerType: ref.providerType,
+	}
+
+	if ref.Alias == "" {
+		return m
+	}
+
+	m.Aliases = map[addrs.InstanceKey]string{
+		addrs.NoKey: ref.Alias,
+	}
+	m.AliasRange = ref.AliasRange
+
+	return m
+}
+
+// TODO/Oleksandr: review calls and provide a proper alias
+func (m *ProviderConfigRefMapping) GetNoKeyAlias() string {
+	return m.Aliases[addrs.NoKey]
+}
+
+// TODO/Oleksandr: properly decode ProviderConfigRefMapping
+func decodeProviderConfigRefMapping(expr hcl.Expression, argName string) (*ProviderConfigRefMapping, hcl.Diagnostics) {
+	r, diags := decodeProviderConfigRef(expr, argName)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return NewProviderConfigMappingFromRef(r), diags
 }
 
 func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConfigRef, hcl.Diagnostics) {

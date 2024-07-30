@@ -295,6 +295,11 @@ type PassedProviderConfig struct {
 	InParentMapping *ProviderConfigRefMapping
 }
 
+// TODO/Oleksandr: get rid of this function and make a proper call via InParent
+func (c *PassedProviderConfig) InParentTODO() *ProviderConfigRef {
+	return c.InParent(addrs.NoKey)
+}
+
 func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
 	if c.InParentMapping == nil {
 		return nil
@@ -347,8 +352,8 @@ func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, h
 		rng := hcl.RangeBetween(pair.Key.Range(), pair.Value.Range())
 		seen[matchKey] = rng
 		providers = append(providers, PassedProviderConfig{
-			InChild:  key,
-			InParent: value,
+			InChild:         key,
+			InParentMapping: NewProviderConfigMappingFromRef(value),
 		})
 	}
 	return providers, diags
