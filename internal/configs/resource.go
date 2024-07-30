@@ -661,10 +661,11 @@ type ProviderConfigRef struct {
 	providerType addrs.Provider
 }
 
+// TODO: comments
 type ProviderConfigRefMapping struct {
 	Name       string
 	NameRange  hcl.Range
-	Alias      map[addrs.InstanceKey]string
+	Aliases    map[addrs.InstanceKey]string
 	AliasRange *hcl.Range // nil if alias not set
 
 	// TODO: this may not be set in some cases, so it is not yet suitable for
