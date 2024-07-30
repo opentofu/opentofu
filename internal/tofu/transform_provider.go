@@ -803,7 +803,7 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 		fullParentAddr := addrs.AbsProviderConfig{
 			Provider: fqn,
 			Module:   parentPath,
-			Alias:    pair.InParent.Addr().Alias,
+			Alias:    pair.InParentTODO().Addr().Alias,
 		}
 
 		fullName := fullAddr.String()

@@ -279,7 +279,7 @@ func marshalProviderConfigs(
 		for _, ppc := range mc.Providers {
 			// These provider names include aliases, if set
 			moduleProviderName := ppc.InChild.String()
-			parentProviderName := ppc.InParent.String()
+			parentProviderName := ppc.InParentTODO().String()
 
 			// Look up the provider FQN from the module context, using the non-aliased local name
 			providerFqn := cc.ProviderForConfigAddr(addrs.LocalProviderConfig{LocalName: ppc.InChild.Name})
