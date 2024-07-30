@@ -300,6 +300,7 @@ func (c *PassedProviderConfig) InParentTODO() *ProviderConfigRef {
 	return c.InParent(addrs.NoKey)
 }
 
+// TODO/Oleksandr: check InParent calls to ensure it expects functions instead of a field
 func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
 	if c.InParentMapping == nil {
 		return nil
