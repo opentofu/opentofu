@@ -76,6 +76,13 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			}`,
 			expected: "\n{\n  \"lalala\" = 1\n}\n",
 		},
+		"escaped_new_line": {
+			input: `
+			5 + 4 \
+			
+			`,
+			expected: "\n9\n\n",
+		},
 	}
 
 	for testName, tc := range tests {

@@ -7,7 +7,7 @@ package command
 
 import "testing"
 
-func Test_BracketsOpen(t *testing.T) {
+func Test_commandInOpenState(t *testing.T) {
 	type testCase struct {
 		input    string
 		expected int
@@ -86,14 +86,24 @@ func Test_BracketsOpen(t *testing.T) {
 			input:    "())",
 			expected: -1,
 		},
+		"escaped new line": {
+			input:    "\\",
+			expected: 1,
+		},
+		"false positive new line": {
+			input:    "\\\\",
+			expected: 0,
+		},
+		"mix parentheses and new line": {
+			input:    "(\\",
+			expected: 2,
+		},
 	}
 
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
 			state := consoleBracketState{}
-			state.UpdateState(tc.input)
-
-			actual := state.BracketsOpen()
+			_, actual := state.UpdateState(tc.input)
 			if actual != tc.expected {
 				t.Fatalf("Actual: %d, expected %d", actual, tc.expected)
 			}
@@ -132,66 +142,24 @@ func Test_UpdateState(t *testing.T) {
 			inputs:   []string{"{", "[", "("},
 			expected: 3,
 		},
-	}
-
-	for testName, tc := range tests {
-		t.Run(testName, func(t *testing.T) {
-			state := consoleBracketState{}
-			for _, input := range tc.inputs {
-				state.UpdateState(input)
-			}
-
-			actual := state.BracketsOpen()
-			if actual != tc.expected {
-				t.Fatalf("Actual: %d, expected %d", actual, tc.expected)
-			}
-		})
-	}
-}
-
-func Test_ClearState(t *testing.T) {
-	type testCase struct {
-		inputs   []string
-		expected int
-	}
-
-	tests := map[string]testCase{
-		"plain braces": {
-			inputs:   []string{"{", "}"},
-			expected: 0,
+		"escaped new line": {
+			inputs:   []string{"\\"},
+			expected: 1,
 		},
-		"open brackets": {
-			inputs:   []string{"[", "[", "]"},
-			expected: 0,
-		},
-		"invalid parenthesis": {
-			inputs:   []string{"(", ")", ")"},
-			expected: 0,
-		},
-		"a fake brace": {
-			inputs:   []string{"{", "\"}\"", "}"},
-			expected: 0,
-		},
-		"a mixed bag": {
-			inputs:   []string{"{", "}", "[", "...", "()", "]"},
-			expected: 0,
-		},
-		"multiple open": {
-			inputs:   []string{"{", "[", "("},
+		"false positive new line": {
+			inputs:   []string{"\\\\"},
 			expected: 0,
 		},
 	}
 
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
+			actual := 0
 			state := consoleBracketState{}
 			for _, input := range tc.inputs {
-				state.UpdateState(input)
+				_, actual = state.UpdateState(input)
 			}
 
-			state.ClearState()
-
-			actual := state.BracketsOpen()
 			if actual != tc.expected {
 				t.Fatalf("Actual: %d, expected %d", actual, tc.expected)
 			}
@@ -202,46 +170,56 @@ func Test_ClearState(t *testing.T) {
 func Test_GetFullCommand(t *testing.T) {
 	type testCase struct {
 		inputs   []string
-		expected string
+		expected []string
 	}
 
 	tests := map[string]testCase{
 		"plain braces": {
 			inputs:   []string{"{", "}"},
-			expected: "{\n}",
+			expected: []string{"{", "{\n}"},
 		},
 		"open brackets": {
 			inputs:   []string{"[", "[", "]"},
-			expected: "[\n[\n]",
+			expected: []string{"[", "[\n[", "[\n[\n]"},
 		},
 		"invalid parenthesis": {
 			inputs:   []string{"(", ")", ")"},
-			expected: "(\n)\n)",
+			expected: []string{"(", "(\n)", ")"},
 		},
 		"a fake brace": {
 			inputs:   []string{"{", "\"}\"", "}"},
-			expected: "{\n\"}\"\n}",
+			expected: []string{"{", "{\n\"}\"", "{\n\"}\"\n}"},
 		},
 		"a mixed bag": {
 			inputs:   []string{"{", "}", "[", "...", "", "()", "]"},
-			expected: "{\n}\n[\n...\n()\n]",
+			expected: []string{"{", "{\n}", "[", "[\n...", "[\n...", "[\n...\n()", "[\n...\n()\n]"},
 		},
 		"multiple open": {
 			inputs:   []string{"{", "[", "("},
-			expected: "{\n[\n(",
+			expected: []string{"{", "{\n[", "{\n[\n("},
+		},
+		"escaped new line": {
+			inputs:   []string{"\\"},
+			expected: []string{""},
+		},
+		"false positive new line": {
+			inputs:   []string{"\\\\"},
+			expected: []string{"\\"},
 		},
 	}
 
 	for testName, tc := range tests {
 		t.Run(testName, func(t *testing.T) {
 			state := consoleBracketState{}
-			for _, input := range tc.inputs {
-				state.UpdateState(input)
+			if len(tc.inputs) != len(tc.expected) {
+				t.Fatalf("\nthe length of inputs: %d\n and expected: %d don't match", len(tc.inputs), len(tc.expected))
 			}
 
-			actual := state.GetFullCommand()
-			if actual != tc.expected {
-				t.Fatalf("Actual: %s, expected %s", actual, tc.expected)
+			for i, input := range tc.inputs {
+				actual, _ := state.UpdateState(input)
+				if actual != tc.expected[i] {
+					t.Fatalf("\nActual: %q\nexpected: %q", actual, tc.expected[i])
+				}
 			}
 		})
 	}

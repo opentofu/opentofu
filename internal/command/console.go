@@ -186,15 +186,11 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
-		// we update the state with the new line, so if we have open
-		// brackets we know not to execute the command just yet
-		consoleState.UpdateState(line)
-
 		// we check if there is no escaped new line at the end, or any open brackets
 		// if we have neither, then we can execute
-		if !strings.HasSuffix(line, "\\") && consoleState.BracketsOpen() <= 0 && len(line) != 0 {
-			fullcommand := consoleState.GetFullCommand()
-			result, exit, diags := session.Handle(fullcommand)
+		fullCommand, bracketState := consoleState.UpdateState(line)
+		if bracketState <= 0 {
+			result, exit, diags := session.Handle(fullCommand)
 			if diags.HasErrors() {
 				// We're in piped mode, so we'll exit immediately on error.
 				c.showDiagnostics(diags)
@@ -205,9 +201,6 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 			}
 			// Output the result
 			ui.Output(result)
-
-			// clear the state and buffer as we have executed a command
-			consoleState.ClearState()
 		}
 	}
 

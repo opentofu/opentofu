@@ -13,16 +13,15 @@ import (
 )
 
 type consoleBracketState struct {
-	oBrace       int
-	cBrace       int
-	oBracket     int
-	cBracket     int
-	oParentheses int
-	cParentheses int
-	buffer       []string
+	openNewLine int
+	brace       int
+	bracket     int
+	parentheses int
+	buffer      []string
 }
 
-// BracketsOpen return an int to inform if brackets are open
+// commandInOpenState return an int to inform if brackets are open
+// or if any escaped new lines
 // in the console and we should hold off on processing the commands
 // it returns 3 states:
 // -1 is returned the is an incorrect amount of brackets.
@@ -31,63 +30,72 @@ type consoleBracketState struct {
 // for examples "()" or "" would be in a close bracket state
 // >=1 is returned for the amount of open brackets.
 // for example "({" would return 2. "({}" would return 1
-func (c *consoleBracketState) BracketsOpen() int {
+func (c *consoleBracketState) commandInOpenState() int {
 	switch {
-	case c.oBrace < c.cBrace:
+	case c.brace < 0:
 		fallthrough
-	case c.oBracket < c.cBracket:
+	case c.bracket < 0:
 		fallthrough
-	case c.oParentheses < c.cParentheses:
+	case c.parentheses < 0:
 		return -1
 	}
 
 	// we calculate open brackets, braces and parentheses by the diff between each count
 	var total int
-	total += c.oBrace - c.cBrace
-	total += c.oBracket - c.cBracket
-	total += c.oParentheses - c.cParentheses
+	total += c.openNewLine
+	total += c.brace
+	total += c.bracket
+	total += c.parentheses
 	return total
 }
 
 // UpdateState updates the state of the console with the latest line data
-func (c *consoleBracketState) UpdateState(line string) {
+func (c *consoleBracketState) UpdateState(line string) (string, int) {
+	defer c.checkStateAndClearBuffer()
+	// as new lines are a kind of "one off" we reset each update
+	c.openNewLine = 0
+
+	// escaped new lines are treated as a "one off" bracket
+	// the four \\\\ means we have a false positive for a new line, as it's just an escaped \..
+	if strings.HasSuffix(line, "\\") && !strings.HasSuffix(line, "\\\\") {
+		c.openNewLine++
+	}
+
+	line = strings.TrimSuffix(line, "\\")
 	if len(line) == 0 {
 		// we can skip empty lines
-		return
+		return c.getCommand(), c.commandInOpenState()
 	}
-	c.buffer = append(c.buffer, strings.TrimSuffix(line, "\\"))
+	c.buffer = append(c.buffer, line)
 
 	tokens, _ := hclsyntax.LexConfig([]byte(line), "<console-input>", hcl.Pos{Line: 1, Column: 1})
 	for _, token := range tokens {
 		switch token.Type { //nolint:exhaustive // we only care about these specific types
 		case hclsyntax.TokenOBrace:
-			c.oBrace++
+			c.brace++
 		case hclsyntax.TokenCBrace:
-			c.cBrace++
+			c.brace--
 		case hclsyntax.TokenOBrack:
-			c.oBracket++
+			c.bracket++
 		case hclsyntax.TokenCBrack:
-			c.cBracket++
+			c.bracket--
 		case hclsyntax.TokenOParen:
-			c.oParentheses++
+			c.parentheses++
 		case hclsyntax.TokenCParen:
-			c.cParentheses++
+			c.parentheses--
 		}
 	}
+	return c.getCommand(), c.commandInOpenState()
 }
 
-// ClearState is used to reset the state after an evaluation
-func (c *consoleBracketState) ClearState() {
-	c.oBrace = 0
-	c.cBrace = 0
-	c.oBracket = 0
-	c.cBracket = 0
-	c.oParentheses = 0
-	c.cParentheses = 0
-	c.buffer = []string{}
+// getCommand joins the buffer and returns it
+func (c *consoleBracketState) getCommand() string {
+	output := strings.Join(c.buffer, "\n")
+	return output
 }
 
-// GetFullCommand joins the buffer and returns it
-func (c *consoleBracketState) GetFullCommand() string {
-	return strings.Join(c.buffer, "\n")
+func (c *consoleBracketState) checkStateAndClearBuffer() {
+	if c.commandInOpenState() <= 0 {
+		c.buffer = []string{}
+	}
 }

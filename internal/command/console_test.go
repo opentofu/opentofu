@@ -275,7 +275,7 @@ func TestConsole_multiline_pipe(t *testing.T) {
 			input: `
 			var.counts.lalala
 			var.counts.lololo`,
-			expected: "1\n2\n",
+			expected: "\n1\n2\n",
 		},
 		"backets_multi_line": {
 			input: `
@@ -284,7 +284,7 @@ func TestConsole_multiline_pipe(t *testing.T) {
 			"_",
 			"lalala_lolol_lelelele"
 			)`,
-			expected: "1\ntolist([\n  \"lalala\",\n  \"lolol\",\n  \"lelelele\",\n])\n",
+			expected: "\n1\ntolist([\n  \"lalala\",\n  \"lolol\",\n  \"lelelele\",\n])\n",
 		},
 		"baces_multi_line": {
 			input: `
@@ -292,7 +292,14 @@ func TestConsole_multiline_pipe(t *testing.T) {
 			for key, value in var.counts : key => value 
 			if value == 1
 			}`,
-			expected: "{\n  \"lalala\" = 1\n}\n",
+			expected: "\n{\n  \"lalala\" = 1\n}\n",
+		},
+		"escaped_new_line": {
+			input: `
+			5 + 4 \
+			
+			`,
+			expected: "\n9\n\n",
 		},
 	}
 
