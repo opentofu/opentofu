@@ -6,11 +6,15 @@
 package providercache
 
 import (
+	"context"
 	"log"
+	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/flock"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
@@ -75,6 +79,84 @@ func NewDirWithPlatform(baseDir string, platform getproviders.Platform) *Dir {
 // cache directory.
 func (d *Dir) BasePath() string {
 	return filepath.Clean(d.baseDir)
+}
+
+func (d *Dir) Lock(provider addrs.Provider, ctx context.Context) (func() error, error) {
+	providerPath := getproviders.PathForPackage(d.baseDir, provider)
+	lockFile := filepath.Join(providerPath, ".lock")
+
+	log.Printf("[TRACE] Attempting to acquire global provider lock %s", lockFile)
+
+	// Ensure the provider directory exists
+	if err := os.MkdirAll(providerPath, 0755); err != nil {
+		return nil, err
+	}
+
+	var err error
+	var f *os.File
+
+	// Try to create the lock file, wait up to 1 second for transient errors to clear.
+	for start := time.Now(); time.Now().Sub(start) < time.Second*1; {
+		// Check if the context is still active
+		err = ctx.Err()
+		if err != nil {
+			break
+		}
+
+		// Try to get a handle to the file (or create if it does not exist)
+		// Sometimes the creates can conflict and will need to be tried multiple times.
+		f, err = os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE, 0666)
+		if err == nil {
+			// We don't defer f.Close() here as we explicitly want to handle
+			break
+		}
+		// Chill for 50ms before trying again
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait for the file lock for up to 60s.  Might make sense to have the timeout be configurable for different network conditions / package sizes.
+	for start := time.Now(); time.Now().Sub(start) < time.Second*60; {
+		// Check if the context is still active
+		err = ctx.Err()
+		if err != nil {
+			break
+		}
+
+		// We have a valid file handle, let's try to lock it (nonblocking)
+		err = flock.Lock(f)
+		if err == nil {
+			// Lock succeeded
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if err != nil {
+		// Early close the file
+		if f != nil {
+			f.Close()
+		}
+
+		return nil, err
+	}
+
+	log.Printf("[TRACE] Acquired global provider lock %s", lockFile)
+
+	return func() error {
+		log.Printf("[TRACE] Releasing global provider lock %s", lockFile)
+
+		unlockErr := flock.Unlock(f)
+
+		// Prefer close error over unlock error
+		err = f.Close()
+		if err != nil {
+			return err
+		}
+		return unlockErr
+	}, nil
 }
 
 // AllAvailablePackages returns a description of all of the packages already

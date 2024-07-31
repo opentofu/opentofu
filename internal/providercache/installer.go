@@ -342,7 +342,18 @@ NeedProvider:
 	// install its package into our target cache (possibly via the global cache).
 	authResults := map[addrs.Provider]*getproviders.PackageAuthenticationResult{} // record auth results for all successfully fetched providers
 	targetPlatform := i.targetDir.targetPlatform                                  // we inherit this to behave correctly in unit tests
+
+	// The unlock function may be used if the globalCacheDir is set.  It is unlocked in the *next* iteration of the loop or after the loop exits
+	// This is not ideal, but the best option for not generating a large code diff
+	var unlock func()
+
 	for provider, version := range need {
+		// Free previous lock
+		if unlock != nil {
+			unlock()
+			unlock = nil
+		}
+
 		if err := ctx.Err(); err != nil {
 			// If our context has been cancelled or reached a timeout then
 			// we'll abort early, because subsequent operations against
@@ -369,6 +380,29 @@ NeedProvider:
 		}
 
 		if i.globalCacheDir != nil {
+			// Try to lock the provider's directory.  We lock at this level due to the potential fuzzy match below
+			unlockProvider, err := i.globalCacheDir.Lock(provider, ctx)
+			if err != nil {
+				errs[provider] = err
+				if cb := evts.LinkFromCacheFailure; cb != nil {
+					cb(provider, version, err)
+				}
+				continue
+			}
+			unlock = func() {
+				err = unlockProvider()
+				if err != nil {
+					// Don't overwrite existing errors
+					if errs[provider] != nil {
+						errs[provider] = err
+					}
+					// Still report it via the callback
+					if cb := evts.LinkFromCacheFailure; cb != nil {
+						cb(provider, version, err)
+					}
+				}
+			}
+
 			// Step 3a: If our global cache already has this version available then
 			// we'll just link it in.
 			if cached := i.globalCacheDir.ProviderVersion(provider, version); cached != nil {
@@ -563,6 +597,7 @@ NeedProvider:
 		}
 		var installTo, linkTo *Dir
 		if i.globalCacheDir != nil {
+			// global provider lock should already be acquired above
 			installTo = i.globalCacheDir
 			linkTo = i.targetDir
 		} else {
@@ -709,6 +744,12 @@ NeedProvider:
 		if cb := evts.FetchPackageSuccess; cb != nil {
 			cb(provider, version, new.PackageDir, authResult)
 		}
+	}
+
+	// Final unlock for the last step of iteration
+	if unlock != nil {
+		unlock()
+		unlock = nil
 	}
 
 	// Emit final event for fetching if any were successfully fetched

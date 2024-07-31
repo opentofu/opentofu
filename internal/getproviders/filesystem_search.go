@@ -266,6 +266,13 @@ func SearchLocalDirectory(baseDir string) (map[addrs.Provider]PackageMetaList, e
 	return ret, nil
 }
 
+func PathForPackage(baseDir string, provider addrs.Provider) string {
+	return filepath.ToSlash(filepath.Join(
+		baseDir,
+		provider.Hostname.ForDisplay(), provider.Namespace, provider.Type,
+	))
+}
+
 // UnpackedDirectoryPathForPackage is similar to
 // PackageMeta.UnpackedDirectoryPath but makes its decision based on
 // individually-passed provider address, version, and target platform so that
