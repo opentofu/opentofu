@@ -6,9 +6,11 @@
 package e2etest
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/e2e"
@@ -89,4 +91,44 @@ func TestProviderProtocols(t *testing.T) {
 	if !strings.Contains(stdout, "Resources: 2 destroyed") {
 		t.Fatalf("wrong destroy output\nstdout:%s\nstderr:%s", stdout, stderr)
 	}
+}
+
+// This test is designed to simulate a *very* busy CI server that has multiple
+// processes sharing a global provider cache. This exercises the locking in the
+// "providercache" package, as well as simulating bad file hashes in the
+// lock file.
+func TestProviderGlobalCache(t *testing.T) {
+	if !canAccessNetwork() {
+		t.Skip("Requires provider download access for e2e provider interactions")
+	}
+
+	t.Parallel()
+
+	tmpDir, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rcLoc := filepath.Join(tmpDir, ".tofurc")
+	rcData := fmt.Sprintf(`plugin_cache_dir = "%s"`, tmpDir)
+	err = os.WriteFile(rcLoc, []byte(rcData), 0600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < 16; i++ {
+		wg.Add(1)
+		go func() {
+			tf := e2e.NewBinary(t, tofuBin, "testdata/provider-global-cache")
+			tf.AddEnv(fmt.Sprintf("TF_CLI_CONFIG_FILE=%s", rcLoc))
+
+			stdout, stderr, err := tf.Run("init")
+			tofuResult{t, stdout, stderr, err}.Success()
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
 }
