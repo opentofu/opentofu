@@ -46,6 +46,13 @@ type Dir struct {
 	// directory made by other codepaths because the contract for NewDir
 	// explicitly defines using the same directory for multiple purposes
 	// as undefined behavior.
+	// However, this code is now used for the global provider cache. With
+	// the added support for locking, the data may no longer be valid with
+	// changes from other processes. In practice this means that some packages
+	// may have been installed since the latest re-scan. The code that
+	// handles the installation is smart enough to detect that now and
+	// work around it.
+
 	metaCache map[addrs.Provider][]CachedProvider
 }
 
