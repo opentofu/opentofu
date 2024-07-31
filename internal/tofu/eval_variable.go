@@ -236,9 +236,9 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		return diags
 	}
 	for ix, validation := range config.Validations {
-		condFuncs, condDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
+		condFuncs, condDiags := lang.FunctionsInExpr(validation.Condition)
 		diags = diags.Append(condDiags)
-		errFuncs, errDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
+		errFuncs, errDiags := lang.FunctionsInExpr(validation.ErrorMessage)
 		diags = diags.Append(errDiags)
 
 		if diags.HasErrors() {

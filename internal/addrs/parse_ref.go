@@ -174,6 +174,7 @@ func ParseRefStrFromTestingScope(str string) (*Reference, tfdiags.Diagnostics) {
 func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	fmt.Printf("%#v", traversal)
 	root := traversal.RootName()
 	rootRange := traversal[0].SourceRange()
 
@@ -351,24 +352,7 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 			Subject:  rootRange.Ptr(),
 		})
 		return nil, diags
-
 	default:
-		function := ParseFunction(root)
-		if function.IsNamespace(FunctionNamespaceProvider) {
-			pf, err := function.AsProviderFunction()
-			if err != nil {
-				return nil, diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Unable to parse provider function",
-					Detail:   err.Error(),
-					Subject:  rootRange.Ptr(),
-				})
-			}
-			return &Reference{
-				Subject:     pf,
-				SourceRange: tfdiags.SourceRangeFromHCL(rootRange),
-			}, diags
-		}
 		return parseResourceRef(ManagedResourceMode, rootRange, traversal)
 	}
 }

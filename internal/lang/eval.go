@@ -8,12 +8,10 @@ package lang
 import (
 	"fmt"
 	"reflect"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/function"
@@ -203,46 +201,49 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 
 // Identify and enhance any function related dialogs produced by a hcl.EvalContext
 func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
-	out := make(hcl.Diagnostics, len(diags))
-	for i, diag := range diags {
-		out[i] = diag
+	return nil
+	/*
+		// TODO I'm not sure this is needed anymore.  A lot of this should be hit in addrs.ParseRef or below in eval context building!
+		out := make(hcl.Diagnostics, len(diags))
+		for i, diag := range diags {
+			out[i] = diag
 
-		if funcExtra, ok := diag.Extra.(hclsyntax.FunctionCallUnknownDiagExtra); ok {
-			funcName := funcExtra.CalledFunctionName()
-			// prefix::stuff::
-			fullNamespace := funcExtra.CalledFunctionNamespace()
+			if funcExtra, ok := diag.Extra.(hclsyntax.FunctionCallUnknownDiagExtra); ok {
+				funcName := funcExtra.CalledFunctionName()
+				// prefix::stuff::
+				fullNamespace := funcExtra.CalledFunctionNamespace()
 
-			if len(fullNamespace) == 0 {
-				// Not a namespaced function, no enhancements nessesary
-				continue
-			}
-
-			// Insert the enhanced copy of diag into diags
-			enhanced := *diag
-			out[i] = &enhanced
-
-			// Update enhanced with additional details
-
-			fn := addrs.ParseFunction(fullNamespace + funcName)
-
-			if fn.IsNamespace(addrs.FunctionNamespaceCore) {
-				// Error is in core namespace, mirror non-core equivalent
-				enhanced.Summary = "Call to unknown function"
-				enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
-			} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
-				if _, err := fn.AsProviderFunction(); err != nil {
-					// complete mismatch or invalid prefix
-					enhanced.Summary = "Invalid function format"
-					enhanced.Detail = err.Error()
+				if len(fullNamespace) == 0 {
+					// Not a namespaced function, no enhancements nessesary
+					continue
 				}
-			} else {
-				enhanced.Summary = "Unknown function namespace"
-				enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
+
+				// Insert the enhanced copy of diag into diags
+				enhanced := *diag
+				out[i] = &enhanced
+
+				// Update enhanced with additional details
+
+				fn := addrs.ParseFunction(hcl.TraverseRoot{Name: fullNamespace + funcName})
+
+				if fn.IsNamespace(addrs.FunctionNamespaceCore) {
+					// Error is in core namespace, mirror non-core equivalent
+					enhanced.Summary = "Call to unknown function"
+					enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
+				} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
+					if _, err := fn.AsFunctionReference(); err != nil {
+						// complete mismatch or invalid prefix
+						enhanced.Summary = "Invalid function format"
+						enhanced.Detail = err.Error()
+					}
+				} else {
+					enhanced.Summary = "Unknown function namespace"
+					enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
+				}
+				// Function / Provider not found handled by eval_context_builtin.go
 			}
-			// Function / Provider not found handled by eval_context_builtin.go
 		}
-	}
-	return out
+		return out*/
 }
 
 // EvalReference evaluates the given reference in the receiving scope and
@@ -314,9 +315,7 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 	ctx.Functions = make(map[string]function.Function)
 	ctx.Variables = make(map[string]cty.Value)
 
-	for name, fn := range s.Functions() {
-		ctx.Functions[name] = fn
-	}
+	builtin := s.Functions()
 
 	// Easy path for common case where there are no references at all.
 	if len(refs) == 0 {
@@ -357,6 +356,21 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 				if !fnDiags.HasErrors() {
 					ctx.Functions[subj.String()] = *fn
 				}
+			}
+
+			continue
+		}
+		if subj, ok := ref.Subject.(addrs.BuiltinFunction); ok {
+			// Inject function directly into context
+			if _, ok := ctx.Functions[subj.Function]; !ok {
+				fn, ok := builtin[subj.Function]
+				if !ok {
+					panic("TODO diags or warning, missing builtin function!")
+				}
+
+				ctx.Functions[subj.Function] = fn
+				// Also inject into core namespace
+				ctx.Functions[addrs.FunctionNamespaceCore+"::"+subj.Function] = fn
 			}
 
 			continue

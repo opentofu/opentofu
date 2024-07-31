@@ -174,9 +174,9 @@ func (n *nodeModuleVariable) References() []*addrs.Reference {
 
 	if n.Config != nil {
 		for _, validation := range n.Config.Validations {
-			condFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
+			condFuncs, _ := lang.FunctionsInExpr(validation.Condition)
 			refs = append(refs, condFuncs...)
-			errFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
+			errFuncs, _ := lang.FunctionsInExpr(validation.ErrorMessage)
 			refs = append(refs, errFuncs...)
 		}
 	}

@@ -72,9 +72,11 @@ func ReferencesInBlock(parseRef ParseRef, body hcl.Body, schema *configschema.Bl
 	// in a better position to test this due to having mock providers etc
 	// available.
 	traversals := blocktoattr.ExpandedVariables(body, schema)
-	funcs := filterProviderFunctions(blocktoattr.ExpandedFunctions(body, schema))
+	references, diags := References(parseRef, traversals)
+	funcs, funcDiags := functionsInTraversals(blocktoattr.ExpandedFunctions(body, schema))
 
-	return References(parseRef, append(traversals, funcs...))
+	return append(references, funcs...), diags.Append(funcDiags)
+
 }
 
 // ReferencesInExpr is a helper wrapper around References that first searches
@@ -85,38 +87,45 @@ func ReferencesInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Referenc
 		return nil, nil
 	}
 	traversals := expr.Variables()
+	references, diags := References(parseRef, traversals)
+
 	if fexpr, ok := expr.(hcl.ExpressionWithFunctions); ok {
-		funcs := filterProviderFunctions(fexpr.Functions())
-		traversals = append(traversals, funcs...)
+		funcs, funcDiags := functionsInTraversals(fexpr.Functions())
+		references = append(references, funcs...)
+		diags = diags.Append(funcDiags)
+
 	}
-	return References(parseRef, traversals)
+	return references, diags
 }
 
-// ProviderFunctionsInExpr is a helper wrapper around References that searches for provider
+// FunctionsInExpr is a helper wrapper around References that searches for provider
 // function traversals in an ExpressionWithFunctions, then converts the traversals into
 // references
-func ProviderFunctionsInExpr(parseRef ParseRef, expr hcl.Expression) ([]*addrs.Reference, tfdiags.Diagnostics) {
+func FunctionsInExpr(expr hcl.Expression) ([]*addrs.Reference, tfdiags.Diagnostics) {
 	if expr == nil {
 		return nil, nil
 	}
 	if fexpr, ok := expr.(hcl.ExpressionWithFunctions); ok {
-		funcs := filterProviderFunctions(fexpr.Functions())
-		return References(parseRef, funcs)
+		return functionsInTraversals(fexpr.Functions())
 	}
 	return nil, nil
 }
 
-func filterProviderFunctions(funcs []hcl.Traversal) []hcl.Traversal {
-	pfuncs := make([]hcl.Traversal, 0, len(funcs))
+func functionsInTraversals(funcs []hcl.Traversal) ([]*addrs.Reference, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	pfuncs := make([]*addrs.Reference, 0, len(funcs))
 	for _, fn := range funcs {
 		if len(fn) == 0 {
 			continue
 		}
 		if root, ok := fn[0].(hcl.TraverseRoot); ok {
-			if addrs.ParseFunction(root.Name).IsNamespace(addrs.FunctionNamespaceProvider) {
-				pfuncs = append(pfuncs, fn)
+			ref, refDiags := addrs.ParseFunction(root.Name).AsFunctionReference(tfdiags.SourceRangeFromHCL(root.SourceRange()))
+			diags = diags.Append(refDiags)
+			if refDiags.HasErrors() {
+				continue
 			}
+			pfuncs = append(pfuncs, ref)
 		}
 	}
-	return pfuncs
+	return pfuncs, diags
 }

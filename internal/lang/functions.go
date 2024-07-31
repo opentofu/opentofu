@@ -193,7 +193,8 @@ func (s *Scope) Functions() map[string]function.Function {
 			}
 		}
 
-		coreNames := make([]string, 0)
+		// No longer needed
+		/*coreNames := make([]string, 0)
 		// Add a description to each function and parameter based on the
 		// contents of descriptionList.
 		// One must create a matching description entry whenever a new
@@ -205,7 +206,7 @@ func (s *Scope) Functions() map[string]function.Function {
 		// Copy all stdlib funcs into core:: namespace
 		for _, name := range coreNames {
 			s.funcs[CoreNamespace+name] = s.funcs[name]
-		}
+		}*/
 	}
 	s.funcsLock.Unlock()
 
