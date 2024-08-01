@@ -83,6 +83,19 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			`,
 			expected: "\n9\n\n",
 		},
+		"heredoc": {
+			input: `
+			{
+				default = <<-EOT
+				lulululu
+				EOT
+			}`,
+			expected: "\n{\n  \"default\" = <<-EOT\n  lulululu\n  \n  EOT\n}\n",
+		},
+		"quoted_braces": {
+			input:    "{\ndefault = format(\"%s%s%s\",\"{\",var.counts.lalala,\"}\")\n}",
+			expected: "{\n  \"default\" = \"{1}\"\n}\n",
+		},
 	}
 
 	for testName, tc := range tests {
