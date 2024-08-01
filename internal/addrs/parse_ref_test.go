@@ -606,9 +606,7 @@ func TestParseRef(t *testing.T) {
 		{
 			`terraform.workspace`,
 			&Reference{
-				Subject: TerraformAttr{
-					Name: "workspace",
-				},
+				Subject: NewTerraformAttr("terraform", "workspace"),
 				SourceRange: tfdiags.SourceRange{
 					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
 					End:   tfdiags.SourcePos{Line: 1, Column: 20, Byte: 19},
@@ -619,9 +617,7 @@ func TestParseRef(t *testing.T) {
 		{
 			`terraform.workspace.blah`,
 			&Reference{
-				Subject: TerraformAttr{
-					Name: "workspace",
-				},
+				Subject: NewTerraformAttr("terraform", "workspace"),
 				SourceRange: tfdiags.SourceRange{
 					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
 					End:   tfdiags.SourcePos{Line: 1, Column: 20, Byte: 19},
@@ -647,6 +643,49 @@ func TestParseRef(t *testing.T) {
 			`terraform["workspace"]`,
 			nil,
 			`The "terraform" object does not support this operation.`,
+		},
+
+		// tofu
+		{
+			`tofu.workspace`,
+			&Reference{
+				Subject: NewTerraformAttr("tofu", "workspace"),
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 15, Byte: 14},
+				},
+			},
+			``,
+		},
+		{
+			`tofu.workspace.blah`,
+			&Reference{
+				Subject: NewTerraformAttr("tofu", "workspace"),
+				SourceRange: tfdiags.SourceRange{
+					Start: tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+					End:   tfdiags.SourcePos{Line: 1, Column: 15, Byte: 14},
+				},
+				Remaining: hcl.Traversal{
+					hcl.TraverseAttr{
+						Name: "blah",
+						SrcRange: hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 15, Byte: 14},
+							End:   hcl.Pos{Line: 1, Column: 20, Byte: 19},
+						},
+					},
+				},
+			},
+			``, // valid at this layer, but will fail during eval because "workspace" is a string
+		},
+		{
+			`tofu`,
+			nil,
+			`The "tofu" object cannot be accessed directly. Instead, access one of its attributes.`,
+		},
+		{
+			`tofu["workspace"]`,
+			nil,
+			`The "tofu" object does not support this operation.`,
 		},
 
 		// var
