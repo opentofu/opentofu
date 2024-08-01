@@ -235,22 +235,18 @@ func (r *Resource) merge(or *Resource, rps map[string]*RequiredProvider) hcl.Dia
 	if r.Mode == addrs.ManagedResourceMode {
 		// or.Managed is always non-nil for managed resource mode
 
+		if or.Managed.lcContent != nil {
+			r.Managed.lcContent = or.Managed.lcContent
+		}
+
 		if or.Managed.Connection != nil {
 			r.Managed.Connection = or.Managed.Connection
-		}
-		if or.Managed.CreateBeforeDestroySet {
-			r.Managed.CreateBeforeDestroy = or.Managed.CreateBeforeDestroy
-			r.Managed.CreateBeforeDestroySet = or.Managed.CreateBeforeDestroySet
 		}
 		if len(or.Managed.IgnoreChanges) != 0 {
 			r.Managed.IgnoreChanges = or.Managed.IgnoreChanges
 		}
 		if or.Managed.IgnoreAllChanges {
 			r.Managed.IgnoreAllChanges = true
-		}
-		if or.Managed.PreventDestroySet {
-			r.Managed.PreventDestroy = or.Managed.PreventDestroy
-			r.Managed.PreventDestroySet = or.Managed.PreventDestroySet
 		}
 		if len(or.Managed.Provisioners) != 0 {
 			r.Managed.Provisioners = or.Managed.Provisioners
