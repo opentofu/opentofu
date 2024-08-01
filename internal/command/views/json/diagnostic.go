@@ -133,7 +133,7 @@ type DiagnosticFunctionCall struct {
 
 // NewDiagnostic takes a tfdiags.Diagnostic and a map of configuration sources,
 // and returns a Diagnostic struct.
-func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnostic {
+func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string]*hcl.File) *Diagnostic { //nolint:funlen,gocognit,gocyclo,cyclop // TODO(1818): Refactor this function.
 	var sev string
 	switch diag.Severity() {
 	case tfdiags.Error:
@@ -200,7 +200,9 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string][]byte) *Diagnost
 
 		var src []byte
 		if sources != nil {
-			src = sources[highlightRange.Filename]
+			if f, ok := sources[highlightRange.Filename]; ok {
+				src = f.Bytes
+			}
 		}
 
 		// If we have a source file for the diagnostic, we can emit a code

@@ -7,8 +7,11 @@ description: >-
 
 # Backend Type: remote
 
+Most of the available backends provide different ways of storing state snapshots remotely. Therefore, they are often called remote state backends.
+This page describes a special `remote` backend, not to be confused with the simpler remote state backends.
+
 :::note
-**We recommend using the [`cloud` built-in integration](../../../cli/cloud/settings.mdx)** instead of this backend. The `cloud` option includes an improved user experience and more features.
+**We recommend using the [`cloud` built-in integration](../../../cli/cloud/settings.mdx)** instead of the `remote` backend. The `cloud` option includes an improved user experience and more features.
 :::
 
 The remote backend is unique among all other OpenTofu backends because it can both store state snapshots and execute CLI-driven run workflow operations for TF Automation and Collaboration Software ([TACOS](../../../intro/tacos.mdx)) backends. It used to be called an "enhanced" backend.

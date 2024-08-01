@@ -146,6 +146,7 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 
 	vals["path"] = cty.ObjectVal(pathAttrs)
 	vals["terraform"] = cty.ObjectVal(terraformAttrs)
+	vals["tofu"] = cty.ObjectVal(terraformAttrs)
 
 	ctx := &hcl.EvalContext{
 		Variables: vals,
@@ -557,6 +558,7 @@ func (b *evalVarBuilder) buildAllVariablesInto(vals map[string]cty.Value) {
 	vals["local"] = cty.ObjectVal(b.localValues)
 	vals["path"] = cty.ObjectVal(b.pathAttrs)
 	vals["terraform"] = cty.ObjectVal(b.terraformAttrs)
+	vals["tofu"] = cty.ObjectVal(b.terraformAttrs)
 	vals["count"] = cty.ObjectVal(b.countAttrs)
 	vals["each"] = cty.ObjectVal(b.forEachAttrs)
 

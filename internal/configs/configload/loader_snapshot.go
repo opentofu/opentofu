@@ -196,7 +196,7 @@ func (l *Loader) addModuleToSnapshot(snap *Snapshot, key string, dir string, sou
 			})
 			continue
 		}
-		snapMod.Files[filepath.Clean(filename)] = src
+		snapMod.Files[filepath.Clean(filename)] = src.Bytes
 	}
 
 	snap.Modules[key] = snapMod

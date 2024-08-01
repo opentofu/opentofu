@@ -33,11 +33,21 @@ type ModuleExpansionTransformer struct {
 
 func (t *ModuleExpansionTransformer) Transform(g *Graph) error {
 	t.closers = make(map[string]*nodeCloseModule)
+
+	// Construct a tree for fast lookups of Vertices based on their ModulePath.
+	tree := &pathTree{
+		children: make(map[string]*pathTree),
+	}
+
+	for _, v := range g.Vertices() {
+		tree.addVertex(v)
+	}
+
 	// The root module is always a singleton and so does not need expansion
 	// processing, but any descendent modules do. We'll process them
 	// recursively using t.transform.
 	for _, cfg := range t.Config.Children {
-		err := t.transform(g, cfg, nil)
+		err := t.transform(g, cfg, tree, nil)
 		if err != nil {
 			return err
 		}
@@ -75,9 +85,19 @@ func (t *ModuleExpansionTransformer) Transform(g *Graph) error {
 	// Modules implicitly depend on their child modules, so connect closers to
 	// other which contain their path.
 	for _, c := range t.closers {
-		for _, d := range t.closers {
-			if len(d.Addr) > len(c.Addr) && c.Addr.Equal(d.Addr[:len(c.Addr)]) {
-				g.Connect(dag.BasicEdge(c, d))
+		// For a closer c with address ["module.foo", "module.bar", "module.baz"],
+		// we'll look up all potential parent modules:
+		//
+		// - t.closers["module.foo"]
+		// - t.closers["module.foo.module.bar"]
+		//
+		// And connect the parent module to c.
+		//
+		// We skip i=0 because c.Addr[0:0] == [], and the root module should not exist in t.closers.
+		for i := 1; i < len(c.Addr); i++ {
+			parentAddr := c.Addr[0:i].String()
+			if parent, ok := t.closers[parentAddr]; ok {
+				g.Connect(dag.BasicEdge(parent, c))
 			}
 		}
 	}
@@ -85,7 +105,7 @@ func (t *ModuleExpansionTransformer) Transform(g *Graph) error {
 	return nil
 }
 
-func (t *ModuleExpansionTransformer) transform(g *Graph, c *configs.Config, parentNode dag.Vertex) error {
+func (t *ModuleExpansionTransformer) transform(g *Graph, c *configs.Config, tree *pathTree, parentNode dag.Vertex) error {
 	_, call := c.Path.Call()
 	modCall := c.Parent.Module.ModuleCalls[call.Name]
 
@@ -100,6 +120,7 @@ func (t *ModuleExpansionTransformer) transform(g *Graph, c *configs.Config, pare
 	}
 
 	g.Add(expander)
+	tree.addVertex(expander)
 	log.Printf("[TRACE] ModuleExpansionTransformer: Added %s as %T", c.Path, expander)
 
 	if parentNode != nil {
@@ -113,10 +134,11 @@ func (t *ModuleExpansionTransformer) transform(g *Graph, c *configs.Config, pare
 		Addr: c.Path,
 	}
 	g.Add(closer)
+	tree.addVertex(closer)
 	g.Connect(dag.BasicEdge(closer, expander))
 	t.closers[c.Path.String()] = closer
 
-	for _, childV := range g.Vertices() {
+	for _, childV := range tree.findModule(c.Path) {
 		// don't connect a node to itself
 		if childV == expander {
 			continue
@@ -142,10 +164,73 @@ func (t *ModuleExpansionTransformer) transform(g *Graph, c *configs.Config, pare
 
 	// Also visit child modules, recursively.
 	for _, cc := range c.Children {
-		if err := t.transform(g, cc, expander); err != nil {
+		if err := t.transform(g, cc, tree, expander); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+// pathTree is a tree containing a dag.Set of dag.Vertex per addrs.Module
+//
+// Given V = vertices in the graph and M = modules in the graph, constructing
+// the tree takes ~O(V*log(M)) time to insert all the vertices, which gives
+// us ~O(log(M)) access time to find all vertices that are part of a module.
+//
+// The previous implementation iterated over every node for each module, which made
+// Transform() take O(V * M).
+//
+// This improves that to O(V*log(M) + M).
+type pathTree struct {
+	children map[string]*pathTree
+	leaves   dag.Set
+}
+
+func (t *pathTree) addVertex(v dag.Vertex) {
+	mp, ok := v.(GraphNodeModulePath)
+	if !ok {
+		return
+	}
+
+	t.add(v, mp.ModulePath())
+}
+
+func (t *pathTree) add(v dag.Vertex, addr []string) {
+	if len(addr) == 0 {
+		if t.leaves == nil {
+			t.leaves = make(dag.Set)
+		}
+		t.leaves.Add(v)
+		return
+	}
+
+	next, addr := addr[0], addr[1:]
+	child, ok := t.children[next]
+	if !ok {
+		child = &pathTree{
+			children: make(map[string]*pathTree),
+		}
+		t.children[next] = child
+	}
+
+	child.add(v, addr)
+}
+
+func (t *pathTree) findModule(p addrs.Module) dag.Set {
+	return t.find(p)
+}
+
+func (t *pathTree) find(addr []string) dag.Set {
+	if len(addr) == 0 {
+		return t.leaves
+	}
+
+	next, addr := addr[0], addr[1:]
+	child, ok := t.children[next]
+	if !ok {
+		return nil
+	}
+
+	return child.find(addr)
 }

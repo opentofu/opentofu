@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/errwrap"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2"
 )
 
@@ -191,6 +191,10 @@ func (diags Diagnostics) NonFatalErr() error {
 // Diagnostics that do not differ by any of these sortable characteristics
 // will remain in the same relative order after this method returns.
 func (diags Diagnostics) Sort() {
+	sort.Stable(sortDiagnostics(diags))
+}
+
+func (diags Diagnostics) TrimDuplicated() {
 	sort.Stable(sortDiagnostics(diags))
 }
 

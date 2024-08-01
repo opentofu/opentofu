@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/registry"
@@ -111,7 +112,7 @@ func (l *Loader) Parser() *configs.Parser {
 
 // Sources returns the source code cache for the underlying parser of this
 // loader. This is a shorthand for l.Parser().Sources().
-func (l *Loader) Sources() map[string][]byte {
+func (l *Loader) Sources() map[string]*hcl.File {
 	return l.parser.Sources()
 }
 
