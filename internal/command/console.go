@@ -133,12 +133,11 @@ func (c *ConsoleCommand) Run(args []string) int {
 		ErrorWriter: os.Stderr,
 	}
 
-	if _, isPedantic := c.Ui.(*PedanticUi); isPedantic {
+	pedanticUi, isPedantic := c.Ui.(*PedanticUi)
+	if isPedantic {
 		ui = &PedanticUi{
 			Ui: ui,
-			NotifyWarning: func() {
-				c.View.WarningFlagged = true
-			},
+			NotifyWarning: pedanticUi.NotifyWarning,
 		}
 	}
 
