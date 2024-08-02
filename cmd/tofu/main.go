@@ -78,34 +78,6 @@ func realMain() int {
 
 	var err error
 
-	binName := filepath.Base(os.Args[0])
-	args := os.Args[1:]
-
-	// Parse command args
-	opts, args, err := parseCommandArgs(args)
-	if err != nil {
-		Ui.Error(err.Error())
-		return 1
-	}
-
-	// Set to the version command if version has been toggled
-	if _, ok := opts[optionVersion]; ok {
-		newArgs := make([]string, len(args)+1)
-		newArgs[0] = "version"
-		copy(newArgs[1:], args)
-		args = newArgs
-	}
-
-	// Attach the help option to the command args to activate help if it has been toggled
-	if _, ok := opts[optionHelp]; ok {
-		args = append(args, optionHelp)
-	}
-
-	// Attach the pedantic option to the command args to activate pedantic mode if it has been toggled
-	if _, ok := opts[optionPedantic]; ok {
-		args = append(args, optionPedantic)
-	}
-
 	err = openTelemetryInit()
 	if err != nil {
 		// openTelemetryInit can only fail if OpenTofu was run with an
@@ -250,6 +222,14 @@ func realMain() int {
 	// Initialize the backends.
 	backendInit.Init(services)
 
+	// Get command options and args
+	binName := filepath.Base(os.Args[0])
+	opts, args, err := parseCommandArgs(os.Args[1:])
+	if err != nil {
+		Ui.Error(err.Error())
+		return 1
+	}
+
 	originalWd, err := os.Getwd()
 	if err != nil {
 		// It would be very strange to end up here
@@ -310,6 +290,24 @@ func realMain() int {
 	if err != nil {
 		Ui.Error(err.Error())
 		return 1
+	}
+
+	// Set to the version command if version has been toggled
+	if _, ok := opts[optionVersion]; ok {
+		newArgs := make([]string, len(args)+1)
+		newArgs[0] = "version"
+		copy(newArgs[1:], args)
+		args = newArgs
+	}
+
+	// Attach the help option to the command args to activate help if it has been toggled
+	if _, ok := opts[optionHelp]; ok {
+		args = append(args, optionHelp)
+	}
+
+	// Attach the pedantic option to the command args to activate pedantic mode if it has been toggled
+	if _, ok := opts[optionPedantic]; ok {
+		args = append(args, optionPedantic)
 	}
 
 	// Rebuild the CLI with any modified args.
@@ -490,8 +488,7 @@ func mkConfigDir(configDir string) error {
 	return err
 }
 
-// parseCommandArgs parses the command arguments supplied to the tofu command and returns seperated slices of
-// global options and subcommand args for use.
+// parseCommandArgs parses args supplied and returns command compatible options and args
 func parseCommandArgs(args []string) (map[string]string, []string, error) {
 	const numOptionSegments = 2
 
@@ -539,7 +536,7 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 
 		if optionName == optionChDir && len(option) != numOptionSegments {
 			return nil, nil, errors.New(
-				"invalid global option -chdir: must include an equals sign followed by a value: -chdir=value")
+				"invalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example")
 		}
 
 		optionValue := ""

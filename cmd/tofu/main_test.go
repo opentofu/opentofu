@@ -370,8 +370,6 @@ func TestMkConfigDir_noparent(t *testing.T) {
 }
 
 func TestParseCommandArgs(t *testing.T) {
-	const errInvalidChDir = "invalid global option -chdir: must include an equals sign followed by a value: -chdir=value"
-
 	testCases := []struct {
 		name         string
 		args         []string
@@ -405,7 +403,7 @@ func TestParseCommandArgs(t *testing.T) {
 			[]string{"-chdir", "plan", "-state=file.tfstate"},
 			nil,
 			nil,
-			errInvalidChDir,
+			"invalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example",
 		},
 	}
 
