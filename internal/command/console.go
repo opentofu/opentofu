@@ -127,6 +127,21 @@ func (c *ConsoleCommand) Run(args []string) int {
 		}
 	}()
 
+	// Set up the UI so we can output directly to stdout
+	var ui cli.Ui = &cli.BasicUi{
+		Writer:      os.Stdout,
+		ErrorWriter: os.Stderr,
+	}
+
+	if _, isPedantic := c.Ui.(*PedanticUi); isPedantic {
+		ui = &PedanticUi{
+			Ui: ui,
+			NotifyWarning: func() {
+				c.View.WarningFlagged = true
+			},
+		}
+	}
+
 	evalOpts := &tofu.EvalOpts{}
 	if lr.PlanOpts != nil {
 		// the LocalRun type is built primarily to support the main operations,
@@ -166,10 +181,10 @@ func (c *ConsoleCommand) Run(args []string) int {
 
 	// Determine if stdin is a pipe. If so, we evaluate directly.
 	if c.StdinPiped() {
-		return c.modePiped(session, c.Ui)
+		return c.modePiped(session, ui)
 	}
 
-	return c.modeInteractive(session, c.Ui)
+	return c.modeInteractive(session, ui)
 }
 
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
