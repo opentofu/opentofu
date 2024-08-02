@@ -95,14 +95,13 @@ func realMain() int {
 		args = newArgs
 	}
 
-	// Attach the help option to the command arguments to activate help if it has been toggled
+	// Attach the help option to the command args to activate help if it has been toggled
 	if _, ok := opts[optionHelp]; ok {
 		args = append(args, optionHelp)
 	}
 
-	// Configure pedantic mode if it has been toggled
+	// Attach the pedantic option to the command args to activate pedantic mode if it has been toggled
 	if _, ok := opts[optionPedantic]; ok {
-		// Attach the pedantic option to the command args to activate pedantic mode at the command level
 		args = append(args, optionPedantic)
 	}
 
@@ -494,8 +493,10 @@ func mkConfigDir(configDir string) error {
 // parseCommandArgs parses the command arguments supplied to the tofu command and returns seperated slices of
 // global options and subcommand args for use.
 func parseCommandArgs(args []string) (map[string]string, []string, error) {
-	opts := make(map[string]string)
-	newArgs := make([]string, 0)
+	const numOptionSegments = 2
+
+	retOptions := make(map[string]string)
+	retArgs := make([]string, 0)
 
 	var commandFound bool
 
@@ -512,31 +513,32 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 			commandFound = true
 		}
 
-		opt := strings.SplitN(arg, "=", 2)
+		option := strings.SplitN(arg, "=", numOptionSegments)
+		optionName := option[0]
 
 		// Retain backwards compatibility as version option historically can be anywhere on the arg list
 		// Capture -version, -v and --version as the version option
-		if opt[0] == optionVersion || opt[0] == "-v" || opt[0] == "--version" {
-			opt[0] = optionVersion
+		if optionName == "-version" || optionName == "-v" || optionName == "--version" {
+			optionName = optionVersion
 		} else {
-			if commandFound || opt[0] != optionChDir && opt[0] != optionHelp && opt[0] != optionPedantic {
-				newArgs = append(newArgs, arg)
+			if commandFound || optionName != optionChDir && optionName != optionHelp && optionName != optionPedantic {
+				retArgs = append(retArgs, arg)
 				continue
 			}
 
-			if opt[0] == optionChDir {
-				if len(opt) != 2 {
-					return nil, nil, fmt.Errorf(
-						"invalid global opt %[1]s: must include an equals sign followed by a value: %[1]s=value", opt[0])
-				}
+			if optionName == optionChDir && len(option) != numOptionSegments {
+				return nil, nil, fmt.Errorf(
+					"invalid global option %[1]s: must include an equals sign followed by a value: %[1]s=value", optionName)
 			}
 		}
 
-		if len(opt) != 2 {
-			opt = append(opt, "")
+		optionValue := ""
+		if len(option) == numOptionSegments {
+			optionValue = option[1]
 		}
-		opts[opt[0]] = opt[1]
+
+		retOptions[optionName] = optionValue
 	}
 
-	return opts, newArgs, nil
+	return retOptions, retArgs, nil
 }

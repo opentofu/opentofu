@@ -6,7 +6,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -371,40 +370,42 @@ func TestMkConfigDir_noparent(t *testing.T) {
 }
 
 func TestParseCommandArgs(t *testing.T) {
+	const errInvalidChDir = "invalid global option -chdir: must include an equals sign followed by a value: -chdir=value"
+
 	testCases := []struct {
 		name         string
 		args         []string
 		expectedOpts map[string]string
 		expectedArgs []string
-		expectedErr  error
+		expectedErr  string
 	}{
 		{
 			"positive tc options and args",
 			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "", "-state=file.tfstate"},
 			map[string]string{"-chdir": "target", "-help": "", "-pedantic": "", "-version": ""},
 			[]string{"plan", "-state=file.tfstate"},
-			nil,
+			"",
 		},
 		{
 			"positive tc version option",
 			[]string{"plan", "-state=file.tfstate", "-version", "-v", "--version"},
 			map[string]string{"-version": ""},
 			[]string{"plan", "-state=file.tfstate"},
-			nil,
+			"",
 		},
 		{
 			"positive tc invalid option before subcommand",
 			[]string{"-random", "plan", "-state=file.tfstate"},
 			map[string]string{},
 			[]string{"-random", "plan", "-state=file.tfstate"},
-			nil,
+			"",
 		},
 		{
 			"negative tc chdir",
 			[]string{"-chdir", "plan", "-state=file.tfstate"},
 			nil,
 			nil,
-			errors.New("invalid global opt -chdir: must include an equals sign followed by a value: -chdir=value"),
+			errInvalidChDir,
 		},
 	}
 
@@ -420,8 +421,13 @@ func TestParseCommandArgs(t *testing.T) {
 				t.Errorf("expected: %v got: %v", tc.expectedArgs, args)
 			}
 
-			if !reflect.DeepEqual(err, tc.expectedErr) {
-				t.Errorf("expected: %v got: %v", tc.expectedArgs, args)
+			var got string
+			if err != nil {
+				got = err.Error()
+			}
+
+			if got != tc.expectedErr {
+				t.Errorf("expected: %v got: %v", tc.expectedErr, err)
 			}
 		})
 	}

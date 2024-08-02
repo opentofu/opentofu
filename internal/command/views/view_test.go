@@ -1,11 +1,12 @@
 package views
 
 import (
-	"github.com/opentofu/opentofu/internal/terminal"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestView_DiagnosticsInPedanticMode(t *testing.T) {
