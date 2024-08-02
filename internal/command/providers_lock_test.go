@@ -29,9 +29,12 @@ func TestProvidersLock(t *testing.T) {
 		defer testChdir(t, td)()
 
 		ui := new(cli.MockUi)
+		view, _ := testView(t)
+
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 		code := c.Run([]string{})
@@ -91,9 +94,12 @@ func runProviderLockGenericTest(t *testing.T, testDirectory, expected string) {
 
 	p := testProvider()
 	ui := new(cli.MockUi)
+	view, _ := testView(t)
+
 	c := &ProvidersLockCommand{
 		Meta: Meta{
 			Ui:               ui,
+			View:             view,
 			testingOverrides: metaOverridesForProvider(p),
 		},
 	}
@@ -118,9 +124,12 @@ func TestProvidersLock_args(t *testing.T) {
 
 	t.Run("mirror collision", func(t *testing.T) {
 		ui := new(cli.MockUi)
+		view, _ := testView(t)
+
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 
@@ -142,9 +151,12 @@ func TestProvidersLock_args(t *testing.T) {
 
 	t.Run("invalid platform", func(t *testing.T) {
 		ui := new(cli.MockUi)
+		view, _ := testView(t)
+
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 
@@ -163,9 +175,12 @@ func TestProvidersLock_args(t *testing.T) {
 
 	t.Run("invalid provider argument", func(t *testing.T) {
 		ui := new(cli.MockUi)
+		view, _ := testView(t)
+
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 

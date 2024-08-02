@@ -391,8 +391,11 @@ func TestCommand_checkRequiredVersion(t *testing.T) {
 	defer testChdir(t, td)()
 
 	ui := cli.NewMockUi()
+	view, _ := testView(t)
+
 	meta := Meta{
-		Ui: ui,
+		Ui:   ui,
+		View: view,
 	}
 
 	diags := meta.checkRequiredVersion()
