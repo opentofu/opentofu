@@ -55,14 +55,14 @@ func (u *ColorizeUi) colorize(message string, color string) string {
 	return u.Colorize.Color(fmt.Sprintf("%s%s[reset]", color, message))
 }
 
-// PedanticUi updates the executing command view to flag when a warning has been triggered.
-type PedanticUi struct {
+// PedanticUI updates the executing command view to flag when a warning has been triggered.
+type PedanticUI struct {
 	cli.Ui
 	NotifyWarning func()
 }
 
 // Warn sends the warning to stderr and notifies the executing command of the warning.
-func (u *PedanticUi) Warn(msg string) {
+func (u *PedanticUI) Warn(msg string) {
 	u.Ui.Error(msg)
 	u.NotifyWarning()
 }
