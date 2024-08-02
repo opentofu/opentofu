@@ -396,8 +396,8 @@ func TestParseCommandArgs(t *testing.T) {
 		{
 			"positive tc invalid option before subcommand",
 			[]string{"-random", "plan", "-state=file.tfstate"},
-			map[string]string{},
-			[]string{"-random", "plan", "-state=file.tfstate"},
+			map[string]string{"-random": ""},
+			[]string{"plan", "-state=file.tfstate"},
 			"",
 		},
 		{

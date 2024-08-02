@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -516,20 +517,21 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 		option := strings.SplitN(arg, "=", numOptionSegments)
 		optionName := option[0]
 
-		// Retain backwards compatibility as version option historically can be anywhere on the arg list
-		// Capture -version, -v and --version as the version option
-		if optionName == "-version" || optionName == "-v" || optionName == "--version" {
+		// Capture -v and --version as the version option
+		if optionName == "-v" || optionName == "--version" {
 			optionName = optionVersion
-		} else {
-			if commandFound || optionName != optionChDir && optionName != optionHelp && optionName != optionPedantic {
-				retArgs = append(retArgs, arg)
-				continue
-			}
+		}
 
-			if optionName == optionChDir && len(option) != numOptionSegments {
-				return nil, nil, fmt.Errorf(
-					"invalid global option %[1]s: must include an equals sign followed by a value: %[1]s=value", optionName)
-			}
+		// Historically the version option can be found anywhere on the arg list, do not include with the return args
+		// and process it as a global option to maintain backwards compatibility
+		if commandFound && optionName != optionVersion {
+			retArgs = append(retArgs, arg)
+			continue
+		}
+
+		if optionName == optionChDir && len(option) != numOptionSegments {
+			return nil, nil, errors.New(
+				"invalid global option -chdir: must include an equals sign followed by a value: -chdir=value")
 		}
 
 		optionValue := ""

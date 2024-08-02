@@ -654,12 +654,12 @@ func (m *Meta) process(args []string) []string {
 	// Set the UI
 	m.oldUi = m.Ui
 
-	newUI := cli.Ui(&ColorizeUi{
+	var newUI cli.Ui = &ColorizeUi{
 		Colorize:   m.Colorize(),
 		ErrorColor: "[red]",
 		WarnColor:  "[yellow]",
 		Ui:         m.oldUi,
-	})
+	}
 
 	if pedanticMode {
 		newUI = &PedanticUI{
@@ -908,7 +908,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 // it could potentially return nil without errors. It is the
 // responsibility of the caller to handle the lack of schema
 // information accordingly
-func (m *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	path, err := os.Getwd()
@@ -918,7 +918,7 @@ func (m *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 
 	if config == nil {
-		config, diags = m.loadConfig(path)
+		config, diags = c.loadConfig(path)
 		if diags.HasErrors() {
 			diags.Append(tfdiags.SimpleWarning(failedToLoadSchemasMessage))
 			return nil, diags
@@ -926,7 +926,7 @@ func (m *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 
 	if config != nil || state != nil {
-		opts, err := m.contextOpts()
+		opts, err := c.contextOpts()
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags
