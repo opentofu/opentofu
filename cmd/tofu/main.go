@@ -258,8 +258,7 @@ func realMain() int {
 	}
 
 	// The arguments can begin with a -chdir option to ask OpenTofu to switch
-	// to a different working directory for the rest of its work. If that
-	// option is present then extractChdirOption returns a trimmed args with that option removed.
+	// to a different working directory for the rest of its work.
 	if overrideWd, ok := opts[optionChDir]; ok {
 		err := os.Chdir(overrideWd)
 		if err != nil {
