@@ -1013,6 +1013,9 @@ func TestShow_corruptStatefile(t *testing.T) {
 }
 
 func TestShow_showSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	defer testChdir(t, td)()
+
 	originalState := stateWithSensitiveValueForShow()
 
 	testStateFileDefault(t, originalState)
@@ -1042,6 +1045,9 @@ func TestShow_showSensitiveArg(t *testing.T) {
 }
 
 func TestShow_withoutShowSensitiveArg(t *testing.T) {
+	td := t.TempDir()
+	defer testChdir(t, td)()
+
 	originalState := stateWithSensitiveValueForShow()
 
 	testStateFileDefault(t, originalState)
