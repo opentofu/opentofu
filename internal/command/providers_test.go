@@ -103,7 +103,7 @@ func TestProviders_modules(t *testing.T) {
 	m := Meta{
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               initUi,
-		View:			  initView,
+		View:             initView,
 		ProviderSource:   providerSource,
 	}
 	ic := &InitCommand{

@@ -29,7 +29,7 @@ func TestProvidersSchema_error(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -68,7 +68,7 @@ func TestProvidersSchema_output(t *testing.T) {
 			m := Meta{
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
-				View:			  view,
+				View:             view,
 				ProviderSource:   providerSource,
 			}
 

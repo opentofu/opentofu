@@ -563,7 +563,7 @@ func TestShow_json_output(t *testing.T) {
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
-					View:			  view,
+					View:             view,
 					ProviderSource:   providerSource,
 				},
 			}
@@ -674,7 +674,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 			ProviderSource:   providerSource,
 		},
 	}
@@ -770,7 +770,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 			ProviderSource:   providerSource,
 		},
 	}
@@ -882,7 +882,7 @@ func TestShow_json_output_state(t *testing.T) {
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
-					View:			  view,
+					View:             view,
 					ProviderSource:   providerSource,
 				},
 			}

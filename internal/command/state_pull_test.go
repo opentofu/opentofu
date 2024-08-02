@@ -33,7 +33,7 @@ func TestStatePull(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -59,7 +59,7 @@ func TestStatePull_noState(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -88,7 +88,7 @@ func TestStatePull_checkRequiredVersion(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 

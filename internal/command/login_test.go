@@ -103,7 +103,7 @@ func TestLogin(t *testing.T) {
 			c := &LoginCommand{
 				Meta: Meta{
 					Ui:              ui,
-					View: 			 view,
+					View:            view,
 					BrowserLauncher: browserLauncher,
 					Services:        svcs,
 				},

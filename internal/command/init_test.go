@@ -2347,7 +2347,7 @@ provider "registry.opentofu.org/hashicorp/test" {
 				testingOverrides: metaOverridesForProvider(testProvider()),
 				Ui:               ui,
 				ProviderSource:   providerSource,
-				View:			  view,
+				View:             view,
 			}
 
 			c := &InitCommand{
