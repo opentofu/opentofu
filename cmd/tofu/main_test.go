@@ -71,7 +71,7 @@ func TestMain_cliArgsFromEnv(t *testing.T) {
 			"cli string has blank values",
 			[]string{testCommandName, "bar", "", "baz"},
 			"-foo bar",
-			[]string{"-foo", "bar", "bar", "", "baz"},
+			[]string{"-foo", "bar", "bar", "baz"},
 			false,
 		},
 

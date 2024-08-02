@@ -500,6 +500,12 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 	var commandFound bool
 
 	for _, arg := range args {
+		// Sanitise and check we have a valid argument
+		arg = strings.TrimSpace(arg)
+		if len(arg) == 0 {
+			continue
+		}
+
 		if !strings.HasPrefix(arg, "-") {
 			// Global options are processed before the command
 			// Flag that we have found the command
