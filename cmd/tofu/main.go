@@ -499,6 +499,13 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 	retOptions := make(map[string]string)
 	retArgs := make([]string, 0)
 
+	globalOptions := map[string]struct{}{
+		optionChDir:    {},
+		optionHelp:     {},
+		optionPedantic: {},
+		optionVersion:  {},
+	}
+
 	var commandFound bool
 
 	for _, arg := range args {
@@ -522,9 +529,11 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 			optionName = optionVersion
 		}
 
-		// Historically the version option can be found anywhere on the arg list, do not include with the return args
-		// and process it as a global option to maintain backwards compatibility
-		if commandFound && optionName != optionVersion {
+		// We have a few scenarios to cater for to maintain backwards compatibility for options and args processing:
+		// 1. Capture options listed before the command which are not part of the global options as args
+		// 2. Capture the command and options listed after the command as args
+		// 3. Capture the version option as a global option regardless of where it was specified
+		if _, ok := globalOptions[optionName]; !ok && !commandFound || commandFound && optionName != optionVersion {
 			retArgs = append(retArgs, arg)
 			continue
 		}
