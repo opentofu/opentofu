@@ -8,8 +8,6 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/terminal"
 	"os"
 	"path/filepath"
 	"sort"
@@ -61,8 +59,7 @@ func TestFmt_TestFiles(t *testing.T) {
 			}
 
 			ui := cli.NewMockUi()
-			streams, _ := terminal.StreamsForTesting(t)
-			view := views.NewView(streams)
+			view, _ := testView(t)
 
 			c := &FmtCommand{
 				Meta: Meta{
@@ -129,8 +126,7 @@ func TestFmt(t *testing.T) {
 			}
 
 			ui := cli.NewMockUi()
-			streams, _ := terminal.StreamsForTesting(t)
-			view := views.NewView(streams)
+			view, _ := testView(t)
 
 			c := &FmtCommand{
 				Meta: Meta{
@@ -160,8 +156,7 @@ func TestFmt_nonexist(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -196,8 +191,7 @@ a = 1 +
 	}
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -229,8 +223,7 @@ func TestFmt_snippetInError(t *testing.T) {
 	}
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -268,8 +261,7 @@ func TestFmt_manyArgs(t *testing.T) {
 	}
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -312,8 +304,7 @@ func TestFmt_workingDirectory(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -345,8 +336,7 @@ func TestFmt_directoryArg(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -383,8 +373,7 @@ func TestFmt_fileArg(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -415,8 +404,7 @@ func TestFmt_stdinArg(t *testing.T) {
 	input.Write(fmtFixture.input)
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -442,8 +430,7 @@ func TestFmt_nonDefaultOptions(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -473,8 +460,7 @@ func TestFmt_check(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
@@ -506,8 +492,7 @@ func TestFmt_checkStdin(t *testing.T) {
 	input.Write(fmtFixture.input)
 
 	ui := new(cli.MockUi)
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, _ := testView(t)
 
 	c := &FmtCommand{
 		Meta: Meta{
