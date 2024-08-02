@@ -381,14 +381,14 @@ func TestParseCommandArgs(t *testing.T) {
 		{
 			"positive tc options and args",
 			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "", "-state=file.tfstate"},
-			map[string]string{"chdir": "target", "help": "", "pedantic": "", "version": ""},
+			map[string]string{"-chdir": "target", "-help": "", "-pedantic": "", "-version": ""},
 			[]string{"plan", "-state=file.tfstate"},
 			nil,
 		},
 		{
 			"positive tc version option",
 			[]string{"plan", "-state=file.tfstate", "-version", "-v", "--version"},
-			map[string]string{"version": ""},
+			map[string]string{"-version": ""},
 			[]string{"plan", "-state=file.tfstate"},
 			nil,
 		},

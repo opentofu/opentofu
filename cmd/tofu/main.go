@@ -43,10 +43,10 @@ const (
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
 
 	// Global options
-	optionChDir    = "chdir"
-	optionHelp     = "help"
-	optionPedantic = "pedantic"
-	optionVersion  = "version"
+	optionChDir    = "-chdir"
+	optionHelp     = "-help"
+	optionPedantic = "-pedantic"
+	optionVersion  = "-version"
 )
 
 // ui wraps the primary output cli.Ui, and redirects Warn calls to Output
@@ -97,13 +97,13 @@ func realMain() int {
 
 	// Attach the help option to the command arguments to activate help if it has been toggled
 	if _, ok := opts[optionHelp]; ok {
-		args = append(args, fmt.Sprintf("-%s", optionHelp))
+		args = append(args, optionHelp)
 	}
 
 	// Configure pedantic mode if it has been toggled
 	if _, ok := opts[optionPedantic]; ok {
 		// Attach the pedantic option to the command args to activate pedantic mode at the command level
-		args = append(args, fmt.Sprintf("-%s", optionPedantic))
+		args = append(args, optionPedantic)
 	}
 
 	err = openTelemetryInit()
@@ -512,11 +512,11 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 			commandFound = true
 		}
 
-		opt := strings.SplitN(arg[1:], "=", 2)
+		opt := strings.SplitN(arg, "=", 2)
 
 		// Retain backwards compatibility as version option historically can be anywhere on the arg list
 		// Capture -version, -v and --version as the version option
-		if opt[0] == optionVersion || opt[0] == "v" || opt[0] == "-version" {
+		if opt[0] == optionVersion || opt[0] == "-v" || opt[0] == "--version" {
 			opt[0] = optionVersion
 		} else {
 			if commandFound || opt[0] != optionChDir && opt[0] != optionHelp && opt[0] != optionPedantic {
@@ -525,9 +525,10 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 			}
 
 			if opt[0] == optionChDir {
+				fmt.Println(opt)
 				if len(opt) != 2 {
 					return nil, nil, fmt.Errorf(
-						"invalid global opt -%[1]s: must include an equals sign followed by a value: -%[1]s=value", opt[0])
+						"invalid global opt %[1]s: must include an equals sign followed by a value: %[1]s=value", opt[0])
 				}
 			}
 		}
