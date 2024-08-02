@@ -525,7 +525,6 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 			}
 
 			if opt[0] == optionChDir {
-				fmt.Println(opt)
 				if len(opt) != 2 {
 					return nil, nil, fmt.Errorf(
 						"invalid global opt %[1]s: must include an equals sign followed by a value: %[1]s=value", opt[0])
