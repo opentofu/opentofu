@@ -182,7 +182,15 @@ func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType,
 	loader.Parser().ForceFileSource(filename, src)
 
 	var f *hcl.File
-	if strings.HasSuffix(filename, ".json") {
+
+	extJSON := strings.HasSuffix(filename, ".json")
+	extTfvars := strings.HasSuffix(filename, DefaultVarsExtension)
+
+	// Only try json detection if ambiguous
+	// Ex: -var-file=<(./scripts/vars.sh)
+	detectJSON := !extJSON && !extTfvars && strings.HasPrefix(strings.TrimSpace(string(src)), "{")
+
+	if extJSON || detectJSON {
 		var hclDiags hcl.Diagnostics
 		f, hclDiags = hcljson.Parse(src, filename)
 		diags = diags.Append(hclDiags)
