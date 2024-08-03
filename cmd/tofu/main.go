@@ -534,14 +534,14 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 			continue
 		}
 
-		if optionName == optionChDir && len(option) != numOptionSegments {
-			return nil, nil, errors.New(
-				"invalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example")
-		}
-
 		optionValue := ""
 		if len(option) == numOptionSegments {
 			optionValue = option[1]
+		}
+
+		if optionName == optionChDir && len(optionValue) == 0 {
+			return nil, nil, errors.New(
+				"invalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example")
 		}
 
 		retOptions[optionName] = optionValue
