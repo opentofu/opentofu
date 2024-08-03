@@ -196,3 +196,7 @@ The `TF_ENCRYPTION` environment variable is an alternate method of specifying th
 # Add/Override encryption key_provider.static.mykp
 export TF_ENCRYPTION='key_provider "static" "mykp" { key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169" }'
 ```
+
+:::warning
+If the key (or similar) has a dollar sign in it, beware that your shell may interpret that as variable interpolation. Make sure the environment variable value is enclosed in single quotes, or escape it with a backslash to prevent your secret from becoming changed by your shell without you realizing.
+:::
