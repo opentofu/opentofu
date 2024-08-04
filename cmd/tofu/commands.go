@@ -54,26 +54,6 @@ var hiddenCommands map[string]struct{}
 // Ui is the cli.Ui used for communicating to the outside world.
 var Ui cli.Ui
 
-// pedanticCommand is the interface which defines the required functions for the pedantic mode functionality
-type pedanticCommand interface {
-	cli.Command
-	WarningFlagged() bool
-}
-
-// pedanticWrapper is a wrapper around commands which implement the pedanticCommand interface
-type pedanticWrapper struct {
-	pedanticCommand
-}
-
-// Run runs the command returning the appropriate code based on whether a warning has been flagged
-func (cw *pedanticWrapper) Run(args []string) int {
-	retCode := cw.pedanticCommand.Run(args)
-	if cw.pedanticCommand.WarningFlagged() {
-		retCode = 1
-	}
-	return retCode
-}
-
 func initCommands(
 	ctx context.Context,
 	originalWorkingDir string,
@@ -483,22 +463,19 @@ func initCommands(
 			panic(err)
 		}
 
-		pedanticCmd, isPedantic := cmd.(pedanticCommand)
-		if isPedantic {
+		if pedanticCmd, isPedantic := cmd.(command.PedanticCommand); isPedantic {
 			commands[name] = func() (cli.Command, error) {
-				return &pedanticWrapper{pedanticCommand: pedanticCmd}, nil
+				return &command.PedanticRunner{PedanticCommand: pedanticCmd}, nil
 			}
 			continue
 		}
 
-		aliasedCmd, isAlias := cmd.(*command.AliasCommand)
-		if isAlias {
-			pedanticCmd, isPedantic = aliasedCmd.Command.(pedanticCommand)
-			if isPedantic {
+		if aliasedCmd, isAlias := cmd.(*command.AliasCommand); isAlias {
+			if pedanticCmd, isPedantic := aliasedCmd.Command.(command.PedanticCommand); isPedantic {
 				commands[name] = func() (cli.Command, error) {
 					return &command.AliasCommand{
-						Command: &pedanticWrapper{
-							pedanticCommand: pedanticCmd,
+						Command: &command.PedanticRunner{
+							PedanticCommand: pedanticCmd,
 						},
 					}, nil
 				}

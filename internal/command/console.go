@@ -128,17 +128,9 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}()
 
 	// Set up the UI so we can output directly to stdout
-	var ui cli.Ui = &cli.BasicUi{
+	ui := &cli.BasicUi{
 		Writer:      os.Stdout,
 		ErrorWriter: os.Stderr,
-	}
-
-	pedanticUI, isPedantic := c.Ui.(*PedanticUI)
-	if isPedantic {
-		ui = &PedanticUI{
-			Ui:            ui,
-			NotifyWarning: pedanticUI.NotifyWarning,
-		}
 	}
 
 	evalOpts := &tofu.EvalOpts{}

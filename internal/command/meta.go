@@ -662,9 +662,9 @@ func (m *Meta) process(args []string) []string {
 	}
 
 	if pedanticMode {
-		newUI = &PedanticUI{
+		newUI = &pedanticUI{
 			Ui: newUI,
-			NotifyWarning: func() {
+			notifyWarning: func() {
 				m.View.WarningFlagged = true
 			},
 		}
@@ -948,7 +948,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	return nil, diags
 }
 
-// WarningFlagged returns whether a warning has been flagged during command execution when in pedantic mode
-func (m *Meta) WarningFlagged() bool {
+// warningFlagged returns whether a warning has been flagged during command execution when in pedantic mode
+func (m *Meta) warningFlagged() bool {
 	return m.View.WarningFlagged
 }

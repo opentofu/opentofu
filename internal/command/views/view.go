@@ -43,10 +43,10 @@ type View struct {
 	// order to access the config loader cache.
 	configSources func() map[string]*hcl.File
 
-	// pedantic mode is used to treat warnings as errors
+	// PedanticMode is used to treat warnings as errors
 	PedanticMode bool
 
-	// Warning flagged is used to indicate a warning has been flagged when in pedantic mode
+	// WarningFlagged is used to indicate a warning has been flagged when in pedantic mode
 	WarningFlagged bool
 }
 
