@@ -2995,6 +2995,33 @@ func TestInit_moduleVersion(t *testing.T) {
 	})
 }
 
+func TestInit_invalidExtraLabel(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("init-syntax-invalid-extra-label"), td)
+	defer testChdir(t, td)()
+
+	ui := cli.NewMockUi()
+	view, _ := testView(t)
+	m := Meta{
+		Ui:   ui,
+		View: view,
+	}
+
+	c := &InitCommand{
+		Meta: m,
+	}
+
+	if code := c.Run(nil); code == 0 {
+		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", ui.OutputWriter, ui.ErrorWriter)
+	}
+
+	errStr := ui.ErrorWriter.String()
+	splitted := strings.Split(errStr, "Error: Unsupported block type")
+	if len(splitted) != 2 {
+		t.Fatalf("want exactly one unsupported block type erros but got: %d\nstderr:\n%s\n\nstdout:\n%s", len(splitted)-1, errStr, ui.OutputWriter.String())
+	}
+}
+
 // newMockProviderSource is a helper to succinctly construct a mock provider
 // source that contains a set of packages matching the given provider versions
 // that are available for installation (from temporary local files).
