@@ -300,7 +300,6 @@ func (c *PassedProviderConfig) InParentTODO() *ProviderConfigRef {
 	return c.InParent(addrs.NoKey)
 }
 
-// TODO/Oleksandr: check InParent calls to ensure it expects functions instead of a field
 func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
 	if c.InParentMapping == nil {
 		return nil
@@ -333,7 +332,7 @@ func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, h
 	for _, pair := range pairs {
 		key, keyDiags := decodeProviderConfigRef(pair.Key, "providers")
 		diags = append(diags, keyDiags...)
-		value, valueDiags := decodeProviderConfigRef(pair.Value, "providers")
+		value, valueDiags := decodeProviderConfigRefMapping(pair.Value, "providers")
 		diags = append(diags, valueDiags...)
 		if keyDiags.HasErrors() || valueDiags.HasErrors() {
 			continue
@@ -355,7 +354,7 @@ func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, h
 
 		providers = append(providers, PassedProviderConfig{
 			InChild:         key,
-			InParentMapping: NewProviderConfigMappingFromRef(value),
+			InParentMapping: value,
 		})
 	}
 	return providers, diags
