@@ -8,7 +8,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -224,11 +223,7 @@ func realMain() int {
 
 	// Get command options and args
 	binName := filepath.Base(os.Args[0])
-	opts, args, err := parseCommandArgs(os.Args[1:])
-	if err != nil {
-		Ui.Error(err.Error())
-		return 1
-	}
+	opts, args := parseCommandArgs(os.Args[1:])
 
 	originalWd, err := os.Getwd()
 	if err != nil {
@@ -239,7 +234,12 @@ func realMain() int {
 
 	// The arguments can begin with a -chdir option to ask OpenTofu to switch
 	// to a different working directory for the rest of its work.
-	if overrideWd, ok := opts[optionChDir]; ok {
+	if overrideWd, isGlobalOptionSet := opts[optionChDir]; isGlobalOptionSet {
+		if len(overrideWd) == 0 {
+			Ui.Error("invalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example")
+			return 1
+		}
+
 		err := os.Chdir(overrideWd)
 		if err != nil {
 			Ui.Error(fmt.Sprintf("Error handling -chdir option: %s", err))
@@ -293,7 +293,7 @@ func realMain() int {
 	}
 
 	// Set to the version command if version has been toggled
-	if _, ok := opts[optionVersion]; ok {
+	if _, isGlobalOptionSet := opts[optionVersion]; isGlobalOptionSet {
 		newArgs := make([]string, len(args)+1)
 		newArgs[0] = "version"
 		copy(newArgs[1:], args)
@@ -301,12 +301,12 @@ func realMain() int {
 	}
 
 	// Attach the help option to the command args to activate help if it has been toggled
-	if _, ok := opts[optionHelp]; ok {
+	if _, isGlobalOptionSet := opts[optionHelp]; isGlobalOptionSet {
 		args = append(args, optionHelp)
 	}
 
 	// Attach the pedantic option to the command args to activate pedantic mode if it has been toggled
-	if _, ok := opts[optionPedantic]; ok {
+	if _, isGlobalOptionSet := opts[optionPedantic]; isGlobalOptionSet {
 		args = append(args, optionPedantic)
 	}
 
@@ -489,7 +489,7 @@ func mkConfigDir(configDir string) error {
 }
 
 // parseCommandArgs parses args supplied and returns command compatible options and args
-func parseCommandArgs(args []string) (map[string]string, []string, error) {
+func parseCommandArgs(args []string) (map[string]string, []string) {
 	const numOptionSegments = 2
 
 	retOptions := make(map[string]string)
@@ -529,7 +529,7 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 		// 1. Capture options listed before the command which are not part of the global options as args
 		// 2. Capture the command and options listed after the command as args
 		// 3. Capture the version option as a global option regardless of where it was specified
-		if _, ok := globalOptions[optionName]; !ok && !commandFound || commandFound && optionName != optionVersion {
+		if _, isGlobalOption := globalOptions[optionName]; !isGlobalOption && !commandFound || commandFound && optionName != optionVersion {
 			retArgs = append(retArgs, arg)
 			continue
 		}
@@ -539,13 +539,8 @@ func parseCommandArgs(args []string) (map[string]string, []string, error) {
 			optionValue = option[1]
 		}
 
-		if optionName == optionChDir && len(optionValue) == 0 {
-			return nil, nil, errors.New(
-				"invalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example")
-		}
-
 		retOptions[optionName] = optionValue
 	}
 
-	return retOptions, retArgs, nil
+	return retOptions, retArgs
 }

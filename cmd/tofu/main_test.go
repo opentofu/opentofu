@@ -375,41 +375,30 @@ func TestParseCommandArgs(t *testing.T) {
 		args         []string
 		expectedOpts map[string]string
 		expectedArgs []string
-		expectedErr  string
 	}{
 		{
 			"positive tc options and args",
 			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "", "-state=file.tfstate"},
 			map[string]string{"-chdir": "target", "-help": "", "-pedantic": "", "-version": ""},
 			[]string{"plan", "-state=file.tfstate"},
-			"",
 		},
 		{
 			"positive tc version option",
 			[]string{"plan", "-state=file.tfstate", "-version", "-v", "--version"},
 			map[string]string{"-version": ""},
 			[]string{"plan", "-state=file.tfstate"},
-			"",
 		},
 		{
 			"positive tc invalid option before subcommand",
 			[]string{"-random", "plan", "-state=file.tfstate"},
 			map[string]string{},
 			[]string{"-random", "plan", "-state=file.tfstate"},
-			"",
-		},
-		{
-			"negative tc chdir",
-			[]string{"-chdir", "plan", "-state=file.tfstate"},
-			nil,
-			nil,
-			"invalid -chdir option: must include an equals sign followed by a directory path, like -chdir=example",
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			opts, args, err := parseCommandArgs(tc.args)
+			opts, args := parseCommandArgs(tc.args)
 
 			if !reflect.DeepEqual(opts, tc.expectedOpts) {
 				t.Errorf("expected: %v got: %v", tc.expectedOpts, opts)
@@ -417,15 +406,6 @@ func TestParseCommandArgs(t *testing.T) {
 
 			if !reflect.DeepEqual(args, tc.expectedArgs) {
 				t.Errorf("expected: %v got: %v", tc.expectedArgs, args)
-			}
-
-			var got string
-			if err != nil {
-				got = err.Error()
-			}
-
-			if got != tc.expectedErr {
-				t.Errorf("expected: %v got: %v", tc.expectedErr, err)
 			}
 		})
 	}
