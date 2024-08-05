@@ -577,6 +577,7 @@ func decodeReplaceTriggeredBy(expr hcl.Expression) ([]hcl.Expression, hcl.Diagno
 	return exprs, diags
 }
 
+// nolint: funlen, gocognit, cyclop, nolintlint // Legacy code moved from decode
 func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	lcContent := r.Managed.lcContent
@@ -599,8 +600,8 @@ func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 		r.Managed.PreventDestroySet = true
 	}
 
+	//nolint: nestif // Legacy code moved from decode
 	if attr, exists := lcContent.Attributes["ignore_changes"]; exists {
-
 		// ignore_changes can either be a list of relative traversals
 		// or it can be just the keyword "all" to ignore changes to this
 		// resource entirely.
@@ -638,7 +639,6 @@ func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 				var ignoreAllRange hcl.Range
 
 				for _, expr := range exprs {
-
 					// our expr might be the literal string "*", which
 					// we accept as a deprecated way of saying "all".
 					if shimIsIgnoreChangesStar(expr) {
@@ -653,10 +653,10 @@ func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 						continue
 					}
 
-					expr, shimDiags := shimTraversalInString(expr, false)
+					shimExpr, shimDiags := shimTraversalInString(expr, false)
 					diags = append(diags, shimDiags...)
 
-					traversal, travDiags := hcl.RelTraversalForExpr(expr)
+					traversal, travDiags := hcl.RelTraversalForExpr(shimExpr)
 					diags = append(diags, travDiags...)
 					if len(traversal) != 0 {
 						r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, traversal)
@@ -728,9 +728,7 @@ func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 						}
 					}
 				}
-
 			}
-
 		}
 	}
 	return diags
