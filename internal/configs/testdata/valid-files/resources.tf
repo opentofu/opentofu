@@ -1,3 +1,10 @@
+locals {
+  cbd = false
+  pd = true
+  ignored = [ "description" ]
+  igall = "all"
+}
+
 resource "aws_security_group" "firewall" {
   lifecycle {
     create_before_destroy = true
@@ -40,10 +47,17 @@ resource "aws_instance" "web" {
   depends_on = [
     aws_security_group.firewall,
   ]
+
+  lifecycle {
+    create_before_destroy = local.cbd
+    prevent_destroy = local.pd
+    ignore_changes = local.ignored
+  }
 }
 
 resource "aws_instance" "depends" {
   lifecycle {
     replace_triggered_by = [ aws_instance.web[1], aws_security_group.firewall.id ]
+    ignore_changes = local.igall
   }
 }
