@@ -117,6 +117,13 @@ func (r *Resource) HasCustomConditions() bool {
 	return len(r.Postconditions) != 0 || len(r.Preconditions) != 0
 }
 
+func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+	if r.ProviderConfigRef != nil {
+		return r.ProviderConfigRef.decodeStaticAlias(eval, r.ForEach)
+	}
+	return nil
+}
+
 func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	r := &Resource{
@@ -663,8 +670,10 @@ type ProviderConfigRef struct {
 
 // TODO/Oleksandr: comments for ProviderConfigRefMapping
 type ProviderConfigRefMapping struct {
-	Name       string
-	NameRange  hcl.Range
+	Name      string
+	NameRange hcl.Range
+
+	Alias      hcl.Expression
 	Aliases    map[addrs.InstanceKey]string
 	AliasRange *hcl.Range // nil if alias not set
 
@@ -701,8 +710,147 @@ func (m *ProviderConfigRefMapping) GetNoKeyAlias() string {
 	return m.Aliases[addrs.NoKey]
 }
 
+func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, forEach hcl.Expression) hcl.Diagnostics {
+	if m.Alias == nil {
+		return nil
+	}
+
+	var diags hcl.Diagnostics
+
+	// There is no for each so we just put alias under NoKey.
+	if forEach == nil {
+		// TODO/Oleksandr: use static eval for alias expr?
+		aliasVal, aliasDiags := m.Alias.Value(nil)
+		diags = diags.Extend(aliasDiags)
+		if aliasDiags.HasErrors() {
+			return diags
+		}
+
+		if !aliasVal.Type().Equals(cty.String) {
+			// TODO/Oleksandr: add friendly error
+			return diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid alias",
+				Detail:   "",
+				Subject:  m.Alias.Range().Ptr(),
+			})
+		}
+
+		m.Aliases = map[addrs.InstanceKey]string{
+			addrs.NoKey: aliasVal.AsString(),
+		}
+
+		return nil
+	}
+
+	// TODO/Oleksandr: Is static identifier valid if we evaluate for_each for alias?
+	instances, instancesDiags := eval.Evaluate(forEach, StaticIdentifier{
+		Module:    eval.call.addr,
+		Subject:   "alias",
+		DeclRange: m.Alias.Range(),
+	})
+	diags = diags.Extend(instancesDiags)
+	if instancesDiags.HasErrors() {
+		return diags
+	}
+
+	if !instances.CanIterateElements() {
+		panic("decodeStaticAlias must be called with for each expression: wrong expression?")
+	}
+
+	aliases := make(map[addrs.InstanceKey]string)
+
+	instanceIter := instances.ElementIterator()
+	for instanceIter.Next() {
+		k, v := instanceIter.Element()
+
+		instanceEval := &hcl.EvalContext{Variables: map[string]cty.Value{
+			"each": cty.ObjectVal(map[string]cty.Value{
+				"key":   k,
+				"value": v,
+			}),
+		}}
+
+		// TODO/Oleksandr: use static eval for alias expr?
+		aliasVal, aliasDiags := m.Alias.Value(instanceEval)
+		diags = diags.Extend(aliasDiags)
+		if aliasDiags.HasErrors() {
+			continue
+		}
+
+		if !aliasVal.Type().Equals(cty.String) {
+			// TODO/Oleksandr: add friendly error
+			return diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid alias",
+				Detail:   "",
+				Subject:  m.Alias.Range().Ptr(),
+			})
+		}
+
+		instanceKey, err := addrs.ParseInstanceKey(k)
+		if err != nil {
+			panic("decodeStaticAlias failed to parse for each instance keys: wrong expression?")
+		}
+
+		aliases[instanceKey] = aliasVal.AsString()
+	}
+
+	if !diags.HasErrors() {
+		m.Aliases = aliases
+	}
+
+	return diags
+}
+
+func decodeProviderConfigRefMappingFromIndexExpr(expr *hclsyntax.IndexExpr) (*ProviderConfigRefMapping, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	name, nameDiags := hcl.AbsTraversalForExpr(expr.Collection)
+	diags = append(diags, nameDiags...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	// TODO/Oleksandr: ensure validation is not too strict
+
+	if len(name) != 1 {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration reference",
+			// TODO/Oleksandr: add friendly error description
+			Detail:  "",
+			Subject: expr.Range().Ptr(),
+		})
+		return nil, diags
+	}
+
+	root, ok := name[0].(hcl.TraverseRoot)
+	if !ok {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration reference",
+			// TODO/Oleksandr: add friendly error description
+			Detail:  "",
+			Subject: expr.Range().Ptr(),
+		})
+		return nil, diags
+	}
+
+	return &ProviderConfigRefMapping{
+		Name:       root.Name,
+		NameRange:  expr.Collection.Range(),
+		Alias:      expr.Key,
+		AliasRange: expr.Key.Range().Ptr(),
+	}, diags
+}
+
 // TODO/Oleksandr: properly decode ProviderConfigRefMapping
 func decodeProviderConfigRefMapping(expr hcl.Expression, argName string) (*ProviderConfigRefMapping, hcl.Diagnostics) {
+	if idxExpr, ok := expr.(*hclsyntax.IndexExpr); ok {
+		return decodeProviderConfigRefMappingFromIndexExpr(idxExpr)
+	}
+
 	ref, diags := decodeProviderConfigRef(expr, argName)
 	if diags.HasErrors() {
 		return nil, diags
