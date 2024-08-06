@@ -3865,6 +3865,80 @@ output "out" {
 	}
 }
 
+func TestContext2Plan_destroyWithImportedResources(t *testing.T) {
+	// import block might cause a destroy action to attempt destruction of an already-destroyed resource
+	//
+	// (For some history here, see https://github.com/opentofu/opentofu/issues/1803 )
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+	resource "test_object" "a" {
+	  test_string = "foo"
+	}
+	import {
+	  to   = test_object.a
+	  id   = "3,1,10"
+	}
+	resource "test_object" "b" {
+	  test_string = "foo"
+	}
+	import {
+	  to = test_object.b
+	  id = "5,1,10"
+	}
+	`,
+	})
+
+	p := simpleMockProvider()
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
+		// pretend the 3,1,10 instance has been deleted already
+		if req.PriorState.GetAttr("test_string").AsString() == "3,1,10" {
+			resp.NewState = cty.NullVal(req.PriorState.Type())
+			return resp
+		}
+
+		resp.NewState = req.PriorState
+		return resp
+	}
+
+	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+		ImportedResources: []providers.ImportedResource{
+			{
+				TypeName: "test_object",
+				State: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("3,1,10"),
+				}),
+			},
+		},
+	}
+
+	// When attempting to destroy the configuration, 
+	// after test_object.a has been destroyed as part of a targeted destroy, 
+	// OpenTofu should attempt to only destroy test_object.b
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_object.b").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"test_string":"foo"}`),
+		},
+		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	_, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.DestroyMode,
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+}
+
 // A deposed instances which no longer exists during ReadResource creates NoOp
 // change, which should not effect the plan.
 func TestContext2Plan_deposedNoLongerExists(t *testing.T) {
