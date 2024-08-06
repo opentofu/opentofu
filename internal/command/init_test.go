@@ -3018,7 +3018,7 @@ func TestInit_invalidExtraLabel(t *testing.T) {
 	errStr := ui.ErrorWriter.String()
 	splitted := strings.Split(errStr, "Error: Unsupported block type")
 	if len(splitted) != 2 {
-		t.Fatalf("want exactly one unsupported block type erros but got: %d\nstderr:\n%s\n\nstdout:\n%s", len(splitted)-1, errStr, ui.OutputWriter.String())
+		t.Fatalf("want exactly one unsupported block type errors but got: %d\nstderr:\n%s\n\nstdout:\n%s", len(splitted)-1, errStr, ui.OutputWriter.String())
 	}
 }
 
