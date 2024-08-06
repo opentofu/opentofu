@@ -3911,8 +3911,8 @@ func TestContext2Plan_destroyWithImportedResources(t *testing.T) {
 		},
 	}
 
-	// When attempting to destroy the configuration, 
-	// after test_object.a has been destroyed as part of a targeted destroy, 
+	// When attempting to destroy the configuration,
+	// after test_object.a has been destroyed as part of a targeted destroy,
 	// OpenTofu should attempt to only destroy test_object.b
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -3922,7 +3922,7 @@ func TestContext2Plan_destroyWithImportedResources(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"test_string":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.terraform.io/hashicorp/test"]`),
+		mustProviderConfig(`provider["registry.opentofu.io/local/test"]`),
 	)
 
 	ctx := testContext2(t, &ContextOpts{
