@@ -641,7 +641,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 }
 
 func (n *NodePlannableResourceInstance) shouldImport(ctx EvalContext) bool {
-	if n.importTarget.ID == "" {
+	if n.importTarget.ID == "" || n.preDestroyRefresh {
 		return false
 	}
 
