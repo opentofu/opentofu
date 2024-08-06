@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -23,7 +24,10 @@ type Provider struct {
 	Name       string
 	NameRange  hcl.Range
 	Alias      string
-	AliasRange *hcl.Range // nil if no alias set
+	AliasExpr  hcl.Expression // nil if no alias set
+	AliasRange *hcl.Range     // nil if no alias set
+	ForEach    hcl.Expression
+	EachValue  *cty.Value
 
 	Version VersionConstraint
 
@@ -70,17 +74,21 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["alias"]; exists {
-		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Alias)
-		diags = append(diags, valDiags...)
+		provider.AliasExpr = attr.Expr
 		provider.AliasRange = attr.Expr.Range().Ptr()
+	}
 
-		if !hclsyntax.ValidIdentifier(provider.Alias) {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider configuration alias",
-				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
-			})
-		}
+	if attr, exists := content.Attributes["for_each"]; exists {
+		provider.ForEach = attr.Expr
+	}
+
+	if provider.ForEach != nil && provider.AliasExpr != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid combination of "alias" and "for_each"`,
+			Detail:   `The "alias" and "for_each" arguments are mutually-exclusive, only one may be used.`,
+			Subject:  provider.AliasExpr.Range().Ptr(),
+		})
 	}
 
 	if attr, exists := content.Attributes["version"]; exists {
@@ -96,7 +104,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	// Reserved attribute names
-	for _, name := range []string{"count", "depends_on", "for_each", "source"} {
+	for _, name := range []string{"count", "depends_on", "source"} {
 		if attr, exists := content.Attributes[name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -145,6 +153,66 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	return provider, diags
 }
 
+func (p *Provider) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	if p.ForEach != nil {
+		if eval == nil {
+			return nil, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Iteration not allowed in test files",
+				Detail:   "for_each was declared as an provider attribute in a test file",
+				Subject:  p.AliasExpr.Range().Ptr(),
+			})
+		}
+		var out []*Provider
+		forVal, evalDiags := eval.Evaluate(p.ForEach, StaticIdentifier{
+			Module:    eval.call.addr,
+			Subject:   fmt.Sprintf("provider.%s.for_each", p.Name),
+			DeclRange: p.ForEach.Range(),
+		})
+		diags = append(diags, evalDiags...)
+		if evalDiags.HasErrors() {
+			return nil, diags
+		}
+		// TODO internal/tofu/eval_for_each.go protections
+		for k, v := range forVal.AsValueMap() {
+			v := v
+
+			iter := *p
+			iter.Alias = k
+			iter.EachValue = &v
+			iter.ForEach = nil
+			out = append(out, &iter)
+		}
+		return out, diags
+	}
+	if p.AliasExpr != nil {
+		if eval != nil {
+			valDiags := eval.DecodeExpression(p.AliasExpr, StaticIdentifier{
+				Module:    eval.call.addr,
+				Subject:   fmt.Sprintf("provider.%s.alias", p.Name),
+				DeclRange: p.AliasExpr.Range(),
+			}, &p.Alias)
+			diags = append(diags, valDiags...)
+		} else {
+			// Test files don't have a static context
+			valDiags := gohcl.DecodeExpression(p.AliasExpr, nil, &p.Alias)
+			diags = append(diags, valDiags...)
+		}
+
+		// TODO we should probably skip this if diags are already error'd
+		if !hclsyntax.ValidIdentifier(p.Alias) {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration alias",
+				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
+				Subject:  p.AliasExpr.Range().Ptr(),
+			})
+		}
+	}
+	return []*Provider{p}, diags
+}
+
 // Addr returns the address of the receiving provider configuration, relative
 // to its containing module.
 func (p *Provider) Addr() addrs.LocalProviderConfig {
@@ -154,12 +222,12 @@ func (p *Provider) Addr() addrs.LocalProviderConfig {
 	}
 }
 
-func (p *Provider) moduleUniqueKey() string {
-	if p.Alias != "" {
-		return fmt.Sprintf("%s.%s", p.Name, p.Alias)
-	}
-	return p.Name
-}
+// func (p *Provider) moduleUniqueKey() string {
+// 	if p.Alias != "" {
+// 		return fmt.Sprintf("%s.%s", p.Name, p.Alias)
+// 	}
+// 	return p.Name
+// }
 
 // ParseProviderConfigCompact parses the given absolute traversal as a relative
 // provider address in compact form. The following are examples of traversals
