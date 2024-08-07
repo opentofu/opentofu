@@ -18,6 +18,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -26,7 +27,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/hashicorp/go-getter"
+	"github.com/hashicorp/go-getter/v2"
 )
 
 const protocVersion = "3.15.6"
@@ -150,7 +151,7 @@ func downloadProtoc(version string, localDir string) error {
 	// thing that go-getter wants.
 	goGetterURL := protocURL + "?archive=zip"
 
-	err = getter.Get(localDir, goGetterURL)
+	_, err = getter.Get(context.TODO(), localDir, goGetterURL)
 	if err != nil {
 		return fmt.Errorf("failed to download or extract the package: %s", err)
 	}
