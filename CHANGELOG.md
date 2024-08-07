@@ -1,4 +1,4 @@
-## 1.8.1 (Unreleased)
+## 1.8.1
 
 BUG FIXES:
 * Fixed crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
