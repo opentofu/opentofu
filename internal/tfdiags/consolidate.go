@@ -48,8 +48,7 @@ func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics 
 			continue
 		}
 
-		// A threshold of -1 is unlimited
-		if DoNotConsolidateDiagnostic(diag) || threshold == -1 {
+		if DoNotConsolidateDiagnostic(diag) {
 			// Then do not consolidate this diagnostic.
 			newDiags = newDiags.Append(diag)
 			continue
