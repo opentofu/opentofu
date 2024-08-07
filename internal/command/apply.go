@@ -355,10 +355,14 @@ Options:
   -compact-warnings      If OpenTofu produces any warnings that are not
                          accompanied by errors, show them in a more compact
                          form that includes only the summary messages.
-  -consolidate-warnings=false
-		         If OpenTF produces any warnings, no consolodation
-                         will be performed.  All locations, for all warnings
-                         will be listed.
+
+  -consolidate-warnings  If OpenTofu produces any warnings, no consolodation
+                         will be performed. All locations, for all warnings
+                         will be listed. Enabled by default.
+
+  -consolidate-errors    If OpenTofu produces any errors, no consolodation
+                         will be performed. All locations, for all errors
+                         will be listed. Disabled by default
 
   -destroy               Destroy OpenTofu-managed infrastructure.
                          The command "tofu destroy" is a convenience alias
@@ -385,10 +389,6 @@ Options:
                          state.
 
   -show-sensitive        If specified, sensitive values will be displayed.
-
-  -verbose-warnings      If OpenTF produces any warnings, no compaction
-                         will be performed.  All locations, for all warnings
-                         will be listed.
 
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.
