@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -28,6 +29,8 @@ type Provider struct {
 	AliasRange *hcl.Range     // nil if no alias set
 	ForEach    hcl.Expression
 	EachValue  *cty.Value
+	Count      hcl.Expression
+	CountIndex *cty.Value
 
 	Version VersionConstraint
 
@@ -82,11 +85,15 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		provider.ForEach = attr.Expr
 	}
 
-	if provider.ForEach != nil && provider.AliasExpr != nil {
+	if attr, exists := content.Attributes["count"]; exists {
+		provider.Count = attr.Expr
+	}
+
+	if provider.Count != nil && provider.ForEach != nil && provider.AliasExpr != nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  `Invalid combination of "alias" and "for_each"`,
-			Detail:   `The "alias" and "for_each" arguments are mutually-exclusive, only one may be used.`,
+			Summary:  `Invalid combination of "alias", "count" and "for_each"`,
+			Detail:   `The "alias", "count" and "for_each" arguments are mutually-exclusive, only one may be used.`,
 			Subject:  provider.AliasExpr.Range().Ptr(),
 		})
 	}
@@ -104,7 +111,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	// Reserved attribute names
-	for _, name := range []string{"count", "depends_on", "source"} {
+	for _, name := range []string{"depends_on", "source"} {
 		if attr, exists := content.Attributes[name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -186,6 +193,47 @@ func (p *Provider) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.D
 		}
 		return out, diags
 	}
+	if p.Count != nil {
+		if eval == nil {
+			return nil, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Iteration not allowed in test files",
+				Detail:   "count was declared as an provider attribute in a test file",
+				Subject:  p.AliasExpr.Range().Ptr(),
+			})
+		}
+		var out []*Provider
+		countVal, evalDiags := eval.Evaluate(p.Count, StaticIdentifier{
+			Module:    eval.call.addr,
+			Subject:   fmt.Sprintf("provider.%s.count", p.Name),
+			DeclRange: p.Count.Range(),
+		})
+		diags = append(diags, evalDiags...)
+		if evalDiags.HasErrors() {
+			return nil, diags
+		}
+
+		var count int
+		err := gocty.FromCtyValue(countVal, &count)
+		if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid value for count",
+				Detail:   fmt.Sprintf("invalid value for count: %s.", err.Error()),
+				Subject:  p.AliasExpr.Range().Ptr(),
+			})
+			return nil, diags
+		}
+		for i := 0; i < count; i++ {
+			iter := *p
+			iter.Alias = fmt.Sprintf("[%d]", i)
+			iter.Count = nil
+			cIndex := cty.NumberIntVal(int64(i))
+			iter.CountIndex = &cIndex
+			out = append(out, &iter)
+		}
+		return out, diags
+	}
 	if p.AliasExpr != nil {
 		if eval != nil {
 			valDiags := eval.DecodeExpression(p.AliasExpr, StaticIdentifier{
@@ -221,13 +269,6 @@ func (p *Provider) Addr() addrs.LocalProviderConfig {
 		Alias:     p.Alias,
 	}
 }
-
-// func (p *Provider) moduleUniqueKey() string {
-// 	if p.Alias != "" {
-// 		return fmt.Sprintf("%s.%s", p.Name, p.Alias)
-// 	}
-// 	return p.Name
-// }
 
 // ParseProviderConfigCompact parses the given absolute traversal as a relative
 // provider address in compact form. The following are examples of traversals

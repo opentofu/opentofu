@@ -738,7 +738,17 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 			ret.Alias = aliasStep.Name
 			ret.AliasRange = aliasStep.SourceRange().Ptr()
 		} else if aliasStep, ok := traversal[1].(hcl.TraverseIndex); ok {
-			ret.Alias = aliasStep.Key.AsString()
+			key, err := addrs.ParseInstanceKey(aliasStep.Key)
+			if err != nil {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid address",
+					Detail:   fmt.Sprintf("Invalid provider instance key: %s.", err),
+					Subject:  aliasStep.SourceRange().Ptr(),
+				})
+				return ret, diags
+			}
+			ret.Alias = key.String()
 			ret.AliasRange = aliasStep.SourceRange().Ptr()
 		} else {
 			diags = append(diags, &hcl.Diagnostic{

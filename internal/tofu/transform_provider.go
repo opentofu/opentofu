@@ -220,6 +220,8 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				g.Add(target)
 			}
 
+			// TODO with for_each this error apprears when you incorrecly reference one of
+			// the providers. suggesting it thinks the provider exsited at some point
 			if target == nil {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,

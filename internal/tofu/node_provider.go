@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -80,9 +81,15 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 
 	data := EvalDataForNoInstanceKey
 	if n.Config != nil && n.Config.EachValue != nil {
-		data = InstanceKeyEvalData{
+		data = instances.RepetitionData{
 			EachKey:   cty.StringVal(n.Addr.Alias),
 			EachValue: *n.Config.EachValue,
+		}
+	}
+
+	if n.Config != nil && n.Config.Count != nil {
+		data = instances.RepetitionData{
+			CountIndex: *n.Config.CountIndex,
 		}
 	}
 
@@ -125,6 +132,12 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 		data = InstanceKeyEvalData{
 			EachKey:   cty.StringVal(n.Addr.Alias),
 			EachValue: *n.Config.EachValue,
+		}
+	}
+
+	if n.Config != nil && n.Config.Count != nil {
+		data = instances.RepetitionData{
+			CountIndex: *n.Config.CountIndex,
 		}
 	}
 
