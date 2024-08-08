@@ -196,6 +196,18 @@ Usage: tofu [global options] validate [options]
 
 Options:
 
+  -compact-warnings     If OpenTofu produces any warnings that are not
+                        accompanied by errors, show them in a more compact
+                        form that includes only the summary messages.
+
+  -consolidate-warnings If OpenTofu produces any warnings, no consolodation
+                        will be performed. All locations, for all warnings
+                        will be listed. Enabled by default.
+
+  -consolidate-errors   If OpenTofu produces any errors, no consolodation
+                        will be performed. All locations, for all errors
+                        will be listed. Disabled by default
+
   -json                 Produce output in a machine-readable JSON format, 
                         suitable for use in text editor integrations and other 
                         automated systems. Always disables color.
