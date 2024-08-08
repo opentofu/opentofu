@@ -381,7 +381,7 @@ NeedProvider:
 
 		if i.globalCacheDir != nil {
 			// Try to lock the provider's directory.  We lock at this level due to the potential fuzzy match below
-			unlockProvider, err := i.globalCacheDir.Lock(provider, ctx)
+			unlockProvider, err := i.globalCacheDir.Lock(ctx, provider)
 			if err != nil {
 				errs[provider] = err
 				if cb := evts.LinkFromCacheFailure; cb != nil {
@@ -749,7 +749,6 @@ NeedProvider:
 	// Final unlock for the last step of iteration
 	if unlock != nil {
 		unlock()
-		unlock = nil
 	}
 
 	// Emit final event for fetching if any were successfully fetched

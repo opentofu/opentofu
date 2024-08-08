@@ -8,6 +8,8 @@ package providercache
 import (
 	"bytes"
 	"context"
+
+	//nolint: gosec // Only used for simple file hashing
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -176,6 +178,7 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 
 	filename := meta.Location.String()
 
+	//nolint: nestif // filepath walk complexity
 	if stat, err := os.Stat(targetDir); err == nil && stat.IsDir() {
 		// Potentially already installed with bad lockfile
 		// Given that the global provider cache is symlinked into multiple root
@@ -191,6 +194,7 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 			os.RemoveAll(sourceDir)
 		}()
 
+		//nolint: mnd // 0000 represents no change in mask
 		err = unzip.Decompress(sourceDir, filename, true, 0000)
 		if err != nil {
 			return authResult, err
@@ -201,15 +205,6 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 				return err
 			}
 
-			sourceInfo, err := d.Info()
-			if err != nil {
-				return err
-			}
-			sourceChecksum, err := checksum(source)
-			if err != nil {
-				return err
-			}
-
 			relative, err := filepath.Rel(sourceDir, source)
 			if err != nil {
 				return err
@@ -217,34 +212,7 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 
 			target := filepath.Join(targetDir, relative)
 
-			isValid, err := func() (bool, error) {
-				// Start by comparing file sizes (much faster than checksum)
-				targetInfo, err := os.Stat(target)
-				if err != nil {
-					if errors.Is(err, os.ErrNotExist) {
-						return false, nil
-					}
-					return false, err
-				}
-				if targetInfo.Size() != sourceInfo.Size() {
-					log.Printf("[DEBUG] Package file size mismatch for %s: expected %v, found %v", target, sourceInfo.Size(), targetInfo.Size())
-					return false, nil
-				}
-
-				// Compare checksums
-				targetChecksum, err := checksum(target)
-				if err != nil {
-					return false, err
-				}
-				if !bytes.Equal(sourceChecksum, targetChecksum) {
-					log.Printf("[DEBUG] Package file checksum mismatch for %s: expected %x, found %x", target, sourceChecksum, targetChecksum)
-					return false, nil
-				}
-
-				// All checks are successful
-				return true, nil
-			}()
-
+			isValid, err := areFilesIdentical(source, target)
 			if err != nil {
 				return err
 			}
@@ -281,6 +249,49 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 	return authResult, nil
 }
 
+func areFilesIdentical(source string, target string) (bool, error) {
+	// Compare sizes
+	sourceInfo, err := os.Stat(source)
+	if err != nil {
+		// Source does not exist or can't be accessed
+		return false, err
+	}
+
+	targetInfo, err := os.Stat(target)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// Target does not exist, not identical and not an error
+			return false, nil
+		}
+		// Target can't be accessed
+		return false, err
+	}
+
+	if targetInfo.Size() != sourceInfo.Size() {
+		log.Printf("[DEBUG] Package file size mismatch for %s: expected %v, found %v", target, sourceInfo.Size(), targetInfo.Size())
+		return false, nil
+	}
+
+	// Compare checksums
+	sourceChecksum, err := checksum(source)
+	if err != nil {
+		return false, err
+	}
+
+	targetChecksum, err := checksum(target)
+	if err != nil {
+		return false, err
+	}
+
+	if !bytes.Equal(sourceChecksum, targetChecksum) {
+		log.Printf("[DEBUG] Package file checksum mismatch for %s: expected %x, found %x", target, sourceChecksum, targetChecksum)
+		return false, nil
+	}
+
+	// All checks are successful
+	return true, nil
+}
+
 func checksum(filepath string) ([]byte, error) {
 	f, err := os.Open(filepath)
 	if err != nil {
@@ -288,6 +299,7 @@ func checksum(filepath string) ([]byte, error) {
 	}
 	defer f.Close()
 
+	//nolint: gosec // simple file hash
 	h := md5.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return nil, err

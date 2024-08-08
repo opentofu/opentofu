@@ -88,13 +88,14 @@ func (d *Dir) BasePath() string {
 	return filepath.Clean(d.baseDir)
 }
 
-func (d *Dir) Lock(provider addrs.Provider, ctx context.Context) (func() error, error) {
-	providerPath := getproviders.PathForPackage(d.baseDir, provider)
+func (d *Dir) Lock(ctx context.Context, provider addrs.Provider) (func() error, error) {
+	providerPath := getproviders.UnpackedDirectoryPathForProvider(d.baseDir, provider)
 	lockFile := filepath.Join(providerPath, ".lock")
 
 	log.Printf("[TRACE] Attempting to acquire global provider lock %s", lockFile)
 
 	// Ensure the provider directory exists
+	//nolint: mnd // directory permissions
 	if err := os.MkdirAll(providerPath, 0755); err != nil {
 		return nil, err
 	}
@@ -103,7 +104,7 @@ func (d *Dir) Lock(provider addrs.Provider, ctx context.Context) (func() error, 
 	var f *os.File
 
 	// Try to create the lock file, wait up to 1 second for transient errors to clear.
-	for start := time.Now(); time.Now().Sub(start) < time.Second*1; {
+	for start := time.Now(); time.Since(start) < time.Second*1; {
 		// Check if the context is still active
 		err = ctx.Err()
 		if err != nil {
@@ -112,12 +113,13 @@ func (d *Dir) Lock(provider addrs.Provider, ctx context.Context) (func() error, 
 
 		// Try to get a handle to the file (or create if it does not exist)
 		// Sometimes the creates can conflict and will need to be tried multiple times.
-		f, err = os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE, 0666)
+		//nolint: mnd // file permissions
+		f, err = os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE, 0644)
 		if err == nil {
 			// We don't defer f.Close() here as we explicitly want to handle
 			break
 		}
-		// Chill for 50ms before trying again
+		//nolint: mnd // Chill for 50ms before trying again
 		time.Sleep(50 * time.Millisecond)
 	}
 
@@ -126,7 +128,7 @@ func (d *Dir) Lock(provider addrs.Provider, ctx context.Context) (func() error, 
 	}
 
 	// Wait for the file lock for up to 60s.  Might make sense to have the timeout be configurable for different network conditions / package sizes.
-	for start := time.Now(); time.Now().Sub(start) < time.Second*60; {
+	for start := time.Now(); time.Since(start) < time.Second*60; {
 		// Check if the context is still active
 		err = ctx.Err()
 		if err != nil {
@@ -139,6 +141,7 @@ func (d *Dir) Lock(provider addrs.Provider, ctx context.Context) (func() error, 
 			// Lock succeeded
 			break
 		}
+		//nolint: mnd // Chill for 100ms before trying again
 		time.Sleep(100 * time.Millisecond)
 	}
 	if err != nil {
