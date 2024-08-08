@@ -56,6 +56,7 @@ With the above example:
 - Running `tofu plan -exclude=null_resource.b` would exclude both `null_resource.b` and `null_resource.d` which depends on it (so it will plan `null_resource.a` and `null_resource.c`)
 - Running `tofu plan -exclude=null_resource.b -exclude=null_resource.c` would exclude `null_resource.b`, `null_resource.c` and also `null_resource.d` which depends on one of them (or in this case - both of them)
 - Running `tofu plan -exclude=null_resource.a -exclude=null_resource.b` would create an empty plan, since all resources depend on `null_resource.a`
+- Running `tofu plan -exclude=null_resource.e` would create a full plan, since the excluded resource does not exist. This is for parity with `-target`, which creates an empty plan if the target does not exist
 
 When destroying:
 - Running `tofu plan -destroy -exclude=null_resource.b` will result in a plan to destroy `null_resource.c` and `null_resource.d`
