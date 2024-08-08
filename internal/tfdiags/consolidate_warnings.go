@@ -103,7 +103,7 @@ func (wg *consolidatedGroup) Severity() Severity {
 
 func (wg *consolidatedGroup) Description() Description {
 	desc := wg.Consolidated[0].Description()
-	if len(wg.Consolidated) < 2 {
+	if len(wg.Consolidated) == 1 {
 		return desc
 	}
 	extraCount := len(wg.Consolidated) - 1
