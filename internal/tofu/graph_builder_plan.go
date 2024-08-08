@@ -46,6 +46,9 @@ type PlanGraphBuilder struct {
 	// Targets are resources to target
 	Targets []addrs.Targetable
 
+	// Excludes are resources to exclude
+	Excludes []addrs.Targetable
+
 	// ForceReplace are resource instances where if we would normally have
 	// generated a NoOp or Update action then we'll force generating a replace
 	// action instead. Create and Delete actions are not affected.
@@ -234,7 +237,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		},
 
 		// Target
-		&TargetsTransformer{Targets: b.Targets},
+		&TargetsTransformer{Targets: b.Targets, Excludes: b.Excludes},
 
 		// Detect when create_before_destroy must be forced on for a particular
 		// node due to dependency edges, to avoid graph cycles during apply.
