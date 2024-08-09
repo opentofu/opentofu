@@ -30,6 +30,19 @@ func (s *Filesystem) lock() error {
 }
 
 func (s *Filesystem) unlock() error {
+	// Handle case where s.stateFileOut is nil, indicating no lock to release.
+	if s.stateFileOut == nil {
+		log.Print("[TRACE] statemgr.Filesystem: statefileout is nil, cannot unlock")
+		return nil
+	}
+
+	// Check if file descriptor is invalid
+	fd := s.stateFileOut.Fd()
+	if fd == ^uintptr(0) {
+		log.Print("[TRACE] statemgr.Filesystem: fd is invalid, cannot unlock")
+		return nil
+	}
+
 	log.Printf("[TRACE] statemgr.Filesystem: unlocking %s using fcntl flock", s.path)
 	flock := &syscall.Flock_t{
 		Type:   syscall.F_UNLCK,
@@ -38,6 +51,5 @@ func (s *Filesystem) unlock() error {
 		Len:    0,
 	}
 
-	fd := s.stateFileOut.Fd()
 	return syscall.FcntlFlock(fd, syscall.F_SETLK, flock)
 }
