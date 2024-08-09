@@ -2,6 +2,8 @@
 
 ## 2024-08-09
 
+Here's what happened since the last update:
+
 - [OpenTofu 1.8.0](https://opentofu.org/blog/opentofu-1-8-0/) is out with a lot of long-requested functionality, such as early evaluation for variables and locals, support for `.tofu` files with an override functionality, and enhancements to `tofu test` with provider mocking and resource overrides.
 - [OpenTofu 1.8.1](https://github.com/opentofu/opentofu/releases/tag/v1.8.1) is available and fixes a small bug in the previous version.
 - Recent developments:
