@@ -344,6 +344,8 @@ NeedProvider:
 	targetPlatform := i.targetDir.targetPlatform                                  // we inherit this to behave correctly in unit tests
 
 	// The unlock function may be used if the globalCacheDir is set.  It is unlocked in the *next* iteration of the loop or after the loop exits
+	// We create a file lock per-provider to prevent modification from different processes using the shared global cache
+	// We lock per-provider to prevent deadlocks and release as soon as possible (instead of defer at the function scope)
 	// This is not ideal, but the best option for not generating a large code diff
 	var unlock func()
 
