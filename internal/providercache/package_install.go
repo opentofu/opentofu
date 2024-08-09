@@ -6,8 +6,14 @@
 package providercache
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
+
+	"errors"
 	"fmt"
+	"io"
+	"io/fs"
 	"log"
 	"net/http"
 	"os"
@@ -171,7 +177,62 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 
 	filename := meta.Location.String()
 
-	// NOTE: We're not checking whether there's already a directory at
+	//nolint: nestif // filepath walk complexity
+	if stat, err := os.Stat(targetDir); err == nil && stat.IsDir() {
+		// Potentially already installed with bad lockfile
+		// Given that the global provider cache is symlinked into multiple root
+		// directories, we want to avoid overwriting valid providers that may
+		// be in use (exec locked) due to a bad lockfile in this root.
+
+		sourceDir, err := os.MkdirTemp("", "tofu-provider-extracted")
+		if err != nil {
+			return authResult, err
+		}
+
+		defer func() {
+			os.RemoveAll(sourceDir)
+		}()
+
+		//nolint: mnd // 0000 represents no change in mask
+		err = unzip.Decompress(sourceDir, filename, true, 0000)
+		if err != nil {
+			return authResult, err
+		}
+
+		err = filepath.WalkDir(sourceDir, func(source string, d fs.DirEntry, err error) error {
+			if err != nil || d.IsDir() {
+				return err
+			}
+
+			relative, err := filepath.Rel(sourceDir, source)
+			if err != nil {
+				return err
+			}
+
+			target := filepath.Join(targetDir, relative)
+
+			isValid, err := areFilesIdentical(source, target)
+			if err != nil {
+				return err
+			}
+
+			// File matches and can be used without any modifications
+			if isValid {
+				return nil
+			}
+
+			// This is a unlikely code path, but one that is still important.
+			log.Printf("[WARN] Overwriting missing or corrupt file %s!", target)
+			return os.Rename(source, target)
+		})
+		if err == nil {
+			// Package is properly installed, bad lock file will be caught elsewhere
+			return authResult, nil
+		}
+		// We could technically be slightly more efficient here by copying from source to target
+	}
+
+	// NOTE: We've already checked whether there's already a directory at
 	// targetDir with some files in it. Packages are supposed to be immutable
 	// and therefore we'll just be overwriting all of the existing files with
 	// their same contents unless something unusual is happening. If something
@@ -185,6 +246,64 @@ func installFromLocalArchive(ctx context.Context, meta getproviders.PackageMeta,
 	}
 
 	return authResult, nil
+}
+
+func areFilesIdentical(source string, target string) (bool, error) {
+	// Compare sizes
+	sourceInfo, err := os.Stat(source)
+	if err != nil {
+		// Source does not exist or can't be accessed
+		return false, err
+	}
+
+	targetInfo, err := os.Stat(target)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// Target does not exist, not identical and not an error
+			return false, nil
+		}
+		// Target can't be accessed
+		return false, err
+	}
+
+	if targetInfo.Size() != sourceInfo.Size() {
+		log.Printf("[DEBUG] Package file size mismatch for %s: expected %v, found %v", target, sourceInfo.Size(), targetInfo.Size())
+		return false, nil
+	}
+
+	// Compare checksums
+	sourceChecksum, err := checksum(source)
+	if err != nil {
+		return false, err
+	}
+
+	targetChecksum, err := checksum(target)
+	if err != nil {
+		return false, err
+	}
+
+	if !bytes.Equal(sourceChecksum, targetChecksum) {
+		log.Printf("[DEBUG] Package file checksum mismatch for %s: expected %x, found %x", target, sourceChecksum, targetChecksum)
+		return false, nil
+	}
+
+	// All checks are successful
+	return true, nil
+}
+
+func checksum(filepath string) ([]byte, error) {
+	f, err := os.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return nil, err
+	}
+
+	return h.Sum(nil), nil
 }
 
 // installFromLocalDir is the implementation of both installing a package from
