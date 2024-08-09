@@ -79,7 +79,14 @@ func TestParserLoadConfigFileFailure(t *testing.T) {
 				name: string(src),
 			})
 
-			_, diags := parser.LoadConfigFile(name)
+			file, diags := parser.LoadConfigFile(name)
+
+			eval := NewStaticEvaluator(nil, RootModuleCallForTesting())
+			for _, mr := range file.ManagedResources {
+				mDiags := mr.decodeStaticFields(eval)
+				diags = append(diags, mDiags...)
+			}
+
 			if !diags.HasErrors() {
 				t.Errorf("LoadConfigFile succeeded; want errors")
 			}
@@ -147,7 +154,12 @@ func TestParserLoadConfigFileFailureMessages(t *testing.T) {
 				test.Filename: string(src),
 			})
 
-			_, diags := parser.LoadConfigFile(test.Filename)
+			file, diags := parser.LoadConfigFile(test.Filename)
+			eval := NewStaticEvaluator(nil, RootModuleCallForTesting())
+			for _, mr := range file.ManagedResources {
+				mDiags := mr.decodeStaticFields(eval)
+				diags = append(diags, mDiags...)
+			}
 			if len(diags) != 1 {
 				t.Errorf("Wrong number of diagnostics %d; want 1", len(diags))
 				for _, diag := range diags {
@@ -279,6 +291,10 @@ func TestParserLoadConfigFileError(t *testing.T) {
 			eval := NewStaticEvaluator(nil, RootModuleCallForTesting())
 			for _, mc := range file.ModuleCalls {
 				mDiags := mc.decodeStaticFields(eval)
+				diags = append(diags, mDiags...)
+			}
+			for _, mr := range file.ManagedResources {
+				mDiags := mr.decodeStaticFields(eval)
 				diags = append(diags, mDiags...)
 			}
 

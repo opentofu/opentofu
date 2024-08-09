@@ -250,6 +250,11 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		diags = append(diags, mDiags...)
 	}
 
+	for _, mr := range mod.ManagedResources {
+		mDiags := mr.decodeStaticFields(mod.StaticEvaluator)
+		diags = append(diags, mDiags...)
+	}
+
 	diags = append(diags, checkModuleExperiments(mod)...)
 
 	// Generate the FQN -> LocalProviderName map
