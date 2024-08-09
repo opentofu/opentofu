@@ -9,6 +9,9 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -7631,6 +7634,23 @@ func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 }
 
 func TestContext2Plan_insuffient_block(t *testing.T) {
+	// Normalise file content for cross-platform compatibility
+	if runtime.GOOS == "windows" {
+		fileName := "testdata/insufficient-features-blocks-no-feats/main.tf"
+		originalContent, err := normaliseLineEndings(fileName)
+		if err != nil {
+			t.Errorf("Error normalising line endings %v", err)
+		}
+
+		// Restore original file content after test completion
+		t.Cleanup(func() {
+			err1 := os.WriteFile(fileName, originalContent, 0600)
+			if err1 != nil {
+				t.Error()
+			}
+		},
+		)
+	}
 	type testcase struct {
 		filename string
 		start    hcl.Pos
@@ -7649,7 +7669,7 @@ func TestContext2Plan_insuffient_block(t *testing.T) {
 			end:      hcl.InitialPos,
 		},
 		"insufficient-features-blocks-no-feats": {
-			filename: "testdata/insufficient-features-blocks-no-feats/main.tf",
+			filename: filepath.Join("testdata", "insufficient-features-blocks-no-feats", "main.tf"),
 			start:    hcl.Pos{Line: 9, Column: 17, Byte: 146},
 			end:      hcl.Pos{Line: 9, Column: 17, Byte: 146},
 		},
@@ -7714,4 +7734,24 @@ func featuresBlockTestSchema() *configschema.Block {
 			},
 		},
 	}
+}
+
+// Changes line endings from Windows-style ('\r\n') to Unix-style ('\n').
+func normaliseLineEndings(filename string) ([]byte, error) {
+	originalContent, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file %s: %w", filename, err)
+	}
+
+	// Replace all occurrences of '\r\n' with '\n'
+	normalisedContent := bytes.ReplaceAll(originalContent, []byte("\r\n"), []byte("\n"))
+
+	if !bytes.Equal(originalContent, normalisedContent) {
+		err = os.WriteFile(filename, normalisedContent, 0600)
+		if err != nil {
+			return nil, fmt.Errorf("error writing file %s: %w", filename, err)
+		}
+	}
+
+	return originalContent, nil
 }
