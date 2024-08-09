@@ -8,9 +8,8 @@ package providercache
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 
-	//nolint: gosec // Only used for simple file hashing
-	"crypto/md5"
 	"errors"
 	"fmt"
 	"io"
@@ -299,8 +298,7 @@ func checksum(filepath string) ([]byte, error) {
 	}
 	defer f.Close()
 
-	//nolint: gosec // simple file hash
-	h := md5.New()
+	h := sha256.New()
 	if _, err := io.Copy(h, f); err != nil {
 		return nil, err
 	}
