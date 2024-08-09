@@ -70,7 +70,7 @@ func TestMain_cliArgsFromEnv(t *testing.T) {
 			"cli string has blank values",
 			[]string{testCommandName, "bar", "", "baz"},
 			"-foo bar",
-			[]string{"-foo", "bar", "bar", "", "baz"},
+			[]string{"-foo", "bar", "bar", "baz"},
 			false,
 		},
 
@@ -366,5 +366,47 @@ func TestMkConfigDir_noparent(t *testing.T) {
 	}
 	if err.Error() != expectedError {
 		t.Fatalf("Expected error: %s, but got: %v", expectedError, err)
+	}
+}
+
+func TestParseCommandArgs(t *testing.T) {
+	testCases := []struct {
+		name         string
+		args         []string
+		expectedOpts map[string]string
+		expectedArgs []string
+	}{
+		{
+			"positive tc options and args",
+			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "", "-state=file.tfstate"},
+			map[string]string{"-chdir": "target", "-help": "", "-pedantic": "", "-version": ""},
+			[]string{"plan", "-state=file.tfstate"},
+		},
+		{
+			"positive tc version option",
+			[]string{"plan", "-state=file.tfstate", "-version", "-v", "--version"},
+			map[string]string{"-version": ""},
+			[]string{"plan", "-state=file.tfstate"},
+		},
+		{
+			"positive tc invalid option before subcommand",
+			[]string{"-random", "plan", "-state=file.tfstate"},
+			map[string]string{},
+			[]string{"-random", "plan", "-state=file.tfstate"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			opts, args := parseCommandArgs(tc.args)
+
+			if !reflect.DeepEqual(opts, tc.expectedOpts) {
+				t.Errorf("expected: %v got: %v", tc.expectedOpts, opts)
+			}
+
+			if !reflect.DeepEqual(args, tc.expectedArgs) {
+				t.Errorf("expected: %v got: %v", tc.expectedArgs, args)
+			}
+		})
 	}
 }

@@ -631,14 +631,19 @@ func (m *Meta) process(args []string) []string {
 		m.Ui = m.oldUi
 	}
 
+	var pedanticMode bool
+
 	// Set colorization
 	m.color = m.Color
 	i := 0 // output index
 	for _, v := range args {
-		if v == "-no-color" {
+		switch v {
+		case "-no-color":
 			m.color = false
 			m.Color = false
-		} else {
+		case "-pedantic":
+			pedanticMode = true
+		default:
 			// copy and increment index
 			args[i] = v
 			i++
@@ -648,14 +653,24 @@ func (m *Meta) process(args []string) []string {
 
 	// Set the UI
 	m.oldUi = m.Ui
-	m.Ui = &cli.ConcurrentUi{
-		Ui: &ColorizeUi{
-			Colorize:   m.Colorize(),
-			ErrorColor: "[red]",
-			WarnColor:  "[yellow]",
-			Ui:         m.oldUi,
-		},
+
+	var newUI cli.Ui = &ColorizeUi{
+		Colorize:   m.Colorize(),
+		ErrorColor: "[red]",
+		WarnColor:  "[yellow]",
+		Ui:         m.oldUi,
 	}
+
+	if pedanticMode {
+		newUI = &pedanticUI{
+			Ui: newUI,
+			notifyWarning: func() {
+				m.View.WarningFlagged = true
+			},
+		}
+	}
+
+	m.Ui = &cli.ConcurrentUi{Ui: newUI}
 
 	// Reconfigure the view. This is necessary for commands which use both
 	// views.View and cli.Ui during the migration phase.
@@ -663,6 +678,7 @@ func (m *Meta) process(args []string) []string {
 		m.View.Configure(&arguments.View{
 			CompactWarnings: m.compactWarnings,
 			NoColor:         !m.Color,
+			PedanticMode:    pedanticMode,
 		})
 	}
 
@@ -724,6 +740,15 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	outputWidth := m.ErrorColumns()
 
 	diags = diags.ConsolidateWarnings(1)
+
+	// Convert warnings to errors if we are in pedantic mode
+	// We do this after consolidation of warnings to reduce the verbosity of the output
+	if m.View.PedanticMode {
+		var overridden bool
+		if diags, overridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); overridden {
+			m.View.WarningFlagged = true
+		}
+	}
 
 	// Since warning messages are generally competing
 	if m.compactWarnings {
@@ -921,4 +946,9 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 
 	}
 	return nil, diags
+}
+
+// warningFlagged returns whether a warning has been flagged during command execution when in pedantic mode
+func (m *Meta) warningFlagged() bool {
+	return m.View.WarningFlagged
 }

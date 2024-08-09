@@ -25,8 +25,13 @@ func TestProvidersMirror(t *testing.T) {
 
 	t.Run("missing arg error", func(t *testing.T) {
 		ui := new(cli.MockUi)
+		view, _ := testView(t)
+
 		c := &ProvidersMirrorCommand{
-			Meta: Meta{Ui: ui},
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
 		}
 		code := c.Run([]string{})
 		if code != 1 {
