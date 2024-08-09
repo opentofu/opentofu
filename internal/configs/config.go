@@ -484,8 +484,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					})
 					continue
 				}
-				// TODO Ronny: Fix to run this validation with multiple providers
-				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || i.ProviderConfigRef.Alias != target.ProviderConfigRef.Aliases[addrs.NoKey] {
+				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || i.ProviderConfigRef.Alias != target.ProviderConfigRef.GetNoKeyAlias() {
 					// This means we have a provider specified in both the
 					// import block and the resource block, and they disagree.
 					// This is bad as OpenTofu now has different instructions
