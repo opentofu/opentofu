@@ -150,6 +150,7 @@ func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refres
 	opReq.ConfigDir = "."
 	opReq.Hooks = view.Hooks()
 	opReq.Targets = args.Targets
+	opReq.Excludes = args.Excludes
 	opReq.Type = backend.OperationTypeRefresh
 	opReq.View = view.Operation()
 

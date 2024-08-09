@@ -444,6 +444,7 @@ func (m *Meta) Operation(b backend.Backend, vt arguments.ViewType, enc encryptio
 		Encryption:      enc,
 		PlanOutBackend:  planOutBackend,
 		Targets:         m.targets,
+		Excludes:        m.excludes,
 		UIIn:            m.UIInput(),
 		UIOut:           m.Ui,
 		Workspace:       workspace,

@@ -215,6 +215,7 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 		plan.RelevantAttributes = append(plan.RelevantAttributes, ra)
 	}
 
+	// AREL TODO What is this even
 	for _, rawTargetAddr := range rawPlan.TargetAddrs {
 		target, diags := addrs.ParseTargetStr(rawTargetAddr)
 		if diags.HasErrors() {
@@ -609,6 +610,11 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 	for _, targetAddr := range plan.TargetAddrs {
 		rawPlan.TargetAddrs = append(rawPlan.TargetAddrs, targetAddr.String())
 	}
+
+	// TODO AREL What is this?
+	//for _, excludeAddr := range plan.ExcludeAddrs {
+	//	rawPlan.ExcludeAddrs = append(rawPlan.ExcludeAddrs, excludeAddr.String())
+	//}
 
 	for _, replaceAddr := range plan.ForceReplaceAddrs {
 		rawPlan.ForceReplaceAddrs = append(rawPlan.ForceReplaceAddrs, replaceAddr.String())

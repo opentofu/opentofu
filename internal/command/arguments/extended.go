@@ -69,6 +69,10 @@ type Operation struct {
 	// their dependencies.
 	Targets []addrs.Targetable
 
+	// Excludes allow limiting an operation to execute on all resources other
+	// than a set of excluded resource addresses and resources dependent on them.
+	Excludes []addrs.Targetable
+
 	// ForceReplace addresses cause OpenTofu to force a particular set of
 	// resource instances to generate "replace" actions in any plan where they
 	// would normally have generated "no-op" or "update" actions.
@@ -85,20 +89,15 @@ type Operation struct {
 	// method Parse to populate the exported fields from these, validating
 	// the raw values in the process.
 	targetsRaw      []string
+	excludesRaw     []string
 	forceReplaceRaw []string
 	destroyRaw      bool
 	refreshOnlyRaw  bool
 }
 
-// Parse must be called on Operation after initial flag parse. This processes
-// the raw target flags into addrs.Targetable values, returning diagnostics if
-// invalid.
-func (o *Operation) Parse() tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
-
-	o.Targets = nil
-
-	for _, tr := range o.targetsRaw {
+func parseRawTargets(targets []string) (targetables []addrs.Targetable, diags tfdiags.Diagnostics) {
+	targetables = nil
+	for _, tr := range targets {
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -119,8 +118,23 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 			continue
 		}
 
-		o.Targets = append(o.Targets, target.Subject)
+		targetables = append(targetables, target.Subject)
 	}
+	return
+}
+
+// Parse must be called on Operation after initial flag parse. This processes
+// the raw target flags into addrs.Targetable values, returning diagnostics if
+// invalid.
+func (o *Operation) Parse() tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	var parseDiags tfdiags.Diagnostics
+	o.Targets, parseDiags = parseRawTargets(o.targetsRaw)
+	diags = diags.Append(parseDiags)
+
+	o.Excludes, parseDiags = parseRawTargets(o.excludesRaw)
+	diags = diags.Append(parseDiags)
 
 	for _, raw := range o.forceReplaceRaw {
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(raw), "", hcl.Pos{Line: 1, Column: 1})
@@ -230,6 +244,7 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
 		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
 		f.Var((*flagStringSlice)(&operation.targetsRaw), "target", "target")
+		f.Var((*flagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
 		f.Var((*flagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
 	}
 
