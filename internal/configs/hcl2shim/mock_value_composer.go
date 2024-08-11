@@ -119,7 +119,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 
 			for _, err := range typeConformanceErrs {
 				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Warning,
+					tfdiags.Error,
 					fmt.Sprintf("Ignored mock/override field `%v`", k),
 					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", err),
 				))
