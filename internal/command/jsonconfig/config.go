@@ -68,6 +68,8 @@ type variable struct {
 	Description string          `json:"description,omitempty"`
 	Sensitive   bool            `json:"sensitive,omitempty"`
 	Type        string          `json:"type,omitempty"`
+	Nullable    bool            `json:"nullable"`
+	Required    bool            `json:"required"`
 }
 
 // Resource is the representation of a resource in the config
@@ -372,6 +374,8 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 				Description: v.Description,
 				Sensitive:   v.Sensitive,
 				Type:        v.Type.FriendlyName(),
+				Nullable:    v.Nullable,
+				Required:    v.Default == cty.NilVal && !v.Nullable, // required is true if the default value is nil and nullable is false
 			}
 		}
 		module.Variables = vars
