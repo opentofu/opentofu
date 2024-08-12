@@ -369,13 +369,21 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 					return module, err
 				}
 			}
+
+			// Detect if a variable is required. A variable is required if it has a nil default
+			// value and is not marked as nullable. If a variable is marked as nullable, it is not
+			// required, even if it has a nil default value.
+			isNilDefaultType := v.Default == cty.NilVal && v.Default.Type() == cty.NilType
+			isNullableExplicitlySetToTrue := v.NullableSet && v.Nullable
+			isRequired := isNilDefaultType && !isNullableExplicitlySetToTrue
+
 			vars[k] = &variable{
 				Default:     defaultValJSON,
 				Description: v.Description,
 				Sensitive:   v.Sensitive,
 				Type:        v.Type.FriendlyName(),
-				Nullable:    v.Nullable,
-				Required:    v.Default == cty.NilVal && !v.Nullable, // required is true if the default value is nil and nullable is false
+				Nullable:    isNullableExplicitlySetToTrue,
+				Required:    isRequired,
 			}
 		}
 		module.Variables = vars
