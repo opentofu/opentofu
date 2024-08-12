@@ -435,6 +435,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 					return module, err
 				}
 			}
+
 			vars[k] = &variable{
 				Type:        typeJSON,
 				Default:     defaultValJSON,
