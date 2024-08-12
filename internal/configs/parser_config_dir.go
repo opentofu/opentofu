@@ -110,7 +110,7 @@ func (p Parser) ConfigDirFilesWithTests(dir string, testDirectory string) (prima
 
 // IsConfigDir determines whether the given path refers to a directory that
 // exists and contains at least one OpenTofu config file (with a .tf or
-// .tf.json extension.). Note, we explicitely exclude checking for tests here
+// .tf.json extension.). Note, we explicitly exclude checking for tests here
 // as tests must live alongside actual .tf config files.
 func (p *Parser) IsConfigDir(path string) bool {
 	primaryPaths, overridePaths, _, _ := p.dirFiles(path, "")

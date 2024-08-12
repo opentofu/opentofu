@@ -908,7 +908,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 func (d *evaluationStateData) getResourceSchema(addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
 	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(providerAddr, addr.Mode, addr.Type)
 	if err != nil {
-		// We have plently other codepaths that will detect and report
+		// We have plenty of other codepaths that will detect and report
 		// schema lookup errors before we'd reach this point, so we'll just
 		// treat a failure here the same as having no schema.
 		return nil
@@ -1004,7 +1004,7 @@ func (d *evaluationStateData) GetCheckBlock(addr addrs.Check, rng tfdiags.Source
 	// For now, check blocks don't contain any meaningful data and can only
 	// be referenced from the testing scope within an expect_failures attribute.
 	//
-	// We've added them into the scope explicitly since they are referencable,
+	// We've added them into the scope explicitly since they are referenceable,
 	// but we'll actually just return an error message saying they can't be
 	// referenced in this context.
 	var diags tfdiags.Diagnostics

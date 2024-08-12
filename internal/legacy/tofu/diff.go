@@ -717,7 +717,7 @@ func (d *InstanceDiff) applySingleAttrDiff(path []string, attrs map[string]strin
 		return result, nil
 	}
 
-	// check for missmatched diff values
+	// check for mismatched diff values
 	if exists &&
 		old != diff.Old &&
 		old != hcl2shim.UnknownVariableValue &&
@@ -1333,7 +1333,7 @@ func (d *InstanceDiff) Same(d2 *InstanceDiff) (bool, string) {
 				continue
 			}
 
-			// If the last diff was a computed value then the absense of
+			// If the last diff was a computed value then the absence of
 			// that value is allowed since it may mean the value ended up
 			// being the same.
 			if diffOld.NewComputed {

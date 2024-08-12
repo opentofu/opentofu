@@ -151,7 +151,7 @@ func TestProposedNew(t *testing.T) {
 					"boz": cty.String,
 				})),
 			}),
-			// The bloop attribue and baz block does not exist in the config,
+			// The bloop attribute and baz block does not exist in the config,
 			// and therefore shouldn't be planned.
 			cty.ObjectVal(map[string]cty.Value{
 				"foo": cty.StringVal("bar"),

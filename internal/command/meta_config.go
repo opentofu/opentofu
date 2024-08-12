@@ -177,7 +177,7 @@ func (m *Meta) loadSingleModuleWithTests(dir string, testDir string) (*configs.M
 // least one OpenTofu configuration file (.tf or .tf.json), returning true
 // if so.
 //
-// In the unlikely event that the underlying config loader cannot be initalized,
+// In the unlikely event that the underlying config loader cannot be initialized,
 // this function optimistically returns true, assuming that the caller will
 // then do some other operation that requires the config loader and get an
 // error at that point.

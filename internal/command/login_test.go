@@ -312,7 +312,7 @@ func TestLogin(t *testing.T) {
 	// The following test does not use browser MockLauncher() and forces `tofu login` command print URL
 	// and wait for the callback with code.
 	// There is no timeout in `tofu login` OAuth2 callback server code, so the only way to interrupt it
-	// is to wirte to the shutdown channel (or complete the login process).
+	// is to write to the shutdown channel (or complete the login process).
 	t.Run("example.com Ctrl+C interrupts login command", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 		// Enter "yes" at the consent prompt.
 		defer testInputMap(t, map[string]string{

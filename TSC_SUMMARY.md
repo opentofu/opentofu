@@ -524,7 +524,7 @@ TSC:
 
 #### IBM acquisition of Hashicorp
 
-Shall we publish anything as OpenTofu regarding the acquision?
+Shall we publish anything as OpenTofu regarding the acquisition?
 
 ##### Discussion/Decision
 

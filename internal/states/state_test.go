@@ -494,7 +494,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_thing",
 				Name: "child",
-			}.Instance(addrs.IntKey(0)), // Moving the AbsResouce moves all instances
+			}.Instance(addrs.IntKey(0)), // Moving the AbsResource moves all instances
 			&ResourceInstanceObjectSrc{
 				Status:        ObjectReady,
 				SchemaVersion: 1,
@@ -510,7 +510,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_thing",
 				Name: "child",
-			}.Instance(addrs.IntKey(1)), // Moving the AbsResouce moves all instances
+			}.Instance(addrs.IntKey(1)), // Moving the AbsResource moves all instances
 			&ResourceInstanceObjectSrc{
 				Status:        ObjectReady,
 				SchemaVersion: 1,

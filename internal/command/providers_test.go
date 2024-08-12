@@ -158,7 +158,7 @@ func TestProviders_state(t *testing.T) {
 		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
 		"provider[registry.opentofu.org/hashicorp/bar] 2.0.0", // from a provider config block
 		"Providers required by state",                         // header for state providers
-		"provider[registry.opentofu.org/hashicorp/baz]",       // from a resouce in state (only)
+		"provider[registry.opentofu.org/hashicorp/baz]",       // from a resource in state (only)
 	}
 
 	output := ui.OutputWriter.String()

@@ -47,7 +47,7 @@ func (t *ForcedCBDTransformer) Transform(g *Graph) error {
 		}
 
 		if !dn.CreateBeforeDestroy() {
-			// If there are no CBD decendent (dependent nodes), then we
+			// If there are no CBD descendent (dependent nodes), then we
 			// do nothing here.
 			if !t.hasCBDDescendent(g, v) {
 				log.Printf("[TRACE] ForcedCBDTransformer: %q (%T) has no CBD descendent, so skipping", dag.VertexName(v), v)
@@ -117,7 +117,7 @@ func (t *ForcedCBDTransformer) hasCBDDescendent(g *Graph, v dag.Vertex) bool {
 // DiffTransformer when building the apply graph.
 type CBDEdgeTransformer struct {
 	// Module and State are only needed to look up dependencies in
-	// any way possible. Either can be nil if not availabile.
+	// any way possible. Either can be nil if not available.
 	Config *configs.Config
 	State  *states.State
 }

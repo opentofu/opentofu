@@ -18,22 +18,22 @@ The folder structure would include a `modules` and `providers` folders. Each sho
 ```
 ├── modules
 │   ├── ≈ (first letter of the module namespace)
-│   │   ├── bridgecrewio (module namepsace that starts with "b")
+│   │   ├── bridgecrewio (module namespace that starts with "b")
 │   │   │   ├── apigateway-cors
 │   │   │   │   ├── aws.json 
 │   │   │   ├── bridgecrew-read-only
 │   │   │   │   ├── aws.json 
 │   ├── c (first letter of the module namespace)
-│   │   ├── claranet (module namepsace that starts with "c")
+│   │   ├── claranet (module namespace that starts with "c")
 │   │   │   ├── detectors
 │   │   │   │   ├── signalfx.json 
 ├── providers
 │   ├── a (first letter of the module namespace)
-│   │   ├── aliyun (module namepsace that starts with "a")
+│   │   ├── aliyun (module namespace that starts with "a")
 │   │   │   ├── alibabacloudstack.json
 │   │   │   ├── alicloud.json
 │   ├── o (first letter of the module namespace)
-│   │   ├── oracle (module namepsace that starts with "o")
+│   │   ├── oracle (module namespace that starts with "o")
 │   │   │   ├── oci.json
 ```
 

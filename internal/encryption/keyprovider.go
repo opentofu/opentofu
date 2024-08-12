@@ -57,7 +57,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	}
 
 	// Mark this key provider as partially handled.  This value will be replaced below once it is actually known.
-	// The goal is to allow an early return via the above if statement to prevent duplicate errors if errors are encoutered in the key loading stack.
+	// The goal is to allow an early return via the above if statement to prevent duplicate errors if errors are encountered in the key loading stack.
 	e.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
 
 	// Check for circular references, this is done by inspecting the stack of key providers
