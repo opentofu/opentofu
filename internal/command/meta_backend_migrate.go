@@ -559,7 +559,7 @@ func (m *Meta) backendMigrateTFC(opts *backendMigrateOpts) error {
 	if err != nil {
 		return err
 	}
-	//to be used below, not yet implemented
+	// to be used below, not yet implemented
 	// destinationWorkspaces, destinationSingleState
 	_, _, err = retrieveWorkspaces(opts.Destination, opts.SourceType)
 	if err != nil {
