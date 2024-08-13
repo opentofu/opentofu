@@ -80,6 +80,44 @@ var IsSensitiveFunc = function.New(&function.Spec{
 	},
 })
 
+// FlipSensitiveFunc flips the sensitivity of a value.
+var FlipSensitiveFunc = function.New(&function.Spec{
+	Params: []function.Parameter{
+		{
+			Name:             "value",
+			Type:             cty.DynamicPseudoType,
+			AllowUnknown:     true,
+			AllowNull:        true,
+			AllowMarked:      true,
+			AllowDynamicType: true,
+		},
+	},
+	Type: func(args []cty.Value) (cty.Type, error) {
+		// The return type is the same as the argument type.
+		return args[0].Type(), nil
+	},
+	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
+		value := args[0]
+
+		// Check if the value is currently sensitive
+		val, err := IsSensitiveFunc.Call(args)
+		if err != nil {
+			return value, err
+		}
+
+		if val.True() {
+			return NonsensitiveFunc.Call(args)
+		} else {
+			return SensitiveFunc.Call(args)
+		}
+	},
+})
+
+// FlipSensitive is a user-facing function to flip the sensitivity of a value.
+func FlipSensitive(v cty.Value) (cty.Value, error) {
+	return FlipSensitiveFunc.Call([]cty.Value{v})
+}
+
 func Sensitive(v cty.Value) (cty.Value, error) {
 	return SensitiveFunc.Call([]cty.Value{v})
 }
