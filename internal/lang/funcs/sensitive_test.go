@@ -236,3 +236,48 @@ func TestIsSensitive(t *testing.T) {
 		})
 	}
 }
+
+func TestFlipSensitive(t *testing.T) {
+	tests := []struct {
+		Input cty.Value
+	}{
+		{
+			cty.NumberIntVal(1).Mark(marks.Sensitive),
+		},
+		{
+			cty.NumberIntVal(1),
+		},
+		{
+			cty.DynamicVal.Mark(marks.Sensitive),
+		},
+		{
+			cty.DynamicVal,
+		},
+		{
+			cty.UnknownVal(cty.String).Mark(marks.Sensitive),
+		},
+		{
+			cty.UnknownVal(cty.String),
+		},
+		{
+			cty.NullVal(cty.EmptyObject).Mark(marks.Sensitive),
+		},
+		{
+			cty.NullVal(cty.EmptyObject),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("flipsensitive(%#v)", test.Input), func(t *testing.T) {
+			got, err := FlipSensitive(test.Input)
+
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if got.HasMark(marks.Sensitive) != !test.Input.HasMark(marks.Sensitive) {
+				t.Errorf("failed to flip input")
+			}
+		})
+	}
+}

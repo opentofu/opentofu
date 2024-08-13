@@ -113,7 +113,6 @@ var FlipSensitiveFunc = function.New(&function.Spec{
 	},
 })
 
-// FlipSensitive is a user-facing function to flip the sensitivity of a value.
 func FlipSensitive(v cty.Value) (cty.Value, error) {
 	return FlipSensitiveFunc.Call([]cty.Value{v})
 }
