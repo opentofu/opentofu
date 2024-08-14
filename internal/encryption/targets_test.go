@@ -145,6 +145,20 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 			`,
 			wantErr: "Test Config Source:3,12-28: Undefined variable; Undefined variable var.undefinedkey",
 		},
+		"bad-keyprovider-format": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = key_provider.static[0]
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantErr: "Test Config Source:3,12-34: Invalid Key Provider expression format; Expected key_provider.<type>.<name>",
+		},
 	}
 
 	reg := lockingencryptionregistry.New()
