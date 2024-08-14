@@ -2,33 +2,35 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
+package evalchecks
 
-package tofu
+// TODO this is only here until i figure out where it should be
 
 import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
-// evaluateForEachExpression is our standard mechanism for interpreting an
+type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics)
+
+// EvaluateForEachExpression is our standard mechanism for interpreting an
 // expression given for a "for_each" argument on a resource or a module. This
 // should be called during expansion in order to determine the final keys and
 // values.
 //
-// evaluateForEachExpression differs from evaluateForEachExpressionValue by
+// EvaluateForEachExpression differs from EvaluateForEachExpressionValue by
 // returning an error if the count value is not known, and converting the
 // cty.Value to a map[string]cty.Value for compatibility with other calls.
-func evaluateForEachExpression(expr hcl.Expression, ctx EvalContext) (forEach map[string]cty.Value, diags tfdiags.Diagnostics) {
+func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc) (forEach map[string]cty.Value, diags tfdiags.Diagnostics) {
 	const unknownsNotAllowed = false
 	const tupleNotAllowed = false
-	forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, unknownsNotAllowed, tupleNotAllowed)
+	forEachVal, diags := EvaluateForEachExpressionValue(expr, ctx, unknownsNotAllowed, tupleNotAllowed)
 	// forEachVal might be unknown, but if it is then there should already
 	// be an error about it in diags, which we'll return below.
 
@@ -40,11 +42,11 @@ func evaluateForEachExpression(expr hcl.Expression, ctx EvalContext) (forEach ma
 	return forEachVal.AsValueMap(), diags
 }
 
-// evaluateForEachExpressionValue is like evaluateForEachExpression
+// EvaluateForEachExpressionValue is like EvaluateForEachExpression
 // except that it returns a cty.Value map or set which can be unknown.
 // The 'allowTuple' argument is used to support evaluating for_each from tuple
 // values, and is currently supported when using for_each in import blocks.
-func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowUnknown bool, allowTuple bool) (cty.Value, tfdiags.Diagnostics) {
+func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowUnknown bool, allowTuple bool) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
 
@@ -54,15 +56,8 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 
 	refs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
 	diags = diags.Append(moreDiags)
-	scope := ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
 	var hclCtx *hcl.EvalContext
-	if scope != nil {
-		hclCtx, moreDiags = scope.EvalContext(refs)
-	} else {
-		// This shouldn't happen in real code, but it can unfortunately arise
-		// in unit tests due to incompletely-implemented mocks. :(
-		hclCtx = &hcl.EvalContext{}
-	}
+	hclCtx, moreDiags = ctx(refs)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() { // Can't continue if we don't even have a valid scope
 		return nullMap, diags
@@ -81,7 +76,7 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
-			Extra:       diagnosticCausedBySensitive(true),
+			Extra:       DiagnosticCausedByUnknown(true),
 		})
 	}
 
@@ -145,7 +140,7 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 				Subject:     expr.Range().Ptr(),
 				Expression:  expr,
 				EvalContext: hclCtx,
-				Extra:       diagnosticCausedByUnknown(true),
+				Extra:       DiagnosticCausedByUnknown(true),
 			})
 		}
 		// ensure that we have a map, and not a DynamicValue
@@ -169,7 +164,7 @@ func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowU
 					Subject:     expr.Range().Ptr(),
 					Expression:  expr,
 					EvalContext: hclCtx,
-					Extra:       diagnosticCausedByUnknown(true),
+					Extra:       true,
 				})
 			}
 			return cty.UnknownVal(ty), diags

@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
+	evalchecks "github.com/opentofu/opentofu/internal/eval_checks"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -51,7 +52,7 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 			Subject:  expr.Range().Ptr(),
 			//	Expression:
 			//	EvalContext:
-			Extra: diagnosticCausedByUnknown(true),
+			Extra: evalchecks.DiagnosticCausedByUnknown(true),
 		})
 	}
 
