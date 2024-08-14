@@ -17,7 +17,7 @@ Usage: `tofu apply [options] [plan file]`
 
 ### Automatic Plan Mode
 
-When you run `tofu apply` without passing a saved plan file, OpenTofu automatically creates a new execution plan as if you had run [`tofu plan`](plan.mdx), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](plan.mdx#planning-modes) and
+When you run `tofu apply` without passing a saved plan file, OpenTofu automatically creates a new execution plan as if you had run [`tofu plan`](plan.mdx), prompts you to approve that plan, and takes the indicated actions. You can use all of the [planning modes](../../planmissing.mdx#planning-modes) and
 [planning options](plan.mdx#planning-options) to customize how OpenTofu will create the plan.
 
 You can pass the `-auto-approve` option to instruct OpenTofu to apply the plan without asking for confirmation.
