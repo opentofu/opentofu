@@ -12,9 +12,9 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	evalchecks "github.com/opentofu/opentofu/internal/eval_checks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -89,7 +89,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		provider.Count = attr.Expr
 	}
 
-	if provider.Count != nil && provider.ForEach != nil && provider.AliasExpr != nil {
+	if (provider.AliasExpr != nil && provider.Count != nil) || (provider.AliasExpr != nil && provider.ForEach != nil) || (provider.Count != nil && provider.ForEach != nil) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Invalid combination of "alias", "count" and "for_each"`,
@@ -163,76 +163,10 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 func (p *Provider) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	if p.ForEach != nil {
-		if eval == nil {
-			return nil, diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Iteration not allowed in test files",
-				Detail:   "for_each was declared as an provider attribute in a test file",
-				Subject:  p.AliasExpr.Range().Ptr(),
-			})
-		}
-		var out []*Provider
-		forVal, evalDiags := eval.Evaluate(p.ForEach, StaticIdentifier{
-			Module:    eval.call.addr,
-			Subject:   fmt.Sprintf("provider.%s.for_each", p.Name),
-			DeclRange: p.ForEach.Range(),
-		})
-		diags = append(diags, evalDiags...)
-		if evalDiags.HasErrors() {
-			return nil, diags
-		}
-		// TODO internal/tofu/eval_for_each.go protections
-		for k, v := range forVal.AsValueMap() {
-			v := v
-
-			iter := *p
-			iter.Alias = k
-			iter.EachValue = &v
-			iter.ForEach = nil
-			out = append(out, &iter)
-		}
-		return out, diags
+		return p.generateForEachProviders(eval)
 	}
 	if p.Count != nil {
-		if eval == nil {
-			return nil, diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Iteration not allowed in test files",
-				Detail:   "count was declared as an provider attribute in a test file",
-				Subject:  p.AliasExpr.Range().Ptr(),
-			})
-		}
-		var out []*Provider
-		countVal, evalDiags := eval.Evaluate(p.Count, StaticIdentifier{
-			Module:    eval.call.addr,
-			Subject:   fmt.Sprintf("provider.%s.count", p.Name),
-			DeclRange: p.Count.Range(),
-		})
-		diags = append(diags, evalDiags...)
-		if evalDiags.HasErrors() {
-			return nil, diags
-		}
-
-		var count int
-		err := gocty.FromCtyValue(countVal, &count)
-		if err != nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid value for count",
-				Detail:   fmt.Sprintf("invalid value for count: %s.", err.Error()),
-				Subject:  p.AliasExpr.Range().Ptr(),
-			})
-			return nil, diags
-		}
-		for i := 0; i < count; i++ {
-			iter := *p
-			iter.Alias = fmt.Sprintf("[%d]", i)
-			iter.Count = nil
-			cIndex := cty.NumberIntVal(int64(i))
-			iter.CountIndex = &cIndex
-			out = append(out, &iter)
-		}
-		return out, diags
+		return p.generateCountProviders(eval)
 	}
 	if p.AliasExpr != nil {
 		if eval != nil {
@@ -398,4 +332,90 @@ func checkProviderNameNormalized(name string, declrange hcl.Range) hcl.Diagnosti
 		})
 	}
 	return diags
+}
+
+func (p *Provider) generateForEachProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	if eval == nil {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Iteration not allowed in test files",
+			Detail:   "for_each was declared as an provider attribute in a test file",
+			Subject:  p.AliasExpr.Range().Ptr(),
+		})
+	}
+
+	foeachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+		evalContext, evalDiags := eval.EvalContext(StaticIdentifier{
+			Module:    eval.call.addr,
+			Subject:   fmt.Sprintf("provider.%s.for_each", p.Name),
+			DeclRange: p.ForEach.Range(),
+		}, refs)
+		return evalContext, diags.Append(evalDiags)
+	}
+
+	forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, foeachRefsFunc)
+	diags = append(diags, evalDiags.ToHCL()...)
+	if evalDiags.HasErrors() {
+		return nil, diags
+	}
+
+	var out []*Provider
+	for k, v := range forVal {
+		if !hclsyntax.ValidIdentifier(k) {
+			return nil, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid Identifier",
+				Detail:   fmt.Sprintf("The provided identifier %s is invalid", k),
+				Subject:  p.ForEach.Range().Ptr(),
+			})
+		}
+
+		v := v
+		iter := *p
+		iter.Alias = k
+		iter.EachValue = &v
+		iter.ForEach = nil
+		out = append(out, &iter)
+	}
+	return out, diags
+}
+
+func (p *Provider) generateCountProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	if eval == nil {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Iteration not allowed in test files",
+			Detail:   "for_each was declared as an provider attribute in a test file",
+			Subject:  p.AliasExpr.Range().Ptr(),
+		})
+	}
+	countEvalFunc := func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+		countVal, evalDiags := eval.Evaluate(expr, StaticIdentifier{
+			Module:    eval.call.addr,
+			Subject:   fmt.Sprintf("provider.%s.count", p.Name),
+			DeclRange: p.Count.Range(),
+		})
+		return countVal, diags.Append(evalDiags)
+	}
+
+	var out []*Provider
+	countVal, evalDiags := evalchecks.EvaluateCountExpression(p.Count, countEvalFunc)
+	diags = append(diags, evalDiags.ToHCL()...)
+	if evalDiags.HasErrors() {
+		return nil, diags
+	}
+
+	for i := 0; i < countVal; i++ {
+		iter := *p
+		iter.Alias = fmt.Sprintf("[%d]", i)
+		iter.Count = nil
+		cIndex := cty.NumberIntVal(int64(i))
+		iter.CountIndex = &cIndex
+		out = append(out, &iter)
+	}
+	return out, diags
 }

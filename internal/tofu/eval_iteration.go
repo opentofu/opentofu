@@ -17,13 +17,12 @@ import (
 func evalContextScope(ctx EvalContext) evalchecks.ContextFunc {
 	scope := ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
 	return func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-		if scope != nil {
-			return scope.EvalContext(refs)
-		} else {
+		if scope == nil {
 			// This shouldn't happen in real code, but it can unfortunately arise
 			// in unit tests due to incompletely-implemented mocks. :(
 			return &hcl.EvalContext{}, nil
 		}
+		return scope.EvalContext(refs)
 	}
 }
 

@@ -130,7 +130,6 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 					}
 
 					if testProvider, exists := test.Providers[provider.Addr().StringCompact()]; exists {
-
 						testProviderType := testProvider.providerType
 						if testProviderType.IsZero() {
 							testProviderType = addrs.NewDefaultProvider(testProvider.Name)
