@@ -197,3 +197,18 @@ integration-tests: test-s3 test-pg test-consul test-kubernetes integration-tests
 
 .PHONY:
 integration-tests-clean: test-pg-clean test-consul-clean test-kubernetes-clean ## Cleans environment after all integration tests.
+
+.PHONY: help
+help: ## Prints this help message.
+	@echo ""
+	@echo "Opentofu Makefile"
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "The available targets for execution are listed below."
+	@echo ""
+	@echo "Targets:"
+	@awk 'BEGIN {FS = ":.*$$"; OFS = ""} \
+    /^# .*$$/ { doc=$$0; sub(/^# /, "", doc); next } \
+    /^[a-zA-Z0-9_-]+:.*## .*$$/ { target=$$1; sub(/:$$/, "", target); desc=$$0; sub(/^[^#]*## /, "", desc); if (!seen[target]++) { printf "\033[1m%-30s\033[0m %s\n", target, desc } } \
+    /^[a-zA-Z0-9_-]+:.*$$/ { target=$$1; sub(/:$$/, "", target); if (!seen[target]++) { if (doc != "") { printf "\033[1m%-30s\033[0m %s\n", target, doc; doc="" } else { printf "\033[1m%-30s\033[0m\n", target } } }' $(MAKEFILE_LIST)
