@@ -1,3 +1,5 @@
+.POSIX:
+
 export PATH := $(abspath bin/):${PATH}
 
 # Dependency versions
