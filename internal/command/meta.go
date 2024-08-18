@@ -665,7 +665,7 @@ func (m *Meta) process(args []string) []string {
 		newUI = &pedanticUI{
 			Ui: newUI,
 			notifyWarning: func() {
-				m.View.InErrorState = true
+				m.View.LegacyViewErrorFlagged = true
 			},
 		}
 	}
@@ -945,6 +945,3 @@ func (m *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	return nil, diags
 }
 
-func (m *Meta) ViewHasErrors() bool {
-	return m.View.InErrorState
-}

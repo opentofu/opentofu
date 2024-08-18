@@ -83,7 +83,7 @@ func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{
 
 	// Mark the view as in error state if errors are found
 	if diags.HasErrors() {
-		v.view.InErrorState = true
+		v.view.LegacyViewErrorFlagged = true
 	}
 
 	for _, diag := range diags {

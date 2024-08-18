@@ -56,7 +56,7 @@ func (v *ValidateHuman) Results(diags tfdiags.Diagnostics) int {
 
 	// Mark the view as in error state if errors are found
 	if diags.HasErrors() {
-		v.view.InErrorState = true
+		v.view.LegacyViewErrorFlagged = true
 	}
 
 	if len(diags) == 0 {
@@ -123,7 +123,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 
 	// Mark the view as in error state if errors are found
 	if diags.HasErrors() {
-		v.view.InErrorState = true
+		v.view.LegacyViewErrorFlagged = true
 	}
 
 	for _, diag := range diags {

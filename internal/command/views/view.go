@@ -46,8 +46,8 @@ type View struct {
 	// PedanticMode is used to treat warnings as errors
 	PedanticMode bool
 
-	// InErrorState is used to indicate the view is in an error state
-	InErrorState bool
+	// LegacyViewErrorFlagged is used to indicate a legacy view error has been flagged
+	LegacyViewErrorFlagged bool
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -154,11 +154,7 @@ func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	if diags.HasErrors() {
-		v.InErrorState = true
-	}
-
-	return v.InErrorState
+	return diags.HasErrors()
 }
 
 // HelpPrompt is intended to be called from commands which fail to parse all
