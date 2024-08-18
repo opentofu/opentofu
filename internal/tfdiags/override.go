@@ -43,18 +43,16 @@ func Override(original Diagnostic, severity Severity, createExtra func() Diagnos
 }
 
 // OverrideAllFromTo accepts a set of Diagnostics and wraps matching severities with a new severity, returning
-// an updated set of diagnostics and a boolean to indicate if an override occurred.
-func OverrideAllFromTo(diags Diagnostics, fromSev Severity, toSev Severity, createExtra func() DiagnosticExtraWrapper) (Diagnostics, bool) {
-	var overridden bool
+// an updated set of diagnostics
+func OverrideAllFromTo(diags Diagnostics, fromSev Severity, toSev Severity, createExtra func() DiagnosticExtraWrapper) Diagnostics {
 	newDiags := make(Diagnostics, 0, len(diags))
 	for _, diag := range diags {
 		if diag.Severity() == fromSev {
 			diag = Override(diag, toSev, createExtra)
-			overridden = true
 		}
 		newDiags = newDiags.Append(diag)
 	}
-	return newDiags, overridden
+	return newDiags
 }
 
 // UndoOverride will return the original diagnostic that was overridden within

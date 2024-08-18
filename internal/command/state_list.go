@@ -100,6 +100,9 @@ func (c *StateListCommand) Run(args []string) int {
 	}
 
 	c.showDiagnostics(diags)
+	if c.ViewHasErrors() {
+		return 1
+	}
 
 	return 0
 }

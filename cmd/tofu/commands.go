@@ -120,7 +120,7 @@ func initCommands(
 	// add, remove or reclassify commands then consider updating
 	// that to match.
 
-	commandsDirect := map[string]cli.CommandFactory{
+	commands = map[string]cli.CommandFactory{
 		"apply": func() (cli.Command, error) {
 			return &command.ApplyCommand{
 				Meta: meta,
@@ -363,11 +363,7 @@ func initCommands(
 		},
 
 		"state": func() (cli.Command, error) {
-			return &command.StateCommand{
-				StateMeta: command.StateMeta{
-					Meta: meta,
-				},
-			}, nil
+			return &command.StateCommand{}, nil
 		},
 
 		"state list": func() (cli.Command, error) {
@@ -453,37 +449,6 @@ func initCommands(
 				Meta: meta,
 			}, nil
 		}
-	}
-
-	commands = make(map[string]cli.CommandFactory, len(commandsDirect))
-	for name, factory := range commandsDirect {
-		cmd, err := factory()
-		if err != nil {
-			// Should not be possible
-			panic(err)
-		}
-
-		if pedanticCmd, isPedantic := cmd.(command.PedanticCommand); isPedantic {
-			commands[name] = func() (cli.Command, error) {
-				return &command.PedanticRunner{PedanticCommand: pedanticCmd}, nil
-			}
-			continue
-		}
-
-		if aliasedCmd, isAlias := cmd.(*command.AliasCommand); isAlias {
-			if pedanticCmd, isPedantic := aliasedCmd.Command.(command.PedanticCommand); isPedantic {
-				commands[name] = func() (cli.Command, error) {
-					return &command.AliasCommand{
-						Command: &command.PedanticRunner{
-							PedanticCommand: pedanticCmd,
-						},
-					}, nil
-				}
-				continue
-			}
-		}
-
-		commands[name] = factory
 	}
 
 	primaryCommands = []string{

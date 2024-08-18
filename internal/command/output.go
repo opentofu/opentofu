@@ -62,8 +62,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	diags = diags.Append(viewDiags)
 
 	view.Diagnostics(diags)
-
-	if diags.HasErrors() {
+	if view.HasErrors() {
 		return 1
 	}
 

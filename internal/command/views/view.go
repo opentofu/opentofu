@@ -46,8 +46,8 @@ type View struct {
 	// PedanticMode is used to treat warnings as errors
 	PedanticMode bool
 
-	// WarningFlagged is used to indicate a warning has been flagged when in pedantic mode
-	WarningFlagged bool
+	// InErrorState is used to indicate the view is in an error state
+	InErrorState bool
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -106,12 +106,13 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	diags = diags.ConsolidateWarnings(1)
 
 	// Convert warnings to errors if we are in pedantic mode
-	// We do this after consolidation of warnings to reduce the verbosity of the output
 	if v.PedanticMode {
-		var overridden bool
-		if diags, overridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); overridden {
-			v.WarningFlagged = true
-		}
+		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+	}
+
+	// Mark the view as in error state if errors are found
+	if diags.HasErrors() {
+		v.InErrorState = true
 	}
 
 	// Since warning messages are generally competing

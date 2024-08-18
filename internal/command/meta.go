@@ -665,7 +665,7 @@ func (m *Meta) process(args []string) []string {
 		newUI = &pedanticUI{
 			Ui: newUI,
 			notifyWarning: func() {
-				m.View.WarningFlagged = true
+				m.View.InErrorState = true
 			},
 		}
 	}
@@ -744,10 +744,12 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
 	if m.View.PedanticMode {
-		var overridden bool
-		if diags, overridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); overridden {
-			m.View.WarningFlagged = true
-		}
+		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+	}
+
+	// Mark the view as in error state if errors are found
+	if diags.HasErrors() {
+		m.View.InErrorState = true
 	}
 
 	// Since warning messages are generally competing
@@ -908,7 +910,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 // it could potentially return nil without errors. It is the
 // responsibility of the caller to handle the lack of schema
 // information accordingly
-func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+func (m *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	path, err := os.Getwd()
@@ -918,7 +920,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 
 	if config == nil {
-		config, diags = c.loadConfig(path)
+		config, diags = m.loadConfig(path)
 		if diags.HasErrors() {
 			diags.Append(tfdiags.SimpleWarning(failedToLoadSchemasMessage))
 			return nil, diags
@@ -926,7 +928,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 
 	if config != nil || state != nil {
-		opts, err := c.contextOpts()
+		opts, err := m.contextOpts()
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags
@@ -948,7 +950,6 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	return nil, diags
 }
 
-// warningFlagged returns whether a warning has been flagged during command execution when in pedantic mode
-func (m *Meta) warningFlagged() bool {
-	return m.View.WarningFlagged
+func (m *Meta) ViewHasErrors() bool {
+	return m.View.InErrorState
 }
