@@ -747,11 +747,6 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	// Mark the view as in error state if errors are found
-	if diags.HasErrors() {
-		m.View.InErrorState = true
-	}
-
 	// Since warning messages are generally competing
 	if m.compactWarnings {
 		// If the user selected compact warnings and all of the diagnostics are
