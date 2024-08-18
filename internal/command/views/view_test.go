@@ -29,7 +29,7 @@ func TestView_DiagnosticsInPedanticMode(t *testing.T) {
 		t.Errorf("expected: %v got: %v", want, got)
 	}
 
-	if !view.PedanticUiWarningFlagged {
-		t.Errorf("expected: true, got: %v", view.PedanticUiWarningFlagged)
+	if !view.LegacyViewPedanticError {
+		t.Errorf("expected: true, got: %v", view.LegacyViewPedanticError)
 	}
 }

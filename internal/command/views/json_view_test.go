@@ -156,8 +156,8 @@ func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 
 	testJSONViewOutputEquals(t, done(t).Stdout(), want)
 
-	if !view.PedanticUiWarningFlagged {
-		t.Errorf("expected: true, got: %v", view.PedanticUiWarningFlagged)
+	if !view.LegacyViewPedanticError {
+		t.Errorf("expected: true, got: %v", view.LegacyViewPedanticError)
 	}
 }
 

@@ -665,7 +665,7 @@ func (m *Meta) process(args []string) []string {
 		newUI = &pedanticUI{
 			Ui: newUI,
 			notifyWarning: func() {
-				m.View.PedanticUiWarningFlagged = true
+				m.View.LegacyViewPedanticError = true
 			},
 		}
 	}
