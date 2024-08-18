@@ -110,11 +110,6 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	// Mark the view as in error state if errors are found
-	if diags.HasErrors() {
-		v.InErrorState = true
-	}
-
 	// Since warning messages are generally competing
 	if v.compactWarnings {
 		// If the user selected compact warnings and all of the diagnostics are
@@ -151,6 +146,19 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 			v.streams.Print(msg)
 		}
 	}
+}
+
+func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
+	// Convert warnings to errors if we are in pedantic mode
+	if v.PedanticMode {
+		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+	}
+
+	if diags.HasErrors() {
+		v.InErrorState = true
+	}
+
+	return v.InErrorState
 }
 
 // HelpPrompt is intended to be called from commands which fail to parse all

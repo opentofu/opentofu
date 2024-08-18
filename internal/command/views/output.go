@@ -27,7 +27,7 @@ import (
 type Output interface {
 	Output(name string, outputs map[string]*states.OutputValue) tfdiags.Diagnostics
 	Diagnostics(diags tfdiags.Diagnostics)
-	HasErrors() bool
+	HasErrors(diags tfdiags.Diagnostics) bool
 }
 
 // NewOutput returns an initialized Output implementation for the given ViewType.
@@ -105,8 +105,8 @@ func (v *OutputHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *OutputHuman) HasErrors() bool {
-	return v.view.InErrorState
+func (v *OutputHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 // The OutputRaw implementation renders single string, number, or boolean
@@ -186,8 +186,8 @@ func (v *OutputRaw) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *OutputRaw) HasErrors() bool {
-	return v.view.InErrorState
+func (v *OutputRaw) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 // The OutputJSON implementation renders outputs as JSON values. When rendering
@@ -268,8 +268,8 @@ func (v *OutputJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
-func (v *OutputJSON) HasErrors() bool {
-	return v.view.InErrorState
+func (v *OutputJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 // For text and raw output modes, an empty map of outputs is considered a
