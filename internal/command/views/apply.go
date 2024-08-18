@@ -25,6 +25,7 @@ type Apply interface {
 	Hooks() []tofu.Hook
 
 	Diagnostics(diags tfdiags.Diagnostics)
+	HasErrors(diags tfdiags.Diagnostics) bool
 	HelpPrompt()
 }
 
@@ -112,6 +113,10 @@ func (v *ApplyHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
+func (v *ApplyHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
+
 func (v *ApplyHuman) HelpPrompt() {
 	command := "apply"
 	if v.destroy {
@@ -170,6 +175,10 @@ func (v *ApplyJSON) Hooks() []tofu.Hook {
 
 func (v *ApplyJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
+}
+
+func (v *ApplyJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 func (v *ApplyJSON) HelpPrompt() {

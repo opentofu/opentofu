@@ -81,11 +81,6 @@ func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	// Mark the view as in error state if errors are found
-	if diags.HasErrors() {
-		v.view.LegacyViewErrorFlagged = true
-	}
-
 	for _, diag := range diags {
 		diagnostic := json.NewDiagnostic(diag, sources)
 
@@ -99,6 +94,10 @@ func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{
 			v.log.Error(fmt.Sprintf("Error: %s", diag.Description().Summary), args...)
 		}
 	}
+}
+
+func (v *JSONView) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 func (v *JSONView) PlannedChange(c *json.ResourceInstanceChange) {

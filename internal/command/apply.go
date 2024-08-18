@@ -55,7 +55,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// diagnostics according to the desired view
 	view := views.NewApply(args.ViewType, c.Destroy, c.View)
 
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		view.HelpPrompt()
 		return 1
@@ -75,14 +75,14 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if view.HasErrors(encDiags) {
 		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Attempt to load the plan file, if specified
 	planFile, diags := c.LoadPlanFile(args.PlanPath, enc)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -115,7 +115,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// backend-specific arguments
 	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType, enc.State())
 	diags = diags.Append(beDiags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -128,7 +128,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// we've accumulated here, since the backend will start fresh with its own
 	// diagnostics.
 	view.Diagnostics(diags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		return 1
 	}
 	diags = nil
@@ -136,7 +136,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// Run the operation
 	op, diags := c.RunOperation(be, opReq)
 	view.Diagnostics(diags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		return 1
 	}
 
@@ -155,7 +155,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	view.Diagnostics(diags)
 
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		return 1
 	}
 
