@@ -54,11 +54,6 @@ func (v *ValidateHuman) Results(diags tfdiags.Diagnostics) int {
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	// Mark the view as in error state if errors are found
-	if diags.HasErrors() {
-		v.view.PedanticUiWarningFlagged = true
-	}
-
 	if len(diags) == 0 {
 		v.view.streams.Println(format.WordWrap(v.view.colorize.Color(validateSuccess), columns))
 	} else {
@@ -69,7 +64,7 @@ func (v *ValidateHuman) Results(diags tfdiags.Diagnostics) int {
 		}
 	}
 
-	if diags.HasErrors() {
+	if v.view.HasErrors(diags) {
 		return 1
 	}
 	return 0
@@ -121,11 +116,6 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	// Mark the view as in error state if errors are found
-	if diags.HasErrors() {
-		v.view.PedanticUiWarningFlagged = true
-	}
-
 	for _, diag := range diags {
 		output.Diagnostics = append(output.Diagnostics, viewsjson.NewDiagnostic(diag, configSources))
 
@@ -150,7 +140,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	}
 	v.view.streams.Println(string(j))
 
-	if diags.HasErrors() {
+	if v.view.HasErrors(diags) {
 		return 1
 	}
 	return 0
