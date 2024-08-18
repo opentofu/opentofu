@@ -46,8 +46,8 @@ type View struct {
 	// PedanticMode is used to treat warnings as errors
 	PedanticMode bool
 
-	// LegacyViewErrorFlagged is used to indicate a legacy view error has been flagged
-	LegacyViewErrorFlagged bool
+	// PedanticUiWarningFlagged is used to indicate a warning has been flagged by the pedantic ui
+	PedanticUiWarningFlagged bool
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a

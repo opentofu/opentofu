@@ -98,8 +98,8 @@ func TestValidateHuman_InPedanticMode(t *testing.T) {
 		t.Errorf("expected: %v got: %v", want, got)
 	}
 
-	if !view.LegacyViewErrorFlagged {
-		t.Errorf("expected: true, got: %v", view.LegacyViewErrorFlagged)
+	if !view.PedanticUiWarningFlagged {
+		t.Errorf("expected: true, got: %v", view.PedanticUiWarningFlagged)
 	}
 }
 
@@ -200,7 +200,7 @@ func TestValidateJSON_InPedanticMode(t *testing.T) {
 		t.Errorf("expected: %v got: %v", want, got)
 	}
 
-	if !view.LegacyViewErrorFlagged {
-		t.Errorf("expected: true, got: %v", view.LegacyViewErrorFlagged)
+	if !view.PedanticUiWarningFlagged {
+		t.Errorf("expected: true, got: %v", view.PedanticUiWarningFlagged)
 	}
 }

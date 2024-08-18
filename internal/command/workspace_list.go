@@ -92,7 +92,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		c.Ui.Output(envIsOverriddenNote)
 	}
 
-	if c.View.LegacyViewErrorFlagged {
+	if c.View.PedanticUiWarningFlagged {
 		return 1
 	}
 
