@@ -32,6 +32,10 @@ func (c *WorkspaceShowCommand) Run(args []string) int {
 	}
 	c.Ui.Output(workspace)
 
+	if c.View.LegacyViewPedanticError {
+		return 1
+	}
+
 	return 0
 }
 
