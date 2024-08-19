@@ -894,8 +894,8 @@ func TestCloud_setConfigurationFieldsUnhappyPath(t *testing.T) {
 			envVars: map[string]string{
 				"TF_WORKSPACE": "qux",
 			},
-			wantSummary: invalidWorkspaceConfigInconsistentNameAndEnvVar.Description().Summary,
-			wantDetail:  invalidWorkspaceConfigInconsistentNameAndEnvVar.Description().Detail,
+			wantSummary: invalidWorkspaceConfigInconsistentNameAndEnvVar().Description().Summary,
+			wantDetail:  invalidWorkspaceConfigInconsistentNameAndEnvVar().Description().Detail,
 		},
 	}
 

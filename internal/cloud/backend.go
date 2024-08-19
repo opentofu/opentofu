@@ -467,7 +467,7 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) tfdiags.Diagnostic {
 	if v := os.Getenv("TF_WORKSPACE"); v != "" {
 		if w.Name != "" && w.Name != v {
-			return invalidWorkspaceConfigInconsistentNameAndEnvVar
+			return invalidWorkspaceConfigInconsistentNameAndEnvVar()
 		}
 
 		// If we don't have workspaces name or tags set in config, we can get the name from the TF_WORKSPACE env var
