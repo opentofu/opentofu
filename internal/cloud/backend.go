@@ -465,13 +465,15 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 }
 
 func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) tfdiags.Diagnostic {
-	// See: https://github.com/opentofu/opentofu/issues/814
-	if v := os.Getenv("TF_WORKSPACE"); v != "" && w.Name == "" {
-		if len(w.Tags) > 0 && !workspaceInTags(w.Tags, v) {
-			return invalidWorkspaceConfigMisconfigurationEnvVar
+	if v := os.Getenv("TF_WORKSPACE"); v != "" {
+		if w.Name != "" && w.Name != v {
+			return invalidWorkspaceConfigInconsistentNameAndEnvVar
 		}
-		w.Name = v
-		w.Tags = nil
+
+		// If we don't have workspaces name or tags set in config, we can get the name from the TF_WORKSPACE env var
+		if w.Strategy() == WorkspaceNoneStrategy {
+			w.Name = v
+		}
 	}
 
 	if v := os.Getenv("TF_CLOUD_PROJECT"); v != "" && w.Project == "" {
@@ -479,15 +481,6 @@ func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) tfdiags.Diagnostic {
 	}
 
 	return nil
-}
-
-func workspaceInTags(tags []string, workspace string) bool {
-	for _, tag := range tags {
-		if tag == workspace {
-			return true
-		}
-	}
-	return false
 }
 
 // discover the TFC/E API service URL and version constraints.

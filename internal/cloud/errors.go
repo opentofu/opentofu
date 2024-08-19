@@ -41,10 +41,10 @@ var (
 		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
 	)
 
-	invalidWorkspaceConfigMisconfigurationEnvVar = tfdiags.AttributeValue(
+	invalidWorkspaceConfigInconsistentNameAndEnvVar = tfdiags.AttributeValue(
 		tfdiags.Error,
 		"Invalid workspaces configuration",
-		fmt.Sprintf("The workspace defined using the environment variable \"TF_WORKSPACE\" does not belong to \"tags\".\n\n%s", workspaceConfigurationHelp),
+		fmt.Sprintf("The workspace defined using the environment variable \"TF_WORKSPACE\" is not consistent with the workspace \"name\" in the configuration.\n\n%s", workspaceConfigurationHelp),
 		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
 	)
 )
