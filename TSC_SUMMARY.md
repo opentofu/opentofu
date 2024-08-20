@@ -8,6 +8,50 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
 
+## 2024-08-20
+
+### Attendes
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+#### Shall we stop using Notion?
+
+- Igor: do we need notion?
+- Zach: reluctantly second motion, easy to do stuff not in public.  Pushes us toward public on github.
+- Igor: migrate this to private space, keep private/public for sensitive information
+- Igor: we probably have a week or two.  Worst case pay for a month and then migrate.
+
+##### Decision
+
+Vote: unanimous yes
+
+#### Sanctions Russia vs registry access
+
+- Add note to README during PR documenting this discussion in TSC_SUMMARY
+- Block Russian IP Blocks from accessing our registry in Cloudflare
+
+##### Decision
+
+Vote: unanimous yes
+
+#### PackageCloud 
+
+PackageCloud provides free deb/rpm hosting for OpenTofu.
+
+- We said we would do a case study
+- They are asking to be listed as sponsors
+- Igor: Ok with updating sponsors (cloudflare as well)
+
+##### Decision
+
+Christian: will write up a "case study" ([examples](https://buildkite.com/case-studies)) and post for TSC review.
+
 ## 2024-08-13
 
 ### Attendees
