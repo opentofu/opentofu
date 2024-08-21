@@ -22,6 +22,7 @@ Resolves #
 - [ ] I have read the [contribution guide](https://github.com/opentofu/opentofu/blob/main/CONTRIBUTING.md).
 - [ ] I have not used an AI coding assistant to create this PR.
 - [ ] I have written all code in this PR myself OR I have marked all code I have not written myself (including modified code, e.g. copied from other places and then modified) with a comment indicating where it came from.
+- [ ] I (and other contributors to this PR) have not looked at the Terraform source code while implementing this PR.
 
 ### Go checklist
 
