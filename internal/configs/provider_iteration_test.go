@@ -11,21 +11,25 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
-func TestNewModule_provider_foreach_name(t *testing.T) {
+const (
+	providerTestName = "local"
+)
+
+func TestNewModule_provider_foreach(t *testing.T) {
 	mod, diags := testModuleFromDir("testdata/providers_foreach")
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
 
-	p := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", "local")
+	p := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", providerTestName)
 	if name, exists := mod.ProviderLocalNames[p]; !exists {
 		t.Fatal("provider FQN hashicorp/local not found")
-	} else if name != "local" {
-		t.Fatalf("provider localname mismatch: got %s, want local", name)
+	} else if name != providerTestName {
+		t.Fatalf("provider localname mismatch: got %s, want %s", name, providerTestName)
 	}
 
 	if len(mod.ProviderConfigs) != 3 {
-		t.Fatal("incorrect numver of providers")
+		t.Fatalf("incorrect number of providers: got %d, expected: %d", len(mod.ProviderConfigs), 3)
 	}
 
 	_, foundDev := mod.GetProviderConfig("foo-test", "dev")
@@ -50,29 +54,56 @@ func TestNewModule_provider_count(t *testing.T) {
 		t.Fatal(diags.Error())
 	}
 
-	p := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", "local")
+	p := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", providerTestName)
 	if name, exists := mod.ProviderLocalNames[p]; !exists {
 		t.Fatal("provider FQN hashicorp/local not found")
-	} else if name != "local" {
-		t.Fatalf("provider localname mismatch: got %s, want local", name)
+	} else if name != providerTestName {
+		t.Fatalf("provider localname mismatch: got %s, want %s", name, providerTestName)
 	}
 
 	if len(mod.ProviderConfigs) != 3 {
-		t.Fatal("incorrect numver of providers")
+		t.Fatalf("incorrect number of providers: got %d, expected: %d", len(mod.ProviderConfigs), 3)
 	}
 
-	_, foundDev := mod.GetProviderConfig("foo-test", "[0]")
+	_, foundDev := mod.GetProviderConfig("foo-test", "0")
 	if !foundDev {
 		t.Fatal("unable to find 0 provider")
 	}
 
-	_, foundTest := mod.GetProviderConfig("foo-test", "[1]")
+	_, foundTest := mod.GetProviderConfig("foo-test", "1")
 	if !foundTest {
 		t.Fatal("unable to find 1 provider")
 	}
 
-	_, foundProd := mod.GetProviderConfig("foo-test", "[2]")
+	_, foundProd := mod.GetProviderConfig("foo-test", "2")
 	if !foundProd {
 		t.Fatal("unable to find 2 provider")
+	}
+}
+
+func TestNewModule_provider_invalid_name(t *testing.T) {
+	mod, diags := testModuleFromDir("testdata/providers_iteration_invalid_name")
+	if !diags.HasErrors() {
+		t.Fatal("expected error")
+	}
+	expected := "Invalid for_each key Identifier"
+	expectedDetail := "The provided identifier 0 is invalid"
+
+	if gotErr := diags[0].Summary; gotErr != expected {
+		t.Errorf("wrong error, got %q, want %q", gotErr, expected)
+	}
+	if gotErr := diags[0].Detail; gotErr != expectedDetail {
+		t.Errorf("wrong error, got %q, want %q", gotErr, expectedDetail)
+	}
+
+	p := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", providerTestName)
+	if name, exists := mod.ProviderLocalNames[p]; !exists {
+		t.Fatal("provider FQN hashicorp/local not found")
+	} else if name != providerTestName {
+		t.Fatalf("provider localname mismatch: got %s, want %s", name, providerTestName)
+	}
+
+	if len(mod.ProviderConfigs) != 0 {
+		t.Fatalf("incorrect number of providers: got %d, expected: %d", len(mod.ProviderConfigs), 0)
 	}
 }

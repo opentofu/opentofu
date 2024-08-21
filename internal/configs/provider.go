@@ -14,7 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	evalchecks "github.com/opentofu/opentofu/internal/eval_checks"
+	"github.com/opentofu/opentofu/internal/evalchecks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -340,12 +340,12 @@ func (p *Provider) generateForEachProviders(eval *StaticEvaluator) ([]*Provider,
 		return nil, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Iteration not allowed in test files",
-			Detail:   "for_each was declared as an provider attribute in a test file",
-			Subject:  p.AliasExpr.Range().Ptr(),
+			Detail:   "for_each was declared as a provider attribute in a test file",
+			Subject:  p.ForEach.Range().Ptr(),
 		})
 	}
 
-	foeachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	forEachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
 		evalContext, evalDiags := eval.EvalContext(StaticIdentifier{
 			Module:    eval.call.addr,
@@ -355,7 +355,7 @@ func (p *Provider) generateForEachProviders(eval *StaticEvaluator) ([]*Provider,
 		return evalContext, diags.Append(evalDiags)
 	}
 
-	forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, foeachRefsFunc)
+	forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc)
 	diags = append(diags, evalDiags.ToHCL()...)
 	if evalDiags.HasErrors() {
 		return nil, diags
@@ -366,7 +366,7 @@ func (p *Provider) generateForEachProviders(eval *StaticEvaluator) ([]*Provider,
 		if !hclsyntax.ValidIdentifier(k) {
 			return nil, diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid Identifier",
+				Summary:  "Invalid for_each key Identifier",
 				Detail:   fmt.Sprintf("The provided identifier %s is invalid", k),
 				Subject:  p.ForEach.Range().Ptr(),
 			})
@@ -388,8 +388,8 @@ func (p *Provider) generateCountProviders(eval *StaticEvaluator) ([]*Provider, h
 		return nil, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Iteration not allowed in test files",
-			Detail:   "for_each was declared as an provider attribute in a test file",
-			Subject:  p.AliasExpr.Range().Ptr(),
+			Detail:   "count was declared as a provider attribute in a test file",
+			Subject:  p.Count.Range().Ptr(),
 		})
 	}
 	countEvalFunc := func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
@@ -411,7 +411,7 @@ func (p *Provider) generateCountProviders(eval *StaticEvaluator) ([]*Provider, h
 
 	for i := 0; i < countVal; i++ {
 		iter := *p
-		iter.Alias = fmt.Sprintf("[%d]", i)
+		iter.Alias = fmt.Sprintf("%d", i)
 		iter.Count = nil
 		cIndex := cty.NumberIntVal(int64(i))
 		iter.CountIndex = &cIndex

@@ -10,7 +10,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	evalchecks "github.com/opentofu/opentofu/internal/eval_checks"
+	"github.com/opentofu/opentofu/internal/evalchecks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
