@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -96,6 +97,23 @@ func (diags Diagnostics) Append(new ...interface{}) Diagnostics {
 	// here, but we'll make sure of that so callers can rely on empty == nil
 	if len(diags) == 0 {
 		return nil
+	}
+
+	return diags
+}
+
+func (diags Diagnostics) Merge(other Diagnostics) Diagnostics {
+	if len(diags) == 0 {
+		return other
+	}
+
+	for _, d := range diags {
+		for _, o := range other {
+			if reflect.DeepEqual(d, o) {
+				continue
+			}
+			diags = append(diags, o)
+		}
 	}
 
 	return diags

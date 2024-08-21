@@ -292,7 +292,7 @@ func (c *InitCommand) Run(args []string) int {
 
 	// Now, we can check the diagnostics from the early configuration and the
 	// backend.
-	diags = diags.Append(earlyConfDiags)
+	diags = diags.Append(earlyConfDiags.Merge(backDiags))
 	if earlyConfDiags.HasErrors() {
 		c.Ui.Error(strings.TrimSpace(errInitConfigError))
 		c.showDiagnostics(diags)
@@ -302,7 +302,6 @@ func (c *InitCommand) Run(args []string) int {
 	// Now, we can show any errors from initializing the backend, but we won't
 	// show the errInitConfigError preamble as we didn't detect problems with
 	// the early configuration.
-	diags = diags.Append(backDiags)
 	if backDiags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
