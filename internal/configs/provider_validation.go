@@ -681,7 +681,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 					Summary:  errSummary,
 					Detail: fmt.Sprintf(
 						"The local name %q in %s represents provider %q, but %q in %s represents %q.\n\nEach provider has its own distinct configuration schema and provider types, so this module's %q can be assigned only a configuration for %s, which is not required by %s.",
-						passed.InParent, parentModuleText, parentAddr.Provider.ForDisplay(),
+						passed.InParentTODO(), parentModuleText, parentAddr.Provider.ForDisplay(),
 						passed.InChild, moduleText, providerAddr.Provider.ForDisplay(),
 						passed.InChild, providerAddr.Provider.ForDisplay(),
 						moduleText,
