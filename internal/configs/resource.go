@@ -68,7 +68,7 @@ type ManagedResource struct {
 	Connection   *Connection
 	Provisioners []*Provisioner
 
-	lcContent           *hcl.BodyContent
+	lifecycleBody       *hcl.BodyContent
 	CreateBeforeDestroy bool
 	PreventDestroy      bool
 	IgnoreChanges       []hcl.Traversal
@@ -200,7 +200,7 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 			diags = append(diags, lcDiags...)
 
 			// Store the content for later
-			r.Managed.lcContent = lcContent
+			r.Managed.lifecycleBody = lcContent
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
 				exprs, hclDiags := decodeReplaceTriggeredBy(attr.Expr)
@@ -580,7 +580,7 @@ func decodeReplaceTriggeredBy(expr hcl.Expression) ([]hcl.Expression, hcl.Diagno
 // nolint: funlen, gocognit, cyclop, nolintlint // Legacy code moved from decode
 func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 	var diags hcl.Diagnostics
-	lcContent := r.Managed.lcContent
+	lcContent := r.Managed.lifecycleBody
 
 	if lcContent == nil {
 		return diags

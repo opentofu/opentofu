@@ -235,8 +235,8 @@ func (r *Resource) merge(or *Resource, rps map[string]*RequiredProvider) hcl.Dia
 	if r.Mode == addrs.ManagedResourceMode {
 		// or.Managed is always non-nil for managed resource mode
 
-		if or.Managed.lcContent != nil {
-			r.Managed.lcContent = or.Managed.lcContent
+		if or.Managed.lifecycleBody != nil {
+			r.Managed.lifecycleBody = or.Managed.lifecycleBody
 		}
 
 		if or.Managed.Connection != nil {
