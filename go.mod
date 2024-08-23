@@ -268,5 +268,4 @@ require (
 
 go 1.21
 
-//nolint gomoddirectives // Maintained fork
 replace github.com/hashicorp/hcl/v2 v2.20.1 => github.com/opentofu/hcl/v2 v2.0.0-20240814143621-8048794c5c52
