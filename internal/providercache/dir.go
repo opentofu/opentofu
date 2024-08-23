@@ -88,8 +88,8 @@ func (d *Dir) BasePath() string {
 	return filepath.Clean(d.baseDir)
 }
 
-func (d *Dir) Lock(ctx context.Context, provider addrs.Provider) (func() error, error) {
-	providerPath := getproviders.UnpackedDirectoryPathForProvider(d.baseDir, provider)
+func (d *Dir) Lock(ctx context.Context, provider addrs.Provider, version getproviders.Version) (func() error, error) {
+	providerPath := getproviders.UnpackedDirectoryPathForPackage(d.baseDir, provider, version, d.targetPlatform)
 	lockFile := filepath.Join(providerPath, ".lock")
 
 	log.Printf("[TRACE] Attempting to acquire global provider lock %s", lockFile)

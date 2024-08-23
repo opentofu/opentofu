@@ -382,8 +382,8 @@ NeedProvider:
 		}
 
 		if i.globalCacheDir != nil {
-			// Try to lock the provider's directory.  We lock at this level due to the potential fuzzy match below
-			unlockProvider, err := i.globalCacheDir.Lock(ctx, provider)
+			// Try to lock the provider's directory.
+			unlockProvider, err := i.globalCacheDir.Lock(ctx, provider, version)
 			if err != nil {
 				errs[provider] = err
 				if cb := evts.LinkFromCacheFailure; cb != nil {
