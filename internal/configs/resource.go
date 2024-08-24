@@ -7,7 +7,6 @@ package configs
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -577,9 +576,16 @@ func decodeReplaceTriggeredBy(expr hcl.Expression) ([]hcl.Expression, hcl.Diagno
 	return exprs, diags
 }
 
-// nolint: funlen, gocognit, cyclop, nolintlint // Legacy code moved from decode
 func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+	return r.decodeManagedFields(eval)
+}
+
+func (r *Resource) decodeManagedFields(eval *StaticEvaluator) hcl.Diagnostics {
 	var diags hcl.Diagnostics
+	if r.Managed == nil {
+		return diags
+	}
+
 	lcContent := r.Managed.lifecycleBody
 
 	if lcContent == nil {
@@ -600,136 +606,135 @@ func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 		r.Managed.PreventDestroySet = true
 	}
 
-	//nolint: nestif // Legacy code moved from decode
-	if attr, exists := lcContent.Attributes["ignore_changes"]; exists {
-		// ignore_changes can either be a list of relative traversals
-		// or it can be just the keyword "all" to ignore changes to this
-		// resource entirely.
-		//   ignore_changes = [ami, instance_type]
-		//   ignore_changes = all
-		//
-		// We support the following in a static context:
-		//   ignore_changes = <static_expression>
-		//   ignore_changes = local.bar
-		// With the following forms:
-		//   <static_expression> = ["ami", "instance_type"]
-		//   <static_expression> = "all"
-		// For example:
-		//   ignore_changes = var.ignore_changes
-		//   ignore_changes = var.changes_overridden ? local.valid_overrides : []
-		//
-		// We also handle two legacy forms for compatibility with earlier
-		// versions:
-		//   ignore_changes = ["ami", "instance_type"]
-		//   ignore_changes = ["*"]
+	lcContent = r.Managed.lifecycleBody
 
-		kw := hcl.ExprAsKeyword(attr.Expr)
+	attr, exists := lcContent.Attributes["ignore_changes"]
 
-		switch {
-		case kw == "all":
-			r.Managed.IgnoreAllChanges = true
-		default:
-			type exprList interface {
-				ExprList() []hcl.Expression
+	if !exists {
+		return diags
+	}
+
+	return diags.Extend(r.decodeLifecycleIgnoreChanges(eval, attr))
+}
+
+func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl.Attribute) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	// ignore_changes can either be a list of relative traversals
+	// or it can be just the keyword "all" to ignore changes to this
+	// resource entirely.
+	//   ignore_changes = [ami, instance_type] // hclsyntax.TulpleConsExpr *ExprList* hclsyntax.ScopeTraversalExpression
+	//   ignore_changes = all // hclsyntax.ScopeTraversalExpression
+	//
+	// We support the following in a static context:
+	//   ignore_changes = <static_expression>
+	//   ignore_changes = local.bar
+	// With the following forms:
+	//   <static_expression> = ["ami", "instance_type"] // hclsyntax.TulpleConsExpr *ExprList* hclsyntax.TemplateExpr
+	//   <static_expression> = "all" hclsyntax.TemplateExpr
+	// For example:
+	//   ignore_changes = var.ignore_changes // hclsyntax.ScopeTraversalExpression
+	//   ignore_changes = var.changes_overridden ? local.valid_overrides : []
+	//
+	// List comprehension is also supported (if resolvable in static context)
+	// [for x in range(10): x] hclsyntax.ForExpr
+	//
+	// We also handle two legacy forms for compatibility with earlier
+	// versions:
+	//   ignore_changes = ["ami", "instance_type"]
+	//   ignore_changes = ["*"]
+
+	// Potential inputs:
+	//
+
+	var traversals []hcl.Traversal
+
+	// Try understanding the HCL expression as a ExprList
+	if listExprs, listDiags := hcl.ExprList(attr.Expr); listDiags == nil { // This is a bit unsafe, but the only scenario in which diags are not nil is a generic "It's not a exprlist" error
+		for _, expr := range listExprs {
+			// our expr might be the literal string "*", which
+			// we accept as a deprecated way of saying "all".
+			if shimIsIgnoreChangesStar(expr) {
+				// This is no longer allowed and will be handled below
+				traversals = append(traversals, hcl.Traversal{hcl.TraverseRoot{Name: "*", SrcRange: expr.Range()}})
+				continue
 			}
-			if _, ok := attr.Expr.(exprList); ok {
-				exprs, listDiags := hcl.ExprList(attr.Expr)
-				diags = append(diags, listDiags...)
 
-				var ignoreAllRange hcl.Range
-
-				for _, expr := range exprs {
-					// our expr might be the literal string "*", which
-					// we accept as a deprecated way of saying "all".
-					if shimIsIgnoreChangesStar(expr) {
-						r.Managed.IgnoreAllChanges = true
-						ignoreAllRange = expr.Range()
-						diags = append(diags, &hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Invalid ignore_changes wildcard",
-							Detail:   "The [\"*\"] form of ignore_changes wildcard is was deprecated and is now invalid. Use \"ignore_changes = all\" to ignore changes to all attributes.",
-							Subject:  attr.Expr.Range().Ptr(),
-						})
-						continue
-					}
-
-					shimExpr, shimDiags := shimTraversalInString(expr, false)
-					diags = append(diags, shimDiags...)
-
-					traversal, travDiags := hcl.RelTraversalForExpr(shimExpr)
-					diags = append(diags, travDiags...)
-					if len(traversal) != 0 {
-						r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, traversal)
-					}
-				}
-
-				if r.Managed.IgnoreAllChanges && len(r.Managed.IgnoreChanges) != 0 {
-					diags = append(diags, &hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Invalid ignore_changes ruleset",
-						Detail:   "Cannot mix wildcard string \"*\" with non-wildcard references.",
-						Subject:  &ignoreAllRange,
-						Context:  attr.Expr.Range().Ptr(),
-					})
-				}
-			} else {
-				ident := StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("%s.%s.lifecycle.%s", r.Type, r.Name, attr.Name), DeclRange: attr.Range}
-				val, valDiags := eval.Evaluate(attr.Expr, ident)
-				diags = diags.Extend(valDiags)
-
-				if !valDiags.HasErrors() {
-					if val.CanIterateElements() {
-						for _, item := range val.AsValueSlice() {
-							// our item might be the literal string "*", which
-							// we accept as a deprecated way of saying "all".
-							if item.AsString() == "*" {
-								r.Managed.IgnoreAllChanges = true
-								diags = append(diags, &hcl.Diagnostic{
-									Severity: hcl.DiagError,
-									Summary:  "Invalid ignore_changes wildcard",
-									Detail:   "The [\"*\"] form of ignore_changes wildcard is was deprecated and is now invalid. Use \"ignore_changes = all\" to ignore changes to all attributes.",
-									Subject:  attr.Expr.Range().Ptr(),
-								})
-								continue
-							}
-
-							parts := strings.Split(item.AsString(), ".")
-							traversal := make(hcl.Traversal, len(parts))
-							for i, part := range parts {
-								traversal[i] = hcl.TraverseAttr{
-									Name:     part,
-									SrcRange: attr.Expr.Range(),
-								}
-							}
-
-							if len(traversal) != 0 {
-								r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, traversal)
-							}
-						}
-
-						if r.Managed.IgnoreAllChanges && len(r.Managed.IgnoreChanges) != 0 {
-							diags = append(diags, &hcl.Diagnostic{
-								Severity: hcl.DiagError,
-								Summary:  "Invalid ignore_changes ruleset",
-								Detail:   "Cannot mix wildcard string \"*\" with non-wildcard references.",
-								Subject:  attr.Expr.Range().Ptr(),
-							})
-						}
-					} else {
-						if val.AsString() == "all" {
-							r.Managed.IgnoreAllChanges = true
-						} else {
-							diags = append(diags, &hcl.Diagnostic{
-								Severity: hcl.DiagError,
-								Summary:  "Invalid ignore_changes ruleset",
-								Detail:   fmt.Sprintf("Expected \"all\" or [items], not %s.", val.AsString()),
-								Subject:  attr.Expr.Range().Ptr(),
-							})
-						}
-					}
-				}
+			// Might be a quoted string, sub in a parsed traversable expression
+			shimExpr, shimDiags := shimTraversalInString(expr, false)
+			diags = append(diags, shimDiags...)
+			if shimDiags.HasErrors() {
+				continue
 			}
+
+			traversal, travDiags := hcl.RelTraversalForExpr(shimExpr)
+			diags = append(diags, travDiags...)
+			if travDiags.HasErrors() {
+				continue
+			}
+			traversals = append(traversals, traversal)
 		}
+	} else {
+		// Try understanding it as a static value
+		ident := StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("%s.%s.lifecycle.%s", r.Type, r.Name, attr.Name), DeclRange: attr.Range}
+		val, valDiags := eval.Evaluate(attr.Expr, ident)
+		diags = diags.Extend(valDiags)
+		if valDiags.HasErrors() {
+			return diags
+		}
+
+		if !val.CanIterateElements() {
+			for _, item := range val.AsValueSlice() {
+				// TODO The range here is wrong and should be fixed
+				traversal, tDiags := hclsyntax.ParseTraversalAbs(
+					[]byte(item.AsString()),
+					attr.Expr.Range().Filename,
+					attr.Expr.Range().Start,
+				)
+				diags = append(diags, tDiags...)
+				if tDiags.HasErrors() {
+					continue
+				}
+				traversals = append(traversals, traversal)
+			}
+		} else {
+			// TODO make sure this is a string
+			if val.AsString() == "all" {
+				r.Managed.IgnoreAllChanges = true
+			} else {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid ignore_changes ruleset",
+					Detail:   fmt.Sprintf("Expected \"all\" or [items], not %s.", val.AsString()),
+					Subject:  attr.Expr.Range().Ptr(),
+				})
+			}
+			return diags
+		}
+	}
+
+	var ignoreAllRange hcl.Range
+	for _, trav := range traversals {
+		if trav[0].(hcl.TraverseRoot).Name == "*" {
+			r.Managed.IgnoreAllChanges = true
+			ignoreAllRange = trav.SourceRange()
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid ignore_changes wildcard",
+				Detail:   "The [\"*\"] form of ignore_changes wildcard is was deprecated and is now invalid. Use \"ignore_changes = all\" to ignore changes to all attributes.",
+				Subject:  attr.Expr.Range().Ptr(),
+			})
+			continue
+		}
+	}
+	if r.Managed.IgnoreAllChanges && len(r.Managed.IgnoreChanges) != 0 {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid ignore_changes ruleset",
+			Detail:   "Cannot mix wildcard string \"*\" with non-wildcard references.",
+			Subject:  &ignoreAllRange,
+			Context:  attr.Expr.Range().Ptr(),
+		})
 	}
 	return diags
 }

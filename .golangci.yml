@@ -35,6 +35,9 @@ linters-settings:
   gocognit:
     min-complexity: 50
 
+  nestif:
+    min-complexity: 15
+
 issues:
   exclude-rules:
     - path: (.+)_test.go
