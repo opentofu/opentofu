@@ -154,7 +154,6 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	view.Diagnostics(diags)
-
 	if view.HasErrors(diags) {
 		return 1
 	}

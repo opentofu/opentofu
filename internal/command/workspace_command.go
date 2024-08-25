@@ -25,14 +25,17 @@ func (c *WorkspaceCommand) Run(args []string) int {
 
 	diags := envCommandHasWarning(c.LegacyName)
 	if c.View.HasErrors(diags) {
-		c.View.Diagnostics(diags)
+		c.showDiagnostics(diags)
 		return 1
 	}
 
-	c.View.Diagnostics(diags)
-
 	cmdFlags := c.Meta.extendedFlagSet("workspace")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
+
+	c.showDiagnostics(diags)
+	if c.View.HasErrors(diags) {
+		return 1
+	}
 
 	return cli.RunResultHelp
 }

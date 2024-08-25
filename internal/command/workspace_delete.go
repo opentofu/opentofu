@@ -204,6 +204,9 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	}
 
 	c.showDiagnostics(diags)
+	if c.View.HasErrors(diags) {
+		return 1
+	}
 
 	return 0
 }
