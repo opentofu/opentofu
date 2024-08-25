@@ -16,9 +16,9 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
-	"github.com/opentofu/opentofu/internal/gohcl"
 	"github.com/zclconf/go-cty/cty"
 )
 
