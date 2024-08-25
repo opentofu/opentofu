@@ -212,5 +212,5 @@ func (v *View) SetShowSensitive(showSensitive bool) {
 
 func (v *View) NotifyLegacyViewPedanticError(msg string) {
 	v.LegacyViewPedanticErrors = v.LegacyViewPedanticErrors.Append(
-		tfdiags.Sourceless(tfdiags.Error, "Legacy view error", msg))
+		tfdiags.Sourceless(tfdiags.Error, "Legacy view pedantic error", msg))
 }
