@@ -43,11 +43,8 @@ type View struct {
 	// order to access the config loader cache.
 	configSources func() map[string]*hcl.File
 
-	// PedanticMode is used to treat warnings as errors
-	PedanticMode bool
-
-	// LegacyViewPedanticErrors is used to hold pedantic error diagnostics
-	LegacyViewPedanticErrors tfdiags.Diagnostics
+	// pedanticMode is used to treat warnings as errors
+	pedanticMode bool
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -85,7 +82,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
 	v.concise = view.Concise
-	v.PedanticMode = view.PedanticMode
+	v.pedanticMode = view.PedanticMode
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -106,13 +103,8 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	diags = diags.ConsolidateWarnings(1)
 
 	// Convert warnings to errors if we are in pedantic mode
-	if v.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(
-			diags.Append(v.LegacyViewPedanticErrors),
-			tfdiags.Warning,
-			tfdiags.Error,
-			nil,
-		)
+	if v.pedanticMode {
+		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
 	// Since warning messages are generally competing
@@ -155,13 +147,8 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
 	// Convert warnings to errors if we are in pedantic mode
-	if v.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(
-			diags.Append(v.LegacyViewPedanticErrors),
-			tfdiags.Warning,
-			tfdiags.Error,
-			nil,
-		)
+	if v.pedanticMode {
+		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
 	return diags.HasErrors()

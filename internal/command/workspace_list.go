@@ -8,6 +8,7 @@ package command
 import (
 	"bytes"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/posener/complete"
 	"strings"
 )
@@ -18,10 +19,11 @@ type WorkspaceListCommand struct {
 }
 
 func (c *WorkspaceListCommand) Run(args []string) int {
-	args = c.Meta.process(args)
+	var diags tfdiags.Diagnostics
 
-	diags := envCommandHasWarning(c.LegacyName)
-	if c.View.HasErrors(diags) {
+	args = c.Meta.process(args)
+	diags = envCommandHasWarning(c.LegacyName)
+	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -44,14 +46,14 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.View.HasErrors(encDiags) {
+	if c.HasLegacyViewErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if c.View.HasErrors(diags) {
+	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -61,7 +63,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.View.HasErrors(diags) {
+	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -76,6 +78,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	env, isOverridden := c.WorkspaceOverridden()
+
 
 	var out bytes.Buffer
 	for _, s := range states {
@@ -94,7 +97,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	c.showDiagnostics(diags)
-	if c.View.HasErrors(diags) {
+	if c.HasLegacyViewErrors(diags) {
 		return 1
 	}
 

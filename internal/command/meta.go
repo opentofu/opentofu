@@ -273,6 +273,12 @@ type Meta struct {
 	// This helps prevent duplicate errors/warnings.
 	rootModuleCallCache *configs.StaticModuleCall
 	inputVariableCache  map[string]backend.UnparsedVariableValue
+
+	// pedanticMode is used to treat warnings as errors
+	pedanticMode bool
+
+	// LegacyViewPedanticError is used to indicate an error occurred when in pedantic mode for a legacy view
+	legacyViewPedanticError bool
 }
 
 type testingOverrides struct {
@@ -631,8 +637,6 @@ func (m *Meta) process(args []string) []string {
 		m.Ui = m.oldUi
 	}
 
-	var pedanticMode bool
-
 	// Set colorization
 	m.color = m.Color
 	i := 0 // output index
@@ -642,7 +646,7 @@ func (m *Meta) process(args []string) []string {
 			m.color = false
 			m.Color = false
 		case "-pedantic":
-			pedanticMode = true
+			m.pedanticMode = true
 		default:
 			// copy and increment index
 			args[i] = v
@@ -661,12 +665,11 @@ func (m *Meta) process(args []string) []string {
 		Ui:         m.oldUi,
 	}
 
-	if pedanticMode {
+	if m.pedanticMode {
 		newUI = &pedanticUI{
 			Ui: newUI,
-			notifyWarning: func(msg string) {
-				m.View.LegacyViewPedanticErrors = m.View.LegacyViewPedanticErrors.Append(
-					tfdiags.Sourceless(tfdiags.Error, "Legacy view pedantic error", msg))
+			notifyWarning: func() {
+				m.legacyViewPedanticError = true
 			},
 		}
 	}
@@ -679,7 +682,7 @@ func (m *Meta) process(args []string) []string {
 		m.View.Configure(&arguments.View{
 			CompactWarnings: m.compactWarnings,
 			NoColor:         !m.Color,
-			PedanticMode:    pedanticMode,
+			PedanticMode:    m.pedanticMode,
 		})
 	}
 
@@ -714,6 +717,20 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 	return false, nil
 }
 
+func (m *Meta) HasLegacyViewErrors(diags tfdiags.Diagnostics) bool {
+	if m.pedanticMode {
+		// Return true if we are in pedantic mode and a legacy view pedantic error has occurred
+		if m.legacyViewPedanticError {
+			return true
+		}
+
+		// Convert warnings to errors if we are in pedantic mode
+		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+	}
+
+	return diags.HasErrors()
+}
+
 // showDiagnostics displays error and warning messages in the UI.
 //
 // "Diagnostics" here means the Diagnostics type from the tfdiag package,
@@ -744,13 +761,8 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
-	if m.View.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(
-			diags.Append(m.View.LegacyViewPedanticErrors),
-			tfdiags.Warning,
-			tfdiags.Error,
-			nil,
-		)
+	if m.pedanticMode {
+		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
 	// Since warning messages are generally competing

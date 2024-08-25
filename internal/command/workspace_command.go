@@ -21,10 +21,11 @@ type WorkspaceCommand struct {
 }
 
 func (c *WorkspaceCommand) Run(args []string) int {
-	c.Meta.process(args)
+	var diags tfdiags.Diagnostics
 
-	diags := envCommandHasWarning(c.LegacyName)
-	if c.View.HasErrors(diags) {
+	c.Meta.process(args)
+	diags = envCommandHasWarning(c.LegacyName)
+	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -33,7 +34,7 @@ func (c *WorkspaceCommand) Run(args []string) int {
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 
 	c.showDiagnostics(diags)
-	if c.View.HasErrors(diags) {
+	if c.HasLegacyViewErrors(diags) {
 		return 1
 	}
 

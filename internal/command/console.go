@@ -55,14 +55,14 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.View.HasErrors(encDiags) {
+	if c.HasLegacyViewErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if c.View.HasErrors(diags) {
+	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -72,7 +72,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.View.HasErrors(backendDiags) {
+	if c.HasLegacyViewErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -105,7 +105,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		opReq.Variables, moreDiags = c.collectVariableValues()
 		opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
 		diags = diags.Append(moreDiags).Append(callDiags)
-		if c.View.HasErrors(moreDiags) {
+		if c.HasLegacyViewErrors(moreDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -114,7 +114,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Get the context
 	lr, _, ctxDiags := local.LocalRun(opReq)
 	diags = diags.Append(ctxDiags)
-	if c.View.HasErrors(ctxDiags) {
+	if c.HasLegacyViewErrors(ctxDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -122,7 +122,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Successfully creating the context can result in a lock, so ensure we release it
 	defer func() {
 		diags := opReq.StateLocker.Unlock()
-		if c.View.HasErrors(diags) {
+		if c.HasLegacyViewErrors(diags) {
 			c.showDiagnostics(diags)
 		}
 	}()
@@ -156,7 +156,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// set the ConsoleMode to true so any available console-only functions included.
 	scope.ConsoleMode = true
 
-	if c.View.HasErrors(diags) {
+	if c.HasLegacyViewErrors(diags) {
 		diags = diags.Append(tfdiags.SimpleWarning("Due to the problems above, some expressions may produce unexpected results."))
 	}
 

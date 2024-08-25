@@ -17,7 +17,7 @@ import (
 func TestView_DiagnosticsInPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	view := NewView(streams)
-	view.PedanticMode = true
+	view.pedanticMode = true
 
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
 	view.Diagnostics(diags)
@@ -27,9 +27,5 @@ func TestView_DiagnosticsInPedanticMode(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected: %v got: %v", want, got)
-	}
-
-	if !view.LegacyViewPedanticErrors {
-		t.Errorf("expected: true, got: %v", view.LegacyViewPedanticErrors)
 	}
 }

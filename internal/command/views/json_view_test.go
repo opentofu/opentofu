@@ -134,7 +134,7 @@ func TestJSONView_Diagnostics(t *testing.T) {
 func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	view := NewView(streams)
-	view.PedanticMode = true
+	view.pedanticMode = true
 	jsonView := NewJSONView(view)
 
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
@@ -155,10 +155,6 @@ func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
 	}
 
 	testJSONViewOutputEquals(t, done(t).Stdout(), want)
-
-	if !view.LegacyViewPedanticErrors {
-		t.Errorf("expected: true, got: %v", view.LegacyViewPedanticErrors)
-	}
 }
 
 func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {

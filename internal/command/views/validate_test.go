@@ -81,7 +81,7 @@ func TestValidateHuman(t *testing.T) {
 func TestValidateHuman_InPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	view := NewView(streams)
-	view.PedanticMode = true
+	view.pedanticMode = true
 
 	validate := NewValidate(arguments.ViewHuman, view)
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
@@ -96,10 +96,6 @@ func TestValidateHuman_InPedanticMode(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected: %v got: %v", want, got)
-	}
-
-	if !view.LegacyViewPedanticErrors {
-		t.Errorf("expected: true, got: %v", view.LegacyViewPedanticErrors)
 	}
 }
 
@@ -166,7 +162,7 @@ func TestValidateJSON(t *testing.T) {
 func TestValidateJSON_InPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	view := NewView(streams)
-	view.PedanticMode = true
+	view.pedanticMode = true
 	validate := NewValidate(arguments.ViewJSON, view)
 
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
@@ -198,9 +194,5 @@ func TestValidateJSON_InPedanticMode(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected: %v got: %v", want, got)
-	}
-
-	if !view.LegacyViewPedanticErrors {
-		t.Errorf("expected: true, got: %v", view.LegacyViewPedanticErrors)
 	}
 }
