@@ -20,7 +20,7 @@ type WorkspaceListCommand struct {
 func (c *WorkspaceListCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 
-	diags := envCommandShowWarning(c.LegacyName)
+	diags := envCommandHasWarning(c.LegacyName)
 	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
