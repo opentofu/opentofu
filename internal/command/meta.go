@@ -665,7 +665,8 @@ func (m *Meta) process(args []string) []string {
 		newUI = &pedanticUI{
 			Ui: newUI,
 			notifyWarning: func(msg string) {
-				m.View.NotifyLegacyViewPedanticError(msg)
+				m.View.LegacyViewPedanticErrors = m.View.LegacyViewPedanticErrors.Append(
+					tfdiags.Sourceless(tfdiags.Error, "Legacy view pedantic error", msg))
 			},
 		}
 	}

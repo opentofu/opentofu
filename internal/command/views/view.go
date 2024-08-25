@@ -209,8 +209,3 @@ func (v *View) outputHorizRule() {
 func (v *View) SetShowSensitive(showSensitive bool) {
 	v.showSensitive = showSensitive
 }
-
-func (v *View) NotifyLegacyViewPedanticError(msg string) {
-	v.LegacyViewPedanticErrors = v.LegacyViewPedanticErrors.Append(
-		tfdiags.Sourceless(tfdiags.Error, "Legacy view pedantic error", msg))
-}
