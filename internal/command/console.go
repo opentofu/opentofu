@@ -153,12 +153,6 @@ func (c *ConsoleCommand) Run(args []string) int {
 		return 1
 	}
 
-	// If a pedantic error has occurred in the legacy view, show the diagnostics and exit
-	if c.View.LegacyViewPedanticError {
-		c.showDiagnostics(diags)
-		return 1
-	}
-
 	// set the ConsoleMode to true so any available console-only functions included.
 	scope.ConsoleMode = true
 

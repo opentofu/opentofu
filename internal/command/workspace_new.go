@@ -19,7 +19,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type WorkspaceNewCommand struct {
@@ -29,7 +28,12 @@ type WorkspaceNewCommand struct {
 
 func (c *WorkspaceNewCommand) Run(args []string) int {
 	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
+
+	diags := envCommandShowWarning(c.LegacyName)
+	if c.View.HasErrors(diags) {
+		c.showDiagnostics(diags)
+		return 1
+	}
 
 	var stateLock bool
 	var stateLockTimeout time.Duration
@@ -70,8 +74,6 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-
-	var diags tfdiags.Diagnostics
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
@@ -178,9 +180,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return 1
 	}
 
-	if c.View.LegacyViewPedanticError {
-		return 1
-	}
+	c.showDiagnostics(diags)
 
 	return 0
 }

@@ -6,6 +6,7 @@
 package command
 
 import (
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"net/url"
 	"strings"
 
@@ -21,14 +22,17 @@ type WorkspaceCommand struct {
 
 func (c *WorkspaceCommand) Run(args []string) int {
 	c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
+
+	diags := envCommandShowWarning(c.LegacyName)
+	if c.View.HasErrors(diags) {
+		c.View.Diagnostics(diags)
+		return 1
+	}
+
+	c.View.Diagnostics(diags)
 
 	cmdFlags := c.Meta.extendedFlagSet("workspace")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
-
-	if c.View.LegacyViewPedanticError {
-		return 1
-	}
 
 	return cli.RunResultHelp
 }
@@ -54,20 +58,23 @@ func validWorkspaceName(name string) bool {
 	return name == url.PathEscape(name)
 }
 
-func envCommandShowWarning(ui cli.Ui, show bool) {
+func envCommandShowWarning(show bool) tfdiags.Diagnostics {
+	diags := tfdiags.Diagnostics{}
 	if !show {
-		return
+		return diags
 	}
 
-	ui.Warn(`Warning: the "tofu env" family of commands is deprecated.
-
-"Workspace" is now the preferred term for what earlier OpenTofu versions
+	diags = diags.Append(tfdiags.Sourceless(
+		tfdiags.Warning,
+		"The \"tofu env\" family of commands is deprecated.",
+		`"Workspace" is now the preferred term for what earlier OpenTofu versions
 called "environment", to reduce ambiguity caused by the latter term colliding
 with other concepts.
 
 The "tofu workspace" commands should be used instead. "tofu env"
 will be removed in a future OpenTofu version.
-`)
+`))
+	return diags
 }
 
 const (

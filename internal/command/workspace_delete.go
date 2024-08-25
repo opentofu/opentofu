@@ -27,7 +27,12 @@ type WorkspaceDeleteCommand struct {
 
 func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
+
+	diags := envCommandShowWarning(c.LegacyName)
+	if c.View.HasErrors(diags) {
+		c.showDiagnostics(diags)
+		return 1
+	}
 
 	var force bool
 	var stateLock bool
@@ -54,8 +59,6 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-
-	var diags tfdiags.Diagnostics
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
@@ -200,9 +203,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		)
 	}
 
-	if c.View.LegacyViewPedanticError {
-		return 1
-	}
+	c.showDiagnostics(diags)
 
 	return 0
 }

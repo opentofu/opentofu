@@ -111,10 +111,6 @@ func (c *FmtCommand) Run(args []string) int {
 		}
 	}
 
-	if c.View.LegacyViewPedanticError {
-		return 1
-	}
-
 	return 0
 }
 

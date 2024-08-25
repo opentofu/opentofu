@@ -7,12 +7,9 @@ package command
 
 import (
 	"fmt"
-	"strings"
-
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"strings"
 )
 
 type WorkspaceSelectCommand struct {
@@ -22,7 +19,12 @@ type WorkspaceSelectCommand struct {
 
 func (c *WorkspaceSelectCommand) Run(args []string) int {
 	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
+
+	diags := envCommandShowWarning(c.LegacyName)
+	if c.View.HasErrors(diags) {
+		c.showDiagnostics(diags)
+		return 1
+	}
 
 	var orCreate bool
 	cmdFlags := c.Meta.defaultFlagSet("workspace select")
@@ -45,8 +47,6 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-
-	var diags tfdiags.Diagnostics
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
@@ -139,6 +139,8 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 			),
 		)
 	}
+
+	c.showDiagnostics(diags)
 
 	return 0
 }

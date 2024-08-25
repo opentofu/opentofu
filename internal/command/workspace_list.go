@@ -8,11 +8,8 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"strings"
-
 	"github.com/posener/complete"
-
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"strings"
 )
 
 type WorkspaceListCommand struct {
@@ -22,7 +19,12 @@ type WorkspaceListCommand struct {
 
 func (c *WorkspaceListCommand) Run(args []string) int {
 	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
+
+	diags := envCommandShowWarning(c.LegacyName)
+	if c.View.HasErrors(diags) {
+		c.showDiagnostics(diags)
+		return 1
+	}
 
 	cmdFlags := c.Meta.defaultFlagSet("workspace list")
 	c.Meta.varFlagSet(cmdFlags)
@@ -41,12 +43,11 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
+	diags = diags.Append(encDiags)
 	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
-
-	var diags tfdiags.Diagnostics
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
@@ -92,9 +93,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		c.Ui.Output(envIsOverriddenNote)
 	}
 
-	if c.View.LegacyViewPedanticError {
-		return 1
-	}
+	c.showDiagnostics(diags)
 
 	return 0
 }

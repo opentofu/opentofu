@@ -244,10 +244,6 @@ func (c *GraphCommand) Run(args []string) int {
 
 	c.Ui.Output(graphStr)
 
-	if c.View.LegacyViewPedanticError {
-		return 1
-	}
-
 	return 0
 }
 
