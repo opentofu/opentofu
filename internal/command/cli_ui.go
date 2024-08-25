@@ -60,7 +60,7 @@ type pedanticUI struct {
 	notifyWarning func()
 }
 
-// Warn notifies of the warning
+// Warn sends the warning to stderr and notifies of the warning
 func (pui *pedanticUI) Warn(msg string) {
 	pui.Ui.Error(msg)
 	pui.notifyWarning()
