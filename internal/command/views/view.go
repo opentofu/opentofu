@@ -46,8 +46,8 @@ type View struct {
 	// PedanticMode is used to treat warnings as errors
 	PedanticMode bool
 
-	// LegacyViewPedanticError is used to indicate an error occurred when in pedantic mode for a legacy view
-	LegacyViewPedanticError bool
+	// LegacyViewPedanticErrors is used to hold pedantic error diagnostics
+	LegacyViewPedanticErrors tfdiags.Diagnostics
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -107,7 +107,12 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	// Convert warnings to errors if we are in pedantic mode
 	if v.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		diags = tfdiags.OverrideAllFromTo(
+			diags.Append(v.LegacyViewPedanticErrors),
+			tfdiags.Warning,
+			tfdiags.Error,
+			nil,
+		)
 	}
 
 	// Since warning messages are generally competing
@@ -151,7 +156,12 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
 	// Convert warnings to errors if we are in pedantic mode
 	if v.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		diags = tfdiags.OverrideAllFromTo(
+			diags.Append(v.LegacyViewPedanticErrors),
+			tfdiags.Warning,
+			tfdiags.Error,
+			nil,
+		)
 	}
 
 	return diags.HasErrors()
@@ -198,4 +208,9 @@ func (v *View) outputHorizRule() {
 
 func (v *View) SetShowSensitive(showSensitive bool) {
 	v.showSensitive = showSensitive
+}
+
+func (v *View) NotifyLegacyViewPedanticError(msg string) {
+	v.LegacyViewPedanticErrors = v.LegacyViewPedanticErrors.Append(
+		tfdiags.Sourceless(tfdiags.Error, "Legacy view error", msg))
 }

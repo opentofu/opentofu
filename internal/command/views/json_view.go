@@ -78,7 +78,12 @@ func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{
 
 	// Convert warnings to errors if we are in pedantic mode
 	if v.view.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		diags = tfdiags.OverrideAllFromTo(
+			diags.Append(v.view.LegacyViewPedanticErrors),
+			tfdiags.Warning,
+			tfdiags.Error,
+			nil,
+		)
 	}
 
 	for _, diag := range diags {

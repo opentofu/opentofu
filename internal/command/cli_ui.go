@@ -57,11 +57,10 @@ func (u *ColorizeUi) colorize(message string, color string) string {
 // pedanticUI is a UI implementation which directs warning messages to the error output stream
 type pedanticUI struct {
 	cli.Ui
-	notifyWarning func()
+	notifyWarning func(msg string)
 }
 
-// Warn sends the warning to stderr and notifies of the warning
+// Warn notifies of the warning
 func (pui *pedanticUI) Warn(msg string) {
-	pui.Ui.Error(msg)
-	pui.notifyWarning()
+	pui.notifyWarning(msg)
 }

@@ -51,7 +51,12 @@ func (v *ValidateHuman) Results(diags tfdiags.Diagnostics) int {
 
 	// Convert warnings to errors if we are in pedantic mode
 	if v.view.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		diags = tfdiags.OverrideAllFromTo(
+			diags.Append(v.view.LegacyViewPedanticErrors),
+			tfdiags.Warning,
+			tfdiags.Error,
+			nil,
+		)
 	}
 
 	if len(diags) == 0 {
@@ -113,7 +118,12 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 
 	// Convert warnings to errors if we are in pedantic mode
 	if v.view.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		diags = tfdiags.OverrideAllFromTo(
+			diags.Append(v.view.LegacyViewPedanticErrors),
+			tfdiags.Warning,
+			tfdiags.Error,
+			nil,
+		)
 	}
 
 	for _, diag := range diags {

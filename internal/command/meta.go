@@ -664,8 +664,8 @@ func (m *Meta) process(args []string) []string {
 	if pedanticMode {
 		newUI = &pedanticUI{
 			Ui: newUI,
-			notifyWarning: func() {
-				m.View.LegacyViewPedanticError = true
+			notifyWarning: func(msg string) {
+				m.View.NotifyLegacyViewPedanticError(msg)
 			},
 		}
 	}
@@ -744,7 +744,12 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	// Convert warnings to errors if we are in pedantic mode
 	// We do this after consolidation of warnings to reduce the verbosity of the output
 	if m.View.PedanticMode {
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		diags = tfdiags.OverrideAllFromTo(
+			diags.Append(m.View.LegacyViewPedanticErrors),
+			tfdiags.Warning,
+			tfdiags.Error,
+			nil,
+		)
 	}
 
 	// Since warning messages are generally competing
