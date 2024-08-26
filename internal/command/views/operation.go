@@ -36,6 +36,7 @@ type Operation interface {
 	Plan(plan *plans.Plan, schemas *tofu.Schemas)
 	PlanNextStep(planPath string, genConfigPath string)
 
+	HasErrors(diags tfdiags.Diagnostics) bool
 	Diagnostics(diags tfdiags.Diagnostics)
 }
 
@@ -170,6 +171,10 @@ func (v *OperationHuman) PlanNextStep(planPath string, genConfigPath string) {
 	}
 }
 
+func (v *OperationHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
+
 func (v *OperationHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
@@ -279,6 +284,10 @@ func (v *OperationJSON) PlannedChange(change *plans.ResourceInstanceChangeSrc) {
 // PlanNextStep does nothing for the JSON view as it is a hook for user-facing
 // output only applicable to human-readable UI.
 func (v *OperationJSON) PlanNextStep(planPath string, genConfigPath string) {
+}
+
+func (v *OperationJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 func (v *OperationJSON) Diagnostics(diags tfdiags.Diagnostics) {

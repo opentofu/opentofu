@@ -495,7 +495,7 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 	opReq.Variables, diags = m.collectVariableValues()
 	opReq.RootCall, callDiags = m.rootModuleCall(opReq.ConfigDir)
 	diags = diags.Append(callDiags)
-	if diags.HasErrors() {
+	if opReq.View.HasErrors(diags) {
 		return nil, diags
 	}
 
