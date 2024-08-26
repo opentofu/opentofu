@@ -719,16 +719,10 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 
 func (m *Meta) HasLegacyViewErrors(diags tfdiags.Diagnostics) bool {
 	if m.pedanticMode {
-		// Return true if we are in pedantic mode and a legacy view pedantic error has occurred
-		if m.legacyViewPedanticError {
-			return true
-		}
-
-		// Convert warnings to errors if we are in pedantic mode
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	return diags.HasErrors()
+	return diags.HasErrors() || m.legacyViewPedanticError
 }
 
 // showDiagnostics displays error and warning messages in the UI.
