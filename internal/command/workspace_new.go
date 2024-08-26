@@ -182,8 +182,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return 1
 	}
 
-	c.showDiagnostics(diags)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasLegacyViewErrors() {
 		return 1
 	}
 

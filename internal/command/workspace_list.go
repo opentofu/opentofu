@@ -96,8 +96,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		c.Ui.Output(envIsOverriddenNote)
 	}
 
-	c.showDiagnostics(diags)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasLegacyViewErrors() {
 		return 1
 	}
 

@@ -33,8 +33,7 @@ func (c *WorkspaceCommand) Run(args []string) int {
 	cmdFlags := c.Meta.extendedFlagSet("workspace")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 
-	c.showDiagnostics(diags)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasLegacyViewErrors() {
 		return 1
 	}
 

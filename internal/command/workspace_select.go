@@ -142,8 +142,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		)
 	}
 
-	c.showDiagnostics(diags)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasLegacyViewErrors() {
 		return 1
 	}
 

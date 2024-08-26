@@ -717,7 +717,10 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 	return false, nil
 }
 
-func (m *Meta) HasLegacyViewErrors(diags tfdiags.Diagnostics) bool {
+func (m *Meta) HasLegacyViewErrors(checkDiags ...tfdiags.Diagnostics) bool {
+	var diags tfdiags.Diagnostics
+	diags = diags.Append(checkDiags)
+
 	if m.pedanticMode {
 		// Return true if we are in pedantic mode and a legacy view pedantic error has occurred
 		if m.legacyViewPedanticError {
