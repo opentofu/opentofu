@@ -8,7 +8,6 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/posener/complete"
 	"strings"
 )
@@ -19,10 +18,8 @@ type WorkspaceListCommand struct {
 }
 
 func (c *WorkspaceListCommand) Run(args []string) int {
-	var diags tfdiags.Diagnostics
-
 	args = c.Meta.process(args)
-	diags = envCommandHasWarning(c.LegacyName)
+	diags := envCommandHasWarning(c.LegacyName)
 	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
@@ -78,7 +75,6 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	env, isOverridden := c.WorkspaceOverridden()
-
 
 	var out bytes.Buffer
 	for _, s := range states {

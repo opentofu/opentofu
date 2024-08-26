@@ -8,7 +8,6 @@ package command
 import (
 	"fmt"
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/posener/complete"
 	"strings"
 )
@@ -19,10 +18,8 @@ type WorkspaceSelectCommand struct {
 }
 
 func (c *WorkspaceSelectCommand) Run(args []string) int {
-	var diags tfdiags.Diagnostics
-
 	args = c.Meta.process(args)
-	diags = envCommandHasWarning(c.LegacyName)
+	diags := envCommandHasWarning(c.LegacyName)
 	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1

@@ -6,11 +6,10 @@
 package command
 
 import (
+	"github.com/mitchellh/cli"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"net/url"
 	"strings"
-
-	"github.com/mitchellh/cli"
 )
 
 // WorkspaceCommand is a Command Implementation that manipulates workspaces,
@@ -21,10 +20,8 @@ type WorkspaceCommand struct {
 }
 
 func (c *WorkspaceCommand) Run(args []string) int {
-	var diags tfdiags.Diagnostics
-
 	c.Meta.process(args)
-	diags = envCommandHasWarning(c.LegacyName)
+	diags := envCommandHasWarning(c.LegacyName)
 	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1

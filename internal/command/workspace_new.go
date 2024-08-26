@@ -7,7 +7,6 @@ package command
 
 import (
 	"fmt"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"os"
 	"strings"
 	"time"
@@ -28,10 +27,8 @@ type WorkspaceNewCommand struct {
 }
 
 func (c *WorkspaceNewCommand) Run(args []string) int {
-	var diags tfdiags.Diagnostics
-
 	args = c.Meta.process(args)
-	diags = envCommandHasWarning(c.LegacyName)
+	diags := envCommandHasWarning(c.LegacyName)
 	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
