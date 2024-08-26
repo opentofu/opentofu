@@ -19,9 +19,10 @@ type WorkspaceListCommand struct {
 
 func (c *WorkspaceListCommand) Run(args []string) int {
 	args = c.Meta.process(args)
+
 	diags := envCommandHasWarning(c.LegacyName)
+	c.showDiagnostics(diags)
 	if c.HasLegacyViewErrors(diags) {
-		c.showDiagnostics(diags)
 		return 1
 	}
 

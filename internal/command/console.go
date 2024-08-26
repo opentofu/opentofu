@@ -191,7 +191,7 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 		fullCommand, bracketState := consoleState.UpdateState(line)
 		if bracketState <= 0 {
 			result, exit, diags := session.Handle(fullCommand)
-			if diags.HasErrors() {
+			if c.HasLegacyViewErrors(diags) {
 				// We're in piped mode, so we'll exit immediately on error.
 				c.showDiagnostics(diags)
 				return 1

@@ -28,6 +28,7 @@ type WorkspaceNewCommand struct {
 
 func (c *WorkspaceNewCommand) Run(args []string) int {
 	args = c.Meta.process(args)
+
 	diags := envCommandHasWarning(c.LegacyName)
 	if c.HasLegacyViewErrors(diags) {
 		c.showDiagnostics(diags)
