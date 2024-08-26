@@ -62,7 +62,7 @@ func (c *MetadataFunctionsCommand) Run(args []string) int {
 	}
 
 	jsonFunctions, marshalDiags := jsonfunction.Marshal(filteredFuncs)
-	if marshalDiags.HasErrors() {
+	if c.HasLegacyViewErrors(marshalDiags) {
 		c.showDiagnostics(marshalDiags)
 		return 1
 	}

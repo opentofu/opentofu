@@ -18,6 +18,7 @@ type Plan interface {
 	Operation() Operation
 	Hooks() []tofu.Hook
 
+	HasErrors(diags tfdiags.Diagnostics) bool
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
 }
@@ -59,6 +60,10 @@ func (v *PlanHuman) Hooks() []tofu.Hook {
 	}
 }
 
+func (v *PlanHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
+
 func (v *PlanHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
@@ -83,6 +88,10 @@ func (v *PlanJSON) Hooks() []tofu.Hook {
 	return []tofu.Hook{
 		newJSONHook(v.view),
 	}
+}
+
+func (v *PlanJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 func (v *PlanJSON) Diagnostics(diags tfdiags.Diagnostics) {
