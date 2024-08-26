@@ -179,10 +179,6 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		return 1
 	}
 
-	if c.HasLegacyViewErrors() {
-		return 1
-	}
-
 	return 0
 }
 

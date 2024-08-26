@@ -202,10 +202,6 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		)
 	}
 
-	if c.HasLegacyViewErrors() {
-		return 1
-	}
-
 	return 0
 }
 

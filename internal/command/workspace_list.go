@@ -92,10 +92,6 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		c.Ui.Output(envIsOverriddenNote)
 	}
 
-	if c.HasLegacyViewErrors() {
-		return 1
-	}
-
 	return 0
 }
 
