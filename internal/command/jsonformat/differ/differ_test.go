@@ -101,6 +101,83 @@ func TestValue_SimpleBlocks(t *testing.T) {
 				"normal_attribute": renderers.ValidatePrimitive(nil, "some value", plans.Create, false),
 			}, nil, nil, nil, nil, plans.Create, false),
 		},
+		"create_with_unknown_dynamic_nested_block": {
+			input: structured.Change{
+				Before: nil,
+				After: map[string]interface{}{
+					"attribute_one": "test",
+				},
+				Unknown: map[string]interface{}{
+					"nested_unknown_block": true,
+				},
+			},
+			block: &jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"attribute_one": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+				},
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_unknown_block": {
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"attribute_two": {
+									AttributeType: unmarshalType(t, cty.String),
+								},
+							},
+						},
+						NestingMode: "single",
+					},
+				},
+			},
+			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"attribute_one": renderers.ValidatePrimitive(nil, "test", plans.Create, false),
+			}, map[string]renderers.ValidateDiffFunction{
+				"nested_unknown_block": renderers.ValidateUnknown(nil, plans.Create, false),
+			}, nil, nil, nil, plans.Create, false),
+		},
+		"update_with_unknown_dynamic_nested_block": {
+			input: structured.Change{
+				Before: map[string]interface{}{
+					"attribute_one": "before_value_attr_1",
+					"attribute_two": "before_value_attr_2",
+				},
+				After: map[string]interface{}{
+					"attribute_one": "after_value_attr_1",
+				},
+				Unknown: map[string]interface{}{
+					"nested_unknown_block": true,
+				},
+			},
+			block: &jsonprovider.Block{
+				Attributes: map[string]*jsonprovider.Attribute{
+					"attribute_one": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+					"attribute_two": {
+						AttributeType: unmarshalType(t, cty.String),
+					},
+				},
+				BlockTypes: map[string]*jsonprovider.BlockType{
+					"nested_unknown_block": {
+						Block: &jsonprovider.Block{
+							Attributes: map[string]*jsonprovider.Attribute{
+								"attribute_two": {
+									AttributeType: unmarshalType(t, cty.String),
+								},
+							},
+						},
+						NestingMode: "single",
+					},
+				},
+			},
+			validate: renderers.ValidateBlock(map[string]renderers.ValidateDiffFunction{
+				"attribute_one": renderers.ValidatePrimitive("before_value_attr_1", "after_value_attr_1", plans.Update, false),
+				"attribute_two": renderers.ValidatePrimitive("before_value_attr_2", nil, plans.Delete, false),
+			}, map[string]renderers.ValidateDiffFunction{
+				"nested_unknown_block": renderers.ValidateUnknown(nil, plans.Create, false),
+			}, nil, nil, nil, plans.Update, false),
+		},
 	}
 	for name, tc := range tcs {
 		// Set some default values
@@ -113,7 +190,8 @@ func TestValue_SimpleBlocks(t *testing.T) {
 		}
 
 		t.Run(name, func(t *testing.T) {
-			tc.validate(t, ComputeDiffForBlock(tc.input, tc.block))
+			diff := ComputeDiffForBlock(tc.input, tc.block)
+			tc.validate(t, diff)
 		})
 	}
 }
