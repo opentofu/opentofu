@@ -174,10 +174,10 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									providerType: requirement.Type,
 								},
 								InParent: &ProviderConfigRef{
-									Name:         provider.Name,
-									NameRange:    provider.NameRange,
-									Alias:        provider.Alias,
-									AliasRange:   provider.AliasRange,
+									Name:      provider.Name,
+									NameRange: provider.NameRange,
+									Alias:     provider.Alias,
+									//AliasRange:   provider.AliasRange,
 									providerType: provider.providerType,
 								},
 							}
@@ -199,10 +199,10 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 										providerType: requirement.Type,
 									},
 									InParent: &ProviderConfigRef{
-										Name:         provider.Name,
-										NameRange:    provider.NameRange,
-										Alias:        provider.Alias,
-										AliasRange:   provider.AliasRange,
+										Name:      provider.Name,
+										NameRange: provider.NameRange,
+										Alias:     provider.Alias,
+										//AliasRange:   provider.AliasRange,
 										providerType: provider.providerType,
 									},
 								}
@@ -234,10 +234,10 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									providerType: provider.providerType,
 								},
 								InParent: &ProviderConfigRef{
-									Name:         testProvider.Name,
-									NameRange:    testProvider.NameRange,
-									Alias:        testProvider.Alias,
-									AliasRange:   testProvider.AliasRange,
+									Name:      testProvider.Name,
+									NameRange: testProvider.NameRange,
+									Alias:     testProvider.Alias,
+									//AliasRange:   testProvider.AliasRange,
 									providerType: testProvider.providerType,
 								},
 							}

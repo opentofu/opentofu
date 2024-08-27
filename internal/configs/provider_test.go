@@ -32,7 +32,7 @@ func TestProviderReservedNames(t *testing.T) {
 		`config.tf:14,3-12: Reserved block type name in provider block; The block type name "lifecycle" is reserved for use by OpenTofu in a future version.`,
 		`config.tf:15,3-9: Reserved block type name in provider block; The block type name "locals" is reserved for use by OpenTofu in a future version.`,
 		`config.tf:13,3-9: Reserved argument name in provider block; The provider argument name "source" is reserved for use by OpenTofu in a future version.`,
-		`config.tf:3,13-18: Invalid combination of "alias", "count" and "for_each"; The "alias", "count" and "for_each" arguments are mutually-exclusive, only one may be used.`,
+		`config.tf:3,13-18: Invalid combination of "alias" and "for_each"; The "alias" and "for_each" arguments are mutually-exclusive, only one may be used.`,
 	})
 }
 

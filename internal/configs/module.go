@@ -70,7 +70,7 @@ type Module struct {
 
 // GetProviderConfig uses name and alias to find the respective Provider configuration.
 func (m *Module) GetProviderConfig(name, alias string) (*Provider, bool) {
-	tp := &Provider{Name: name, Alias: alias}
+	tp := &Provider{ProviderCommon: ProviderCommon{Name: name}, Alias: alias}
 	p, ok := m.ProviderConfigs[tp.Addr().StringCompact()]
 	return p, ok
 }
@@ -93,7 +93,7 @@ type File struct {
 
 	Backends          []*Backend
 	CloudConfigs      []*CloudConfig
-	ProviderConfigs   []*Provider
+	ProviderConfigs   []*ProviderBlock
 	ProviderMetas     []*ProviderMeta
 	RequiredProviders []*RequiredProviders
 	Encryptions       []*config.EncryptionConfig

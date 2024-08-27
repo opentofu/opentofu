@@ -15,22 +15,13 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/evalchecks"
+	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// Provider represents a "provider" block in a module or file. A provider
-// block is a provider configuration, and there can be zero or more
-// configurations for each actual provider.
-type Provider struct {
-	Name       string
-	NameRange  hcl.Range
-	Alias      string
-	AliasExpr  hcl.Expression // nil if no alias set
-	AliasRange *hcl.Range     // nil if no alias set
-	ForEach    hcl.Expression
-	EachValue  *cty.Value
-	Count      hcl.Expression
-	CountIndex *cty.Value
+type ProviderCommon struct {
+	Name      string
+	NameRange hcl.Range
 
 	Version VersionConstraint
 
@@ -51,7 +42,24 @@ type Provider struct {
 	MockResources []*MockResource
 }
 
-func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
+// Provider represents a "provider" block in a module or file. A provider
+// block is a provider configuration
+type ProviderBlock struct {
+	ProviderCommon
+	AliasExpr  hcl.Expression // nil if no alias set
+	AliasRange *hcl.Range     // nil if no alias set
+	ForEach    hcl.Expression
+	Count      hcl.Expression
+	CountIndex *cty.Value
+}
+
+type Provider struct {
+	ProviderCommon
+	Alias        string
+	InstanceData instances.RepetitionData
+}
+
+func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	content, config, moreDiags := block.Body.PartialContent(providerBlockSchema)
@@ -69,11 +77,13 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		return nil, diags
 	}
 
-	provider := &Provider{
-		Name:      name,
-		NameRange: block.LabelRanges[0],
-		Config:    config,
-		DeclRange: block.DefRange,
+	provider := &ProviderBlock{
+		ProviderCommon: ProviderCommon{
+			Name:      name,
+			NameRange: block.LabelRanges[0],
+			Config:    config,
+			DeclRange: block.DefRange,
+		},
 	}
 
 	if attr, exists := content.Attributes["alias"]; exists {
@@ -89,11 +99,11 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		provider.Count = attr.Expr
 	}
 
-	if (provider.AliasExpr != nil && provider.Count != nil) || (provider.AliasExpr != nil && provider.ForEach != nil) || (provider.Count != nil && provider.ForEach != nil) {
+	if provider.AliasExpr != nil && provider.ForEach != nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  `Invalid combination of "alias", "count" and "for_each"`,
-			Detail:   `The "alias", "count" and "for_each" arguments are mutually-exclusive, only one may be used.`,
+			Summary:  `Invalid combination of "alias" and "for_each"`,
+			Detail:   `The "alias" and "for_each" arguments are mutually-exclusive, only one may be used.`,
 			Subject:  provider.AliasExpr.Range().Ptr(),
 		})
 	}
@@ -110,17 +120,8 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		diags = append(diags, versionDiags...)
 	}
 
-	// Reserved attribute names
-	for _, name := range []string{"depends_on", "source"} {
-		if attr, exists := content.Attributes[name]; exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Reserved argument name in provider block",
-				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTofu in a future version.", name),
-				Subject:  &attr.NameRange,
-			})
-		}
-	}
+	reserveredDiags := checkReserverNames(content)
+	diags = append(diags, reserveredDiags...)
 
 	var seenEscapeBlock *hcl.Block
 	for _, block := range content.Blocks {
@@ -160,7 +161,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	return provider, diags
 }
 
-func (p *Provider) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
+func (p *ProviderBlock) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	if p.ForEach != nil {
 		return p.generateForEachProviders(eval)
@@ -168,31 +169,36 @@ func (p *Provider) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.D
 	if p.Count != nil {
 		return p.generateCountProviders(eval)
 	}
+
+	result := Provider{ProviderCommon: p.ProviderCommon}
 	if p.AliasExpr != nil {
 		if eval != nil {
 			valDiags := eval.DecodeExpression(p.AliasExpr, StaticIdentifier{
 				Module:    eval.call.addr,
 				Subject:   fmt.Sprintf("provider.%s.alias", p.Name),
 				DeclRange: p.AliasExpr.Range(),
-			}, &p.Alias)
+			}, &result.Alias)
 			diags = append(diags, valDiags...)
 		} else {
 			// Test files don't have a static context
-			valDiags := gohcl.DecodeExpression(p.AliasExpr, nil, &p.Alias)
+			valDiags := gohcl.DecodeExpression(p.AliasExpr, nil, &result.Alias)
 			diags = append(diags, valDiags...)
 		}
 
-		// TODO we should probably skip this if diags are already error'd
-		if !hclsyntax.ValidIdentifier(p.Alias) {
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		if !hclsyntax.ValidIdentifier(result.Alias) {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration alias",
-				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
+				Detail:   fmt.Sprintf("Alias %q must be a valid name. %s", result.Alias, badIdentifierDetail),
 				Subject:  p.AliasExpr.Range().Ptr(),
 			})
 		}
 	}
-	return []*Provider{p}, diags
+	return []*Provider{&result}, diags
 }
 
 // Addr returns the address of the receiving provider configuration, relative
@@ -282,28 +288,20 @@ func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdia
 	return addr, diags
 }
 
-var providerBlockSchema = &hcl.BodySchema{
-	Attributes: []hcl.AttributeSchema{
-		{
-			Name: "alias",
-		},
-		{
-			Name: "version",
-		},
-
-		// Attribute names reserved for future expansion.
-		{Name: "count"},
-		{Name: "depends_on"},
-		{Name: "for_each"},
-		{Name: "source"},
-	},
-	Blocks: []hcl.BlockHeaderSchema{
-		{Type: "_"}, // meta-argument escaping block
-
-		// The rest of these are reserved for future expansion.
-		{Type: "lifecycle"},
-		{Type: "locals"},
-	},
+func checkReserverNames(content *hcl.BodyContent) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	// Reserved attribute names
+	for _, name := range []string{"depends_on", "source"} {
+		if attr, exists := content.Attributes[name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Reserved argument name in provider block",
+				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTofu in a future version.", name),
+				Subject:  &attr.NameRange,
+			})
+		}
+	}
+	return diags
 }
 
 // checkProviderNameNormalized verifies that the given string is already
@@ -334,7 +332,7 @@ func checkProviderNameNormalized(name string, declrange hcl.Range) hcl.Diagnosti
 	return diags
 }
 
-func (p *Provider) generateForEachProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
+func (p *ProviderBlock) generateForEachProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	if eval == nil {
 		return nil, diags.Append(&hcl.Diagnostic{
@@ -373,16 +371,15 @@ func (p *Provider) generateForEachProviders(eval *StaticEvaluator) ([]*Provider,
 		}
 
 		v := v
-		iter := *p
+		iter := Provider{ProviderCommon: p.ProviderCommon}
 		iter.Alias = k
-		iter.EachValue = &v
-		iter.ForEach = nil
+		iter.InstanceData.EachValue = v
 		out = append(out, &iter)
 	}
 	return out, diags
 }
 
-func (p *Provider) generateCountProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
+func (p *ProviderBlock) generateCountProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	if eval == nil {
 		return nil, diags.Append(&hcl.Diagnostic{
@@ -410,12 +407,35 @@ func (p *Provider) generateCountProviders(eval *StaticEvaluator) ([]*Provider, h
 	}
 
 	for i := 0; i < countVal; i++ {
-		iter := *p
+		iter := Provider{ProviderCommon: p.ProviderCommon}
 		iter.Alias = fmt.Sprintf("%d", i)
-		iter.Count = nil
 		cIndex := cty.NumberIntVal(int64(i))
-		iter.CountIndex = &cIndex
+		iter.InstanceData.CountIndex = cIndex
 		out = append(out, &iter)
 	}
 	return out, diags
+}
+
+var providerBlockSchema = &hcl.BodySchema{ //nolint: gochecknoglobals // pre-existing code
+	Attributes: []hcl.AttributeSchema{
+		{
+			Name: "alias",
+		},
+		{
+			Name: "version",
+		},
+
+		// Attribute names reserved for future expansion.
+		{Name: "count"},
+		{Name: "depends_on"},
+		{Name: "for_each"},
+		{Name: "source"},
+	},
+	Blocks: []hcl.BlockHeaderSchema{
+		{Type: "_"}, // meta-argument escaping block
+
+		// The rest of these are reserved for future expansion.
+		{Type: "lifecycle"},
+		{Type: "locals"},
+	},
 }
