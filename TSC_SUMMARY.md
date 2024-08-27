@@ -10,7 +10,7 @@ The Technical Steering Committee is a group comprised of people from companies a
 
 ## 2024-08-20
 
-### Attendes
+### Attendees
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
@@ -76,7 +76,7 @@ Christian: will write up a "case study" ([examples](https://buildkite.com/case-s
 
 ##### Decision:
 
-** Christian will prepare RFC for Stage 1 and send to TSC + Community via Github PR **
+**Christian will prepare RFC for Stage 1 and send to TSC + Community via Github PR**
 
 ## 2024-08-13
 
