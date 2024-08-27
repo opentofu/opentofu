@@ -12,15 +12,15 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/didyoumean"
-	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/opentofu/opentofu/internal/lang"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/didyoumean"
+	"github.com/terramate-io/opentofulib/internal/instances"
+	"github.com/terramate-io/opentofulib/internal/lang"
+	"github.com/terramate-io/opentofulib/internal/providers"
+	"github.com/terramate-io/opentofulib/internal/provisioners"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // NodeValidatableResource represents a resource that is used for validation

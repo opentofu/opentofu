@@ -12,9 +12,9 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/opentofu/opentofu/internal/encryption/compliancetest"
-	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/terramate-io/opentofulib/internal/encryption/compliancetest"
+	"github.com/terramate-io/opentofulib/internal/encryption/config"
+	"github.com/terramate-io/opentofulib/internal/encryption/method"
 )
 
 // ComplianceTest tests the functionality of a method to make sure it conforms to the expectations of the method

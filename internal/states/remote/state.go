@@ -13,12 +13,12 @@ import (
 
 	uuid "github.com/hashicorp/go-uuid"
 
-	"github.com/opentofu/opentofu/internal/backend/local"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/states/statefile"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/terramate-io/opentofulib/internal/backend/local"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/states/statefile"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/tofu"
 )
 
 // State implements the State interfaces in the state package to handle

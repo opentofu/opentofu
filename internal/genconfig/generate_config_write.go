@@ -10,7 +10,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 func ShouldWriteConfig(out string) bool {

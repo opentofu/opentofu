@@ -14,8 +14,8 @@ import (
 
 	"cloud.google.com/go/storage"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/opentofu/opentofu/internal/states/remote"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/states/remote"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 	"golang.org/x/net/context"
 )
 

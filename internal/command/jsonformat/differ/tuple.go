@@ -8,10 +8,10 @@ package differ
 import (
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/collections"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/collections"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed/renderers"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/structured"
 )
 
 func computeAttributeDiffAsTuple(change structured.Change, elementTypes []cty.Type) computed.Diff {

@@ -11,9 +11,9 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/spf13/afero"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/registry"
 )
 
 // A Loader instance is the main entry-point for loading configurations via

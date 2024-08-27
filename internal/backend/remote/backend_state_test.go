@@ -9,12 +9,12 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/cloud"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/states/remote"
-	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/cloud"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/states/remote"
+	"github.com/terramate-io/opentofulib/internal/states/statefile"
 )
 
 func TestRemoteClient_impl(t *testing.T) {

@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/dag"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/dag"
+	"github.com/terramate-io/opentofulib/internal/states"
 )
 
 // GraphNodeDestroyerCBD must be implemented by nodes that might be

@@ -1,6 +1,0 @@
-# Copyright (c) The OpenTofu Authors
-# SPDX-License-Identifier: MPL-2.0
-# Copyright (c) 2023 HashiCorp, Inc.
-# SPDX-License-Identifier: MPL-2.0
-
-blank_issues_enabled: true # For now, to allow to easily create a blank issue. Remove this later

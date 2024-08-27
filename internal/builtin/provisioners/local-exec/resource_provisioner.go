@@ -15,9 +15,9 @@ import (
 
 	"github.com/armon/circbuf"
 	"github.com/mitchellh/go-linereader"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/provisioners"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 

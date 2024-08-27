@@ -6,8 +6,8 @@
 package differ
 
 import (
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/structured"
 )
 
 // asDiff is a helper function to abstract away some simple and common

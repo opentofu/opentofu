@@ -11,12 +11,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/repl"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/command/arguments"
+	"github.com/terramate-io/opentofulib/internal/repl"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tofu"
 
 	"github.com/mitchellh/cli"
 )

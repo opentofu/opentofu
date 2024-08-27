@@ -11,14 +11,14 @@ import (
 
 	"github.com/mitchellh/cli"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/clistate"
-	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/command/arguments"
+	"github.com/terramate-io/opentofulib/internal/command/clistate"
+	"github.com/terramate-io/opentofulib/internal/command/views"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tofu"
 )
 
 // StateMvCommand is a Command implementation that shows a single resource.

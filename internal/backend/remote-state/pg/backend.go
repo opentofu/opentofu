@@ -13,9 +13,9 @@ import (
 	"strconv"
 
 	"github.com/lib/pq"
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/legacy/helper/schema"
 )
 
 const (

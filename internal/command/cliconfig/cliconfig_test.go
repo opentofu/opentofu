@@ -13,7 +13,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // This is the directory where our test fixtures are.

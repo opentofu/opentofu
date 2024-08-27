@@ -8,10 +8,10 @@ package tofu
 import (
 	"log"
 
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // Refresh is a vestigial operation that is equivalent to call to Plan and

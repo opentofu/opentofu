@@ -21,14 +21,14 @@ import (
 	version "github.com/hashicorp/go-version"
 	svchost "github.com/hashicorp/terraform-svchost"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/configload"
-	"github.com/opentofu/opentofu/internal/copy"
-	"github.com/opentofu/opentofu/internal/registry"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/configs/configload"
+	"github.com/terramate-io/opentofulib/internal/copy"
+	"github.com/terramate-io/opentofulib/internal/registry"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 
-	_ "github.com/opentofu/opentofu/internal/logging"
+	_ "github.com/terramate-io/opentofulib/internal/logging"
 )
 
 func TestMain(m *testing.M) {

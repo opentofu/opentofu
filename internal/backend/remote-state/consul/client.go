@@ -20,8 +20,8 @@ import (
 
 	consulapi "github.com/hashicorp/consul/api"
 	multierror "github.com/hashicorp/go-multierror"
-	"github.com/opentofu/opentofu/internal/states/remote"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/states/remote"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 )
 
 const (

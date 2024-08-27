@@ -12,11 +12,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/configs/configload"
-	"github.com/opentofu/opentofu/internal/depsfile"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/terramate-io/opentofulib/internal/configs/configload"
+	"github.com/terramate-io/opentofulib/internal/depsfile"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/states/statefile"
 )
 
 type CreateArgs struct {

@@ -10,12 +10,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 
 	"github.com/mitchellh/cli"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tofu"
 )
 
 // UnlockCommand is a cli.Command implementation that manually unlocks

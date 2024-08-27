@@ -10,13 +10,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/colorstring"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/plans"
 )
 
 func TestRenderers_Human(t *testing.T) {

@@ -28,13 +28,13 @@ import (
 	"github.com/hashicorp/aws-sdk-go-base/v2/servicemocks"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/states/remote"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/configs/hcl2shim"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/states/remote"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 const testBucketPrefix = "tofu-test"

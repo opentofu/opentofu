@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	openbao "github.com/openbao/openbao/api"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
 )
 
 type Config struct {

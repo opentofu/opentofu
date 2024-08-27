@@ -13,8 +13,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/didyoumean"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/didyoumean"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // StaticValidateTraversal checks whether the given traversal (which must be

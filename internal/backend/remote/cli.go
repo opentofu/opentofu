@@ -6,7 +6,7 @@
 package remote
 
 import (
-	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/backend"
 )
 
 // CLIInit implements backend.CLI

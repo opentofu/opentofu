@@ -8,7 +8,7 @@ package command
 import (
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 type PushCommand struct {

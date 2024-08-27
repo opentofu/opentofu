@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/method/aesgcm"
 )
 
 func Example() {

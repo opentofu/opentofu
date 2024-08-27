@@ -5,7 +5,7 @@
 
 package openbao
 
-import "github.com/opentofu/opentofu/internal/encryption/keyprovider"
+import "github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
 
 func New() keyprovider.Descriptor {
 	return &descriptor{}

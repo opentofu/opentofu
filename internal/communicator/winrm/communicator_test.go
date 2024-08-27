@@ -13,8 +13,8 @@ import (
 	"testing"
 
 	"github.com/dylanmei/winrmtest"
-	"github.com/opentofu/opentofu/internal/communicator/remote"
-	"github.com/opentofu/opentofu/internal/communicator/shared"
+	"github.com/terramate-io/opentofulib/internal/communicator/remote"
+	"github.com/terramate-io/opentofulib/internal/communicator/shared"
 	"github.com/zclconf/go-cty/cty"
 )
 

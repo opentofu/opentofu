@@ -11,7 +11,7 @@ import (
 	"net/http/httputil"
 
 	"github.com/Azure/go-autorest/autorest"
-	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/terramate-io/opentofulib/internal/logging"
 )
 
 func buildSender() autorest.Sender {

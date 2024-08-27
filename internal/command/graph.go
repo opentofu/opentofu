@@ -9,13 +9,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/dag"
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/plans/planfile"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/command/arguments"
+	"github.com/terramate-io/opentofulib/internal/dag"
+	"github.com/terramate-io/opentofulib/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/plans/planfile"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tofu"
 )
 
 // GraphCommand is a Command implementation that takes a OpenTofu

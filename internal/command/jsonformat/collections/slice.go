@@ -8,10 +8,10 @@ package collections
 import (
 	"reflect"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
 
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/plans/objchange"
+	"github.com/terramate-io/opentofulib/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/plans/objchange"
 )
 
 type TransformIndices func(before, after int) computed.Diff

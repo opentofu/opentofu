@@ -8,8 +8,8 @@ package registry
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/method"
 )
 
 // InvalidKeyProviderError indicates that the supplied keyprovider.Descriptor is invalid/misbehaving. Check the error

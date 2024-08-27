@@ -16,7 +16,7 @@ import (
 	"time"
 
 	version "github.com/hashicorp/go-version"
-	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/terramate-io/opentofulib/internal/configs/configload"
 )
 
 const configSnapshotPrefix = "tfconfig/"

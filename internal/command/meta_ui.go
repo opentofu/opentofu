@@ -8,7 +8,7 @@ package command
 import (
 	"github.com/mitchellh/cli"
 
-	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/terramate-io/opentofulib/internal/command/views"
 )
 
 // WrappedUi is a shim which adds json compatibility to those commands which

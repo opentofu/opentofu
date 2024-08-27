@@ -15,10 +15,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/helper/slowmessage"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/command/views"
+	"github.com/terramate-io/opentofulib/internal/helper/slowmessage"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 const (

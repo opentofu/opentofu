@@ -9,8 +9,8 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/experiments"
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/experiments"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 // When developing UI for experimental features, you can temporarily disable

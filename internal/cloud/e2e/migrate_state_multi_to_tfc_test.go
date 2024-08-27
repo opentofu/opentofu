@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	tfe "github.com/hashicorp/go-tfe"
-	tfversion "github.com/opentofu/opentofu/version"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 func Test_migrate_multi_to_tfc_cloud_name_strategy(t *testing.T) {

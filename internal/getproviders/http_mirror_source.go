@@ -22,10 +22,10 @@ import (
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"golang.org/x/net/idna"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/httpclient"
+	"github.com/terramate-io/opentofulib/internal/logging"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 // HTTPMirrorSource is a source that reads provider metadata from a provider

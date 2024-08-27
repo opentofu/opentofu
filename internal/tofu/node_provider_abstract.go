@@ -6,11 +6,11 @@
 package tofu
 
 import (
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
 
-	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/terramate-io/opentofulib/internal/dag"
 )
 
 // ConcreteProviderNodeFunc is a callback type used to convert an

@@ -6,8 +6,8 @@
 package moduletest
 
 import (
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 type File struct {

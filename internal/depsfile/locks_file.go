@@ -16,11 +16,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/replacefile"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/replacefile"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 // LoadLocksFromFile reads locks from the given file, expecting it to be a

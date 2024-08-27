@@ -16,15 +16,15 @@ import (
 
 	plugin "github.com/hashicorp/go-plugin"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	terraformProvider "github.com/opentofu/opentofu/internal/builtin/providers/tf"
-	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/logging"
-	tfplugin "github.com/opentofu/opentofu/internal/plugin"
-	tfplugin6 "github.com/opentofu/opentofu/internal/plugin6"
-	"github.com/opentofu/opentofu/internal/providercache"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	terraformProvider "github.com/terramate-io/opentofulib/internal/builtin/providers/tf"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/logging"
+	tfplugin "github.com/terramate-io/opentofulib/internal/plugin"
+	tfplugin6 "github.com/terramate-io/opentofulib/internal/plugin6"
+	"github.com/terramate-io/opentofulib/internal/providercache"
+	"github.com/terramate-io/opentofulib/internal/providers"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 var errUnsupportedProtocolVersion = errors.New("unsupported protocol version")

@@ -11,10 +11,10 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	tfaddr "github.com/opentofu/registry-address"
 
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // MigrateStateProviderAddresses can be used to update the in-memory view of the state to use registry.opentofu.org

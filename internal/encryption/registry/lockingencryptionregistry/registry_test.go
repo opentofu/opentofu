@@ -8,8 +8,8 @@ package lockingencryptionregistry_test
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/encryption/registry/compliancetest"
-	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
+	"github.com/terramate-io/opentofulib/internal/encryption/registry/compliancetest"
+	"github.com/terramate-io/opentofulib/internal/encryption/registry/lockingencryptionregistry"
 )
 
 func TestCompliance(t *testing.T) {

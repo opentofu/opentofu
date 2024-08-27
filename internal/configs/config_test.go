@@ -24,9 +24,9 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	svchost "github.com/hashicorp/terraform-svchost"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/depsfile"
-	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/depsfile"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
 )
 
 func TestConfigProviderTypes(t *testing.T) {

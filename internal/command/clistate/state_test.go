@@ -8,10 +8,10 @@ package clistate
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/command/arguments"
-	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
-	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/terramate-io/opentofulib/internal/command/arguments"
+	"github.com/terramate-io/opentofulib/internal/command/views"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/terminal"
 )
 
 func TestUnlock(t *testing.T) {

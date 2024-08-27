@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/command/format"
+	"github.com/terramate-io/opentofulib/internal/command/format"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/plans"
 )
 
 // NoWarningsRenderer defines a Warnings function that returns an empty list of

@@ -13,7 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 func TestParseRefInTestingScope(t *testing.T) {

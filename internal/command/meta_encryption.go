@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/encryption/config"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 const encryptionConfigEnvName = "TF_ENCRYPTION"

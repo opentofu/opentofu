@@ -9,9 +9,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/states/statefile"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/states/statefile"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 )
 
 // TestClient is a generic function to test any client.

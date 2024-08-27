@@ -6,8 +6,8 @@
 package cloud
 
 import (
-	"github.com/opentofu/opentofu/internal/configs"
-	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	legacy "github.com/terramate-io/opentofulib/internal/legacy/tofu"
 )
 
 // Most of the logic for migrating into and out of "cloud mode" actually lives

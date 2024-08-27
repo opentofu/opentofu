@@ -8,7 +8,7 @@ package renderers
 import (
 	"sort"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
 )
 
 // Blocks is a helper struct for collating the different kinds of blocks in a

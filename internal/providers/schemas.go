@@ -6,8 +6,8 @@
 package providers
 
 import (
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
 )
 
 // ProviderSchema is an overall container for all of the schemas for all

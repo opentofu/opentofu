@@ -5,7 +5,7 @@
 
 package tofu
 
-import "github.com/opentofu/opentofu/internal/tfdiags"
+import "github.com/terramate-io/opentofulib/internal/tfdiags"
 
 // GraphNodeExecutable is the interface that graph nodes must implement to
 // enable execution.

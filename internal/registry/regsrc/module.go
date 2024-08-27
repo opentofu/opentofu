@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 )
 
 var (

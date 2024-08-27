@@ -8,7 +8,7 @@ package pbkdf2_test
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider/pbkdf2"
 )
 
 func TestDescriptor_ID(t *testing.T) {

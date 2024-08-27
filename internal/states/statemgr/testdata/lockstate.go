@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 )
 
 // Attempt to open and lock a tofu state file.

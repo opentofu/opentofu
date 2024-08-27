@@ -8,7 +8,7 @@ package tofu
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/terramate-io/opentofulib/internal/dag"
 )
 
 // testGraphnotContains is an assertion helper that tests that a node is

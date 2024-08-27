@@ -1,6 +1,6 @@
 version_info {
-  version_var =    "github.com/opentofu/opentofu/version.Version"
-  prerelease_var = "github.com/opentofu/opentofu/version.Prerelease"
+  version_var =    "github.com/terramate-io/opentofulib/version.Version"
+  prerelease_var = "github.com/terramate-io/opentofulib/version.Prerelease"
 }
 
 version_exec = false

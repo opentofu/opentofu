@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	cloudproto1 "github.com/opentofu/opentofu/internal/cloudplugin/cloudproto1"
+	cloudproto1 "github.com/terramate-io/opentofulib/internal/cloudplugin/cloudproto1"
 	grpc "google.golang.org/grpc"
 	metadata "google.golang.org/grpc/metadata"
 )

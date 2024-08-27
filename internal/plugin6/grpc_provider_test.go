@@ -10,18 +10,18 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/configs/hcl2shim"
+	"github.com/terramate-io/opentofulib/internal/providers"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
-	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
-	proto "github.com/opentofu/opentofu/internal/tfplugin6"
+	mockproto "github.com/terramate-io/opentofulib/internal/plugin6/mock_proto"
+	proto "github.com/terramate-io/opentofulib/internal/tfplugin6"
 )
 
 var _ providers.Interface = (*GRPCProvider)(nil)

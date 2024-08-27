@@ -12,12 +12,12 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/encryption"
-	statespkg "github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	statespkg "github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/states/remote"
 
-	_ "github.com/opentofu/opentofu/internal/logging"
+	_ "github.com/terramate-io/opentofulib/internal/logging"
 )
 
 func TestMain(m *testing.M) {

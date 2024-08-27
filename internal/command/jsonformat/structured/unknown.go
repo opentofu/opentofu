@@ -6,7 +6,7 @@
 package structured
 
 import (
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
 )
 
 type ProcessUnknown func(current Change) computed.Diff

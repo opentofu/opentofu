@@ -8,7 +8,7 @@ package tofu
 import (
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/terramate-io/opentofulib/internal/provisioners"
 )
 
 var _ provisioners.Interface = (*MockProvisioner)(nil)

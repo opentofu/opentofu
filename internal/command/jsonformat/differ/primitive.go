@@ -8,9 +8,9 @@ package differ
 import (
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed/renderers"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/structured"
 )
 
 func computeAttributeDiffAsPrimitive(change structured.Change, ctype cty.Type) computed.Diff {

@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/terramate-io/opentofulib/internal/e2e"
 )
 
 // This is an e2e test as it relies on very specific configuration

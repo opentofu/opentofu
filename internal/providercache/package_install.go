@@ -17,10 +17,10 @@ import (
 	getter "github.com/hashicorp/go-getter"
 	"github.com/hashicorp/go-retryablehttp"
 
-	"github.com/opentofu/opentofu/internal/copy"
-	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/terramate-io/opentofulib/internal/copy"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/httpclient"
+	"github.com/terramate-io/opentofulib/internal/logging"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from

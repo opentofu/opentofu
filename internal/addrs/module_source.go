@@ -10,8 +10,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/getmodules"
 	tfaddr "github.com/opentofu/registry-address"
+	"github.com/terramate-io/opentofulib/internal/getmodules"
 )
 
 // ModuleSource is the general type for all three of the possible module source

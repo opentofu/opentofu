@@ -15,7 +15,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/configs"
 )
 
 func TestLoaderLoadConfig_okay(t *testing.T) {

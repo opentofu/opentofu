@@ -10,10 +10,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/legacy/helper/acctest"
-	"github.com/opentofu/opentofu/internal/states/remote"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/legacy/helper/acctest"
+	"github.com/terramate-io/opentofulib/internal/states/remote"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
 )
 

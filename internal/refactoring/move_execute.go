@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/dag"
-	"github.com/opentofu/opentofu/internal/logging"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/dag"
+	"github.com/terramate-io/opentofulib/internal/logging"
+	"github.com/terramate-io/opentofulib/internal/states"
 )
 
 // ApplyMoves modifies in-place the given state object so that any existing

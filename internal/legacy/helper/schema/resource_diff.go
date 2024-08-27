@@ -12,7 +12,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/terramate-io/opentofulib/internal/legacy/tofu"
 )
 
 // newValueWriter is a minor re-implementation of MapFieldWriter to include

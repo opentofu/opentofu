@@ -14,11 +14,11 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	testing_command "github.com/opentofu/opentofu/internal/command/testing"
-	"github.com/opentofu/opentofu/internal/command/views"
-	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	testing_command "github.com/terramate-io/opentofulib/internal/command/testing"
+	"github.com/terramate-io/opentofulib/internal/command/views"
+	"github.com/terramate-io/opentofulib/internal/providers"
+	"github.com/terramate-io/opentofulib/internal/terminal"
 )
 
 func TestTest(t *testing.T) {

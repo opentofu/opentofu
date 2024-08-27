@@ -6,7 +6,7 @@
 package remote
 
 import (
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 )
 
 // Client is the interface that must be implemented for a remote state

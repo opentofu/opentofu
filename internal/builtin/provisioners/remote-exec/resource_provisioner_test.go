@@ -17,9 +17,9 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/communicator"
-	"github.com/opentofu/opentofu/internal/communicator/remote"
-	"github.com/opentofu/opentofu/internal/provisioners"
+	"github.com/terramate-io/opentofulib/internal/communicator"
+	"github.com/terramate-io/opentofulib/internal/communicator/remote"
+	"github.com/terramate-io/opentofulib/internal/provisioners"
 	"github.com/zclconf/go-cty/cty"
 )
 

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/terramate-io/opentofulib/internal/legacy/tofu"
 )
 
 func TestResourceDataGet(t *testing.T) {

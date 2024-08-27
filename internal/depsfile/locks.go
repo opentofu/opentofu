@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
 )
 
 // Locks is the top-level type representing the information retained in a

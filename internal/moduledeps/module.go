@@ -9,7 +9,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/plugin/discovery"
+	"github.com/terramate-io/opentofulib/internal/plugin/discovery"
 )
 
 // Module represents the dependencies of a single module, as well being

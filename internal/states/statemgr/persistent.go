@@ -8,8 +8,8 @@ package statemgr
 import (
 	version "github.com/hashicorp/go-version"
 
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/tofu"
 )
 
 // Persistent is a union of the Refresher and Persistent interfaces, for types

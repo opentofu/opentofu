@@ -12,13 +12,13 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/command/format"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
-	"github.com/opentofu/opentofu/internal/command/jsonplan"
-	"github.com/opentofu/opentofu/internal/command/jsonprovider"
-	"github.com/opentofu/opentofu/internal/command/jsonstate"
-	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/command/format"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed/renderers"
+	"github.com/terramate-io/opentofulib/internal/command/jsonplan"
+	"github.com/terramate-io/opentofulib/internal/command/jsonprovider"
+	"github.com/terramate-io/opentofulib/internal/command/jsonstate"
+	"github.com/terramate-io/opentofulib/internal/plans"
 )
 
 const (

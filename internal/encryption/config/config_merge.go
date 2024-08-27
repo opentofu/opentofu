@@ -7,7 +7,7 @@ package config
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/terramate-io/opentofulib/internal/configs/hcl2shim"
 )
 
 // MergeConfigs merges two Configs together, with the override taking precedence.

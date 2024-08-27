@@ -6,8 +6,8 @@
 package cloud
 
 import (
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/command/jsonformat"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat"
 )
 
 // CLIInit implements backend.CLI

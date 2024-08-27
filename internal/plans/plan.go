@@ -11,10 +11,10 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/lang/globalref"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/lang/globalref"
+	"github.com/terramate-io/opentofulib/internal/states"
 )
 
 // Plan is the top-level type representing a planned set of changes.

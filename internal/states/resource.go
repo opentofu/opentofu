@@ -10,7 +10,7 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 )
 
 // Resource represents the state of a resource.

@@ -12,8 +12,8 @@ import (
 	"testing"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/terramate-io/opentofulib/internal/configs/hcl2shim"
+	"github.com/terramate-io/opentofulib/internal/legacy/tofu"
 )
 
 // testSetFunc is a very simple function we use to test a foo/bar complex set.

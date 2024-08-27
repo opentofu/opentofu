@@ -8,7 +8,7 @@ package tofu
 import (
 	"log"
 
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/terramate-io/opentofulib/internal/states"
 )
 
 // StateTransformer is a GraphTransformer that adds the elements of

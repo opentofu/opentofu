@@ -8,7 +8,7 @@ package getproviders
 import (
 	"context"
 
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 )
 
 // HangingSource is an implementation of Source which hangs until the given

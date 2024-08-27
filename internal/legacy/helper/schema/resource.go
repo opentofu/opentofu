@@ -11,7 +11,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/terramate-io/opentofulib/internal/legacy/tofu"
 	"github.com/zclconf/go-cty/cty"
 )
 

@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kms"
 	"github.com/aws/aws-sdk-go-v2/service/kms/types"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
 )
 
 type keyMeta struct {

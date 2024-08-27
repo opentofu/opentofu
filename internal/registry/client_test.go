@@ -18,10 +18,10 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/registry/regsrc"
-	"github.com/opentofu/opentofu/internal/registry/test"
-	tfversion "github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/httpclient"
+	"github.com/terramate-io/opentofulib/internal/registry/regsrc"
+	"github.com/terramate-io/opentofulib/internal/registry/test"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 func TestConfigureDiscoveryRetry(t *testing.T) {

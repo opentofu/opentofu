@@ -15,9 +15,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
-	"github.com/opentofu/opentofu/internal/legacy/helper/hashcode"
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/terramate-io/opentofulib/internal/configs/hcl2shim"
+	"github.com/terramate-io/opentofulib/internal/legacy/helper/hashcode"
+	"github.com/terramate-io/opentofulib/internal/legacy/tofu"
 )
 
 func TestEnvDefaultFunc(t *testing.T) {

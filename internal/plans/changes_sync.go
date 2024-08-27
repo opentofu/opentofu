@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/states"
 )
 
 // ChangesSync is a wrapper around a Changes that provides a concurrency-safe

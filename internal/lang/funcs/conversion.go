@@ -8,8 +8,8 @@ package funcs
 import (
 	"strconv"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
-	"github.com/opentofu/opentofu/internal/lang/types"
+	"github.com/terramate-io/opentofulib/internal/lang/marks"
+	"github.com/terramate-io/opentofulib/internal/lang/types"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 	"github.com/zclconf/go-cty/cty/function"

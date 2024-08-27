@@ -21,8 +21,8 @@ import (
 	uuid "github.com/hashicorp/go-uuid"
 	"github.com/pkg/errors"
 
-	"github.com/opentofu/opentofu/internal/states/remote"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/states/remote"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 )
 
 const (

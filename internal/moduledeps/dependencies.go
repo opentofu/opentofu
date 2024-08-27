@@ -6,8 +6,8 @@
 package moduledeps
 
 import (
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/plugin/discovery"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/plugin/discovery"
 )
 
 // Providers describes a set of provider dependencies for a given module.

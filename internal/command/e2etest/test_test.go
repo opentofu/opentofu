@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/terramate-io/opentofulib/internal/e2e"
 )
 
 func TestMultipleRunBlocks(t *testing.T) {

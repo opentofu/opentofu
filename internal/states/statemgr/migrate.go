@@ -8,7 +8,7 @@ package statemgr
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/terramate-io/opentofulib/internal/states/statefile"
 )
 
 // Migrator is an optional interface implemented by state managers that

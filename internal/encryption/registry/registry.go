@@ -6,8 +6,8 @@
 package registry
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/method"
 )
 
 // Registry collects all encryption methods and key providers

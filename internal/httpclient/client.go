@@ -9,7 +9,7 @@ import (
 	"net/http"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 // New returns the DefaultPooledClient from the cleanhttp

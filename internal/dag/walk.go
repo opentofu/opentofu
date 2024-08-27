@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // Walker is used to walk every vertex of a graph in parallel.

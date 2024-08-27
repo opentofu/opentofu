@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	tfe "github.com/hashicorp/go-tfe"
-	tfversion "github.com/opentofu/opentofu/version"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 func terraformConfigRequiredVariable(org, name string) string {

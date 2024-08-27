@@ -6,7 +6,7 @@
 package compliancetest
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
 )
 
 type TestConfiguration[TDescriptor keyprovider.Descriptor, TConfig keyprovider.Config, TMeta any, TKeyProvider keyprovider.KeyProvider] struct {

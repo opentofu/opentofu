@@ -8,7 +8,7 @@ package static
 import (
 	"encoding/hex"
 
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
 )
 
 // Config contains the configuration for this key provider supplied by the user. This struct must have hcl tags in order

@@ -11,10 +11,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/method"
-	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
-	"github.com/opentofu/opentofu/internal/encryption/registry"
+	"github.com/terramate-io/opentofulib/internal/encryption/config"
+	"github.com/terramate-io/opentofulib/internal/encryption/method"
+	"github.com/terramate-io/opentofulib/internal/encryption/method/unencrypted"
+	"github.com/terramate-io/opentofulib/internal/encryption/registry"
 	"github.com/zclconf/go-cty/cty"
 )
 

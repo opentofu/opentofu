@@ -13,10 +13,10 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/didyoumean"
-	"github.com/opentofu/opentofu/internal/lang"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/didyoumean"
+	"github.com/terramate-io/opentofulib/internal/lang"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // newStaticScope creates a lang.Scope that's backed by the static view of the module represented by the StaticEvaluator

@@ -14,8 +14,8 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/configs/configload"
 )
 
 func TestConfigSnapshotRoundtrip(t *testing.T) {

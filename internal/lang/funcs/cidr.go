@@ -10,7 +10,7 @@ import (
 	"math/big"
 
 	"github.com/apparentlymart/go-cidr/cidr"
-	"github.com/opentofu/opentofu/internal/ipaddr"
+	"github.com/terramate-io/opentofulib/internal/ipaddr"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/gocty"

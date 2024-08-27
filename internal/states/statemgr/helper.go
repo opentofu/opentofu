@@ -9,10 +9,10 @@ package statemgr
 // operations done against full state managers.
 
 import (
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/states/statefile"
-	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/states/statefile"
+	"github.com/terramate-io/opentofulib/internal/tofu"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 // NewStateFile creates a new statefile.File object, with a newly-minted

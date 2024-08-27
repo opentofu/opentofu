@@ -17,12 +17,12 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
 
-	"github.com/opentofu/opentofu/internal/command/cliconfig"
-	oauthserver "github.com/opentofu/opentofu/internal/command/testdata/login-oauth-server"
-	tfeserver "github.com/opentofu/opentofu/internal/command/testdata/login-tfe-server"
-	"github.com/opentofu/opentofu/internal/command/webbrowser"
-	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/command/cliconfig"
+	oauthserver "github.com/terramate-io/opentofulib/internal/command/testdata/login-oauth-server"
+	tfeserver "github.com/terramate-io/opentofulib/internal/command/testdata/login-tfe-server"
+	"github.com/terramate-io/opentofulib/internal/command/webbrowser"
+	"github.com/terramate-io/opentofulib/internal/httpclient"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 func TestLogin(t *testing.T) {

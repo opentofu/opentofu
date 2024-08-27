@@ -6,7 +6,7 @@
 package aws_kms
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
 )
 
 func New() keyprovider.Descriptor {

@@ -9,10 +9,10 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2/hcltest"
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/opentofu/opentofu/internal/states"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/instances"
+	"github.com/terramate-io/opentofulib/internal/states"
 	"github.com/zclconf/go-cty/cty"
 )
 

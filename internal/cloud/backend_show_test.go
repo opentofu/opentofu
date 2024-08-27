@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	tfe "github.com/hashicorp/go-tfe"
-	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/plans"
 )
 
 // A brief discourse on the theory of testing for this feature. Doing

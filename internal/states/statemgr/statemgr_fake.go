@@ -9,8 +9,8 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/tofu"
 )
 
 // NewFullFake returns a full state manager that really only supports transient

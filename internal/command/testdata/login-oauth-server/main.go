@@ -10,7 +10,7 @@
 // This is _not_ the main way to use this oauthserver package. For automated
 // test code, import it as a normal Go package instead:
 //
-//     import oauthserver "github.com/opentofu/opentofu/internal/command/testdata/login-oauth-server"
+//     import oauthserver "github.com/terramate-io/opentofulib/internal/command/testdata/login-oauth-server"
 
 package main
 
@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"os"
 
-	oauthserver "github.com/opentofu/opentofu/internal/command/testdata/login-oauth-server"
+	oauthserver "github.com/terramate-io/opentofulib/internal/command/testdata/login-oauth-server"
 )
 
 func main() {

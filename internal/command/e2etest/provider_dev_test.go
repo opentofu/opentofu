@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/terramate-io/opentofulib/internal/e2e"
 )
 
 // TestProviderDevOverrides is a test for the special dev_overrides setting
@@ -44,7 +44,7 @@ func TestProviderDevOverrides(t *testing.T) {
 	// such as if it stops being buildable into an independent executable.
 	providerExeDir := filepath.Join(tf.WorkDir(), "pkgdir")
 	providerExePrefix := filepath.Join(providerExeDir, "terraform-provider-test_")
-	providerExe := e2e.GoBuild("github.com/opentofu/opentofu/internal/provider-simple/main", providerExePrefix)
+	providerExe := e2e.GoBuild("github.com/terramate-io/opentofulib/internal/provider-simple/main", providerExePrefix)
 	t.Logf("temporary provider executable is %s", providerExe)
 
 	err := os.WriteFile(filepath.Join(tf.WorkDir(), "dev.tfrc"), []byte(fmt.Sprintf(`

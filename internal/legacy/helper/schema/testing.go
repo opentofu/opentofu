@@ -8,7 +8,7 @@ package schema
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/terramate-io/opentofulib/internal/legacy/tofu"
 )
 
 // TestResourceDataRaw creates a ResourceData from a raw configuration map.

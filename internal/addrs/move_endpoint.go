@@ -9,7 +9,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // MoveEndpoint is to AbsMoveable and ConfigMoveable what Target is to

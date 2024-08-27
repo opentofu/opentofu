@@ -10,10 +10,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/experiments"
-	tfversion "github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/encryption/config"
+	"github.com/terramate-io/opentofulib/internal/experiments"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 // Module is a container for a set of configuration constructs that are

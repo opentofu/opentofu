@@ -13,7 +13,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 func TestNew_userAgent(t *testing.T) {

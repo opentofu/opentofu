@@ -9,7 +9,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
 )
 
 // ExpandedVariables finds all of the global variables referenced in the

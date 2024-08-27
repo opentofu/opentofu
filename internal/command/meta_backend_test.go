@@ -17,19 +17,19 @@ import (
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/copy"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/states"
-	"github.com/opentofu/opentofu/internal/states/statefile"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/copy"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/states"
+	"github.com/terramate-io/opentofulib/internal/states/statefile"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 
-	backendInit "github.com/opentofu/opentofu/internal/backend/init"
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
-	backendInmem "github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
+	backendInit "github.com/terramate-io/opentofulib/internal/backend/init"
+	backendLocal "github.com/terramate-io/opentofulib/internal/backend/local"
+	backendInmem "github.com/terramate-io/opentofulib/internal/backend/remote-state/inmem"
 )
 
 // Test empty directory with no config/state creates a local state.

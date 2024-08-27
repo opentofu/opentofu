@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/e2e"
-	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/e2e"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
 )
 
 // TestProviderTampering tests various ways that the provider plugins in the

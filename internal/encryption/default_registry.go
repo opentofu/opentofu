@@ -6,13 +6,13 @@
 package encryption
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/aws_kms"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/gcp_kms"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/openbao"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
-	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
-	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
-	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider/aws_kms"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider/gcp_kms"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider/openbao"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider/pbkdf2"
+	"github.com/terramate-io/opentofulib/internal/encryption/method/aesgcm"
+	"github.com/terramate-io/opentofulib/internal/encryption/method/unencrypted"
+	"github.com/terramate-io/opentofulib/internal/encryption/registry/lockingencryptionregistry"
 )
 
 var DefaultRegistry = lockingencryptionregistry.New()

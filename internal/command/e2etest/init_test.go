@@ -17,7 +17,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/terramate-io/opentofulib/internal/e2e"
 )
 
 func TestInitProviders(t *testing.T) {

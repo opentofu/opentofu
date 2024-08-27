@@ -13,10 +13,10 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/registry/regsrc"
-	"github.com/opentofu/opentofu/internal/registry/response"
-	tfversion "github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/httpclient"
+	"github.com/terramate-io/opentofulib/internal/registry/regsrc"
+	"github.com/terramate-io/opentofulib/internal/registry/response"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 // Disco return a *disco.Disco mapping registry.opentofu.org, localhost,

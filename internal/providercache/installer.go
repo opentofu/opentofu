@@ -14,10 +14,10 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	copydir "github.com/opentofu/opentofu/internal/copy"
-	"github.com/opentofu/opentofu/internal/depsfile"
-	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	copydir "github.com/terramate-io/opentofulib/internal/copy"
+	"github.com/terramate-io/opentofulib/internal/depsfile"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
 )
 
 // Installer is the main type in this package, representing a provider installer

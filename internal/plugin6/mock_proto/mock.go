@@ -9,7 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	tfplugin6 "github.com/opentofu/opentofu/internal/tfplugin6"
+	tfplugin6 "github.com/terramate-io/opentofulib/internal/tfplugin6"
 	grpc "google.golang.org/grpc"
 )
 

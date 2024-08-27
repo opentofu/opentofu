@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/e2e"
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/e2e"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 func TestVersion(t *testing.T) {

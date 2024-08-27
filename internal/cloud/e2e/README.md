@@ -2,7 +2,7 @@
 
 To run them, use:
 ```
-TFE_TOKEN=<token> TFE_HOSTNAME=<hostname> TF_ACC=1 go test  ./internal/cloud/e2e/... -ldflags "-X \"github.com/opentofu/opentofu/version.Prerelease=<PRE-RELEASE>\""
+TFE_TOKEN=<token> TFE_HOSTNAME=<hostname> TF_ACC=1 go test  ./internal/cloud/e2e/... -ldflags "-X \"github.com/terramate-io/opentofulib/version.Prerelease=<PRE-RELEASE>\""
 ```
 
 Required flags

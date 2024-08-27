@@ -11,8 +11,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/states/statemgr"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/states/statemgr"
 )
 
 // testStateBackups returns the list of backups in order of creation

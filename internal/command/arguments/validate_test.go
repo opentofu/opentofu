@@ -11,7 +11,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 func TestParseValidate_valid(t *testing.T) {

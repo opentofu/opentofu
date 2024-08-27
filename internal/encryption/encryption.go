@@ -7,9 +7,9 @@ package encryption
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/registry"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/encryption/config"
+	"github.com/terramate-io/opentofulib/internal/encryption/registry"
 )
 
 // Encryption contains the methods for obtaining a StateEncryption or PlanEncryption correctly configured for a specific

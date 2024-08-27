@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/compliancetest"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider/compliancetest"
 )
 
 func TestCompliance(t *testing.T) {

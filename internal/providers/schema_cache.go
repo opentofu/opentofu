@@ -8,7 +8,7 @@ package providers
 import (
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 )
 
 // SchemaCache is a global cache of Schemas.

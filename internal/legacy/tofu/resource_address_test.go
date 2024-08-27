@@ -10,8 +10,8 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/configs"
 )
 
 func TestParseResourceAddressInternal(t *testing.T) {

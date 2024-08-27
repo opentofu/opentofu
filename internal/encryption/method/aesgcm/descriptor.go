@@ -6,8 +6,8 @@
 package aesgcm
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/method"
 )
 
 // Descriptor integrates the method.Descriptor and provides a TypedConfig for easier configuration.

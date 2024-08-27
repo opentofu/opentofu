@@ -11,9 +11,9 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/opentofu/opentofu/internal/command/views/json"
-	"github.com/opentofu/opentofu/internal/tfdiags"
-	tfversion "github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/command/views/json"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 // This version describes the schema of JSON UI messages. This version must be

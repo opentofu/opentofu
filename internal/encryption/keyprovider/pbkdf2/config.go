@@ -10,7 +10,7 @@ import (
 	"hash"
 	"io"
 
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
 )
 
 // HashFunction is a provider of a hash.Hash.

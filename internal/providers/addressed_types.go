@@ -8,7 +8,7 @@ package providers
 import (
 	"sort"
 
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 )
 
 // AddressedTypesAbs is a helper that extracts all of the distinct provider

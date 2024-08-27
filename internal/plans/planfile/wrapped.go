@@ -9,8 +9,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
-	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/cloud/cloudplan"
+	"github.com/terramate-io/opentofulib/internal/encryption"
 )
 
 // WrappedPlanFile is a sum type that represents a saved plan, loaded from a

@@ -6,7 +6,7 @@
 package tofu
 
 import (
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 )
 
 // GraphNodeModuleInstance says that a node is part of a graph with a

@@ -12,16 +12,16 @@ import (
 	"github.com/mitchellh/colorstring"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	"github.com/opentofu/opentofu/internal/command/format"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
-	"github.com/opentofu/opentofu/internal/command/jsonplan"
-	"github.com/opentofu/opentofu/internal/command/jsonprovider"
-	"github.com/opentofu/opentofu/internal/command/jsonstate"
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/terramate-io/opentofulib/internal/command/format"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/differ"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/structured"
+	"github.com/terramate-io/opentofulib/internal/command/jsonplan"
+	"github.com/terramate-io/opentofulib/internal/command/jsonprovider"
+	"github.com/terramate-io/opentofulib/internal/command/jsonstate"
+	viewsjson "github.com/terramate-io/opentofulib/internal/command/views/json"
+	"github.com/terramate-io/opentofulib/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/terminal"
 )
 
 type JSONLogType string

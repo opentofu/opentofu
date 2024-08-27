@@ -15,9 +15,9 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/hashicorp/go-getter"
 
-	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/getproviders"
+	"github.com/terramate-io/opentofulib/internal/httpclient"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // ProvidersMirrorCommand is a Command implementation that implements the

@@ -9,12 +9,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/static"
-	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
-	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/encryption/config"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider/static"
+	"github.com/terramate-io/opentofulib/internal/encryption/method/aesgcm"
+	"github.com/terramate-io/opentofulib/internal/encryption/registry/lockingencryptionregistry"
 )
 
 var hclConfig = `key_provider "static" "foo" {

@@ -6,7 +6,7 @@
 package tofu
 
 import (
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // This file contains some package-local helpers for working with diagnostics.

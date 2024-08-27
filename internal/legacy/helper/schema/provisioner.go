@@ -12,8 +12,8 @@ import (
 	"sync"
 
 	"github.com/hashicorp/go-multierror"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/legacy/tofu"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/legacy/tofu"
 )
 
 // Provisioner represents a resource provisioner in OpenTofu and properly

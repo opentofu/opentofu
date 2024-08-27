@@ -10,8 +10,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/encryption/method"
-	"github.com/opentofu/opentofu/internal/encryption/registry"
+	"github.com/terramate-io/opentofulib/internal/encryption/method"
+	"github.com/terramate-io/opentofulib/internal/encryption/registry"
 )
 
 func complianceTestMethods(t *testing.T, factory func() registry.Registry) {

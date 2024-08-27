@@ -6,7 +6,7 @@
 package unencrypted
 
 import (
-	"github.com/opentofu/opentofu/internal/encryption/method"
+	"github.com/terramate-io/opentofulib/internal/encryption/method"
 )
 
 func New() method.Descriptor {

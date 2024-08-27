@@ -10,7 +10,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
 )
 
 // AssertPlanValid checks checks whether a planned new state returned by a

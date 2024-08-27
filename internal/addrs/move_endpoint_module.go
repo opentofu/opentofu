@@ -12,7 +12,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // anyKeyImpl is the InstanceKey representation indicating a wildcard, which

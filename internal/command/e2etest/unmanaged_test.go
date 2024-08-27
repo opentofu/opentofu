@@ -16,14 +16,14 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/opentofu/opentofu/internal/e2e"
-	"github.com/opentofu/opentofu/internal/grpcwrap"
-	tfplugin5 "github.com/opentofu/opentofu/internal/plugin"
-	tfplugin "github.com/opentofu/opentofu/internal/plugin6"
-	simple5 "github.com/opentofu/opentofu/internal/provider-simple"
-	simple "github.com/opentofu/opentofu/internal/provider-simple-v6"
-	proto5 "github.com/opentofu/opentofu/internal/tfplugin5"
-	proto "github.com/opentofu/opentofu/internal/tfplugin6"
+	"github.com/terramate-io/opentofulib/internal/e2e"
+	"github.com/terramate-io/opentofulib/internal/grpcwrap"
+	tfplugin5 "github.com/terramate-io/opentofulib/internal/plugin"
+	tfplugin "github.com/terramate-io/opentofulib/internal/plugin6"
+	simple5 "github.com/terramate-io/opentofulib/internal/provider-simple"
+	simple "github.com/terramate-io/opentofulib/internal/provider-simple-v6"
+	proto5 "github.com/terramate-io/opentofulib/internal/tfplugin5"
+	proto "github.com/terramate-io/opentofulib/internal/tfplugin6"
 )
 
 // The tests in this file are for the "unmanaged provider workflow", which

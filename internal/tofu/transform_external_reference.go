@@ -5,7 +5,7 @@
 
 package tofu
 
-import "github.com/opentofu/opentofu/internal/addrs"
+import "github.com/terramate-io/opentofulib/internal/addrs"
 
 // ExternalReferenceTransformer will add a GraphNodeReferencer into the graph
 // that makes no changes to the graph itself but, by referencing the addresses

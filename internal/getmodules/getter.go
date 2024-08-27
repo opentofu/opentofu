@@ -13,7 +13,7 @@ import (
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
-	"github.com/opentofu/opentofu/internal/copy"
+	"github.com/terramate-io/opentofulib/internal/copy"
 )
 
 // We configure our own go-getter detector and getter sets here, because

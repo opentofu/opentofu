@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/encryption"
 )
 
 func TestInit_backend(t *testing.T) {

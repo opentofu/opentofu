@@ -10,7 +10,7 @@ import (
 	"path"
 	"runtime"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

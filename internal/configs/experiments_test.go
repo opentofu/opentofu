@@ -12,7 +12,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 
-	"github.com/opentofu/opentofu/internal/experiments"
+	"github.com/terramate-io/opentofulib/internal/experiments"
 )
 
 func TestExperimentsConfig(t *testing.T) {

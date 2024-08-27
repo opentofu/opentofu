@@ -8,7 +8,7 @@ package tofu
 import (
 	"log"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // NodeDestroyableDataResourceInstance represents a resource that is "destroyable":

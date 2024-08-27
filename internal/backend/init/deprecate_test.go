@@ -8,8 +8,8 @@ package init
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
-	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/backend/remote-state/inmem"
+	"github.com/terramate-io/opentofulib/internal/encryption"
 	"github.com/zclconf/go-cty/cty"
 )
 

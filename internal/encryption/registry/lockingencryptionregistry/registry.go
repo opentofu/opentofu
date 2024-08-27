@@ -8,9 +8,9 @@ package lockingencryptionregistry
 import (
 	"sync"
 
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-	"github.com/opentofu/opentofu/internal/encryption/method"
-	"github.com/opentofu/opentofu/internal/encryption/registry"
+	"github.com/terramate-io/opentofulib/internal/encryption/keyprovider"
+	"github.com/terramate-io/opentofulib/internal/encryption/method"
+	"github.com/terramate-io/opentofulib/internal/encryption/registry"
 )
 
 // New returns a new encryption registry that locks for parallel access.

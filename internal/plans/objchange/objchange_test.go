@@ -11,7 +11,7 @@ import (
 	"github.com/apparentlymart/go-dump/dump"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
 )
 
 func TestProposedNew(t *testing.T) {

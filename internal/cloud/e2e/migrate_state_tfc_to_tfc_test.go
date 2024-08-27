@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	tfe "github.com/hashicorp/go-tfe"
-	tfversion "github.com/opentofu/opentofu/version"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 func Test_migrate_tfc_to_tfc_single_workspace(t *testing.T) {

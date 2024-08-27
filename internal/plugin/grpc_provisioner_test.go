@@ -12,12 +12,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
-	"github.com/opentofu/opentofu/internal/provisioners"
-	proto "github.com/opentofu/opentofu/internal/tfplugin5"
+	"github.com/terramate-io/opentofulib/internal/configs/hcl2shim"
+	"github.com/terramate-io/opentofulib/internal/provisioners"
+	proto "github.com/terramate-io/opentofulib/internal/tfplugin5"
 	"github.com/zclconf/go-cty/cty"
 
-	mockproto "github.com/opentofu/opentofu/internal/plugin/mock_proto"
+	mockproto "github.com/terramate-io/opentofulib/internal/plugin/mock_proto"
 )
 
 var _ provisioners.Interface = (*GRPCProvisioner)(nil)

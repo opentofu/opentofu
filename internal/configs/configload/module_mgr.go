@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/modsdir"
-	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/spf13/afero"
+	"github.com/terramate-io/opentofulib/internal/modsdir"
+	"github.com/terramate-io/opentofulib/internal/registry"
 )
 
 type moduleMgr struct {

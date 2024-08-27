@@ -8,7 +8,7 @@ package renderers
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/terramate-io/opentofulib/internal/command/jsonformat/computed"
 )
 
 var _ computed.DiffRenderer = (*typeChangeRenderer)(nil)

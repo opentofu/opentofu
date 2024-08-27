@@ -10,7 +10,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 func TestUserAgentString_env(t *testing.T) {

@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/terramate-io/opentofulib/internal/command/arguments"
 )
 
 // The StateLocker view is used to display locking/unlocking status messages

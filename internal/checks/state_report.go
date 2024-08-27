@@ -8,7 +8,7 @@ package checks
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 )
 
 // These are the "Report"-prefixed methods of Checks used by OpenTofu Core

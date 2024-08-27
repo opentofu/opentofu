@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/e2e"
+	"github.com/terramate-io/opentofulib/internal/e2e"
 )
 
 var tofuBin string
@@ -50,7 +50,7 @@ func setup() func() {
 		return func() {}
 	}
 
-	tmpFilename := e2e.GoBuild("github.com/opentofu/opentofu/cmd/tofu", "tofu")
+	tmpFilename := e2e.GoBuild("github.com/terramate-io/opentofulib/cmd/tofu", "tofu")
 
 	// Make the executable available for use in tests
 	tofuBin = tmpFilename

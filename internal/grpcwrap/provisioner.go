@@ -11,11 +11,11 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/opentofu/opentofu/internal/communicator/shared"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/plugin/convert"
-	"github.com/opentofu/opentofu/internal/provisioners"
-	"github.com/opentofu/opentofu/internal/tfplugin5"
+	"github.com/terramate-io/opentofulib/internal/communicator/shared"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/plugin/convert"
+	"github.com/terramate-io/opentofulib/internal/provisioners"
+	"github.com/terramate-io/opentofulib/internal/tfplugin5"
 )
 
 // New wraps a provisioners.Interface to implement a grpc ProviderServer.

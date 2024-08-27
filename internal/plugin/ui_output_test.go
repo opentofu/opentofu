@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/go-plugin"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/terramate-io/opentofulib/internal/tofu"
 )
 
 func TestUIOutput_impl(t *testing.T) {

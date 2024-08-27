@@ -17,7 +17,7 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/version"
 )
 
 // If this environment variable is set to "otlp" when running OpenTofu CLI
@@ -35,7 +35,7 @@ const openTelemetryExporterEnvVar = "OTEL_TRACES_EXPORTER"
 var tracer trace.Tracer
 
 func init() {
-	tracer = otel.Tracer("github.com/opentofu/opentofu")
+	tracer = otel.Tracer("github.com/terramate-io/opentofulib")
 }
 
 // openTelemetryInit initializes the optional OpenTelemetry exporter.

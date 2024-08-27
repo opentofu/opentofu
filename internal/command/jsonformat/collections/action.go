@@ -5,7 +5,7 @@
 
 package collections
 
-import "github.com/opentofu/opentofu/internal/plans"
+import "github.com/terramate-io/opentofulib/internal/plans"
 
 // CompareActions will compare current and next, and return plans.Update if they
 // are different, and current if they are the same.

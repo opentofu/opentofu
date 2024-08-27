@@ -8,7 +8,7 @@ package jsonchecks
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/terramate-io/opentofulib/internal/checks"
 )
 
 type checkStatus []byte

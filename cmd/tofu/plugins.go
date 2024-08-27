@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/opentofu/opentofu/internal/command/cliconfig"
+	"github.com/terramate-io/opentofulib/internal/command/cliconfig"
 )
 
 // globalPluginDirs returns directories that should be searched for

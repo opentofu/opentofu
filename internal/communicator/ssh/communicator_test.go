@@ -24,7 +24,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/communicator/remote"
+	"github.com/terramate-io/opentofulib/internal/communicator/remote"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/ssh"
 )

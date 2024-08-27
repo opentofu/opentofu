@@ -22,7 +22,7 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/mitchellh/copystructure"
 
-	tfversion "github.com/opentofu/opentofu/version"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 type MockClient struct {

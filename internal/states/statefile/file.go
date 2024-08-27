@@ -8,8 +8,8 @@ package statefile
 import (
 	version "github.com/hashicorp/go-version"
 
-	"github.com/opentofu/opentofu/internal/states"
-	tfversion "github.com/opentofu/opentofu/version"
+	"github.com/terramate-io/opentofulib/internal/states"
+	tfversion "github.com/terramate-io/opentofulib/version"
 )
 
 // File is the in-memory representation of a state file. It includes the state

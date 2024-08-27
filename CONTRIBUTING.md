@@ -197,7 +197,7 @@ Similarly, you can add the following configurations to you `.idea/runConfigurati
     <working_directory value="$PROJECT_DIR$" />
     <parameters value="init" />
     <kind value="DIRECTORY" />
-    <package value="github.com/opentofu/opentofu/cmd/tofu" />
+    <package value="github.com/terramate-io/opentofulib/cmd/tofu" />
     <directory value="$PROJECT_DIR$/cmd/tofu" />
     <filePath value="$PROJECT_DIR$" />
     <method v="2" />
@@ -213,7 +213,7 @@ Similarly, you can add the following configurations to you `.idea/runConfigurati
     <working_directory value="$PROJECT_DIR$" />
     <parameters value="plan" />
     <kind value="DIRECTORY" />
-    <package value="github.com/opentofu/opentofu/cmd/tofu" />
+    <package value="github.com/terramate-io/opentofulib/cmd/tofu" />
     <directory value="$PROJECT_DIR$/cmd/tofu" />
     <filePath value="$PROJECT_DIR$" />
     <method v="2" />

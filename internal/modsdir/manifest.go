@@ -17,7 +17,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 
-	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/terramate-io/opentofulib/internal/addrs"
 )
 
 // Record represents some metadata about an installed module, as part

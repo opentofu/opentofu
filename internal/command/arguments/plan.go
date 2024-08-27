@@ -6,7 +6,7 @@
 package arguments
 
 import (
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // Plan represents the command-line arguments for the plan command.

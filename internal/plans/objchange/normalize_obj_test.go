@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/apparentlymart/go-dump/dump"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/terramate-io/opentofulib/internal/configs/configschema"
 	"github.com/zclconf/go-cty/cty"
 )
 

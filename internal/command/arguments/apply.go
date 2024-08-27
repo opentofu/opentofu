@@ -8,8 +8,8 @@ package arguments
 import (
 	"fmt"
 
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/terramate-io/opentofulib/internal/plans"
+	"github.com/terramate-io/opentofulib/internal/tfdiags"
 )
 
 // Apply represents the command-line arguments for the apply command.

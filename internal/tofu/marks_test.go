@@ -11,7 +11,7 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/terramate-io/opentofulib/internal/lang/marks"
 )
 
 func TestMarksEqual(t *testing.T) {

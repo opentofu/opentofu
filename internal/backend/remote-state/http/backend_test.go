@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/terramate-io/opentofulib/internal/configs"
+	"github.com/terramate-io/opentofulib/internal/encryption"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/terramate-io/opentofulib/internal/backend"
 )
 
 func TestBackend_impl(t *testing.T) {
