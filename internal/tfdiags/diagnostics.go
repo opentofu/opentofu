@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"fmt"
 	"path/filepath"
-	"reflect"
 	"sort"
 	"strings"
 
@@ -102,17 +101,17 @@ func (diags Diagnostics) Append(new ...interface{}) Diagnostics {
 	return diags
 }
 
-func (diags Diagnostics) Merge(other Diagnostics) Diagnostics {
+func (diags Diagnostics) StrictDeduplicateMerge(other Diagnostics) Diagnostics {
 	if len(diags) == 0 {
 		return other
 	}
 
 	for _, d := range diags {
 		for _, o := range other {
-			if reflect.DeepEqual(d, o) {
-				continue
+			isEqual := d.Description().Equal(o.Description()) && d.Severity() == o.Severity() && d.Source().Equal(o.Source())
+			if DoNotConsolidateDiagnostic(d) || DoNotConsolidateDiagnostic(o) || !isEqual {
+				diags = append(diags, o)
 			}
-			diags = append(diags, o)
 		}
 	}
 
