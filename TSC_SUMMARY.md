@@ -52,6 +52,32 @@ PackageCloud provides free deb/rpm hosting for OpenTofu.
 
 Christian: will write up a "case study" ([examples](https://buildkite.com/case-studies)) and post for TSC review.
 
+#### State Backend Improvements
+
+- Continuing the discussion from 2024-07-24, we need to start planning how we want to support new backends, community backends, and modifications to backends
+- Christian: gave overview of backend related issues in OpenTofu and their relative :+1: counterparts
+   - Backends as Plugins (32 :+1:)
+   - Modifications of existing backends (72 :+1:)
+   - Support for new backends (40 :+1:)
+- Community is already working around this with the HTTP backend and helper binaries (20+ easily found in github search)
+- Potential Paths:
+   - Improve http backend or create httpng or similar with workspace support
+   - Create GRPC protocol and extend existing registry (Backends as Plugins)
+   - Document and recommend remote or cloud backend
+- Christian: Proposal
+   - Stage 1: Improve HTTP Backend and provide library + compliance tests to community to foster adoption
+   - Stage 2: Support backend plugins using above protocol (HTTP or gRPC, library makes it trivial for authors)
+   - Stage 3: Migrate internal backends to plugin
+- Christian: Proposes that we start with Stage 1 as a low-risk evaluation of the concept. Re-evaluate Stage 2/3 based on Stage 1 feedback and adoption.
+- Igor: remote/cloud protocol not within our control. How simple can we make the http protocol?
+- Wojciech: Likes the staged plan, hedges risk. Also likes proper support for the http backend and thinks TACOS will migrate.
+- Igor: HTTP works through proxies, which may be a big advantage
+- Zach: Fan of the PoC to demonstrate value, don’t know until you built it
+
+##### Decision:
+
+** Christian will prepare RFC for Stage 1 and send to TSC + Community via Github PR **
+
 ## 2024-08-13
 
 ### Attendees
@@ -67,8 +93,8 @@ Christian: will write up a "case study" ([examples](https://buildkite.com/case-s
 
 #### Open Governance
 
-- Christain: Where do we publish our governance documents?
-- Chrisitan: Do we need to amend our governance documents before publishing them?
+- Christian: Where do we publish our governance documents?
+- Christian: Do we need to amend our governance documents before publishing them?
 - Have we defined how we manage TSC memebership?
 - Igor: Usually in a github repo w/ amendments and meeting notes
     - Also look at other CNCF projects
@@ -81,7 +107,7 @@ Christian: will write up a "case study" ([examples](https://buildkite.com/case-s
 - Igor: envoy gov doc
 - **Zach: Gruntworks employee to make first draft** for further iteration (a good example – https://github.com/envoyproxy/envoy/blob/main/GOVERNANCE.md)
 
-### Initial Conversation on Guides
+#### Initial Conversation on Guides
 
 We have users asking for getting started guides ([Issue #1838](https://github.com/opentofu/opentofu/issues/1838), and others).  They don’t want to switch between the Terraform and OpenTofu docs.  We have also had at least one company ask if we are interested in documentation services, though that conversation is premature.
 
@@ -98,7 +124,7 @@ We need to:
    - Continued by external contractor/company?
    - Continued by community?  Hard to tell if GPT/ripped from elsewhere.
 
-#### Discussion
+##### Discussion
 
 - Igor: what’s the worst case scenario here? Try to involve community if possible
 
@@ -113,7 +139,7 @@ We need to:
   - Worked well with other integrations (jetbrains for example)
   - Env0 marketing may also reach out
 
-### Open Source ARD how to choose between TF and OpenTofu
+#### Open Source ARD how to choose between TF and OpenTofu
 
 Additional community question: Is there a copy and pastable open source ADR on Decide on HCL tool with pros and cons of each opentofu vs terraform that can be sold internally to an organization?
 
@@ -157,7 +183,7 @@ This is one of several pieces of tooling where we are being asked questions abou
 
 #### Discussion
 
-- Christian – a lot of questions about CDK-TF,/// what is our policy on the tools built on top of Terraform. Shall we fork?
+- Christian – a lot of questions about CDK-TF, what is our policy on the tools built on top of Terraform. Shall we fork?
 - Igor – what is the license of CDKTF?
 - Christian: MPL
 - Igor – we do not have time and resources to fork the CDKTF
@@ -168,7 +194,7 @@ This is one of several pieces of tooling where we are being asked questions abou
 
 #### Decision
 
-The core team has not had bandwidth to take on CDKTF.
+The core team has not had bandwidth to take on CDKTF, but will accept community support efforts.
 
 ## 2024-07-24
 
