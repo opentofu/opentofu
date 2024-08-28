@@ -108,7 +108,6 @@ func (file *TestFile) getTestProviderOrMock(addr string) (*Provider, bool) {
 				MockResources: mockProvider.MockResources,
 			},
 			Alias: mockProvider.Alias,
-			//AliasRange:    mockProvider.AliasRange,
 		}
 
 		return p, true

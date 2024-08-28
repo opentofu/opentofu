@@ -28,6 +28,7 @@ func TestProviderReservedNames(t *testing.T) {
 	assertExactDiagnostics(t, diags, []string{
 		//TODO: This deprecation warning will be removed in OpenTofu v0.15.
 		`config.tf:4,13-20: Version constraints inside provider configuration blocks are deprecated; OpenTofu 0.13 and earlier allowed provider version constraints inside the provider configuration block, but that is now deprecated and will be removed in a future version of OpenTofu. To silence this warning, move the provider version constraint into the required_providers block.`,
+		`config.tf:10,3-8: Reserved argument name in provider block; The provider argument name "count" is reserved for use by OpenTofu in a future version.`,
 		`config.tf:11,3-13: Reserved argument name in provider block; The provider argument name "depends_on" is reserved for use by OpenTofu in a future version.`,
 		`config.tf:14,3-12: Reserved block type name in provider block; The block type name "lifecycle" is reserved for use by OpenTofu in a future version.`,
 		`config.tf:15,3-9: Reserved block type name in provider block; The block type name "locals" is reserved for use by OpenTofu in a future version.`,

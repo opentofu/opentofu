@@ -48,39 +48,6 @@ func TestNewModule_provider_foreach(t *testing.T) {
 	}
 }
 
-func TestNewModule_provider_count(t *testing.T) {
-	mod, diags := testModuleFromDir("testdata/providers_count")
-	if diags.HasErrors() {
-		t.Fatal(diags.Error())
-	}
-
-	p := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "hashicorp", providerTestName)
-	if name, exists := mod.ProviderLocalNames[p]; !exists {
-		t.Fatal("provider FQN hashicorp/local not found")
-	} else if name != providerTestName {
-		t.Fatalf("provider localname mismatch: got %s, want %s", name, providerTestName)
-	}
-
-	if len(mod.ProviderConfigs) != 3 {
-		t.Fatalf("incorrect number of providers: got %d, expected: %d", len(mod.ProviderConfigs), 3)
-	}
-
-	_, foundDev := mod.GetProviderConfig("foo-test", "0")
-	if !foundDev {
-		t.Fatal("unable to find 0 provider")
-	}
-
-	_, foundTest := mod.GetProviderConfig("foo-test", "1")
-	if !foundTest {
-		t.Fatal("unable to find 1 provider")
-	}
-
-	_, foundProd := mod.GetProviderConfig("foo-test", "2")
-	if !foundProd {
-		t.Fatal("unable to find 2 provider")
-	}
-}
-
 func TestNewModule_provider_invalid_name(t *testing.T) {
 	mod, diags := testModuleFromDir("testdata/providers_iteration_invalid_name")
 	if !diags.HasErrors() {

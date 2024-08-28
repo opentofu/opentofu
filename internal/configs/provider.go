@@ -11,7 +11,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/evalchecks"
@@ -49,8 +48,6 @@ type ProviderBlock struct {
 	AliasExpr  hcl.Expression // nil if no alias set
 	AliasRange *hcl.Range     // nil if no alias set
 	ForEach    hcl.Expression
-	Count      hcl.Expression
-	CountIndex *cty.Value
 }
 
 type Provider struct {
@@ -93,10 +90,6 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 
 	if attr, exists := content.Attributes["for_each"]; exists {
 		provider.ForEach = attr.Expr
-	}
-
-	if attr, exists := content.Attributes["count"]; exists {
-		provider.Count = attr.Expr
 	}
 
 	if provider.AliasExpr != nil && provider.ForEach != nil {
@@ -165,9 +158,6 @@ func (p *ProviderBlock) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, 
 	var diags hcl.Diagnostics
 	if p.ForEach != nil {
 		return p.generateForEachProviders(eval)
-	}
-	if p.Count != nil {
-		return p.generateCountProviders(eval)
 	}
 
 	result := Provider{ProviderCommon: p.ProviderCommon}
@@ -291,7 +281,7 @@ func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdia
 func checkReserverNames(content *hcl.BodyContent) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	// Reserved attribute names
-	for _, name := range []string{"depends_on", "source"} {
+	for _, name := range []string{"depends_on", "source", "count"} {
 		if attr, exists := content.Attributes[name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -379,43 +369,6 @@ func (p *ProviderBlock) generateForEachProviders(eval *StaticEvaluator) ([]*Prov
 	return out, diags
 }
 
-func (p *ProviderBlock) generateCountProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	if eval == nil {
-		return nil, diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Iteration not allowed in test files",
-			Detail:   "count was declared as a provider attribute in a test file",
-			Subject:  p.Count.Range().Ptr(),
-		})
-	}
-	countEvalFunc := func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
-		var diags tfdiags.Diagnostics
-		countVal, evalDiags := eval.Evaluate(expr, StaticIdentifier{
-			Module:    eval.call.addr,
-			Subject:   fmt.Sprintf("provider.%s.count", p.Name),
-			DeclRange: p.Count.Range(),
-		})
-		return countVal, diags.Append(evalDiags)
-	}
-
-	var out []*Provider
-	countVal, evalDiags := evalchecks.EvaluateCountExpression(p.Count, countEvalFunc)
-	diags = append(diags, evalDiags.ToHCL()...)
-	if evalDiags.HasErrors() {
-		return nil, diags
-	}
-
-	for i := 0; i < countVal; i++ {
-		iter := Provider{ProviderCommon: p.ProviderCommon}
-		iter.Alias = fmt.Sprintf("%d", i)
-		cIndex := cty.NumberIntVal(int64(i))
-		iter.InstanceData.CountIndex = cIndex
-		out = append(out, &iter)
-	}
-	return out, diags
-}
-
 var providerBlockSchema = &hcl.BodySchema{ //nolint: gochecknoglobals // pre-existing code
 	Attributes: []hcl.AttributeSchema{
 		{
@@ -424,11 +377,13 @@ var providerBlockSchema = &hcl.BodySchema{ //nolint: gochecknoglobals // pre-exi
 		{
 			Name: "version",
 		},
+		{
+			Name: "for_each",
+		},
 
 		// Attribute names reserved for future expansion.
 		{Name: "count"},
 		{Name: "depends_on"},
-		{Name: "for_each"},
 		{Name: "source"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{

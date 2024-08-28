@@ -975,8 +975,6 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 					MockResources: testProvider.MockResources,
 				},
 				Alias: ref.InChild.Alias,
-				// TODO ALIAS
-				//AliasRange: ref.InChild.AliasRange,
 			}
 
 		}
@@ -996,8 +994,6 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 					MockResources: mp.MockResources,
 				},
 				Alias: mp.Alias,
-				// TODO ALIAS
-				//AliasRange: mp.AliasRange,
 			}
 		}
 	}
