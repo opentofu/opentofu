@@ -70,13 +70,13 @@ list-integration-tests: ## Lists tests.
 .PHONY: test-s3
 
 define infoTestS3
-Test requires:
-* AWS Credentials to be configured
-  - https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html
-  - https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
-* IAM Permissions in us-west-2
-  - S3 CRUD operations on buckets which will follow the pattern tofu-test-*
-  - DynamoDB CRUD operations on a Table named dynamoTable
+ Test requires:
+ * AWS Credentials to be configured
+   - https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html
+   - https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-envvars.html
+ * IAM Permissions in us-west-2
+   - S3 CRUD operations on buckets which will follow the pattern tofu-test-*
+   - DynamoDB CRUD operations on a Table named dynamoTable
 
 endef
 
@@ -88,13 +88,13 @@ test-s3: ## Runs tests with s3 bucket as the backend.
 .PHONY: test-gcp
 
 define infoTestGCP
-This test requires a working set of default credentials on the host.
-You can configure those by running `gcloud auth application-default login`.
-Additionally, you'll need to set the following environment variables:
-- GOOGLE_REGION to a valid GCP region, e.g. us-west1
-- GOOGLE_PROJECT to a valid GCP project ID
+ This test requires a working set of default credentials on the host.
+ You can configure those by running `gcloud auth application-default login`.
+ Additionally, you'll need to set the following environment variables:
+ - GOOGLE_REGION to a valid GCP region, e.g. us-west1
+ - GOOGLE_PROJECT to a valid GCP project ID
 
-Note: The GCP tests leave behind a keyring, because those can't easily be deleted. It will be reused across test runs.
+ Note: The GCP tests leave behind a keyring, because those can't easily be deleted. It will be reused across test runs.
 
 endef
 
@@ -109,9 +109,9 @@ test-gcp: ## Runs tests with gcp as the backend.
 PG_PORT := 5432
 
 define infoTestPg
-Test requires:
-* Docker: https://docs.docker.com/engine/install/
-* Port: $(PG_PORT)
+ Test requires:
+ * Docker: https://docs.docker.com/engine/install/
+ * Port: $(PG_PORT)
 
 endef
 
@@ -142,8 +142,8 @@ test-azure: ## Directs the developer to follow a runbook describing how to run A
 .PHONY: test-consul test-consul-clean
 
 define infoTestConsul
-Test requires:
-* Docker: https://docs.docker.com/engine/install/
+ Test requires:
+ * Docker: https://docs.docker.com/engine/install/
 
 endef
 
@@ -165,10 +165,10 @@ test-consul-clean: ## Cleans environment after `test-consul`.
 .PHONY: test-kubernetes test-kubernetes-clean
 
 define infoTestK8s
-Test requires:
-* Git client
-* Docker: https://docs.docker.com/engine/install/
-Note! Please make sure that the docker configurations satisfy requirements: https://kind.sigs.k8s.io/docs/user/quick-start#settings-for-docker-desktop
+ Test requires:
+ * Git client
+ * Docker: https://docs.docker.com/engine/install/
+ Note! Please make sure that the docker configurations satisfy requirements: https://kind.sigs.k8s.io/docs/user/quick-start#settings-for-docker-desktop
 
 endef
 
@@ -203,3 +203,18 @@ integration-tests: test-s3 test-pg test-consul test-kubernetes integration-tests
 
 .PHONY:
 integration-tests-clean: test-pg-clean test-consul-clean test-kubernetes-clean ## Cleans environment after all integration tests.
+
+.PHONY: help
+help: ## Prints this help message.
+	@echo ""
+	@echo "Opentofu Makefile"
+	@echo ""
+	@echo "Usage: make [target]"
+	@echo ""
+	@echo "The available targets for execution are listed below."
+	@echo ""
+	@echo "Targets:"
+	@awk 'BEGIN {FS = ":.*$$"; OFS = ""} \
+    /^# .*$$/ { doc=$$0; sub(/^# /, "", doc); next } \
+    /^[a-zA-Z0-9_-]+:.*## .*$$/ { target=$$1; sub(/:$$/, "", target); desc=$$0; sub(/^[^#]*## /, "", desc); if (!seen[target]++) { printf "\033[1m%-30s\033[0m %s\n", target, desc } } \
+    /^[a-zA-Z0-9_-]+:.*$$/ { target=$$1; sub(/:$$/, "", target); if (!seen[target]++) { if (doc != "") { printf "\033[1m%-30s\033[0m %s\n", target, doc; doc="" } else { printf "\033[1m%-30s\033[0m\n", target } } }' $(MAKEFILE_LIST)

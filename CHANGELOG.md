@@ -9,6 +9,7 @@ ENHANCEMENTS:
 * Improved performance for large graphs when debug logs are not enabled. ([#1810](https://github.com/opentofu/opentofu/pull/1810))
 * Improved performance for large graphs with many submodules. ([#1809](https://github.com/opentofu/opentofu/pull/1809))
 * Added mutli-line support to the `tofu console` command. ([#1307](https://github.com/opentofu/opentofu/issues/1307))
+* Added a help target to the Makefile. ([#1925](https://github.com/opentofu/opentofu/pull/1925))
 * Added a simplified Build Process with a Makefile Target ([#1926](https://github.com/opentofu/opentofu/issues/1926))
 
 BUG FIXES:
