@@ -10,6 +10,7 @@ ENHANCEMENTS:
 * Improved performance for large graphs with many submodules. ([#1809](https://github.com/opentofu/opentofu/pull/1809))
 * Added mutli-line support to the `tofu console` command. ([#1307](https://github.com/opentofu/opentofu/issues/1307))
 * Added a help target to the Makefile. ([#1925](https://github.com/opentofu/opentofu/pull/1925))
+* Added a simplified Build Process with a Makefile Target ([#1926](https://github.com/opentofu/opentofu/issues/1926))
 
 BUG FIXES:
 * Ensure that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))

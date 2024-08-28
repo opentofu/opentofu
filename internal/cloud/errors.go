@@ -40,13 +40,6 @@ var (
 		fmt.Sprintf("Only one of workspace \"tags\" or \"name\" is allowed.\n\n%s", workspaceConfigurationHelp),
 		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
 	)
-
-	invalidWorkspaceConfigMisconfigurationEnvVar = tfdiags.AttributeValue(
-		tfdiags.Error,
-		"Invalid workspaces configuration",
-		fmt.Sprintf("The workspace defined using the environment variable \"TF_WORKSPACE\" does not belong to \"tags\".\n\n%s", workspaceConfigurationHelp),
-		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
-	)
 )
 
 const ignoreRemoteVersionHelp = "If you're sure you want to upgrade the state, you can force OpenTofu to continue using the -ignore-remote-version flag. This may result in an unusable workspace."
@@ -69,4 +62,13 @@ func incompatibleWorkspaceTerraformVersion(message string, ignoreVersionConflict
 	}
 	description := strings.TrimSpace(fmt.Sprintf("%s\n\n%s", message, suggestion))
 	return tfdiags.Sourceless(severity, "Incompatible TF version", description)
+}
+
+func invalidWorkspaceConfigInconsistentNameAndEnvVar() tfdiags.Diagnostic {
+	return tfdiags.AttributeValue(
+		tfdiags.Error,
+		"Invalid workspaces configuration",
+		fmt.Sprintf("The workspace defined using the environment variable \"TF_WORKSPACE\" is not consistent with the workspace \"name\" in the configuration.\n\n%s", workspaceConfigurationHelp),
+		cty.Path{cty.GetAttrStep{Name: "workspaces"}},
+	)
 }

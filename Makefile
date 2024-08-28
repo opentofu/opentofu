@@ -3,6 +3,12 @@ export PATH := $(abspath bin/):${PATH}
 # Dependency versions
 LICENSEI_VERSION = 0.9.0
 
+# build tofu binary in the current directory with the version set to the git tag
+# or commit hash if there is no tag.
+.PHONY: build
+build:
+	go build -ldflags "-X main.version=$(shell git describe --tags --always --dirty)" -o tofu ./cmd/tofu
+
 # generate runs `go generate` to build the dynamically generated
 # source files, except the protobuf stubs which are built instead with
 # "make protobuf".

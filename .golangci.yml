@@ -67,7 +67,7 @@ linters:
     - gocritic
     - gocyclo
     - goimports
-    - gomoddirectives
+    #- gomoddirectives Disabled while we deal with the HCL fork
     - gomodguard
     - goprintffuncname
     - gosec
