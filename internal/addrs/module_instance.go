@@ -316,7 +316,7 @@ func (m ModuleInstance) Ancestors() []ModuleInstance {
 // other value.
 func (m ModuleInstance) IsAncestor(o ModuleInstance) bool {
 	// Longer or equal sized paths means the receiver cannot
-	// be an ancestor of the given module insatnce.
+	// be an ancestor of the given module instance.
 	if len(m) >= len(o) {
 		return false
 	}
@@ -344,7 +344,7 @@ func (m ModuleInstance) IsAncestor(o ModuleInstance) bool {
 // of the instance. To retain this, use CallInstance instead.
 //
 // In practice, this just turns the last element of the receiver into a
-// ModuleCall and then returns a slice of the receiever that excludes that
+// ModuleCall and then returns a slice of the receiver that excludes that
 // last part. This is just a convenience for situations where a call address
 // is required, such as when dealing with *Reference and Referenceable values.
 func (m ModuleInstance) Call() (ModuleInstance, ModuleCall) {
@@ -366,7 +366,7 @@ func (m ModuleInstance) Call() (ModuleInstance, ModuleCall) {
 // on the root module address.
 //
 // In practice, this just turns the last element of the receiver into a
-// ModuleCallInstance and then returns a slice of the receiever that excludes
+// ModuleCallInstance and then returns a slice of the receiver that excludes
 // that last part. This is just a convenience for situations where a call\
 // address is required, such as when dealing with *Reference and Referenceable
 // values.

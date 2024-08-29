@@ -215,7 +215,7 @@ func (g *marshalGraph) writeBody(opts *DotOpts, w *indentWriter) {
 		dotEdges = append(dotEdges, e.dot(g))
 	}
 
-	// srot these again to match the old output
+	// sort these again to match the old output
 	sort.Strings(dotEdges)
 
 	for _, e := range dotEdges {
@@ -266,7 +266,7 @@ func (w *indentWriter) Indent() { w.level++ }
 // Unindent decreases indentation by 1
 func (w *indentWriter) Unindent() { w.level-- }
 
-// the following methods intercecpt the byte.Buffer writes and insert the
+// the following methods intercept the byte.Buffer writes and insert the
 // indentation when starting a new line.
 func (w *indentWriter) Write(b []byte) (int, error) {
 	w.indent()

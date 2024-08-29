@@ -108,7 +108,7 @@ func (s *MockSource) PackageMeta(ctx context.Context, provider addrs.Provider, v
 	}
 }
 
-// CallLog returns a list of calls to other methods of the receiever that have
+// CallLog returns a list of calls to other methods of the receiver that have
 // been called since it was created, in case a calling test wishes to verify
 // a particular sequence of operations.
 //

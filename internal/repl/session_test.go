@@ -371,7 +371,7 @@ func TestTypeString(t *testing.T) {
 		Input cty.Value
 		Want  string
 	}{
-		// Primititves
+		// Primitives
 		{
 			cty.StringVal("a"),
 			"string",

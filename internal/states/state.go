@@ -433,7 +433,7 @@ func (s *State) MoveAbsResource(src, dst addrs.AbsResource) {
 // or not the move occurred. This function will panic if either the src does not
 // exist or the dst does exist (but not both).
 func (s *State) MaybeMoveAbsResource(src, dst addrs.AbsResource) bool {
-	// Get the source and destinatation addresses from state.
+	// Get the source and destination addresses from state.
 	rs := s.Resource(src)
 	ds := s.Resource(dst)
 

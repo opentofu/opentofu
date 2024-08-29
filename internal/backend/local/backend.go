@@ -344,7 +344,7 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 }
 
 // opWait waits for the operation to complete, and a stop signal or a
-// cancelation signal.
+// cancellation signal.
 func (b *Local) opWait(
 	doneCh <-chan struct{},
 	stopCtx context.Context,

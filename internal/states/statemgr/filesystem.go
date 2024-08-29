@@ -95,7 +95,7 @@ func NewFilesystemBetweenPaths(readPath, writePath string, enc encryption.StateE
 	}
 }
 
-// SetBackupPath configures the receiever so that it will create a local
+// SetBackupPath configures the receiver so that it will create a local
 // backup file of the next state snapshot it reads (in State) if a different
 // snapshot is subsequently written (in WriteState). Only one backup is
 // written for the lifetime of the object, unless reset as described below.

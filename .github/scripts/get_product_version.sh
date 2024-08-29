@@ -11,7 +11,7 @@ VERSION="${RAW_VERSION#v}"
 
 # Split off the build metadata part, if any
 # (we won't actually include it in our final version, and handle it only for
-# compleness against semver syntax.)
+# completeness against semver syntax.)
 IFS='+' read -ra VERSION BUILD_META <<< "$VERSION"
 
 # Separate out the prerelease part, if any

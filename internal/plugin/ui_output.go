@@ -11,7 +11,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-// UIOutput is an implementatin of tofu.UIOutput that communicates
+// UIOutput is an implementation of tofu.UIOutput that communicates
 // over RPC.
 type UIOutput struct {
 	Client *rpc.Client

@@ -13,7 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// dependenclyLockFilename is the filename of the dependency lock file.
+// dependencyLockFilename is the filename of the dependency lock file.
 //
 // This file should live in the same directory as the .tf files for the
 // root module of the configuration, alongside the .terraform directory

@@ -50,7 +50,7 @@ type Warnings = []string
 // altogether, which means that it is not required at all.
 type Requirements map[addrs.Provider]VersionConstraints
 
-// Merge takes the requirements in the receiever and the requirements in the
+// Merge takes the requirements in the receiver and the requirements in the
 // other given value and produces a new set of requirements that combines
 // all of the requirements of both.
 //
