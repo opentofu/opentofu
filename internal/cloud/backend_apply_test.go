@@ -1245,7 +1245,7 @@ func TestCloud_applyLockTimeout(t *testing.T) {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 	if !strings.Contains(output, "Lock timeout exceeded") {
-		t.Fatalf("expected lock timout error in output: %s", output)
+		t.Fatalf("expected lock timeout error in output: %s", output)
 	}
 	if strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("unexpected plan summery in output: %s", output)
@@ -1638,7 +1638,7 @@ func TestCloud_applyPolicySoftFailAutoApproveSuccess(t *testing.T) {
 	}
 
 	if run.PlanEmpty {
-		t.Fatalf("expected plan to not be empty, plan opertion completed without error")
+		t.Fatalf("expected plan to not be empty, plan operation completed without error")
 	}
 
 	if len(input.answers) != 0 {
@@ -1652,7 +1652,7 @@ func TestCloud_applyPolicySoftFailAutoApproveSuccess(t *testing.T) {
 
 	output := b.CLI.(*cli.MockUi).OutputWriter.String()
 	if !strings.Contains(output, "Sentinel Result: false") {
-		t.Fatalf("expected policy check to be false, insead got: %s", output)
+		t.Fatalf("expected policy check to be false, instead got: %s", output)
 	}
 	if !strings.Contains(output, "Apply complete!") {
 		t.Fatalf("expected apply to be complete, instead got: %s", output)

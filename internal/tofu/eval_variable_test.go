@@ -1130,7 +1130,7 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 			},
 			status: checks.StatusFail,
 		},
-		// Invalid variable validation declaration due to an unparseable
+		// Invalid variable validation declaration due to an unparsable
 		// template string. Assigning a value which passes the condition
 		// results in a warning about the error message.
 		{

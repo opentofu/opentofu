@@ -23,7 +23,7 @@ import (
 // configurations.
 //
 // Unlike the other better-behaved operation methods, this one actually
-// modifies some internal state inside the receving context so that the
+// modifies some internal state inside the receiving context so that the
 // captured values will be implicitly available to a subsequent call to Plan,
 // or to some other operation entry point. Hopefully a future iteration of
 // this will change design to make that data flow more explicit.
@@ -127,7 +127,7 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 				continue
 			}
 
-			// For our purposes here we just want to detect if attrbutes are
+			// For our purposes here we just want to detect if attributes are
 			// set in config at all, so rather than doing a full decode
 			// (which would require us to prepare an evalcontext, etc) we'll
 			// use the low-level HCL API to process only the top-level

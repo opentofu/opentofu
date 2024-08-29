@@ -11,4 +11,4 @@ package plugin6
 // functions in this package are used by various mocks and in tests.
 
 // When provider protocol v5 is deprecated, some functions may need to be moved
-// here, or the existing functions updated, before removing the plugin pacakge.
+// here, or the existing functions updated, before removing the plugin package.

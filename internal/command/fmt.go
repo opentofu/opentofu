@@ -472,7 +472,7 @@ func (c *FmtCommand) formatTypeExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 		// element type, we use string as the default element
 		// type. That will avoid oddities if somehow the configuration
 		// was relying on numeric values being auto-converted to
-		// string, as 0.11 would do. This mimicks what terraform
+		// string, as 0.11 would do. This mimics what terraform
 		// 0.12upgrade used to do, because we'd found real-world
 		// modules that were depending on the auto-stringing.)
 		switch string(strTok.Bytes) {

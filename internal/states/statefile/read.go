@@ -198,7 +198,7 @@ func sniffJSONStateVersion(src []byte) (uint64, tfdiags.Diagnostics) {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				unsupportedFormat,
-				fmt.Sprintf("The state file can not be checked for presense of encryption: %s", err.Error()),
+				fmt.Sprintf("The state file can not be checked for presence of encryption: %s", err.Error()),
 			))
 			return 0, diags
 		}

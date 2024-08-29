@@ -1208,7 +1208,7 @@ func (e customEndpoint) String(obj cty.Value) string {
 	return v
 }
 
-func includeProtoIfNessesary(endpoint string) string {
+func includeProtoIfNecessary(endpoint string) string {
 	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
 		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
 		endpoint = fmt.Sprintf("https://%s", endpoint)
@@ -1223,12 +1223,12 @@ func (e customEndpoint) StringOk(obj cty.Value) (string, bool) {
 			continue
 		}
 		if s, ok := stringValueOk(val); ok {
-			return includeProtoIfNessesary(s), true
+			return includeProtoIfNecessary(s), true
 		}
 	}
 	for _, envVar := range e.EnvVars {
 		if v := os.Getenv(envVar); v != "" {
-			return includeProtoIfNessesary(v), true
+			return includeProtoIfNecessary(v), true
 		}
 	}
 	return "", false

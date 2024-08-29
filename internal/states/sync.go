@@ -411,7 +411,7 @@ func (s *SyncState) MaybeRestoreResourceInstanceDeposed(addr addrs.AbsResourceIn
 }
 
 // RemovePlannedResourceInstanceObjects removes from the state any resource
-// instance objects that have the status ObjectPlanned, indiciating that they
+// instance objects that have the status ObjectPlanned, indicating that they
 // are just transient placeholders created during planning.
 //
 // Note that this does not restore any "ready" or "tainted" object that might

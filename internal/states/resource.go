@@ -177,7 +177,7 @@ func (i *ResourceInstance) findUnusedDeposedKey() DeposedKey {
 type DeposedKey string
 
 // NotDeposed is a special invalid value of DeposedKey that is used to represent
-// the absense of a deposed key. It must not be used as an actual deposed key.
+// the absence of a deposed key. It must not be used as an actual deposed key.
 const NotDeposed = DeposedKey("")
 
 var deposedKeyRand = rand.New(rand.NewSource(time.Now().UnixNano()))
@@ -206,7 +206,7 @@ func (k DeposedKey) GoString() string {
 }
 
 // Generation is a helper method to convert a DeposedKey into a Generation.
-// If the reciever is anything other than NotDeposed then the result is
+// If the receiver is anything other than NotDeposed then the result is
 // just the same value as a Generation. If the receiver is NotDeposed then
 // the result is CurrentGen.
 func (k DeposedKey) Generation() Generation {

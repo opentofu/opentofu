@@ -20,7 +20,7 @@ import (
 // Version represents a particular single version of a provider.
 type Version = versions.Version
 
-// UnspecifiedVersion is the zero value of Version, representing the absense
+// UnspecifiedVersion is the zero value of Version, representing the absence
 // of a version number.
 var UnspecifiedVersion Version = versions.Unspecified
 
@@ -174,7 +174,7 @@ var CurrentPlatform = Platform{
 // provider package targeting a single platform.
 //
 // Package findproviders does no signature verification or protocol version
-// compatibility checking of its own. A caller receving a PackageMeta must
+// compatibility checking of its own. A caller receiving a PackageMeta must
 // verify that it has a correct signature and supports a protocol version
 // accepted by the current version of OpenTofu before trying to use the
 // described package.
@@ -207,7 +207,7 @@ type PackageMeta struct {
 // PackageMeta in a sorted list of PackageMeta.
 //
 // Sorting preference is given first to the provider address, then to the
-// taget platform, and the to the version number (using semver precedence).
+// target platform, and the to the version number (using semver precedence).
 // Packages that differ only in semver build metadata have no defined
 // precedence and so will always return false.
 //
