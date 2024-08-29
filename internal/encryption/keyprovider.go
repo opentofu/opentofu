@@ -127,15 +127,27 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 			continue
 		}
 
-		// TODO this should be more defensive
+		// This will always be a TraverseRoot, panic is OK if that's not the case
 		depRoot := (dep[0].(hcl.TraverseRoot)).Name
-		depType := (dep[1].(hcl.TraverseAttr)).Name
-		depName := (dep[2].(hcl.TraverseAttr)).Name
-
 		if depRoot != "key_provider" {
 			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
 			continue
 		}
+		depTypeAttr, typeOk := dep[1].(hcl.TraverseAttr)
+		depNameAttr, nameOk := dep[2].(hcl.TraverseAttr)
+
+		if !typeOk || !nameOk {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid Key Provider expression format",
+				Detail:   "Expected key_provider.<type>.<name>",
+				Subject:  dep.SourceRange().Ptr(),
+			})
+			continue
+		}
+
+		depType := depTypeAttr.Name
+		depName := depNameAttr.Name
 
 		kpc, ok := e.cfg.GetKeyProvider(depType, depName)
 		if !ok {
