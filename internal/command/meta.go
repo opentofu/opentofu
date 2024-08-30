@@ -277,8 +277,8 @@ type Meta struct {
 	// pedanticMode is used to treat warnings as errors
 	pedanticMode bool
 
-	// LegacyViewPedanticError is used to indicate an error occurred when in pedantic mode for a legacy view
-	legacyViewPedanticError bool
+	// warningFlagged is used to indicate a UI warning has been flagged when in pedantic mode
+	warningFlagged bool
 }
 
 type testingOverrides struct {
@@ -669,7 +669,7 @@ func (m *Meta) process(args []string) []string {
 		newUI = &pedanticUI{
 			Ui: newUI,
 			notifyWarning: func() {
-				m.legacyViewPedanticError = true
+				m.warningFlagged = true
 			},
 		}
 	}
@@ -719,10 +719,16 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 
 func (m *Meta) HasLegacyViewErrors(diags tfdiags.Diagnostics) bool {
 	if m.pedanticMode {
+		// Warning has been flagged from the UI component
+		if m.warningFlagged {
+			return true
+		}
+
+		// Convert warnings to errors if we are in pedantic mode
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	return diags.HasErrors() || m.legacyViewPedanticError
+	return diags.HasErrors()
 }
 
 // showDiagnostics displays error and warning messages in the UI.
