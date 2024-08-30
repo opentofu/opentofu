@@ -241,7 +241,7 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 		// Both new plans and saved cloud plans load their backend from config.
 		backendConfig, configDiags := c.loadBackendConfig(".")
 		diags = diags.Append(configDiags)
-		if c.View.HasErrors(configDiags) {
+		if configDiags.HasErrors() {
 			return nil, diags
 		}
 
@@ -252,7 +252,7 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 	}
 
 	diags = diags.Append(beDiags)
-	if c.View.HasErrors(beDiags) {
+	if beDiags.HasErrors() {
 		return nil, diags
 	}
 	return be, diags
