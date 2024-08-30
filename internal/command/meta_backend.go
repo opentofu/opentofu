@@ -325,13 +325,13 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend, enc encryption.StateE
 
 	newVal, validateDiags := b.PrepareConfig(configVal)
 	diags = diags.Append(validateDiags)
-	if m.View.HasErrors(validateDiags) {
+	if validateDiags.HasErrors() {
 		return nil, diags
 	}
 
 	configureDiags := b.Configure(newVal)
 	diags = diags.Append(configureDiags)
-	if m.View.HasErrors(configureDiags) {
+	if configureDiags.HasErrors() {
 		return nil, diags
 	}
 
