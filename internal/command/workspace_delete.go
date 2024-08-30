@@ -29,7 +29,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 
 	diags := envCommandHasWarning(c.LegacyName)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -62,7 +62,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -70,7 +70,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.HasLegacyViewErrors(encDiags) {
+	if c.HasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -80,7 +80,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.HasLegacyViewErrors(backendDiags) {
+	if c.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -128,7 +128,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	var stateLocker clistate.Locker
 	if stateLock {
 		stateLocker = clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); c.HasLegacyViewErrors(diags) {
+		if diags := stateLocker.Lock(stateMgr, "state-replace-provider"); c.HasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}

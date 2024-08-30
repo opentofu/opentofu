@@ -102,8 +102,8 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	diags = diags.ConsolidateWarnings(1)
 
-	// Convert warnings to errors if we are in pedantic mode
 	if v.pedanticMode {
+		// Convert warnings to errors
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 

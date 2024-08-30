@@ -717,18 +717,18 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 	return false, nil
 }
 
-func (m *Meta) HasLegacyViewErrors(diags tfdiags.Diagnostics) bool {
+func (m *Meta) HasErrors(diags tfdiags.Diagnostics) bool {
 	if m.pedanticMode {
-		// Warning has been flagged from the UI component
+		// Warning has been flagged from the legacy UI component, return true as if a diagnostic error has occurred
 		if m.warningFlagged {
 			return true
 		}
 
-		// Convert warnings to errors if we are in pedantic mode
+		// Convert warnings to errors
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	return diags.HasErrors()
+	return m.View.HasErrors(diags)
 }
 
 // showDiagnostics displays error and warning messages in the UI.

@@ -76,7 +76,7 @@ func (c *LogoutCommand) Run(args []string) int {
 		))
 	}
 
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -101,7 +101,7 @@ func (c *LogoutCommand) Run(args []string) int {
 	}
 
 	c.showDiagnostics(diags)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasErrors(diags) {
 		return 1
 	}
 

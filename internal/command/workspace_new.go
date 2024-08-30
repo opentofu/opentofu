@@ -30,7 +30,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 
 	diags := envCommandHasWarning(c.LegacyName)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -77,7 +77,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -85,7 +85,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.HasLegacyViewErrors(encDiags) {
+	if c.HasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -95,7 +95,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.HasLegacyViewErrors(backendDiags) {
+	if c.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -144,12 +144,12 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 
 	if stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if diags := stateLocker.Lock(stateMgr, "workspace-new"); c.HasLegacyViewErrors(diags) {
+		if diags := stateLocker.Lock(stateMgr, "workspace-new"); c.HasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
 		defer func() {
-			if diags := stateLocker.Unlock(); c.HasLegacyViewErrors(diags) {
+			if diags := stateLocker.Unlock(); c.HasErrors(diags) {
 				c.showDiagnostics(diags)
 			}
 		}()

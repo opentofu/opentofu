@@ -36,7 +36,7 @@ func (c *WorkspaceShowCommand) Run(args []string) int {
 	c.Ui.Output(workspace)
 
 	c.showDiagnostics(diags)
-	if c.HasLegacyViewErrors(diags) {
+	if c.HasErrors(diags) {
 		return 1
 	}
 

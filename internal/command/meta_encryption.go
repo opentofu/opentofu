@@ -30,7 +30,7 @@ func (m *Meta) EncryptionFromPath(path string) (encryption.Encryption, tfdiags.D
 	// This is not ideal, but given how fragmented the command package is, loading the root module here is our best option
 	// See other meta commands like version check which do that same.
 	module, diags := m.loadSingleModule(path, configs.SelectiveLoadEncryption)
-	if diags.HasErrors() {
+	if m.HasErrors(diags) {
 		return nil, diags
 	}
 	enc, encDiags := m.EncryptionFromModule(module)
