@@ -21,6 +21,8 @@ type Validate interface {
 	// returns a CLI exit code: 0 if there are no errors, 1 otherwise
 	Results(diags tfdiags.Diagnostics) int
 
+	HasErrors(diags tfdiags.Diagnostics) bool
+
 	// Diagnostics renders early diagnostics, resulting from argument parsing.
 	Diagnostics(diags tfdiags.Diagnostics)
 }
@@ -49,22 +51,17 @@ var _ Validate = (*ValidateHuman)(nil)
 func (v *ValidateHuman) Results(diags tfdiags.Diagnostics) int {
 	columns := v.view.outputColumns()
 
-	// Convert warnings to errors if we are in pedantic mode
-	if v.view.pedanticMode {
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
-	}
-
 	if len(diags) == 0 {
 		v.view.streams.Println(format.WordWrap(v.view.colorize.Color(validateSuccess), columns))
 	} else {
 		v.Diagnostics(diags)
 
-		if !diags.HasErrors() {
+		if !v.HasErrors(diags) {
 			v.view.streams.Println(format.WordWrap(v.view.colorize.Color(validateWarnings), columns))
 		}
 	}
 
-	if v.view.HasErrors(diags) {
+	if v.HasErrors(diags) {
 		return 1
 	}
 	return 0
@@ -73,6 +70,10 @@ func (v *ValidateHuman) Results(diags tfdiags.Diagnostics) int {
 const validateSuccess = "[green][bold]Success![reset] The configuration is valid."
 
 const validateWarnings = "[green][bold]Success![reset] The configuration is valid, but there were some validation warnings as shown above."
+
+func (v *ValidateHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
 
 func (v *ValidateHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
@@ -111,8 +112,8 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	}
 	configSources := v.view.configSources()
 
-	// Convert warnings to errors if we are in pedantic mode
 	if v.view.pedanticMode {
+		// Convert warnings to errors
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
@@ -140,10 +141,14 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	}
 	v.view.streams.Println(string(j))
 
-	if v.view.HasErrors(diags) {
+	if v.HasErrors(diags) {
 		return 1
 	}
 	return 0
+}
+
+func (v *ValidateJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 // Diagnostics should only be called if the validation walk cannot be executed.

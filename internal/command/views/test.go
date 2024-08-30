@@ -52,6 +52,8 @@ type Test interface {
 	// file. If everything goes well, this should be empty.
 	DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run, file *moduletest.File, state *states.State)
 
+	HasErrors(diags tfdiags.Diagnostics) bool
+
 	// Diagnostics prints out the provided diagnostics.
 	Diagnostics(run *moduletest.Run, file *moduletest.File, diags tfdiags.Diagnostics)
 
@@ -234,6 +236,10 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 			t.view.streams.Eprintf("  - %s\n", resource.Instance)
 		}
 	}
+}
+
+func (t *TestHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return t.view.HasErrors(diags)
 }
 
 func (t *TestHuman) Diagnostics(_ *moduletest.Run, _ *moduletest.File, diags tfdiags.Diagnostics) {
@@ -476,6 +482,10 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 		}
 	}
 	t.Diagnostics(run, file, diags)
+}
+
+func (t *TestJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return t.view.HasErrors(diags)
 }
 
 func (t *TestJSON) Diagnostics(run *moduletest.Run, file *moduletest.File, diags tfdiags.Diagnostics) {

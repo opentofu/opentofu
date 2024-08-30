@@ -52,7 +52,7 @@ func (c *UntaintCommand) Run(args []string) int {
 
 	addr, addrDiags := addrs.ParseAbsResourceInstanceStr(args[0])
 	diags = diags.Append(addrDiags)
-	if addrDiags.HasErrors() {
+	if c.HasErrors(addrDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -60,7 +60,7 @@ func (c *UntaintCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if c.HasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -68,7 +68,7 @@ func (c *UntaintCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() {
+	if c.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -84,7 +84,7 @@ func (c *UntaintCommand) Run(args []string) int {
 	remoteVersionDiags := c.remoteVersionCheck(b, workspace)
 	diags = diags.Append(remoteVersionDiags)
 	c.showDiagnostics(diags)
-	if diags.HasErrors() {
+	if c.HasErrors(diags) {
 		return 1
 	}
 
@@ -97,12 +97,12 @@ func (c *UntaintCommand) Run(args []string) int {
 
 	if c.stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if diags := stateLocker.Lock(stateMgr, "untaint"); diags.HasErrors() {
+		if diags := stateLocker.Lock(stateMgr, "untaint"); c.HasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
 		defer func() {
-			if diags := stateLocker.Unlock(); diags.HasErrors() {
+			if diags := stateLocker.Unlock(); c.HasErrors(diags) {
 				c.showDiagnostics(diags)
 			}
 		}()

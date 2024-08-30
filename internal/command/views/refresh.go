@@ -22,6 +22,7 @@ type Refresh interface {
 	Operation() Operation
 	Hooks() []tofu.Hook
 
+	HasErrors(diags tfdiags.Diagnostics) bool
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
 }
@@ -74,6 +75,10 @@ func (v *RefreshHuman) Hooks() []tofu.Hook {
 	}
 }
 
+func (v *RefreshHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
+
 func (v *RefreshHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
@@ -107,6 +112,10 @@ func (v *RefreshJSON) Hooks() []tofu.Hook {
 	return []tofu.Hook{
 		newJSONHook(v.view),
 	}
+}
+
+func (v *RefreshJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 func (v *RefreshJSON) Diagnostics(diags tfdiags.Diagnostics) {
