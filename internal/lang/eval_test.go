@@ -473,7 +473,7 @@ func TestScopeEvalContextWithParent(t *testing.T) {
 		}
 
 		if ln := len(child.Parent().Variables); ln != 1 {
-			t.Fatalf("EvalContextWithParent modified parent's variables: incorrent length: %d", ln)
+			t.Fatalf("EvalContextWithParent modified parent's variables: incorrect length: %d", ln)
 		}
 
 		if v := child.Parent().Variables["foo"]; !v.RawEquals(barStr) {
@@ -481,7 +481,7 @@ func TestScopeEvalContextWithParent(t *testing.T) {
 		}
 
 		if ln := len(child.Parent().Functions); ln != 1 {
-			t.Fatalf("EvalContextWithParent modified parent's functions: incorrent length: %d", ln)
+			t.Fatalf("EvalContextWithParent modified parent's functions: incorrect length: %d", ln)
 		}
 
 		if v := child.Parent().Functions["foo"]; !reflect.DeepEqual(v, barFunc) {

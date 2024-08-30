@@ -133,7 +133,7 @@ const (
 	NestingSingle
 
 	// NestingGroup is similar to NestingSingle in that it calls for only a
-	// single instance of a given block type with no labels, but it additonally
+	// single instance of a given block type with no labels, but it additionally
 	// guarantees that its result will never be null, even if the block is
 	// absent, and instead the nested attributes and blocks will be treated
 	// as absent in that case. (Any required attributes or blocks within the

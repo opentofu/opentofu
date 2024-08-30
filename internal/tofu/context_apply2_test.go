@@ -197,7 +197,7 @@ func TestContext2Apply_destroyThenUpdate(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "a" {
-	value = "udpated"
+	value = "updated"
 }
 `,
 	})
@@ -2049,7 +2049,7 @@ resource "test_resource" "b" {
 }
 
 func TestContext2Apply_destroyUnusedModuleProvider(t *testing.T) {
-	// an unsued provider within a module should not be called during destroy
+	// an unused provider within a module should not be called during destroy
 	unusedProvider := testProvider("unused")
 	testProvider := testProvider("test")
 	ctx := testContext2(t, &ContextOpts{

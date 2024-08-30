@@ -20,14 +20,14 @@ on the host operating system:
   in the relevant user's `%APPDATA%` directory. The physical location
   of this directory depends on your Windows version and system configuration;
   use `$env:APPDATA` in PowerShell to find its location on your system.
-  The `terraform.rc` is supported for backward-compatability purposes.
+  The `terraform.rc` is supported for backward-compatibility purposes.
   If both `terraform.rc` and `tofu.rc` files exists, the later would take precedence.
 * On all other systems, the file must be named `.tofurc` (note
   the leading period) and placed directly in the home directory
   of the relevant user or be named `tofurc` and placed in a valid
   [XDG Base Directory](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
   config directory such as `$XDG_CONFIG_HOME/opentofu`.
-  The `.terraformrc` is supported for backward-compatability purposes.
+  The `.terraformrc` is supported for backward-compatibility purposes.
   If both `.terraformrc` and `.tofurc` files exists, the latter would take precedence.
   When using an XDG config directory `.terraformrc` and `terraformrc` are ignored.
 

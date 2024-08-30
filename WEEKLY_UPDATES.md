@@ -66,7 +66,7 @@ Hello there! After the 1.7.1 release last week, the core team has been focusing 
 
 - Current Status
   - [Init-time constant evaluation](https://github.com/opentofu/opentofu/issues/1042)
-    - Initial [discussion and planning](https://github.com/opentofu/opentofu/pull/1649) are happening as an extension of the RFC proces
+    - Initial [discussion and planning](https://github.com/opentofu/opentofu/pull/1649) are happening as an extension of the RFC process
   - [Registry UI](https://github.com/opentofu/registry/issues/450)
     - Designs and prototyping are in progress!
   - [Releases page with direct links to artifacts](https://github.com/opentofu/get.opentofu.org/pull/25) is now live https://get.opentofu.org/tofu/api.json

@@ -73,7 +73,7 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 				b.CLI.Output(b.Colorize().Color(fmt.Sprintf("Waiting for the %s to start...\n", opType)))
 			}
 			if i > 0 && b.CLI != nil {
-				// Insert a blank line to separate the ouputs.
+				// Insert a blank line to separate the outputs.
 				b.CLI.Output("")
 			}
 			return r, nil
@@ -232,7 +232,7 @@ func (b *Remote) hasExplicitVariableValues(op *backend.Operation) bool {
 	}
 
 	// We're intentionally ignoring the diagnostics here because validation
-	// of the variable values is the responsibilty of the remote system. Our
+	// of the variable values is the responsibility of the remote system. Our
 	// goal here is just to make a best effort count of how many variable
 	// values are coming from -var or -var-file CLI arguments so that we can
 	// hint the user that those are not supported for remote operations.

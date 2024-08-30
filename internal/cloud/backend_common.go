@@ -72,7 +72,7 @@ func (b *Cloud) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Opera
 				b.CLI.Output(b.Colorize().Color(fmt.Sprintf("Waiting for the %s to start...\n", opType)))
 			}
 			if i > 0 && b.CLI != nil {
-				// Insert a blank line to separate the ouputs.
+				// Insert a blank line to separate the outputs.
 				b.CLI.Output("")
 			}
 			return r, nil

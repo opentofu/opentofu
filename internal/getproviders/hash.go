@@ -68,7 +68,7 @@ func MustParseHash(s string) Hash {
 	return hash
 }
 
-// Scheme returns the scheme of the recieving hash. If the receiver is not
+// Scheme returns the scheme of the receiving hash. If the receiver is not
 // using valid syntax then this method will panic.
 func (h Hash) Scheme() HashScheme {
 	colon := strings.Index(string(h), ":")
@@ -86,7 +86,7 @@ func (h Hash) HasScheme(want HashScheme) bool {
 	return h.Scheme() == want
 }
 
-// Value returns the scheme-specific value from the recieving hash. The
+// Value returns the scheme-specific value from the receiving hash. The
 // meaning of this value depends on the scheme.
 //
 // If the receiver is not using valid syntax then this method will panic.
@@ -401,7 +401,7 @@ func PackageHashV1(loc PackageLocation) (Hash, error) {
 }
 
 // Hash computes a hash of the contents of the package at the location
-// associated with the reciever, using whichever hash algorithm is the current
+// associated with the receiver, using whichever hash algorithm is the current
 // default.
 //
 // This method will change to use new hash versions as they are introduced
@@ -434,7 +434,7 @@ func (m PackageMeta) MatchesHash(want Hash) (bool, error) {
 // the receiver matches at least one of the given hashes, or false otherwise.
 //
 // If it cannot read from the given location, MatchesHash returns an error.
-// Unlike the signular MatchesHash, MatchesAnyHash considers an unsupported
+// Unlike the singular MatchesHash, MatchesAnyHash considers an unsupported
 // hash format to be a successful non-match.
 func (m PackageMeta) MatchesAnyHash(acceptable []Hash) (bool, error) {
 	return PackageMatchesAnyHash(m.Location, acceptable)

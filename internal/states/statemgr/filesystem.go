@@ -357,7 +357,7 @@ func (s *Filesystem) Lock(info *LockInfo) (string, error) {
 	return s.lockID, s.writeLockInfo(info)
 }
 
-// Unlock is the companion to Lock, completing the implemention of Locker.
+// Unlock is the companion to Lock, completing the implementation of Locker.
 func (s *Filesystem) Unlock(id string) error {
 	defer s.mutex()()
 

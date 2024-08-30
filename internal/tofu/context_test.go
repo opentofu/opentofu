@@ -762,7 +762,7 @@ func contextOptsForPlanViaFile(t *testing.T, configSnap *configload.Snapshot, pl
 }
 
 // legacyPlanComparisonString produces a string representation of the changes
-// from a plan and a given state togther, as was formerly produced by the
+// from a plan and a given state together, as was formerly produced by the
 // String method of tofu.Plan.
 //
 // This is here only for compatibility with existing tests that predate our

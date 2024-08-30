@@ -66,7 +66,7 @@ func NewDynamicValue(val cty.Value, ty cty.Type) (DynamicValue, error) {
 // used to create the receiver.
 //
 // A nil DynamicValue decodes to cty.NilVal, which is not a valid value and
-// instead represents the absense of a value.
+// instead represents the absence of a value.
 func (v DynamicValue) Decode(ty cty.Type) (cty.Value, error) {
 	if v == nil {
 		return cty.NilVal, nil
