@@ -74,7 +74,7 @@ func TestMarshalReturnType(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			actual := marshalReturnType(tc.Arg)
 
-			// to avoid the nightmare of comparing cty primitve types we can marshal them to json and compare that
+			// to avoid the nightmare of comparing cty primitive types we can marshal them to json and compare that
 			actualJSON, _ := json.Marshal(actual)
 			expectedJSON, _ := json.Marshal(tc.Expected)
 			if !cmp.Equal(actualJSON, expectedJSON) {
@@ -122,7 +122,7 @@ func TestMarshalParameter(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			actual := marshalParameter(tc.Arg)
 
-			// to avoid the nightmare of comparing cty primitve types we can marshal them to json and compare that
+			// to avoid the nightmare of comparing cty primitive types we can marshal them to json and compare that
 			actualJSON, _ := json.Marshal(actual)
 			expectedJSON, _ := json.Marshal(tc.Expected)
 			if !cmp.Equal(actualJSON, expectedJSON) {
@@ -155,7 +155,7 @@ func TestMarshalParameters(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			actual := marshalParameters(tc.Arg)
 
-			// to avoid the nightmare of comparing cty primitve types we can marshal them to json and compare that
+			// to avoid the nightmare of comparing cty primitive types we can marshal them to json and compare that
 			actualJSON, _ := json.Marshal(actual)
 			expectedJSON, _ := json.Marshal(tc.Expected)
 			if !cmp.Equal(actualJSON, expectedJSON) {
@@ -206,7 +206,7 @@ func TestMarshalFunction(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			actual := marshalFunction(tc.Arg)
 
-			// to avoid the nightmare of comparing cty primitve types we can marshal them to json and compare that
+			// to avoid the nightmare of comparing cty primitive types we can marshal them to json and compare that
 			actualJSON, _ := json.Marshal(actual)
 			expectedJSON, _ := json.Marshal(tc.Expected)
 			if !cmp.Equal(actualJSON, expectedJSON) {
@@ -239,7 +239,7 @@ func TestMarshalFunctions(t *testing.T) {
 		t.Run(tn, func(t *testing.T) {
 			actual := marshalFunctions(tc.Arg)
 
-			// to avoid the nightmare of comparing cty primitve types we can marshal them to json and compare that
+			// to avoid the nightmare of comparing cty primitive types we can marshal them to json and compare that
 			actualJSON, _ := json.Marshal(actual)
 			expectedJSON, _ := json.Marshal(tc.Expected)
 			if !cmp.Equal(actualJSON, expectedJSON) {

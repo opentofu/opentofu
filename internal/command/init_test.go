@@ -471,7 +471,7 @@ func TestInit_backendConfigFilePowershellConfusion(t *testing.T) {
 	//
 	// Adding the "=" here forces this codepath to be checked, and it should
 	// result in an early exit with a diagnostic that the provided
-	// configuration file is not a diretory.
+	// configuration file is not a directory.
 	args := []string{"-backend-config=", "./input.config"}
 	if code := c.Run(args); code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())

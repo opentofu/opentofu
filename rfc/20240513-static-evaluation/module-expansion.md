@@ -11,14 +11,14 @@ For example:
 # main.tf
 module "mod" {
         for_each = {"us" = "first", "eu" = "second"}
-        source = "./my-mod-${each.vakue}"
+        source = "./my-mod-${each.value}"
         name = each.key
 }
 ```
 
 Each instance of "mod" will have a different source. This is a complex situation that must have intense validation, inputs and outputs must be identical between the two modules.
 
-The example is a bit contrived, but is a simpler representation of why it's difficult to have different module sources for different instaces down a configuration tree.
+The example is a bit contrived, but is a simpler representation of why it's difficult to have different module sources for different instances down a configuration tree.
 
 If we want to allow this, modules which have static for_each and count expressions must be expanded at the config layer. This must happen before the graph building, transformers, and walking.
 
@@ -43,7 +43,7 @@ Post-expansion
 * EvaluationContext (mixed)
 
 
-## Example represenations:
+## Example representations:
 
 Variables and providers have been excluded for this example.
 
@@ -139,7 +139,7 @@ addrs.Module is simply a []string, while addrs.ModuleInstance is a pair of {stri
 * CountKey for int count
 * ForEachKey for string for_each
 
-## Example represenations for Module -> ModuleInstance:
+## Example representations for Module -> ModuleInstance:
 **HCL (identical):**
 
 ```hcl

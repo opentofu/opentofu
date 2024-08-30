@@ -244,10 +244,10 @@ func TestProviderLockContainsAll(t *testing.T) {
 		})
 
 		if !original.ContainsAll(target) {
-			t.Errorf("orginal should contain all hashes in target")
+			t.Errorf("original should contain all hashes in target")
 		}
 		if target.ContainsAll(original) {
-			t.Errorf("target should not contain all hashes in orginal")
+			t.Errorf("target should not contain all hashes in original")
 		}
 	})
 
@@ -265,10 +265,10 @@ func TestProviderLockContainsAll(t *testing.T) {
 		})
 
 		if !original.ContainsAll(target) {
-			t.Errorf("orginal should contain all hashes in target")
+			t.Errorf("original should contain all hashes in target")
 		}
 		if !target.ContainsAll(original) {
-			t.Errorf("target should not contain all hashes in orginal")
+			t.Errorf("target should not contain all hashes in original")
 		}
 	})
 
@@ -280,7 +280,7 @@ func TestProviderLockContainsAll(t *testing.T) {
 		})
 
 		if !original.ContainsAll(nil) {
-			t.Fatalf("orginal should report true on nil")
+			t.Fatalf("original should report true on nil")
 		}
 	})
 
@@ -294,7 +294,7 @@ func TestProviderLockContainsAll(t *testing.T) {
 		target := NewProviderLock(provider, v2, v2EqConstraints, []getproviders.Hash{})
 
 		if !original.ContainsAll(target) {
-			t.Fatalf("orginal should report true on empty")
+			t.Fatalf("original should report true on empty")
 		}
 	})
 
@@ -308,7 +308,7 @@ func TestProviderLockContainsAll(t *testing.T) {
 		})
 
 		if original.ContainsAll(target) {
-			t.Fatalf("orginal should report false when empty")
+			t.Fatalf("original should report false when empty")
 		}
 	})
 }

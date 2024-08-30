@@ -815,7 +815,7 @@ func TestLookup(t *testing.T) {
 			cty.StringVal("beep").Mark("a"),
 			false,
 		},
-		{ // apply collection marks to unknown return vaue
+		{ // apply collection marks to unknown return value
 			[]cty.Value{
 				cty.MapVal(map[string]cty.Value{
 					"boop": cty.StringVal("beep"),

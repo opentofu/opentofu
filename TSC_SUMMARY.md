@@ -8,6 +8,148 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
 
+## 2024-08-20
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+#### Shall we stop using Notion?
+
+- Igor: do we need notion?
+- Zach: reluctantly second motion, easy to do stuff not in public.  Pushes us toward public on github.
+- Igor: migrate this to private space, keep private/public for sensitive information
+- Igor: we probably have a week or two.  Worst case pay for a month and then migrate.
+
+##### Decision
+
+Vote: unanimous yes
+
+#### Sanctions Russia vs registry access
+
+- Add note to README during PR documenting this discussion in TSC_SUMMARY
+- Block Russian IP Blocks from accessing our registry in Cloudflare
+
+##### Decision
+
+Vote: unanimous yes
+
+#### PackageCloud 
+
+PackageCloud provides free deb/rpm hosting for OpenTofu.
+
+- We said we would do a case study
+- They are asking to be listed as sponsors
+- Igor: Ok with updating sponsors (cloudflare as well)
+
+##### Decision
+
+Christian: will write up a "case study" ([examples](https://buildkite.com/case-studies)) and post for TSC review.
+
+#### State Backend Improvements
+
+- Continuing the discussion from 2024-07-24, we need to start planning how we want to support new backends, community backends, and modifications to backends
+- Christian: gave overview of backend related issues in OpenTofu and their relative :+1: counterparts
+   - Backends as Plugins (32 :+1:)
+   - Modifications of existing backends (72 :+1:)
+   - Support for new backends (40 :+1:)
+- Community is already working around this with the HTTP backend and helper binaries (20+ easily found in github search)
+- Potential Paths:
+   - Improve http backend or create httpng or similar with workspace support
+   - Create GRPC protocol and extend existing registry (Backends as Plugins)
+   - Document and recommend remote or cloud backend
+- Christian: Proposal
+   - Stage 1: Improve HTTP Backend and provide library + compliance tests to community to foster adoption
+   - Stage 2: Support backend plugins using above protocol (HTTP or gRPC, library makes it trivial for authors)
+   - Stage 3: Migrate internal backends to plugin
+- Christian: Proposes that we start with Stage 1 as a low-risk evaluation of the concept. Re-evaluate Stage 2/3 based on Stage 1 feedback and adoption.
+- Igor: remote/cloud protocol not within our control. How simple can we make the http protocol?
+- Wojciech: Likes the staged plan, hedges risk. Also likes proper support for the http backend and thinks TACOS will migrate.
+- Igor: HTTP works through proxies, which may be a big advantage
+- Zach: Fan of the PoC to demonstrate value, don’t know until you built it
+
+##### Decision:
+
+**Christian will prepare RFC for Stage 1 and send to TSC + Community via Github PR**
+
+## 2024-08-13
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+#### Open Governance
+
+- Christian: Where do we publish our governance documents?
+- Christian: Do we need to amend our governance documents before publishing them?
+- Have we defined how we manage TSC memebership?
+- Igor: Usually in a github repo w/ amendments and meeting notes
+    - Also look at other CNCF projects
+    - LF to review before publishing
+    - TSC meeting to make amendments
+- Christian: side conversations with OpenBao, potentially de-duplicating effort
+- Roni: document existing process
+    - first draft posted in internal chat
+    - meeting after define how/where to publish
+- Igor: envoy gov doc
+- **Zach: Gruntworks employee to make first draft** for further iteration (a good example – https://github.com/envoyproxy/envoy/blob/main/GOVERNANCE.md)
+
+#### Initial Conversation on Guides
+
+We have users asking for getting started guides ([Issue #1838](https://github.com/opentofu/opentofu/issues/1838), and others).  They don’t want to switch between the Terraform and OpenTofu docs.  We have also had at least one company ask if we are interested in documentation services, though that conversation is premature.
+
+We need to:
+
+- Define if/where we want to start by including guides in OpenTofu
+
+  - We could start with a similar layout to terraform, just with less examples.
+  - Alternatively, we could come up with a layout that makes sense to us.
+
+- Determine who should be in charge of creating and maintaining them
+   - First few could be created by the core team
+   - Continued by teams at the tacos with existing experience?
+   - Continued by external contractor/company?
+   - Continued by community?  Hard to tell if GPT/ripped from elsewhere.
+
+##### Discussion
+
+- Igor: what’s the worst case scenario here? Try to involve community if possible
+
+- **Roger: volunteer Harness teams**
+- **Core team will setup the layout in the next few weeks when capacity allows**
+- Roni: team owns documentation, many tutorials & guides will come from the community
+  - TACOS already market new features and create guides
+  - Reach out to existing tf courses to mention/use OpenTofu
+
+- Who should reach out to existing tf courses?
+  - **Roni: delegate to Arel / core team, well known to the community**
+  - Worked well with other integrations (jetbrains for example)
+  - Env0 marketing may also reach out
+
+#### Open Source ARD how to choose between TF and OpenTofu
+
+Additional community question: Is there a copy and pastable open source ADR on Decide on HCL tool with pros and cons of each opentofu vs terraform that can be sold internally to an organization?
+
+- Wojciech: could be a good blog post
+- Christian: we have a year of experience and can talk about our strengths
+- Wojciech: re-use spacelift articles
+- Roger: emphasize the longevity of the project
+- Zach: lots of FUD (providers) + CDKTF
+- **Wojciech: Will create initial draft with SpaceLift and bring to TSC**
+
 ## 2024-07-30
 
 ### Attendees
@@ -41,7 +183,7 @@ This is one of several pieces of tooling where we are being asked questions abou
 
 #### Discussion
 
-- Christian – a lot of questions about CDK-TF,/// what is our policy on the tools built on top of Terraform. Shall we fork?
+- Christian – a lot of questions about CDK-TF, what is our policy on the tools built on top of Terraform. Shall we fork?
 - Igor – what is the license of CDKTF?
 - Christian: MPL
 - Igor – we do not have time and resources to fork the CDKTF
@@ -52,7 +194,7 @@ This is one of several pieces of tooling where we are being asked questions abou
 
 #### Decision
 
-The core team has not had bandwidth to take on CDKTF.
+The core team has not had bandwidth to take on CDKTF, but will accept community support efforts.
 
 ## 2024-07-24
 
@@ -524,7 +666,7 @@ TSC:
 
 #### IBM acquisition of Hashicorp
 
-Shall we publish anything as OpenTofu regarding the acquision?
+Shall we publish anything as OpenTofu regarding the acquisition?
 
 ##### Discussion/Decision
 

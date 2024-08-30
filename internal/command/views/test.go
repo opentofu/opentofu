@@ -571,7 +571,7 @@ func testStatus(status moduletest.Status) string {
 	}
 }
 
-// SaveErroredTestStateFile is a helper function to invoked in DestorySummary
+// SaveErroredTestStateFile is a helper function to invoked in DestroySummary
 // to store the state to errored_test.tfstate and handle associated diagnostics and errors with this operation
 func SaveErroredTestStateFile(state *states.State, run *moduletest.Run, file *moduletest.File, view Test) {
 	var diags tfdiags.Diagnostics

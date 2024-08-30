@@ -360,7 +360,7 @@ func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, ne
 		return fmt.Errorf("credentials file %s has invalid value for \"credentials\" property: must be a JSON object", filename)
 	}
 
-	// We use display-oriented hostnames in our file to mimick how a human user
+	// We use display-oriented hostnames in our file to mimic how a human user
 	// would write it, so we need to search for and remove any key that
 	// normalizes to our target hostname so we won't generate something invalid
 	// when the existing entry is slightly different.

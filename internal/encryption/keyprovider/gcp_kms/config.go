@@ -46,7 +46,7 @@ func stringAttrEnvFallback(val string, env string) string {
 	return os.Getenv(env)
 }
 
-// TODO This is copied in from the backend packge to prevent a circular dependency loop
+// TODO This is copied in from the backend package to prevent a circular dependency loop
 // If the argument is a path, ReadPathOrContents loads it and returns the contents,
 // otherwise the argument is assumed to be the desired contents and is simply
 // returned.
@@ -78,7 +78,7 @@ func ReadPathOrContents(poc string) (string, error) {
 func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	// This mirrors the gcp remote state backend
 
-	// Apply env defaults if nessesary
+	// Apply env defaults if necessary
 	c.Credentials = stringAttrEnvFallback(c.Credentials, "GOOGLE_CREDENTIALS")
 	c.AccessToken = stringAttrEnvFallback(c.AccessToken, "GOOGLE_OAUTH_ACCESS_TOKEN")
 	c.ImpersonateServiceAccount = stringAttrEnvFallback(c.ImpersonateServiceAccount, "GOOGLE_BACKEND_IMPERSONATE_SERVICE_ACCOUNT")

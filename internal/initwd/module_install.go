@@ -534,7 +534,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			// Finally, check if the prerelease is acceptable to version. As
 			// highlighted previously, we go through all of this because the
 			// apparentlymart/go-versions library handles prerelease constraints
-			// in the apporach we want to.
+			// in the approach we want to.
 			if !acceptableVersions.Has(version) {
 				log.Printf("[TRACE] ModuleInstaller: %s ignoring %s because it is a pre-release and was not requested exactly", key, v)
 				continue

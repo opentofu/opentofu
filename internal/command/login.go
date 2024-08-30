@@ -781,7 +781,7 @@ func (c *LoginCommand) listenerForCallback(minPort, maxPort uint16) (net.Listene
 }
 
 func (c *LoginCommand) proofKey() (key, challenge string, err error) {
-	// Wel use a UUID-like string as the "proof key for code exchange" (PKCE)
+	// We'll use a UUID-like string as the "proof key for code exchange" (PKCE)
 	// that will eventually authenticate our request to the token endpoint.
 	// Standard UUIDs are explicitly not suitable as secrets according to the
 	// UUID spec, but our go-uuid just generates totally random number sequences

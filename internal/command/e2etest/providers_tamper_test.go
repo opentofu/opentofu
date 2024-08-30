@@ -175,7 +175,7 @@ func TestProviderTampering(t *testing.T) {
 		// NOTE: We're just emptying out the lock file here because that's
 		// good enough for what we're trying to assert. The leaf codepath
 		// that generates this family of errors has some different variations
-		// of this error message for otehr sorts of inconsistency, but those
+		// of this error message for other sorts of inconsistency, but those
 		// are tested more thoroughly over in the "configs" package, which is
 		// ultimately responsible for that logic.
 		err := os.WriteFile(filepath.Join(workDir, ".terraform.lock.hcl"), []byte(``), 0600)

@@ -17,7 +17,7 @@ type ConfigEndpoints struct {
 }
 
 // Mirrored from s3 backend config
-func includeProtoIfNessesary(endpoint string) string {
+func includeProtoIfNecessary(endpoint string) string {
 	if matched, _ := regexp.MatchString("[a-z]*://.*", endpoint); !matched {
 		log.Printf("[DEBUG] Adding https:// prefix to endpoint '%s'", endpoint)
 		endpoint = fmt.Sprintf("https://%s", endpoint)
@@ -38,10 +38,10 @@ func (c Config) getEndpoints() (ConfigEndpoints, error) {
 
 	// Endpoint formatting
 	if len(endpoints.IAM) != 0 {
-		endpoints.IAM = includeProtoIfNessesary(endpoints.IAM)
+		endpoints.IAM = includeProtoIfNecessary(endpoints.IAM)
 	}
 	if len(endpoints.STS) != 0 {
-		endpoints.STS = includeProtoIfNessesary(endpoints.STS)
+		endpoints.STS = includeProtoIfNecessary(endpoints.STS)
 	}
 	return endpoints, nil
 }

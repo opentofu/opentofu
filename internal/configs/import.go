@@ -146,7 +146,7 @@ var importBlockSchema = &hcl.BodySchema{
 // but we don't really care about the key part of it. We just want a traversal that could be converted to an address
 // of a resource, so we could determine the module + resource + provider
 //
-// Currently, there are 4 types of HCL epressions that support AsTraversal:
+// Currently, there are 4 types of HCL expressions that support AsTraversal:
 // - hclsyntax.ScopeTraversalExpr - Simply returns the Traversal. Same for our use-case here
 // - hclsyntax.RelativeTraversalExpr - Calculates hcl.AbsTraversalForExpr for the Source, and adds the Traversal to it. Same here, with absTraversalForImportToExpr instead
 // - hclsyntax.LiteralValueExpr - Mainly for null/false/true values. Not relevant in our use-case, as it's could not really be part of a reference (unless it is inside of an index, which is irrelevant here anyway)

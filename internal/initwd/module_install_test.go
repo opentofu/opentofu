@@ -546,7 +546,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		t.Fatalf("wrong installer calls\n%s", diff)
 	}
 
-	//check that the registry reponses were cached
+	// check that the registry responses were cached
 	packageAddr := addrs.ModuleRegistryPackage{
 		Host:         svchost.Hostname("registry.opentofu.org"),
 		Namespace:    "hashicorp",
@@ -847,7 +847,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 		t.Fatalf("wrong installer calls\n%s", diff)
 	}
 
-	//check that the registry reponses were cached
+	// check that the registry responses were cached
 	packageAddr := addrs.ModuleRegistryPackage{
 		Host:         svchost.Hostname("registry.opentofu.org"),
 		Namespace:    "hashicorp",

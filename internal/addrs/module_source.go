@@ -123,7 +123,7 @@ func ParseModuleSource(raw string) (ModuleSource, error) {
 // and then create relative references within the same directory in order
 // to ensure all modules in the package are looking at a consistent filesystem
 // layout. We also assume that modules within a package are maintained together,
-// which means that cross-cutting maintenence across all of them would be
+// which means that cross-cutting maintenance across all of them would be
 // possible.
 //
 // The actual value of a ModuleSourceLocal is a normalized relative path using
@@ -163,7 +163,7 @@ func parseModuleSourceLocal(raw string) (ModuleSourceLocal, error) {
 	clean := path.Clean(raw)
 
 	// However, we do need to keep a single "./" on the front if it isn't
-	// a "../" path, or else it would be ambigous with the registry address
+	// a "../" path, or else it would be ambiguous with the registry address
 	// syntax.
 	if !strings.HasPrefix(clean, "../") {
 		clean = "./" + clean
@@ -355,7 +355,7 @@ func (s ModuleSourceRemote) ForDisplay() string {
 // given path are both respected.
 //
 // This will return nonsense if given a registry address other than the one
-// that generated the reciever via a registry lookup.
+// that generated the receiver via a registry lookup.
 func (s ModuleSourceRemote) FromRegistry(given ModuleSourceRegistry) ModuleSourceRemote {
 	ret := s // not a pointer, so this is a shallow copy
 
