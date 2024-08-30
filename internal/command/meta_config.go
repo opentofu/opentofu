@@ -209,7 +209,7 @@ func (m *Meta) loadBackendConfig(rootDir string) (*configs.Backend, tfdiags.Diag
 
 	// Only return error diagnostics at this point. Any warnings will be caught
 	// again later and duplicated in the output.
-	if diags.HasErrors() {
+	if m.View.HasErrors(diags) {
 		return nil, diags
 	}
 

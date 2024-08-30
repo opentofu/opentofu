@@ -46,7 +46,7 @@ func (m *Meta) EncryptionFromModule(module *configs.Module) (encryption.Encrypti
 	if len(env) != 0 {
 		envCfg, envDiags := config.LoadConfigFromString(encryptionConfigEnvName, env)
 		diags = diags.Append(envDiags)
-		if envDiags.HasErrors() {
+		if m.HasErrors(tfdiags.WrapHCL(envDiags)) {
 			return nil, diags
 		}
 		cfg = cfg.Merge(envCfg)

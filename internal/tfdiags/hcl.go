@@ -136,3 +136,16 @@ func (diags Diagnostics) ToHCL() hcl.Diagnostics {
 	}
 	return ret
 }
+
+func WrapHCL(diags hcl.Diagnostics) Diagnostics {
+	if len(diags) == 0 {
+		return nil
+	}
+
+	newDiags := make(Diagnostics, 0, len(diags))
+	for _, diag := range diags {
+		newDiags = append(newDiags, hclDiagnostic{diag})
+	}
+
+	return newDiags
+}
