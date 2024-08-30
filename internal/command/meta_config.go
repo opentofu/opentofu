@@ -105,7 +105,7 @@ func (m *Meta) loadSingleModule(dir string, load configs.SelectiveLoader) (*conf
 
 	call, vDiags := m.rootModuleCall(dir)
 	diags = diags.Append(vDiags)
-	if diags.HasErrors() {
+	if m.HasErrors(diags) {
 		return nil, diags
 	}
 
@@ -209,7 +209,7 @@ func (m *Meta) loadBackendConfig(rootDir string) (*configs.Backend, tfdiags.Diag
 
 	// Only return error diagnostics at this point. Any warnings will be caught
 	// again later and duplicated in the output.
-	if m.View.HasErrors(diags) {
+	if m.HasErrors(diags) {
 		return nil, diags
 	}
 

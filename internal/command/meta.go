@@ -728,7 +728,7 @@ func (m *Meta) HasErrors(diags tfdiags.Diagnostics) bool {
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
-	return m.View.HasErrors(diags)
+	return diags.HasErrors()
 }
 
 // showDiagnostics displays error and warning messages in the UI.
