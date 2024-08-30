@@ -155,7 +155,7 @@ func (v *ApplyJSON) ResourceCount(stateOutPath string) {
 
 func (v *ApplyJSON) Outputs(outputValues map[string]*states.OutputValue) {
 	outputs, diags := json.OutputsFromMap(outputValues)
-	if diags.HasErrors() {
+	if v.HasErrors(diags) {
 		v.Diagnostics(diags)
 	} else {
 		v.view.Outputs(outputs)
