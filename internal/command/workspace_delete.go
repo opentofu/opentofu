@@ -28,7 +28,7 @@ type WorkspaceDeleteCommand struct {
 func (c *WorkspaceDeleteCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 
-	diags := envCommandHasWarning(c.LegacyName)
+	diags := envCommandExecuted(c.LegacyName)
 	if c.hasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1

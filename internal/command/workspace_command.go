@@ -23,7 +23,7 @@ type WorkspaceCommand struct {
 func (c *WorkspaceCommand) Run(args []string) int {
 	c.Meta.process(args)
 
-	diags := envCommandHasWarning(c.LegacyName)
+	diags := envCommandExecuted(c.LegacyName)
 	c.showDiagnostics(diags)
 	if c.hasErrors(diags) {
 		return 1
@@ -56,9 +56,9 @@ func validWorkspaceName(name string) bool {
 	return name == url.PathEscape(name)
 }
 
-func envCommandHasWarning(show bool) tfdiags.Diagnostics {
+func envCommandExecuted(legacy bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	if !show {
+	if !legacy {
 		return diags
 	}
 
