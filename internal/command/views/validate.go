@@ -71,6 +71,7 @@ const validateSuccess = "[green][bold]Success![reset] The configuration is valid
 
 const validateWarnings = "[green][bold]Success![reset] The configuration is valid, but there were some validation warnings as shown above."
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (v *ValidateHuman) HasErrors(diags tfdiags.Diagnostics) bool {
 	return v.view.HasErrors(diags)
 }
@@ -151,6 +152,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	return 0
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (v *ValidateJSON) HasErrors(diags tfdiags.Diagnostics) bool {
 	return v.view.HasErrors(diags)
 }

@@ -60,6 +60,7 @@ func (v *PlanHuman) Hooks() []tofu.Hook {
 	}
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (v *PlanHuman) HasErrors(diags tfdiags.Diagnostics) bool {
 	return v.view.HasErrors(diags)
 }
@@ -90,6 +91,7 @@ func (v *PlanJSON) Hooks() []tofu.Hook {
 	}
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (v *PlanJSON) HasErrors(diags tfdiags.Diagnostics) bool {
 	return v.view.HasErrors(diags)
 }

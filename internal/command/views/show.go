@@ -126,6 +126,7 @@ func (v *ShowHuman) Display(config *configs.Config, plan *plans.Plan, planJSON *
 	return 0
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (v *ShowHuman) HasErrors(diags tfdiags.Diagnostics) bool {
 	return v.view.HasErrors(diags)
 }
@@ -170,6 +171,7 @@ func (v *ShowJSON) Display(config *configs.Config, plan *plans.Plan, planJSON *c
 	return 0
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (v *ShowJSON) HasErrors(diags tfdiags.Diagnostics) bool {
 	return v.view.HasErrors(diags)
 }

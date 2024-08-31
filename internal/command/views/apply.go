@@ -113,6 +113,7 @@ func (v *ApplyHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (v *ApplyHuman) HasErrors(diags tfdiags.Diagnostics) bool {
 	return v.view.HasErrors(diags)
 }
@@ -177,6 +178,7 @@ func (v *ApplyJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (v *ApplyJSON) HasErrors(diags tfdiags.Diagnostics) bool {
 	return v.view.HasErrors(diags)
 }

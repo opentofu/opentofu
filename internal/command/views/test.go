@@ -52,6 +52,7 @@ type Test interface {
 	// file. If everything goes well, this should be empty.
 	DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run, file *moduletest.File, state *states.State)
 
+	// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 	HasErrors(diags tfdiags.Diagnostics) bool
 
 	// Diagnostics prints out the provided diagnostics.
@@ -238,6 +239,7 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 	}
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (t *TestHuman) HasErrors(diags tfdiags.Diagnostics) bool {
 	return t.view.HasErrors(diags)
 }
@@ -484,6 +486,7 @@ func (t *TestJSON) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Run
 	t.Diagnostics(run, file, diags)
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 func (t *TestJSON) HasErrors(diags tfdiags.Diagnostics) bool {
 	return t.view.HasErrors(diags)
 }
