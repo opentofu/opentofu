@@ -557,13 +557,10 @@ func TestShow_json_output(t *testing.T) {
 
 			// init
 			ui := new(cli.MockUi)
-			view, _ := testView(t)
-
 			ic := &InitCommand{
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
-					View:             view,
 					ProviderSource:   providerSource,
 				},
 			}
@@ -668,13 +665,10 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	// init
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
-
 	ic := &InitCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 			ProviderSource:   providerSource,
 		},
 	}
@@ -764,13 +758,10 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	// init
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
-
 	ic := &InitCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 			ProviderSource:   providerSource,
 		},
 	}
@@ -876,13 +867,10 @@ func TestShow_json_output_state(t *testing.T) {
 
 			// init
 			ui := new(cli.MockUi)
-			view, _ := testView(t)
-
 			ic := &InitCommand{
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
-					View:             view,
 					ProviderSource:   providerSource,
 				},
 			}

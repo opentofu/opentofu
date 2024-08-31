@@ -17,13 +17,10 @@ func TestGet(t *testing.T) {
 	defer testChdir(t, wd.RootModuleDir())()
 
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:             view,
 			WorkingDir:       wd,
 		},
 	}
@@ -44,13 +41,10 @@ func TestGet_multipleArgs(t *testing.T) {
 	defer testChdir(t, wd.RootModuleDir())()
 
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:             view,
 			WorkingDir:       wd,
 		},
 	}
@@ -69,13 +63,10 @@ func TestGet_update(t *testing.T) {
 	defer testChdir(t, wd.RootModuleDir())()
 
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:             view,
 			WorkingDir:       wd,
 		},
 	}
@@ -106,13 +97,10 @@ func TestGet_cancel(t *testing.T) {
 	close(shutdownCh)
 
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:             view,
 			WorkingDir:       wd,
 			ShutdownCh:       shutdownCh,
 		},

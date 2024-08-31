@@ -618,13 +618,10 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 	defer testChdir(t, td)()
 
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
-
 	c := &InitCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -2341,13 +2338,10 @@ provider "registry.opentofu.org/hashicorp/test" {
 			defer close()
 
 			ui := new(cli.MockUi)
-			view, _ := testView(t)
-
 			m := Meta{
 				testingOverrides: metaOverridesForProvider(testProvider()),
 				Ui:               ui,
 				ProviderSource:   providerSource,
-				View:             view,
 			}
 
 			c := &InitCommand{

@@ -18,13 +18,10 @@ func TestStateList(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -49,13 +46,10 @@ func TestStateListWithID(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -81,13 +75,10 @@ func TestStateListWithNonExistentID(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -116,13 +107,10 @@ func TestStateList_backendDefaultState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -147,13 +135,10 @@ func TestStateList_backendCustomState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -178,13 +163,10 @@ func TestStateList_backendOverrideState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -207,13 +189,10 @@ func TestStateList_noState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -231,13 +210,10 @@ func TestStateList_modules(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
