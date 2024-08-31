@@ -14,9 +14,11 @@ import (
 
 func TestMetadataFunctions_error(t *testing.T) {
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &MetadataFunctionsCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -24,16 +26,22 @@ func TestMetadataFunctions_error(t *testing.T) {
 	if code := c.Run(nil); code != 1 {
 		t.Fatalf("expected error, got:\n%s", ui.OutputWriter.String())
 	}
+	done(t)
 }
 
 func TestMetadataFunctions_output(t *testing.T) {
 	ui := new(cli.MockUi)
-	m := Meta{Ui: ui}
+	view, done := testView(t)
+	m := Meta{
+		Ui:   ui,
+		View: view,
+	}
 	c := &MetadataFunctionsCommand{Meta: m}
 
 	if code := c.Run([]string{"-json"}); code != 0 {
 		t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	var got functions
 	gotString := ui.OutputWriter.String()

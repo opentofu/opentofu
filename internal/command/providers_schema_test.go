@@ -23,10 +23,12 @@ import (
 
 func TestProvidersSchema_error(t *testing.T) {
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersSchemaCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -34,6 +36,7 @@ func TestProvidersSchema_error(t *testing.T) {
 		fmt.Println(ui.OutputWriter.String())
 		t.Fatalf("expected error: \n%s", ui.OutputWriter.String())
 	}
+	done(t)
 }
 
 func TestProvidersSchema_output(t *testing.T) {
@@ -60,10 +63,12 @@ func TestProvidersSchema_output(t *testing.T) {
 
 			p := providersSchemaFixtureProvider()
 			ui := new(cli.MockUi)
+			view, done := testView(t)
 			m := Meta{
 				testingOverrides: metaOverridesForProvider(p),
 				Ui:               ui,
 				ProviderSource:   providerSource,
+				View:		      view,
 			}
 
 			// `terrafrom init`
@@ -82,6 +87,8 @@ func TestProvidersSchema_output(t *testing.T) {
 			if code := pc.Run([]string{"-json"}); code != 0 {
 				t.Fatalf("wrong exit status %d; want 0\nstderr: %s", code, ui.ErrorWriter.String())
 			}
+			done(t)
+
 			var got, want providerSchemas
 
 			gotString := ui.OutputWriter.String()

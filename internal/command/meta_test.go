@@ -26,8 +26,14 @@ func TestMetaColorize(t *testing.T) {
 	var args, args2 []string
 
 	// Test basic, color
-	m = new(Meta)
-	m.Color = true
+	view, done := testView(t)
+	done(t)
+
+	m = &Meta{
+		Color: true,
+		View:  view,
+	}
+
 	args = []string{"foo", "bar"}
 	args2 = []string{"foo", "bar"}
 	args = m.process(args)
@@ -39,7 +45,10 @@ func TestMetaColorize(t *testing.T) {
 	}
 
 	// Test basic, no change
-	m = new(Meta)
+	view, done = testView(t)
+	done(t)
+
+	m = &Meta{View: view}
 	args = []string{"foo", "bar"}
 	args2 = []string{"foo", "bar"}
 	args = m.process(args)
@@ -51,8 +60,14 @@ func TestMetaColorize(t *testing.T) {
 	}
 
 	// Test disable #1
-	m = new(Meta)
-	m.Color = true
+	view, done = testView(t)
+	done(t)
+
+	m = &Meta{
+		Color: true,
+		View:  view,
+	}
+
 	args = []string{"foo", "-no-color", "bar"}
 	args2 = []string{"foo", "bar"}
 	args = m.process(args)
@@ -66,8 +81,14 @@ func TestMetaColorize(t *testing.T) {
 	// Test disable #2
 	// Verify multiple -no-color options are removed from args slice.
 	// E.g. an additional -no-color arg could be added by TF_CLI_ARGS.
-	m = new(Meta)
-	m.Color = true
+	view, done = testView(t)
+	done(t)
+
+	m = &Meta{
+		Color: true,
+		View:  view,
+	}
+
 	args = []string{"foo", "-no-color", "bar", "-no-color"}
 	args2 = []string{"foo", "bar"}
 	args = m.process(args)
@@ -83,7 +104,10 @@ func TestMetaInputMode(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 
-	m := new(Meta)
+	view, done := testView(t)
+	done(t)
+
+	m := &Meta{View: view}
 	args := []string{}
 
 	fs := m.extendedFlagSet("foo")
@@ -100,7 +124,10 @@ func TestMetaInputMode_envVar(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 
-	m := new(Meta)
+	view, done := testView(t)
+	done(t)
+
+	m := &Meta{View: view}
 	args := []string{}
 
 	fs := m.extendedFlagSet("foo")
@@ -132,7 +159,10 @@ func TestMetaInputMode_disable(t *testing.T) {
 	test = false
 	defer func() { test = true }()
 
-	m := new(Meta)
+	view, done := testView(t)
+	done(t)
+
+	m := &Meta{View: view}
 	args := []string{"-input=false"}
 
 	fs := m.extendedFlagSet("foo")
@@ -146,7 +176,10 @@ func TestMetaInputMode_disable(t *testing.T) {
 }
 
 func TestMeta_initStatePaths(t *testing.T) {
-	m := new(Meta)
+	view, done := testView(t)
+	done(t)
+
+	m := &Meta{View: view}
 	m.initStatePaths()
 
 	if m.statePath != DefaultStateFilename {
@@ -368,8 +401,14 @@ func TestMeta_process(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("%s", test.GivenArgs), func(t *testing.T) {
-			m := new(Meta)
-			m.Color = true // this is the default also for normal use, overridden by -no-color
+			view, done := testView(t)
+			done(t)
+
+			m := &Meta{
+				Color: true, // this is the default also for normal use, overridden by -no-color
+				View:  view,
+			}
+
 			args := test.GivenArgs
 			args = m.process(args)
 

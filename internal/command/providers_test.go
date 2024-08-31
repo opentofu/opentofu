@@ -24,9 +24,11 @@ func TestProviders(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -34,6 +36,7 @@ func TestProviders(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo]",
@@ -60,9 +63,11 @@ func TestProviders_noConfigs(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -71,6 +76,7 @@ func TestProviders_noConfigs(t *testing.T) {
 		t.Fatal("expected command to return non-zero exit code" +
 			" when no configs are available")
 	}
+	done(t)
 
 	output := ui.ErrorWriter.String()
 	expectedErrMsg := "No configuration files"
@@ -106,9 +112,11 @@ func TestProviders_modules(t *testing.T) {
 
 	// Providers command
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -116,6 +124,7 @@ func TestProviders_modules(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
@@ -143,9 +152,11 @@ func TestProviders_state(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -153,6 +164,7 @@ func TestProviders_state(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
@@ -180,9 +192,11 @@ func TestProviders_tests(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -190,6 +204,7 @@ func TestProviders_tests(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo]",

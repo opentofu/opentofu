@@ -16,8 +16,14 @@ import (
 func TestProvidersMirror(t *testing.T) {
 	// noop example
 	t.Run("noop", func(t *testing.T) {
-		c := &ProvidersMirrorCommand{}
+		view, done := testView(t)
+		c := &ProvidersMirrorCommand{
+			Meta: Meta {
+				View: view,
+			},
+		}
 		code := c.Run([]string{"."})
+		done(t)
 		if code != 0 {
 			t.Fatalf("wrong exit code. expected 0, got %d", code)
 		}
@@ -25,10 +31,15 @@ func TestProvidersMirror(t *testing.T) {
 
 	t.Run("missing arg error", func(t *testing.T) {
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersMirrorCommand{
-			Meta: Meta{Ui: ui},
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
 		}
 		code := c.Run([]string{})
+		done(t)
 		if code != 1 {
 			t.Fatalf("wrong exit code. expected 1, got %d", code)
 		}
