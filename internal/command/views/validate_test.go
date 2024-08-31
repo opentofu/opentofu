@@ -97,6 +97,10 @@ func TestValidateHuman_InPedanticMode(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected: %v got: %v", want, got)
 	}
+
+	if !view.PedanticWarningFlagged {
+		t.Errorf("expected: true, got: %v", view.PedanticWarningFlagged)
+	}
 }
 
 func TestValidateJSON(t *testing.T) {
@@ -193,5 +197,9 @@ func TestValidateJSON_InPedanticMode(t *testing.T) {
 
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected: %v got: %v", want, got)
+	}
+
+	if !view.PedanticWarningFlagged {
+		t.Errorf("expected: true, got: %v", view.PedanticWarningFlagged)
 	}
 }
