@@ -81,7 +81,7 @@ func TestValidateHuman(t *testing.T) {
 func TestValidateHuman_InPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	view := NewView(streams)
-	view.pedanticMode = true
+	view.PedanticMode = true
 
 	validate := NewValidate(arguments.ViewHuman, view)
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}

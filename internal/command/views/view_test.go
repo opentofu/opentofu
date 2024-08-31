@@ -17,7 +17,7 @@ import (
 func TestView_DiagnosticsInPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	view := NewView(streams)
-	view.pedanticMode = true
+	view.PedanticMode = true
 
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
 	view.Diagnostics(diags)
