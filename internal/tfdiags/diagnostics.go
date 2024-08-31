@@ -65,7 +65,9 @@ func (diags Diagnostics) Append(new ...interface{}) Diagnostics {
 		case NonFatalError:
 			diags = diags.Append(ti.Diagnostics) // unwrap
 		case hcl.Diagnostics:
-			diags = WrapHCL(ti)
+			for _, hclDiag := range ti {
+				diags = append(diags, hclDiagnostic{hclDiag})
+			}
 		case *hcl.Diagnostic:
 			diags = append(diags, hclDiagnostic{ti})
 		case *multierror.Error:
