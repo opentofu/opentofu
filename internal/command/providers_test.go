@@ -24,12 +24,9 @@ func TestProviders(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
-
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			Ui: ui,
 		},
 	}
 
@@ -63,12 +60,9 @@ func TestProviders_noConfigs(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
-
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			Ui: ui,
 		},
 	}
 
@@ -92,8 +86,6 @@ func TestProviders_modules(t *testing.T) {
 
 	// first run init with mock provider sources to install the module
 	initUi := new(cli.MockUi)
-	initView, _ := testView(t)
-
 	providerSource, close := newMockProviderSource(t, map[string][]string{
 		"foo": {"1.0.0"},
 		"bar": {"2.0.0"},
@@ -103,7 +95,6 @@ func TestProviders_modules(t *testing.T) {
 	m := Meta{
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               initUi,
-		View:             initView,
 		ProviderSource:   providerSource,
 	}
 	ic := &InitCommand{
@@ -115,12 +106,9 @@ func TestProviders_modules(t *testing.T) {
 
 	// Providers command
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
-
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			Ui: ui,
 		},
 	}
 
@@ -155,11 +143,9 @@ func TestProviders_state(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			Ui: ui,
 		},
 	}
 
@@ -194,12 +180,9 @@ func TestProviders_tests(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
-
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui:   ui,
-			View: view,
+			Ui: ui,
 		},
 	}
 
