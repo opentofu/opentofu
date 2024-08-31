@@ -23,10 +23,15 @@ type WorkspaceCommand struct {
 func (c *WorkspaceCommand) Run(args []string) int {
 	c.Meta.process(args)
 
-	diags := envCommandExecuted(c.LegacyName)
-	c.showDiagnostics(diags)
-	if c.hasErrors(diags) {
-		return 1
+	var diags tfdiags.Diagnostics
+
+	if c.LegacyName {
+		envDiags := envCommandInvoked()
+		diags = diags.Append(envDiags)
+		if c.hasErrors(envDiags) {
+			c.showDiagnostics(diags)
+			return 1
+		}
 	}
 
 	cmdFlags := c.Meta.extendedFlagSet("workspace")
@@ -56,11 +61,8 @@ func validWorkspaceName(name string) bool {
 	return name == url.PathEscape(name)
 }
 
-func envCommandExecuted(legacy bool) tfdiags.Diagnostics {
+func envCommandInvoked() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	if !legacy {
-		return diags
-	}
 
 	diags = diags.Append(tfdiags.Sourceless(
 		tfdiags.Warning,

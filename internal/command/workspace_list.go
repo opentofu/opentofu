@@ -8,6 +8,7 @@ package command
 import (
 	"bytes"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"strings"
 
 	"github.com/posener/complete"
@@ -21,10 +22,15 @@ type WorkspaceListCommand struct {
 func (c *WorkspaceListCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 
-	diags := envCommandExecuted(c.LegacyName)
-	c.showDiagnostics(diags)
-	if c.hasErrors(diags) {
-		return 1
+	var diags tfdiags.Diagnostics
+
+	if c.LegacyName {
+		envDiags := envCommandInvoked()
+		diags = diags.Append(envDiags)
+		if c.hasErrors(envDiags) {
+			c.showDiagnostics(diags)
+			return 1
+		}
 	}
 
 	cmdFlags := c.Meta.defaultFlagSet("workspace list")

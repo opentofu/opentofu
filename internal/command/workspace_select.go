@@ -7,6 +7,7 @@ package command
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"strings"
 
 	"github.com/mitchellh/cli"
@@ -21,10 +22,15 @@ type WorkspaceSelectCommand struct {
 func (c *WorkspaceSelectCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 
-	diags := envCommandExecuted(c.LegacyName)
-	if c.hasErrors(diags) {
-		c.showDiagnostics(diags)
-		return 1
+	var diags tfdiags.Diagnostics
+
+	if c.LegacyName {
+		envDiags := envCommandInvoked()
+		diags = diags.Append(envDiags)
+		if c.hasErrors(envDiags) {
+			c.showDiagnostics(diags)
+			return 1
+		}
 	}
 
 	var orCreate bool
