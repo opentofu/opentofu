@@ -144,7 +144,7 @@ func WrapHCL(diags hcl.Diagnostics) Diagnostics {
 
 	newDiags := make(Diagnostics, 0, len(diags))
 	for _, diag := range diags {
-		newDiags = append(newDiags, hclDiagnostic{diag})
+		newDiags = newDiags.Append(hclDiagnostic{diag})
 	}
 
 	return newDiags
