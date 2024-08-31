@@ -152,6 +152,8 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 }
 
+// HasErrors accepts a set of Diagnostics and interrogates both the View and Diagnostics returning whether an error
+// has occurred or not.
 func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
 	if v.PedanticWarningFlagged {
 		// If a pedantic warning has been flagged already then we report any subsequent calls as in error state.
