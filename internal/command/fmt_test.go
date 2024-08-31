@@ -59,16 +59,19 @@ func TestFmt_TestFiles(t *testing.T) {
 			}
 
 			ui := cli.NewMockUi()
+			view, done := testView(t)
 			c := &FmtCommand{
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(testProvider()),
 					Ui:               ui,
+					View:             view,
 				},
 			}
 			args := []string{gotFile}
 			if code := c.Run(args); code != 0 {
 				t.Fatalf("fmt command was unsuccessful:\n%s", ui.ErrorWriter.String())
 			}
+			done(t)
 
 			got, err := os.ReadFile(gotFile)
 			if err != nil {
@@ -123,16 +126,19 @@ func TestFmt(t *testing.T) {
 			}
 
 			ui := cli.NewMockUi()
+			view, done := testView(t)
 			c := &FmtCommand{
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(testProvider()),
 					Ui:               ui,
+					View:             view,
 				},
 			}
 			args := []string{gotFile}
 			if code := c.Run(args); code != 0 {
 				t.Fatalf("fmt command was unsuccessful:\n%s", ui.ErrorWriter.String())
 			}
+			done(t)
 
 			got, err := os.ReadFile(gotFile)
 			if err != nil {
@@ -150,10 +156,12 @@ func TestFmt_nonexist(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -162,6 +170,7 @@ func TestFmt_nonexist(t *testing.T) {
 	if code := c.Run(args); code != 2 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	expected := "No file or directory at"
 	if actual := ui.ErrorWriter.String(); !strings.Contains(actual, expected) {
@@ -182,10 +191,12 @@ a = 1 +
 	}
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -193,6 +204,7 @@ a = 1 +
 	if code := c.Run(args); code != 2 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	expected := "Invalid expression"
 	if actual := ui.ErrorWriter.String(); !strings.Contains(actual, expected) {
@@ -211,10 +223,12 @@ func TestFmt_snippetInError(t *testing.T) {
 	}
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -222,6 +236,7 @@ func TestFmt_snippetInError(t *testing.T) {
 	if code := c.Run(args); code != 2 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	substrings := []string{
 		"Argument definition required",
@@ -246,10 +261,12 @@ func TestFmt_manyArgs(t *testing.T) {
 	}
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -260,6 +277,7 @@ func TestFmt_manyArgs(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	got, err := filepath.Abs(strings.TrimSpace(ui.OutputWriter.String()))
 	if err != nil {
@@ -286,10 +304,12 @@ func TestFmt_workingDirectory(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -297,6 +317,7 @@ func TestFmt_workingDirectory(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	output := strings.Split(strings.TrimSpace(ui.OutputWriter.String()), "\n")
 
@@ -315,10 +336,12 @@ func TestFmt_directoryArg(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -326,6 +349,7 @@ func TestFmt_directoryArg(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	output := strings.Split(strings.TrimSpace(ui.OutputWriter.String()), "\n")
 
@@ -349,10 +373,12 @@ func TestFmt_fileArg(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -360,6 +386,7 @@ func TestFmt_fileArg(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	got, err := filepath.Abs(strings.TrimSpace(ui.OutputWriter.String()))
 	if err != nil {
@@ -377,10 +404,12 @@ func TestFmt_stdinArg(t *testing.T) {
 	input.Write(fmtFixture.input)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 		input: input,
 	}
@@ -389,6 +418,7 @@ func TestFmt_stdinArg(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	expected := fmtFixture.golden
 	if actual := ui.OutputWriter.Bytes(); !bytes.Equal(actual, expected) {
@@ -400,10 +430,12 @@ func TestFmt_nonDefaultOptions(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -416,6 +448,7 @@ func TestFmt_nonDefaultOptions(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("wrong exit code. errors: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	expected := fmt.Sprintf("-%s+%s", fmtFixture.input, fmtFixture.golden)
 	if actual := ui.OutputWriter.String(); !strings.Contains(actual, expected) {
@@ -427,10 +460,12 @@ func TestFmt_check(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -441,6 +476,7 @@ func TestFmt_check(t *testing.T) {
 	if code := c.Run(args); code != 3 {
 		t.Fatalf("wrong exit code. expected 3")
 	}
+	done(t)
 
 	// Given that we give relative paths back to the user, normalize this temp
 	// dir so that we're comparing against a relative-ized (normalized) path
@@ -456,10 +492,12 @@ func TestFmt_checkStdin(t *testing.T) {
 	input.Write(fmtFixture.input)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &FmtCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 		input: input,
 	}
@@ -471,6 +509,7 @@ func TestFmt_checkStdin(t *testing.T) {
 	if code := c.Run(args); code != 3 {
 		t.Fatalf("wrong exit code. expected 3, got %d", code)
 	}
+	done(t)
 
 	if ui.OutputWriter != nil {
 		t.Fatalf("expected no output, got: %q", ui.OutputWriter.String())
