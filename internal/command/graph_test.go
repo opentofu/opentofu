@@ -29,7 +29,7 @@ func TestGraph(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -52,7 +52,7 @@ func TestGraph_multipleArgs(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -77,7 +77,7 @@ func TestGraph_noArgs(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -104,7 +104,7 @@ func TestGraph_noConfig(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -161,7 +161,7 @@ func TestGraph_plan(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 

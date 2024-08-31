@@ -99,7 +99,7 @@ func runProviderLockGenericTest(t *testing.T, testDirectory, expected string) {
 		Meta: Meta{
 			Ui:               ui,
 			testingOverrides: metaOverridesForProvider(p),
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -181,7 +181,6 @@ func TestProvidersLock_args(t *testing.T) {
 				Ui:   ui,
 				View: view,
 			},
-
 		}
 
 		// There is no configuration, so it's not valid to use any provider argument

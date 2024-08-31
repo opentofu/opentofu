@@ -623,7 +623,7 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -2346,7 +2346,7 @@ provider "registry.opentofu.org/hashicorp/test" {
 				testingOverrides: metaOverridesForProvider(testProvider()),
 				Ui:               ui,
 				ProviderSource:   providerSource,
-				View:			  view,
+				View:             view,
 			}
 
 			c := &InitCommand{

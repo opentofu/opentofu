@@ -18,7 +18,7 @@ func TestProvidersMirror(t *testing.T) {
 	t.Run("noop", func(t *testing.T) {
 		view, done := testView(t)
 		c := &ProvidersMirrorCommand{
-			Meta: Meta {
+			Meta: Meta{
 				View: view,
 			},
 		}

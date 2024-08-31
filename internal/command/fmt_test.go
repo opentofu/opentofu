@@ -161,7 +161,7 @@ func TestFmt_nonexist(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -266,7 +266,7 @@ func TestFmt_manyArgs(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -341,7 +341,7 @@ func TestFmt_directoryArg(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -378,7 +378,7 @@ func TestFmt_fileArg(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -409,7 +409,7 @@ func TestFmt_stdinArg(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 		input: input,
 	}
@@ -435,7 +435,7 @@ func TestFmt_nonDefaultOptions(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -465,7 +465,7 @@ func TestFmt_check(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -497,7 +497,7 @@ func TestFmt_checkStdin(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 		input: input,
 	}

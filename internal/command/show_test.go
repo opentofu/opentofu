@@ -563,7 +563,7 @@ func TestShow_json_output(t *testing.T) {
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					ProviderSource:   providerSource,
-					View:			  view,
+					View:             view,
 				},
 			}
 			if code := ic.Run([]string{}); code != 0 {
@@ -674,7 +674,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			ProviderSource:   providerSource,
-			View:			  view,
+			View:             view,
 		},
 	}
 	if code := ic.Run([]string{}); code != 0 {
@@ -770,7 +770,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			ProviderSource:   providerSource,
-			View:			  view,
+			View:             view,
 		},
 	}
 	if code := ic.Run([]string{}); code != 0 {
@@ -882,7 +882,7 @@ func TestShow_json_output_state(t *testing.T) {
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					ProviderSource:   providerSource,
-					View:			  view,
+					View:             view,
 				},
 			}
 			if code := ic.Run([]string{}); code != 0 {

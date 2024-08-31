@@ -105,7 +105,7 @@ func TestLogin(t *testing.T) {
 					Ui:              ui,
 					BrowserLauncher: browserLauncher,
 					Services:        svcs,
-					View:			 view,
+					View:            view,
 				},
 			}
 

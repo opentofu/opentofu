@@ -23,7 +23,7 @@ func TestStateList(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -54,7 +54,7 @@ func TestStateListWithID(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -86,7 +86,7 @@ func TestStateListWithNonExistentID(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -121,7 +121,7 @@ func TestStateList_backendDefaultState(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -152,7 +152,7 @@ func TestStateList_backendCustomState(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -183,7 +183,7 @@ func TestStateList_backendOverrideState(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -212,7 +212,7 @@ func TestStateList_noState(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -236,7 +236,7 @@ func TestStateList_modules(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:			  view,
+			View:             view,
 		},
 	}
 

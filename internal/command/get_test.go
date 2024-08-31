@@ -23,7 +23,7 @@ func TestGet(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			WorkingDir:       wd,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -50,7 +50,7 @@ func TestGet_multipleArgs(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			WorkingDir:       wd,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -75,7 +75,7 @@ func TestGet_update(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			WorkingDir:       wd,
-			View:			  view,
+			View:             view,
 		},
 	}
 
@@ -113,7 +113,7 @@ func TestGet_cancel(t *testing.T) {
 			Ui:               ui,
 			WorkingDir:       wd,
 			ShutdownCh:       shutdownCh,
-			View:			  view,
+			View:             view,
 		},
 	}
 

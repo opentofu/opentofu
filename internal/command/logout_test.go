@@ -29,7 +29,7 @@ func TestLogout(t *testing.T) {
 		Meta: Meta{
 			Ui:       ui,
 			Services: disco.NewWithCredentialsSource(credsSrc),
-			View:	  view,
+			View:     view,
 		},
 	}
 
