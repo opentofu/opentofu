@@ -45,8 +45,8 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if c.View.HasErrors(encDiags) {
-		c.View.Diagnostics(diags)
+	if view.HasErrors(encDiags) {
+		view.Diagnostics(diags)
 		return 1
 	}
 

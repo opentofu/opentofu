@@ -54,7 +54,7 @@ func (c *StatePushCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
-	if encDiags.HasErrors() {
+	if c.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
@@ -88,7 +88,7 @@ func (c *StatePushCommand) Run(args []string) int {
 
 	// Load the backend
 	b, backendDiags := c.Backend(nil, enc.State())
-	if backendDiags.HasErrors() {
+	if c.HasErrors(backendDiags) {
 		c.showDiagnostics(backendDiags)
 		return 1
 	}
@@ -103,7 +103,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	// Check remote OpenTofu version is compatible
 	remoteVersionDiags := c.remoteVersionCheck(b, workspace)
 	c.showDiagnostics(remoteVersionDiags)
-	if remoteVersionDiags.HasErrors() {
+	if c.HasErrors(remoteVersionDiags) {
 		return 1
 	}
 
@@ -116,12 +116,12 @@ func (c *StatePushCommand) Run(args []string) int {
 
 	if c.stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if diags := stateLocker.Lock(stateMgr, "state-push"); diags.HasErrors() {
+		if diags := stateLocker.Lock(stateMgr, "state-push"); c.HasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
 		defer func() {
-			if diags := stateLocker.Unlock(); diags.HasErrors() {
+			if diags := stateLocker.Unlock(); c.HasErrors(diags) {
 				c.showDiagnostics(diags)
 			}
 		}()

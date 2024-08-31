@@ -58,14 +58,14 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
-	if encDiags.HasErrors() {
+	if c.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
 	b, backendDiags := c.Backend(nil, enc.State())
-	if backendDiags.HasErrors() {
+	if c.HasErrors(backendDiags) {
 		c.showDiagnostics(backendDiags)
 		return 1
 	}
@@ -82,7 +82,7 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	// Check if the address can be parsed
 	addr, addrDiags := addrs.ParseAbsResourceInstanceStr(args[0])
-	if addrDiags.HasErrors() {
+	if c.HasErrors(addrDiags) {
 		c.Streams.Eprintln(fmt.Sprintf(errParsingAddress, args[0]))
 		return 1
 	}
@@ -100,7 +100,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	opReq.ConfigDir = cwd
 	var callDiags tfdiags.Diagnostics
 	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
-	if callDiags.HasErrors() {
+	if c.HasErrors(callDiags) {
 		c.showDiagnostics(callDiags)
 		return 1
 	}
@@ -113,14 +113,14 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	// Get the context (required to get the schemas)
 	lr, _, ctxDiags := local.LocalRun(opReq)
-	if ctxDiags.HasErrors() {
+	if c.View.HasErrors(ctxDiags) {
 		c.View.Diagnostics(ctxDiags)
 		return 1
 	}
 
 	// Get the schemas from the context
 	schemas, diags := lr.Core.Schemas(lr.Config, lr.InputState)
-	if diags.HasErrors() {
+	if c.View.HasErrors(diags) {
 		c.View.Diagnostics(diags)
 		return 1
 	}
@@ -148,7 +148,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 	migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(lr.Config, state)
 	diags = diags.Append(migrateDiags)
-	if migrateDiags.HasErrors() {
+	if c.View.HasErrors(migrateDiags) {
 		c.View.Diagnostics(diags)
 		return 1
 	}

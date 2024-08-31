@@ -71,14 +71,14 @@ func (c *StateMvCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
-	if encDiags.HasErrors() {
+	if c.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	if len(setLegacyLocalBackendOptions) > 0 {
 		currentBackend, diags := c.backendFromConfig(&BackendOpts{}, enc.State())
-		if diags.HasErrors() {
+		if c.HasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -108,12 +108,12 @@ func (c *StateMvCommand) Run(args []string) int {
 
 	if c.stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if diags := stateLocker.Lock(stateFromMgr, "state-mv"); diags.HasErrors() {
+		if diags := stateLocker.Lock(stateFromMgr, "state-mv"); c.HasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
 		defer func() {
-			if diags := stateLocker.Unlock(); diags.HasErrors() {
+			if diags := stateLocker.Unlock(); c.HasErrors(diags) {
 				c.showDiagnostics(diags)
 			}
 		}()
@@ -146,12 +146,12 @@ func (c *StateMvCommand) Run(args []string) int {
 
 		if c.stateLock {
 			stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-			if diags := stateLocker.Lock(stateToMgr, "state-mv"); diags.HasErrors() {
+			if diags := stateLocker.Lock(stateToMgr, "state-mv"); c.HasErrors(diags) {
 				c.showDiagnostics(diags)
 				return 1
 			}
 			defer func() {
-				if diags := stateLocker.Unlock(); diags.HasErrors() {
+				if diags := stateLocker.Unlock(); c.HasErrors(diags) {
 					c.showDiagnostics(diags)
 				}
 			}()
@@ -173,7 +173,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	diags = diags.Append(moreDiags)
 	destAddr, moreDiags := c.lookupSingleStateObjectAddr(stateFrom, args[1])
 	diags = diags.Append(moreDiags)
-	if diags.HasErrors() {
+	if c.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -276,7 +276,7 @@ func (c *StateMvCommand) Run(args []string) int {
 				))
 			}
 
-			if diags.HasErrors() {
+			if c.HasErrors(diags) {
 				c.showDiagnostics(diags)
 				return 1
 			}
@@ -330,7 +330,7 @@ func (c *StateMvCommand) Run(args []string) int {
 				))
 			}
 
-			if diags.HasErrors() {
+			if c.HasErrors(diags) {
 				c.showDiagnostics(diags)
 				return 1
 			}
@@ -401,7 +401,7 @@ func (c *StateMvCommand) Run(args []string) int {
 
 	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() {
+	if c.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
