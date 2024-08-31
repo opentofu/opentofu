@@ -24,7 +24,7 @@ func (c *WorkspaceCommand) Run(args []string) int {
 
 	diags := envCommandHasWarning(c.LegacyName)
 	c.showDiagnostics(diags)
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		return 1
 	}
 

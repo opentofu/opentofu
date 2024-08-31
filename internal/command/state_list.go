@@ -42,14 +42,14 @@ func (c *StateListCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
-	if c.HasErrors(encDiags) {
+	if c.hasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
 	b, backendDiags := c.Backend(nil, enc.State())
-	if c.HasErrors(backendDiags) {
+	if c.hasErrors(backendDiags) {
 		c.showDiagnostics(backendDiags)
 		return 1
 	}
@@ -86,7 +86,7 @@ func (c *StateListCommand) Run(args []string) int {
 	} else {
 		addrs, diags = c.lookupResourceInstanceAddrs(state, args...)
 	}
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -100,7 +100,7 @@ func (c *StateListCommand) Run(args []string) int {
 	}
 
 	c.showDiagnostics(diags)
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		return 1
 	}
 

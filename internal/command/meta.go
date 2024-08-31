@@ -717,7 +717,7 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 	return false, nil
 }
 
-func (m *Meta) HasErrors(diags tfdiags.Diagnostics) bool {
+func (m *Meta) hasErrors(diags tfdiags.Diagnostics) bool {
 	if m.pedanticMode {
 		// Warning has been flagged from the legacy UI component, return true as if a diagnostic error has occurred
 		if m.warningFlagged {

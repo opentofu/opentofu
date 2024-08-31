@@ -78,7 +78,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 
 	config, configDiags := c.loadConfigWithTests(configPath, testsDirectory)
 	diags = diags.Append(configDiags)
-	if c.HasErrors(configDiags) {
+	if c.hasErrors(configDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -86,7 +86,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.HasErrors(encDiags) {
+	if c.hasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -96,7 +96,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 		Config: config.Module.Backend,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.HasErrors(backendDiags) {
+	if c.hasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -122,7 +122,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 
 	reqs, reqDiags := config.ProviderRequirementsByModule()
 	diags = diags.Append(reqDiags)
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -147,7 +147,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	}
 
 	c.showDiagnostics(diags)
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		return 1
 	}
 	return 0

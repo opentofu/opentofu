@@ -62,7 +62,7 @@ func (c *GraphCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.HasErrors(encDiags) {
+	if c.hasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -104,14 +104,14 @@ func (c *GraphCommand) Run(args []string) int {
 		var backendDiags tfdiags.Diagnostics
 		b, backendDiags = c.BackendForLocalPlan(plan.Backend, enc.State())
 		diags = diags.Append(backendDiags)
-		if c.HasErrors(backendDiags) {
+		if c.hasErrors(backendDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
 	} else {
 		backendConfig, backendDiags := c.loadBackendConfig(configPath)
 		diags = diags.Append(backendDiags)
-		if c.HasErrors(diags) {
+		if c.hasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -120,7 +120,7 @@ func (c *GraphCommand) Run(args []string) int {
 			Config: backendConfig,
 		}, enc.State())
 		diags = diags.Append(backendDiags)
-		if c.HasErrors(backendDiags) {
+		if c.hasErrors(backendDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -148,7 +148,7 @@ func (c *GraphCommand) Run(args []string) int {
 	var callDiags tfdiags.Diagnostics
 	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
 	diags = diags.Append(callDiags)
-	if c.HasErrors(callDiags) {
+	if c.hasErrors(callDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -162,7 +162,7 @@ func (c *GraphCommand) Run(args []string) int {
 	// Get the context
 	lr, _, ctxDiags := local.LocalRun(opReq)
 	diags = diags.Append(ctxDiags)
-	if c.HasErrors(ctxDiags) {
+	if c.hasErrors(ctxDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -219,7 +219,7 @@ func (c *GraphCommand) Run(args []string) int {
 		))
 	}
 	diags = diags.Append(graphDiags)
-	if c.HasErrors(graphDiags) {
+	if c.hasErrors(graphDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -234,7 +234,7 @@ func (c *GraphCommand) Run(args []string) int {
 		return 1
 	}
 
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		// For this command we only show diagnostics if there are errors,
 		// because printing out naked warnings could upset a naive program
 		// consuming our dot output.

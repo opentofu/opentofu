@@ -55,14 +55,14 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.HasErrors(encDiags) {
+	if c.hasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -72,7 +72,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.HasErrors(backendDiags) {
+	if c.hasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -105,7 +105,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		opReq.Variables, moreDiags = c.collectVariableValues()
 		opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
 		diags = diags.Append(moreDiags).Append(callDiags)
-		if c.HasErrors(moreDiags) {
+		if c.hasErrors(moreDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -114,7 +114,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Get the context
 	lr, _, ctxDiags := local.LocalRun(opReq)
 	diags = diags.Append(ctxDiags)
-	if c.HasErrors(ctxDiags) {
+	if c.hasErrors(ctxDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -122,7 +122,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Successfully creating the context can result in a lock, so ensure we release it
 	defer func() {
 		diags := opReq.StateLocker.Unlock()
-		if c.HasErrors(diags) {
+		if c.hasErrors(diags) {
 			c.showDiagnostics(diags)
 		}
 	}()
@@ -156,7 +156,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// set the ConsoleMode to true so any available console-only functions included.
 	scope.ConsoleMode = true
 
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		diags = diags.Append(tfdiags.SimpleWarning("Due to the problems above, some expressions may produce unexpected results."))
 	}
 
@@ -191,7 +191,7 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 		fullCommand, bracketState := consoleState.UpdateState(line)
 		if bracketState <= 0 {
 			result, exit, diags := session.Handle(fullCommand)
-			if c.HasErrors(diags) {
+			if c.hasErrors(diags) {
 				// We're in piped mode, so we'll exit immediately on error.
 				c.showDiagnostics(diags)
 				return 1

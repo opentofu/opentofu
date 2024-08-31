@@ -94,7 +94,7 @@ func (c *FmtCommand) Run(args []string) int {
 
 	diags := c.fmt(paths, c.input, output)
 	c.showDiagnostics(diags)
-	if c.HasErrors(diags) {
+	if c.hasErrors(diags) {
 		return 2
 	}
 

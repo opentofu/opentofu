@@ -58,14 +58,14 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
-	if c.HasErrors(encDiags) {
+	if c.hasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
 	b, backendDiags := c.Backend(nil, enc.State())
-	if c.HasErrors(backendDiags) {
+	if c.hasErrors(backendDiags) {
 		c.showDiagnostics(backendDiags)
 		return 1
 	}
@@ -82,7 +82,7 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	// Check if the address can be parsed
 	addr, addrDiags := addrs.ParseAbsResourceInstanceStr(args[0])
-	if c.HasErrors(addrDiags) {
+	if c.hasErrors(addrDiags) {
 		c.Streams.Eprintln(fmt.Sprintf(errParsingAddress, args[0]))
 		return 1
 	}
@@ -100,7 +100,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	opReq.ConfigDir = cwd
 	var callDiags tfdiags.Diagnostics
 	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
-	if c.HasErrors(callDiags) {
+	if c.hasErrors(callDiags) {
 		c.showDiagnostics(callDiags)
 		return 1
 	}

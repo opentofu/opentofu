@@ -64,7 +64,7 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 			l.SetPrompt(fmt.Sprintf("%s ", strings.Repeat(".", openState)))
 		default:
 			out, exit, diags := session.Handle(fullCommand)
-			if c.HasErrors(diags) {
+			if c.hasErrors(diags) {
 				c.showDiagnostics(diags)
 			}
 			if exit {

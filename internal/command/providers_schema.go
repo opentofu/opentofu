@@ -60,7 +60,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if c.HasErrors(encDiags) {
+	if c.hasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -68,7 +68,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	// Load the backend
 	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.HasErrors(backendDiags) {
+	if c.hasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -98,7 +98,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	var callDiags tfdiags.Diagnostics
 	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
 	diags = diags.Append(callDiags)
-	if c.HasErrors(callDiags) {
+	if c.hasErrors(callDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -113,14 +113,14 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	// Get the context
 	lr, _, ctxDiags := local.LocalRun(opReq)
 	diags = diags.Append(ctxDiags)
-	if c.HasErrors(ctxDiags) {
+	if c.hasErrors(ctxDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
-	if c.HasErrors(moreDiags) {
+	if c.hasErrors(moreDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
