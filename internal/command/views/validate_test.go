@@ -162,7 +162,7 @@ func TestValidateJSON(t *testing.T) {
 func TestValidateJSON_InPedanticMode(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	view := NewView(streams)
-	view.pedanticMode = true
+	view.PedanticMode = true
 	validate := NewValidate(arguments.ViewJSON, view)
 
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
