@@ -168,7 +168,6 @@ func TestValidateJSON_InPedanticMode(t *testing.T) {
 	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
 
 	retCode := validate.Results(diags)
-
 	if retCode != 1 {
 		t.Errorf("expected: 1 got: %v", retCode)
 	}
