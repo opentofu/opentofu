@@ -50,6 +50,7 @@ func TestLogin(t *testing.T) {
 			// Do not use the NewMockUi initializer here, as we want to delay
 			// the call to init until after setting up the input mocks
 			ui := new(cli.MockUi)
+			view, done := testView(t)
 
 			var browserLauncher webbrowser.Launcher = nil
 			if useBrowserLauncher {
@@ -104,10 +105,12 @@ func TestLogin(t *testing.T) {
 					Ui:              ui,
 					BrowserLauncher: browserLauncher,
 					Services:        svcs,
+					View:			 view,
 				},
 			}
 
 			test(t, c, ui)
+			done(t)
 		}
 	}
 

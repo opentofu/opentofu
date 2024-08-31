@@ -22,12 +22,14 @@ func TestLogout(t *testing.T) {
 	workDir := t.TempDir()
 
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	credsSrc := cliconfig.EmptyCredentialsSourceForTests(filepath.Join(workDir, "credentials.tfrc.json"))
 
 	c := &LogoutCommand{
 		Meta: Meta{
 			Ui:       ui,
 			Services: disco.NewWithCredentialsSource(credsSrc),
+			View:	  view,
 		},
 	}
 
@@ -42,6 +44,7 @@ func TestLogout(t *testing.T) {
 			t.Errorf("unexpected error message: %s", ui.ErrorWriter.String())
 		}
 	})
+	done(t)
 
 	testCases := []struct {
 		// Hostname to associate a pre-stored token

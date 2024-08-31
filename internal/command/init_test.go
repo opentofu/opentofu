@@ -2341,10 +2341,12 @@ provider "registry.opentofu.org/hashicorp/test" {
 			defer close()
 
 			ui := new(cli.MockUi)
+			view, done := testView(t)
 			m := Meta{
 				testingOverrides: metaOverridesForProvider(testProvider()),
 				Ui:               ui,
 				ProviderSource:   providerSource,
+				View:			  view,
 			}
 
 			c := &InitCommand{
@@ -2358,6 +2360,8 @@ provider "registry.opentofu.org/hashicorp/test" {
 			}
 
 			code := c.Run(tc.args)
+			done(t)
+
 			if tc.ok && code != 0 {
 				t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 			}
