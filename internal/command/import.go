@@ -67,7 +67,11 @@ func (c *ImportCommand) Run(args []string) int {
 	traversalSrc := []byte(args[0])
 	traversal, travDiags := hclsyntax.ParseTraversalAbs(traversalSrc, "<import-address>", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(travDiags)
-	if c.hasErrors(tfdiags.WrapHCL(travDiags)) {
+
+	// It's safe to test diags instead of travDiags as they are the first diagnostics added to the diags slice.
+	// If there is logic in the future that is appended to the diagnostics then we should be upgrading to wrap and test
+	// the travDiags hcl diagnostics.
+	if c.hasErrors(diags) {
 		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
 		c.showDiagnostics(diags)
 		c.Ui.Info(importCommandInvalidAddressReference)
