@@ -77,6 +77,7 @@ func (c *ImportCommand) Run(args []string) int {
 		c.Ui.Info(importCommandInvalidAddressReference)
 		return 1
 	}
+
 	addr, addrDiags := addrs.ParseAbsResourceInstance(traversal)
 	diags = diags.Append(addrDiags)
 	if c.hasErrors(addrDiags) {
