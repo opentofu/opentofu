@@ -149,14 +149,14 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 }
 
 func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
-	if v.PedanticMode {
-		if v.PedanticWarningFlagged {
-			// Treat a pedantic warning flagged as an error, this should only occur when using the legacy views.
-			// We do not need to worry about converting this to an actual diagnostic as an error should be displayed
-			// via the legacy UI component.
-			return true
-		}
+	if v.PedanticWarningFlagged {
+		// Treat a pedantic warning flagged as an error, this should only occur when using the legacy views.
+		// We do not need to worry about converting this to an actual diagnostic as an error should be displayed
+		// via the legacy view.
+		return true
+	}
 
+	if v.PedanticMode {
 		// Convert warnings to errors
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}

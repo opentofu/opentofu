@@ -1817,28 +1817,34 @@ func TestApply_tfWorkspaceNonDefault(t *testing.T) {
 	// Create new env
 	{
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		newCmd := &WorkspaceNewCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 		if code := newCmd.Run([]string{"test"}); code != 0 {
 			t.Fatal("error creating workspace")
 		}
+		done(t)
 	}
 
 	// Switch to it
 	{
 		args := []string{"test"}
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		selCmd := &WorkspaceSelectCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 		if code := selCmd.Run(args); code != 0 {
 			t.Fatal("error switching workspace")
 		}
+		done(t)
 	}
 
 	p := testProvider()
@@ -1879,28 +1885,34 @@ func TestApply_tofuWorkspaceNonDefault(t *testing.T) {
 	// Create new env
 	{
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		newCmd := &WorkspaceNewCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 		if code := newCmd.Run([]string{"test"}); code != 0 {
 			t.Fatal("error creating workspace")
 		}
+		done(t)
 	}
 
 	// Switch to it
 	{
 		args := []string{"test"}
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		selCmd := &WorkspaceSelectCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 		if code := selCmd.Run(args); code != 0 {
 			t.Fatal("error switching workspace")
 		}
+		done(t)
 	}
 
 	p := testProvider()

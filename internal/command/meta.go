@@ -674,13 +674,11 @@ func (m *Meta) process(args []string) []string {
 
 	// Reconfigure the view. This is necessary for commands which use both
 	// views.View and cli.Ui during the migration phase.
-	if m.View != nil {
-		m.View.Configure(&arguments.View{
-			CompactWarnings: m.compactWarnings,
-			NoColor:         !m.Color,
-			PedanticMode:    pedanticMode,
-		})
-	}
+	m.View.Configure(&arguments.View{
+		CompactWarnings: m.compactWarnings,
+		NoColor:         !m.Color,
+		PedanticMode:    pedanticMode,
+	})
 
 	return args
 }
