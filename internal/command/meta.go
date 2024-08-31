@@ -962,4 +962,3 @@ func (m *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 	return nil, diags
 }
-
