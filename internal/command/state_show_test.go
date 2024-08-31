@@ -6,6 +6,7 @@
 package command
 
 import (
+	"github.com/opentofu/opentofu/internal/command/views"
 	"strings"
 	"testing"
 
@@ -58,6 +59,7 @@ func TestStateShow(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
+			View:             views.NewView(streams),
 		},
 	}
 
@@ -135,6 +137,7 @@ func TestStateShow_multi(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
+			View:             views.NewView(streams),
 		},
 	}
 
@@ -165,6 +168,7 @@ func TestStateShow_noState(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
+			View:             views.NewView(streams),
 		},
 	}
 
@@ -190,6 +194,7 @@ func TestStateShow_emptyState(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
+			View:             views.NewView(streams),
 		},
 	}
 
@@ -250,6 +255,7 @@ func TestStateShow_configured_provider(t *testing.T) {
 				},
 			},
 			Streams: streams,
+			View:    views.NewView(streams),
 		},
 	}
 
@@ -283,6 +289,7 @@ func TestStateShow_withoutShowSensitiveArg(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
+			View:             views.NewView(streams),
 		},
 	}
 
@@ -320,6 +327,7 @@ func TestStateShow_showSensitiveArg(t *testing.T) {
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Streams:          streams,
+			View:             views.NewView(streams),
 		},
 	}
 
