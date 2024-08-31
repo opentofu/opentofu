@@ -27,13 +27,10 @@ func TestStatePull(t *testing.T) {
 
 	p := testProvider()
 	ui := new(cli.MockUi)
-	view, _ := testView(t)
-
 	c := &StatePullCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -53,13 +50,10 @@ func TestStatePull_noState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StatePullCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
@@ -82,13 +76,10 @@ func TestStatePull_checkRequiredVersion(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
-	view, _ := testView(t)
-
 	c := &StatePullCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
-			View:             view,
 		},
 	}
 
