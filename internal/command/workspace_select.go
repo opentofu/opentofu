@@ -7,10 +7,10 @@ package command
 
 import (
 	"fmt"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"strings"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/posener/complete"
 )
 

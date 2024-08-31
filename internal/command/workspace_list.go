@@ -8,9 +8,9 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/posener/complete"
 )
 

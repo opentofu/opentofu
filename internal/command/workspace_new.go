@@ -7,7 +7,6 @@ package command
 
 import (
 	"fmt"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"os"
 	"strings"
 	"time"
@@ -20,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 type WorkspaceNewCommand struct {
