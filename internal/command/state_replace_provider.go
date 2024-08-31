@@ -58,7 +58,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 	// Parse from/to arguments into providers
 	from, fromDiags := addrs.ParseProviderSourceString(args[0])
-	if c.hasErrors(fromDiags) {
+	if c.View.HasErrors(fromDiags) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			fmt.Sprintf(`Invalid "from" provider %q`, args[0]),
@@ -66,14 +66,14 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 		))
 	}
 	to, toDiags := addrs.ParseProviderSourceString(args[1])
-	if c.hasErrors(toDiags) {
+	if c.View.HasErrors(toDiags) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			fmt.Sprintf(`Invalid "to" provider %q`, args[1]),
 			toDiags.Err().Error(),
 		))
 	}
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -81,7 +81,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if c.hasErrors(encDiags) {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -96,12 +96,12 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	// Acquire lock if requested
 	if c.stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if lockDiags := stateLocker.Lock(stateMgr, "state-replace-provider"); c.hasErrors(lockDiags) {
+		if lockDiags := stateLocker.Lock(stateMgr, "state-replace-provider"); c.View.HasErrors(lockDiags) {
 			c.showDiagnostics(lockDiags)
 			return 1
 		}
 		defer func() {
-			if lockDiags := stateLocker.Unlock(); c.hasErrors(lockDiags) {
+			if lockDiags := stateLocker.Unlock(); c.View.HasErrors(lockDiags) {
 				c.showDiagnostics(lockDiags)
 			}
 		}()
@@ -121,7 +121,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 	// Fetch all resources from the state
 	resources, diags := c.lookupAllResources(state)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -177,7 +177,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.hasErrors(backendDiags) {
+	if c.View.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}

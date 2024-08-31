@@ -76,7 +76,7 @@ func (v *JSONView) StateDump(state string) {
 func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{}) {
 	sources := v.view.configSources()
 
-	if v.view.pedanticMode {
+	if v.view.PedanticMode {
 		// Convert warnings to errors
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}

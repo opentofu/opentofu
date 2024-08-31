@@ -27,8 +27,9 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	if c.LegacyName {
 		envDiags := envCommandInvoked()
 		diags = diags.Append(envDiags)
-		if c.hasErrors(envDiags) {
-			c.showDiagnostics(diags)
+
+		c.showDiagnostics(diags)
+		if c.View.HasErrors(envDiags) {
 			return 1
 		}
 	}
@@ -51,14 +52,14 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.hasErrors(encDiags) {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -68,7 +69,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}

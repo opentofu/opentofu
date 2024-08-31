@@ -37,14 +37,14 @@ func (c *StatePullCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
-	if c.hasErrors(encDiags) {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	// Load the backend
 	b, backendDiags := c.Backend(nil, enc.State())
-	if c.hasErrors(backendDiags) {
+	if c.View.HasErrors(backendDiags) {
 		c.showDiagnostics(backendDiags)
 		return 1
 	}

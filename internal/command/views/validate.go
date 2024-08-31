@@ -112,7 +112,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	}
 	configSources := v.view.configSources()
 
-	if v.view.pedanticMode {
+	if v.view.PedanticMode {
 		// Convert warnings to errors
 		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}

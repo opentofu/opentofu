@@ -67,10 +67,7 @@ func (c *ImportCommand) Run(args []string) int {
 	traversalSrc := []byte(args[0])
 	traversal, travDiags := hclsyntax.ParseTraversalAbs(traversalSrc, "<import-address>", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(travDiags)
-
-	// It's safe to test diags instead of travDiags as they are the first diagnostics added to the diags slice.
-	// In the future if the diags slice already contains elements we need to wrap and test the travDiags for any errors.
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(tfdiags.Diagnostics{}.Append(travDiags)) {
 		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
 		c.showDiagnostics(diags)
 		c.Ui.Info(importCommandInvalidAddressReference)
@@ -79,7 +76,7 @@ func (c *ImportCommand) Run(args []string) int {
 
 	addr, addrDiags := addrs.ParseAbsResourceInstance(traversal)
 	diags = diags.Append(addrDiags)
-	if c.hasErrors(addrDiags) {
+	if c.View.HasErrors(addrDiags) {
 		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
 		c.showDiagnostics(diags)
 		c.Ui.Info(importCommandInvalidAddressReference)
@@ -109,7 +106,7 @@ func (c *ImportCommand) Run(args []string) int {
 	// already configured.
 	config, configDiags := c.loadConfig(configPath)
 	diags = diags.Append(configDiags)
-	if c.hasErrors(configDiags) {
+	if c.View.HasErrors(configDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -117,7 +114,7 @@ func (c *ImportCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if c.hasErrors(encDiags) {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -181,7 +178,7 @@ func (c *ImportCommand) Run(args []string) int {
 		Config: config.Module.Backend,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.hasErrors(backendDiags) {
+	if c.View.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -213,7 +210,7 @@ func (c *ImportCommand) Run(args []string) int {
 		opReq.Variables, moreDiags = c.collectVariableValues()
 		opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
 		diags = diags.Append(moreDiags).Append(callDiags)
-		if c.hasErrors(moreDiags) {
+		if c.View.HasErrors(moreDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -224,14 +221,14 @@ func (c *ImportCommand) Run(args []string) int {
 	remoteVersionDiags := c.remoteVersionCheck(b, opReq.Workspace)
 	diags = diags.Append(remoteVersionDiags)
 	c.showDiagnostics(diags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		return 1
 	}
 
 	// Get the context
 	lr, state, ctxDiags := local.LocalRun(opReq)
 	diags = diags.Append(ctxDiags)
-	if c.hasErrors(ctxDiags) {
+	if c.View.HasErrors(ctxDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -239,7 +236,7 @@ func (c *ImportCommand) Run(args []string) int {
 	// Successfully creating the context can result in a lock, so ensure we release it
 	defer func() {
 		diags := opReq.StateLocker.Unlock()
-		if c.hasErrors(diags) {
+		if c.View.HasErrors(diags) {
 			c.showDiagnostics(diags)
 		}
 	}()
@@ -263,7 +260,7 @@ func (c *ImportCommand) Run(args []string) int {
 		SetVariables: lr.PlanOpts.SetVariables,
 	})
 	diags = diags.Append(importDiags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -290,7 +287,7 @@ func (c *ImportCommand) Run(args []string) int {
 	c.Ui.Output(c.Colorize().Color("[reset][green]\n" + importCommandSuccessMsg))
 
 	c.showDiagnostics(diags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		return 1
 	}
 

@@ -60,7 +60,7 @@ func (c *GetCommand) Run(args []string) int {
 
 	abort, diags := getModules(ctx, &c.Meta, path, testsDirectory, update)
 	c.showDiagnostics(diags)
-	if abort || c.hasErrors(diags) {
+	if abort || c.View.HasErrors(diags) {
 		return 1
 	}
 

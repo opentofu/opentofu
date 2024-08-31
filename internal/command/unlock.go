@@ -55,7 +55,7 @@ func (c *UnlockCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
-	if c.hasErrors(encDiags) {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
@@ -64,7 +64,7 @@ func (c *UnlockCommand) Run(args []string) int {
 
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -74,7 +74,7 @@ func (c *UnlockCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.hasErrors(backendDiags) {
+	if c.View.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}

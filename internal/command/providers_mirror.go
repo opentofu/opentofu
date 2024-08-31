@@ -91,7 +91,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	diags = diags.Append(lockedDepsDiags)
 
 	// If we have any error diagnostics already then we won't proceed further.
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -348,7 +348,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	}
 
 	c.showDiagnostics(diags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		return 1
 	}
 	return 0

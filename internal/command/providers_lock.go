@@ -136,7 +136,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		for _, raw := range providerStrs {
 			addr, moreDiags := addrs.ParseProviderSourceString(raw)
 			diags = diags.Append(moreDiags)
-			if c.hasErrors(moreDiags) {
+			if c.View.HasErrors(moreDiags) {
 				continue
 			}
 			providers[addr] = struct{}{}
@@ -172,7 +172,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	diags = diags.Append(moreDiags)
 
 	// If we have any error diagnostics already then we won't proceed further.
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -262,7 +262,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 
 	// If we have any error diagnostics from installation then we won't
 	// proceed to merging and updating the lock file on disk.
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -335,7 +335,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	diags = diags.Append(moreDiags)
 
 	c.showDiagnostics(diags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		return 1
 	}
 

@@ -51,7 +51,7 @@ func (c *StateRmCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
-	if c.hasErrors(encDiags) {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
@@ -65,12 +65,12 @@ func (c *StateRmCommand) Run(args []string) int {
 
 	if c.stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if diags := stateLocker.Lock(stateMgr, "state-rm"); c.hasErrors(diags) {
+		if diags := stateLocker.Lock(stateMgr, "state-rm"); c.View.HasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
 		defer func() {
-			if diags := stateLocker.Unlock(); c.hasErrors(diags) {
+			if diags := stateLocker.Unlock(); c.View.HasErrors(diags) {
 				c.showDiagnostics(diags)
 			}
 		}()
@@ -96,7 +96,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		addrs = append(addrs, moreAddrs...)
 		diags = diags.Append(moreDiags)
 	}
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -126,7 +126,7 @@ func (c *StateRmCommand) Run(args []string) int {
 
 	b, backendDiags := c.Backend(nil, enc.State())
 	diags = diags.Append(backendDiags)
-	if c.hasErrors(backendDiags) {
+	if c.View.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}

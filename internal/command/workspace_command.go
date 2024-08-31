@@ -28,8 +28,9 @@ func (c *WorkspaceCommand) Run(args []string) int {
 	if c.LegacyName {
 		envDiags := envCommandInvoked()
 		diags = diags.Append(envDiags)
-		if c.hasErrors(envDiags) {
-			c.showDiagnostics(diags)
+
+		c.showDiagnostics(diags)
+		if c.View.HasErrors(envDiags) {
 			return 1
 		}
 	}

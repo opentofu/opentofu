@@ -177,7 +177,7 @@ func (c *LoginCommand) Run(args []string) int {
 		))
 	}
 
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -213,7 +213,7 @@ func (c *LoginCommand) Run(args []string) int {
 	}
 
 	diags = diags.Append(tokenDiags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -228,7 +228,7 @@ func (c *LoginCommand) Run(args []string) int {
 	}
 
 	c.showDiagnostics(diags)
-	if c.hasErrors(diags) {
+	if c.View.HasErrors(diags) {
 		return 1
 	}
 
