@@ -62,8 +62,8 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 	for k := range defaults {
 		if _, ok := impliedTypes[k]; !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
-				fmt.Sprintf("Ignored mock/override field `%v`", k),
+				tfdiags.Error,
+				fmt.Sprintf("Invalid override for block field `%v`", k),
 				"The field is unknown. Please, ensure it is a part of resource definition.",
 			))
 		}
@@ -78,8 +78,8 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 	addPotentialDefaultsWarning := func(key, description string) {
 		if _, ok := defaults[key]; ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
-				fmt.Sprintf("Ignored mock/override field `%v`", key),
+				tfdiags.Error,
+				fmt.Sprintf("Invalid override for block field `%v`", key),
 				description,
 			))
 		}
@@ -103,8 +103,11 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// Non-computed attributes can't be generated
 		// so we set them from configuration only.
 		if !attr.Computed {
-			mockAttrs[k] = cty.NullVal(attr.Type)
-			addPotentialDefaultsWarning(k, "The field is ignored since overriding non-computed fields is not allowed.")
+			diags = diags.Append(tfdiags.WholeContainingBody(
+				tfdiags.Error,
+				fmt.Sprintf("Non-computed field `%v` is not allowed to be overridden", k),
+				"Overriding non-computed fields is not allowed, so this field cannot be processed.",
+			))
 			continue
 		}
 
@@ -120,7 +123,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 			for _, err := range typeConformanceErrs {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
-					fmt.Sprintf("Ignored mock/override field `%v`", k),
+					fmt.Sprintf("Failed mock/override field `%v`", k),
 					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", err),
 				))
 			}
@@ -174,8 +177,8 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 		if hasDefaultVal && !defaultVal.Type().IsObjectType() {
 			hasDefaultVal = false
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
-				fmt.Sprintf("Ignored mock/override field `%v`", k),
+				tfdiags.Error,
+				fmt.Sprintf("Invalid override for block field `%v`", k),
 				fmt.Sprintf("Blocks can be overridden only by objects, got `%s`", defaultVal.Type().FriendlyName()),
 			))
 		}
@@ -187,8 +190,8 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 
 			if hasDefaultVal {
 				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Warning,
-					fmt.Sprintf("Ignored mock/override field `%v`", k),
+					tfdiags.Error,
+					fmt.Sprintf("Invalid override for block field `%v`", k),
 					"Cannot overridde block value, because it's not present in configuration.",
 				))
 			}
