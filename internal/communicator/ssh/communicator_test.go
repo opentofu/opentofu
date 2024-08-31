@@ -234,7 +234,7 @@ func TestKeepAlives(t *testing.T) {
 	}
 }
 
-// TestDeadConnection verifies that failed keepalive messages will eventually
+// TestFailedKeepAlives verifies that failed keepalive messages will eventually
 // kill the connection.
 func TestFailedKeepAlives(t *testing.T) {
 	ivl := keepAliveInterval
