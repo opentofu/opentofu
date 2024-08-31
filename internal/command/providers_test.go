@@ -115,7 +115,7 @@ func TestProviders_modules(t *testing.T) {
 
 	// Providers command
 	ui := new(cli.MockUi)
-	view, done := testView(t)
+	view, done = testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
 			Ui:   ui,
