@@ -69,8 +69,7 @@ func (c *ImportCommand) Run(args []string) int {
 	diags = diags.Append(travDiags)
 
 	// It's safe to test diags instead of travDiags as they are the first diagnostics added to the diags slice.
-	// If there is logic in the future that is appended to the diagnostics then we should be upgrading to wrap and test
-	// the travDiags hcl diagnostics.
+	// In the future if the diags slice already contains elements we need to wrap and test the travDiags for any errors.
 	if c.hasErrors(diags) {
 		c.registerSynthConfigSource("<import-address>", traversalSrc) // so we can include a source snippet
 		c.showDiagnostics(diags)
