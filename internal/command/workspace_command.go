@@ -6,10 +6,11 @@
 package command
 
 import (
-	"github.com/mitchellh/cli"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"net/url"
 	"strings"
+
+	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // WorkspaceCommand is a Command Implementation that manipulates workspaces,

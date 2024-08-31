@@ -106,13 +106,13 @@ func (c *TaintCommand) Run(args []string) int {
 
 	if c.stateLock {
 		stateLocker := clistate.NewLocker(c.stateLockTimeout, views.NewStateLocker(arguments.ViewHuman, c.View))
-		if diags := stateLocker.Lock(stateMgr, "taint"); c.hasErrors(diags) {
-			c.showDiagnostics(diags)
+		if lockDiags := stateLocker.Lock(stateMgr, "taint"); c.hasErrors(lockDiags) {
+			c.showDiagnostics(lockDiags)
 			return 1
 		}
 		defer func() {
-			if diags := stateLocker.Unlock(); c.hasErrors(diags) {
-				c.showDiagnostics(diags)
+			if lockDiags := stateLocker.Unlock(); c.hasErrors(lockDiags) {
+				c.showDiagnostics(lockDiags)
 			}
 		}()
 	}

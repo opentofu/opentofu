@@ -8,8 +8,9 @@ package command
 import (
 	"bytes"
 	"fmt"
-	"github.com/posener/complete"
 	"strings"
+
+	"github.com/posener/complete"
 )
 
 type WorkspaceListCommand struct {

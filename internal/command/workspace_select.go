@@ -7,9 +7,10 @@ package command
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/mitchellh/cli"
 	"github.com/posener/complete"
-	"strings"
 )
 
 type WorkspaceSelectCommand struct {
