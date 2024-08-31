@@ -27,10 +27,12 @@ func TestStatePull(t *testing.T) {
 
 	p := testProvider()
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &StatePullCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -38,6 +40,7 @@ func TestStatePull(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	actual := ui.OutputWriter.Bytes()
 	if bytes.Equal(actual, expected) {
@@ -50,10 +53,12 @@ func TestStatePull_noState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StatePullCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:		      view,
 		},
 	}
 
@@ -61,6 +66,7 @@ func TestStatePull_noState(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	actual := ui.OutputWriter.String()
 	if actual != "" {
@@ -76,10 +82,12 @@ func TestStatePull_checkRequiredVersion(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StatePullCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -87,6 +95,7 @@ func TestStatePull_checkRequiredVersion(t *testing.T) {
 	if code := c.Run(args); code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 	}
+	done(t)
 
 	// Required version diags are correct
 	errStr := ui.ErrorWriter.String()

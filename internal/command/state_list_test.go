@@ -292,7 +292,6 @@ func TestStateList_modules(t *testing.T) {
 	})
 
 	done(t)
-
 }
 
 const testStateListOutput = `

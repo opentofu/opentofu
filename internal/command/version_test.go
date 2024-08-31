@@ -43,9 +43,11 @@ func TestVersion(t *testing.T) {
 	)
 
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &VersionCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 		Version:           "4.5.6",
 		VersionPrerelease: "foo",
@@ -57,6 +59,7 @@ func TestVersion(t *testing.T) {
 	if code := c.Run([]string{}); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
 	expected := "OpenTofu v4.5.6-foo\non aros_riscv64\n+ provider registry.opentofu.org/hashicorp/test1 v7.8.9-beta.2\n+ provider registry.opentofu.org/hashicorp/test2 v1.2.3"
@@ -68,8 +71,10 @@ func TestVersion(t *testing.T) {
 
 func TestVersion_flags(t *testing.T) {
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	m := Meta{
-		Ui: ui,
+		Ui:   ui,
+		View: view,
 	}
 
 	// `tofu version`
@@ -83,6 +88,7 @@ func TestVersion_flags(t *testing.T) {
 	if code := c.Run([]string{"-v", "-version"}); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	actual := strings.TrimSpace(ui.OutputWriter.String())
 	expected := "OpenTofu v4.5.6-foo\non aros_riscv64"
@@ -96,8 +102,10 @@ func TestVersion_json(t *testing.T) {
 	defer testChdir(t, td)()
 
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	meta := Meta{
-		Ui: ui,
+		Ui:   ui,
+		View: view,
 	}
 
 	// `tofu version -json` without prerelease
@@ -155,6 +163,7 @@ func TestVersion_json(t *testing.T) {
 	if code := c.Run([]string{"-json"}); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	actual = strings.TrimSpace(ui.OutputWriter.String())
 	expected = strings.TrimSpace(`
