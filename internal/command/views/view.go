@@ -107,7 +107,11 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	if v.PedanticMode {
 		// Convert warnings to errors
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		var isOverridden bool
+		diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		if isOverridden {
+			v.PedanticWarningFlagged = true
+		}
 	}
 
 	// Since warning messages are generally competing
@@ -150,15 +154,15 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
 	if v.PedanticWarningFlagged {
-		// Treat a pedantic warning flagged as an error, this should only occur when using the legacy views.
-		// We do not need to worry about converting this to an actual diagnostic as an error should be displayed
-		// via the legacy view.
+		// If a pedantic warning has been flagged already then we report any subsequent calls as in error state.
+		// This works as a bit of a catch-all for legacy view ui warnings and new view diagnostics that have been shown
+		// without checking if there are any errors.
 		return true
 	}
 
 	if v.PedanticMode {
 		// Convert warnings to errors
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		diags, _ = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
 	}
 
 	return diags.HasErrors()

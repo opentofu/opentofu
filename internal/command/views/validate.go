@@ -114,7 +114,11 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 
 	if v.view.PedanticMode {
 		// Convert warnings to errors
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		var isOverridden bool
+		diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		if isOverridden {
+			v.view.PedanticWarningFlagged = true
+		}
 	}
 
 	for _, diag := range diags {

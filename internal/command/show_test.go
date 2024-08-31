@@ -557,11 +557,13 @@ func TestShow_json_output(t *testing.T) {
 
 			// init
 			ui := new(cli.MockUi)
+			view, done := testView(t)
 			ic := &InitCommand{
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					ProviderSource:   providerSource,
+					View:			  view,
 				},
 			}
 			if code := ic.Run([]string{}); code != 0 {
@@ -571,6 +573,7 @@ func TestShow_json_output(t *testing.T) {
 				}
 				t.Fatalf("init failed\n%s", ui.ErrorWriter)
 			}
+			done(t)
 
 			// read expected output
 			wantFile, err := os.Open("output.json")
@@ -665,16 +668,19 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	// init
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			ProviderSource:   providerSource,
+			View:			  view,
 		},
 	}
 	if code := ic.Run([]string{}); code != 0 {
 		t.Fatalf("init failed\n%s", ui.ErrorWriter)
 	}
+	done(t)
 
 	// plan
 	planView, planDone := testView(t)
@@ -758,16 +764,19 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	// init
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	ic := &InitCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
 			ProviderSource:   providerSource,
+			View:			  view,
 		},
 	}
 	if code := ic.Run([]string{}); code != 0 {
 		t.Fatalf("init failed\n%s", ui.ErrorWriter)
 	}
+	done(t)
 
 	// plan
 	planView, planDone := testView(t)
@@ -867,16 +876,19 @@ func TestShow_json_output_state(t *testing.T) {
 
 			// init
 			ui := new(cli.MockUi)
+			view, done := testView(t)
 			ic := &InitCommand{
 				Meta: Meta{
 					testingOverrides: metaOverridesForProvider(p),
 					Ui:               ui,
 					ProviderSource:   providerSource,
+					View:			  view,
 				},
 			}
 			if code := ic.Run([]string{}); code != 0 {
 				t.Fatalf("init failed\n%s", ui.ErrorWriter)
 			}
+			done(t)
 
 			// show
 			showView, showDone := testView(t)

@@ -742,7 +742,11 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	if m.View.PedanticMode {
 		// Convert warnings to errors
 		// We do this after consolidation of warnings to reduce the verbosity of the output
-		diags = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		var isOverridden bool
+		diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+		if isOverridden {
+			m.View.PedanticWarningFlagged = true
+		}
 	}
 
 	// Since warning messages are generally competing

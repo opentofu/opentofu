@@ -18,10 +18,12 @@ func TestStateList(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -31,6 +33,7 @@ func TestStateList(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	// Test that outputs were displayed
 	expected := strings.TrimSpace(testStateListOutput) + "\n"
@@ -46,10 +49,12 @@ func TestStateListWithID(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -60,6 +65,7 @@ func TestStateListWithID(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	// Test that outputs were displayed
 	expected := strings.TrimSpace(testStateListOutput) + "\n"
@@ -75,10 +81,12 @@ func TestStateListWithNonExistentID(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -89,6 +97,7 @@ func TestStateListWithNonExistentID(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	// Test that output is empty
 	if ui.OutputWriter != nil {
@@ -107,10 +116,12 @@ func TestStateList_backendDefaultState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -118,6 +129,7 @@ func TestStateList_backendDefaultState(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	// Test that outputs were displayed
 	expected := "null_resource.a\n"
@@ -135,10 +147,12 @@ func TestStateList_backendCustomState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -146,6 +160,7 @@ func TestStateList_backendCustomState(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	// Test that outputs were displayed
 	expected := "null_resource.a\n"
@@ -163,10 +178,12 @@ func TestStateList_backendOverrideState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -179,6 +196,7 @@ func TestStateList_backendOverrideState(t *testing.T) {
 	if code := c.Run(args); code != 1 {
 		t.Fatalf("bad: %d", code)
 	}
+	done(t)
 	if !strings.Contains(ui.ErrorWriter.String(), "No state file was found!") {
 		t.Fatalf("expected a no state file error, got: %s", ui.ErrorWriter.String())
 	}
@@ -189,10 +207,12 @@ func TestStateList_noState(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -200,6 +220,7 @@ func TestStateList_noState(t *testing.T) {
 	if code := c.Run(args); code != 1 {
 		t.Fatalf("bad: %d", code)
 	}
+	done(t)
 }
 
 func TestStateList_modules(t *testing.T) {
@@ -210,10 +231,12 @@ func TestStateList_modules(t *testing.T) {
 
 	p := testProvider()
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &StateListCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(p),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -267,6 +290,8 @@ func TestStateList_modules(t *testing.T) {
 			t.Fatalf("bad: %d", code)
 		}
 	})
+
+	done(t)
 
 }
 
