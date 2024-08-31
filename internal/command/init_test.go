@@ -618,10 +618,12 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 	defer testChdir(t, td)()
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &InitCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
+			View:			  view,
 		},
 	}
 
@@ -632,6 +634,7 @@ func TestInit_backendConfigFileChangeWithExistingState(t *testing.T) {
 	if code := c.Run(args); code == 0 {
 		t.Fatal("expected error")
 	}
+	done(t)
 
 	// Read our backend config and verify new settings are not saved
 	state := testDataStateRead(t, filepath.Join(DefaultDataDir, DefaultStateFilename))

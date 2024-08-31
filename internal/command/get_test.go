@@ -17,11 +17,13 @@ func TestGet(t *testing.T) {
 	defer testChdir(t, wd.RootModuleDir())()
 
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			WorkingDir:       wd,
+			View:			  view,
 		},
 	}
 
@@ -29,6 +31,7 @@ func TestGet(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	output := ui.OutputWriter.String()
 	if !strings.Contains(output, "- foo in") {
@@ -41,11 +44,13 @@ func TestGet_multipleArgs(t *testing.T) {
 	defer testChdir(t, wd.RootModuleDir())()
 
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			WorkingDir:       wd,
+			View:			  view,
 		},
 	}
 
@@ -56,6 +61,7 @@ func TestGet_multipleArgs(t *testing.T) {
 	if code := c.Run(args); code != 1 {
 		t.Fatalf("bad: \n%s", ui.OutputWriter.String())
 	}
+	done(t)
 }
 
 func TestGet_update(t *testing.T) {
@@ -63,11 +69,13 @@ func TestGet_update(t *testing.T) {
 	defer testChdir(t, wd.RootModuleDir())()
 
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			WorkingDir:       wd,
+			View:			  view,
 		},
 	}
 
@@ -77,6 +85,7 @@ func TestGet_update(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	output := ui.OutputWriter.String()
 	if !strings.Contains(output, `- foo in`) {
@@ -97,12 +106,14 @@ func TestGet_cancel(t *testing.T) {
 	close(shutdownCh)
 
 	ui := cli.NewMockUi()
+	view, done := testView(t)
 	c := &GetCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			WorkingDir:       wd,
 			ShutdownCh:       shutdownCh,
+			View:			  view,
 		},
 	}
 
@@ -110,6 +121,7 @@ func TestGet_cancel(t *testing.T) {
 	if code := c.Run(args); code == 0 {
 		t.Fatalf("succeeded; wanted error\n%s", ui.OutputWriter.String())
 	}
+	done(t)
 
 	if got, want := ui.ErrorWriter.String(), `Module installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
