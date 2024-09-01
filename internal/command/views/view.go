@@ -108,8 +108,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	if v.PedanticMode {
 		// Convert warnings to errors
 		var isOverridden bool
-		diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
-		if isOverridden {
+		if diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); isOverridden {
 			v.PedanticWarningFlagged = true
 		}
 	}

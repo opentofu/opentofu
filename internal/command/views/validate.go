@@ -116,8 +116,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 	if v.view.PedanticMode {
 		// Convert warnings to errors
 		var isOverridden bool
-		diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
-		if isOverridden {
+		if diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); isOverridden {
 			v.view.PedanticWarningFlagged = true
 		}
 	}
