@@ -759,6 +759,10 @@ func (b *Remote) fetchWorkspace(ctx context.Context, organization string, name s
 
 // Operation implements backend.Enhanced.
 func (b *Remote) Operation(ctx context.Context, op *backend.Operation) (*backend.RunningOperation, error) {
+	if op.View == nil {
+		panic("Operation called with nil View")
+	}
+
 	w, err := b.fetchWorkspace(ctx, b.organization, op.Workspace)
 
 	if err != nil {
