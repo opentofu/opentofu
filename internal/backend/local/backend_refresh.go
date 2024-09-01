@@ -52,7 +52,7 @@ func (b *Local) opRefresh(
 	// Get our context
 	lr, _, opState, contextDiags := b.localRun(op)
 	diags = diags.Append(contextDiags)
-	if contextDiags.HasErrors() {
+	if op.View.HasErrors(contextDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}
@@ -61,7 +61,7 @@ func (b *Local) opRefresh(
 	// when the operation completes
 	defer func() {
 		diags := op.StateLocker.Unlock()
-		if diags.HasErrors() {
+		if op.View.HasErrors(diags) {
 			op.View.Diagnostics(diags)
 			runningOp.Result = backend.OperationFailure
 		}
@@ -81,7 +81,7 @@ func (b *Local) opRefresh(
 	// get schemas before writing state
 	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	if op.View.HasErrors(moreDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}
@@ -105,7 +105,7 @@ func (b *Local) opRefresh(
 	// Write the resulting state to the running op
 	runningOp.State = newState
 	diags = diags.Append(refreshDiags)
-	if refreshDiags.HasErrors() {
+	if op.View.HasErrors(refreshDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}
