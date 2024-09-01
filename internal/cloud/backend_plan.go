@@ -84,7 +84,7 @@ func (b *Cloud) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operation
 	}
 
 	// Return if there are any errors.
-	if diags.HasErrors() {
+	if op.View.HasErrors(diags) {
 		return nil, diags.Err()
 	}
 

@@ -162,7 +162,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 	}
 
 	// Return if there are any errors.
-	if diags.HasErrors() {
+	if op.View.HasErrors(diags) {
 		return nil, diags.Err()
 	}
 
