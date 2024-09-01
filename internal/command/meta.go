@@ -625,6 +625,11 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 // will potentially modify the args in-place. It will return the resulting
 // slice, and update the Meta and Ui.
 func (m *Meta) process(args []string) []string {
+	if m.View == nil {
+		// This shouldn't happen
+		panic("process called with nil View")
+	}
+
 	// We do this so that we retain the ability to technically call
 	// process multiple times, even if we have no plans to do so
 	if m.oldUi != nil {
