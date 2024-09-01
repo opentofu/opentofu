@@ -156,7 +156,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 // has occurred or not.
 func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
 	if v.PedanticWarningFlagged {
-		// If a pedantic warning has been flagged then we report that the view is in error state.
+		// If a pedantic warning has been flagged then we report the view is in error state.
 		return true
 	}
 

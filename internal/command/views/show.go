@@ -27,6 +27,7 @@ type Show interface {
 	// Display renders the plan, if it is available. If plan is nil, it renders the statefile.
 	Display(config *configs.Config, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, stateFile *statefile.File, schemas *tofu.Schemas) int
 
+	// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
 	HasErrors(diags tfdiags.Diagnostics) bool
 
 	// Diagnostics renders early diagnostics, resulting from argument parsing.
