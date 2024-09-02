@@ -938,6 +938,7 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, inst
 	var aliases map[addrs.InstanceKey]string
 	var aliasDiags hcl.Diagnostics
 
+	// Default case is handled earlier to provider a NoKey alias.
 	switch {
 	case hasEachRefInAlias:
 		aliases, aliasDiags = generateForEachAliases(instances, aliasEvalCtx, m.Alias)
@@ -946,10 +947,11 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, inst
 	}
 
 	diags = diags.Extend(aliasDiags)
-	if !aliasDiags.HasErrors() {
-		m.Aliases = aliases
+	if aliasDiags.HasErrors() {
+		return diags
 	}
 
+	m.Aliases = aliases
 	return diags
 }
 
