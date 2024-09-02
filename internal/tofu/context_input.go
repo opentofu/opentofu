@@ -85,10 +85,14 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 		// These won't have *configs.Provider objects, but they will still
 		// exist in the map and we'll just treat them as empty below.
 		for _, rc := range config.Module.ManagedResources {
-			pa := rc.ProviderConfigAddr()
-			if pa.Alias != "" {
+			if rc.ProviderConfigRef.HasAlias() {
 				continue // alias configurations cannot be implied
 			}
+
+			pa := addrs.LocalProviderConfig{
+				LocalName: rc.ProviderConfigName(),
+			}
+
 			if _, exists := pcs[pa.String()]; !exists {
 				pcs[pa.String()] = nil
 				pas[pa.String()] = pa
@@ -96,10 +100,14 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 			}
 		}
 		for _, rc := range config.Module.DataResources {
-			pa := rc.ProviderConfigAddr()
-			if pa.Alias != "" {
+			if rc.ProviderConfigRef.HasAlias() {
 				continue // alias configurations cannot be implied
 			}
+
+			pa := addrs.LocalProviderConfig{
+				LocalName: rc.ProviderConfigName(),
+			}
+
 			if _, exists := pcs[pa.String()]; !exists {
 				pcs[pa.String()] = nil
 				pas[pa.String()] = pa

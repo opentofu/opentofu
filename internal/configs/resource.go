@@ -8,6 +8,7 @@ package configs
 import (
 	"fmt"
 	"math/big"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -92,10 +93,8 @@ func (r *Resource) Addr() addrs.Resource {
 	}
 }
 
-// ProviderConfigAddr returns the address for the provider configuration that
-// should be used for this resource. This function returns a default provider
-// config addr if an explicit "provider" argument was not provided.
-func (r *Resource) ProviderConfigAddr() addrs.LocalProviderConfig {
+// TODO/Oleksandr: remove this function once merged with Ronny's changes.
+func (r *Resource) AnyProviderConfigAddr() addrs.LocalProviderConfig {
 	if r.ProviderConfigRef == nil {
 		// If no specific "provider" argument is given, we want to look up the
 		// provider config where the local name matches the implied provider
@@ -106,10 +105,64 @@ func (r *Resource) ProviderConfigAddr() addrs.LocalProviderConfig {
 		}
 	}
 
+	if r.ProviderConfigRef.HasInstanceRefsInAlias() {
+		// This branch must return the same (first) value every time.
+		// It is used in multiple places before and after graph execution.
+		// Anyway, this function only mimics real behaviour and should be removed.
+		aliases := make([]string, 0, len(r.ProviderConfigRef.Aliases))
+		for _, alias := range r.ProviderConfigRef.Aliases {
+			aliases = append(aliases, alias)
+		}
+		slices.Sort(aliases)
+		return addrs.LocalProviderConfig{
+			LocalName: r.ProviderConfigRef.Name,
+			Alias:     aliases[0],
+		}
+	}
+
 	return addrs.LocalProviderConfig{
 		LocalName: r.ProviderConfigRef.Name,
 		Alias:     r.ProviderConfigRef.GetNoKeyAlias(),
 	}
+}
+
+// TODO/Oleksandr: comment on bool arg
+// TODO/Oleksandr: remove this function ?
+// ProviderConfigAddr returns the address for the provider configuration that
+// should be used for this resource. This function returns a default provider
+// config addr if an explicit "provider" argument was not provided.
+func (r *Resource) ProviderConfigAddr() (addrs.LocalProviderConfig, bool) {
+	if r.ProviderConfigRef == nil {
+		// If no specific "provider" argument is given, we want to look up the
+		// provider config where the local name matches the implied provider
+		// from the resource type. This may be different from the resource's
+		// provider type.
+		return addrs.LocalProviderConfig{
+			LocalName: r.Addr().ImpliedProvider(),
+		}, true
+	}
+
+	if r.ProviderConfigRef.HasInstanceRefsInAlias() {
+		return addrs.LocalProviderConfig{}, false
+	}
+
+	return addrs.LocalProviderConfig{
+		LocalName: r.ProviderConfigRef.Name,
+		Alias:     r.ProviderConfigRef.GetNoKeyAlias(),
+	}, true
+}
+
+// TODO/Oleksandr: comment
+func (r *Resource) ProviderConfigName() string {
+	if r.ProviderConfigRef == nil {
+		// If no specific "provider" argument is given, we want to look up the
+		// provider config where the local name matches the implied provider
+		// from the resource type. This may be different from the resource's
+		// provider type.
+		return r.Addr().ImpliedProvider()
+	}
+
+	return r.ProviderConfigRef.Name
 }
 
 // HasCustomConditions returns true if and only if the resource has at least
@@ -699,7 +752,7 @@ type ProviderConfigRefMapping struct {
 
 // HasAlias returns true if the provider is referenced by alias.
 func (m *ProviderConfigRefMapping) HasAlias() bool {
-	return len(m.Aliases) != 0
+	return m == nil || len(m.Aliases) != 0
 }
 
 // HasInstanceRefsInAlias returns true if provider is referenced

@@ -621,8 +621,8 @@ func (c *Config) resolveProviderTypes() map[string]addrs.Provider {
 	// connect module call providers to the correct type
 	for _, mod := range c.Module.ModuleCalls {
 		for _, p := range mod.Providers {
-			if addr, known := providers[p.InParentTODO().Name]; known {
-				p.InParentTODO().providerType = addr
+			if addr, known := providers[p.InParentMapping.Name]; known {
+				p.InParentMapping.providerType = addr
 			}
 		}
 	}
@@ -708,19 +708,19 @@ func (c *Config) resolveProviderTypesForTests(providers map[string]addrs.Provide
 					// If we have previously assigned a type to the provider
 					// for the parent reference, then we use that for the
 					// parent type.
-					if addr, exists := matchedProviders[p.InParentTODO().Name]; exists {
-						p.InParentTODO().providerType = addr
+					if addr, exists := matchedProviders[p.InParentMapping.Name]; exists {
+						p.InParentMapping.providerType = addr
 						continue
 					}
 
 					// Otherwise, we'll define the parent type based on the
 					// child and reference that backwards.
-					p.InParentTODO().providerType = p.InChild.providerType
+					p.InParentMapping.providerType = p.InChild.providerType
 
-					if aliases, exists := testProviders[p.InParentTODO().Name]; exists {
-						matchedProviders[p.InParentTODO().Name] = p.InParentTODO().providerType
+					if aliases, exists := testProviders[p.InParentMapping.Name]; exists {
+						matchedProviders[p.InParentMapping.Name] = p.InParentMapping.providerType
 						for _, alias := range aliases {
-							alias.providerType = p.InParentTODO().providerType
+							alias.providerType = p.InParentMapping.providerType
 						}
 					}
 				}
@@ -949,17 +949,27 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// for by this run block.
 
 		for _, ref := range run.Providers {
+			// TODO/Oleksandr: friendly error
+			// This should never happen since we don't allow for_each / count in runs.
+			if ref.InParentMapping.HasInstanceRefsInAlias() {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Providers by instances are not allowed",
+					Detail:   "",
+					Subject:  ref.InParentMapping.NameRange.Ptr(),
+				})
+			}
 
-			testProvider, ok := file.getTestProviderOrMock(ref.InParentTODO().String())
+			testProvider, ok := file.getTestProviderOrMock(ref.InParent(addrs.NoKey).String())
 			if !ok {
 				// Then this reference was invalid as we didn't have the
 				// specified provider in the parent. This should have been
 				// caught earlier in validation anyway so is unlikely to happen.
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParentTODO().String()),
+					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent(addrs.NoKey).String()),
 					Detail:   "This provider block references a provider definition that does not exist.",
-					Subject:  ref.InParentTODO().NameRange.Ptr(),
+					Subject:  ref.InParent(addrs.NoKey).NameRange.Ptr(),
 				})
 				continue
 			}
