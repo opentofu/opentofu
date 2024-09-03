@@ -78,13 +78,21 @@ type GraphNodeProviderConsumer interface {
 	// * addrs.AbsProviderConfig + exact false: no config or state; the returned
 	//   value is a default provider configuration address for the resource's
 	//   Provider
-	ProvidedBy() (addr addrs.ProviderConfig, exact bool)
+	// TODO Ronny update comment
+	ProvidedBy() (addr map[addrs.InstanceKey]addrs.ProviderConfig, exact bool)
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
 
 	// Set the resolved provider address for this resource.
 	SetProvider(addrs.AbsProviderConfig)
+
+	// TODO Ronny add comment
+	SetPotentialProviders(potentialProviders []distinguishableProvider)
+
+	// TODO Ronny add comment
+	// Do we really need this function inside resource instances? Should we divide this into two interfaces
+	resolveProvider(addrs.AbsResourceInstance) addrs.AbsProviderConfig
 }
 
 // ProviderTransformer is a GraphTransformer that maps resources to providers
@@ -108,61 +116,65 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	// Our "requested" map is from graph vertices to string representations of
 	// provider config addresses (for deduping) to requests.
 	type ProviderRequest struct {
-		Addr  addrs.AbsProviderConfig
-		Exact bool // If true, inheritence from parent modules is not attempted
+		Addr        addrs.AbsProviderConfig
+		Exact       bool // If true, inheritence from parent modules is not attempted
+		instanceKey addrs.InstanceKey
 	}
 	requested := map[dag.Vertex]map[string]ProviderRequest{}
 	needConfigured := map[string]addrs.AbsProviderConfig{}
 	for _, v := range g.Vertices() {
 		// Does the vertex _directly_ use a provider?
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			providerAddr, exact := pv.ProvidedBy()
-			if providerAddr == nil && exact {
+			providerAddrs, exact := pv.ProvidedBy()
+			if providerAddrs == nil && exact {
 				// no provider is required
 				continue
 			}
 
 			requested[v] = make(map[string]ProviderRequest)
 
-			var absPc addrs.AbsProviderConfig
+			for ik, providerAddr := range providerAddrs {
+				var absPc addrs.AbsProviderConfig
 
-			switch p := providerAddr.(type) {
-			case addrs.AbsProviderConfig:
-				// ProvidedBy() returns an AbsProviderConfig when the provider
-				// configuration is set in state, so we do not need to verify
-				// the FQN matches.
-				absPc = p
+				switch p := providerAddr.(type) {
+				case addrs.AbsProviderConfig:
+					// ProvidedBy() returns an AbsProviderConfig when the provider
+					// configuration is set in state, so we do not need to verify
+					// the FQN matches.
+					absPc = p
 
-				if exact {
-					log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
-				}
+					if exact {
+						log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
+					}
 
-			case addrs.LocalProviderConfig:
-				// ProvidedBy() return a LocalProviderConfig when the resource
-				// contains a `provider` attribute
-				absPc.Provider = pv.Provider()
-				modPath := pv.ModulePath()
-				if t.Config == nil {
+				case addrs.LocalProviderConfig:
+					// ProvidedBy() return a LocalProviderConfig when the resource
+					// contains a `provider` attribute
+					absPc.Provider = pv.Provider()
+					modPath := pv.ModulePath()
+					if t.Config == nil {
+						absPc.Module = modPath
+						absPc.Alias = p.Alias
+						break
+					}
+
 					absPc.Module = modPath
 					absPc.Alias = p.Alias
-					break
+
+				default:
+					// This should never happen; the case statements are meant to be exhaustive
+					panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
 				}
 
-				absPc.Module = modPath
-				absPc.Alias = p.Alias
+				requested[v][absPc.String()] = ProviderRequest{
+					Addr:        absPc,
+					Exact:       exact,
+					instanceKey: ik,
+				}
 
-			default:
-				// This should never happen; the case statements are meant to be exhaustive
-				panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
+				// Direct references need the provider configured as well as initialized
+				needConfigured[absPc.String()] = absPc
 			}
-
-			requested[v][absPc.String()] = ProviderRequest{
-				Addr:  absPc,
-				Exact: exact,
-			}
-
-			// Direct references need the provider configured as well as initialized
-			needConfigured[absPc.String()] = absPc
 		}
 	}
 
@@ -171,6 +183,8 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	// for provider inheritance and passing.
 	m := providerVertexMap(g)
 	for v, reqs := range requested {
+		var targets []distinguishableProvider
+
 		for key, req := range reqs {
 			p := req.Addr
 			target := m[key]
@@ -235,14 +249,25 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				g.Remove(p)
-				target = p.Target()
+				potentialProviders := p.Expanded()
+
+				for i := range potentialProviders {
+					pp := potentialProviders[i]
+					pp.SetResourceIdentifier(req.instanceKey)
+					g.Connect(dag.BasicEdge(v, pp.concreteProvider))
+				}
+
+				targets = potentialProviders
+			} else {
+				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
+				g.Connect(dag.BasicEdge(v, target))
+				targets = append(targets, distinguishableProvider{moduleIdentifier: nil, resourceIdentifier: req.instanceKey, concreteProvider: target})
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
 			if pv, ok := v.(GraphNodeProviderConsumer); ok {
-				pv.SetProvider(target.ProviderAddr())
+				pv.SetPotentialProviders(targets)
 			}
-			g.Connect(dag.BasicEdge(v, target))
 		}
 	}
 
@@ -355,9 +380,11 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					}
 
 					// see if this is a proxy provider pointing to another concrete config
-					if p, ok := provider.(*graphNodeProxyProvider); ok {
-						g.Remove(p)
-						provider = p.Target()
+					if _, ok := provider.(*graphNodeProxyProvider); ok {
+						// TODO Ronny fix
+						//g.Remove(p)
+						//provider = p.Target()
+						panic("BUG")
 					}
 
 					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
@@ -568,14 +595,49 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 	}
 }
 
+// TODO Ronny - understand in which layer this struct should live
+type distinguishableProvider struct {
+	moduleIdentifier   []addrs.ModuleInstanceStep
+	resourceIdentifier addrs.InstanceKey
+	concreteProvider   GraphNodeProvider
+}
+
+func (d *distinguishableProvider) SetResourceIdentifier(ik addrs.InstanceKey) {
+	d.resourceIdentifier = ik
+}
+
+func (d *distinguishableProvider) AddModuleIdentifierToTheEnd(step addrs.ModuleInstanceStep) {
+	d.moduleIdentifier = append(d.moduleIdentifier, step)
+}
+
+func (d *distinguishableProvider) IsResourceMatching(resourceInstance addrs.AbsResourceInstance) bool {
+	if d.resourceIdentifier != resourceInstance.Resource.Key {
+		return false
+	}
+
+	for i, moduleInstanceStep := range d.moduleIdentifier {
+		parallelResourceModuleAddress := resourceInstance.Module[i]
+
+		if moduleInstanceStep.Name != parallelResourceModuleAddress.Name {
+			return false
+		}
+
+		if moduleInstanceStep.InstanceKey != nil && moduleInstanceStep.InstanceKey != parallelResourceModuleAddress.InstanceKey {
+			return false
+		}
+	}
+
+	return true
+}
+
 // graphNodeProxyProvider is a GraphNodeProvider implementation that is used to
 // store the name and value of a provider node for inheritance between modules.
 // These nodes are only used to store the data while loading the provider
 // configurations, and are removed after all the resources have been connected
 // to their providers.
 type graphNodeProxyProvider struct {
-	addr   addrs.AbsProviderConfig
-	target GraphNodeProvider
+	addr    addrs.AbsProviderConfig
+	targets map[addrs.InstanceKey]GraphNodeProvider
 }
 
 var (
@@ -595,14 +657,44 @@ func (n *graphNodeProxyProvider) Name() string {
 	return n.addr.String() + " (proxy)"
 }
 
-// find the concrete provider instance
-func (n *graphNodeProxyProvider) Target() GraphNodeProvider {
-	switch t := n.target.(type) {
-	case *graphNodeProxyProvider:
-		return t.Target()
-	default:
-		return n.target
+// root (provider[0] + provider[1]) -> module.mod[0] (provider[0]) -> module.inner -> module.bip -> resource.a
+// root (provider[0] + provider[1]) -> module.mod[1] (provider[1]) -> module.inner -> module.bip -> resource.a
+// root (provider[0] + provider[1]) -> module.another (provider[0] + provider[1]) -> module.inner[0] (provider[0]) -> resource.b
+// root (provider[0] + provider[1]) -> module.another (provider[0] + provider[1]) -> module.inner[1] (provider[1]) -> resource.b
+// TODO Ronny add comment + test multiple cases described above
+func (n *graphNodeProxyProvider) Expanded() []distinguishableProvider {
+	var concrete []distinguishableProvider
+
+	for ik, target := range n.targets {
+		var targetConcrete []distinguishableProvider
+
+		if t, ok := target.(*graphNodeProxyProvider); ok {
+			providers := t.Expanded()
+
+			for i := range providers {
+				provider := &providers[i]
+
+				updatedModulePath := addrs.ModuleInstanceStep{
+					Name:        n.ModulePath()[len(n.ModulePath())-1],
+					InstanceKey: ik, // Can I use '*' instead of nil/NoKey? NoKey can be confusing here
+				}
+
+				provider.AddModuleIdentifierToTheEnd(updatedModulePath)
+			}
+			targetConcrete = append(targetConcrete, providers...)
+
+		} else {
+			modulePath := addrs.ModuleInstanceStep{
+				Name:        n.ModulePath()[len(n.ModulePath())-1],
+				InstanceKey: ik, // Can I use '*' instead of nil/NoKey? NoKey can be confusing here
+			}
+			targetConcrete = append(targetConcrete, distinguishableProvider{moduleIdentifier: []addrs.ModuleInstanceStep{modulePath}, resourceIdentifier: nil, concreteProvider: target})
+		}
+
+		concrete = append(concrete, targetConcrete...)
 	}
+
+	return concrete
 }
 
 // ProviderConfigTransformer adds all provider nodes from the configuration and
@@ -669,7 +761,7 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 	// access when passing around configuration and inheritance.
 	if path.IsRoot() && c.Module.ProviderRequirements != nil {
 		for name, p := range c.Module.ProviderRequirements.RequiredProviders {
-			if _, configured := mod.ProviderConfigs[name]; configured {
+			if _, configured := mod.ProviderConfigs[name]; configured { // if _, configured := mod.ProviderConfigs[addrs.LocalProviderConfig{LocalName: name}]; configured {
 				continue
 			}
 
@@ -789,24 +881,29 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 			Alias:    pair.InChild.Addr().Alias,
 		}
 
-		fullParentAddr := addrs.AbsProviderConfig{
-			Provider: fqn,
-			Module:   parentPath,
-			Alias:    pair.InParentTODO().Addr().Alias,
-		}
-
 		fullName := fullAddr.String()
-		fullParentName := fullParentAddr.String()
-
-		parentProvider := t.providers[fullParentName]
-
-		if parentProvider == nil {
-			return fmt.Errorf("missing provider %s", fullParentName)
-		}
 
 		proxy := &graphNodeProxyProvider{
-			addr:   fullAddr,
-			target: parentProvider,
+			addr:    fullAddr,
+			targets: make(map[addrs.InstanceKey]GraphNodeProvider),
+		}
+
+		// Build the proxy provider
+		for key, alias := range pair.InParentMapping.Aliases {
+			fullParentAddr := addrs.AbsProviderConfig{
+				Provider: fqn,
+				Module:   parentPath,
+				Alias:    alias,
+			}
+			fullParentName := fullParentAddr.String()
+
+			parentProvider := t.providers[fullParentName]
+
+			if parentProvider == nil {
+				return fmt.Errorf("missing provider %s", fullParentName)
+			}
+
+			proxy.targets[key] = parentProvider
 		}
 
 		concreteProvider := t.providers[fullName]
