@@ -400,19 +400,14 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			providerBlock, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
 			if providerBlock != nil {
-				_, decodeDiags := providerBlock.decodeStaticFields(nil)
-				diags = append(diags, decodeDiags...)
-				if decodeDiags.HasErrors() {
-					continue
-				}
 				providers, diagsStatic := providerBlock.decodeStaticFields(nil)
 				diags = append(diags, diagsStatic...)
 				if diagsStatic.HasErrors() {
 					continue
 				}
-				for _, provider := range providers {
-					tf.Providers[provider.Addr().StringCompact()] = provider
-				}
+				// providers only ever has 1 element for nul static fields.
+				provider := providers[0]
+				tf.Providers[provider.Addr().StringCompact()] = provider
 			}
 
 		case blockNameOverrideResource:

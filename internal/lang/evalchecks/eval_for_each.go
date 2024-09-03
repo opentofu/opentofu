@@ -4,8 +4,6 @@
 // SPDX-License-Identifier: MPL-2.0
 package evalchecks
 
-// TODO this is only here until i figure out where it should be
-
 import (
 	"fmt"
 
