@@ -131,6 +131,22 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 				aesgcm.Is,
 			},
 		},
+		"key-from-complex-vars": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = var.obj[0].key
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
 		"undefined-key-from-vars": {
 			rawConfig: `
 				key_provider "static" "basic" {
@@ -144,6 +160,20 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 				}
 			`,
 			wantErr: "Test Config Source:3,12-28: Undefined variable; Undefined variable var.undefinedkey",
+		},
+		"bad-keyprovider-format": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = key_provider.static[0]
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantErr: "Test Config Source:3,12-34: Invalid Key Provider expression format; Expected key_provider.<type>.<name>",
 		},
 	}
 
@@ -164,6 +194,10 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 				Name:    "key",
 				Default: cty.StringVal("6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"),
 				Type:    cty.String,
+			},
+			"obj": {
+				Name:    "obj",
+				Default: cty.ListVal([]cty.Value{cty.ObjectVal(map[string]cty.Value{"key": cty.StringVal("6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169")})}),
 			},
 		},
 	}
