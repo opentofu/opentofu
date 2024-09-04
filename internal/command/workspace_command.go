@@ -21,18 +21,16 @@ type WorkspaceCommand struct {
 }
 
 func (c *WorkspaceCommand) Run(args []string) int {
-	c.Meta.process(args)
+	args = c.Meta.process(args)
 
 	var diags tfdiags.Diagnostics
 
-	if c.LegacyName {
-		envDiags := envCommandInvoked()
-		diags = diags.Append(envDiags)
+	invokeDiags := envCommandInvoked(c.LegacyName)
+	diags = diags.Append(invokeDiags)
 
-		c.showDiagnostics(diags)
-		if c.View.HasErrors(envDiags) {
-			return 1
-		}
+	c.showDiagnostics(diags)
+	if c.View.HasErrors(invokeDiags) {
+		return 1
 	}
 
 	cmdFlags := c.Meta.extendedFlagSet("workspace")
@@ -62,19 +60,23 @@ func validWorkspaceName(name string) bool {
 	return name == url.PathEscape(name)
 }
 
-func envCommandInvoked() tfdiags.Diagnostics {
+// envCommandInvoked is used to produce a diagnostic warning if the workspace command has been invoked by the
+// legacy env command name.
+func envCommandInvoked(legacyInvoke bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	diags = diags.Append(tfdiags.Sourceless(
-		tfdiags.Warning,
-		"The \"tofu env\" family of commands is deprecated.",
-		`"Workspace" is now the preferred term for what earlier OpenTofu versions
+	if legacyInvoke {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"The \"tofu env\" family of commands is deprecated.",
+			`"Workspace" is now the preferred term for what earlier OpenTofu versions
 called "environment", to reduce ambiguity caused by the latter term colliding
 with other concepts.
 
 The "tofu workspace" commands should be used instead. "tofu env"
 will be removed in a future OpenTofu version.
 `))
+	}
 	return diags
 }
 

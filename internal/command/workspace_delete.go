@@ -30,14 +30,12 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	if c.LegacyName {
-		envDiags := envCommandInvoked()
-		diags = diags.Append(envDiags)
+	invokeDiags := envCommandInvoked(c.LegacyName)
+	diags = diags.Append(invokeDiags)
 
-		c.showDiagnostics(diags)
-		if c.View.HasErrors(envDiags) {
-			return 1
-		}
+	c.showDiagnostics(diags)
+	if c.View.HasErrors(invokeDiags) {
+		return 1
 	}
 
 	var force bool
