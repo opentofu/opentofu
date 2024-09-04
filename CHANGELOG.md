@@ -1,3 +1,11 @@
+## 1.8.2
+
+SECURITY:
+* Update go version to 1.21.11 to fix CVE-2024-24790
+
+BUG FIXES:
+* Better handling of key_provider references ([#1965](https://github.com/opentofu/opentofu/pull/1965))
+
 ## 1.8.1
 
 BUG FIXES:
