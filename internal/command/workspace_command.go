@@ -21,7 +21,7 @@ type WorkspaceCommand struct {
 }
 
 func (c *WorkspaceCommand) Run(args []string) int {
-	args = c.Meta.process(args)
+	c.Meta.process(args)
 
 	var diags tfdiags.Diagnostics
 
