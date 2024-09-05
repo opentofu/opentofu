@@ -941,8 +941,19 @@ func decodeScopeTraveralProviderConfigRefMapping(expr *hclsyntax.ScopeTraversalE
 		return nil, diags
 	}
 
-	index, ok := name[1].(hcl.TraverseIndex)
-	if !ok {
+	refMapping := &ProviderConfigRefMapping{
+		Name:      root.Name,
+		NameRange: expr.Range(),
+	}
+
+	switch t := name[1].(type) {
+	case hcl.TraverseIndex:
+		refMapping.Alias = hcl.StaticExpr(t.Key, t.SourceRange())
+		refMapping.AliasRange = t.SourceRange().Ptr()
+	case hcl.TraverseAttr:
+		refMapping.Alias = hcl.StaticExpr(cty.StringVal(t.Name), t.SourceRange())
+		refMapping.AliasRange = t.SourceRange().Ptr()
+	default:
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",
@@ -953,12 +964,7 @@ func decodeScopeTraveralProviderConfigRefMapping(expr *hclsyntax.ScopeTraversalE
 		return nil, diags
 	}
 
-	return &ProviderConfigRefMapping{
-		Name:       root.Name,
-		NameRange:  expr.Range(),
-		Alias:      hcl.StaticExpr(index.Key, index.SourceRange()),
-		AliasRange: index.SourceRange().Ptr(),
-	}, diags
+	return refMapping, diags
 }
 
 // TODO/Oleksandr: properly decode ProviderConfigRefMapping
