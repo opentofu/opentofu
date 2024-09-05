@@ -101,6 +101,23 @@ func (diags Diagnostics) Append(new ...interface{}) Diagnostics {
 	return diags
 }
 
+func (diags Diagnostics) StrictDeduplicateMerge(other Diagnostics) Diagnostics {
+	if len(diags) == 0 {
+		return other
+	}
+
+	for _, d := range diags {
+		for _, o := range other {
+			isEqual := d.Description().Equal(o.Description()) && d.Severity() == o.Severity() && d.Source().Equal(o.Source())
+			if DoNotConsolidateDiagnostic(d) || DoNotConsolidateDiagnostic(o) || !isEqual {
+				diags = append(diags, o)
+			}
+		}
+	}
+
+	return diags
+}
+
 // HasErrors returns true if any of the diagnostics in the list have
 // a severity of Error.
 func (diags Diagnostics) HasErrors() bool {

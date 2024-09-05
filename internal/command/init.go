@@ -292,8 +292,7 @@ func (c *InitCommand) Run(args []string) int {
 
 	// Now, we can check the diagnostics from the early configuration and the
 	// backend.
-	diags = diags.Append(earlyConfDiags)
-	diags = diags.Append(backDiags)
+	diags = diags.Append(earlyConfDiags.StrictDeduplicateMerge(backDiags))
 	if c.View.HasErrors(earlyConfDiags) {
 		c.Ui.Error(strings.TrimSpace(errInitConfigError))
 		c.showDiagnostics(diags)
