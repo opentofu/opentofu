@@ -18,11 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// added as a const to keep the linter happy
-const (
-	providerAddrMaxTraversal = 2
-)
-
 // ProviderCommon is the common fields between a Provider Block and a Provider
 type ProviderCommon struct {
 	Name      string
@@ -78,6 +73,8 @@ type Provider struct {
 // If the returned diagnostics contains errors then the result value is invalid
 // and must not be used.
 func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
+	// added as a const to keep the linter happy
+	const providerAddrMaxTraversal = 2
 	var diags tfdiags.Diagnostics
 	ret := addrs.LocalProviderConfig{
 		LocalName: traversal.RootName(),
@@ -200,7 +197,7 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 		diags = append(diags, versionDiags...)
 	}
 
-	reserveredDiags := checkReserverNames(content)
+	reserveredDiags := checkReservedNames(content)
 	diags = append(diags, reserveredDiags...)
 
 	var seenEscapeBlock *hcl.Block
@@ -241,7 +238,7 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 	return provider, diags
 }
 
-func checkReserverNames(content *hcl.BodyContent) hcl.Diagnostics {
+func checkReservedNames(content *hcl.BodyContent) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	// Reserved attribute names
 	for _, name := range []string{"depends_on", "source", "count"} {
@@ -363,13 +360,12 @@ func (p *ProviderBlock) generateForEachProviders(eval *StaticEvaluator) ([]*Prov
 		if !hclsyntax.ValidIdentifier(k) {
 			return nil, diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid for_each key Identifier",
-				Detail:   fmt.Sprintf("The provided identifier %s is invalid", k),
+				Summary:  "Invalid for_each key alias",
+				Detail:   fmt.Sprintf("Alias %q must be a valid name. %s", k, badIdentifierDetail),
 				Subject:  p.ForEach.Range().Ptr(),
 			})
 		}
 
-		v := v
 		out = append(out, &Provider{
 			ProviderCommon: p.ProviderCommon,
 			Alias:          k,

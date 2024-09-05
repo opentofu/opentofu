@@ -405,9 +405,9 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 				if diagsStatic.HasErrors() {
 					continue
 				}
-				// providers only ever has 1 element for nul static fields.
-				provider := providers[0]
-				tf.Providers[provider.Addr().StringCompact()] = provider
+				for _, provider := range providers {
+					tf.Providers[provider.Addr().StringCompact()] = provider
+				}
 			}
 
 		case blockNameOverrideResource:

@@ -53,8 +53,8 @@ func TestNewModule_provider_invalid_name(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Fatal("expected error")
 	}
-	expected := "Invalid for_each key Identifier"
-	expectedDetail := "The provided identifier 0 is invalid"
+	expected := "Invalid for_each key alias"
+	expectedDetail := "Alias \"0\" must be a valid name. A name must start with a letter or underscore and may contain only letters, digits, underscores, and dashes."
 
 	if gotErr := diags[0].Summary; gotErr != expected {
 		t.Errorf("wrong error, got %q, want %q", gotErr, expected)
