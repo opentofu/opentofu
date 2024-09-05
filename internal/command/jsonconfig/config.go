@@ -381,7 +381,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 				Default:     defaultValJSON,
 				Description: v.Description,
 				Sensitive:   v.Sensitive,
-				Type:        v.Type.FriendlyName(),
+				Type:        v.TypeString,
 				Nullable:    isNullableExplicitlySetToTrue,
 				Required:    isRequired,
 			}

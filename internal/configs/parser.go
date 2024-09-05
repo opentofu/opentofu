@@ -58,7 +58,7 @@ func NewParser(fs afero.Fs) *Parser {
 //
 // The file will be parsed using the HCL native syntax unless the filename
 // ends with ".json", in which case the HCL JSON syntax will be used.
-func (p *Parser) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
+func (p *Parser) LoadHCLFile(path string) (*hcl.File, hcl.Diagnostics) {
 	src, err := p.fs.ReadFile(path)
 
 	if err != nil {
@@ -83,10 +83,10 @@ func (p *Parser) LoadHCLFile(path string) (hcl.Body, hcl.Diagnostics) {
 	// If the returned file or body is nil, then we'll return a non-nil empty
 	// body so we'll meet our contract that nil means an error reading the file.
 	if file == nil || file.Body == nil {
-		return hcl.EmptyBody(), diags
+		return nil, diags
 	}
 
-	return file.Body, diags
+	return file, diags
 }
 
 // Sources returns a map of the cached source buffers for all files that

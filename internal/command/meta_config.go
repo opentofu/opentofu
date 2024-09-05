@@ -234,9 +234,12 @@ func (m *Meta) loadHCLFile(filename string) (hcl.Body, tfdiags.Diagnostics) {
 		return nil, diags
 	}
 
-	body, hclDiags := loader.Parser().LoadHCLFile(filename)
+	file, hclDiags := loader.Parser().LoadHCLFile(filename)
 	diags = diags.Append(hclDiags)
-	return body, diags
+	if hclDiags.HasErrors() {
+		return nil, diags
+	}
+	return file.Body, diags
 }
 
 // installModules reads a root module from the given directory and attempts

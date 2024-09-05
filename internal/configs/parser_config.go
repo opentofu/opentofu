@@ -41,10 +41,12 @@ func (p *Parser) LoadConfigFileOverride(path string) (*File, hcl.Diagnostics) {
 // It references the same LoadHCLFile as LoadConfigFile, so inherits the same
 // syntax selection behaviours.
 func (p *Parser) LoadTestFile(path string) (*TestFile, hcl.Diagnostics) {
-	body, diags := p.LoadHCLFile(path)
-	if body == nil {
+	file, diags := p.LoadHCLFile(path)
+	if file == nil {
 		return nil, diags
 	}
+
+	body := file.Body
 
 	test, testDiags := loadTestFile(body)
 	diags = append(diags, testDiags...)
@@ -52,10 +54,11 @@ func (p *Parser) LoadTestFile(path string) (*TestFile, hcl.Diagnostics) {
 }
 
 func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnostics) {
-	body, diags := p.LoadHCLFile(path)
-	if body == nil {
+	ifile, diags := p.LoadHCLFile(path)
+	if ifile == nil {
 		return nil, diags
 	}
+	body := ifile.Body
 
 	file := &File{}
 
@@ -144,7 +147,7 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 			}
 
 		case "variable":
-			cfg, cfgDiags := decodeVariableBlock(block, override)
+			cfg, cfgDiags := decodeVariableBlock(block, override, ifile)
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.Variables = append(file.Variables, cfg)

@@ -28,7 +28,8 @@ type Variable struct {
 	Default     cty.Value
 
 	// Type is the concrete type of the variable value.
-	Type cty.Type
+	Type       cty.Type
+	TypeString string
 	// ConstraintType is used for decoding and type conversions, and may
 	// contain nested ObjectWithOptionalAttr types.
 	ConstraintType cty.Type
@@ -50,7 +51,7 @@ type Variable struct {
 	DeclRange hcl.Range
 }
 
-func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagnostics) {
+func decodeVariableBlock(block *hcl.Block, override bool, file *hcl.File) (*Variable, hcl.Diagnostics) {
 	v := &Variable{
 		Name:      block.Labels[0],
 		DeclRange: block.DefRange,
@@ -108,6 +109,9 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 	}
 
 	if attr, exists := content.Attributes["type"]; exists {
+		// Type detection inspired by https://github.com/hashicorp/terraform-config-inspect/blob/6714b46f5fe438558e2703a7ac4275e768425081/tfconfig/load_hcl.go#L121-L145 (MPL2.0)
+		v.TypeString = string(attr.Expr.Range().SliceBytes(file.Bytes))
+
 		ty, tyDefaults, parseMode, tyDiags := decodeVariableType(attr.Expr)
 		diags = append(diags, tyDiags...)
 		v.ConstraintType = ty
