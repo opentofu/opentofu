@@ -929,6 +929,8 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, inst
 		})
 	}
 
+	// TODO/Oleksandr: add validation that ensures instanceExpr can be evaluated statically.
+	// eval checks from Andrew's PR could be reused for this purpose.
 	instances, instancesDiags := eval.Evaluate(instanceExpr, aliasStaticID)
 	diags = diags.Extend(instancesDiags)
 	if instancesDiags.HasErrors() {
