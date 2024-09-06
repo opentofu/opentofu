@@ -12,6 +12,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
 	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
@@ -31,7 +32,7 @@ var disabledColorize = &colorstring.Colorize{
 // at all. Although the long-form text parts of the message are wrapped,
 // not all aspects of the message are guaranteed to fit within the specified
 // terminal width.
-func Diagnostic(diag tfdiags.Diagnostic, sources map[string][]byte, color *colorstring.Colorize, width int) string {
+func Diagnostic(diag tfdiags.Diagnostic, sources map[string]*hcl.File, color *colorstring.Colorize, width int) string {
 	return DiagnosticFromJSON(viewsjson.NewDiagnostic(diag, sources), color, width)
 }
 
@@ -127,7 +128,7 @@ func DiagnosticFromJSON(diag *viewsjson.Diagnostic, color *colorstring.Colorize,
 //
 // It is intended for use in automation and other contexts in which diagnostic
 // messages are parsed from the OpenTofu output.
-func DiagnosticPlain(diag tfdiags.Diagnostic, sources map[string][]byte, width int) string {
+func DiagnosticPlain(diag tfdiags.Diagnostic, sources map[string]*hcl.File, width int) string {
 	return DiagnosticPlainFromJSON(viewsjson.NewDiagnostic(diag, sources), width)
 }
 
@@ -207,7 +208,7 @@ func DiagnosticWarningsCompact(diags tfdiags.Diagnostics, color *colorstring.Col
 				}
 			} else if len(sources) > 1 {
 				b.WriteString(fmt.Sprintf(
-					"  (%d occurences of this warning)\n",
+					"  (%d occurrences of this warning)\n",
 					len(sources),
 				))
 			}

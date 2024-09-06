@@ -32,8 +32,11 @@ const DefaultPluginVendorDir = "terraform.d/plugins/" + pluginMachineName
 // DefaultStateFilename is the default filename used for the state file.
 const DefaultStateFilename = "terraform.tfstate"
 
+// DefaultVarsExtension is the default file extension used for vars
+const DefaultVarsExtension = ".tfvars"
+
 // DefaultVarsFilename is the default filename used for vars
-const DefaultVarsFilename = "terraform.tfvars"
+const DefaultVarsFilename = "terraform" + DefaultVarsExtension
 
 // DefaultBackupExtension is added to the state file to form the path
 const DefaultBackupExtension = ".backup"

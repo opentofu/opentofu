@@ -75,7 +75,7 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 	// but in particular might be user-observable in the edge case where the
 	// literal value in config could've been converted to the overridden type
 	// constraint but the converted value cannot. In practice, this situation
-	// should be rare since most of our conversions are interchangable.
+	// should be rare since most of our conversions are interchangeable.
 	if v.Default != cty.NilVal {
 		val, err := convert.Convert(v.Default, v.ConstraintType)
 		if err != nil {

@@ -908,7 +908,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 func (d *evaluationStateData) getResourceSchema(addr addrs.Resource, providerAddr addrs.Provider) *configschema.Block {
 	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(providerAddr, addr.Mode, addr.Type)
 	if err != nil {
-		// We have plently other codepaths that will detect and report
+		// We have plenty of other codepaths that will detect and report
 		// schema lookup errors before we'd reach this point, so we'll just
 		// treat a failure here the same as having no schema.
 		return nil
@@ -919,7 +919,6 @@ func (d *evaluationStateData) getResourceSchema(addr addrs.Resource, providerAdd
 func (d *evaluationStateData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	switch addr.Name {
-
 	case "workspace":
 		workspaceName := d.Evaluator.Meta.Env
 		return cty.StringVal(workspaceName), diags
@@ -930,8 +929,8 @@ func (d *evaluationStateData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfd
 		// removed.
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  `Invalid "terraform" attribute`,
-			Detail:   `The terraform.env attribute was deprecated in v0.10 and removed in v0.12. The "state environment" concept was renamed to "workspace" in v0.12, and so the workspace name can now be accessed using the terraform.workspace attribute.`,
+			Summary:  fmt.Sprintf("Invalid %q attribute", addr.Alias),
+			Detail:   fmt.Sprintf(`The %s.env attribute was deprecated in v0.10 and removed in v0.12. The "state environment" concept was renamed to "workspace" in v0.12, and so the workspace name can now be accessed using the %s.workspace attribute.`, addr.Alias, addr.Alias),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return cty.DynamicVal, diags
@@ -939,8 +938,8 @@ func (d *evaluationStateData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfd
 	default:
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  `Invalid "terraform" attribute`,
-			Detail:   fmt.Sprintf(`The "terraform" object does not have an attribute named %q. The only supported attribute is terraform.workspace, the name of the currently-selected workspace.`, addr.Name),
+			Summary:  fmt.Sprintf("Invalid %q attribute", addr.Alias),
+			Detail:   fmt.Sprintf(`The %q object does not have an attribute named %q. The only supported attribute is %s.workspace, the name of the currently-selected workspace.`, addr.Alias, addr.Name, addr.Alias),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return cty.DynamicVal, diags
@@ -1005,7 +1004,7 @@ func (d *evaluationStateData) GetCheckBlock(addr addrs.Check, rng tfdiags.Source
 	// For now, check blocks don't contain any meaningful data and can only
 	// be referenced from the testing scope within an expect_failures attribute.
 	//
-	// We've added them into the scope explicitly since they are referencable,
+	// We've added them into the scope explicitly since they are referenceable,
 	// but we'll actually just return an error message saying they can't be
 	// referenced in this context.
 	var diags tfdiags.Diagnostics

@@ -337,7 +337,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 				ref, diags := addrs.ParseRef(d)
 				// we should not get an error here, because `tofu validate`
 				// would have complained well before this point, but if we do we'll
-				// silenty skip it.
+				// silently skip it.
 				if !diags.HasErrors() {
 					dependencies[i] = ref.Subject.String()
 				}
@@ -432,7 +432,7 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 			ref, diags := addrs.ParseRef(d)
 			// we should not get an error here, because `tofu validate`
 			// would have complained well before this point, but if we do we'll
-			// silenty skip it.
+			// silently skip it.
 			if !diags.HasErrors() {
 				dependencies[i] = ref.Subject.String()
 			}
@@ -505,7 +505,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 				ref, diags := addrs.ParseRef(d)
 				// we should not get an error here, because `tofu validate`
 				// would have complained well before this point, but if we do we'll
-				// silenty skip it.
+				// silently skip it.
 				if !diags.HasErrors() {
 					dependencies[i] = ref.Subject.String()
 				}
@@ -523,7 +523,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 
 // Flatten all resource provider keys in a module and its descendents, such
 // that any resources from providers using a configuration passed through the
-// module call have a direct refernce to that provider configuration.
+// module call have a direct reference to that provider configuration.
 func normalizeModuleProviderKeys(m *module, pcs map[string]providerConfig) {
 	for i, r := range m.Resources {
 		if pc, exists := pcs[r.ProviderConfigKey]; exists {

@@ -38,7 +38,7 @@ func newProviders() *Providers {
 	}
 }
 
-// MarshalForRenderer converts the provided internation representation of the
+// MarshalForRenderer converts the provided internal representation of the
 // schema into the public structured JSON versions.
 //
 // This is a format that can be read by the structured plan renderer.

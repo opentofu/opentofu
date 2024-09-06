@@ -1380,7 +1380,7 @@ func TestContext2Validate_invalidDependsOnResourceRef(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 resource "test_instance" "bar" {
-  depends_on = [test_resource.nonexistant]
+  depends_on = [test_resource.nonexistent]
 }
 `,
 	})

@@ -64,7 +64,7 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	//   extremely large state file (100MB) it would take an apply of over 5 hours to come close to the 64GB limit of pbkdf2 with some malicious actor recording
 	//   every single change to the filesystem (or inspecting deleted blocks).
 	//
-	// What other benfits does this provide?
+	// What other benefits does this provide?
 	//
 	//   This performs a e2e validation run of the config -> methods flow. It serves as a validation step and allows us to return detailed
 	//   diagnostics here and simple errors in the decrypt function below.
@@ -78,7 +78,7 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 type basedata struct {
 	Meta    map[keyprovider.Addr][]byte `json:"meta"`
 	Data    []byte                      `json:"encrypted_data"`
-	Version string                      `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatability field
+	Version string                      `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatibility field
 }
 
 func IsEncryptionPayload(data []byte) (bool, error) {

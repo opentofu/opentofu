@@ -53,7 +53,7 @@
             "schema_version": 0,
             "values": {
               "ami": "ami-test",
-              "id": "placeheld",
+              "id": "placeholder",
               "password": null
             },
             "sensitive_values": {

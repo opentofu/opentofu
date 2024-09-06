@@ -37,6 +37,10 @@ If you've found a vulnerability or a potential vulnerability in OpenTofu please 
 
 If you believe you have found any possible copyright or intellectual property issues, please contact liaison@opentofu.org. We'll send a confirmation email to acknowledge your report.
 
+## Registry Access
+
+In an effort to comply with applicable sanctions, we block access from specific countries of origin.
+
 ## License
 
 [Mozilla Public License v2.0](https://github.com/opentofu/opentofu/blob/main/LICENSE)

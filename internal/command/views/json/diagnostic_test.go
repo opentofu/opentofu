@@ -26,17 +26,17 @@ func TestNewDiagnostic(t *testing.T) {
 	// Common HCL for diags with source ranges. This does not have any real
 	// semantic errors, but we can synthesize fake HCL errors which will
 	// exercise the diagnostic rendering code using this
-	sources := map[string][]byte{
-		"test.tf": []byte(`resource "test_resource" "test" {
+	sources := map[string]*hcl.File{
+		"test.tf": {Bytes: []byte(`resource "test_resource" "test" {
   foo = var.boop["hello!"]
   bar = {
     baz = maybe
   }
 }
-`),
-		"short.tf":       []byte("bad source code"),
-		"odd-comment.tf": []byte("foo\n\n#\n"),
-		"values.tf": []byte(`[
+`)},
+		"short.tf":       {Bytes: []byte("bad source code")},
+		"odd-comment.tf": {Bytes: []byte("foo\n\n#\n")},
+		"values.tf": {Bytes: []byte(`[
   var.a,
   var.b,
   var.c,
@@ -49,7 +49,7 @@ func TestNewDiagnostic(t *testing.T) {
   var.j,
   var.k,
 ]
-`),
+`)},
 	}
 	testCases := map[string]struct {
 		diag interface{} // allow various kinds of diags

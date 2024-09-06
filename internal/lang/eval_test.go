@@ -349,6 +349,20 @@ func TestScopeEvalContext(t *testing.T) {
 				"terraform": cty.ObjectVal(map[string]cty.Value{
 					"workspace": cty.StringVal("default"),
 				}),
+				"tofu": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
+			},
+		},
+		{
+			`tofu.workspace`,
+			map[string]cty.Value{
+				"terraform": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
+				"tofu": cty.ObjectVal(map[string]cty.Value{
+					"workspace": cty.StringVal("default"),
+				}),
 			},
 		},
 		{
@@ -459,7 +473,7 @@ func TestScopeEvalContextWithParent(t *testing.T) {
 		}
 
 		if ln := len(child.Parent().Variables); ln != 1 {
-			t.Fatalf("EvalContextWithParent modified parent's variables: incorrent length: %d", ln)
+			t.Fatalf("EvalContextWithParent modified parent's variables: incorrect length: %d", ln)
 		}
 
 		if v := child.Parent().Variables["foo"]; !v.RawEquals(barStr) {
@@ -467,7 +481,7 @@ func TestScopeEvalContextWithParent(t *testing.T) {
 		}
 
 		if ln := len(child.Parent().Functions); ln != 1 {
-			t.Fatalf("EvalContextWithParent modified parent's functions: incorrent length: %d", ln)
+			t.Fatalf("EvalContextWithParent modified parent's functions: incorrect length: %d", ln)
 		}
 
 		if v := child.Parent().Functions["foo"]; !reflect.DeepEqual(v, barFunc) {
@@ -882,6 +896,13 @@ func TestScopeEvalSelfBlock(t *testing.T) {
 		},
 		{
 			Config: `attr = terraform.workspace`,
+			Want: map[string]cty.Value{
+				"attr": cty.StringVal("default"),
+				"num":  cty.NullVal(cty.Number),
+			},
+		},
+		{
+			Config: `attr = tofu.workspace`,
 			Want: map[string]cty.Value{
 				"attr": cty.StringVal("default"),
 				"num":  cty.NullVal(cty.Number),

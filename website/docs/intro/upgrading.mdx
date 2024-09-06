@@ -15,7 +15,7 @@ upgrading OpenTofu to version 1.8.0.
 Although OpenTofu 1.8 is mostly compatible with version 1.6 and 1.7, you should take the necessary precautions to prevent
 accidents. Make sure you have an up to date and *tested* disaster recovery plan.
 
-## Step 1: Remove any use of `use_legacy_workflow` from S3 backend configurations, if any
+## Step 1: If using an S3 backend - Remove any use of `use_legacy_workflow` from S3 backend configurations
 
 If you are using the S3 backend, with `use_legacy_workflow` set, you'd have to remove it. This field has been deprecated in version 1.7.0, and has been changed to default to `false`.
 The legacy workflow of authentication is no longer supported. Please start using the new authentication method, which is more consistent with other AWS tools
@@ -68,6 +68,12 @@ If you suspect the failure may be the result of a bug in OpenTofu,
 
 Now you are ready to migrate. Run `tofu init` in the directory where your code resides. OpenTofu will download
 any providers and modules referenced in your configuration from the OpenTofu registry.
+
+:::note
+
+If you are using the S3 backend - You will need to run `tofu init -reconfigure` to reinitialize the backend.
+
+:::
 
 ## Step 6: Inspect the plan
 

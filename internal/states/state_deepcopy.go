@@ -16,11 +16,11 @@ import (
 // in this file comprehensively copy all parts of the state data structure
 // that could be mutated via pointers.
 
-// DeepCopy returns a new state that contains equivalent data to the reciever
+// DeepCopy returns a new state that contains equivalent data to the receiver
 // but shares no backing memory in common.
 //
 // As with all methods on State, this method is not safe to use concurrently
-// with writing to any portion of the recieving data structure. It is the
+// with writing to any portion of the receiving data structure. It is the
 // caller's responsibility to ensure mutual exclusion for the duration of the
 // operation, but may then freely modify the receiver and the returned copy
 // independently once this method returns.
@@ -43,7 +43,7 @@ func (s *State) DeepCopy() *State {
 // receiver but shares no backing memory in common.
 //
 // As with all methods on Module, this method is not safe to use concurrently
-// with writing to any portion of the recieving data structure. It is the
+// with writing to any portion of the receiving data structure. It is the
 // caller's responsibility to ensure mutual exclusion for the duration of the
 // operation, but may then freely modify the receiver and the returned copy
 // independently once this method returns.
@@ -78,7 +78,7 @@ func (ms *Module) DeepCopy() *Module {
 // receiver but shares no backing memory in common.
 //
 // As with all methods on Resource, this method is not safe to use concurrently
-// with writing to any portion of the recieving data structure. It is the
+// with writing to any portion of the receiving data structure. It is the
 // caller's responsibility to ensure mutual exclusion for the duration of the
 // operation, but may then freely modify the receiver and the returned copy
 // independently once this method returns.
@@ -103,7 +103,7 @@ func (rs *Resource) DeepCopy() *Resource {
 // to the receiver but shares no backing memory in common.
 //
 // As with all methods on ResourceInstance, this method is not safe to use
-// concurrently with writing to any portion of the recieving data structure. It
+// concurrently with writing to any portion of the receiving data structure. It
 // is the caller's responsibility to ensure mutual exclusion for the duration
 // of the operation, but may then freely modify the receiver and the returned
 // copy independently once this method returns.
@@ -127,7 +127,7 @@ func (i *ResourceInstance) DeepCopy() *ResourceInstance {
 // to the receiver but shares no backing memory in common.
 //
 // As with all methods on ResourceInstanceObjectSrc, this method is not safe to
-// use concurrently with writing to any portion of the recieving data structure.
+// use concurrently with writing to any portion of the receiving data structure.
 // It is the caller's responsibility to ensure mutual exclusion for the duration
 // of the operation, but may then freely modify the receiver and the returned
 // copy independently once this method returns.
@@ -162,7 +162,7 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		copy(private, os.Private)
 	}
 
-	// Some addrs.Referencable implementations are technically mutable, but
+	// Some addrs.Referenceable implementations are technically mutable, but
 	// we treat them as immutable by convention and so we don't deep-copy here.
 	var dependencies []addrs.ConfigResource
 	if os.Dependencies != nil {
@@ -186,7 +186,7 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 // to the receiver but shares no backing memory in common.
 //
 // As with all methods on ResourceInstanceObject, this method is not safe to use
-// concurrently with writing to any portion of the recieving data structure. It
+// concurrently with writing to any portion of the receiving data structure. It
 // is the caller's responsibility to ensure mutual exclusion for the duration
 // of the operation, but may then freely modify the receiver and the returned
 // copy independently once this method returns.
@@ -222,7 +222,7 @@ func (o *ResourceInstanceObject) DeepCopy() *ResourceInstanceObject {
 // to the receiver but shares no backing memory in common.
 //
 // As with all methods on OutputValue, this method is not safe to use
-// concurrently with writing to any portion of the recieving data structure. It
+// concurrently with writing to any portion of the receiving data structure. It
 // is the caller's responsibility to ensure mutual exclusion for the duration
 // of the operation, but may then freely modify the receiver and the returned
 // copy independently once this method returns.

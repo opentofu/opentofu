@@ -100,7 +100,7 @@ Use the following environment variables to configure the `cloud` block:
 
 - `TF_CLOUD_PROJECT` - The name of a cloud backend project. OpenTofu reads this when `workspaces.project` is omitted from the `cloud` block. If both are specified, the cloud block configuration takes precedence.
 
-- `TF_WORKSPACE` - The name of a single cloud backend workspace. OpenTofu reads this when `workspaces` is omitted from the `cloud` block. The cloud backend will not create a new workspace from this variable; the workspace must exist in the specified organization. You can set `TF_WORKSPACE` if the `cloud` block uses tags. However, the value of `TF_WORKSPACE` must be included in the set of tags. This variable also selects the workspace in your local environment. Refer to [TF_WORKSPACE](../config/environment-variables.mdx#tf_workspace) for details.
+- `TF_WORKSPACE` - The name of a single cloud backend workspace. OpenTofu reads this when `workspaces` is omitted from the `cloud` block. The cloud backend will not create a new workspace from this variable; the workspace must exist in the specified organization. You can set `TF_WORKSPACE` if the `cloud` block uses tags. However, the selected `TF_WORKSPACE` must have a set of tags that match the tags in the `cloud` block. This variable also selects the workspace in your local environment. Refer to [TF_WORKSPACE](../config/environment-variables.mdx#tf_workspace) for details.
 
 ## Excluding Files from Upload with .terraformignore
 

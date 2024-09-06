@@ -167,7 +167,7 @@ type FunctionParameterSpec struct {
 	Name string
 	// Type constraint for the parameter
 	Type cty.Type
-	// Null values alowed for the parameter
+	// Null values allowed for the parameter
 	AllowNullValue bool
 	// Unknown Values allowed for the parameter
 	// Implies the Return type of the function is also Unknown

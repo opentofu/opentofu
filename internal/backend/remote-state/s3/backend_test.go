@@ -693,7 +693,7 @@ func TestBackendConfig_PrepareConfigValidation(t *testing.T) {
 			}),
 			expectedErr: `The "workspace_key_prefix" attribute value must not start with "/".`,
 		},
-		"encyrption key conflict": {
+		"encryption key conflict": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"bucket":               cty.StringVal("test"),
 				"key":                  cty.StringVal("test"),
@@ -860,7 +860,7 @@ func TestBackendConfig_PrepareConfigWithEnvVars(t *testing.T) {
 				"AWS_DEFAULT_REGION": "us-west-1",
 			},
 		},
-		"encyrption key conflict": {
+		"encryption key conflict": {
 			config: cty.ObjectVal(map[string]cty.Value{
 				"bucket":               cty.StringVal("test"),
 				"key":                  cty.StringVal("test"),
@@ -1530,7 +1530,7 @@ func Test_pathString(t *testing.T) {
 	}
 }
 
-func TestBackend_includeProtoIfNessesary(t *testing.T) {
+func TestBackend_includeProtoIfNecessary(t *testing.T) {
 	tests := []struct {
 		name     string
 		provided string
@@ -1565,7 +1565,7 @@ func TestBackend_includeProtoIfNessesary(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result := includeProtoIfNessesary(test.provided)
+			result := includeProtoIfNecessary(test.provided)
 			if result != test.expected {
 				t.Errorf("Expected: %s, Got: %s", test.expected, result)
 			}

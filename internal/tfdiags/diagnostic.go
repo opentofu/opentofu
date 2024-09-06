@@ -23,7 +23,7 @@ type Diagnostic interface {
 
 	// ExtraInfo returns the raw extra information value. This is a low-level
 	// API which requires some work on the part of the caller to properly
-	// access associated information, so in most cases it'll be more convienient
+	// access associated information, so in most cases it'll be more convenient
 	// to use the package-level ExtraInfo function to try to unpack a particular
 	// specialized interface from this value.
 	ExtraInfo() interface{}
@@ -58,9 +58,17 @@ type Description struct {
 	Detail  string
 }
 
+func (d Description) Equal(other Description) bool {
+	return d.Address == other.Address && d.Summary == other.Summary && d.Detail == other.Detail
+}
+
 type Source struct {
 	Subject *SourceRange
 	Context *SourceRange
+}
+
+func (s Source) Equal(other Source) bool {
+	return s.Subject.Equal(other.Subject) && s.Context.Equal(other.Context)
 }
 
 type FromExpr struct {

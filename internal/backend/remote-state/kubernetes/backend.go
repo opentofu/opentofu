@@ -341,7 +341,7 @@ func tryLoadingConfigFile(d *schema.ResourceData) (*restclient.Config, error) {
 	authInfo, authInfoOk := d.GetOk("config_context_auth_info")
 	cluster, clusterOk := d.GetOk("config_context_cluster")
 	if ctxOk || authInfoOk || clusterOk {
-		ctxSuffix = "; overriden context"
+		ctxSuffix = "; overridden context"
 		if ctxOk {
 			overrides.CurrentContext = ctx.(string)
 			ctxSuffix += fmt.Sprintf("; config ctx: %s", overrides.CurrentContext)
@@ -357,7 +357,7 @@ func tryLoadingConfigFile(d *schema.ResourceData) (*restclient.Config, error) {
 			overrides.Context.Cluster = cluster.(string)
 			ctxSuffix += fmt.Sprintf("; cluster: %s", overrides.Context.Cluster)
 		}
-		log.Printf("[DEBUG] Using overidden context: %#v", overrides.Context)
+		log.Printf("[DEBUG] Using overridden context: %#v", overrides.Context)
 	}
 
 	if v, ok := d.GetOk("exec"); ok {

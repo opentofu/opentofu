@@ -55,8 +55,8 @@ func marshalExpression(ex hcl.Expression) expression {
 		var varString []string
 		for _, ref := range refs {
 			// We work backwards here, starting with the full reference +
-			// reamining traversal, and then unwrapping the remaining traversals
-			// into parts until we end up at the smallest referencable address.
+			// remaining traversal, and then unwrapping the remaining traversals
+			// into parts until we end up at the smallest referenceable address.
 			remains := ref.Remaining
 			for len(remains) > 0 {
 				varString = append(varString, fmt.Sprintf("%s%s", ref.Subject, traversalStr(remains)))

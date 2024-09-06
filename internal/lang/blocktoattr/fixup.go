@@ -145,7 +145,7 @@ func (b *fixupBody) MissingItemRange() hcl.Range {
 
 // effectiveSchema produces a derived *hcl.BodySchema by sniffing the body's
 // content to determine whether the author has used attribute or block syntax
-// for each of the ambigious attributes where both are permitted.
+// for each of the ambiguous attributes where both are permitted.
 //
 // The resulting schema will always contain all of the same names that are
 // in the given schema, but some attribute schemas may instead be replaced by

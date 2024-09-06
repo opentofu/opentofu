@@ -62,7 +62,7 @@ func TestKMSProvider_Simple(t *testing.T) {
 
 	t.Log("Continue to meta -> decryption key")
 
-	// Now that we have a encyption key and it's meta, let's get the decryption key
+	// Now that we have a encryption key and it's meta, let's get the decryption key
 	output, meta, err = provider.Provide(meta)
 	if err != nil {
 		t.Fatalf("Error providing keys: %s", err)

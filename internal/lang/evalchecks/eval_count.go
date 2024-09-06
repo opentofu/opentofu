@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
-
-package tofu
+package evalchecks
 
 import (
 	"fmt"
@@ -14,16 +13,18 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-// evaluateCountExpression is our standard mechanism for interpreting an
+type EvaluateFunc func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics)
+
+// EvaluateCountExpression is our standard mechanism for interpreting an
 // expression given for a "count" argument on a resource or a module. This
 // should be called during expansion in order to determine the final count
 // value.
 //
-// evaluateCountExpression differs from evaluateCountExpressionValue by
+// EvaluateCountExpression differs from EvaluateCountExpressionValue by
 // returning an error if the count value is not known, and converting the
 // cty.Value to an integer.
-func evaluateCountExpression(expr hcl.Expression, ctx EvalContext) (int, tfdiags.Diagnostics) {
-	countVal, diags := evaluateCountExpressionValue(expr, ctx)
+func EvaluateCountExpression(expr hcl.Expression, ctx EvaluateFunc) (int, tfdiags.Diagnostics) {
+	countVal, diags := EvaluateCountExpressionValue(expr, ctx)
 	if !countVal.IsKnown() {
 		// Currently this is a rather bad outcome from a UX standpoint, since we have
 		// no real mechanism to deal with this situation and all we can do is produce
@@ -41,7 +42,7 @@ func evaluateCountExpression(expr hcl.Expression, ctx EvalContext) (int, tfdiags
 			// we can't easily do that right now because the hcl.EvalContext
 			// (which is not the same as the ctx we have in scope here) is
 			// hidden away inside evaluateCountExpressionValue.
-			Extra: diagnosticCausedByUnknown(true),
+			Extra: DiagnosticCausedByUnknown(true),
 		})
 	}
 
@@ -53,17 +54,17 @@ func evaluateCountExpression(expr hcl.Expression, ctx EvalContext) (int, tfdiags
 	return int(count), diags
 }
 
-// evaluateCountExpressionValue is like evaluateCountExpression
+// EvaluateCountExpressionValue is like EvaluateCountExpression
 // except that it returns a cty.Value which must be a cty.Number and can be
 // unknown.
-func evaluateCountExpressionValue(expr hcl.Expression, ctx EvalContext) (cty.Value, tfdiags.Diagnostics) {
+func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullCount := cty.NullVal(cty.Number)
 	if expr == nil {
 		return nullCount, nil
 	}
 
-	countVal, countDiags := ctx.EvaluateExpr(expr, cty.Number, nil)
+	countVal, countDiags := ctx(expr)
 	diags = diags.Append(countDiags)
 	if diags.HasErrors() {
 		return nullCount, diags

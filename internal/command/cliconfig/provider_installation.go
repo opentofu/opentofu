@@ -62,7 +62,7 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 
 	// This is a rather odd hybrid: it's a HCL 2-like decode implemented using
 	// the HCL 1 AST API. That makes it a bit awkward in places, but it allows
-	// us to mimick the strictness of HCL 2 (making a later migration easier)
+	// us to mimic the strictness of HCL 2 (making a later migration easier)
 	// and to support a block structure that the HCL 1 decoder can't represent.
 	for _, block := range root.Items {
 		if block.Keys[0].Token.Value() != "provider_installation" {

@@ -6,7 +6,749 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople)) representing Harness Inc.
 - Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi)) representing env0
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
-- Yevgeniy Brikman ([@brikis98](https://github.com/brikis98)) representing Gruntwork, Inc.
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
+
+## 2024-08-20
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+#### Shall we stop using Notion?
+
+- Igor: do we need notion?
+- Zach: reluctantly second motion, easy to do stuff not in public.  Pushes us toward public on github.
+- Igor: migrate this to private space, keep private/public for sensitive information
+- Igor: we probably have a week or two.  Worst case pay for a month and then migrate.
+
+##### Decision
+
+Vote: unanimous yes
+
+#### Sanctions Russia vs registry access
+
+- Add note to README during PR documenting this discussion in TSC_SUMMARY
+- Block Russian IP Blocks from accessing our registry in Cloudflare
+
+##### Decision
+
+Vote: unanimous yes
+
+#### PackageCloud 
+
+PackageCloud provides free deb/rpm hosting for OpenTofu.
+
+- We said we would do a case study
+- They are asking to be listed as sponsors
+- Igor: Ok with updating sponsors (cloudflare as well)
+
+##### Decision
+
+Christian: will write up a "case study" ([examples](https://buildkite.com/case-studies)) and post for TSC review.
+
+#### State Backend Improvements
+
+- Continuing the discussion from 2024-07-24, we need to start planning how we want to support new backends, community backends, and modifications to backends
+- Christian: gave overview of backend related issues in OpenTofu and their relative :+1: counterparts
+   - Backends as Plugins (32 :+1:)
+   - Modifications of existing backends (72 :+1:)
+   - Support for new backends (40 :+1:)
+- Community is already working around this with the HTTP backend and helper binaries (20+ easily found in github search)
+- Potential Paths:
+   - Improve http backend or create httpng or similar with workspace support
+   - Create GRPC protocol and extend existing registry (Backends as Plugins)
+   - Document and recommend remote or cloud backend
+- Christian: Proposal
+   - Stage 1: Improve HTTP Backend and provide library + compliance tests to community to foster adoption
+   - Stage 2: Support backend plugins using above protocol (HTTP or gRPC, library makes it trivial for authors)
+   - Stage 3: Migrate internal backends to plugin
+- Christian: Proposes that we start with Stage 1 as a low-risk evaluation of the concept. Re-evaluate Stage 2/3 based on Stage 1 feedback and adoption.
+- Igor: remote/cloud protocol not within our control. How simple can we make the http protocol?
+- Wojciech: Likes the staged plan, hedges risk. Also likes proper support for the http backend and thinks TACOS will migrate.
+- Igor: HTTP works through proxies, which may be a big advantage
+- Zach: Fan of the PoC to demonstrate value, don’t know until you built it
+
+##### Decision:
+
+**Christian will prepare RFC for Stage 1 and send to TSC + Community via Github PR**
+
+## 2024-08-13
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+#### Open Governance
+
+- Christian: Where do we publish our governance documents?
+- Christian: Do we need to amend our governance documents before publishing them?
+- Have we defined how we manage TSC memebership?
+- Igor: Usually in a github repo w/ amendments and meeting notes
+    - Also look at other CNCF projects
+    - LF to review before publishing
+    - TSC meeting to make amendments
+- Christian: side conversations with OpenBao, potentially de-duplicating effort
+- Roni: document existing process
+    - first draft posted in internal chat
+    - meeting after define how/where to publish
+- Igor: envoy gov doc
+- **Zach: Gruntworks employee to make first draft** for further iteration (a good example – https://github.com/envoyproxy/envoy/blob/main/GOVERNANCE.md)
+
+#### Initial Conversation on Guides
+
+We have users asking for getting started guides ([Issue #1838](https://github.com/opentofu/opentofu/issues/1838), and others).  They don’t want to switch between the Terraform and OpenTofu docs.  We have also had at least one company ask if we are interested in documentation services, though that conversation is premature.
+
+We need to:
+
+- Define if/where we want to start by including guides in OpenTofu
+
+  - We could start with a similar layout to terraform, just with less examples.
+  - Alternatively, we could come up with a layout that makes sense to us.
+
+- Determine who should be in charge of creating and maintaining them
+   - First few could be created by the core team
+   - Continued by teams at the tacos with existing experience?
+   - Continued by external contractor/company?
+   - Continued by community?  Hard to tell if GPT/ripped from elsewhere.
+
+##### Discussion
+
+- Igor: what’s the worst case scenario here? Try to involve community if possible
+
+- **Roger: volunteer Harness teams**
+- **Core team will setup the layout in the next few weeks when capacity allows**
+- Roni: team owns documentation, many tutorials & guides will come from the community
+  - TACOS already market new features and create guides
+  - Reach out to existing tf courses to mention/use OpenTofu
+
+- Who should reach out to existing tf courses?
+  - **Roni: delegate to Arel / core team, well known to the community**
+  - Worked well with other integrations (jetbrains for example)
+  - Env0 marketing may also reach out
+
+#### Open Source ARD how to choose between TF and OpenTofu
+
+Additional community question: Is there a copy and pastable open source ADR on Decide on HCL tool with pros and cons of each opentofu vs terraform that can be sold internally to an organization?
+
+- Wojciech: could be a good blog post
+- Christian: we have a year of experience and can talk about our strengths
+- Wojciech: re-use spacelift articles
+- Roger: emphasize the longevity of the project
+- Zach: lots of FUD (providers) + CDKTF
+- **Wojciech: Will create initial draft with SpaceLift and bring to TSC**
+
+## 2024-07-30
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+#### TSC meeting schedule
+
+Move to Tuesday 13:15 EST / 19:15 CET / 20:15 GMT+3
+
+#### CDK-TF Compatibility Commitment
+
+[Issue #1335](https://github.com/opentofu/opentofu/issues/1335)
+
+As OpenTofu matures, many people who use existing tooling want to make sure that a switch will not break their workflow (now or in the future).
+We are being asked what our long term approach to CDK-TF is.
+
+Options:
+
+- Do not make any statement or commitment
+- Say that we will attempt to keep compatibility where possible but not make any commitment
+- Keep compatibility where possible and commit to a fork if the projects need to diverge
+
+This is one of several pieces of tooling where we are being asked questions about stability and long term commitments, with [setup-opentofu](https://github.com/opentofu/setup-opentofu/) being another frequently requested item.  In that case we have people offering to help support it once we commit to hosting it / managing the review/release process.
+
+#### Discussion
+
+- Christian – a lot of questions about CDK-TF, what is our policy on the tools built on top of Terraform. Shall we fork?
+- Igor – what is the license of CDKTF?
+- Christian: MPL
+- Igor – we do not have time and resources to fork the CDKTF
+- Igor – we could ask the community for help
+- Wojciech – would love to see it a community project first and bring it later. It has a lot of potential.
+- Christian – Accept community PRs and issues to keep OpenTofu compatible with CDKTF but no commitment to a fork.
+- Igor - setup-opentofu helps drive adoption, we should evaluate making it a core team priority (small codebase / time investment)
+
+#### Decision
+
+The core team has not had bandwidth to take on CDKTF, but will accept community support efforts.
+
+## 2024-07-24
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+As has been discussed in past TSC meetings, backends are an important and sensitive part of OpenTofu. We have been hesitant to make any significant changes to backends for a variety of reasons, compatibility being the major reason.
+
+#### Backends
+
+Problems we face:
+
+- Backends use libraries which are out of date or that are heavily dependent on HC
+    - Azure backend is a piece of work…
+    - We inherit any S3 backend bugs from HC’s libraries, which we are hesitant to patch
+- Backends would benefit from restructuring
+    - HTTP backend should support workspaces (frequently requested)
+    - Azure backend needs to support auth from this decade
+- New Backends are requested often
+    - Support for additional clouds (Oracle being the largest)
+    - Workaround is http (no workspaces, custom service required) or s3 (no locking / buggy)
+    - Adding backends into opentofu bloats our test matrix and increases our maintenance burden
+- Remote and Cloud “backends” are not properly documented or maintained
+    - Some TACOS support a subset of cloud/remote features
+    - Is dependent on HC’s go-tfe library, built for their cloud offering
+    - Code is a copy-paste nightmare
+    - We don’t know how to maintain this properly from our end
+- Backends are tied to specific tofu version
+    - Any bugfixes or workarounds for a given cloud/service must be rolled into an opentofu release.
+
+Potential Solution: Backend Plugins
+
+Advantages:
+
+- Existing backends could be moved into their own repo and be versioned as 1.0
+    - Maps 1-1 with existing configurations, requiring no changes to users
+    - Potentially simpler collaboration with AWS/Azure/GCP/etc…
+- New backends can be authored by independent teams (Oracle, etc…) with minimal involvement of core team
+- Users can specify when they want to upgrade their backend configurations/services separate from tofu
+- Encapsulates backends behind a simple API for compliance testing
+- Allows forks to be maintained by others without having to fork all of opentofu
+- Reduces tofu’s primary code and binary size (less spidering dependencies)
+- Prototyped by Marcin
+- Potential to collaborate with HC on a set of shared backends?
+
+Disadvantages:
+
+- Requires significant developer time / testing
+- How to handle protocol upgrades
+- How to handle validation/verification of downloaded backend during `tofu init`
+
+Potential Solution: Extend http backend to support workspaces (or make new version)
+
+Advantages:
+
+- Simple HTTP API to implement
+- Simple Authentication mechanism
+- Has some ecosystem adoption already
+
+Disadvantages:
+
+- Restricted to HTTP transport layer (potential problems with large state files)
+- Requires dedicated service backed by some other storage layer / abstraction (leaky)
+- Complex auth (cloud environment vars / service tokens) are difficult to support properly
+
+Potential Solution: Accept new backends and start to make large changes to existing backends
+
+Advantages:
+
+- Works with code / process we already have
+- Requires closer collaboration with other organizations (Oracle)
+
+Disadvantages:
+
+- Requires documenting backend changes heavily in every OpenTofu release and forcing migrations
+- Adds direct dependencies on external teams / cloud infrastructure
+- Dramatically increases testing matrix / testing load
+- Contributes to code / binary bloat
+
+At this point we need a decision from the TSC on which paths we should be investigating and creating detailed RFCs for.
+
+###### Discussion
+
+- Roni: What are the upvotes for fixes modifications vs new backends?
+
+- Igor: Cautious about end user requests (tech debt / architecture concerns).  Prioritize healthy code base alongside new features.
+
+- Zach: Wants an overview of our top feature requests in something like a ghant chart to help understand impact of large projects like this
+
+- Wojciech: Likes idea of accepting new backends, with codeowners from top clouds, long term extract protocol?
+
+- Igor: Opposite view, oracle specifically we can just say No with clear explanation.  Limited developer capacity.  Users won’t know if it’s a “tofu” or “oracle” problem.  Initial blame will be on OpenTofu. Potential for conflicts in what opentofu wants for state management vs what oracle wishes
+
+- Christian: I think it’s not a significant technical challenge to define and lock down the interface
+
+- Roni: Many not bring a lot of value to our customers and users.  Potentially not worth the investment for backends as plugins?
+
+- Christian: Potentially invest in http backend further to make that our initial “backend interface” with examples.
+
+- Wojciech: Likes the idea of http backend being the interface
+
+- Roni: Env0 built on top of remote backend protocol, was not terribly difficult.  Kuba suggested introducing “one new backend” which is or “official” solution (OCI perhaps).  Strongly prefers remote interface over pluggable backends.
+
+- Christian: How does auth work for remote and cloud / our OCI solution.
+
+- Igor: This is a reasonably solved problem that solves most scenarios
+
+- Roni: remote backend is quite popular and very functional at Env0.
+
+- Igor: Scalr forces remote/cloud backend. Migration from tfe is currently tricky, needs a taco.  TACOS + tofu could together build migration path away from tfe.
+
+- Roni: Migration from cloud/remote tfe block to whatever tofu’s preferred solution.  Could cloud/remote be the preferred solution?  Focus on backend migration to tofu as a smooth transition.
+
+- Igor: Scalr has significant test harness against cloud/remote backend.  Offers help from devs in Scalr.
+
+- Roni: At least one core team member has experience on Env0’s remote backend
+
+- Christian: Core team can take this discussion and produce comparisons between options discussed here and breakdown of issue voting. Try to have this prepared for a week or two from now.
+
+- James: Compare to features we already done for comparison
+
+##### Recommendation
+
+- Preferable one officially supported backend with all neccessary functionality, for example, http backend.
+- Continoue discussion in the core team and TSC.
+
+## 2024-07-10
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+We dedicated this meeting to agree on the initial plan for 1.9. Christian – OpenTofu Tech Lead – presented the plan to the TSC.
+
+#### OpenTofu 1.9 Planning
+
+##### Summary
+
+Although a long list, the corresponding terraform 1.9 changes consist of a lot of small tasks (as well as quite a few items catching up to OpenTofu). This leaves us a fair amount of room to innovate in ways that will drive adoption. I'd like to specifically focus on provider for_each iteration (top issue in both tofu and terraform), as well as paying down technical debt related to testing. Additionally, I'd like to propose a stretch goal of adding the -exclude flag to tofu as it helps round off quite a few sharp UX edges.
+
+###### Leftover from 1.7
+
+- Tofu test changes, nearly ready to merge: https://github.com/opentofu/opentofu/issues/1185
+
+###### Leftover from 1.8
+
+- Bug in provider dev overrides, investigating at a low priority: https://github.com/opentofu/opentofu/issues/1715
+
+###### Terraform 1.9
+
+- Improved variable validation: small task, mostly testing, https://github.com/opentofu/opentofu/issues/1336
+- Multiline console support: small task, already discussed by community, https://github.com/opentofu/opentofu/issues/1307
+- Breaking change on providers in terraform test: unknown, https://github.com/hashicorp/terraform/issues/35160
+- Bugfix sensitive templatefile: small task, https://github.com/hashicorp/terraform/issues/31119
+- Improved version constraint calculations: small task, https://github.com/hashicorp/terraform/issues/33452
+- Bugfix conflict between import and destroy: unknown, https://github.com/hashicorp/terraform/issues/35151
+- Fix crash with `tofu providers mirror`: small task, https://github.com/hashicorp/terraform/issues/35318
+- Fix conflict between create_before_destroy and -refresh=false, https://github.com/hashicorp/terraform/issues/35218
+
+###### Proposed Goals:
+
+- Implement provider iteration (for_each support): https://github.com/opentofu/opentofu/issues/300
+    - Top requested feature from the community
+    - Builds on top of static evaluation in 1.8
+    - RFC has been reviewed and accepted: https://github.com/opentofu/opentofu/blob/main/rfc/20240513-static-evaluation-providers.md
+    - Is a *big* migration incentive
+- Improve test confidence and stability
+    - Large quantity of testing exists in the codebase, of varying quality
+    - We need to take time to understand it and plan improvements
+    - Also need to define where and how we should be testing as a team going forward
+    - Igor: what clean-up can we do to reduce complexity?
+    - Roger: Potential for opt-in profiling
+- Add `-exclude` flag for targeted plan/apply (stretch goal)
+    - Currently in RFC process: https://github.com/opentofu/opentofu/pull/1717
+    - Makes multi-stage applies much simpler
+    - Allows selective excluding of portions of infrastructure without a massive -include list
+    - Is a frequently requested feature.
+    - Igor: How do we handle new features and experiments? Feature flag? Canary release?
+    - Christian: To come back to this discussion in future meeting
+
+###### Adjacent work (not locked to 1.9 milestone):
+
+- Registry UI, good progress is being made, but it is a large undertaking
+- Maintain official fork of HCL as HashiCorp ignores pull requests from our team.
+    - There is a **strong indication** that we’re being ignored
+    - Igor: Let’s upvote it to try to get it in
+    - https://github.com/hashicorp/hcl/pull/676
+- Registry should lock tags to a single commit to prevent supply chain attacks
+- License check for mirrored providers (aws, gcp, etc...)
+    - Not under CLA so lower risk
+    - Janos: dual licensing new features
+- Update [OpenTofu.org](http://opentofu.org/):
+    - Update landing page to reflect state of project, proposals already in progress
+    - Clean up sponsorships and create job postings page
+    - Include official support contracts from TACOS and similar
+        - Igor: Needs a real support offering, how do we maintain this list?
+        - Roger: Potentially ranked by level of OpenTofu support
+    - Create quick start guides, could be defined by core team and implemented by the community
+
+#### Looking ahead to 1.10:
+
+- Some interesting core changes in terraform that may be tricky to mirror (ephemeral values)
+- Community Requests:
+    - OCI Registry support https://github.com/opentofu/opentofu/issues/308
+    - Conditional single instance resources: https://github.com/opentofu/opentofu/issues/1306
+    - Backends as plugins *or* start to add new/updated backends
+- Technical Debt:
+    - Introduce internal concept of "immutable state" to allow refactoring and more efficient operation
+    - Refactor and clean up command package
+    - Supply chain (go.mod) review, with focus on removing hashicorp dependencies
+
+#### Decision
+
+High level approval of split between terraform mirroring features and future development.
+
+Approval given to turn the 1.9 plan above into a public milestone and to start breaking down the issues involved.
+
+## 2024-07-02
+
+### Attendees
+
+Core Team:
+
+- Andrew Hayes ([@Andrew-Hayes](https://github.com/Andrew-Hayes))
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam))
+- James Humphries ([@yantrio](https://github.com/Yantrio))
+- Janos Bonic ([@janosdebugs](https://github.com/janosdebugs))
+
+TSC:
+
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+#### Summary of the last meeting
+
+What is the current Vision of OpenTofu? Build the IaC tool of choice for the Community and Businesses that use and support it.
+
+How do we follow our Vision?  We focus on **Adoption by winning hearts and minds**.
+
+Who do we want to try to adopt OpenTofu?
+
+- Large Organizations / Cloud Providers
+    - Slow movement, but critical features can cause shifts (State Encryption)
+    - Seeking stability / low risk
+- Small Organizations / Startups
+    - More agile / likely to give OpenTofu a try for smaller QoL improvements
+- Individual Developers
+    - New developers are looking for a strong community to participate in
+    - Existing developers are trying to keep their existing patterns / infra working with as little friction as possible
+
+How do we entice them to Adopt OpenTofu?
+
+- Maintain compatibility with Terraform 1.5.5 as many organizations have frozen on this or lower version.
+- Track developments in Terraform beyond 1.5.5 and prioritize new features when they make sense for OpenTofu.
+- Continue to build new and exciting features that make OpenTofu stand out.
+- Gather information from TACOs directly and combine with community issue voting to help shape roadmap.
+- Testimonials / Logos for the website?
+
+What is blocking them from Adopting OpenTofu?
+
+- FUD: Fear, Uncertainty, Doubt
+    - Lack of knowledge on provider compatibility
+    - Lack of clear information on goals / roadmap
+    - Unsure about the long term viability of OpenTofu
+    - Lack of dedicated support contracts (TACO opportunity?)
+- Cost of switching tooling / infrastructure
+
+Do we want to prioritize different classes of potential OpenTofu adopters?  Do we want to focus on Top Down or Bottom Up adoption?
+
+##### Discussion
+
+- Website to address FUD / focus on tofu not manifesto
+- Janos has been prototyping website changes / messaging
+- Section for guides?  Do we want to host or link to external guides?
+- Gold level sponsors / prioritize contributing sponsors.  Look at blender as a good example.
+- Sponsored developers may be advocates for issues, as long as they are impartial.
+- Keep bugging TACOS / Founders for Testimonials and Logos for the website.
+- Janos: Developers are looking for features - Janos
+- Roni: Enterprise is looking for stability / confidence
+
+#### Proposed workflow between TSC, Tech Lead, and Core Team
+
+[High Level Planning board on GitHub](https://github.com/orgs/opentofu/projects/9/views/1)
+
+This board will serve as a discussion hub / common view into what tasks / goals are priorities. Between releases the Tech Lead will manage updates to this board, meeting with the Core Team and TSC independently to keep this board up to date.  
+
+The [Top Voted Issues (GitHub)](https://github.com/opentofu/opentofu/issues/1496) should be taken into consideration when updating this board, alongside knowledge from TACOS about customer requests / roadblocks.
+
+[Release Milestones on GitHub](https://github.com/opentofu/opentofu/milestone/7)
+
+When the Core Team is wrapping up a release (alpha1 tentatively), the Tech Lead will meet with the Core Team and TSC independently to build out the next release milestone.  This discussion around building this milestone should be based on the top items on the High Level Planning board.
+
+How public should this process be?  Items in high level planning might be useful to talk about in blog posts and articles, but could potentially misrepresent the flexibility of planning tasks at that level.  Milestones on GitHub are inherently public, though they are treated as a goal and not a commitment.  Frequently, issues that don’t make it into a given release are added as a higher priority into the next release milestone.
+
+##### Ownership of the OpenTofu VSCode Extension
+
+We have two repositories forked by a community member for the VSCode extension ([extension](https://github.com/gamunu/vscode-opentofu), [language server](https://github.com/gamunu/opentofu-ls)). Plus, this person owns the [OpenTofu extension in the Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=gamunu.opentofu).
+
+He did some work on the mentioned repositories, but not recently. Plus, the extension has major bugs (e.g., [it throws errors when the Terraform extension is installed](https://github.com/gamunu/vscode-opentofu/issues/88)) and does not support our new features like State Encryption. The maintainer is not working actively on this extension.
+We reached out to him by email to ask about collaboration. He mentioned he kept changes to a minimum since he’s unsure if he can maintain it without community backing. For easier collaboration, he suggested:
+
+1. To add us as co-maintainers.
+2. These projects should be moved under the OpenTofu organization.
+    1. What permissions (if any) would the original forker have?
+
+Do we want to accept any of the above suggestions? It is relevant to mention that the original Terraform repositories are owned by HashiCorp.
+
+##### Discussion
+
+- Roni: We can’t own the entire ecosystem, it’s a delicate balance on developer experience vs commitments.  Core team are influencers to help getting third party tooling going.
+- Zach: My 2c is since our overall objective is opentofu adoption, fixing papercuts like IDE plugins should be in scope. Christian agrees.
+- James: Full legal review of pulling in the code.  Prioritization?  Limited typescript knowledge in the core team.
+- Roger: Golang considers lsp to be a high priority / in line with feature releases and documentation.  Expectation of developers.
+- Ronny: How much control do we want/need over this project?
+- Janos: Not sure if we have bandwidth for this.
+- Roni: Ideally community would take this on, how needed is this today?
+- Christian: We are introducing new features for 1.8 and 1.9 that would benefit from this.
+- James: Let’s track it on the high level board and continue discussing what impact it would have on the capacity for the next releases.
+
+##### Decision
+
+- Let’s track it on the high level board and continue discussing what impact it would have on the capacity for the next releases.
+
+## 2024-06-12
+
+### Attendees
+
+Core Team:
+
+- Arel Rabinowitz ([@RLRabinowitz](https://github.com/RLRabinowitz))
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam))
+- Jakub Martin ([@cube2222](https://github.com/cube2222))
+- James Humphries ([@yantrio](https://github.com/Yantrio))
+- Janos Bonic ([@janosdebugs](https://github.com/janosdebugs))
+
+TSC:
+
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+#### Vision of OpenTofu and it’s impact on the Organization
+
+- Current status: as things are more stable, we can look for new directions
+- What's our task moving forward:
+
+  1. Maintaining status-quo
+  2. Keep pace with Terraform
+  3. Innovate IaC / bring new features
+
+##### Discussion:
+
+- Igor: outside influences may change this, but as a framework: innovation is good, but it can’t be to the detriment of people switching from Terraform/adopting OpenTofu.
+
+- Janos: We would like to be able to talk longer-term features/functionality with the community.
+
+- Igor: we should be talking about problems we want to solve.
+
+- Roni: We started with OpenTofu being the only open-source alternative, the goal is winning hearts and minds. The roadmap ahead is the list of the most requested features.
+
+- Arel: This is a good direction, but we would like to have a certain roadmap if possible. Terraform 1.10 has some very significant changes coming up based on a vision on how they want to do things.
+
+- James: Do we drive decisions based on our own issue list, Terraform’s untouched 10 year old issues, Reddit... what do we care about? Old Terraform issues may lead us down the wrong path, for example.
+
+- Kuba: We don’t necessarily need to map out everything ahead for a year, 6 months may do the trick.
+
+- Igor: The main priority right now should be adoption. One-year goals are reasonable. We need to figure out why people don’t want to switch.
+
+- Roger: We should try to get the info we can (e.g., from the TACOS).
+
+- Wojciech: The TSC should take the Product Manager role (what are customers complaining about, etc)
+
+- Zach: 
+
+  1. Real World Experience w/Large enterprises — they are generally in 2 buckets - 
+    1. Motivated by open source and eager for ammunition to make the case to spend $$ on moving to Tofu
+    2. Cautious, in a “wait and see” position - not yet convinced tofu will be here in 5 years, don’t want to make a big bet on a direction that might not pan out for their org
+    
+       1. Often these customers are uneducated and have **incorrect opinions or bad facts** about how OpenTofu works or what migration means
+
+   2. Goal: Be the state-of-the-art defacto IaC solution:
+
+      1. Migration from TF has to be supported, first-class, easy for enterprise
+      2. Tofu needs to provide motivation (i.e. stability, innovation, community) in addition to an on-ramp
+
+   3. A strongly opinionated/narrow vision, e.g. “we want to build for XYZ” is possibily limiting our audience for now
+
+- Igor: The vision for the next year is to focus on adoption. We’ll refine for a week, if nothing else comes up, we’ll adopt this.
+
+- Roni: we may not need to define the technicalities of implementing the vision right now, that’s a separate discussion.
+
+- Janos (async): We may have a perception problem, OpenTofu is publicly marketed as an “OpenSource Project” while Terraform is marketed as a “Product”. It may be possible to shift that by providing a platform for commercial support providers to list their offering.
+
+#### Responsibilities between TSC / Tech Lead / Core team / Founders
+
+1. Christian: our understanding is that Kuba until now would bring issues to the TSC’s attention.
+
+2. Igor: Ideally, there should be checks and balances. The main role of the TSC is to make sure that the project is being developed in the interests of the community and making sure that OpenTofu is impartial. It is not the goal of the TSC to vote on individual issues. The TSC can vote on RFCs. Technically, we need to have a charter which we currently don’t have.
+
+3. Christian: The new RFC is based on pull requests to make discussions easier. Question: do we want to go through the large amounts of work of writing an RFC before we ask the TSC, or should we ask the TSC with an enhancement that would need an RFC?
+
+4. Wojciech: We want to keep the core team’s ability to bring ideas to the TSC. It would also good if Christian could join the TSC meetings since the written communication is not always fruitful.
+
+5. Roni: The TSC would appreciate Christian being available for the meetings. Until now the RFC process was a place to ask a question “do we want this problem solved?” and there was a conflict with “how do we want the problem solved?”. We need this process defined better, especially with the problem to be solved in mind.
+
+6. Christian: the current RFC process is very detailed (async: core team needs to communicate triage process)
+
+7. Roger: The TSC steers the priorities of the core team.
+
+8. Igor: The TSC capacity is very limited, we may not be able to go through all agenda items on time. Ideally, the core dev team is 80% independent. The core team can gather proposals and the TSC will do sanity checks. The TSC role is also to resolve conflicts.
+
+9. James: I would like both the core team and the TSC to empower Christian to make these decisions because it will make the process easier. Christian joining the TSC meetings will make the process faster. Second issue: there is a difference between the TSC and the founders and Christian being in the middle should resolve surprise public communication happening.
+
+10. Kuba: More concretely, Christian should propose a roadmap for feedback. Day-to-day Christian should make the decisions with an option to defer to the TSC. The option to escalate should also be open to core team members if they disagree with a decision. The biggest problem in this area so far was TSC capacity and the latency, which slowed down decision-making.
+
+11. Christian: I can bring a rough roadmap that the TSC can then prioritize.
+
+12. Roni: We trust Christian to make decisions in the day-to-day and when to escalate. This will allow the TSC to move a bit slower.
+
+##### Decision
+
+- Christian (OpenTofu Tech Lead) will join the TSC meetings.
+
+#### Making the OpenTofu process public / outside communication
+
+##### Discussion
+
+- All outside communication should go through the Core Team and TSC
+- Christian: We should move a lot of discussions to the public Slack
+- Janos: As long as the communication is open, this shouldn’t be a problem in the future.
+
+##### Decision
+
+- General sentiment to move core-team discussions and related into public areas such as Slack/Github
+- All outside communication should go through the Core Team and TSC
+
+## 2024-06-04
+
+### Attendees
+
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+
+### Agenda
+
+#### IBM acquisition of Hashicorp
+
+Shall we publish anything as OpenTofu regarding the acquisition?
+
+##### Discussion/Decision
+
+- Have a joined meeting with the Core team.
+- Use it as opportunity to improve the communication between TSC and the Core team.
+
+#### RFC should be MPL-licensed
+
+##### Decision
+
+All in favor (WB, IS, ZG, and RS)
+
+#### Backend-as-Plugins
+
+Continuation of the discussion from 2024-05-21.
+
+##### Discussion
+
+- Igor: we need a RFC before making a decision;
+- Igor: The core team should decide which RFCs should be selected before the TSC.
+- All: we see why it is important to make it easier to support for more backends out-of-the-box
+
+#### 3rd party review service
+
+@Wojciech Barczynski shared what 3rd party review services we could use in OpenTofu.
+
+##### External funding and grants
+
+@Igor Savchenko will explore sponsorship programs for Open Source, we could apply for.
+
+#### Shall we join the openinventionnetwork?
+
+@Roger Simms will reach out to them directly.
+
+## 2024-05-21
+
+### Attendees
+
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople)) 
+
+### Agenda
+
+#### Christian Mesh, new Tech Lead of OpenTofu project
+
+##### Discussion
+
+- What is the definition of this role? Responsibilities?
+- Who should define the roles/responsibilities?
+- The team is very focused on 1.8, we do not want to context switch them to bureaucratic tasks.
+- We might want to write down the TL's responsibilities after 1.8.x.
+
+##### Decision
+
+All in favor (WB, IS, ZG, RF, and RS)
+
+#### Backend-as-Plugins
+
+Continuation of the discussion from 2024-05-07.
+
+##### Discussion
+
+- A written-down product/project vision would help us to make decisions on topics such as e.g. backends as plugins.
+- Do we need a RFC in order to vote on something as a steering committee?
+
+  - Want to avoid appearance of bias as TACOs putting thumb on the scale for the roadmap
+  - Is there a chicken-egg — companies want the idea to be accepted before investing in RFC, and the steering committee similarly wants a real RFC before agreeing.
+
+- Backends as Plugins
+
+  - @Roni Frantchi - Not convinced this is the right solution or something really worth prioritizing
+  
+  - @Igor Savchenko - it really needs an RFC for us to know what we’re voting on, it’s too abstract right now
+
+  - @Roni Frantchi - if the steering committee says “OK lets see an RFC” is that actually interpreted as a green light for the community - once the RFC is up we’d move on it?
+
+##### Decision
+
+We cannot vote without a RFC. 
 
 ## 2024-05-07
 

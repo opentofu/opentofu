@@ -126,7 +126,7 @@ func (b deprecatedBackendShim) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.
 	return newObj, diags.Append(tfdiags.SimpleWarning(b.Message))
 }
 
-// DeprecateBackend can be used to wrap a backend to retrun a deprecation
+// DeprecateBackend can be used to wrap a backend to return a deprecation
 // warning during validation.
 func deprecateBackend(b backend.Backend, message string) backend.Backend {
 	// Since a Backend wrapped by deprecatedBackendShim can no longer be
