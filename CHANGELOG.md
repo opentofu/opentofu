@@ -11,6 +11,7 @@ ENHANCEMENTS:
 * Added multi-line support to the `tofu console` command. ([#1307](https://github.com/opentofu/opentofu/issues/1307))
 * Added a help target to the Makefile. ([#1925](https://github.com/opentofu/opentofu/pull/1925))
 * Added a simplified Build Process with a Makefile Target ([#1926](https://github.com/opentofu/opentofu/issues/1926))
+* Added for-each support to providers. ([#300](https://github.com/opentofu/opentofu/issues/300))
 * Added `-pedantic` global option to enable treating warnings as errors. ([#1726](https://github.com/opentofu/opentofu/pull/1726))
 
 BUG FIXES:
