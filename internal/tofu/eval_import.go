@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
-
 package tofu
 
 import (
@@ -12,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -51,7 +51,7 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 			Subject:  expr.Range().Ptr(),
 			//	Expression:
 			//	EvalContext:
-			Extra: diagnosticCausedByUnknown(true),
+			Extra: evalchecks.DiagnosticCausedByUnknown(true),
 		})
 	}
 

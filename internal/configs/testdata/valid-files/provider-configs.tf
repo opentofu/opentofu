@@ -11,3 +11,7 @@ provider "bar" {
 
   alias = "bar"
 }
+
+provider "baz" {
+  for_each = {"a": "first", "b": "second"}
+}

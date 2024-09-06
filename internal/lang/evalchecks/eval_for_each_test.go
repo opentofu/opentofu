@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
-
-package tofu
+package evalchecks
 
 import (
 	"reflect"
@@ -13,12 +12,22 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestEvaluateForEachExpression_valid(t *testing.T) {
+// returns a mock ref function for the unit tests
+func mockRefsFunc() ContextFunc {
+	return func(_ []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+		evalContext := hcl.EvalContext{}
+		return &evalContext, diags
+	}
+}
+
+func TestEvaluateForEachExpression(t *testing.T) {
 	tests := map[string]struct {
 		Expr       hcl.Expression
 		ForEachMap map[string]cty.Value
@@ -72,9 +81,7 @@ func TestEvaluateForEachExpression_valid(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := &MockEvalContext{}
-			ctx.installSimpleEval()
-			forEachMap, diags := evaluateForEachExpression(test.Expr, ctx)
+			forEachMap, diags := EvaluateForEachExpression(test.Expr, mockRefsFunc())
 
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -86,7 +93,6 @@ func TestEvaluateForEachExpression_valid(t *testing.T) {
 					spew.Sdump(forEachMap), spew.Sdump(test.ForEachMap),
 				)
 			}
-
 		})
 	}
 }
@@ -182,9 +188,7 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := &MockEvalContext{}
-			ctx.installSimpleEval()
-			_, diags := evaluateForEachExpression(test.Expr, ctx)
+			_, diags := EvaluateForEachExpression(test.Expr, mockRefsFunc())
 
 			if len(diags) != 1 {
 				t.Fatalf("got %d diagnostics; want 1", diags)
@@ -289,9 +293,7 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := &MockEvalContext{}
-			ctx.installSimpleEval()
-			_, diags := evaluateForEachExpression(test.Expr, ctx)
+			_, diags := EvaluateForEachExpression(test.Expr, mockRefsFunc())
 			if len(diags) != len(test.Wanted) {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
 			}
@@ -334,9 +336,7 @@ func TestEvaluateForEachExpressionKnown(t *testing.T) {
 
 	for name, expr := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := &MockEvalContext{}
-			ctx.installSimpleEval()
-			forEachVal, diags := evaluateForEachExpressionValue(expr, ctx, true, true)
+			forEachVal, diags := EvaluateForEachExpressionValue(expr, mockRefsFunc(), true, true)
 
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -382,9 +382,7 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := &MockEvalContext{}
-			ctx.installSimpleEval()
-			_, diags := evaluateForEachExpressionValue(test.Expr, ctx, true, test.AllowTuple)
+			_, diags := EvaluateForEachExpressionValue(test.Expr, mockRefsFunc(), true, test.AllowTuple)
 
 			if test.ExpectedError == "" {
 				if len(diags) != 0 {
@@ -395,7 +393,6 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 					t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
 				}
 			}
-
 		})
 	}
 }
