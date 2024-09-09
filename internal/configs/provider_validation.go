@@ -173,7 +173,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									NameRange:    requirement.DeclRange,
 									providerType: requirement.Type,
 								},
-								InParentMapping: NewProviderConfigRefMapping(provider),
+								InParentMapping: providerToConfigRefMapping(provider),
 							}
 						}
 
@@ -189,10 +189,9 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 										Name:         requirement.Name,
 										NameRange:    requirement.DeclRange,
 										Alias:        alias.Alias,
-										AliasRange:   requirement.DeclRange.Ptr(),
 										providerType: requirement.Type,
 									},
-									InParentMapping: NewProviderConfigRefMapping(provider),
+									InParentMapping: providerToConfigRefMapping(provider),
 								}
 							}
 
@@ -218,10 +217,9 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Name:         provider.Name,
 									NameRange:    provider.DeclRange,
 									Alias:        provider.Alias,
-									AliasRange:   provider.DeclRange.Ptr(),
 									providerType: provider.providerType,
 								},
-								InParentMapping: NewProviderConfigRefMapping(testProvider),
+								InParentMapping: providerToConfigRefMapping(testProvider),
 							}
 						}
 					}
@@ -634,7 +632,6 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 		parentAddr := addrs.AbsProviderConfig{
 			Module:   cfg.Parent.Path,
 			Provider: pTy,
-			Alias:    passed.InParentTODO().Alias,
 		}
 
 		if cfg.Parent.Module.ProviderRequirements != nil {

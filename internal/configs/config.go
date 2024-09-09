@@ -484,7 +484,14 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					})
 					continue
 				}
-				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || i.ProviderConfigRef.Alias != target.ProviderConfigRef.GetNoKeyAlias() {
+
+				// We want to compare aliases only if there is no `each` or `count` inside a resource provider reference.
+				haveIncompatibleAliases := true
+				if !target.ProviderConfigRef.HasInstanceRefsInAlias() {
+					haveIncompatibleAliases = i.ProviderConfigRef.Alias != target.ProviderConfigRef.Aliases[addrs.NoKey]
+				}
+
+				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || haveIncompatibleAliases {
 					// This means we have a provider specified in both the
 					// import block and the resource block, and they disagree.
 					// This is bad as OpenTofu now has different instructions
@@ -949,13 +956,12 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// for by this run block.
 
 		for _, ref := range run.Providers {
-			// TODO/Oleksandr: friendly error
 			// This should never happen since we don't allow for_each / count in runs.
 			if ref.InParentMapping.HasInstanceRefsInAlias() {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Providers by instances are not allowed",
-					Detail:   "",
+					Summary:  "`for_each` and `count` are not allowed",
+					Detail:   "You cannot use `each` or `count` keywords refering providers in `run` blocks of test files.",
 					Subject:  ref.InParentMapping.NameRange.Ptr(),
 				})
 			}

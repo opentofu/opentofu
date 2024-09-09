@@ -352,7 +352,6 @@ func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef 
 	}
 
 	inParent.Alias = alias
-	inParent.AliasRange = c.InParentMapping.AliasRange
 
 	return inParent
 }
