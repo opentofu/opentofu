@@ -793,11 +793,10 @@ func generateForEachAliases(vals map[string]cty.Value, evalCtx *hcl.EvalContext,
 		}
 
 		if !aliasVal.Type().Equals(cty.String) {
-			// TODO/Oleksandr: add friendly error
 			return nil, diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid alias",
-				Detail:   "",
+				Summary:  "Invalid alias reference",
+				Detail:   fmt.Sprintf("Alias must be of type 'string', got '%v' instead.", aliasVal.Type().FriendlyName()),
 				Subject:  alias.Range().Ptr(),
 			})
 		}
@@ -828,11 +827,10 @@ func generateCountAliases(lastIndex int, evalCtx *hcl.EvalContext, alias hcl.Exp
 		}
 
 		if !aliasVal.Type().Equals(cty.String) {
-			// TODO/Oleksandr: add friendly error
 			return nil, diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid alias",
-				Detail:   "",
+				Summary:  "Invalid alias reference",
+				Detail:   fmt.Sprintf("Alias must be of type 'string', got '%v' instead.", aliasVal.Type().FriendlyName()),
 				Subject:  alias.Range().Ptr(),
 			})
 		}
@@ -887,11 +885,10 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, inst
 	}
 
 	if hasEachRefInAlias && hasCountRefInAlias {
-		// TODO/Oleksandr: add friendly error
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Alias cannot contain count and each refs",
-			Detail:   "",
+			Summary:  "Invalid alias reference",
+			Detail:   "Alias expression cannot reference both 'count' and 'each'.",
 			Subject:  m.Alias.Range().Ptr(),
 		})
 	}
@@ -905,12 +902,11 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, inst
 		}
 
 		if !aliasVal.Type().Equals(cty.String) {
-			// TODO/Oleksandr: add friendly error
 			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid alias",
-				Detail:   "",
-				Subject:  m.Alias.Range().Ptr(),
+				Summary:  "Invalid alias reference",
+				Detail:   fmt.Sprintf("Alias must be of type 'string', got '%v' instead.", aliasVal.Type().FriendlyName()),
+				Subject:  instanceExpr.Range().Ptr(),
 			})
 		}
 
@@ -922,11 +918,14 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, inst
 	}
 
 	if instanceExpr == nil {
-		// TODO/Oleksandr: add friendly error
+		refName := "for_each"
+		if hasCountRefInAlias {
+			refName = "count"
+		}
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Alias references each with no for_each",
-			Detail:   "",
+			Summary:  "Invalid alias reference",
+			Detail:   fmt.Sprintf("Alias expression references '%v' without the declaration.", refName),
 			Subject:  m.Alias.Range().Ptr(),
 		})
 	}
@@ -990,7 +989,7 @@ func decodeIndexProviderConfigRefMapping(expr *hclsyntax.IndexExpr) (*ProviderCo
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",
 			// TODO/Oleksandr: add friendly error description
-			Detail:  "",
+			Detail:  "Collection != 1",
 			Subject: expr.Range().Ptr(),
 		})
 		return nil, diags
@@ -1002,7 +1001,7 @@ func decodeIndexProviderConfigRefMapping(expr *hclsyntax.IndexExpr) (*ProviderCo
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",
 			// TODO/Oleksandr: add friendly error description
-			Detail:  "",
+			Detail:  "Collection != TraverseRoot",
 			Subject: expr.Range().Ptr(),
 		})
 		return nil, diags
@@ -1027,7 +1026,7 @@ func decodeScopeTraveralProviderConfigRefMapping(expr *hclsyntax.ScopeTraversalE
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",
 			// TODO/Oleksandr: add friendly error description
-			Detail:  "",
+			Detail:  "Traversal != 2",
 			Subject: expr.Range().Ptr(),
 		})
 		return nil, diags
@@ -1039,7 +1038,7 @@ func decodeScopeTraveralProviderConfigRefMapping(expr *hclsyntax.ScopeTraversalE
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",
 			// TODO/Oleksandr: add friendly error description
-			Detail:  "",
+			Detail:  "Traversal != Root",
 			Subject: expr.Range().Ptr(),
 		})
 		return nil, diags
@@ -1060,7 +1059,7 @@ func decodeScopeTraveralProviderConfigRefMapping(expr *hclsyntax.ScopeTraversalE
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",
 			// TODO/Oleksandr: add friendly error description
-			Detail:  "",
+			Detail:  "Traversal != Index && != Attr",
 			Subject: expr.Range().Ptr(),
 		})
 		return nil, diags
