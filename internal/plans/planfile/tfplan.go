@@ -215,13 +215,20 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 		plan.RelevantAttributes = append(plan.RelevantAttributes, ra)
 	}
 
-	// AREL TODO What is this even
 	for _, rawTargetAddr := range rawPlan.TargetAddrs {
 		target, diags := addrs.ParseTargetStr(rawTargetAddr)
 		if diags.HasErrors() {
 			return nil, fmt.Errorf("plan contains invalid target address %q: %w", target, diags.Err())
 		}
 		plan.TargetAddrs = append(plan.TargetAddrs, target.Subject)
+	}
+
+	for _, rawExcludeAddr := range rawPlan.ExcludeAddrs {
+		exclude, diags := addrs.ParseTargetStr(rawExcludeAddr)
+		if diags.HasErrors() {
+			return nil, fmt.Errorf("plan contains invalid exclude address %q: %w", exclude, diags.Err())
+		}
+		plan.ExcludeAddrs = append(plan.ExcludeAddrs, exclude.Subject)
 	}
 
 	for _, rawReplaceAddr := range rawPlan.ForceReplaceAddrs {
@@ -611,10 +618,9 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 		rawPlan.TargetAddrs = append(rawPlan.TargetAddrs, targetAddr.String())
 	}
 
-	// TODO AREL What is this?
-	//for _, excludeAddr := range plan.ExcludeAddrs {
-	//	rawPlan.ExcludeAddrs = append(rawPlan.ExcludeAddrs, excludeAddr.String())
-	//}
+	for _, excludeAddr := range plan.ExcludeAddrs {
+		rawPlan.ExcludeAddrs = append(rawPlan.ExcludeAddrs, excludeAddr.String())
+	}
 
 	for _, replaceAddr := range plan.ForceReplaceAddrs {
 		rawPlan.ForceReplaceAddrs = append(rawPlan.ForceReplaceAddrs, replaceAddr.String())
