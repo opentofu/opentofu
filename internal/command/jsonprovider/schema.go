@@ -14,7 +14,7 @@ type Schema struct {
 	Block   *Block `json:"block,omitempty"`
 }
 
-// marshalSchema is a convenience wrapper around mashalBlock. Schema version
+// marshalSchema is a convenience wrapper around marshalBlock. Schema version
 // should be set by the caller.
 func marshalSchema(schema providers.Schema) *Schema {
 	if schema.Block == nil {

@@ -29,7 +29,7 @@ import (
 type MoveEndpoint struct {
 	// SourceRange is the location of the physical endpoint address
 	// in configuration, if this MoveEndpoint was decoded from a
-	// configuration expresson.
+	// configuration expression.
 	SourceRange tfdiags.SourceRange
 
 	// Internally we (ab)use AbsMoveable as the representation of our

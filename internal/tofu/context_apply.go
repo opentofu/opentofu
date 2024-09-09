@@ -189,7 +189,7 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate 
 	return graph, operation, diags
 }
 
-// ApplyGraphForUI is a last vestage of graphs in the public interface of
+// ApplyGraphForUI is a last vestige of graphs in the public interface of
 // Context (as opposed to graphs as an implementation detail) intended only for
 // use by the "tofu graph" command when asked to render an apply-time
 // graph.

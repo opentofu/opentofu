@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 // Package format contains helpers for formatting various OpenTofu
-// structures for human-readabout output.
+// structures for human-readable output.
 //
 // This package is used by the official OpenTofu CLI in formatting any
 // output and is exported to encourage non-official frontends to mimic the

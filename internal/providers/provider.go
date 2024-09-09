@@ -230,7 +230,7 @@ type UpgradeResourceStateRequest struct {
 	// Version is version of the schema that created the current state.
 	Version int64
 
-	// RawStateJSON and RawStateFlatmap contiain the state that needs to be
+	// RawStateJSON and RawStateFlatmap contain the state that needs to be
 	// upgraded to match the current schema version. Because the schema is
 	// unknown, this contains only the raw data as stored in the state.
 	// RawStateJSON is the current json state encoding.

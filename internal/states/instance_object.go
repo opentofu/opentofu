@@ -37,7 +37,7 @@ type ResourceInstanceObject struct {
 	Status ObjectStatus
 
 	// Dependencies is a set of absolute address to other resources this
-	// instance dependeded on when it was applied. This is used to construct
+	// instance depended on when it was applied. This is used to construct
 	// the dependency relationships for an object whose configuration is no
 	// longer available, such as if it has been removed from configuration
 	// altogether, or is now deposed.

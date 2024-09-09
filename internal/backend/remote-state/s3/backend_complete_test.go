@@ -52,7 +52,7 @@ func ExpectDiagsEqual(expected tfdiags.Diagnostics) diagsValidator {
 
 type diagsValidator func(*testing.T, tfdiags.Diagnostics)
 
-// ExpectDiagsMatching returns a validator expeceting a single Diagnostic with fields matching the expectation
+// ExpectDiagsMatching returns a validator expecting a single Diagnostic with fields matching the expectation
 func ExpectDiagsMatching(severity tfdiags.Severity, summary matcher, detail matcher) diagsValidator {
 	return func(t *testing.T, diags tfdiags.Diagnostics) {
 		for _, d := range diags {

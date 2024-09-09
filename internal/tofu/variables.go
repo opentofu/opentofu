@@ -191,7 +191,7 @@ func (vv InputValues) JustValues() map[string]cty.Value {
 }
 
 // SameValues returns true if the given InputValues has the same values as
-// the receiever, disregarding the source types and source ranges.
+// the receiver, disregarding the source types and source ranges.
 //
 // Values are compared using the cty "RawEquals" method, which means that
 // unknown values can be considered equal to one another if they are of the

@@ -49,7 +49,7 @@ func TestContextEval(t *testing.T) {
 		},
 	}
 
-	// This module has a little bit of everything (and if it is missing somehitng, add to it):
+	// This module has a little bit of everything (and if it is missing something, add to it):
 	// resources, variables, locals, modules, output
 	m := testModule(t, "eval-context-basic")
 	p := testProvider("test")

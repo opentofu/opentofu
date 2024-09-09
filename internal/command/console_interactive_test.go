@@ -59,7 +59,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			var.counts.lololo`,
 			expected: "\n1\n2\n",
 		},
-		"backets_multi_line": {
+		"brackets_multi_line": {
 			input: `
 			var.counts.lalala
 			split(
@@ -68,7 +68,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			)`,
 			expected: "\n1\ntolist([\n  \"lalala\",\n  \"lolol\",\n  \"lelelele\",\n])\n",
 		},
-		"baces_multi_line": {
+		"braces_multi_line": {
 			input: `
 			{ 
 			for key, value in var.counts : key => value 
