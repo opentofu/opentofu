@@ -123,7 +123,7 @@ func (r *Resource) AnyProviderConfigAddr() addrs.LocalProviderConfig {
 
 	return addrs.LocalProviderConfig{
 		LocalName: r.ProviderConfigRef.Name,
-		Alias:     r.ProviderConfigRef.GetNoKeyAlias(),
+		Alias:     r.ProviderConfigRef.Aliases[addrs.NoKey],
 	}
 }
 
