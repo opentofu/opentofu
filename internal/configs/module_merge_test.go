@@ -140,18 +140,15 @@ func TestModuleOverrideModule(t *testing.T) {
 						End:      hcl.Pos{Line: 7, Column: 9, Byte: 101},
 					},
 				},
-				InParent: &ProviderConfigRef{
+				InParentMapping: &ProviderConfigRefMapping{
 					Name: "test",
 					NameRange: hcl.Range{
 						Filename: filepath.FromSlash("testdata/valid-modules/override-module/b_override.tf"),
 						Start:    hcl.Pos{Line: 7, Column: 12, Byte: 104},
 						End:      hcl.Pos{Line: 7, Column: 16, Byte: 108},
 					},
-					Alias: "b_override",
-					AliasRange: &hcl.Range{
-						Filename: filepath.FromSlash("testdata/valid-modules/override-module/b_override.tf"),
-						Start:    hcl.Pos{Line: 7, Column: 16, Byte: 108},
-						End:      hcl.Pos{Line: 7, Column: 27, Byte: 119},
+					Aliases: map[addrs.InstanceKey]string{
+						addrs.NoKey: "b_override",
 					},
 				},
 			},
@@ -332,7 +329,7 @@ func TestModuleOverrideResourceFQNs(t *testing.T) {
 		t.Fatalf("wrong provider %s, want %s", got.Provider, wantProvider)
 	}
 	if got.ProviderConfigRef != nil {
-		t.Fatalf("wrong result: found provider config ref %s, expected nil", got.ProviderConfigRef)
+		t.Fatalf("wrong result: found provider config ref %+v, expected nil", got.ProviderConfigRef)
 	}
 }
 
