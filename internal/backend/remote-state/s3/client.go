@@ -424,7 +424,7 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 
 func (c *RemoteClient) Unlock(id string) error {
 	if c.ddbTable == "" {
-		return nil
+		return fmt.Errorf("DynamoDB table not specified in the backend configuration. State is not locked.")
 	}
 
 	lockErr := &statemgr.LockError{}
