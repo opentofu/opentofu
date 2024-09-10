@@ -308,7 +308,7 @@ func TestModuleOverrideResourceFQNs(t *testing.T) {
 
 	got := mod.ManagedResources["test_instance.explicit"]
 	wantProvider := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "bar", "test")
-	wantProviderCfg := &ProviderConfigRef{
+	wantProviderCfg := &ProviderConfigRefMapping{
 		Name: "bar-test",
 		NameRange: hcl.Range{
 			Filename: filepath.FromSlash("testdata/valid-modules/override-resource-provider/a_override.tf"),
