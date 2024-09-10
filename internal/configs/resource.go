@@ -715,7 +715,7 @@ type ProviderConfigRefMapping struct {
 
 // HasAlias returns true if the provider is referenced by alias.
 func (m *ProviderConfigRefMapping) HasAlias() bool {
-	return m == nil || len(m.Aliases) != 0
+	return m != nil && len(m.Aliases) != 0
 }
 
 // HasInstanceRefsInAlias returns true if provider is referenced
