@@ -485,7 +485,9 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					continue
 				}
 
-				// We want to compare aliases only if there is no `each` or `count` inside a resource provider reference.
+				// Import block can contain a provider reference itself. In order to check if import and resource blocks
+				// providers match, we need to ensure resource's provider reference doesn't include `count` or `each`
+				// references. In that case, providers will not match.
 				haveIncompatibleAliases := true
 				if !target.ProviderConfigRef.HasInstanceRefsInAlias() {
 					haveIncompatibleAliases = i.ProviderConfigRef.Alias != target.ProviderConfigRef.Aliases[addrs.NoKey]

@@ -713,7 +713,10 @@ type ProviderConfigRefMapping struct {
 	providerType addrs.Provider
 }
 
-// HasAlias returns true if the provider is referenced by alias.
+// HasAlias returns true if the provider is referenced by alias. This function
+// has multiple use-cases and in some of them ProviderConfigRefMapping may be nil.
+// In this case, we treat absent ProviderConfigRefMapping as such that doesn't have
+// an alias.
 func (m *ProviderConfigRefMapping) HasAlias() bool {
 	return m != nil && len(m.Aliases) != 0
 }
