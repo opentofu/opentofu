@@ -362,7 +362,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 }
 func (c *RemoteClient) Unlock(id string) error {
 	if c.otsTable == "" {
-		return nil
+		return fmt.Errorf("OTS Tablestore not specified in the backend configuration. State is not locked.")
 	}
 
 	lockErr := &statemgr.LockError{}
