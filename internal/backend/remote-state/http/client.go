@@ -131,7 +131,7 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 func (c *httpClient) Unlock(id string) error {
 	if c.UnlockURL == nil {
-		return nil
+		return fmt.Errorf("Unlock URL not specified in the backend configuration. State is not locked.")
 	}
 
 	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, c.jsonLockInfo, "unlock")
