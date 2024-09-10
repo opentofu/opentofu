@@ -1045,43 +1045,9 @@ func decodeIndexProviderConfigRefMapping(expr *hclsyntax.IndexExpr, argName stri
 	}, diags
 }
 
-func decodeScopeTraversalProviderConfigRefMapping(expr *hclsyntax.ScopeTraversalExpr, argName string) (*ProviderConfigRefMapping, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-
-	name := expr.Traversal
-
-	if len(name) != 2 {
-		return nil, append(diags, invalidProviderReferenceDiag(argName, expr.Range().Ptr()))
-	}
-
-	root, ok := name[0].(hcl.TraverseRoot)
-	if !ok {
-		return nil, append(diags, invalidProviderReferenceDiag(argName, expr.Range().Ptr()))
-	}
-
-	refMapping := &ProviderConfigRefMapping{
-		Name:      root.Name,
-		NameRange: expr.Range(),
-	}
-
-	switch t := name[1].(type) {
-	case hcl.TraverseIndex:
-		refMapping.Alias = hcl.StaticExpr(t.Key, t.SourceRange())
-	case hcl.TraverseAttr:
-		refMapping.Alias = hcl.StaticExpr(cty.StringVal(t.Name), t.SourceRange())
-	default:
-		return nil, append(diags, invalidProviderReferenceDiag(argName, expr.Range().Ptr()))
-	}
-
-	return refMapping, diags
-}
-
 func decodeProviderConfigRefMapping(expr hcl.Expression, argName string) (*ProviderConfigRefMapping, hcl.Diagnostics) {
-	switch typedExpr := expr.(type) {
-	case *hclsyntax.IndexExpr:
-		return decodeIndexProviderConfigRefMapping(typedExpr, argName)
-	case *hclsyntax.ScopeTraversalExpr:
-		return decodeScopeTraversalProviderConfigRefMapping(typedExpr, argName)
+	if expr, ok := expr.(*hclsyntax.IndexExpr); ok {
+		return decodeIndexProviderConfigRefMapping(expr, argName)
 	}
 
 	ref, diags := decodeProviderConfigRef(expr, argName)
