@@ -16,6 +16,7 @@ ENHANCEMENTS:
 BUG FIXES:
 * Ensure that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
 * Fixed crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
+* Added error handling for missing state lock configuration in S3, HTTP, and OSS backends. [#1977](https://github.com/opentofu/opentofu/pull/1977)
 
 ## Previous Releases
 
