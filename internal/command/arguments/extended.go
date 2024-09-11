@@ -123,6 +123,26 @@ func parseRawTargets(targets []string) (targetables []addrs.Targetable, diags tf
 	return
 }
 
+func parseRawTargetsAndExcludes(targets []string, excludes []string) (parsedTargets []addrs.Targetable, parsedExcludes []addrs.Targetable, diags tfdiags.Diagnostics) {
+	if len(targets) > 0 && len(excludes) > 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"-target and -exclude flags used together",
+			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+		))
+		return
+	}
+
+	var parseDiags tfdiags.Diagnostics
+	parsedTargets, parseDiags = parseRawTargets(targets)
+	diags = diags.Append(parseDiags)
+
+	parsedExcludes, parseDiags = parseRawTargets(excludes)
+	diags = diags.Append(parseDiags)
+
+	return
+}
+
 // Parse must be called on Operation after initial flag parse. This processes
 // the raw target flags into addrs.Targetable values, returning diagnostics if
 // invalid.
@@ -130,10 +150,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	var parseDiags tfdiags.Diagnostics
-	o.Targets, parseDiags = parseRawTargets(o.targetsRaw)
-	diags = diags.Append(parseDiags)
-
-	o.Excludes, parseDiags = parseRawTargets(o.excludesRaw)
+	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw)
 	diags = diags.Append(parseDiags)
 
 	for _, raw := range o.forceReplaceRaw {

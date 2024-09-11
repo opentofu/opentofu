@@ -251,7 +251,6 @@ type TestRunOptions struct {
 	// Replace is analogous to the -refresh=ADDRESS OpenTofu plan option.
 	Replace []hcl.Traversal
 
-	// AREL TODO - consider adding exclude to tests
 	// Target is analogous to the -target=ADDRESS OpenTofu plan option.
 	Target []hcl.Traversal
 
