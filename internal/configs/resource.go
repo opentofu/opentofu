@@ -845,7 +845,7 @@ func generateCountAliases(lastIndex int, evalCtx *hcl.EvalContext, alias hcl.Exp
 
 	aliases := make(map[addrs.InstanceKey]string, lastIndex+1)
 
-	for i := 0; i < int(lastIndex); i++ {
+	for i := 0; i < lastIndex; i++ {
 		instanceEvalCtx := evalCtx.NewChild()
 		instanceEvalCtx.Variables = map[string]cty.Value{
 			"count": cty.ObjectVal(map[string]cty.Value{

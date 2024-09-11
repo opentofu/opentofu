@@ -255,21 +255,7 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		diags = append(diags, fileDiags...)
 	}
 
-	// Process all module calls now that we have the static context
-	for _, mc := range mod.ModuleCalls {
-		mDiags := mc.decodeStaticFields(mod.StaticEvaluator)
-		diags = append(diags, mDiags...)
-	}
-
-	// Process all resources now that we have the static context
-	for _, res := range mod.ManagedResources {
-		mDiags := res.decodeStaticFields(mod.StaticEvaluator)
-		diags = append(diags, mDiags...)
-	}
-	for _, res := range mod.DataResources {
-		mDiags := res.decodeStaticFields(mod.StaticEvaluator)
-		diags = append(diags, mDiags...)
-	}
+	diags = append(diags, mod.decodeStaticFields()...)
 
 	diags = append(diags, checkModuleExperiments(mod)...)
 
@@ -900,6 +886,28 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 				})
 			}
 		}
+	}
+
+	return diags
+}
+
+func (m *Module) decodeStaticFields() hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	// Process all module calls now that we have the static context
+	for _, mc := range m.ModuleCalls {
+		mDiags := mc.decodeStaticFields(m.StaticEvaluator)
+		diags = append(diags, mDiags...)
+	}
+
+	// Process all resources now that we have the static context
+	for _, res := range m.ManagedResources {
+		mDiags := res.decodeStaticFields(m.StaticEvaluator)
+		diags = append(diags, mDiags...)
+	}
+	for _, res := range m.DataResources {
+		mDiags := res.decodeStaticFields(m.StaticEvaluator)
+		diags = append(diags, mDiags...)
 	}
 
 	return diags

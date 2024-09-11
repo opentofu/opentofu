@@ -480,7 +480,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 						name, moduleText, defAddr.ForDisplay(),
 						parentModuleText, name, defAddr.ForDisplay(),
 					),
-					Subject: &passed.InParentMapping.NameRange,
+					Subject: passed.InParentMapping.NameRange.Ptr(),
 				})
 				continue
 			}
