@@ -242,11 +242,11 @@ Plan Customization Options:
                       use only. Cannot be used alongside the -exclude flag
 
   -exclude=resource   Limit the planning operation to not operate on the given
-					  module, resource, or resource instance and all of the
+                      module, resource, or resource instance and all of the
                       resources and modules that depend on it. You can use this
-					  option multiple times to exclude more than one object.
-					  This is for exceptional use only. Cannot be used alongside
-					  the -target flag
+                      option multiple times to exclude more than one object.
+                      This is for exceptional use only. Cannot be used alongside
+                      the -target flag
 
   -var 'foo=bar'      Set a value for one of the input variables in the root
                       module of the configuration. Use this option more than
