@@ -983,6 +983,29 @@ func (m *ProviderConfigRefMapping) setNoKeyAliases(eval *StaticEvaluator, refs [
 	return diags
 }
 
+type nonInstanceRefs struct {
+	filtered    []*addrs.Reference
+	hasEachRef  bool
+	hasCountRef bool
+}
+
+func filterNonInstanceRefs(refs []*addrs.Reference) nonInstanceRefs {
+	var s nonInstanceRefs
+
+	for _, ref := range refs {
+		switch ref.Subject.(type) {
+		case addrs.ForEachAttr:
+			s.hasEachRef = true
+		case addrs.CountAttr:
+			s.hasCountRef = true
+		default:
+			s.filtered = append(s.filtered, ref)
+		}
+	}
+
+	return s
+}
+
 // decodeStaticAlias decodes alias using static evaluation with count or for_each from instanceExpr.
 func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, countExpr, forEachExpr hcl.Expression) hcl.Diagnostics {
 	if m.Alias == nil {
@@ -991,31 +1014,18 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 
 	var diags hcl.Diagnostics
 
-	refs, refDiags := lang.ReferencesInExpr(addrs.ParseRef, m.Alias)
+	unfilteredRefs, refDiags := lang.ReferencesInExpr(addrs.ParseRef, m.Alias)
 	diags = diags.Extend(refDiags.ToHCL())
 	if refDiags.HasErrors() {
 		return diags
 	}
 
-	var hasEachRefInAlias bool
-	var hasCountRefInAlias bool
-	var staticAliasRefs []*addrs.Reference
-
 	// We don't want to try evaluate 'each' / 'count' references so
 	// we filter them out to process separately via child evaluation
 	// contexts.
-	for _, ref := range refs {
-		switch ref.Subject.(type) {
-		case addrs.ForEachAttr:
-			hasEachRefInAlias = true
-		case addrs.CountAttr:
-			hasCountRefInAlias = true
-		default:
-			staticAliasRefs = append(staticAliasRefs, ref)
-		}
-	}
+	refs := filterNonInstanceRefs(unfilteredRefs)
 
-	if hasEachRefInAlias && hasCountRefInAlias {
+	if refs.hasEachRef && refs.hasCountRef {
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider alias reference",
@@ -1025,7 +1035,7 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 	}
 
 	switch {
-	case hasCountRefInAlias && countExpr == nil:
+	case refs.hasCountRef && countExpr == nil:
 		didYouMean := ""
 		if forEachExpr != nil {
 			didYouMean = " Did you mean to use 'each' instead?"
@@ -1038,10 +1048,10 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 			Subject:  m.Alias.Range().Ptr(),
 		})
 
-	case hasCountRefInAlias:
-		diags = diags.Extend(m.setCountAliases(eval, staticAliasRefs, countExpr))
+	case refs.hasCountRef:
+		diags = diags.Extend(m.setCountAliases(eval, refs.filtered, countExpr))
 
-	case hasEachRefInAlias && forEachExpr == nil:
+	case refs.hasEachRef && forEachExpr == nil:
 		didYouMean := ""
 		if countExpr != nil {
 			didYouMean = " Did you mean to use 'count' instead?"
@@ -1054,11 +1064,11 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 			Subject:  m.Alias.Range().Ptr(),
 		})
 
-	case hasEachRefInAlias:
-		diags = diags.Extend(m.setForEachAliases(eval, staticAliasRefs, countExpr))
+	case refs.hasEachRef:
+		diags = diags.Extend(m.setForEachAliases(eval, refs.filtered, countExpr))
 
 	default:
-		diags = diags.Extend(m.setNoKeyAliases(eval, staticAliasRefs))
+		diags = diags.Extend(m.setNoKeyAliases(eval, refs.filtered))
 	}
 
 	return diags
