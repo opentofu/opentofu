@@ -304,8 +304,6 @@ Other Options:
 	return strings.TrimSpace(helpText)
 }
 
-// TODO AREL check more mentions of -target in code
-
 func (c *PlanCommand) Synopsis() string {
 	return "Show changes required by the current configuration"
 }

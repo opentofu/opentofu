@@ -29,7 +29,7 @@ func (b *Cloud) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Ful
 		PlanOpts: &tofu.PlanOpts{
 			Mode:     op.PlanMode,
 			Targets:  op.Targets,
-			Excludes: op.Excludes, // TODO AREL Is this necessary
+			Excludes: op.Excludes,
 		},
 	}
 

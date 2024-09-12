@@ -485,7 +485,6 @@ func (c *Context) prePlanFindAndApplyMoves(config *configs.Config, prevRunState 
 }
 
 func (c *Context) prePlanVerifyTargetedMoves(moveResults refactoring.MoveResults, targets []addrs.Targetable, excludes []addrs.Targetable) tfdiags.Diagnostics {
-	// TODO AREL - Can I assume here that excluded and targets are mutually exclusive?
 	if len(targets) > 0 {
 		return c.prePlanVerifyMovesWithTargetFlag(moveResults, targets)
 	} else if len(excludes) > 0 {
@@ -562,7 +561,6 @@ func (c *Context) prePlanVerifyMovesWithTargetFlag(moveResults refactoring.MoveR
 func (c *Context) prePlanVerifyMovesWithExcludeFlag(moveResults refactoring.MoveResults, excludes []addrs.Targetable) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// TODO AREL - Can I assume here that excluded and targets are mutually exclusive?
 	var excluded []addrs.AbsResourceInstance
 	for _, result := range moveResults.Changes.Values() {
 		fromExcluded := false

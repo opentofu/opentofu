@@ -214,6 +214,10 @@ Options:
                       resource and its dependencies. This flag can be used
                       multiple times.
 
+  -exclude=resource   Resource to exclude. Operation will be limited to all
+                      resources that are not excluded or dependent on excluded
+					  resources. This flag can be used multiple times.
+
   -var 'foo=bar'      Set a variable in the OpenTofu configuration. This
                       flag can be set multiple times.
 

@@ -247,28 +247,7 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 	return targetedNodes, nil
 }
 
-// TODO AREL Behaviour is unexpected when the target resource exists but the instance does not
-//   -target=null_resource.a[1] when the resource does not have indexes, results in a plan of resources the null_resource.a depends on, but not null_resource.a
-
-// TODO AREL Behaviour is unexpected when the target resource is module and instance does not exist. Same as above, if indexes don't exist. However, if inner resource does not exist, then resources that the resource depends on do not appear
-
-// TODO AREL Behaviour is unexpected when the target has index, and resource has dependencies
-//   -target=module.my_module[1].null_resource.a -> any resources dependent on any module.my_module[*].null_resource.a will also be planned
-//   -target=null_resource.a[1] -> any resources dependent on any null_resource.a[*] will also be planned
-
 func (t *TargetsTransformer) nodeIsExcluded(vertexAddr addrs.Targetable, excludes []addrs.Targetable) bool {
-	//var vertexAddr addrs.Targetable
-	//switch r := v.(type) {
-	//case GraphNodeResourceInstance:
-	//	vertexAddr = r.ResourceInstanceAddr()
-	//case GraphNodeConfigResource:
-	//	vertexAddr = r.ResourceAddr()
-	//
-	//default:
-	//	// Only resource and resource instance nodes can be targeted.
-	//	return false
-	//}
-
 	for _, excludeAddr := range excludes {
 		// The behaviour here is a bit different from targets.
 		// Before expansion - We'd like to only exclude resources that were excluded by module or resource.
