@@ -138,9 +138,9 @@ func (t *TargetsTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targeta
 	return targetedNodes, nil
 }
 
-// Returns a set of targeted nodes. A targeted node is either addressed
-// directly, address indirectly via its container, or it's a dependency of a
-// targeted node.
+// Returns a set of targeted nodes, after excluding resources. An excluded resource
+// is either addressed directly, address indirectly via its container, or it's
+// dependent on an excluded node. The rest are targeted nodes.
 func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targetable) (dag.Set, error) {
 	targetedNodes := make(dag.Set)
 	excludedNodes := make(dag.Set)
@@ -176,7 +176,7 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 	}
 
 	// Step 2: Of the targetable nodes that were not excluded, build the graph similarly to -target
-	for _, v := range vertices {
+	for _, v := range targetableNodes {
 		if !excludedNodes.Include(v) {
 			targetedNodes.Add(v)
 
