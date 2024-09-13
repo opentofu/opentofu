@@ -14,6 +14,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 func TestConfigGeneration(t *testing.T) {
@@ -490,6 +491,38 @@ resource "tfcoremock_simple_resource" "example" {
   juststr          = "{a=b}"
   secrets          = null # sensitive
   sensitivejsonobj = null # sensitive
+}`,
+		},
+		"optional_empty_sensitive_string": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"str": {
+						Type:      cty.String,
+						Optional:  true,
+						Sensitive: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"str": cty.StringVal("").Mark(marks.Sensitive),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  str = null # sensitive
 }`,
 		},
 	}
