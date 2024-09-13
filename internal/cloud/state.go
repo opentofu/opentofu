@@ -500,6 +500,10 @@ func (s *State) Unlock(id string) error {
 	return nil
 }
 
+func (s *State) CheckLock() bool {
+	return true
+}
+
 // Delete the remote state.
 func (s *State) Delete(force bool) error {
 

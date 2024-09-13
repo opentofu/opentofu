@@ -95,6 +95,11 @@ func (c *UnlockCommand) Run(args []string) int {
 
 	_, isLocal := stateMgr.(*statemgr.Filesystem)
 
+	if !stateMgr.CheckLock() {
+		c.Ui.Error("Locking is not configured for this backend")
+		return 1
+	}
+
 	if !force {
 		// Forcing this doesn't do anything, but doesn't break anything either,
 		// and allows us to run the basic command test too.

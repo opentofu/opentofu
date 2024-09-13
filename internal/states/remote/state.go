@@ -280,6 +280,19 @@ func (s *State) Unlock(id string) error {
 	return nil
 }
 
+// CheckLock calls the Client's CheckLock method if it's implemented.
+func (s *State) CheckLock() bool {
+	if s.disableLocks {
+		return false
+	}
+
+	if c, ok := s.Client.(ClientLocker); ok {
+		lockInfo := c.CheckLock()
+		return lockInfo
+	}
+	return false
+}
+
 // DisableLocks turns the Lock and Unlock methods into no-ops. This is intended
 // to be called during initialization of a state manager and should not be
 // called after any of the statemgr.Full interface methods have been called.

@@ -28,4 +28,5 @@ type Storage interface {
 type Full interface {
 	Storage
 	Locker
+	CheckLock() bool
 }

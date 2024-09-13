@@ -424,7 +424,7 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 
 func (c *RemoteClient) Unlock(id string) error {
 	if c.ddbTable == "" {
-		return fmt.Errorf("DynamoDB table not specified in the backend configuration; state is not locked")
+		return nil
 	}
 
 	lockErr := &statemgr.LockError{}
@@ -467,6 +467,10 @@ func (c *RemoteClient) lockPath() string {
 func (c *RemoteClient) getSSECustomerKeyMD5() string {
 	b := md5.Sum(c.customerEncryptionKey)
 	return base64.StdEncoding.EncodeToString(b[:])
+}
+
+func (c *RemoteClient) CheckLock() bool {
+	return c.ddbTable != ""
 }
 
 const errBadChecksumFmt = `state data in S3 does not have the expected content.
