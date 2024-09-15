@@ -282,7 +282,7 @@ func (rc *ResourceInstanceChange) Moved() bool {
 }
 
 // Simplify will, where possible, produce a change with a simpler action than
-// the receiever given a flag indicating whether the caller is dealing with
+// the receiver given a flag indicating whether the caller is dealing with
 // a normal apply or a destroy. This flag deals with the fact that OpenTofu
 // Core uses a specialized graph node type for destroying; only that
 // specialized node should set "destroying" to true.

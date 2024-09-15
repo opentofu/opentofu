@@ -201,7 +201,7 @@ func TestParseModuleSource(t *testing.T) {
 		},
 
 		// NOTE: We intentionally don't test the bitbucket.org shorthands
-		// here, because that detector makes direct HTTP tequests to the
+		// here, because that detector makes direct HTTP requests to the
 		// Bitbucket API and thus isn't appropriate for unit testing.
 
 		"Google Cloud Storage bucket implied, path prefix": {

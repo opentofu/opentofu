@@ -1354,7 +1354,7 @@ func TestAssertObjectCompatible(t *testing.T) {
 			}),
 			nil,
 		},
-		// test a set with a patially known dynamic count reducing it's values
+		// test a set with a partially known dynamic count reducing it's values
 		{
 			&configschema.Block{
 				BlockTypes: map[string]*configschema.NestedBlock{

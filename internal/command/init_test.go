@@ -935,7 +935,7 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 	// just silently ignoring them, so that users will be aware that
 	// Cloud mode has more of an expected "happy path" than the
 	// less-vertically-integrated backends do, and to avoid these
-	// unapplicable options becoming compatibility constraints for
+	// inapplicable options becoming compatibility constraints for
 	// future evolution of Cloud mode.
 
 	// We use the same starting fixture for all of these tests, but some
@@ -2317,7 +2317,7 @@ provider "registry.opentofu.org/hashicorp/test" {
 			want:      badLockFile,
 		},
 		{
-			desc:    "reject to change required provider dependences",
+			desc:    "reject to change required provider dependencies",
 			fixture: "init-provider-lock-file-readonly-add",
 			providers: map[string][]string{
 				"test": {"1.2.3"},

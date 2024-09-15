@@ -2619,7 +2619,7 @@ func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
 
 		if id == "b" {
 			// Pause briefly to make any race conditions more visible, since
-			// missing edges here can cause undeterministic ordering.
+			// missing edges here can cause indeterministic ordering.
 			time.Sleep(100 * time.Millisecond)
 		}
 
@@ -11410,7 +11410,7 @@ locals {
 // Ensure that we can destroy when a provider references a resource that will
 // also be destroyed
 func TestContext2Apply_destroyProviderReference(t *testing.T) {
-	m, snap := testModuleWithSnapshot(t, "apply-destroy-provisider-refs")
+	m, snap := testModuleWithSnapshot(t, "apply-destroy-provider-refs")
 
 	schemaFn := func(name string) *ProviderSchema {
 		return &ProviderSchema{

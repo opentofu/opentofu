@@ -42,7 +42,7 @@ var anyKey = anyKeyImpl('*')
 type MoveEndpointInModule struct {
 	// SourceRange is the location of the physical endpoint address
 	// in configuration, if this MoveEndpoint was decoded from a
-	// configuration expresson.
+	// configuration expression.
 	SourceRange tfdiags.SourceRange
 
 	// The internals are unexported here because, as with MoveEndpoint,

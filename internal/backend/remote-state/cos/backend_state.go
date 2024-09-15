@@ -43,11 +43,11 @@ func (b *Backend) Workspaces() ([]string, error) {
 		if !strings.HasSuffix(vv.Key, stateFileSuffix) {
 			continue
 		}
-		// default worksapce
+		// default workspace
 		if path.Join(b.prefix, b.key) == vv.Key {
 			continue
 		}
-		// <prefix>/<worksapce>/<key>
+		// <prefix>/<workspace>/<key>
 		prefix := strings.TrimRight(b.prefix, "/") + "/"
 		parts := strings.Split(strings.TrimPrefix(vv.Key, prefix), "/")
 		if len(parts) > 0 && parts[0] != "" {

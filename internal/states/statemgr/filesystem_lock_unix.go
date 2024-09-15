@@ -15,7 +15,7 @@ import (
 )
 
 // use fcntl POSIX locks for the most consistent behavior across platforms, and
-// hopefully some campatibility over NFS and CIFS.
+// hopefully some compatibility over NFS and CIFS.
 func (s *Filesystem) lock() error {
 	log.Printf("[TRACE] statemgr.Filesystem: locking %s using fcntl flock", s.path)
 	flock := &syscall.Flock_t{

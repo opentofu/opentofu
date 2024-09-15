@@ -241,7 +241,7 @@ func envConfig(env map[string]string) *Config {
 	config := &Config{}
 
 	if envPluginCacheDir := env[pluginCacheDirEnvVar]; envPluginCacheDir != "" {
-		// No Expandenv here, because expanding environment variables inside
+		// No ExpandEnv here, because expanding environment variables inside
 		// an environment variable would be strange and seems unnecessary.
 		// (User can expand variables into the value while setting it using
 		// standard shell features.)

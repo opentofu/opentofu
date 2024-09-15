@@ -72,7 +72,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 	lastObj := ""
 	for {
 		for _, obj := range resp.Objects {
-			// we have 3 parts, the state prefix, the workspace name, and the state file: <prefix>/<worksapce-name>/<key>
+			// we have 3 parts, the state prefix, the workspace name, and the state file: <prefix>/<workspace-name>/<key>
 			if path.Join(b.statePrefix, b.stateKey) == obj.Key {
 				// filter the default workspace
 				continue

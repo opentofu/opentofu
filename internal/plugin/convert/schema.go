@@ -98,7 +98,7 @@ func ProtoToProviderSchema(s *proto.Schema) providers.Schema {
 	}
 }
 
-// ProtoToConfigSchema takes the GetSchcema_Block from a grpc response and converts it
+// ProtoToConfigSchema takes the Schema_Block from a grpc response and converts it
 // to a tofu *configschema.Block.
 func ProtoToConfigSchema(b *proto.Schema_Block) *configschema.Block {
 	block := &configschema.Block{
