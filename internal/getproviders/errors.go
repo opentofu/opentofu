@@ -19,7 +19,7 @@ import (
 type ErrHostNoProviders struct {
 	Hostname svchost.Hostname
 
-	// HasOtherVersionis set to true if the discovery process detected
+	// HasOtherVersion is set to true if the discovery process detected
 	// declarations of services named "providers" whose version numbers did not
 	// match any version supported by the current version of OpenTofu.
 	//

@@ -946,7 +946,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 	return drs, diags
 }
 
-// PlanGraphForUI is a last vestage of graphs in the public interface of Context
+// PlanGraphForUI is a last vestige of graphs in the public interface of Context
 // (as opposed to graphs as an implementation detail) intended only for use
 // by the "tofu graph" command when asked to render a plan-time graph.
 //

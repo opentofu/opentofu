@@ -248,7 +248,7 @@ const (
 // writeResourceInstanceState saves the given object as the current object for
 // the selected resource instance.
 //
-// dependencies is a parameter, instead of those directly attacted to the
+// dependencies is a parameter, instead of those directly attached to the
 // NodeAbstractResourceInstance, because we don't write dependencies for
 // datasources.
 //

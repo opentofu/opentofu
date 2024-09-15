@@ -1001,7 +1001,7 @@ func TestInstanceDiffSame(t *testing.T) {
 			"",
 		},
 
-		// Innner computed set should allow outer change in key
+		// Inner computed set should allow outer change in key
 		{
 			&InstanceDiff{
 				Attributes: map[string]*ResourceAttrDiff{
@@ -1048,7 +1048,7 @@ func TestInstanceDiffSame(t *testing.T) {
 			"",
 		},
 
-		// Innner computed list should allow outer change in key
+		// Inner computed list should allow outer change in key
 		{
 			&InstanceDiff{
 				Attributes: map[string]*ResourceAttrDiff{

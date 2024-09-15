@@ -7135,7 +7135,7 @@ func TestContext2Plan_removedResourceInChildModuleFromChildModule(t *testing.T) 
 
 	state := states.BuildState(func(s *states.SyncState) {
 		// The prior state tracks module.mod.test_object.a.a, which we should be
-		// removed from the state by the "removed" block in the child mofule config.
+		// removed from the state by the "removed" block in the child module config.
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,

@@ -78,7 +78,7 @@ func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics
 	})
 }
 
-// This is a hack that may not be needed, but preserves the idea that invalid backends will show a cryptic error about running init duing plan/apply startup.
+// This is a hack that may not be needed, but preserves the idea that invalid backends will show a cryptic error about running init during plan/apply startup.
 func (b *Backend) referenceDiagnostics(schema *configschema.Block) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 

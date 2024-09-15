@@ -103,7 +103,7 @@ type outputStateV2 struct {
 
 type moduleStateV2 struct {
 	// Path is the import path from the root module. Modules imports are
-	// always disjoint, so the path represents amodule tree
+	// always disjoint, so the path represents a module tree
 	Path []string `json:"path"`
 
 	// Locals are kept only transiently in-memory, because we can always

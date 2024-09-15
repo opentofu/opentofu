@@ -292,8 +292,7 @@ func (c *InitCommand) Run(args []string) int {
 
 	// Now, we can check the diagnostics from the early configuration and the
 	// backend.
-	diags = diags.Append(earlyConfDiags)
-	diags = diags.Append(backDiags)
+	diags = diags.Append(earlyConfDiags.StrictDeduplicateMerge(backDiags))
 	if earlyConfDiags.HasErrors() {
 		c.Ui.Error(strings.TrimSpace(errInitConfigError))
 		c.showDiagnostics(diags)
@@ -971,7 +970,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 	if !newLocks.Equal(previousLocks) {
 		// if readonly mode
 		if flagLockfile == "readonly" {
-			// check if required provider dependences change
+			// check if required provider dependencies change
 			if !newLocks.EqualProviderAddress(previousLocks) {
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,

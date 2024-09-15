@@ -147,7 +147,7 @@ func stripRemovedStateAttributes(state []byte, ty cty.Type) []byte {
 
 	js, err := json.Marshal(jsonMap)
 	if err != nil {
-		// if the json map was somehow mangled enough to not marhsal, something
+		// if the json map was somehow mangled enough to not marshal, something
 		// went horribly wrong
 		panic(err)
 	}

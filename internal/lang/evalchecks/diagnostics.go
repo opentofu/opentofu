@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package tofu
+package evalchecks
 
 import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -21,11 +21,11 @@ import (
 // populate the EvalContext and Expression fields of the diagnostic so that
 // the diagnostic renderer can use all of that information together to assist
 // the user in understanding what was unknown.
-type diagnosticCausedByUnknown bool
+type DiagnosticCausedByUnknown bool
 
-var _ tfdiags.DiagnosticExtraBecauseUnknown = diagnosticCausedByUnknown(true)
+var _ tfdiags.DiagnosticExtraBecauseUnknown = DiagnosticCausedByUnknown(true)
 
-func (e diagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
+func (e DiagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 	return bool(e)
 }
 
@@ -38,10 +38,10 @@ func (e diagnosticCausedByUnknown) DiagnosticCausedByUnknown() bool {
 // populate the EvalContext and Expression fields of the diagnostic so that
 // the diagnostic renderer can use all of that information together to assist
 // the user in understanding what was sensitive.
-type diagnosticCausedBySensitive bool
+type DiagnosticCausedBySensitive bool
 
-var _ tfdiags.DiagnosticExtraBecauseSensitive = diagnosticCausedBySensitive(true)
+var _ tfdiags.DiagnosticExtraBecauseSensitive = DiagnosticCausedBySensitive(true)
 
-func (e diagnosticCausedBySensitive) DiagnosticCausedBySensitive() bool {
+func (e DiagnosticCausedBySensitive) DiagnosticCausedBySensitive() bool {
 	return bool(e)
 }

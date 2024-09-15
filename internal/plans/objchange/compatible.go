@@ -148,7 +148,7 @@ func assertObjectCompatible(schema *configschema.Block, planned, actual cty.Valu
 				}
 				plannedL := plannedV.LengthInt()
 				actualL := actualV.LengthInt()
-				if plannedL != actualL && plannedV.IsKnown() { // new blocks may appear if unknown blocks were persent in the plan
+				if plannedL != actualL && plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
 					errs = append(errs, path.NewErrorf("block count changed from %d to %d", plannedL, actualL))
 					continue
 				}

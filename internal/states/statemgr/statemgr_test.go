@@ -63,7 +63,7 @@ func TestLockWithContext(t *testing.T) {
 		t.Fatal("lock should have failed immediately")
 	}
 
-	// block until LockwithContext has made a first attempt
+	// block until LockWithContext has made a first attempt
 	attempted := make(chan struct{})
 	postLockHook = func() {
 		close(attempted)
@@ -87,7 +87,7 @@ func TestLockWithContext(t *testing.T) {
 		t.Fatal("lock should have completed within 2s:", err)
 	}
 
-	// ensure the goruotine completes
+	// ensure the goroutine completes
 	<-unlocked
 	if unlockErr != nil {
 		t.Fatal(unlockErr)

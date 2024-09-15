@@ -215,7 +215,7 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 }
 
 // getMockValueForBlock uses an object from the defaults (overrides)
-// to compose each value from the block's inner collection. It recursevily calls
+// to compose each value from the block's inner collection. It recursively calls
 // composeMockValueBySchema to proceed with all the inner attributes and blocks
 // the same way so all the nested blocks follow the same logic.
 func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal cty.Value, block *configschema.Block, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
