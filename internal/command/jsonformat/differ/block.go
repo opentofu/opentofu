@@ -82,6 +82,9 @@ func ComputeDiffForBlock(change structured.Change, block *jsonprovider.Block) co
 		forcesReplacement := childChange.ReplacePaths.Matches()
 
 		if diff, ok := checkForUnknownBlock(childChange, block); ok {
+			if diff.Action == plans.NoOp && childChange.Before == nil && childChange.After == nil {
+				continue
+			}
 			blocks.AddSingleBlock(key, diff, forcesReplacement, beforeSensitive, afterSensitive)
 			continue
 		}
