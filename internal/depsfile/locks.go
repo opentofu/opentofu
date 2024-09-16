@@ -438,7 +438,7 @@ func (l *ProviderLock) ContainsAll(target *ProviderLock) bool {
 // upgrade purposes.
 //
 // At least one of the given hashes must match for a package to be considered
-// valud.
+// valid.
 func (l *ProviderLock) PreferredHashes() []getproviders.Hash {
 	return getproviders.PreferredHashes(l.hashes)
 }

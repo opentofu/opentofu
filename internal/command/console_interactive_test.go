@@ -59,7 +59,7 @@ func TestConsole_multiline_interactive(t *testing.T) {
 			var.counts.lololo`,
 			expected: "\n1\n2\n",
 		},
-		"backets_multi_line": {
+		"brackets_multi_line": {
 			input: `
 			var.counts.lalala
 			split(

@@ -117,7 +117,7 @@ func (cp *CachedProvider) ExecutableFile() (string, error) {
 	// expect an executable file whose name starts with
 	// "terraform-provider-happycloud", followed by zero or more additional
 	// characters. If there _are_ additional characters then the first one
-	// must be an underscore or a period, like in thse examples:
+	// must be an underscore or a period, like in these examples:
 	// - terraform-provider-happycloud_v1.0.0
 	// - terraform-provider-happycloud.exe
 	//

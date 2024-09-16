@@ -189,7 +189,7 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Warning,
 					fmt.Sprintf("Ignored mock/override field `%v`", k),
-					"Cannot overridde block value, because it's not present in configuration.",
+					"Cannot override block value, because it's not present in configuration.",
 				))
 			}
 
