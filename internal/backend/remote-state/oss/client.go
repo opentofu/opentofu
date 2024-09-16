@@ -445,6 +445,10 @@ func (c *RemoteClient) getObj() (*remote.Payload, error) {
 	return payload, nil
 }
 
+func (c *RemoteClient) IsLockingEnabled() bool {
+	return c.otsTable != ""
+}
+
 const errBadChecksumFmt = `state data in OSS does not have the expected content.
 
 This may be caused by unusually long delays in OSS processing a previous state

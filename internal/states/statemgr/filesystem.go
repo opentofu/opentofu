@@ -409,10 +409,6 @@ func (s *Filesystem) Unlock(id string) error {
 	return unlockErr
 }
 
-func (s *Filesystem) CheckLock() bool {
-	return true
-}
-
 // StateSnapshotMeta returns the metadata from the most recently persisted
 // or refreshed persistent state snapshot.
 //

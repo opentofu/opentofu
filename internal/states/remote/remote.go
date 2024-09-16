@@ -33,6 +33,11 @@ type ClientLocker interface {
 	statemgr.Locker
 }
 
+type OptionalClientLocker interface {
+	ClientLocker
+	IsLockingEnabled() bool
+}
+
 // Payload is the return value from the remote state storage.
 type Payload struct {
 	MD5  []byte

@@ -105,10 +105,6 @@ func (m *fakeFull) Unlock(id string) error {
 	return nil
 }
 
-func (m *fakeFull) CheckLock() bool {
-	return true
-}
-
 // NewUnlockErrorFull returns a state manager that is useful for testing errors
 // (mostly Unlock errors) when used with the clistate.Locker interface. Lock()
 // does not return an error because clistate.Locker Lock()s the state at the
@@ -147,8 +143,4 @@ func (m *fakeErrorFull) Lock(info *LockInfo) (string, error) {
 
 func (m *fakeErrorFull) Unlock(id string) error {
 	return errors.New("fake state manager error")
-}
-
-func (m *fakeErrorFull) CheckLock() bool {
-	return true
 }

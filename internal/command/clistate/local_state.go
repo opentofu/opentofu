@@ -303,10 +303,6 @@ func (s *LocalState) lockInfo() (*statemgr.LockInfo, error) {
 	return &info, nil
 }
 
-func (s *LocalState) CheckLock() bool {
-	return true
-}
-
 // write a new lock info file
 func (s *LocalState) writeLockInfo(info *statemgr.LockInfo) error {
 	path := s.lockInfoPath()

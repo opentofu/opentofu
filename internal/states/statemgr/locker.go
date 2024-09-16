@@ -64,8 +64,11 @@ type Locker interface {
 	// then an error is returned explaining the situation in a way that
 	// is suitable for returning to an end-user.
 	Unlock(id string) error
+}
 
-	CheckLock() bool
+type OptionalLocker interface {
+	Locker
+	IsLockingEnabled() bool
 }
 
 // test hook to verify that LockWithContext has attempted a lock

@@ -261,3 +261,7 @@ func (c *httpClient) Delete() error {
 		return fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 }
+
+func (c *httpClient) IsLockingEnabled() bool {
+	return c.UnlockURL != nil
+}

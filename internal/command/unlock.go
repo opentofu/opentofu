@@ -24,6 +24,11 @@ type UnlockCommand struct {
 	Meta
 }
 
+type OptionalLocker interface {
+	statemgr.Locker
+	IsLockingEnabled() bool
+}
+
 func (c *UnlockCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	var force bool
@@ -95,11 +100,17 @@ func (c *UnlockCommand) Run(args []string) int {
 
 	_, isLocal := stateMgr.(*statemgr.Filesystem)
 
-	if !stateMgr.CheckLock() {
-		c.Ui.Error("Locking is not configured for this backend")
-		return 1
+	if backendConfig.Type == "s3" || backendConfig.Type == "oss" || backendConfig.Type == "http" {
+		if optionalLocker, ok := stateMgr.(OptionalLocker); ok {
+			// Now we can safely call IsLockingEnabled() on optionalLocker
+			if !optionalLocker.IsLockingEnabled() {
+				c.Ui.Error("Locking is not configured for this backend")
+				return 1
+			}
+		}
 	}
 
+	// Proceed with unlocking logic if locking is enabled
 	if !force {
 		// Forcing this doesn't do anything, but doesn't break anything either,
 		// and allows us to run the basic command test too.

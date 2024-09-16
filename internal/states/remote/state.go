@@ -280,14 +280,13 @@ func (s *State) Unlock(id string) error {
 	return nil
 }
 
-// CheckLock calls the Client's CheckLock method if it's implemented.
-func (s *State) CheckLock() bool {
+func (s *State) IsLockingEnabled() bool {
 	if s.disableLocks {
 		return false
 	}
 
-	if c, ok := s.Client.(ClientLocker); ok {
-		lockInfo := c.CheckLock()
+	if c, ok := s.Client.(OptionalClientLocker); ok {
+		lockInfo := c.IsLockingEnabled()
 		return lockInfo
 	}
 	return false

@@ -469,7 +469,7 @@ func (c *RemoteClient) getSSECustomerKeyMD5() string {
 	return base64.StdEncoding.EncodeToString(b[:])
 }
 
-func (c *RemoteClient) CheckLock() bool {
+func (c *RemoteClient) IsLockingEnabled() bool {
 	return c.ddbTable != ""
 }
 
