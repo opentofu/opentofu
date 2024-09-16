@@ -4,7 +4,7 @@
 
 Hi there! It's been a busy month since the last "Weekly Update". Here are the latest updates:
 - [OpenTofu 1.8.2](https://github.com/opentofu/opentofu/releases/tag/v1.8.2) is out and fixes a known bug and a security issue.
-- [The registry UI is officially out!](https://search.opentofu.org/) You are welcome to go and check it out.
+- [The beta version of the registry UI is now live!](https://search.opentofu.org/) You are welcome to go and check it out. Keep in mind that because this is a beta, not all providers are available at this time.
 - Recent developments:
   - We are almost done implementing passing providers to modules and resources using `for_each` (this is part of the effort to extend the features related to the 1.8.0 early evaluation). We are working diligently to include these updates in the 1.9.0 release.
   - We are making great progress with supporting the `-exclude` flag [RFC](https://github.com/opentofu/opentofu/pull/1900) and almost done with implementing it for the upcoming release.
