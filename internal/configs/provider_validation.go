@@ -679,8 +679,8 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 					Summary:  errSummary,
 					Detail: fmt.Sprintf(
 						"The assigned configuration is for provider %q, but local name %q in %s represents %q.\n\nTo pass this configuration to the child module, use the local name %q instead.",
-						parentAddr.Provider.ForDisplay(), passed.InChild.Name,
-						parentModuleText, providerAddr.Provider.ForDisplay(),
+						providerAddr.Provider.ForDisplay(), passed.InChild.Name,
+						parentModuleText, parentAddr.Provider.ForDisplay(),
 						otherLocalName,
 					),
 					Subject: &passed.InChild.NameRange,
