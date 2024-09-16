@@ -1989,6 +1989,56 @@ jsonencode(
         }
     }`,
 		},
+		"set_block_override_replacement": {
+			diff: computed.Diff{
+				Renderer: Block(
+					nil,
+					Blocks{
+						SetBlocks: map[string][]computed.Diff{
+							"set_blocks": {
+								{
+									Renderer: Block(map[string]computed.Diff{
+										"number": {
+											Renderer: Primitive(json.Number("1"), json.Number("2"), cty.Number),
+											Action:   plans.Update,
+										},
+										"string": {
+											Renderer: Primitive(nil, "new", cty.String),
+											Action:   plans.Create,
+										},
+									}, Blocks{}),
+									Action: plans.Update,
+								},
+								{
+									Renderer: Block(map[string]computed.Diff{
+										"number": {
+											Renderer: Primitive(json.Number("1"), nil, cty.Number),
+											Action:   plans.Delete,
+										},
+										"string": {
+											Renderer: Primitive("old", "new", cty.String),
+											Action:   plans.Update,
+										},
+									}, Blocks{}),
+									Action: plans.Update,
+								},
+							},
+						},
+					}),
+				Replace: true,
+			},
+			expected: `
+{ # forces replacement
+      ~ set_blocks {
+          ~ number = 1 -> 2
+          + string = "new"
+        }
+      ~ set_blocks {
+          - number = 1 -> null
+          ~ string = "old" -> "new"
+        }
+    }`,
+		},
 		"map_block_update": {
 			diff: computed.Diff{
 				Renderer: Block(
