@@ -200,7 +200,7 @@ func (s *SyncState) ResourceInstanceObject(addr addrs.AbsResourceInstance, gen G
 	return inst.GetGeneration(gen).DeepCopy()
 }
 
-// SetResourceMeta updates the resource-level metadata for the resource at
+// SetResourceProvider updates the resource-level metadata for the resource at
 // the given address, creating the containing module state and resource state
 // as a side-effect if not already present.
 func (s *SyncState) SetResourceProvider(addr addrs.AbsResource, provider addrs.AbsProviderConfig) {
@@ -278,7 +278,17 @@ func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, o
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), provider)
+	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), provider, addrs.AbsProviderConfig{})
+	s.maybePruneModule(addr.Module)
+}
+
+// SetResourceInstanceCurrentNew Ronny TODO - replace with the above function in all the relevant places
+func (s *SyncState) SetResourceInstanceCurrentNew(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ms := s.state.EnsureModule(addr.Module)
+	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), resourceProvider, instanceProvider)
 	s.maybePruneModule(addr.Module)
 }
 
@@ -310,7 +320,17 @@ func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, k
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), provider)
+	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), provider, addrs.AbsProviderConfig{})
+	s.maybePruneModule(addr.Module)
+}
+
+// SetResourceInstanceDeposedNew  Ronny TODO - replace with the above function in all the relevant places
+func (s *SyncState) SetResourceInstanceDeposedNew(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
+	s.lock.Lock()
+	defer s.lock.Unlock()
+
+	ms := s.state.EnsureModule(addr.Module)
+	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), resourceProvider, instanceProvider)
 	s.maybePruneModule(addr.Module)
 }
 
@@ -443,7 +463,7 @@ func (s *SyncState) RemovePlannedResourceInstanceObjects() {
 				if is.Current != nil && is.Current.Status == ObjectPlanned {
 					// Setting the current instance to nil removes it from the
 					// state altogether if there are not also deposed instances.
-					ms.SetResourceInstanceCurrent(instAddr, nil, rs.ProviderConfig)
+					ms.SetResourceInstanceCurrent(instAddr, nil, rs.ProviderConfig, is.Current.InstanceProvider)
 				}
 
 				for dk, obj := range is.Deposed {

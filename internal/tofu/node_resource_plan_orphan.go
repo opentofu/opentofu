@@ -80,17 +80,17 @@ func (n *NodePlannableResourceInstanceOrphan) dataResourceExecute(ctx EvalContex
 	// we need to update both the refresh state to refresh the current data
 	// source, and the working state for plan-time evaluations.
 	refreshState := ctx.RefreshState()
-	refreshState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider)
+	refreshState.SetResourceInstanceCurrentNew(n.Addr, nil, n.NodeAbstractResource.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 
 	workingState := ctx.State()
-	workingState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider)
+	workingState.SetResourceInstanceCurrentNew(n.Addr, nil, n.NodeAbstractResource.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 	return nil
 }
 
 func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
-	oldState, readDiags := n.readResourceInstanceState(ctx, addr)
+	oldState, readDiags := n.readResourceInstanceState(ctx, addr, n.ResolvedProvider())
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags

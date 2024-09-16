@@ -139,9 +139,26 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 			instAddr := rAddr.Instance(key)
 
+			// TODO Ronny extract to a function for DRY
+			instanceProviderAddr, addrDiags := addrs.ParseAbsProviderConfigStr(isV4.InstanceProvider)
+			diags.Append(addrDiags)
+			if addrDiags.HasErrors() {
+				// If ParseAbsProviderConfigStr returns an error, the state may have
+				// been written before Provider FQNs were introduced and the
+				// AbsProviderConfig string format will need normalization. If so,
+				// we treat it like a legacy provider (namespace "-") and let the
+				// provider installer handle detecting the FQN.
+				var legacyAddrDiags tfdiags.Diagnostics
+				instanceProviderAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(isV4.InstanceProvider) //TODO Ronny: this is interesting, validate that we need the same logic for the instanceProvider?
+				if legacyAddrDiags.HasErrors() {
+					continue
+				}
+			}
+
 			obj := &states.ResourceInstanceObjectSrc{
 				SchemaVersion:       isV4.SchemaVersion,
 				CreateBeforeDestroy: isV4.CreateBeforeDestroy,
+				InstanceProvider:    instanceProviderAddr,
 			}
 
 			{
@@ -235,7 +252,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceDeposed(instAddr, dk, obj, providerAddr)
+				ms.SetResourceInstanceDeposed(instAddr, dk, obj, instanceProviderAddr, instanceProviderAddr)
 			default:
 				is := ms.ResourceInstance(instAddr)
 				if is.HasCurrent() {
@@ -247,7 +264,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceCurrent(instAddr, obj, providerAddr)
+				ms.SetResourceInstanceCurrent(instAddr, obj, providerAddr, instanceProviderAddr)
 			}
 		}
 
@@ -389,12 +406,17 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				continue
 			}
 
+			providerConfigValue := ""
+			if rs.ProviderConfig.Provider.Type != "" {
+				providerConfigValue = rs.ProviderConfig.String()
+			}
+
 			sV4.Resources = append(sV4.Resources, resourceStateV4{
 				Module:         moduleAddr.String(),
 				Mode:           mode,
 				Type:           resourceAddr.Type,
 				Name:           resourceAddr.Name,
-				ProviderConfig: rs.ProviderConfig.String(),
+				ProviderConfig: providerConfigValue,
 				Instances:      []instanceObjectStateV4{},
 			})
 			rsV4 := &(sV4.Resources[len(sV4.Resources)-1])
@@ -505,6 +527,11 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	attributeSensitivePaths, pathsDiags := marshalPaths(paths)
 	diags = diags.Append(pathsDiags)
 
+	instanceProviderValue := ""
+	if obj.InstanceProvider.Provider.Type != "" {
+		instanceProviderValue = obj.InstanceProvider.String()
+	}
+
 	return append(isV4s, instanceObjectStateV4{
 		IndexKey:                rawKey,
 		Deposed:                 string(deposed),
@@ -516,6 +543,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		PrivateRaw:              privateRaw,
 		Dependencies:            deps,
 		CreateBeforeDestroy:     obj.CreateBeforeDestroy,
+		InstanceProvider:        instanceProviderValue,
 	}), diags
 }
 
@@ -710,7 +738,7 @@ type resourceStateV4 struct {
 	Type           string                  `json:"type"`
 	Name           string                  `json:"name"`
 	EachMode       string                  `json:"each,omitempty"`
-	ProviderConfig string                  `json:"provider"`
+	ProviderConfig string                  `json:"provider,omitempty"` // Ronny TODO: Do we want to omit? Or save an empty string / nil?
 	Instances      []instanceObjectStateV4 `json:"instances"`
 }
 
@@ -728,7 +756,8 @@ type instanceObjectStateV4 struct {
 
 	Dependencies []string `json:"dependencies,omitempty"`
 
-	CreateBeforeDestroy bool `json:"create_before_destroy,omitempty"`
+	CreateBeforeDestroy bool   `json:"create_before_destroy,omitempty"`
+	InstanceProvider    string `json:"instance_provider,omitempty"`
 }
 
 type checkResultsV4 struct {

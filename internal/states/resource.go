@@ -29,7 +29,7 @@ type Resource struct {
 	// with a provider configuration when the resource configuration block is
 	// not available, such as if it has been removed from configuration
 	// altogether.
-	ProviderConfig addrs.AbsProviderConfig
+	ProviderConfig addrs.AbsProviderConfig // Ronny TODO: should we rename to ProviderResourceConfig? (this doesn't impact the state file)
 }
 
 // Instance returns the state for the instance with the given key, or nil

@@ -127,7 +127,8 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) *NodePlannableResourceInstanceOrphan {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.resolveProvider(a.Addr)
+		a.ResolvedResourceProvider = n.ResolvedResourceProvider
+		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -334,19 +335,21 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		for _, c := range commandLineImportTargets {
 			if c.Addr.Equal(a.Addr) {
 				return &graphNodeImportState{
-					Addr:             c.Addr,
-					ID:               c.ID,
-					ResolvedProvider: n.resolveProvider(a.Addr),
-					Schema:           n.Schema,
-					SchemaVersion:    n.SchemaVersion,
-					Config:           n.Config,
+					Addr:                     c.Addr,
+					ID:                       c.ID,
+					ResolvedResourceProvider: n.ResolvedResourceProvider,
+					ResolvedInstanceProvider: n.resolveInstanceProvider(a.Addr),
+					Schema:                   n.Schema,
+					SchemaVersion:            n.SchemaVersion,
+					Config:                   n.Config,
 				}
 			}
 		}
 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.resolveProvider(a.Addr)
+		a.ResolvedResourceProvider = n.ResolvedResourceProvider
+		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -379,7 +382,8 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.resolveProvider(a.Addr)
+		a.ResolvedResourceProvider = n.ResolvedResourceProvider
+		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas

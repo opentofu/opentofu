@@ -92,7 +92,7 @@ type GraphNodeProviderConsumer interface {
 
 	// TODO Ronny add comment
 	// Do we really need this function inside resource instances? Should we divide this into two interfaces
-	resolveProvider(addrs.AbsResourceInstance) addrs.AbsProviderConfig
+	resolveInstanceProvider(addrs.AbsResourceInstance) addrs.AbsProviderConfig
 }
 
 // ProviderTransformer is a GraphTransformer that maps resources to providers
@@ -264,9 +264,13 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				targets = append(targets, distinguishableProvider{moduleIdentifier: nil, resourceIdentifier: req.instanceKey, concreteProvider: target})
 			}
 
-			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
+			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target)) //TODO Ronny fix - I think it run too many times on some occasions
 			if pv, ok := v.(GraphNodeProviderConsumer); ok {
-				pv.SetPotentialProviders(targets)
+				if len(targets) == 1 && targets[0].isSingleOption() {
+					pv.SetProvider(targets[0].concreteProvider.ProviderAddr())
+				} else {
+					pv.SetPotentialProviders(targets)
+				}
 			}
 		}
 	}
@@ -600,6 +604,11 @@ type distinguishableProvider struct {
 	moduleIdentifier   []addrs.ModuleInstanceStep
 	resourceIdentifier addrs.InstanceKey
 	concreteProvider   GraphNodeProvider
+}
+
+func (d *distinguishableProvider) isSingleOption() bool {
+	result := d.resourceIdentifier == nil && d.moduleIdentifier == nil
+	return result
 }
 
 func (d *distinguishableProvider) SetResourceIdentifier(ik addrs.InstanceKey) {

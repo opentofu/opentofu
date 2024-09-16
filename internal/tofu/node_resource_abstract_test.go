@@ -220,8 +220,8 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 				}, providerAddr)
 			}),
 			Node: &NodeAbstractResource{
-				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:                     mustConfigResourceAddr("aws_instance.bar"),
+				ResolvedResourceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},
@@ -236,7 +236,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 
 			ctx.ProviderProvider = providers.Interface(mockProvider)
 
-			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance))
+			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance), test.Node.ResolvedResourceProvider) // TODO ROnny: validate this change
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
 			}
@@ -286,8 +286,8 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 				}, providerAddr)
 			}),
 			Node: &NodeAbstractResource{
-				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:                     mustConfigResourceAddr("aws_instance.bar"),
+				ResolvedResourceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},
