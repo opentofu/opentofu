@@ -113,7 +113,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// If the attribute is computed and not configured,
 		// we use provided value from defaults.
 		if ov, ok := defaults[k]; ok {
-			typeConformanceErrs := ov.Type().TestConformance(attr.Type)
+			   typeConformanceErrs      := ov.Type().TestConformance(attr.Type)
 			if len(typeConformanceErrs) == 0 {
 				mockAttrs[k] = ov
 				continue
