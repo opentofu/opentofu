@@ -51,7 +51,7 @@ func TestClient(t *testing.T, c Client) {
 }
 
 // Test the lock implementation for a remote.Client.
-// This test requires 2 client instances, in oder to have multiple remote
+// This test requires 2 client instances, in order to have multiple remote
 // clients since some implementations may tie the client to the lock, or may
 // have reentrant locks.
 func TestRemoteLocks(t *testing.T, a, b Client) {

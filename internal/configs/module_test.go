@@ -13,7 +13,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// TestNewModule_provider_fqns exercises module.gatherProviderLocalNames()
+// TestNewModule_provider_local_name exercises module.gatherProviderLocalNames()
 func TestNewModule_provider_local_name(t *testing.T) {
 	mod, diags := testModuleFromDir("testdata/providers-explicit-fqn")
 	if diags.HasErrors() {

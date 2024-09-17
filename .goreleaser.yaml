@@ -159,6 +159,14 @@ docker_manifests:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
     skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
 
+  - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}
+    image_templates:
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-386
+    skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
+
   - name_template: ghcr.io/opentofu/opentofu:latest
     image_templates:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
