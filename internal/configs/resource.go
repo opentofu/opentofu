@@ -645,60 +645,95 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 	//   ignore_changes = ["*"]
 
 	// Potential inputs:
-	//
+	// * -> ERROR
+	// "*" -> ERROR
+	// all -> IgnoreAllChanges = true
+	// "all" -> IgnoreAllChanges = true
+	// [all] -> [all]
+	// ["all"] -> [all]
+	// [] -> []
+	// [foo] -> [foo]
+	// ["foo"] -> [foo]
+	// [var.bar] -> EITHER value of var.bar if it exists or var.bar traversal. This scenario is ambiguous
+	// [foo, "bar"] -> [foo, bar]
+	// [foo, var.bar] -> [foo, var.bar]
+	// ["foo", var.bar] -> [foo, ${var.bar}]
+	// concat(["foo"], ["bar"]) -> [foo, bar]
+	// concat([foo], [bar]) -> ERROR!
+
+	if hcl.ExprAsKeyword(attr.Expr) == "all" {
+		r.Managed.IgnoreAllChanges = true
+		return diags
+	}
 
 	var traversals []hcl.Traversal
 
-	// Try understanding the HCL expression as a ExprList
-	if listExprs, listDiags := hcl.ExprList(attr.Expr); listDiags == nil { // This is a bit unsafe, but the only scenario in which diags are not nil is a generic "It's not a exprlist" error
-		for _, expr := range listExprs {
-			// our expr might be the literal string "*", which
-			// we accept as a deprecated way of saying "all".
-			if shimIsIgnoreChangesStar(expr) {
-				// This is no longer allowed and will be handled below
-				traversals = append(traversals, hcl.Traversal{hcl.TraverseRoot{Name: "*", SrcRange: expr.Range()}})
-				continue
-			}
+	// Try evaluating as static expression
+	ident := StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("%s.%s.lifecycle.%s", r.Type, r.Name, attr.Name), DeclRange: attr.Range}
+	val, valDiags := eval.Evaluate(attr.Expr, ident)
+	if valDiags.HasErrors() {
+		// Either a ExprList or a Invalid Expression
+		if listExprs, listDiags := hcl.ExprList(attr.Expr); listDiags == nil { // This is a bit unsafe, but the only scenario in which diags are not nil is a generic "It's not a exprlist" error
+			// ExprList
+			for _, expr := range listExprs {
+				// our expr might be the literal string "*", which
+				// we accept as a deprecated way of saying "all".
+				if shimIsIgnoreChangesStar(expr) {
+					// This is no longer allowed and will be handled below
+					traversals = append(traversals, hcl.Traversal{hcl.TraverseAttr{Name: "*", SrcRange: expr.Range()}})
+					continue
+				}
 
-			// Might be a quoted string, sub in a parsed traversable expression
-			shimExpr, shimDiags := shimTraversalInString(expr, false)
-			diags = append(diags, shimDiags...)
-			if shimDiags.HasErrors() {
-				continue
-			}
+				// Might be a quoted string, sub in a parsed traversable expression
+				shimExpr, shimDiags := shimTraversalInString(expr, false)
+				diags = append(diags, shimDiags...)
+				if shimDiags.HasErrors() {
+					continue
+				}
 
-			traversal, travDiags := hcl.RelTraversalForExpr(shimExpr)
-			diags = append(diags, travDiags...)
-			if travDiags.HasErrors() {
-				continue
-			}
-			traversals = append(traversals, traversal)
-		}
-	} else {
-		// Try understanding it as a static value
-		ident := StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("%s.%s.lifecycle.%s", r.Type, r.Name, attr.Name), DeclRange: attr.Range}
-		val, valDiags := eval.Evaluate(attr.Expr, ident)
-		diags = diags.Extend(valDiags)
-		if valDiags.HasErrors() {
-			return diags
-		}
-
-		if !val.CanIterateElements() {
-			for _, item := range val.AsValueSlice() {
-				// TODO The range here is wrong and should be fixed
-				traversal, tDiags := hclsyntax.ParseTraversalAbs(
-					[]byte(item.AsString()),
-					attr.Expr.Range().Filename,
-					attr.Expr.Range().Start,
-				)
-				diags = append(diags, tDiags...)
-				if tDiags.HasErrors() {
+				traversal, travDiags := hcl.RelTraversalForExpr(shimExpr)
+				diags = append(diags, travDiags...)
+				if travDiags.HasErrors() {
 					continue
 				}
 				traversals = append(traversals, traversal)
 			}
 		} else {
-			// TODO make sure this is a string
+			// Invalid Expression
+			return diags.Extend(valDiags)
+		}
+	} else {
+		if val.Type().IsListType() || val.Type().IsSetType() || val.Type().IsTupleType() {
+			for _, item := range val.AsValueSlice() {
+				if item.Type() != cty.String {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid ignore_changes input",
+						Detail:   fmt.Sprintf(`Expected collection of string, not %s`, item.Type().FriendlyName()),
+					})
+					continue
+				}
+
+				if item.AsString() == "*" {
+					traversals = append(traversals, hcl.Traversal{hcl.TraverseAttr{Name: "*", SrcRange: attr.Expr.Range()}})
+					continue
+				}
+				traversal, tDiags := hclsyntax.ParseTraversalAbs(
+					[]byte(item.AsString()),
+					"",
+					hcl.InitialPos,
+				)
+				diags = append(diags, tDiags...)
+				if tDiags.HasErrors() {
+					continue
+				}
+				traversal[0] = hcl.TraverseAttr{
+					Name:     traversal[0].(hcl.TraverseRoot).Name,
+					SrcRange: attr.Expr.Range(),
+				}
+				traversals = append(traversals, traversal)
+			}
+		} else if val.Type() == cty.String {
 			if val.AsString() == "all" {
 				r.Managed.IgnoreAllChanges = true
 			} else {
@@ -710,12 +745,20 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 				})
 			}
 			return diags
+		} else {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid ignore_changes ruleset",
+				Detail:   fmt.Sprintf("Unexpected type %s", val.Type().FriendlyName()),
+				Subject:  attr.Expr.Range().Ptr(),
+			})
+
 		}
 	}
 
 	var ignoreAllRange hcl.Range
 	for _, trav := range traversals {
-		if trav[0].(hcl.TraverseRoot).Name == "*" {
+		if root, ok := trav[0].(hcl.TraverseAttr); ok && root.Name == "*" {
 			r.Managed.IgnoreAllChanges = true
 			ignoreAllRange = trav.SourceRange()
 			diags = append(diags, &hcl.Diagnostic{
