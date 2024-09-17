@@ -100,7 +100,7 @@ func (c *UnlockCommand) Run(args []string) int {
 
 	_, isLocal := stateMgr.(*statemgr.Filesystem)
 
-	if backendConfig.Type == "s3" || backendConfig.Type == "oss" || backendConfig.Type == "http" {
+	if backendConfig != nil && (backendConfig.Type == "s3" || backendConfig.Type == "oss" || backendConfig.Type == "http") {
 		if optionalLocker, ok := stateMgr.(OptionalLocker); ok {
 			// Now we can safely call IsLockingEnabled() on optionalLocker
 			if !optionalLocker.IsLockingEnabled() {
