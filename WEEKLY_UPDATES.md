@@ -139,7 +139,7 @@ Hello there!  We've had a fairly quiet couple days after KubeCon last week, but 
 
 - Current Status:
   - Large numbers are no longer truncated in plans [#1382](https://github.com/opentofu/opentofu/pull/1382)
-  - Debugging crashes is now much easer with enhanced stack traces [#1425](https://github.com/opentofu/opentofu/pull/1425)
+  - Debugging crashes is now much easier with enhanced stack traces [#1425](https://github.com/opentofu/opentofu/pull/1425)
   - State Encryption
     - Integration testing with TACOS identified some issues that have been fixed with remote and cloud backends [#1431](https://github.com/opentofu/opentofu/pull/1431)
     - Dumping state during a crash is more resilient [#1421](https://github.com/opentofu/opentofu/pull/1421)
