@@ -104,7 +104,7 @@ func (c *UnlockCommand) Run(args []string) int {
 		if optionalLocker, ok := stateMgr.(OptionalLocker); ok {
 			// Now we can safely call IsLockingEnabled() on optionalLocker
 			if !optionalLocker.IsLockingEnabled() {
-				c.Ui.Error("Locking is not configured for this backend")
+				c.Ui.Error("Locking is disabled for this backend")
 				return 1
 			}
 		}
