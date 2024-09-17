@@ -138,6 +138,18 @@ func (t *TargetsTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targeta
 	return targetedNodes, nil
 }
 
+func (t *TargetsTransformer) getTargetableNodeResourceAddr(v dag.Vertex) addrs.Targetable {
+	switch r := v.(type) {
+	case GraphNodeResourceInstance:
+		return r.ResourceInstanceAddr()
+	case GraphNodeConfigResource:
+		return r.ResourceAddr()
+	default:
+		// Only resource and resource instance nodes can be targeted.
+		return nil
+	}
+}
+
 // Returns a set of targeted nodes, after excluding resources. An excluded resource
 // is either addressed directly, address indirectly via its container, or it's
 // dependent on an excluded node. The rest are targeted nodes.
@@ -150,16 +162,11 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 
 	// Step 1: Find all excluded targetable nodes, and their descendants
 	for _, v := range vertices {
-		var vertexAddr addrs.Targetable
-		switch r := v.(type) {
-		case GraphNodeResourceInstance:
-			vertexAddr = r.ResourceInstanceAddr()
-		case GraphNodeConfigResource:
-			vertexAddr = r.ResourceAddr()
-		default:
-			// Only resource and resource instance nodes can be targeted.
+		vertexAddr := t.getTargetableNodeResourceAddr(v)
+		if vertexAddr == nil {
 			continue
 		}
+
 		targetableNodes.Add(v)
 
 		nodeExcluded := t.nodeIsExcluded(vertexAddr, excludes)
@@ -170,7 +177,16 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 		if nodeExcluded || t.nodeDescendantsExcluded(vertexAddr, excludes) {
 			deps, _ := g.Descendents(v)
 			for _, d := range deps {
-				excludedNodes.Add(d)
+				// In general, we'd like to exclude any descendant targetable node of the current node.
+				// During apply, and before resource expansion, there might be a tofu.NodeApplyableResourceInstance
+				// created for a tofu.nodeExpandApplyableResource, with the same address. When excluding a specific
+				// resource instance, we do not want to exclude the address of the entire resource.
+				// Therefor, we should ignore descendant targetable nodes with the exact same address as the current
+				// node
+				depVertexAddr := t.getTargetableNodeResourceAddr(d)
+				if depVertexAddr != nil && (!depVertexAddr.TargetContains(vertexAddr) || !vertexAddr.TargetContains(depVertexAddr)) {
+					excludedNodes.Add(d)
+				}
 			}
 		}
 	}
