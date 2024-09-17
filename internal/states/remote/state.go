@@ -285,17 +285,17 @@ func (s *State) IsLockingEnabled() bool {
 		return false
 	}
 
-        switch c := s.Client.(type) {
-        // Client supports optional locking.
-        case OptionalClientLocker:
-                return c.IsLockingEnabled()
-        // Client supports locking by default.
-        case ClientLocker:
-                return true
-        // Client doesn't support any locking.
-        default:
-                return false
-        }
+	switch c := s.Client.(type) {
+	// Client supports optional locking.
+	case OptionalClientLocker:
+		return c.IsLockingEnabled()
+	// Client supports locking by default.
+	case ClientLocker:
+		return true
+	// Client doesn't support any locking.
+	default:
+		return false
+	}
 }
 
 // DisableLocks turns the Lock and Unlock methods into no-ops. This is intended
