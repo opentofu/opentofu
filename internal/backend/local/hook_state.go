@@ -162,7 +162,7 @@ type IntermediateStateConditionalPersister interface {
 	// emits an intermediate state event that is potentially eligible to be
 	// persisted.
 	//
-	// The implemention should return true to signal that the state snapshot
+	// The implementation should return true to signal that the state snapshot
 	// most recently provided to the object's WriteState should be persisted,
 	// or false if it should not be persisted. If this function returns true
 	// then the receiver will see a subsequent call to

@@ -815,7 +815,7 @@ func TestLookup(t *testing.T) {
 			cty.StringVal("beep").Mark("a"),
 			false,
 		},
-		{ // apply collection marks to unknown return vaue
+		{ // apply collection marks to unknown return value
 			[]cty.Value{
 				cty.MapVal(map[string]cty.Value{
 					"boop": cty.StringVal("beep"),
@@ -1729,7 +1729,7 @@ func TestTranspose(t *testing.T) {
 			cty.NilVal,
 			true,
 		},
-		{ // marks (deep or shallow) on any elements will propegate to the entire return value
+		{ // marks (deep or shallow) on any elements will propagate to the entire return value
 			cty.MapVal(map[string]cty.Value{
 				"key1": cty.ListVal([]cty.Value{
 					cty.StringVal("a").Mark("beep"), // mark on the inner list element

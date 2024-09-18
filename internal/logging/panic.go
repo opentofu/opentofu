@@ -37,7 +37,7 @@ var panicMutex sync.Mutex
 
 // PanicHandler is called to recover from an internal panic in OpenTofu, and
 // augments the standard stack trace with a more user friendly error message.
-// PanicHandler must be called as a defered function, and must be the first
+// PanicHandler must be called as a deferred function, and must be the first
 // defer called at the start of a new goroutine.
 func PanicHandler() {
 	// Have all managed goroutines checkin here, and prevent them from exiting
@@ -54,8 +54,8 @@ func PanicHandler() {
 // PanicHandlerWithTraceFn returns a function similar to PanicHandler which is
 // called to recover from an internal panic in OpenTofu, and augments the
 // standard stack trace with a more complete stack trace.
-// The calling stack trace is captured before returing the augmented panicHandler
-// The returned panicHandler must be called as a defered function, and must be the
+// The calling stack trace is captured before returning the augmented panicHandler
+// The returned panicHandler must be called as a deferred function, and must be the
 // first defer called at the start of a new goroutine.
 //
 // Callers of this function should create the panicHandler before any tight looping
@@ -63,8 +63,8 @@ func PanicHandler() {
 //
 // This only is a partial solution to the problem of panics within deeply nested
 // go-routines.  It only works between the go-routine being called and the calling
-// go-routine.  If you have multiple nested go-rotuines, it will only preserve the
-// calling stack and the called panic stack.  Idealy we would be able to use context
+// go-routine.  If you have multiple nested go-routines, it will only preserve the
+// calling stack and the called panic stack.  Ideally we would be able to use context
 // or a similar construct to build a more comprehensive panic handler, but this
 // is a significant step in the right direction that will dramatically improve crash
 // debugging

@@ -62,7 +62,7 @@ func TestConsole_tfvars(t *testing.T) {
 	testCopyDir(t, testFixturePath("apply-vars"), td)
 	defer testChdir(t, td)()
 
-	// Write a terraform.tvars
+	// Write a terraform.tfvars
 	varFilePath := filepath.Join(td, "terraform.tfvars")
 	if err := os.WriteFile(varFilePath, []byte(applyVarFile), 0644); err != nil {
 		t.Fatalf("err: %s", err)
@@ -277,7 +277,7 @@ func TestConsole_multiline_pipe(t *testing.T) {
 			var.counts.lololo`,
 			expected: "\n1\n2\n",
 		},
-		"backets_multi_line": {
+		"brackets_multi_line": {
 			input: `
 			var.counts.lalala
 			split(
@@ -286,7 +286,7 @@ func TestConsole_multiline_pipe(t *testing.T) {
 			)`,
 			expected: "\n1\ntolist([\n  \"lalala\",\n  \"lolol\",\n  \"lelelele\",\n])\n",
 		},
-		"baces_multi_line": {
+		"braces_multi_line": {
 			input: `
 			{ 
 			for key, value in var.counts : key => value 

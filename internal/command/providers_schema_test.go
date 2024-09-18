@@ -66,7 +66,7 @@ func TestProvidersSchema_output(t *testing.T) {
 				ProviderSource:   providerSource,
 			}
 
-			// `terrafrom init`
+			// `terraform init`
 			ic := &InitCommand{
 				Meta: m,
 			}

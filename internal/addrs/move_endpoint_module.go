@@ -42,7 +42,7 @@ var anyKey = anyKeyImpl('*')
 type MoveEndpointInModule struct {
 	// SourceRange is the location of the physical endpoint address
 	// in configuration, if this MoveEndpoint was decoded from a
-	// configuration expresson.
+	// configuration expression.
 	SourceRange tfdiags.SourceRange
 
 	// The internals are unexported here because, as with MoveEndpoint,
@@ -84,7 +84,7 @@ func (e *MoveEndpointInModule) ObjectKind() MoveEndpointKind {
 }
 
 // String produces a string representation of the object matching pattern
-// represented by the reciever.
+// represented by the receiver.
 //
 // Since there is no direct syntax for representing such an object matching
 // pattern, this function uses a splat-operator-like representation to stand
@@ -113,7 +113,7 @@ func (e *MoveEndpointInModule) String() string {
 	return buf.String()
 }
 
-// Equal returns true if the reciever represents the same matching pattern
+// Equal returns true if the receiver represents the same matching pattern
 // as the other given endpoint, ignoring the source location information.
 //
 // This is not an optimized function and is here primarily to help with
@@ -245,7 +245,7 @@ func (e *MoveEndpointInModule) synthModuleInstance() ModuleInstance {
 	return inst
 }
 
-// SelectsModule returns true if the reciever directly selects either
+// SelectsModule returns true if the receiver directly selects either
 // the given module or a resource nested directly inside that module.
 //
 // This is a good function to use to decide which modules in a state
@@ -331,11 +331,11 @@ func moduleInstanceCanMatch(modA, modB ModuleInstance) bool {
 	return true
 }
 
-// CanChainFrom returns true if the reciever describes an address that could
+// CanChainFrom returns true if the receiver describes an address that could
 // potentially select an object that the other given address could select.
 //
 // In other words, this decides whether the move chaining rule applies, if
-// the reciever is the "to" from one statement and the other given address
+// the receiver is the "to" from one statement and the other given address
 // is the "from" of another statement.
 func (e *MoveEndpointInModule) CanChainFrom(other *MoveEndpointInModule) bool {
 	eMod := e.synthModuleInstance()
@@ -490,7 +490,7 @@ func (m ModuleInstance) MoveDestination(fromMatch, toMatch *MoveEndpointInModule
 		return nil, false
 	}
 
-	// The rest of our work will be against the part of the reciever that's
+	// The rest of our work will be against the part of the receiver that's
 	// relative to the declaration module. mRel is a weird abuse of
 	// ModuleInstance that represents a relative module address, similar to
 	// what we do for MoveEndpointInModule.relSubject.
@@ -584,7 +584,7 @@ func (r AbsResource) MoveDestination(fromMatch, toMatch *MoveEndpointInModule) (
 			return AbsResource{}, false
 		}
 
-		// fromMatch can only possibly match the reciever if the resource
+		// fromMatch can only possibly match the receiver if the resource
 		// portions are identical, regardless of the module paths.
 		if fromRelSubject.Resource != r.Resource {
 			return AbsResource{}, false
@@ -666,7 +666,7 @@ func (r AbsResourceInstance) MoveDestination(fromMatch, toMatch *MoveEndpointInM
 				return AbsResourceInstance{}, false
 			}
 
-			// fromMatch can only possibly match the reciever if the resource
+			// fromMatch can only possibly match the receiver if the resource
 			// portions are identical, regardless of the module paths.
 			if fromRelSubject.Resource != r.Resource {
 				return AbsResourceInstance{}, false

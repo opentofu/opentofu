@@ -85,7 +85,7 @@ func (b *Local) opPlan(
 		op.ReportResult(runningOp, diags)
 		return
 	}
-	// the state was locked during succesfull context creation; unlock the state
+	// the state was locked during successful context creation; unlock the state
 	// when the operation completes
 	defer func() {
 		diags := op.StateLocker.Unlock()

@@ -45,7 +45,7 @@ var (
 	randLock   sync.Mutex
 	randShared *rand.Rand
 
-	// enable ssh keeplive probes by default
+	// enable ssh keepalive probes by default
 	keepAliveInterval = 2 * time.Second
 
 	// max time to wait for for a KeepAlive response before considering the
@@ -604,7 +604,7 @@ func (c *Communicator) scpSession(scpCommand string, f func(io.Writer, *bufio.Re
 
 	if err != nil {
 		if exitErr, ok := err.(*ssh.ExitError); ok {
-			// Otherwise, we have an ExitErorr, meaning we can just read
+			// Otherwise, we have an ExitError, meaning we can just read
 			// the exit status
 			log.Printf("[ERROR] %s", exitErr)
 

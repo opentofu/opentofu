@@ -20,7 +20,7 @@ import (
 // one of those other functions instead. The addrs package can potentially
 // perform other processing in addition to just the go-getter detection.
 //
-// Note that this function expects to recieve only a package address, not
+// Note that this function expects to receive only a package address, not
 // a full source address that might also include a subdirectory portion.
 // The caller must trim off any subdirectory portion using
 // getmodules.SplitPackageSubdir before calling this function, passing in

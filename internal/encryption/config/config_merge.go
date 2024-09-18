@@ -22,8 +22,8 @@ func MergeConfigs(cfg *EncryptionConfig, override *EncryptionConfig) *Encryption
 		KeyProviderConfigs: mergeKeyProviderConfigs(cfg.KeyProviderConfigs, override.KeyProviderConfigs),
 		MethodConfigs:      mergeMethodConfigs(cfg.MethodConfigs, override.MethodConfigs),
 
-		State:  mergeEnforcableTargetConfigs(cfg.State, override.State),
-		Plan:   mergeEnforcableTargetConfigs(cfg.Plan, override.Plan),
+		State:  mergeEnforceableTargetConfigs(cfg.State, override.State),
+		Plan:   mergeEnforceableTargetConfigs(cfg.Plan, override.Plan),
 		Remote: mergeRemoteConfigs(cfg.Remote, override.Remote),
 	}
 }
@@ -105,7 +105,7 @@ func mergeTargetConfigs(cfg *TargetConfig, override *TargetConfig) *TargetConfig
 	return merged
 }
 
-func mergeEnforcableTargetConfigs(cfg *EnforcableTargetConfig, override *EnforcableTargetConfig) *EnforcableTargetConfig {
+func mergeEnforceableTargetConfigs(cfg *EnforceableTargetConfig, override *EnforceableTargetConfig) *EnforceableTargetConfig {
 	if cfg == nil {
 		return override
 	}
@@ -114,7 +114,7 @@ func mergeEnforcableTargetConfigs(cfg *EnforcableTargetConfig, override *Enforca
 	}
 
 	mergeTarget := mergeTargetConfigs(cfg.AsTargetConfig(), override.AsTargetConfig())
-	return &EnforcableTargetConfig{
+	return &EnforceableTargetConfig{
 		Enforced: cfg.Enforced || override.Enforced,
 		Method:   mergeTarget.Method,
 		Fallback: mergeTarget.Fallback,

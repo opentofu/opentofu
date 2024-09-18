@@ -214,7 +214,7 @@ func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 			fullNamespace := funcExtra.CalledFunctionNamespace()
 
 			if len(fullNamespace) == 0 {
-				// Not a namespaced function, no enhancements nessesary
+				// Not a namespaced function, no enhancements necessary
 				continue
 			}
 

@@ -103,7 +103,7 @@ var parseCIDRTests = []struct {
 	{"0.0.0.-3/32", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.-3/32"}},
 	{"0.0.0.0/-0", nil, nil, &ParseError{Type: "CIDR address", Text: "0.0.0.0/-0"}},
 	//
-	// NOTE: Theis correct failure was added for go-1.17, but is a
+	// NOTE: This correct failure was added for go-1.17, but is a
 	// backwards-incompatible change for OpenTofu users, who might have
 	// already written modules using leading zeroes.
 	//

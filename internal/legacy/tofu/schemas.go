@@ -50,7 +50,7 @@ func (ss *Schemas) ProviderConfig(provider addrs.Provider) *configschema.Block {
 // resource type belonging to a given provider type, or nil of no such
 // schema is available.
 //
-// In many cases the provider type is inferrable from the resource type name,
+// In many cases the provider type is inferable from the resource type name,
 // but this is not always true because users can override the provider for
 // a resource using the "provider" meta-argument. Therefore it's important to
 // always pass the correct provider name, even though it many cases it feels

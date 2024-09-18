@@ -60,13 +60,13 @@ func NewDynamicValue(val cty.Value, ty cty.Type) (DynamicValue, error) {
 	return DynamicValue(buf), nil
 }
 
-// Decode retrieves the effective value from the receiever by interpreting the
+// Decode retrieves the effective value from the receiver by interpreting the
 // serialized form against the given type constraint. For correct results,
 // the type constraint must match (or be consistent with) the one that was
 // used to create the receiver.
 //
 // A nil DynamicValue decodes to cty.NilVal, which is not a valid value and
-// instead represents the absense of a value.
+// instead represents the absence of a value.
 func (v DynamicValue) Decode(ty cty.Type) (cty.Value, error) {
 	if v == nil {
 		return cty.NilVal, nil

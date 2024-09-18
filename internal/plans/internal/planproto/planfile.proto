@@ -191,7 +191,7 @@ message ResourceInstanceChange {
     string prev_run_addr = 14;
 
     // NOTE: Earlier versions of this format had fields 1 through 6 describing
-    // various indivdual parts of "addr". We're now using our standard compact
+    // various individual parts of "addr". We're now using our standard compact
     // string representation to capture the same information. We don't support
     // preserving plan files from one OpenTofu version to the next, so we
     // no longer declare nor accept those fields.

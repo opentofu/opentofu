@@ -201,7 +201,7 @@ func TestParseModuleSource(t *testing.T) {
 		},
 
 		// NOTE: We intentionally don't test the bitbucket.org shorthands
-		// here, because that detector makes direct HTTP tequests to the
+		// here, because that detector makes direct HTTP requests to the
 		// Bitbucket API and thus isn't appropriate for unit testing.
 
 		"Google Cloud Storage bucket implied, path prefix": {
@@ -368,7 +368,7 @@ func TestModuleSourceRemoteFromRegistry(t *testing.T) {
 		}
 		gotAddr := remote.FromRegistry(registry)
 		if remote.Subdir != "foo" {
-			t.Errorf("FromRegistry modified the reciever; should be pure function")
+			t.Errorf("FromRegistry modified the receiver; should be pure function")
 		}
 		if registry.Subdir != "bar" {
 			t.Errorf("FromRegistry modified the given address; should be pure function")
@@ -387,7 +387,7 @@ func TestModuleSourceRemoteFromRegistry(t *testing.T) {
 		}
 		gotAddr := remote.FromRegistry(registry)
 		if remote.Subdir != "foo" {
-			t.Errorf("FromRegistry modified the reciever; should be pure function")
+			t.Errorf("FromRegistry modified the receiver; should be pure function")
 		}
 		if registry.Subdir != "" {
 			t.Errorf("FromRegistry modified the given address; should be pure function")
@@ -406,7 +406,7 @@ func TestModuleSourceRemoteFromRegistry(t *testing.T) {
 		}
 		gotAddr := remote.FromRegistry(registry)
 		if remote.Subdir != "" {
-			t.Errorf("FromRegistry modified the reciever; should be pure function")
+			t.Errorf("FromRegistry modified the receiver; should be pure function")
 		}
 		if registry.Subdir != "bar" {
 			t.Errorf("FromRegistry modified the given address; should be pure function")

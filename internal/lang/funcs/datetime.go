@@ -93,7 +93,7 @@ var TimeCmpFunc = function.New(&function.Spec{
 		case tsA.Before(tsB):
 			return cty.NumberIntVal(-1), nil
 		default:
-			// By elimintation, tsA must be after tsB.
+			// By elimination, tsA must be after tsB.
 			return cty.NumberIntVal(1), nil
 		}
 	},

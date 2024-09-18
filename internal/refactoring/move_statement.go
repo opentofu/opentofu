@@ -137,7 +137,7 @@ func impliedMoveStatements(cfg *configs.Config, prevRunState *states.State, expl
 			}
 
 			if fromKey != toKey {
-				// We mustn't generate an impied statement if the user already
+				// We mustn't generate an implied statement if the user already
 				// wrote an explicit statement referring to this resource,
 				// because they may wish to select an instance key other than
 				// zero as the one to retain.

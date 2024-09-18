@@ -471,7 +471,7 @@ func TestInit_backendConfigFilePowershellConfusion(t *testing.T) {
 	//
 	// Adding the "=" here forces this codepath to be checked, and it should
 	// result in an early exit with a diagnostic that the provided
-	// configuration file is not a diretory.
+	// configuration file is not a directory.
 	args := []string{"-backend-config=", "./input.config"}
 	if code := c.Run(args); code != 1 {
 		t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
@@ -932,7 +932,7 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 	// just silently ignoring them, so that users will be aware that
 	// Cloud mode has more of an expected "happy path" than the
 	// less-vertically-integrated backends do, and to avoid these
-	// unapplicable options becoming compatibility constraints for
+	// inapplicable options becoming compatibility constraints for
 	// future evolution of Cloud mode.
 
 	// We use the same starting fixture for all of these tests, but some
@@ -2314,7 +2314,7 @@ provider "registry.opentofu.org/hashicorp/test" {
 			want:      badLockFile,
 		},
 		{
-			desc:    "reject to change required provider dependences",
+			desc:    "reject to change required provider dependencies",
 			fixture: "init-provider-lock-file-readonly-add",
 			providers: map[string][]string{
 				"test": {"1.2.3"},
@@ -2993,6 +2993,33 @@ func TestInit_moduleVersion(t *testing.T) {
 			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 		}
 	})
+}
+
+func TestInit_invalidExtraLabel(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("init-syntax-invalid-extra-label"), td)
+	defer testChdir(t, td)()
+
+	ui := cli.NewMockUi()
+	view, _ := testView(t)
+	m := Meta{
+		Ui:   ui,
+		View: view,
+	}
+
+	c := &InitCommand{
+		Meta: m,
+	}
+
+	if code := c.Run(nil); code == 0 {
+		t.Fatalf("succeeded, but was expecting error\nstdout:\n%s\nstderr:\n%s", ui.OutputWriter, ui.ErrorWriter)
+	}
+
+	errStr := ui.ErrorWriter.String()
+	splitted := strings.Split(errStr, "Error: Unsupported block type")
+	if len(splitted) != 2 {
+		t.Fatalf("want exactly one unsupported block type errors but got: %d\nstderr:\n%s\n\nstdout:\n%s", len(splitted)-1, errStr, ui.OutputWriter.String())
+	}
 }
 
 // newMockProviderSource is a helper to succinctly construct a mock provider

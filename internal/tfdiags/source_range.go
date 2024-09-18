@@ -16,8 +16,20 @@ type SourceRange struct {
 	Start, End SourcePos
 }
 
+func (r *SourceRange) Equal(other *SourceRange) bool {
+	if r == nil || other == nil {
+		return r == other
+	}
+
+	return r.Filename == other.Filename && r.Start.Equal(other.Start) && r.End.Equal(other.End)
+}
+
 type SourcePos struct {
 	Line, Column, Byte int
+}
+
+func (p SourcePos) Equal(other SourcePos) bool {
+	return p.Line == other.Line && p.Column == other.Column && p.Byte == other.Byte
 }
 
 // StartString returns a string representation of the start of the range,

@@ -130,7 +130,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	// and whether the user enabled gzip:
 	//  - single entry mode with plain JSON: a single JSON is stored at
 	//	  "tfstate/my_project"
-	//  - single entry mode gzip: the JSON payload is first gziped and stored at
+	//  - single entry mode gzip: the JSON payload is first gzipped and stored at
 	//    "tfstate/my_project"
 	//  - chunked mode with plain JSON: the JSON payload is split in pieces and
 	//    stored like so:
@@ -147,10 +147,10 @@ func (c *RemoteClient) Put(data []byte) error {
 	//       - "tfstate/my_project/tfstate.abcdef1234/0" -> The first chunk
 	//       - "tfstate/my_project/tfstate.abcdef1234/1" -> The next one
 	//       - ...
-	//  - chunked mode with gzip: the same system but we gziped the JSON payload
+	//  - chunked mode with gzip: the same system but we gzipped the JSON payload
 	//    before splitting it in chunks
 	//
-	// When overwritting the current state, we need to clean the old chunks if
+	// When overwriting the current state, we need to clean the old chunks if
 	// we were in chunked mode (no matter whether we need to use chunks for the
 	// new one). To do so based on the 4 possibilities above we look at the
 	// value at "tfstate/my_project" and if it is:
@@ -674,7 +674,7 @@ func (c *RemoteClient) chunkedMode() (bool, string, []string, *consulapi.KVPair,
 		var d map[string]interface{}
 		err = json.Unmarshal(pair.Value, &d)
 		// If there is an error when unmarshaling the payload, the state has
-		// probably been gziped in single entry mode.
+		// probably been gzipped in single entry mode.
 		if err == nil {
 			// If we find the "current-hash" key we were in chunked mode
 			hash, ok := d["current-hash"]

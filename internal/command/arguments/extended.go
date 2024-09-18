@@ -34,7 +34,7 @@ type State struct {
 	LockTimeout time.Duration
 
 	// StatePath specifies a non-default location for the state file. The
-	// default value is blank, which is interpeted as "terraform.tfstate".
+	// default value is blank, which is interpreted as "terraform.tfstate".
 	StatePath string
 
 	// StateOutPath specifies a different path to write the final state file.
@@ -183,7 +183,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 }
 
 // Vars describes arguments which specify non-default variable values. This
-// interfce is unfortunately obscure, because the order of the CLI arguments
+// interface is unfortunately obscure, because the order of the CLI arguments
 // determines the final value of the gathered variables. In future it might be
 // desirable for the arguments package to handle the gathering of variables
 // directly, returning a map of variable values.
@@ -233,7 +233,7 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 		f.Var((*flagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
 	}
 
-	// Gather all -var and -var-file arguments into one heterogenous structure
+	// Gather all -var and -var-file arguments into one heterogeneous structure
 	// to preserve the overall order.
 	if vars != nil {
 		varsFlags := newFlagNameValueSlice("-var")

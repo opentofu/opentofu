@@ -25,7 +25,7 @@ type Reference struct {
 }
 
 // DisplayString returns a string that approximates the subject and remaining
-// traversal of the reciever in a way that resembles the OpenTofu language
+// traversal of the receiver in a way that resembles the OpenTofu language
 // syntax that could've produced it.
 //
 // It's not guaranteed to actually be a valid OpenTofu language expression,
@@ -61,7 +61,7 @@ func (r *Reference) DisplayString() string {
 	return ret.String()
 }
 
-// ParseRef attempts to extract a referencable address from the prefix of the
+// ParseRef attempts to extract a referenceable address from the prefix of the
 // given traversal, which must be an absolute traversal or this function
 // will panic.
 //

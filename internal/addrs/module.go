@@ -142,9 +142,9 @@ func (m Module) Parent() Module {
 // on the root module address.
 //
 // In practice, this just turns the last element of the receiver into a
-// ModuleCall and then returns a slice of the receiever that excludes that
+// ModuleCall and then returns a slice of the receiver that excludes that
 // last part. This is just a convenience for situations where a call address
-// is required, such as when dealing with *Reference and Referencable values.
+// is required, such as when dealing with *Reference and Referenceable values.
 func (m Module) Call() (Module, ModuleCall) {
 	if len(m) == 0 {
 		panic("cannot produce ModuleCall for root module")

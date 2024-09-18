@@ -63,7 +63,7 @@ func (r Resource) UniqueKey() UniqueKey {
 func (r Resource) uniqueKeySigil() {}
 
 // Instance produces the address for a specific instance of the receiver
-// that is idenfied by the given key.
+// that is identified by the given key.
 func (r Resource) Instance(key InstanceKey) ResourceInstance {
 	return ResourceInstance{
 		Resource: r,
@@ -171,7 +171,7 @@ func (m ModuleInstance) Resource(mode ResourceMode, typeName string, name string
 }
 
 // Instance produces the address for a specific instance of the receiver
-// that is idenfied by the given key.
+// that is identified by the given key.
 func (r AbsResource) Instance(key InstanceKey) AbsResourceInstance {
 	return AbsResourceInstance{
 		Module:   r.Module,
@@ -279,7 +279,7 @@ func (m ModuleInstance) ResourceInstance(mode ResourceMode, typeName string, nam
 }
 
 // ContainingResource returns the address of the resource that contains the
-// receving resource instance. In other words, it discards the key portion
+// receiving resource instance. In other words, it discards the key portion
 // of the address to produce an AbsResource value.
 func (r AbsResourceInstance) ContainingResource() AbsResource {
 	return AbsResource{

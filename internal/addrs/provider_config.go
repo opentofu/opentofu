@@ -35,7 +35,7 @@ import (
 //
 // Recipients of a ProviderConfig value can assume it can contain only a
 // LocalProviderConfig value, an AbsProviderConfigValue, or nil to represent
-// the absense of a provider config in situations where that is meaningful.
+// the absence of a provider config in situations where that is meaningful.
 type ProviderConfig interface {
 	providerConfig()
 }
@@ -325,7 +325,7 @@ func ParseLegacyAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, t
 }
 
 // ProviderConfigDefault returns the address of the default provider config of
-// the given type inside the recieving module instance.
+// the given type inside the receiving module instance.
 func (m ModuleInstance) ProviderConfigDefault(provider Provider) AbsProviderConfig {
 	return AbsProviderConfig{
 		Module:   m.Module(),
@@ -334,7 +334,7 @@ func (m ModuleInstance) ProviderConfigDefault(provider Provider) AbsProviderConf
 }
 
 // ProviderConfigAliased returns the address of an aliased provider config of
-// the given type and alias inside the recieving module instance.
+// the given type and alias inside the receiving module instance.
 func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) AbsProviderConfig {
 	return AbsProviderConfig{
 		Module:   m.Module(),
@@ -351,7 +351,7 @@ func (pc AbsProviderConfig) providerConfig() {}
 // such inheritance is possible, and thus whether the returned address is valid.
 //
 // Inheritance is possible only for default (un-aliased) providers in modules
-// other than the root module. Even if a valid address is returned, inheritence
+// other than the root module. Even if a valid address is returned, inheritance
 // may not be performed for other reasons, such as if the calling module
 // provided explicit provider configurations within the call for this module.
 // The ProviderTransformer graph transform in the main tofu module has the

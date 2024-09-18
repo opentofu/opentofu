@@ -5,7 +5,7 @@ provider foo {}
 // terraform-providers/baz
 provider baz {}
 
-// This will try to install hashicrop/frob, fail, find no suggestions, and
+// This will try to install hashicorp/frob, fail, find no suggestions, and
 // result in an error
 provider frob {}
 

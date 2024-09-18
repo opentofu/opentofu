@@ -75,7 +75,7 @@ type remoteStateV1 struct {
 
 type moduleStateV1 struct {
 	// Path is the import path from the root module. Modules imports are
-	// always disjoint, so the path represents amodule tree
+	// always disjoint, so the path represents a module tree
 	Path []string `json:"path"`
 
 	// Outputs declared by the module and maintained for each module

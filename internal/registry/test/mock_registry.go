@@ -63,7 +63,7 @@ var (
 	})
 )
 
-// All the locationes from the mockRegistry start with a file:// scheme. If
+// All the locations from the mockRegistry start with a file:// scheme. If
 // the location string here doesn't have a scheme, the mockRegistry will
 // find the absolute path and return a complete URL.
 var testMods = map[string][]testMod{
@@ -213,7 +213,7 @@ func mockRegHandler(config map[uint8]struct{}) http.Handler {
 		}
 
 		// only adding the single requested module for now
-		// this is the minimal that any regisry is epected to support
+		// this is the minimal that any registry is expected to support
 		mpvs := &response.ModuleProviderVersions{
 			Source: name,
 		}

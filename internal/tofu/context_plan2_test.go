@@ -963,7 +963,7 @@ resource "test_object" "a" {
 		// In the destroy-with-refresh codepath we end up calling
 		// UpgradeResourceState twice, because we do so once during refreshing
 		// (as part making a normal plan) and then again during the plan-destroy
-		// walk. The second call recieves the result of the earlier refresh,
+		// walk. The second call receives the result of the earlier refresh,
 		// so we need to tolerate both "before" and "current" as possible
 		// inputs here.
 		if !bytes.Contains(req.RawStateJSON, []byte("before")) {
@@ -1744,7 +1744,7 @@ resource "test_object" "b" {
 
 	// external changes trigger a "drift report", but because test_object.b was
 	// not targeted, the state was not fixed to match the schema and cannot be
-	// deocded for the report.
+	// decoded for the report.
 	p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 		obj := req.PriorState.AsValueMap()
 		// test_number changed externally
@@ -4152,7 +4152,7 @@ output "out" {
 	assertNoErrors(t, diags)
 }
 
-// Make sure the data sources in the prior state are serializeable even if
+// Make sure the data sources in the prior state are serializable even if
 // there were an error in the plan.
 func TestContext2Plan_dataSourceReadPlanError(t *testing.T) {
 	m, snap := testModuleWithSnapshot(t, "data-source-read-with-plan-error")
@@ -4955,7 +4955,7 @@ import {
 			}
 
 			if len(plan.Changes.Resources) != len(configuration.ImportResults) {
-				t.Fatalf("excpected %d resource chnages in the plan, got %d instead", len(configuration.ImportResults), len(plan.Changes.Resources))
+				t.Fatalf("expected %d resource changes in the plan, got %d instead", len(configuration.ImportResults), len(plan.Changes.Resources))
 			}
 
 			for _, importResult := range configuration.ImportResults {
@@ -7135,7 +7135,7 @@ func TestContext2Plan_removedResourceInChildModuleFromChildModule(t *testing.T) 
 
 	state := states.BuildState(func(s *states.SyncState) {
 		// The prior state tracks module.mod.test_object.a.a, which we should be
-		// removed from the state by the "removed" block in the child mofule config.
+		// removed from the state by the "removed" block in the child module config.
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{}`),
 			Status:    states.ObjectReady,
@@ -7630,7 +7630,7 @@ func TestContext2Plan_importResourceWithSensitiveDataSource(t *testing.T) {
 	})
 }
 
-func TestContext2Plan_insuffient_block(t *testing.T) {
+func TestContext2Plan_insufficient_block(t *testing.T) {
 	type testcase struct {
 		filename string
 		start    hcl.Pos

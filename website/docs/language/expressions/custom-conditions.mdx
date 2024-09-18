@@ -68,7 +68,7 @@ OpenTofu checks a precondition _before_ evaluating the object it is associated w
 
 ### Usage
 
-Each precondition and postcondition requires a [`condition` argument](#condition-expressions). This is an expression that must return `true` if the conditition is fufilled or `false` if it is invalid. The expression can refer to any other objects in the same module, as long as the references do not create cyclic dependencies. Resource postconditions can also use the [`self` object](#self-object) to refer to attributes of each instance of the resource where they are configured.
+Each precondition and postcondition requires a [`condition` argument](#condition-expressions). This is an expression that must return `true` if the conditition is fulfilled or `false` if it is invalid. The expression can refer to any other objects in the same module, as long as the references do not create cyclic dependencies. Resource postconditions can also use the [`self` object](#self-object) to refer to attributes of each instance of the resource where they are configured.
 
 If the condition evaluates to `false`, OpenTofu will produce an [error message](#error-messages) that includes the result of the `error_message` expression. If you declare multiple preconditions or postconditions, OpenTofu returns error messages for all failed conditions.
 

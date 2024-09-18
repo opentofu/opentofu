@@ -329,7 +329,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 	return stop, wait
 }
 
-// checkConfigDependencies checks whether the recieving context is able to
+// checkConfigDependencies checks whether the receiving context is able to
 // support the given configuration, returning error diagnostics if not.
 //
 // Currently this function checks whether the current OpenTofu CLI version
@@ -426,7 +426,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// so they are at least always consistent alone. This ordering is
 	// arbitrary and not a compatibility constraint.
 	sort.Slice(diags, func(i, j int) bool {
-		// Because these are sourcelss diagnostics and we know they are all
+		// Because these are sourceless diagnostics and we know they are all
 		// errors, we know they'll only differ in their description fields.
 		descI := diags[i].Description()
 		descJ := diags[j].Description()

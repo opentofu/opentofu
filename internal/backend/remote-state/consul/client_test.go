@@ -207,9 +207,9 @@ func TestConsul_largeState(t *testing.T) {
 	c.Path = path
 
 	// We need a long random string so it results in multiple chunks even after
-	// being gziped
+	// being gzipped
 
-	// We use a fixed seed so the test can be reproductible
+	// We use a fixed seed so the test can be reproducible
 	randomizer := rand.New(rand.NewSource(1234))
 	RandStringRunes := func(n int) string {
 		var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")

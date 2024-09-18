@@ -69,7 +69,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	}
 
 	// Next up we load implicit files from the specified directory (first root then tests dir
-	// as tests dir files have higher precendence). These files are automatically loaded if present.
+	// as tests dir files have higher precedence). These files are automatically loaded if present.
 	// There's the original terraform.tfvars (DefaultVarsFilename) along with the later-added
 	// search for all files ending in .auto.tfvars.
 	diags = diags.Append(m.addVarsFromDir(".", ret))

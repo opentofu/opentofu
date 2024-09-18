@@ -53,7 +53,7 @@ type connectionInfo struct {
 }
 
 // decodeConnInfo decodes the given cty.Value using the same behavior as the
-// lgeacy mapstructure decoder in order to preserve as much of the existing
+// legacy mapstructure decoder in order to preserve as much of the existing
 // logic as possible for compatibility.
 func decodeConnInfo(v cty.Value) (*connectionInfo, error) {
 	connInfo := &connectionInfo{}

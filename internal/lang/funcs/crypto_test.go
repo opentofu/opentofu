@@ -101,7 +101,7 @@ func TestBase64Sha256(t *testing.T) {
 			cty.StringVal("n4bQgYhMfWWaL+qgxVrQFaO/TxsrC4Is0V1sFbDwCgg="),
 			false,
 		},
-		// This would differ because we're base64-encoding hex represantiation, not raw bytes.
+		// This would differ because we're base64-encoding hex representation, not raw bytes.
 		// base64encode(sha256("test")) =
 		// "OWY4NmQwODE4ODRjN2Q2NTlhMmZlYWEwYzU1YWQwMTVhM2JmNGYxYjJiMGI4MjJjZDE1ZDZjMTViMGYwMGEwOA=="
 	}
@@ -182,7 +182,7 @@ func TestBase64Sha512(t *testing.T) {
 			cty.StringVal("7iaw3Ur350mqGo7jwQrpkj9hiYB3Lkc/iBml1JQODbJ6wYX4oOHV+E+IvIh/1nsUNzLDBMxfqa2Ob1f1ACio/w=="),
 			false,
 		},
-		// This would differ because we're base64-encoding hex represantiation, not raw bytes
+		// This would differ because we're base64-encoding hex representation, not raw bytes
 		// base64encode(sha512("test")) =
 		// "OZWUyNmIwZGQ0YWY3ZTc0OWFhMWE4ZWUzYzEwYWU5OTIzZjYxODk4MDc3MmU0NzNmODgxOWE1ZDQ5NDBlMGRiMjdhYzE4NWY4YTBlMWQ1Zjg0Zjg4YmM4ODdmZDY3YjE0MzczMmMzMDRjYzVmYTlhZDhlNmY1N2Y1MDAyOGE4ZmY="
 	}

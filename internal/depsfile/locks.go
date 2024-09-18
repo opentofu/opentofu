@@ -127,7 +127,7 @@ func (l *Locks) RemoveProvider(addr addrs.Provider) {
 //
 // This is an in-memory-only annotation which lives only inside a particular
 // Locks object, and is never persisted as part of a saved lock file on disk.
-// It's valid to still use other methods of the reciever to access
+// It's valid to still use other methods of the receiver to access
 // already-stored lock information and to update lock information for an
 // overridden provider, but some callers may need to use ProviderIsOverridden
 // to selectively disregard stored lock information for overridden providers,
@@ -151,7 +151,7 @@ func (l *Locks) ProviderIsOverridden(addr addrs.Provider) bool {
 //
 // This allows propagating override information between different lock objects,
 // as if calling SetProviderOverridden for each address already overridden
-// in the other given locks. If the reciever already has overridden providers,
+// in the other given locks. If the receiver already has overridden providers,
 // SetSameOverriddenProviders will preserve them.
 func (l *Locks) SetSameOverriddenProviders(other *Locks) {
 	if other == nil {
@@ -264,7 +264,7 @@ func (l *Locks) Equal(other *Locks) bool {
 
 		// Although "hashes" is declared as a slice, it's logically an
 		// unordered set. However, we normalize the slice of hashes when
-		// recieving it in NewProviderLock, so we can just do a simple
+		// receiving it in NewProviderLock, so we can just do a simple
 		// item-by-item equality test here.
 		if len(thisLock.hashes) != len(otherLock.hashes) {
 			return false
@@ -433,12 +433,12 @@ func (l *ProviderLock) ContainsAll(target *ProviderLock) bool {
 }
 
 // PreferredHashes returns a filtered version of the AllHashes return value
-// which includes only the strongest of the availabile hash schemes, in
+// which includes only the strongest of the available hash schemes, in
 // case legacy hash schemes are deprecated over time but still supported for
 // upgrade purposes.
 //
 // At least one of the given hashes must match for a package to be considered
-// valud.
+// valid.
 func (l *ProviderLock) PreferredHashes() []getproviders.Hash {
 	return getproviders.PreferredHashes(l.hashes)
 }

@@ -465,13 +465,15 @@ func (b *Cloud) setConfigurationFields(obj cty.Value) tfdiags.Diagnostics {
 }
 
 func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) tfdiags.Diagnostic {
-	// See: https://github.com/opentofu/opentofu/issues/814
-	if v := os.Getenv("TF_WORKSPACE"); v != "" && w.Name == "" {
-		if len(w.Tags) > 0 && !workspaceInTags(w.Tags, v) {
-			return invalidWorkspaceConfigMisconfigurationEnvVar
+	if v := os.Getenv("TF_WORKSPACE"); v != "" {
+		if w.Name != "" && w.Name != v {
+			return invalidWorkspaceConfigInconsistentNameAndEnvVar()
 		}
-		w.Name = v
-		w.Tags = nil
+
+		// If we don't have workspaces name or tags set in config, we can get the name from the TF_WORKSPACE env var
+		if w.Strategy() == WorkspaceNoneStrategy {
+			w.Name = v
+		}
 	}
 
 	if v := os.Getenv("TF_CLOUD_PROJECT"); v != "" && w.Project == "" {
@@ -479,15 +481,6 @@ func reconcileWorkspaceMappingEnvVars(w *WorkspaceMapping) tfdiags.Diagnostic {
 	}
 
 	return nil
-}
-
-func workspaceInTags(tags []string, workspace string) bool {
-	for _, tag := range tags {
-		if tag == workspace {
-			return true
-		}
-	}
-	return false
 }
 
 // discover the TFC/E API service URL and version constraints.
@@ -839,7 +832,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	b.opLock.Lock()
 
 	// Build our running operation
-	// the runninCtx is only used to block until the operation returns.
+	// the runningCtx is only used to block until the operation returns.
 	runningCtx, done := context.WithCancel(context.Background())
 	runningOp := &backend.RunningOperation{
 		Context:   runningCtx,
@@ -929,7 +922,7 @@ func (b *Cloud) cancel(cancelCtx context.Context, op *backend.Operation, r *tfe.
 			}
 		} else {
 			if b.CLI != nil {
-				// Insert a blank line to separate the ouputs.
+				// Insert a blank line to separate the outputs.
 				b.CLI.Output("")
 			}
 		}

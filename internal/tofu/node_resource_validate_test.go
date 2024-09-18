@@ -418,7 +418,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 		Config: configs.SynthBody("", map[string]cty.Value{}),
 		DependsOn: []hcl.Traversal{
 			// Depending on path.module is pointless, since it is immediately
-			// available, but we allow all of the referencable addrs here
+			// available, but we allow all of the referenceable addrs here
 			// for consistency: referencing them is harmless, and avoids the
 			// need for us to document a different subset of addresses that
 			// are valid in depends_on.

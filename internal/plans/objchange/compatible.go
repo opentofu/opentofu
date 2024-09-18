@@ -59,7 +59,7 @@ func assertObjectCompatible(schema *configschema.Block, planned, actual cty.Valu
 		path := append(path, cty.GetAttrStep{Name: name})
 
 		// Unmark values here before checking value assertions,
-		// but save the marks so we can see if we should supress
+		// but save the marks so we can see if we should suppress
 		// exposing a value through errors
 		unmarkedActualV, marksA := actualV.UnmarkDeep()
 		unmarkedPlannedV, marksP := plannedV.UnmarkDeep()
@@ -148,7 +148,7 @@ func assertObjectCompatible(schema *configschema.Block, planned, actual cty.Valu
 				}
 				plannedL := plannedV.LengthInt()
 				actualL := actualV.LengthInt()
-				if plannedL != actualL && plannedV.IsKnown() { // new blocks may appear if unknown blocks were persent in the plan
+				if plannedL != actualL && plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
 					errs = append(errs, path.NewErrorf("block count changed from %d to %d", plannedL, actualL))
 					continue
 				}
@@ -332,7 +332,7 @@ func indexStrForErrors(v cty.Value) string {
 // with sets that may contain unknown values as long as the unknown case is
 // addressed in some reasonable way in the callback function.
 //
-// The callback always recieves values from set a as its first argument and
+// The callback always receives values from set a as its first argument and
 // values from set b in its second argument, so it is safe to use with
 // non-commutative functions.
 //
