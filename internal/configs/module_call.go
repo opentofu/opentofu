@@ -162,7 +162,7 @@ func (mc *ModuleCall) decodeStaticProviderAliases(eval *StaticEvaluator) hcl.Dia
 	var diags hcl.Diagnostics
 
 	for _, p := range mc.Providers {
-		diags = diags.Extend(p.InParentMapping.decodeStaticAlias(eval, mc.getInstanceExpression()))
+		diags = diags.Extend(p.InParentMapping.decodeStaticAlias(eval, mc.Count, mc.ForEach))
 	}
 
 	return diags
@@ -297,17 +297,6 @@ func (mc *ModuleCall) EntersNewPackage() bool {
 	return moduleSourceAddrEntersNewPackage(mc.SourceAddr)
 }
 
-func (mc *ModuleCall) getInstanceExpression() hcl.Expression {
-	switch {
-	case mc.ForEach != nil:
-		return mc.ForEach
-	case mc.Count != nil:
-		return mc.Count
-	default:
-		return nil
-	}
-}
-
 // PassedProviderConfig represents a provider config explicitly passed down to
 // a child module, possibly giving it a new local address in the process.
 // Ex: child = parent.alias
@@ -352,7 +341,6 @@ func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef 
 	}
 
 	inParent.Alias = alias
-	inParent.AliasRange = c.InParentMapping.AliasRange
 
 	return inParent
 }
