@@ -342,19 +342,6 @@ func (o *Operation) HasConfig() bool {
 // output, but terminating immediately after reporting error diagnostics is
 // common and can be expressed concisely via this method.
 func (o *Operation) ReportResult(op *RunningOperation, diags tfdiags.Diagnostics) {
-	if o.View == nil {
-		// Shouldn't generally happen, but if it does then we'll at least
-		// make some noise in the logs to help us spot it.
-		diags = diags.Append(errors.New("backend needs to report diagnostics but View is not set"))
-		log.Printf(
-			"[ERROR] Backend needs to report diagnostics but View is not set:\n%s",
-			diags.ErrWithWarnings(),
-		)
-
-		op.Result = OperationFailure
-		return
-	}
-
 	if o.View.HasErrors(diags) {
 		op.Result = OperationFailure
 	} else {
