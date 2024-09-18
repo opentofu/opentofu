@@ -303,7 +303,8 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
-		relAddr := n.Config.ProviderConfigAddr()
+		// TODO/Oleksandr: should be overwritten by Ronny's changes
+		relAddr := n.Config.AnyProviderConfigAddr()
 		return addrs.LocalProviderConfig{
 			LocalName: relAddr.LocalName,
 			Alias:     relAddr.Alias,
