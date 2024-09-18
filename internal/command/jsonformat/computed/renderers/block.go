@@ -79,7 +79,6 @@ func (renderer blockRenderer) RenderHuman(diff computed.Diff, indent int, opts c
 	for _, key := range attributeKeys {
 		attribute := renderer.attributes[key]
 		if importantAttribute(key) {
-
 			// Always display the important attributes.
 			for _, warning := range attribute.WarningsHuman(indent+1, importantAttributeOpts) {
 				buf.WriteString(fmt.Sprintf("%s%s\n", formatIndent(indent+1), warning))
@@ -104,10 +103,8 @@ func (renderer blockRenderer) RenderHuman(diff computed.Diff, indent int, opts c
 
 	blockKeys := renderer.blocks.GetAllKeys()
 	for _, key := range blockKeys {
-
 		foundChangedBlock := false
 		renderBlock := func(diff computed.Diff, mapKey string, opts computed.RenderHumanOpts) {
-
 			creatingSensitiveValue := diff.Action == plans.Create && renderer.blocks.AfterSensitiveBlocks[key]
 			deletingSensitiveValue := diff.Action == plans.Delete && renderer.blocks.BeforeSensitiveBlocks[key]
 			modifyingSensitiveValue := (diff.Action == plans.Update || diff.Action == plans.NoOp) && (renderer.blocks.AfterSensitiveBlocks[key] || renderer.blocks.BeforeSensitiveBlocks[key])
@@ -146,7 +143,6 @@ func (renderer blockRenderer) RenderHuman(diff computed.Diff, indent int, opts c
 				buf.WriteString(fmt.Sprintf("%s%s\n", formatIndent(indent+1), warning))
 			}
 			buf.WriteString(fmt.Sprintf("%s%s%s%s %s\n", formatIndent(indent+1), writeDiffActionSymbol(diff.Action, blockOpts), EnsureValidAttributeName(key), mapKey, diff.RenderHuman(indent+1, blockOpts)))
-
 		}
 
 		switch {
@@ -163,12 +159,11 @@ func (renderer blockRenderer) RenderHuman(diff computed.Diff, indent int, opts c
 				renderBlock(renderer.blocks.MapBlocks[key][innerKey], fmt.Sprintf(" %q", innerKey), opts)
 			}
 		case renderer.blocks.IsSetBlock(key):
-
 			setOpts := opts.Clone()
 			setOpts.OverrideForcesReplacement = diff.Replace
 
 			for _, block := range renderer.blocks.SetBlocks[key] {
-				renderBlock(block, "", opts)
+				renderBlock(block, "", setOpts)
 			}
 		case renderer.blocks.IsListBlock(key):
 			for _, block := range renderer.blocks.ListBlocks[key] {

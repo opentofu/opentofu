@@ -8,7 +8,7 @@ This feature automates the process of creating pull requests for backporting mer
 
 1. **Label Your Pull Request**: To initiate a backport, simply add a label to your pull request in the format `backport <target_branch>`, where `<target_branch>` is the branch you want to backport changes to (eg. `backport v1.x`). The backport labels can be added to both open and closed pull requests.
 
-2. **Automatic Backport Pull Request Creation**: After the pull request is merged and closed, or if the backport label is added to an already closed pull request, backport Github Action will execute the `.github/scripts/backport/main.sh` script, which will automatically create a new pull request with the changes backported to the specified `<target_branch>`. A comment linking to the new Backport Pull Request will be added to the original pull request for easy navigation.
+2. **Automatic Backport Pull Request Creation**: After the pull request is merged and closed, or if the backport label is added to an already closed pull request, backport GitHub Action will execute the `.github/scripts/backport/main.sh` script, which will automatically create a new pull request with the changes backported to the specified `<target_branch>`. A comment linking to the new Backport Pull Request will be added to the original pull request for easy navigation.
 
 ### Handling Merge Conflicts
 

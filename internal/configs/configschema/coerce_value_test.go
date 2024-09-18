@@ -612,7 +612,7 @@ func TestCoerceValue(t *testing.T) {
 
 			if gotErrObj == nil {
 				if test.WantErr != "" {
-					t.Fatalf("coersion succeeded; want error: %q", test.WantErr)
+					t.Fatalf("coercion succeeded; want error: %q", test.WantErr)
 				}
 			} else {
 				gotErr := tfdiags.FormatError(gotErrObj)
