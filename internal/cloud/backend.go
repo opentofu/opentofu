@@ -778,10 +778,6 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 
 // Operation implements backend.Enhanced.
 func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.RunningOperation, error) {
-	if op.View == nil {
-		panic("Operation called with nil View")
-	}
-
 	// Retrieve the workspace for this operation.
 	w, err := b.fetchWorkspace(ctx, b.organization, op.Workspace)
 	if err != nil {
