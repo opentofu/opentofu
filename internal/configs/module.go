@@ -427,7 +427,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 
 		// set the provider FQN for the resource
 		if r.ProviderConfigRef != nil {
-			r.Provider = m.ProviderForLocalConfig(r.ProviderConfigAddr())
+			r.Provider = m.ImpliedProviderForUnqualifiedType(r.ProviderConfigName())
 		} else {
 			// an invalid resource name (for e.g. "null resource" instead of
 			// "null_resource") can cause a panic down the line in addrs:
@@ -489,7 +489,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	for _, r := range m.DataResources {
 		// set the provider FQN for the resource
 		if r.ProviderConfigRef != nil {
-			r.Provider = m.ProviderForLocalConfig(r.ProviderConfigAddr())
+			r.Provider = m.ImpliedProviderForUnqualifiedType(r.ProviderConfigName())
 		} else {
 			// an invalid data source name (for e.g. "null resource" instead of
 			// "null_resource") can cause a panic down the line in addrs:

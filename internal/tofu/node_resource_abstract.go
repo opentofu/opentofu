@@ -306,7 +306,12 @@ func (n *NodeAbstractResource) ProvidedBy() addrs.ProviderConfig {
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
-		return n.Config.ProviderConfigAddr()
+		// TODO/Oleksandr: should be overwritten by Ronny's changes
+		relAddr := n.Config.AnyProviderConfigAddr()
+		return addrs.LocalProviderConfig{
+			LocalName: relAddr.LocalName,
+			Alias:     relAddr.Alias,
+		}
 	}
 
 	// See if we have a valid provider config from the state.
