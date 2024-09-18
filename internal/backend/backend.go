@@ -12,6 +12,7 @@ package backend
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 
 	svchost "github.com/hashicorp/terraform-svchost"
@@ -342,8 +343,15 @@ func (o *Operation) HasConfig() bool {
 // common and can be expressed concisely via this method.
 func (o *Operation) ReportResult(op *RunningOperation, diags tfdiags.Diagnostics) {
 	if o.View == nil {
-		// This shouldn't happen
-		panic("ReportResult called with nil View")
+		// Shouldn't generally happen, but if it does then we'll at least
+		// make some noise in the logs to help us spot it.
+		log.Printf(
+			"[ERROR] Backend needs to report diagnostics but View is not set:\n%s",
+			diags.ErrWithWarnings(),
+		)
+
+		op.Result = OperationFailure
+		return
 	}
 
 	if o.View.HasErrors(diags) {
