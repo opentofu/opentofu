@@ -70,7 +70,7 @@ func TestMain_cliArgsFromEnv(t *testing.T) {
 			"cli string has blank values",
 			[]string{testCommandName, "bar", "", "baz"},
 			"-foo bar",
-			[]string{"-foo", "bar", "bar", "baz"},
+			[]string{"-foo", "bar", "bar", "", "baz"},
 			false,
 		},
 
@@ -380,7 +380,7 @@ func TestParseCommandArgs(t *testing.T) {
 			"positive tc options and args",
 			[]string{"-chdir=target", "-help", "-pedantic", "-version", "plan", "", "-state=file.tfstate"},
 			map[string]string{"-chdir": "target", "-help": "", "-pedantic": "", "-version": ""},
-			[]string{"plan", "-state=file.tfstate"},
+			[]string{"plan", "", "-state=file.tfstate"},
 		},
 		{
 			"positive tc version option",
