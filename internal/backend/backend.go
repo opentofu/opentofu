@@ -12,7 +12,6 @@ package backend
 import (
 	"context"
 	"errors"
-	"log"
 	"os"
 
 	svchost "github.com/hashicorp/terraform-svchost"
