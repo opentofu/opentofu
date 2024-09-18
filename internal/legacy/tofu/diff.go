@@ -541,7 +541,7 @@ func (d *InstanceDiff) applyBlockDiff(path []string, attrs map[string]string, sc
 
 		// check each set candidate to see if it was removed.
 		// we need to do this, because when entire sets are removed, they may
-		// have the wrong key, and ony show diffs going to ""
+		// have the wrong key, and only show diffs going to ""
 		if block.Nesting == configschema.NestingSet {
 			for k := range candidateKeys {
 				indexPrefix := strings.Join(append(path, n, k), ".") + "."

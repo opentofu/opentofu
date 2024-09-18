@@ -14,6 +14,13 @@ import DockerRunScript from '!!raw-loader!./examples/docker-run.sh'
 OpenTofu is available as [OCI container images](https://github.com/opentofu/opentofu/pkgs/container/opentofu),
 and distributed via public GitHub Packages registry.
 
+:::warning Warning!
+
+Do not use the OCI container image as a base image. This is not supported and will stop working with OpenTofu 1.10.
+Instead, follow the [instructions below to build your own OpenTofu image](#building-your-own-image).
+
+:::
+
 ## Versions
 
 Images are hosted as packages in the OpenTofu GitHub organization. See the list
@@ -50,3 +57,48 @@ To pull the image from GitHub Packages registry:
 To run OpenTofu as a Docker container:
 
 <CodeBlock language="bash">{DockerRunScript}</CodeBlock>
+
+## Building your own image
+
+The OCI image published by OpenTofu is intended as a basic command line tool. If you need additional tools in the image
+or want to build services on top of OpenTofu, you will need to build your own image. This section outlines how to
+accomplish that.
+
+### Step 1: Obtaining the installation script
+
+OpenTofu publishes POSIX/Powershell installation scripts. You can use these scripts to safely install OpenTofu in your
+container image. Please follow the [standalone installation instructions](standalone.mdx) to obtain the installation
+script and place it next to your `Dockerfile`/`Containerfile`.
+
+### Step 2: Creating a stage for installation
+
+Next, you can start creating a download stage in your `Dockerfile`/`Containerfile`. For details on multi-stage builds
+please read the [Docker documentation](https://docs.docker.com/build/building/multi-stage/).
+
+```Dockerfile
+FROM alpine:3.20 AS tofu
+
+ADD install-opentofu.sh /install-opentofu.sh
+RUN chmod +x /install-opentofu.sh
+RUN apk add gpg
+RUN ./install-opentofu.sh --install-method standalone --install-path / --symlink-path -
+```
+
+## Step 3: Creating your own image
+
+Now you can add your image below the installation stage and copy the `tofu` binary into it:
+
+```Dockerfile
+FROM alpine:3.20 AS tofu
+
+ADD install-opentofu.sh /install-opentofu.sh
+RUN chmod +x /install-opentofu.sh
+RUN apk add gpg
+RUN ./install-opentofu.sh --install-method standalone --install-path / --symlink-path -
+
+## This is your stage:
+FROM ubuntu
+COPY --from=tofu /tofu /usr/local/bin/tofu
+
+# Add your commands here
+```
