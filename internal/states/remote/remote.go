@@ -33,6 +33,9 @@ type ClientLocker interface {
 	statemgr.Locker
 }
 
+// OptionalClientLocker is an optional interface that allows callers to
+// to determine whether or not locking is actually enabled.
+// See OptionalLocker for more details.
 type OptionalClientLocker interface {
 	ClientLocker
 	IsLockingEnabled() bool
