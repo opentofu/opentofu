@@ -306,17 +306,7 @@ func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, o
 //
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
-func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), provider, addrs.AbsProviderConfig{})
-	s.maybePruneModule(addr.Module)
-}
-
-// SetResourceInstanceDeposedNew  Ronny TODO - replace with the above function in all the relevant places
-func (s *SyncState) SetResourceInstanceDeposedNew(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
+func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

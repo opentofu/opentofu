@@ -362,7 +362,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 		}
 	} else {
 		write = func(src *states.ResourceInstanceObjectSrc) {
-			state.SetResourceInstanceDeposedNew(absAddr, deposedKey, src, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
+			state.SetResourceInstanceDeposed(absAddr, deposedKey, src, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 		}
 	}
 

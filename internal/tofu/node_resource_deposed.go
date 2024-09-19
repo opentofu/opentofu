@@ -328,7 +328,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 
 	if obj == nil {
 		// No need to encode anything: we'll just write it directly.
-		state.SetResourceInstanceDeposedNew(absAddr, key, nil, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
+		state.SetResourceInstanceDeposed(absAddr, key, nil, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 		log.Printf("[TRACE] writeResourceInstanceStateDeposed: removing state object for %s deposed %s", absAddr, key)
 		return nil
 	}
@@ -351,7 +351,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 	}
 
 	log.Printf("[TRACE] writeResourceInstanceStateDeposed: writing state object for %s deposed %s", absAddr, key)
-	state.SetResourceInstanceDeposedNew(absAddr, key, src, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
+	state.SetResourceInstanceDeposed(absAddr, key, src, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 	return nil
 }
 
