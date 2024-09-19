@@ -888,7 +888,7 @@ func TestRemote_planLockTimeout(t *testing.T) {
 		t.Fatalf("expected remote backend header in output: %s", output)
 	}
 	if !strings.Contains(output, "Lock timeout exceeded") {
-		t.Fatalf("expected lock timout error in output: %s", output)
+		t.Fatalf("expected lock timeout error in output: %s", output)
 	}
 	if strings.Contains(output, "1 to add, 0 to change, 0 to destroy") {
 		t.Fatalf("unexpected plan summary in output: %s", output)

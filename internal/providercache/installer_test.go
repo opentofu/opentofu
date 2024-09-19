@@ -658,7 +658,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 			LockFile: `
 				# This is approximating the awkward situation where the lock
 				# file was populated by someone who installed from a location
-				# other than the origin registry annd so the set of checksums
+				# other than the origin registry and so the set of checksums
 				# is incomplete. In this case we can't prove that our cache
 				# entry is valid and so we silently ignore the cache entry
 				# and try to install from upstream anyway, in the hope that

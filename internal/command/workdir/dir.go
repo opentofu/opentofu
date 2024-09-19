@@ -16,7 +16,7 @@ import (
 // "Working directory" is unfortunately a slight misnomer, because non-default
 // options can potentially stretch the definition such that multiple working
 // directories end up appearing to share a data directory, or other similar
-// anomolies, but we continue to use this terminology both for historical
+// anomalies, but we continue to use this terminology both for historical
 // reasons and because it reflects the common case without any special
 // overrides.
 //
@@ -84,7 +84,7 @@ func NewDir(mainPath string) *Dir {
 }
 
 // OverrideOriginalWorkingDir records a different path as the
-// "original working directory" for the reciever.
+// "original working directory" for the receiver.
 //
 // Use this only to record the original working directory when OpenTofu is run
 // with the -chdir=... global option. In that case, the directory given in
@@ -125,7 +125,7 @@ func (d *Dir) OriginalWorkingDir() string {
 	return d.originalDir
 }
 
-// DataDir returns the base path where the reciever keeps all of the settings
+// DataDir returns the base path where the receiver keeps all of the settings
 // and artifacts that must persist between consecutive commands in a single
 // session.
 //

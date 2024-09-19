@@ -248,7 +248,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 	}
 
 	// If we don't need to ask for confirmation, insert a blank
-	// line to separate the ouputs.
+	// line to separate the outputs.
 	if w.AutoApply || !mustConfirm {
 		if b.CLI != nil {
 			b.CLI.Output("")

@@ -162,7 +162,7 @@ func (mc *ModuleCall) decodeStaticProviderAliases(eval *StaticEvaluator) hcl.Dia
 	var diags hcl.Diagnostics
 
 	for _, p := range mc.Providers {
-		diags = diags.Extend(p.InParentMapping.decodeStaticAlias(eval, mc.ForEach))
+		diags = diags.Extend(p.InParentMapping.decodeStaticAlias(eval, mc.Count, mc.ForEach))
 	}
 
 	return diags
@@ -341,7 +341,6 @@ func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef 
 	}
 
 	inParent.Alias = alias
-	inParent.AliasRange = c.InParentMapping.AliasRange
 
 	return inParent
 }

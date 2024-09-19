@@ -1,5 +1,21 @@
 # Weekly Updates
 
+## 2024-08-09
+
+Here's what happened since the last update:
+
+- [OpenTofu 1.8.0](https://opentofu.org/blog/opentofu-1-8-0/) is out with a lot of long-requested functionality, such as early evaluation for variables and locals, support for `.tofu` files with an override functionality, and enhancements to `tofu test` with provider mocking and resource overrides.
+- [OpenTofu 1.8.1](https://github.com/opentofu/opentofu/releases/tag/v1.8.1) is available and fixes a small bug in the previous version.
+- Recent developments:
+  - We have started extending the features related to the 1.8.0 early evaluation, such as passing providers to modules and resources using `for_each`. Our goal is to include these updates in the 1.9.0 release.
+  - We have accepted the [RFC](https://github.com/opentofu/opentofu/pull/1900) about supporting the `-exclude` flag and started working on it. We aim to release it as part of the 1.9.0 release.
+  - We are still working on a user interface for the registry. This includes creating a general-purpose library for working with the registry data in Go. We are making great progress in that area.
+  - We started investigating global provider cache locking and have a [draft PR](https://github.com/opentofu/opentofu/pull/1878) with a potential solution. More updates on this coming soon.
+- How can I help?
+  - Update OpenTofu to version 1.8.0 and report any issues you encounter. Also, please share with us the feedback about the new features we released.
+  - Use OpenTofu, report issues, and please upvote the ones that are important to you! You can see an overall ranking in the [ranking issue](https://github.com/opentofu/opentofu/issues/1496).
+  - We occasionally mark issues with the `help-wanted` label, so keep an eye out for them!
+
 ## 2024-07-18
 
 Hey folks, sorry for the sporadic updates, we'll try to make these more frequent. Here's what happened since the last update:
@@ -50,7 +66,7 @@ Hello there! After the 1.7.1 release last week, the core team has been focusing 
 
 - Current Status
   - [Init-time constant evaluation](https://github.com/opentofu/opentofu/issues/1042)
-    - Initial [discussion and planning](https://github.com/opentofu/opentofu/pull/1649) are happening as an extension of the RFC proces
+    - Initial [discussion and planning](https://github.com/opentofu/opentofu/pull/1649) are happening as an extension of the RFC process
   - [Registry UI](https://github.com/opentofu/registry/issues/450)
     - Designs and prototyping are in progress!
   - [Releases page with direct links to artifacts](https://github.com/opentofu/get.opentofu.org/pull/25) is now live https://get.opentofu.org/tofu/api.json

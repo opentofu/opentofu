@@ -69,7 +69,7 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	}
 
 	// Next up we load implicit files from the specified directory (first root then tests dir
-	// as tests dir files have higher precendence). These files are automatically loaded if present.
+	// as tests dir files have higher precedence). These files are automatically loaded if present.
 	// There's the original terraform.tfvars (DefaultVarsFilename) along with the later-added
 	// search for all files ending in .auto.tfvars.
 	diags = diags.Append(m.addVarsFromDir(".", ret))
@@ -182,7 +182,15 @@ func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType,
 	loader.Parser().ForceFileSource(filename, src)
 
 	var f *hcl.File
-	if strings.HasSuffix(filename, ".json") {
+
+	extJSON := strings.HasSuffix(filename, ".json")
+	extTfvars := strings.HasSuffix(filename, DefaultVarsExtension)
+
+	// Only try json detection if ambiguous
+	// Ex: -var-file=<(./scripts/vars.sh)
+	detectJSON := !extJSON && !extTfvars && strings.HasPrefix(strings.TrimSpace(string(src)), "{")
+
+	if extJSON || detectJSON {
 		var hclDiags hcl.Diagnostics
 		f, hclDiags = hcljson.Parse(src, filename)
 		diags = diags.Append(hclDiags)

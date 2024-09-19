@@ -52,9 +52,9 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 					// provider types match.
 					for _, provider := range run.Providers {
 
-						parentType, childType := provider.InParentTODO().providerType, provider.InChild.providerType
+						parentType, childType := provider.InParentMapping.providerType, provider.InChild.providerType
 						if parentType.IsZero() {
-							parentType = addrs.NewDefaultProvider(provider.InParentTODO().Name)
+							parentType = addrs.NewDefaultProvider(provider.InParentMapping.Name)
 						}
 						if childType.IsZero() {
 							childType = addrs.NewDefaultProvider(provider.InChild.Name)
@@ -66,8 +66,8 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The local name %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-									provider.InParentTODO().Name, name, parentType, provider.InChild.Name, childType, provider.InParentTODO().Name, name),
-								Subject: provider.InParentTODO().NameRange.Ptr(),
+									provider.InParentMapping.Name, name, parentType, provider.InChild.Name, childType, provider.InParentMapping.Name, name),
+								Subject: provider.InParentMapping.NameRange.Ptr(),
 							})
 						}
 					}
@@ -94,7 +94,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-									provider.moduleUniqueKey(), name, providerType, requirement.Name, requirement.Type, provider.moduleUniqueKey(), name),
+									provider.Addr().StringCompact(), name, providerType, requirement.Name, requirement.Type, provider.Addr().StringCompact(), name),
 								Subject: provider.DeclRange.Ptr(),
 							})
 						}
@@ -114,7 +114,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Summary:  "Provider type mismatch",
 									Detail: fmt.Sprintf(
 										"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-										provider.moduleUniqueKey(), name, providerType, alias.StringCompact(), requirement.Type, provider.moduleUniqueKey(), name),
+										provider.Addr().StringCompact(), name, providerType, alias.StringCompact(), requirement.Type, provider.Addr().StringCompact(), name),
 									Subject: provider.DeclRange.Ptr(),
 								})
 							}
@@ -129,8 +129,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 						providerType = addrs.NewDefaultProvider(provider.Name)
 					}
 
-					if testProvider, exists := test.Providers[provider.moduleUniqueKey()]; exists {
-
+					if testProvider, exists := test.Providers[provider.Addr().StringCompact()]; exists {
 						testProviderType := testProvider.providerType
 						if testProviderType.IsZero() {
 							testProviderType = addrs.NewDefaultProvider(testProvider.Name)
@@ -142,7 +141,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s has been referenced by multiple run blocks and assigned to different provider types.",
-									testProvider.moduleUniqueKey(), name, testProviderType, provider.moduleUniqueKey(), providerType, testProvider.moduleUniqueKey(), name),
+									testProvider.Addr().StringCompact(), name, testProviderType, provider.Addr().StringCompact(), providerType, testProvider.Addr().StringCompact(), name),
 								Subject: testProvider.DeclRange.Ptr(),
 							})
 						}
@@ -174,7 +173,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									NameRange:    requirement.DeclRange,
 									providerType: requirement.Type,
 								},
-								InParentMapping: NewProviderConfigRefMapping(provider),
+								InParentMapping: providerToConfigRefMapping(provider),
 							}
 						}
 
@@ -190,10 +189,9 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 										Name:         requirement.Name,
 										NameRange:    requirement.DeclRange,
 										Alias:        alias.Alias,
-										AliasRange:   requirement.DeclRange.Ptr(),
 										providerType: requirement.Type,
 									},
-									InParentMapping: NewProviderConfigRefMapping(provider),
+									InParentMapping: providerToConfigRefMapping(provider),
 								}
 							}
 
@@ -211,7 +209,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 					// better error messages to use these.
 
 					for _, provider := range cfg.Module.ProviderConfigs {
-						key := provider.moduleUniqueKey()
+						key := provider.Addr().StringCompact()
 
 						if testProvider, exists := test.Providers[key]; exists {
 							matchedProviders[key] = PassedProviderConfig{
@@ -219,10 +217,9 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Name:         provider.Name,
 									NameRange:    provider.DeclRange,
 									Alias:        provider.Alias,
-									AliasRange:   provider.DeclRange.Ptr(),
 									providerType: provider.providerType,
 								},
-								InParentMapping: NewProviderConfigRefMapping(testProvider),
+								InParentMapping: providerToConfigRefMapping(testProvider),
 							}
 						}
 					}
@@ -461,11 +458,11 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			// aliased providers are handled more strictly, and are never
 			// inherited, so they are validated within modules further down.
 			// Skip these checks to prevent redundant diagnostics.
-			if passed.InParentTODO().Alias != "" {
+			if passed.InParentMapping.HasAlias() {
 				continue
 			}
 
-			name := passed.InParentTODO().String()
+			name := passed.InParentMapping.Name
 			_, confOK := configured[name]
 			_, localOK := localNames[name]
 			_, passedOK := passedIn[name]
@@ -483,7 +480,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 						name, moduleText, defAddr.ForDisplay(),
 						parentModuleText, name, defAddr.ForDisplay(),
 					),
-					Subject: &passed.InParentTODO().NameRange,
+					Subject: &passed.InParentMapping.NameRange,
 				})
 				continue
 			}
@@ -624,18 +621,17 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 		}
 
 		// The provider being passed in must also be of the correct type.
-		pTy := passed.InParentTODO().providerType
+		pTy := passed.InParentMapping.providerType
 		if pTy.IsZero() {
 			// While we would like to ensure required_providers exists here,
 			// implied default configuration is still allowed.
-			pTy = addrs.NewDefaultProvider(passed.InParentTODO().Name)
+			pTy = addrs.NewDefaultProvider(passed.InParentMapping.Name)
 		}
 
 		// use the full address for a nice diagnostic output
 		parentAddr := addrs.AbsProviderConfig{
 			Module:   cfg.Parent.Path,
 			Provider: pTy,
-			Alias:    passed.InParentTODO().Alias,
 		}
 
 		if cfg.Parent.Module.ProviderRequirements != nil {
@@ -681,12 +677,12 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 					Summary:  errSummary,
 					Detail: fmt.Sprintf(
 						"The local name %q in %s represents provider %q, but %q in %s represents %q.\n\nEach provider has its own distinct configuration schema and provider types, so this module's %q can be assigned only a configuration for %s, which is not required by %s.",
-						passed.InParentTODO(), parentModuleText, parentAddr.Provider.ForDisplay(),
+						passed.InParentMapping.Name, parentModuleText, parentAddr.Provider.ForDisplay(),
 						passed.InChild, moduleText, providerAddr.Provider.ForDisplay(),
 						passed.InChild, providerAddr.Provider.ForDisplay(),
 						moduleText,
 					),
-					Subject: passed.InParentTODO().NameRange.Ptr(),
+					Subject: passed.InParentMapping.NameRange.Ptr(),
 				})
 			}
 		}

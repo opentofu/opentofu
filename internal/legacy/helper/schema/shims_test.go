@@ -72,7 +72,7 @@ func testApplyDiff(t *testing.T,
 		}
 	}
 
-	// Resource.Meta will be hanlded separately, so it's OK that we lose the
+	// Resource.Meta will be handled separately, so it's OK that we lose the
 	// timeout values here.
 	expectedState, err := StateValueFromInstanceState(expected, testSchema.Block.ImpliedType())
 	if err != nil {

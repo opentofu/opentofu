@@ -46,7 +46,7 @@ type GraphNodeCreator interface {
 type DestroyEdgeTransformer struct {
 	// FIXME: GraphNodeCreators are not always applying changes, and should not
 	// participate in the destroy graph if there are no operations which could
-	// interract with destroy nodes. We need Changes for now to detect the
+	// interact with destroy nodes. We need Changes for now to detect the
 	// action type, but perhaps this should be indicated somehow by the
 	// DiffTransformer which was intended to be the only transformer operating
 	// from the change set.

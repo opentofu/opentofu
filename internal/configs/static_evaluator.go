@@ -14,7 +14,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// StaticIdentifier holds a Referencable item and where it was declared
+// StaticIdentifier holds a Referenceable item and where it was declared
 type StaticIdentifier struct {
 	Module    addrs.Module
 	Subject   string

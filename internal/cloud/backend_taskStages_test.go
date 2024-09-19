@@ -133,7 +133,7 @@ func TestTaskStagesWithAllStages(t *testing.T) {
 	} {
 		if stage, ok := taskStages[stageName]; ok {
 			if stage.Stage != stageName {
-				t.Errorf("Expected task stage indexed by %s to find a Task Stage with the same index, but receieved %s", stageName, stage.Stage)
+				t.Errorf("Expected task stage indexed by %s to find a Task Stage with the same index, but received %s", stageName, stage.Stage)
 			}
 		} else {
 			t.Errorf("Expected task stage indexed by %s to exist, but it did not", stageName)

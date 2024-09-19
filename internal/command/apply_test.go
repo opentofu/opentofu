@@ -1134,7 +1134,7 @@ func TestApply_shutdown(t *testing.T) {
 		})
 
 		// Because of the internal lock in the MockProvider, we can't
-		// coordiante directly with the calling of Stop, and making the
+		// coordinate directly with the calling of Stop, and making the
 		// MockProvider concurrent is disruptive to a lot of existing tests.
 		// Wait here a moment to help make sure the main goroutine gets to the
 		// Stop call before we exit, or the plan may finish before it can be
@@ -1735,8 +1735,44 @@ func TestApply_disableBackup(t *testing.T) {
 	}
 }
 
+func TestApply_tfWorkspace(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply-tf-workspace"), td)
+	defer testChdir(t, td)()
+
+	statePath := testTempFile(t)
+
+	p := testProvider()
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-auto-approve",
+		"-state", statePath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	expected := strings.TrimSpace(`
+<no state>
+Outputs:
+
+output = default
+	`)
+	testStateOutput(t, statePath, expected)
+}
+
 // Test that the OpenTofu env is passed through
-func TestApply_tofuEnv(t *testing.T) {
+func TestApply_tofuWorkspace(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-tofu-workspace"), td)
@@ -1772,8 +1808,69 @@ output = default
 	testStateOutput(t, statePath, expected)
 }
 
+func TestApply_tfWorkspaceNonDefault(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply-tf-workspace"), td)
+	defer testChdir(t, td)()
+
+	// Create new env
+	{
+		ui := new(cli.MockUi)
+		newCmd := &WorkspaceNewCommand{
+			Meta: Meta{
+				Ui: ui,
+			},
+		}
+		if code := newCmd.Run([]string{"test"}); code != 0 {
+			t.Fatal("error creating workspace")
+		}
+	}
+
+	// Switch to it
+	{
+		args := []string{"test"}
+		ui := new(cli.MockUi)
+		selCmd := &WorkspaceSelectCommand{
+			Meta: Meta{
+				Ui: ui,
+			},
+		}
+		if code := selCmd.Run(args); code != 0 {
+			t.Fatal("error switching workspace")
+		}
+	}
+
+	p := testProvider()
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-auto-approve",
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	statePath := filepath.Join("terraform.tfstate.d", "test", "terraform.tfstate")
+	expected := strings.TrimSpace(`
+<no state>
+Outputs:
+
+output = test
+	`)
+	testStateOutput(t, statePath, expected)
+}
+
 // Test that the OpenTofu env is passed through
-func TestApply_tofuEnvNonDefault(t *testing.T) {
+func TestApply_tofuWorkspaceNonDefault(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-tofu-workspace"), td)

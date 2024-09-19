@@ -122,7 +122,7 @@ func TestValidateFailingCommandMissingVariable(t *testing.T) {
 	}
 }
 
-func TestSameProviderMutipleTimesShouldFail(t *testing.T) {
+func TestSameProviderMultipleTimesShouldFail(t *testing.T) {
 	output, code := setupTest(t, "validate-invalid/multiple_providers")
 	if code != 1 {
 		t.Fatalf("Should have failed: %d\n\n%s", code, output.Stderr())
@@ -221,7 +221,7 @@ func TestMissingDefinedVar(t *testing.T) {
 func TestValidateWithInvalidTestFile(t *testing.T) {
 
 	// We're reusing some testing configs that were written for testing the
-	// test command here, so we have to initalise things slightly differently
+	// test command here, so we have to initialise things slightly differently
 	// to the other tests.
 
 	view, done := testView(t)
@@ -253,7 +253,7 @@ func TestValidateWithInvalidTestFile(t *testing.T) {
 func TestValidateWithInvalidTestModule(t *testing.T) {
 
 	// We're reusing some testing configs that were written for testing the
-	// test command here, so we have to initalise things slightly differently
+	// test command here, so we have to initialise things slightly differently
 	// to the other tests.
 
 	td := t.TempDir()

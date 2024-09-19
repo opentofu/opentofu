@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/errwrap"
-	multierror "github.com/hashicorp/go-multierror"
+	"github.com/hashicorp/go-multierror"
 	"github.com/hashicorp/hcl/v2"
 )
 
@@ -96,6 +96,23 @@ func (diags Diagnostics) Append(new ...interface{}) Diagnostics {
 	// here, but we'll make sure of that so callers can rely on empty == nil
 	if len(diags) == 0 {
 		return nil
+	}
+
+	return diags
+}
+
+func (diags Diagnostics) StrictDeduplicateMerge(other Diagnostics) Diagnostics {
+	if len(diags) == 0 {
+		return other
+	}
+
+	for _, d := range diags {
+		for _, o := range other {
+			isEqual := d.Description().Equal(o.Description()) && d.Severity() == o.Severity() && d.Source().Equal(o.Source())
+			if DoNotConsolidateDiagnostic(d) || DoNotConsolidateDiagnostic(o) || !isEqual {
+				diags = append(diags, o)
+			}
+		}
 	}
 
 	return diags
@@ -191,6 +208,10 @@ func (diags Diagnostics) NonFatalErr() error {
 // Diagnostics that do not differ by any of these sortable characteristics
 // will remain in the same relative order after this method returns.
 func (diags Diagnostics) Sort() {
+	sort.Stable(sortDiagnostics(diags))
+}
+
+func (diags Diagnostics) TrimDuplicated() {
 	sort.Stable(sortDiagnostics(diags))
 }
 

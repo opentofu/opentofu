@@ -179,25 +179,30 @@ func (c *ConsoleCommand) Run(args []string) int {
 }
 
 func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
-	var lastResult string
 	scanner := bufio.NewScanner(os.Stdin)
+
+	var consoleState consoleBracketState
+
 	for scanner.Scan() {
-		result, exit, diags := session.Handle(strings.TrimSpace(scanner.Text()))
-		if diags.HasErrors() {
-			// In piped mode we'll exit immediately on error.
-			c.showDiagnostics(diags)
-			return 1
-		}
-		if exit {
-			return 0
-		}
+		line := strings.TrimSpace(scanner.Text())
 
-		// Store the last result
-		lastResult = result
+		// we check if there is no escaped new line at the end, or any open brackets
+		// if we have neither, then we can execute
+		fullCommand, bracketState := consoleState.UpdateState(line)
+		if bracketState <= 0 {
+			result, exit, diags := session.Handle(fullCommand)
+			if diags.HasErrors() {
+				// We're in piped mode, so we'll exit immediately on error.
+				c.showDiagnostics(diags)
+				return 1
+			}
+			if exit {
+				return 0
+			}
+			// Output the result
+			ui.Output(result)
+		}
 	}
-
-	// Output the final result
-	ui.Output(lastResult)
 
 	return 0
 }

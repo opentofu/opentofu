@@ -138,11 +138,14 @@ func buildChildModules(parent *Config, walker ModuleWalker) (map[string]*Config,
 			Name:              call.Name,
 			Path:              path,
 			SourceAddr:        call.SourceAddr,
-			SourceAddrRange:   call.Source.Range(),
 			VersionConstraint: call.Version,
 			Parent:            parent,
 			CallRange:         call.DeclRange,
 			Call:              NewStaticModuleCall(path, call.Variables, parent.Root.Module.SourceDir, call.Workspace),
+		}
+		if call.Source != nil {
+			// Invalid modules sometimes have a nil source field which is handled through loadModule below
+			req.SourceAddrRange = call.Source.Range()
 		}
 		child, modDiags := loadModule(parent.Root, &req, walker)
 		diags = append(diags, modDiags...)
@@ -301,7 +304,7 @@ type ModuleRequest struct {
 	CallRange hcl.Range
 
 	// This is where variables and other information from the calling module
-	// are propogated to the child module for use in the static evaluator
+	// are propagated to the child module for use in the static evaluator
 	Call StaticModuleCall
 }
 

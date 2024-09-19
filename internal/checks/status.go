@@ -37,7 +37,7 @@ const (
 	// StatusError represents that OpenTofu Core tried to evaluate the check's
 	// condition but encountered an error while evaluating the check expression.
 	//
-	// This is different than StatusFail because StatusFail indiciates that
+	// This is different than StatusFail because StatusFail indicates that
 	// the condition was valid and returned false, whereas StatusError
 	// indicates that the condition was not valid at all.
 	StatusError Status = 'E'

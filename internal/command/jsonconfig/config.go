@@ -279,6 +279,7 @@ func marshalProviderConfigs(
 		for _, ppc := range mc.Providers {
 			// These provider names include aliases, if set
 			moduleProviderName := ppc.InChild.String()
+			// TODO/Oleksandr: update this field to resolved provider after graph execution
 			parentProviderName := ppc.InParentTODO().String()
 
 			// Look up the provider FQN from the module context, using the non-aliased local name
@@ -337,7 +338,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 				ref, diags := addrs.ParseRef(d)
 				// we should not get an error here, because `tofu validate`
 				// would have complained well before this point, but if we do we'll
-				// silenty skip it.
+				// silently skip it.
 				if !diags.HasErrors() {
 					dependencies[i] = ref.Subject.String()
 				}
@@ -432,7 +433,7 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 			ref, diags := addrs.ParseRef(d)
 			// we should not get an error here, because `tofu validate`
 			// would have complained well before this point, but if we do we'll
-			// silenty skip it.
+			// silently skip it.
 			if !diags.HasErrors() {
 				dependencies[i] = ref.Subject.String()
 			}
@@ -446,7 +447,9 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Schemas, moduleAddr string) ([]resource, error) {
 	var rs []resource
 	for _, v := range resources {
-		providerConfigKey := opaqueProviderKey(v.ProviderConfigAddr().StringCompact(), moduleAddr)
+		// TODO/Oleksandr: check what field to use after graph exectuion (at that time we should know what provider was actually used)
+		// Maybe extend ProviderConfigAddr to return resolved provider
+		providerConfigKey := opaqueProviderKey(v.AnyProviderConfigAddr().StringCompact(), moduleAddr)
 		r := resource{
 			Address:           v.Addr().String(),
 			Type:              v.Type,
@@ -505,7 +508,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 				ref, diags := addrs.ParseRef(d)
 				// we should not get an error here, because `tofu validate`
 				// would have complained well before this point, but if we do we'll
-				// silenty skip it.
+				// silently skip it.
 				if !diags.HasErrors() {
 					dependencies[i] = ref.Subject.String()
 				}
@@ -523,7 +526,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 
 // Flatten all resource provider keys in a module and its descendents, such
 // that any resources from providers using a configuration passed through the
-// module call have a direct refernce to that provider configuration.
+// module call have a direct reference to that provider configuration.
 func normalizeModuleProviderKeys(m *module, pcs map[string]providerConfig) {
 	for i, r := range m.Resources {
 		if pc, exists := pcs[r.ProviderConfigKey]; exists {
