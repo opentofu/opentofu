@@ -666,8 +666,6 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 		return diags
 	}
 
-	var traversals []hcl.Traversal
-
 	// Try evaluating as static expression
 	ident := StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("%s.%s.lifecycle.%s", r.Type, r.Name, attr.Name), DeclRange: attr.Range}
 	val, valDiags := eval.Evaluate(attr.Expr, ident)
@@ -680,7 +678,7 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 				// we accept as a deprecated way of saying "all".
 				if shimIsIgnoreChangesStar(expr) {
 					// This is no longer allowed and will be handled below
-					traversals = append(traversals, hcl.Traversal{hcl.TraverseAttr{Name: "*", SrcRange: expr.Range()}})
+					r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, hcl.Traversal{hcl.TraverseAttr{Name: "*", SrcRange: expr.Range()}})
 					continue
 				}
 
@@ -696,7 +694,7 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 				if travDiags.HasErrors() {
 					continue
 				}
-				traversals = append(traversals, traversal)
+				r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, traversal)
 			}
 		} else {
 			// Invalid Expression
@@ -715,7 +713,7 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 				}
 
 				if item.AsString() == "*" {
-					traversals = append(traversals, hcl.Traversal{hcl.TraverseAttr{Name: "*", SrcRange: attr.Expr.Range()}})
+					r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, hcl.Traversal{hcl.TraverseAttr{Name: "*", SrcRange: attr.Expr.Range()}})
 					continue
 				}
 				traversal, tDiags := hclsyntax.ParseTraversalAbs(
@@ -731,7 +729,7 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 					Name:     traversal[0].(hcl.TraverseRoot).Name,
 					SrcRange: attr.Expr.Range(),
 				}
-				traversals = append(traversals, traversal)
+				r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, traversal)
 			}
 		} else if val.Type() == cty.String {
 			if val.AsString() == "all" {
@@ -757,9 +755,8 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 	}
 
 	var ignoreAllRange hcl.Range
-	for _, trav := range traversals {
+	for _, trav := range r.Managed.IgnoreChanges {
 		if root, ok := trav[0].(hcl.TraverseAttr); ok && root.Name == "*" {
-			r.Managed.IgnoreAllChanges = true
 			ignoreAllRange = trav.SourceRange()
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -770,6 +767,7 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 			continue
 		}
 	}
+
 	if r.Managed.IgnoreAllChanges && len(r.Managed.IgnoreChanges) != 0 {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
