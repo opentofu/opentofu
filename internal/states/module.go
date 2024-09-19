@@ -89,9 +89,8 @@ func (ms *Module) RemoveResource(addr addrs.Resource) {
 // Set obj to nil to remove the primary generation object altogether. If there
 // are no deposed objects then the instance will be removed altogether.
 //
-// The provider address is a resource-wide setting and is updated for all other
-// instances of the same resource as a side-effect of this call.
-// TODO Ronny: Update comment above to contain the new changes
+// The provider address can be either a resource-wide settings or set for the
+// specific instance, and it depends on the given resourceProvider / instanceProvider
 func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
 	rs := ms.Resource(addr.Resource)
 	// if the resource is nil and the object is nil, don't do anything!
