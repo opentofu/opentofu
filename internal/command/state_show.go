@@ -162,17 +162,24 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	// check if the resource has a configured provider, otherwise this will use the default provider
 	rs := state.Resource(addr.ContainingResource())
-	absPc := addrs.AbsProviderConfig{
+	absResourceProvider := addrs.AbsProviderConfig{
 		Provider: rs.ProviderConfig.Provider,
 		Alias:    rs.ProviderConfig.Alias,
 		Module:   addrs.RootModule,
 	}
+
+	absInstanceProvider := addrs.AbsProviderConfig{
+		Provider: is.Current.InstanceProvider.Provider,
+		Alias:    is.Current.InstanceProvider.Alias,
+		Module:   addrs.RootModule,
+	}
+
 	singleInstance := states.NewState()
 	singleInstance.EnsureModule(addr.Module).SetResourceInstanceCurrent(
 		addr.Resource,
 		is.Current,
-		absPc,
-		addrs.AbsProviderConfig{}, // Ronny TODO: fixme
+		absResourceProvider,
+		absInstanceProvider,
 	)
 
 	root, outputs, err := jsonstate.MarshalForRenderer(statefile.New(singleInstance, "", 0), schemas)
