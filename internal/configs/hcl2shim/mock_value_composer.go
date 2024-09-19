@@ -86,14 +86,14 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
 			if _, ok := defaults[k]; ok {
-				mockAttrs[k] = cv
+				diags = diags.Append(tfdiags.WholeContainingBody(
+					tfdiags.Error,
+					fmt.Sprintf("Invalid mock/override field `%v`", k),
+					fmt.Sprintf(k, "The field is ignored since overriding configuration values is not allowed."),
+				))
 				continue
 			}
-			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid mock/override field `%v`", k),
-				fmt.Sprintf(k, "The field is ignored since overriding configuration values is not allowed."),
-			))
+			mockAttrs[k] = cv
 			continue
 		}
 
