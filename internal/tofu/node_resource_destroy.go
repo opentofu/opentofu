@@ -234,6 +234,6 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 
 func (n *NodeDestroyResourceInstance) dataResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] NodeDestroyResourceInstance: removing state object for %s", n.Addr)
-	ctx.State().SetResourceInstanceCurrentNew(n.Addr, nil, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
+	ctx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 	return diags.Append(updateStateHook(ctx))
 }

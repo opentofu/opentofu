@@ -268,22 +268,13 @@ func (s *SyncState) RemoveResourceIfEmpty(addr addrs.AbsResource) bool {
 // concurrently mutated during this call, but may be freely used again once
 // this function returns.
 //
-// The provider address is a resource-wide settings and is updated
-// for all other instances of the same resource as a side-effect of this call.
+// The provider address can be either a resource-wide settings or set for the
+// specific instance, and it depends on the given resourceProvider / instanceProvider
 //
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
-func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), provider, addrs.AbsProviderConfig{})
-	s.maybePruneModule(addr.Module)
-}
-
-// SetResourceInstanceCurrentNew Ronny TODO - replace with the above function in all the relevant places
-func (s *SyncState) SetResourceInstanceCurrentNew(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
+// SetResourceInstanceCurrent
+func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 

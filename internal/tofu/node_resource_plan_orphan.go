@@ -80,10 +80,10 @@ func (n *NodePlannableResourceInstanceOrphan) dataResourceExecute(ctx EvalContex
 	// we need to update both the refresh state to refresh the current data
 	// source, and the working state for plan-time evaluations.
 	refreshState := ctx.RefreshState()
-	refreshState.SetResourceInstanceCurrentNew(n.Addr, nil, n.NodeAbstractResource.ResolvedResourceProvider, n.ResolvedInstanceProvider)
+	refreshState.SetResourceInstanceCurrent(n.Addr, nil, n.NodeAbstractResource.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 
 	workingState := ctx.State()
-	workingState.SetResourceInstanceCurrentNew(n.Addr, nil, n.NodeAbstractResource.ResolvedResourceProvider, n.ResolvedInstanceProvider)
+	workingState.SetResourceInstanceCurrent(n.Addr, nil, n.NodeAbstractResource.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 	return nil
 }
 
