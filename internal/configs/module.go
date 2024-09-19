@@ -244,18 +244,7 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		mod.CloudConfig.eval = mod.StaticEvaluator
 	}
 
-	// Process all providers with the static context
-	for _, file := range primaryFiles {
-		fileDiags := mod.appendFileProviders(file)
-		diags = append(diags, fileDiags...)
-	}
-
-	for _, file := range overrideFiles {
-		fileDiags := mod.mergeFileProviders(file)
-		diags = append(diags, fileDiags...)
-	}
-
-	diags = append(diags, mod.decodeStaticFields()...)
+	diags = append(diags, mod.decodeStaticFields(primaryFiles, overrideFiles)...)
 
 	diags = append(diags, checkModuleExperiments(mod)...)
 
@@ -891,8 +880,19 @@ func (m *Module) CheckCoreVersionRequirements(path addrs.Module, sourceAddr addr
 	return diags
 }
 
-func (m *Module) decodeStaticFields() hcl.Diagnostics {
+func (m *Module) decodeStaticFields(primary, override []*File) hcl.Diagnostics {
 	var diags hcl.Diagnostics
+
+	// Process all providers with the static context
+	for _, file := range primary {
+		fileDiags := m.appendFileProviders(file)
+		diags = append(diags, fileDiags...)
+	}
+
+	for _, file := range override {
+		fileDiags := m.mergeFileProviders(file)
+		diags = append(diags, fileDiags...)
+	}
 
 	// Process all module calls now that we have the static context
 	for _, mc := range m.ModuleCalls {
