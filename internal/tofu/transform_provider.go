@@ -61,6 +61,11 @@ type GraphNodeCloseProvider interface {
 	CloseProviderAddr() addrs.AbsProviderConfig
 }
 
+type ExactProvider struct {
+	isResourceProvider bool
+	provider           addrs.AbsProviderConfig
+}
+
 // GraphNodeProviderConsumer is an interface that nodes that require
 // a provider must implement. ProvidedBy must return the address of the provider
 // to use, which will be resolved to a configuration either in the same module
@@ -71,21 +76,20 @@ type GraphNodeProviderConsumer interface {
 	// ProvidedBy returns the address of the provider configuration the node
 	// refers to, if available. The following value types may be returned:
 	//
-	//   nil + exact true: the node does not require a provider
-	// * addrs.LocalProviderConfig: the provider was set in the resource config
-	// * addrs.AbsProviderConfig + exact true: the provider configuration was
+	//   nil +  + empty ExactProvider{}: the node does not require a provider
+	// * addrs.LocalProviderConfig + empty ExactProvider{}: the provider was set in the resource config
+	// * addrs.AbsProviderConfig + non-empty ExactProvider{}: the provider configuration was
 	//   taken from the instance state.
-	// * addrs.AbsProviderConfig + exact false: no config or state; the returned
+	// * addrs.AbsProviderConfig + empty ExactProvider{}: no config or state; the returned
 	//   value is a default provider configuration address for the resource's
 	//   Provider
-	// TODO Ronny update comment
-	ProvidedBy() (addr map[addrs.InstanceKey]addrs.ProviderConfig, exact bool)
+	ProvidedBy() (addr map[addrs.InstanceKey]addrs.ProviderConfig, exactProvider ExactProvider)
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
 
 	// Set the resolved provider address for this resource.
-	SetProvider(addrs.AbsProviderConfig)
+	SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool)
 
 	// TODO Ronny add comment
 	SetPotentialProviders(potentialProviders []distinguishableProvider)
@@ -116,64 +120,78 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	// Our "requested" map is from graph vertices to string representations of
 	// provider config addresses (for deduping) to requests.
 	type ProviderRequest struct {
-		Addr        addrs.AbsProviderConfig
-		Exact       bool // If true, inheritence from parent modules is not attempted
-		instanceKey addrs.InstanceKey
+		Addr               addrs.AbsProviderConfig
+		Exact              bool // If true, inheritence from parent modules is not attempted
+		isResourceProvider bool // TODO Ronny change this, only relevant if Exact exists, or else doesn't mean anything. Don't like this solution.
+		instanceKey        addrs.InstanceKey
 	}
 	requested := map[dag.Vertex]map[string]ProviderRequest{}
 	needConfigured := map[string]addrs.AbsProviderConfig{}
 	for _, v := range g.Vertices() {
 		// Does the vertex _directly_ use a provider?
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			providerAddrs, exact := pv.ProvidedBy()
-			if providerAddrs == nil && exact {
+			providerAddrs, exactProvider := pv.ProvidedBy()
+
+			if providerAddrs == nil && exactProvider.provider.Provider.Type == "" {
 				// no provider is required
 				continue
 			}
 
 			requested[v] = make(map[string]ProviderRequest)
 
-			for ik, providerAddr := range providerAddrs {
-				var absPc addrs.AbsProviderConfig
+			if exactProvider.provider.Provider.Type != "" {
+				providerAddr := exactProvider.provider
+				log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), providerAddr)
 
-				switch p := providerAddr.(type) {
-				case addrs.AbsProviderConfig:
-					// ProvidedBy() returns an AbsProviderConfig when the provider
-					// configuration is set in state, so we do not need to verify
-					// the FQN matches.
-					absPc = p
-
-					if exact {
-						log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
-					}
-
-				case addrs.LocalProviderConfig:
-					// ProvidedBy() return a LocalProviderConfig when the resource
-					// contains a `provider` attribute
-					absPc.Provider = pv.Provider()
-					modPath := pv.ModulePath()
-					if t.Config == nil {
-						absPc.Module = modPath
-						absPc.Alias = p.Alias
-						break
-					}
-
-					absPc.Module = modPath
-					absPc.Alias = p.Alias
-
-				default:
-					// This should never happen; the case statements are meant to be exhaustive
-					panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
-				}
-
-				requested[v][absPc.String()] = ProviderRequest{
-					Addr:        absPc,
-					Exact:       exact,
-					instanceKey: ik,
+				requested[v][providerAddr.String()] = ProviderRequest{
+					Addr:               exactProvider.provider,
+					Exact:              true,
+					isResourceProvider: exactProvider.isResourceProvider,
+					instanceKey:        addrs.NoKey, //TODO Ronny is this OK? Theoretically we won't be using the instanceKey
 				}
 
 				// Direct references need the provider configured as well as initialized
-				needConfigured[absPc.String()] = absPc
+				needConfigured[providerAddr.String()] = providerAddr
+			} else {
+				for ik, providerAddr := range providerAddrs {
+					var absPc addrs.AbsProviderConfig
+
+					switch p := providerAddr.(type) {
+					case addrs.AbsProviderConfig:
+						// ProvidedBy() returns an AbsProviderConfig when the provider
+						// configuration is implied from the resource, so we do not need to verify
+						// the FQN matches.
+						absPc = p
+
+					case addrs.LocalProviderConfig:
+						// ProvidedBy() return a LocalProviderConfig when the resource
+						// contains a `provider` attribute
+						absPc.Provider = pv.Provider()
+						modPath := pv.ModulePath()
+						if t.Config == nil {
+							absPc.Module = modPath
+							absPc.Alias = p.Alias
+							break
+						}
+
+						absPc.Module = modPath
+						absPc.Alias = p.Alias
+
+					default:
+						// This should never happen; the case statements are meant to be exhaustive
+						panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
+					}
+
+					requested[v][absPc.String()] = ProviderRequest{
+						Addr:               absPc,
+						Exact:              false,
+						isResourceProvider: exactProvider.isResourceProvider,
+						instanceKey:        ik,
+					}
+
+					// Direct references need the provider configured as well as initialized
+					needConfigured[absPc.String()] = absPc
+				}
 			}
 		}
 	}
@@ -246,6 +264,31 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				break
 			}
 
+			// TODO ronny - improve this piece of code
+			// If exact is true, it means we are in one in two scenarios:
+			// 1. The provider transformer is running after the resources were expanded to instances, and the instances
+			// already resolved their providers and the provider level (provider is set for the resource or for the
+			// instance).
+			// 2. This resource is not in the configuration, so the providers were taken from the state.
+			// In both if those cases, as the providers were previously resolved, so we don't need to go through the whole
+			// process of resolving them again. We'll set them straight on the resource and use the given
+			// "isResourceProvider", to set the provider on the already known provider level.
+			if req.Exact {
+				if pv, ok := v.(GraphNodeProviderConsumer); ok {
+					log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
+
+					if _, ok := target.(*graphNodeProxyProvider); ok {
+						panic(fmt.Sprintf("%s: exact provider target cannot be from type graphNodeProxyProvider, it should have already been a concrete provider", dag.VertexName(v)))
+					}
+
+					g.Connect(dag.BasicEdge(v, target))
+					pv.SetProvider(target.ProviderAddr(), req.isResourceProvider)
+
+					break
+				}
+
+			}
+
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				g.Remove(p)
@@ -265,14 +308,17 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target)) //TODO Ronny fix - I think it run too many times on some occasions
-			if pv, ok := v.(GraphNodeProviderConsumer); ok {
-				if len(targets) == 1 && targets[0].isSingleOption() {
-					pv.SetProvider(targets[0].concreteProvider.ProviderAddr())
-				} else {
-					pv.SetPotentialProviders(targets)
-				}
+
+		}
+
+		if pv, ok := v.(GraphNodeProviderConsumer); ok {
+			if len(targets) == 1 && targets[0].isSingleOption() {
+				pv.SetProvider(targets[0].concreteProvider.ProviderAddr(), true)
+			} else {
+				pv.SetPotentialProviders(targets)
 			}
 		}
+
 	}
 
 	return diags.Err()

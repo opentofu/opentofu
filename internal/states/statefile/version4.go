@@ -90,25 +90,31 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			}
 		}
 
-		providerAddr, addrDiags := addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
-		diags.Append(addrDiags)
-		if addrDiags.HasErrors() {
-			// If ParseAbsProviderConfigStr returns an error, the state may have
-			// been written before Provider FQNs were introduced and the
-			// AbsProviderConfig string format will need normalization. If so,
-			// we treat it like a legacy provider (namespace "-") and let the
-			// provider installer handle detecting the FQN.
-			var legacyAddrDiags tfdiags.Diagnostics
-			providerAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
-			if legacyAddrDiags.HasErrors() {
-				continue
+		// The provider can either be set on the resource level or on the instance level
+		var resourceProviderAddr addrs.AbsProviderConfig
+		if rsV4.ProviderConfig != "" {
+			// Looks like it is set on the resource level
+			var addrDiags tfdiags.Diagnostics
+			resourceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
+			diags.Append(addrDiags)
+			if addrDiags.HasErrors() {
+				// If ParseAbsProviderConfigStr returns an error, the state may have
+				// been written before Provider FQNs were introduced and the
+				// AbsProviderConfig string format will need normalization. If so,
+				// we treat it like a legacy provider (namespace "-") and let the
+				// provider installer handle detecting the FQN.
+				var legacyAddrDiags tfdiags.Diagnostics
+				resourceProviderAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
+				if legacyAddrDiags.HasErrors() {
+					continue
+				}
 			}
 		}
 
 		ms := state.EnsureModule(moduleAddr)
 
 		// Ensure the resource container object is present in the state.
-		ms.SetResourceProvider(rAddr, providerAddr)
+		ms.SetResourceProvider(rAddr, resourceProviderAddr)
 
 		for _, isV4 := range rsV4.Instances {
 			keyRaw := isV4.IndexKey
@@ -139,18 +145,14 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 			instAddr := rAddr.Instance(key)
 
-			// TODO Ronny extract to a function for DRY
-			instanceProviderAddr, addrDiags := addrs.ParseAbsProviderConfigStr(isV4.InstanceProvider)
-			diags.Append(addrDiags)
-			if addrDiags.HasErrors() {
-				// If ParseAbsProviderConfigStr returns an error, the state may have
-				// been written before Provider FQNs were introduced and the
-				// AbsProviderConfig string format will need normalization. If so,
-				// we treat it like a legacy provider (namespace "-") and let the
-				// provider installer handle detecting the FQN.
-				var legacyAddrDiags tfdiags.Diagnostics
-				instanceProviderAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(isV4.InstanceProvider) //TODO Ronny: this is interesting, validate that we need the same logic for the instanceProvider?
-				if legacyAddrDiags.HasErrors() {
+			// The provider can either be set on the resource level or on the instance level
+			var instanceProviderAddr addrs.AbsProviderConfig
+			if isV4.InstanceProvider != "" {
+				// Looks like it is set on the resource level
+				var addrDiags tfdiags.Diagnostics
+				instanceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(isV4.InstanceProvider)
+				diags.Append(addrDiags)
+				if addrDiags.HasErrors() {
 					continue
 				}
 			}
@@ -252,7 +254,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceDeposed(instAddr, dk, obj, instanceProviderAddr, instanceProviderAddr)
+				ms.SetResourceInstanceDeposed(instAddr, dk, obj, resourceProviderAddr, instanceProviderAddr)
 			default:
 				is := ms.ResourceInstance(instAddr)
 				if is.HasCurrent() {
@@ -264,7 +266,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceCurrent(instAddr, obj, providerAddr, instanceProviderAddr)
+				ms.SetResourceInstanceCurrent(instAddr, obj, resourceProviderAddr, instanceProviderAddr)
 			}
 		}
 
@@ -273,7 +275,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		// on the incoming objects. That behavior is useful when we're making
 		// piecemeal updates to the state during an apply, but when we're
 		// reading the state file we want to reflect its contents exactly.
-		ms.SetResourceProvider(rAddr, providerAddr)
+		ms.SetResourceProvider(rAddr, resourceProviderAddr)
 	}
 
 	// The root module is special in that we persist its attributes and thus

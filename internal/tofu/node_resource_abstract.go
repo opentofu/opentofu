@@ -78,16 +78,11 @@ type NodeAbstractResource struct {
 	// It can happen when we have a for_each on the providers in the resource or containing module
 	ResolvedResourceProvider addrs.AbsProviderConfig
 
-	// storedResourceProviderConfig is the provider address retrieved from the
-	// state of the resource. This is defined here for access within the ProvidedBy method, but
-	// will be set from the embedding instance type when the state is attached.
-	storedResourceProviderConfig addrs.AbsProviderConfig
-
-	// storedInstanceProviderConfigs is an array of the provider addresses retrieved from the
-	// state of the instances. This is defined here for access within the ProvidedBy method, but
-	// will be set from the embedding instance type when the state is attached.
-	// TODO Ronny - set this when we set storedResourceProviderConfig.
-	storedInstanceProviderConfigs []addrs.AbsProviderConfig
+	// storedProviderConfig is the provider address retrieved from the state of the resource,
+	// with a bool indication on whether this provider is se on the Resource level or on the instance level.
+	// This is defined here for access within the ProvidedBy method, but will be set from the embedding
+	// instance type when the state is attached.
+	storedProviderConfig ExactProvider
 
 	// TODO Ronny add comment
 	potentialProviders []distinguishableProvider
@@ -321,17 +316,26 @@ func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourc
 	return addrs.AbsProviderConfig{}
 }
 
-func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig) {
-	n.ResolvedResourceProvider = p
+func (n *NodeAbstractResource) SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool) {
+	if isResourceProvider {
+		n.ResolvedResourceProvider = provider
+	} else {
+		panic(fmt.Sprintf("SetProvider for %s cannot set an instance provider on a NodeAbstractResource", n.Addr))
+	}
+}
+
+func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
+	return n.ProvidedByImpl(addrs.AbsProviderConfig{})
 }
 
 // GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
+func (n *NodeAbstractResource) ProvidedByImpl(resolvedInstanceProvider addrs.AbsProviderConfig) (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
 	// Once the provider is fully resolved, we can return the known value.
-	if n.ResolvedResourceProvider.Provider.Type != "" { // TODO Ronny: Should we also support ResolvedInstanceProvider? Does it matter if we don't?
-		return map[addrs.InstanceKey]addrs.ProviderConfig{
-			addrs.NoKey: n.ResolvedResourceProvider,
-		}, true
+	if n.ResolvedResourceProvider.Provider.Type != "" {
+		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: true}
+	} else if resolvedInstanceProvider.Provider.Type != "" {
+		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: false}
+
 	}
 
 	// If we have a config we prefer that above all else
@@ -345,7 +349,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 				addrs.NoKey: addrs.LocalProviderConfig{
 					LocalName: n.Config.Addr().ImpliedProvider(),
 				},
-			}, false
+			}, ExactProvider{}
 		}
 
 		result := make(map[addrs.InstanceKey]addrs.ProviderConfig)
@@ -356,18 +360,16 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 				Alias:     alias,
 			}
 		}
-		return result, false
+		return result, ExactProvider{}
 	}
 
 	// See if we have a valid provider config from the state.
-	if n.storedResourceProviderConfig.Provider.Type != "" {
+	if n.storedProviderConfig.provider.Provider.Type != "" {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
-		return map[addrs.InstanceKey]addrs.ProviderConfig{
-			addrs.NoKey: n.storedResourceProviderConfig,
-		}, true
-	} // TODO Ronny - Retuen all possible instance configurations from the State (use storedInstanceProviderConfigs), important in case the resource was removed form the configuration
+		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: n.storedProviderConfig.provider, isResourceProvider: n.storedProviderConfig.isResourceProvider}
+	}
 
 	// We might have an import target that is providing a specific provider,
 	// this is okay as we know there is nothing else potentially providing a
@@ -382,7 +384,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
 					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
 				},
-			}, false
+			}, ExactProvider{}
 
 		} // TODO Ronny - check import flow
 	}
@@ -392,7 +394,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 			Provider: n.Provider(),
 			Module:   n.ModulePath(),
 		},
-	}, false
+	}, ExactProvider{}
 }
 
 // GraphNodeProviderConsumer
@@ -400,9 +402,9 @@ func (n *NodeAbstractResource) Provider() addrs.Provider {
 	if n.Config != nil {
 		return n.Config.Provider
 	}
-	if n.storedResourceProviderConfig.Provider.Type != "" {
-		return n.storedResourceProviderConfig.Provider
-	} // Ronny todo - get any Provider from the first instance (using storedInstanceProviderConfigs). We don't need the specific alias here, only the "Type" of the provider
+	if n.storedProviderConfig.provider.Provider.Type != "" {
+		return n.storedProviderConfig.provider.Provider
+	}
 
 	if len(n.importTargets) > 0 {
 		// The import targets should either all be defined via config or none

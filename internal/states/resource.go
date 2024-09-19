@@ -38,6 +38,42 @@ func (rs *Resource) Instance(key addrs.InstanceKey) *ResourceInstance {
 	return rs.Instances[key]
 }
 
+// InstanceProvider returns the calculated provider for the instance with the given key. It also returns an indication
+// whether the provider was set on the resource level or the instance level
+func (rs *Resource) InstanceProvider(key addrs.InstanceKey) (provider addrs.AbsProviderConfig, isSetOnInstanceLevel bool) {
+	var resourceProvider addrs.AbsProviderConfig
+	var instanceProvider addrs.AbsProviderConfig
+
+	resourceProvider = rs.ProviderConfig
+
+	// If the provider is set on the instance level, we can't get it from the resource
+	instance := rs.Instances[key]
+
+	if instance.Current.InstanceProvider.Provider.Type != "" {
+		instanceProvider = instance.Current.InstanceProvider
+	} else {
+		// Take the provider from an arbitrary item from the deposed map TODO Ronny: validate with deposed scenario
+		for _, deposedInstance := range instance.Deposed {
+			instanceProvider = deposedInstance.InstanceProvider
+			break // Exit after the first iteration
+		}
+	}
+
+	if resourceProvider.Provider.Type == "" && instanceProvider.Provider.Type == "" {
+		panic(fmt.Sprintf("InstanceProvider for %s (instance key %s) failed to read provider from the state", rs.Addr, key.String()))
+	}
+
+	if resourceProvider.Provider.Type != "" && instanceProvider.Provider.Type != "" {
+		panic(fmt.Sprintf("InstanceProvider for %s (instance key %s) found two providers in state for the instance", rs.Addr, key.String()))
+	}
+
+	if resourceProvider.Provider.Type != "" {
+		return resourceProvider, true
+	} else {
+		return instanceProvider, false
+	}
+}
+
 // CreateInstance creates an instance and adds it to the resource
 func (rs *Resource) CreateInstance(key addrs.InstanceKey) *ResourceInstance {
 	is := NewResourceInstance()

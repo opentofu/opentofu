@@ -330,7 +330,12 @@ func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
 	m := map[string]addrs.AbsProviderConfig{}
 	for _, ms := range s.Modules {
 		for _, rc := range ms.Resources {
-			m[rc.ProviderConfig.String()] = rc.ProviderConfig
+			//m[rc.ProviderConfig.String()] = rc.ProviderConfig // Ronny TODO: I assume we always have an instance inside the resource. Is it a valid assumption?
+
+			for key := range rc.Instances {
+				provider, _ := rc.InstanceProvider(key)
+				m[provider.String()] = provider
+			}
 		}
 	}
 	if len(m) == 0 {
