@@ -758,12 +758,12 @@ type mockClientLocker struct {
 }
 
 // Implement the mock Lock method for mockOptionalClientLocker
-func (c *mockOptionalClientLocker) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *mockOptionalClientLocker) Lock(_ *statemgr.LockInfo) (string, error) {
 	return "", nil
 }
 
 // Implement the mock Unlock method for mockOptionalClientLocker
-func (c *mockOptionalClientLocker) Unlock(id string) error {
+func (c *mockOptionalClientLocker) Unlock(_ string) error {
 	// Provide a simple implementation
 	return nil
 }
@@ -774,12 +774,12 @@ func (c *mockOptionalClientLocker) IsLockingEnabled() bool {
 }
 
 // Implement the mock Lock method for mockClientLocker
-func (c *mockClientLocker) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *mockClientLocker) Lock(_ *statemgr.LockInfo) (string, error) {
 	return "", nil
 }
 
 // Implement the mock Unlock method for mockClientLocker
-func (c *mockClientLocker) Unlock(id string) error {
+func (c *mockClientLocker) Unlock(_ string) error {
 	return nil
 }
 
@@ -789,7 +789,6 @@ var _ ClientLocker = &mockClientLocker{}
 
 // Tests whether the IsLockingEnabled method returns the expected values based on the backend.
 func TestState_IsLockingEnabled(t *testing.T) {
-
 	tests := []struct {
 		name         string
 		disableLocks bool
