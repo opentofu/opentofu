@@ -76,7 +76,7 @@ type GraphNodeProviderConsumer interface {
 	// ProvidedBy returns the address of the provider configuration the node
 	// refers to, if available. The following value types may be returned:
 	//
-	//   nil +  + empty ExactProvider{}: the node does not require a provider
+	//   nil + empty ExactProvider{}: the node does not require a provider
 	// * addrs.LocalProviderConfig + empty ExactProvider{}: the provider was set in the resource config
 	// * addrs.AbsProviderConfig + non-empty ExactProvider{}: the provider configuration was
 	//   taken from the instance state.
@@ -120,10 +120,9 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	// Our "requested" map is from graph vertices to string representations of
 	// provider config addresses (for deduping) to requests.
 	type ProviderRequest struct {
-		Addr               addrs.AbsProviderConfig
-		Exact              bool // If true, inheritence from parent modules is not attempted
-		isResourceProvider bool // TODO Ronny change this, only relevant if Exact exists, or else doesn't mean anything. Don't like this solution.
-		instanceKey        addrs.InstanceKey
+		Addr        addrs.AbsProviderConfig
+		Exact       ExactProvider // If populated, inheritance from parent modules is not attempted
+		instanceKey addrs.InstanceKey
 	}
 	requested := map[dag.Vertex]map[string]ProviderRequest{}
 	needConfigured := map[string]addrs.AbsProviderConfig{}
@@ -144,10 +143,9 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), providerAddr)
 
 				requested[v][providerAddr.String()] = ProviderRequest{
-					Addr:               exactProvider.provider,
-					Exact:              true,
-					isResourceProvider: exactProvider.isResourceProvider,
-					instanceKey:        addrs.NoKey, //TODO Ronny is this OK? Theoretically we won't be using the instanceKey
+					Addr:        addrs.AbsProviderConfig{},
+					Exact:       exactProvider,
+					instanceKey: addrs.NoKey, //TODO Ronny is this OK? Theoretically we won't be using the instanceKey
 				}
 
 				// Direct references need the provider configured as well as initialized
@@ -183,10 +181,9 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 					}
 
 					requested[v][absPc.String()] = ProviderRequest{
-						Addr:               absPc,
-						Exact:              false,
-						isResourceProvider: exactProvider.isResourceProvider,
-						instanceKey:        ik,
+						Addr:        absPc,
+						Exact:       ExactProvider{},
+						instanceKey: ik,
 					}
 
 					// Direct references need the provider configured as well as initialized
@@ -219,9 +216,11 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", p, dag.VertexName(v))
 			}
 
+			isRequestedExactProvider := req.Exact.provider.Provider.Type != ""
+
 			// if we don't have a provider at this level, walk up the path looking for one,
 			// unless we were told to be exact.
-			if target == nil && !req.Exact {
+			if target == nil && !isRequestedExactProvider {
 				for pp, ok := p.Inherited(); ok; pp, ok = pp.Inherited() {
 					key := pp.String()
 					target = m[key]
@@ -273,7 +272,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// In both if those cases, as the providers were previously resolved, so we don't need to go through the whole
 			// process of resolving them again. We'll set them straight on the resource and use the given
 			// "isResourceProvider", to set the provider on the already known provider level.
-			if req.Exact {
+			if isRequestedExactProvider {
 				if pv, ok := v.(GraphNodeProviderConsumer); ok {
 					log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
 
@@ -282,7 +281,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 					}
 
 					g.Connect(dag.BasicEdge(v, target))
-					pv.SetProvider(target.ProviderAddr(), req.isResourceProvider)
+					pv.SetProvider(target.ProviderAddr(), req.Exact.isResourceProvider)
 
 					break
 				}
