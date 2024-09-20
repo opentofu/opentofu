@@ -31,12 +31,9 @@ type graphNodeImportState struct {
 	states []providers.ImportedResource
 }
 
-func (n *graphNodeImportState) resolveInstanceProvider(instance addrs.AbsResourceInstance) addrs.AbsProviderConfig {
-	//TODO Ronny implement me
-	panic("implement me")
-}
-
 func (n *graphNodeImportState) SetPotentialProviders(potentialProviders []distinguishableProvider) {
+	// Technically we shouldn't get here as we don't support import with for_each on providers in resources / modules
+	// So we should panic here (ensure we have a code that validates it somewhere else) / implement a proper user error.
 	//TODO Ronny implement me
 	panic("implement me")
 }

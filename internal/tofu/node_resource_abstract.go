@@ -73,19 +73,23 @@ type NodeAbstractResource struct {
 	dependsOn      []addrs.ConfigResource
 	forceDependsOn bool
 
-	// The address of the provider this resource will use
-	// Can be null is the provider is not set on the resource level but in the resource instance instead
-	// It can happen when we have a for_each on the providers in the resource or containing module
+	// The address of the provider this resource will use.
+	// Can be empty if the provider is not set on the resource level but in the resource instance instead. In this case,
+	// the potentialProviders property will be populated.
+	// It can happen when we have a for_each on the providers in the resource or containing module.
 	ResolvedResourceProvider addrs.AbsProviderConfig
+
+	// potentialProviders is a list of provider and their identifiers, meant to be resolved per each instance to
+	// calculate its provider.
+	// If the potentialProviders is populated, it means the ResolvedResourceProvider is empty and the provider will be
+	//defined per resource instance and not on the whole resource.
+	potentialProviders []distinguishableProvider
 
 	// storedProviderConfig is the provider address retrieved from the state of the resource,
 	// with a bool indication on whether this provider is se on the Resource level or on the instance level.
 	// This is defined here for access within the ProvidedBy method, but will be set from the embedding
 	// instance type when the state is attached.
 	storedProviderConfig ExactProvider
-
-	// TODO Ronny add comment
-	potentialProviders []distinguishableProvider
 
 	// This resource may expand into instances which need to be imported.
 	importTargets []*ImportTarget
@@ -301,12 +305,12 @@ func (n *NodeAbstractResource) SetPotentialProviders(potentialProviders []distin
 	n.potentialProviders = potentialProviders
 }
 
-// TODO Ronny add comment
+// resolveInstanceProvider gets the specific expanded instance of the resource, and tries to calculate the resolved
+// InstanceProvider if a few potential providers exist. A few potential providers might exist if the resource
+// configuration, or one of the containing module's configuration, contains a for_each on the providers.
 func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourceInstance) addrs.AbsProviderConfig {
-	// TODO Ronny - consider, if we have ResolvedResourceProvider set, don't try to calculate this at all?
 	for _, potentialProvider := range n.potentialProviders {
 		if potentialProvider.IsResourceMatching(instance) {
-			// Can multiple providers match? I don't think so
 			return potentialProvider.concreteProvider.ProviderAddr()
 		}
 	}
@@ -494,7 +498,6 @@ func (n *NodeAbstractResource) DotNode(name string, opts *dag.DotOpts) *dag.DotN
 // eval is the only change we get to set the resource "each mode" to list
 // in that case, allowing expression evaluation to see it as a zero-element list
 // rather than as not set at all.
-// TODO Ronny: alter comment
 func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
 	state := ctx.State()
 	// We'll record our expansion decision in the shared "expander" object
@@ -536,7 +539,6 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-// Ronny todo - maybe move this function to the instance level?
 func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance, instanceProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	provider, providerSchema, err := getProvider(ctx, instanceProvider)

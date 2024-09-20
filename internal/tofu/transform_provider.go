@@ -78,25 +78,23 @@ type GraphNodeProviderConsumer interface {
 	//
 	//   nil + empty ExactProvider{}: the node does not require a provider
 	// * addrs.LocalProviderConfig + empty ExactProvider{}: the provider was set in the resource config
-	// * addrs.AbsProviderConfig + non-empty ExactProvider{}: the provider configuration was
-	//   taken from the instance state.
+	// * empty addrs.AbsProviderConfig + non-empty ExactProvider{}: the provider configuration was
+	//   taken from the instance state or previously calculated in previous runs of the provider transformer.
 	// * addrs.AbsProviderConfig + empty ExactProvider{}: no config or state; the returned
 	//   value is a default provider configuration address for the resource's
 	//   Provider
 	ProvidedBy() (addr map[addrs.InstanceKey]addrs.ProviderConfig, exactProvider ExactProvider)
 
-	// Provider() returns the Provider FQN for the node.
+	// Provider returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
 
-	// Set the resolved provider address for this resource.
+	// SetProvider Set the resolved provider address for the resource / instance
 	SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool)
 
-	// TODO Ronny add comment
+	// SetPotentialProviders sets the potential providers to be resolved later, after the expansion of instances.
+	// Sometimes we won't know the exact provider, and will have a list of potential providers that can be resolved once
+	// the instances are expanded and known.
 	SetPotentialProviders(potentialProviders []distinguishableProvider)
-
-	// TODO Ronny add comment
-	// Do we really need this function inside resource instances? Should we divide this into two interfaces
-	resolveInstanceProvider(addrs.AbsResourceInstance) addrs.AbsProviderConfig
 }
 
 // ProviderTransformer is a GraphTransformer that maps resources to providers
@@ -280,6 +278,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 						panic(fmt.Sprintf("%s: exact provider target cannot be from type graphNodeProxyProvider, it should have already been a concrete provider", dag.VertexName(v)))
 					}
 
+					log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs the exact provider %s", dag.VertexName(v), v, dag.VertexName(target))
 					g.Connect(dag.BasicEdge(v, target))
 					pv.SetProvider(target.ProviderAddr(), req.Exact.isResourceProvider)
 
@@ -295,23 +294,27 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 
 				for i := range potentialProviders {
 					pp := potentialProviders[i]
+					// If we have multiple requests for different instanceKey of the resource, we need to update the
+					// potential provider with that info
 					pp.SetResourceIdentifier(req.instanceKey)
+
+					log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs the potential provider %s", dag.VertexName(v), v, dag.VertexName(pp))
 					g.Connect(dag.BasicEdge(v, pp.concreteProvider))
 				}
 
 				targets = potentialProviders
 			} else {
-				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
+				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs the potential provider %s", dag.VertexName(v), v, dag.VertexName(target))
 				g.Connect(dag.BasicEdge(v, target))
 				targets = append(targets, distinguishableProvider{moduleIdentifier: nil, resourceIdentifier: req.instanceKey, concreteProvider: target})
 			}
-
-			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target)) //TODO Ronny fix - I think it run too many times on some occasions
 
 		}
 
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
 			if len(targets) == 1 && targets[0].isSingleOption() {
+				// If we only have a single target with a single potential provider,
+				// set the provider on the resource level
 				pv.SetProvider(targets[0].concreteProvider.ProviderAddr(), true)
 			} else {
 				pv.SetPotentialProviders(targets)
@@ -644,7 +647,6 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 	}
 }
 
-// TODO Ronny - understand in which layer this struct should live
 type distinguishableProvider struct {
 	moduleIdentifier   []addrs.ModuleInstanceStep
 	resourceIdentifier addrs.InstanceKey
