@@ -24,7 +24,6 @@ func checkForUnknownType(change structured.Change, ctype cty.Type) (computed.Dif
 }
 
 func checkForUnknownNestedAttribute(change structured.Change, attribute *jsonprovider.NestedType) (computed.Diff, bool) {
-
 	// We want our child attributes to show up as computed instead of deleted.
 	// Let's populate that here.
 	childUnknown := make(map[string]interface{})
@@ -41,7 +40,6 @@ func checkForUnknownNestedAttribute(change structured.Change, attribute *jsonpro
 }
 
 func checkForUnknownBlock(change structured.Change, block *jsonprovider.Block) (computed.Diff, bool) {
-
 	// We want our child attributes to show up as computed instead of deleted.
 	// Let's populate that here.
 	childUnknown := make(map[string]interface{})
