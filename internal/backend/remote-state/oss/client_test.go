@@ -381,3 +381,37 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Tests the IsLockingEnabled method for the OSS remote client.
+// It checks if locking is enabled based on the otsTable field.
+func TestRemoteClient_IsLockingEnabled(t *testing.T) {
+	tests := []struct {
+		name       string
+		otsTable   string
+		wantResult bool
+	}{
+		{
+			name:       "Locking enabled when otsTable is set",
+			otsTable:   "my-lock-table",
+			wantResult: true,
+		},
+		{
+			name:       "Locking disabled when otsTable is empty",
+			otsTable:   "",
+			wantResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &RemoteClient{
+				otsTable: tt.otsTable,
+			}
+
+			gotResult := client.IsLockingEnabled()
+			if gotResult != tt.wantResult {
+				t.Errorf("IsLockingEnabled() = %v; want %v", gotResult, tt.wantResult)
+			}
+		})
+	}
+}
