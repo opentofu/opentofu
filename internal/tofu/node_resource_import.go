@@ -91,12 +91,32 @@ func (n *graphNodeImportState) ModulePath() addrs.Module {
 	return n.Addr.Module.Module()
 }
 
+func (n *graphNodeImportState) ResolvedProvider() addrs.AbsProviderConfig {
+	var result addrs.AbsProviderConfig
+	if n.ResolvedResourceProvider.Provider.Type != "" {
+		result = n.ResolvedResourceProvider
+	} else {
+		result = n.ResolvedInstanceProvider
+	}
+
+	if result.Provider.Type == "" {
+		panic(fmt.Sprintf("ResolvedProvider for graphNodeImportState of %s cannot get a provider", n.Addr))
+	}
+
+	// Throw an error if ResolvedResourceProvider and ResolvedInstanceProvider exists at the same time.
+	if n.ResolvedInstanceProvider.Provider.Type != "" && n.ResolvedResourceProvider.Provider.Type != "" {
+		panic(fmt.Sprintf("ResolvedProvider for graphNodeImportState of %s has a provider set for both the resource and the resource's instance", n.Addr))
+	}
+
+	return result
+}
+
 // GraphNodeExecutable impl.
 func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	// Reset our states
 	n.states = nil
 
-	provider, _, err := getProvider(ctx, n.ResolvedResourceProvider)
+	provider, _, err := getProvider(ctx, n.ResolvedProvider())
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
