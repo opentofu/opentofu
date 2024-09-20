@@ -206,3 +206,48 @@ func (h *testBrokenHTTPHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(500)
 	}
 }
+
+// Tests the IsLockingEnabled method for the HTTP client.
+// It checks whether locking is enabled based on the presence of the UnlockURL.
+func TestHttpClient_IsLockingEnabled(t *testing.T) {
+	tests := []struct {
+		name       string
+		unlockURL  string
+		wantResult bool
+	}{
+		{
+			name:       "Locking enabled when UnlockURL is set",
+			unlockURL:  "http://http-endpoint.com:3333",
+			wantResult: true,
+		},
+		{
+			name:       "Locking disabled when UnlockURL is nil",
+			unlockURL:  "", // Empty string will result in nil *url.URL
+			wantResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var unlockURL *url.URL
+			if tt.unlockURL != "" {
+				var err error
+				unlockURL, err = url.Parse(tt.unlockURL)
+				if err != nil {
+					t.Fatalf("Failed to parse unlockURL: %v", err)
+				}
+			} else {
+				unlockURL = nil
+			}
+
+			client := &httpClient{
+				UnlockURL: unlockURL,
+			}
+
+			gotResult := client.IsLockingEnabled()
+			if gotResult != tt.wantResult {
+				t.Errorf("IsLockingEnabled() = %v; want %v", gotResult, tt.wantResult)
+			}
+		})
+	}
+}

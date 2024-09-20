@@ -280,6 +280,24 @@ func (s *State) Unlock(id string) error {
 	return nil
 }
 
+func (s *State) IsLockingEnabled() bool {
+	if s.disableLocks {
+		return false
+	}
+
+	switch c := s.Client.(type) {
+	// Client supports optional locking.
+	case OptionalClientLocker:
+		return c.IsLockingEnabled()
+	// Client supports locking by default.
+	case ClientLocker:
+		return true
+	// Client doesn't support any locking.
+	default:
+		return false
+	}
+}
+
 // DisableLocks turns the Lock and Unlock methods into no-ops. This is intended
 // to be called during initialization of a state manager and should not be
 // called after any of the statemgr.Full interface methods have been called.

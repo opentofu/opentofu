@@ -17,6 +17,9 @@ ENHANCEMENTS:
 * Added for-each support to providers. ([#300](https://github.com/opentofu/opentofu/issues/300))
 
 BUG FIXES:
+* Ensure that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
+* Fixed crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
+* Added error handling for `force-unlock` command when locking is disabled for S3, HTTP, and OSS backends. [#1977](https://github.com/opentofu/opentofu/pull/1977)
 * Ensured that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
 * Fixed a crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
 * Fixed a crash when importing an empty optional sensitive string ([#1986](https://github.com/opentofu/opentofu/pull/1986))

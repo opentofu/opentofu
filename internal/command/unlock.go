@@ -95,6 +95,15 @@ func (c *UnlockCommand) Run(args []string) int {
 
 	_, isLocal := stateMgr.(*statemgr.Filesystem)
 
+	if optionalLocker, ok := stateMgr.(statemgr.OptionalLocker); ok {
+		// Now we can safely call IsLockingEnabled() on optionalLocker
+		if !optionalLocker.IsLockingEnabled() {
+			c.Ui.Error("Locking is disabled for this backend")
+			return 1
+		}
+	}
+
+	// Proceed with unlocking logic if locking is enabled
 	if !force {
 		// Forcing this doesn't do anything, but doesn't break anything either,
 		// and allows us to run the basic command test too.

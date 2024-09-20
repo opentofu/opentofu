@@ -746,3 +746,104 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 		log.Fatalf("not all requests were read. Expected logIdx to be %d but got %d", logCnt, logIdx)
 	}
 }
+
+// mockOptionalClientLocker is a mock implementation of a client that supports optional locking.
+type mockOptionalClientLocker struct {
+	*mockClient         // Embedded mock client that simulates basic client behavior.
+	lockingEnabled bool // A flag indicating whether locking is enabled or disabled.
+}
+
+type mockClientLocker struct {
+	*mockClient // Embedded mock client that simulates basic client behavior.
+}
+
+// Implement the mock Lock method for mockOptionalClientLocker
+func (c *mockOptionalClientLocker) Lock(_ *statemgr.LockInfo) (string, error) {
+	return "", nil
+}
+
+// Implement the mock Unlock method for mockOptionalClientLocker
+func (c *mockOptionalClientLocker) Unlock(_ string) error {
+	// Provide a simple implementation
+	return nil
+}
+
+// Implement the mock IsLockingEnabled method for mockOptionalClientLocker
+func (c *mockOptionalClientLocker) IsLockingEnabled() bool {
+	return c.lockingEnabled
+}
+
+// Implement the mock Lock method for mockClientLocker
+func (c *mockClientLocker) Lock(_ *statemgr.LockInfo) (string, error) {
+	return "", nil
+}
+
+// Implement the mock Unlock method for mockClientLocker
+func (c *mockClientLocker) Unlock(_ string) error {
+	return nil
+}
+
+// Check for interface compliance
+var _ OptionalClientLocker = &mockOptionalClientLocker{}
+var _ ClientLocker = &mockClientLocker{}
+
+// Tests whether the IsLockingEnabled method returns the expected values based on the backend.
+func TestState_IsLockingEnabled(t *testing.T) {
+	tests := []struct {
+		name         string
+		disableLocks bool
+		client       Client
+		wantResult   bool
+	}{
+		{
+			name:         "disableLocks is true",
+			disableLocks: true,
+			client:       &mockClient{},
+			wantResult:   false,
+		},
+		{
+			name:         "OptionalClientLocker with IsLockingEnabled() == true",
+			disableLocks: false,
+			client: &mockOptionalClientLocker{
+				mockClient:     &mockClient{},
+				lockingEnabled: true,
+			},
+			wantResult: true,
+		},
+		{
+			name:         "OptionalClientLocker with IsLockingEnabled() == false",
+			disableLocks: false,
+			client: &mockOptionalClientLocker{
+				mockClient:     &mockClient{},
+				lockingEnabled: false,
+			},
+			wantResult: false,
+		},
+		{
+			name:         "ClientLocker without OptionalClientLocker",
+			disableLocks: false,
+			client: &mockClientLocker{
+				mockClient: &mockClient{},
+			},
+			wantResult: true,
+		},
+		{
+			name:         "Client without any locking",
+			disableLocks: false,
+			client:       &mockClient{},
+			wantResult:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := NewState(tt.client, encryption.StateEncryptionDisabled())
+			s.disableLocks = tt.disableLocks
+
+			gotResult := s.IsLockingEnabled()
+			if gotResult != tt.wantResult {
+				t.Errorf("IsLockingEnabled() = %v; want %v", gotResult, tt.wantResult)
+			}
+		})
+	}
+}
