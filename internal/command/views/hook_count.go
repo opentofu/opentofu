@@ -113,7 +113,7 @@ func (h *countHook) PostDiff(addr addrs.AbsResourceInstance, gen states.Generati
 	case plans.Update:
 		h.ToChange += 1
 	case plans.Forget:
-		h.ToForget += 1
+		h.ToForget++
 	}
 
 	return tofu.HookActionContinue, nil
@@ -127,7 +127,7 @@ func (h *countHook) PostApplyImport(addr addrs.AbsResourceInstance, importing pl
 	return tofu.HookActionContinue, nil
 }
 
-func (h *countHook) PostApplyForget(addr addrs.AbsResourceInstance) (tofu.HookAction, error) {
+func (h *countHook) PostApplyForget(_ addrs.AbsResourceInstance) (tofu.HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 

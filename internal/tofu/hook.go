@@ -192,11 +192,11 @@ func (h *NilHook) PostApplyImport(addr addrs.AbsResourceInstance, importing plan
 	return HookActionContinue, nil
 }
 
-func (h *NilHook) PreApplyForget(addr addrs.AbsResourceInstance) (HookAction, error) {
+func (h *NilHook) PreApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
 	return HookActionContinue, nil
 }
 
-func (h *NilHook) PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, error) {
+func (h *NilHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
 	return HookActionContinue, nil
 }
 

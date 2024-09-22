@@ -335,7 +335,7 @@ func (h *MockHook) PostApplyImport(addr addrs.AbsResourceInstance, importing pla
 	return h.PostApplyImportReturn, h.PostApplyImportError
 }
 
-func (h *MockHook) PreApplyForget(addr addrs.AbsResourceInstance) (HookAction, error) {
+func (h *MockHook) PreApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
@@ -343,7 +343,7 @@ func (h *MockHook) PreApplyForget(addr addrs.AbsResourceInstance) (HookAction, e
 	return h.PreApplyForgetReturn, h.PreApplyForgetError
 }
 
-func (h *MockHook) PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, error) {
+func (h *MockHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
