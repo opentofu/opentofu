@@ -86,53 +86,9 @@ func (t *TargetsTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targeta
 		}
 	}
 
-	// It is expected that outputs which are only derived from targeted
-	// resources are also updated. While we don't include any other possible
-	// side effects from the targeted nodes, these are added because outputs
-	// cannot be targeted on their own.
-	// Start by finding the root module output nodes themselves
-	for _, v := range vertices {
-		// outputs are all temporary value types
-		tv, ok := v.(graphNodeTemporaryValue)
-		if !ok {
-			continue
-		}
-
-		// root module outputs indicate that while they are an output type,
-		// they not temporary and will return false here.
-		if tv.temporaryValue() {
-			continue
-		}
-
-		// If this output is descended only from targeted resources, then we
-		// will keep it
-		deps, _ := g.Ancestors(v)
-		found := 0
-		for _, d := range deps {
-			switch d.(type) {
-			case GraphNodeResourceInstance:
-			case GraphNodeConfigResource:
-			default:
-				continue
-			}
-
-			if !targetedNodes.Include(d) {
-				// this dependency isn't being targeted, so we can't process this
-				// output
-				found = 0
-				break
-			}
-
-			found++
-		}
-
-		if found > 0 {
-			// we found an output we can keep; add it, and all it's dependencies
-			targetedNodes.Add(v)
-			for _, d := range deps {
-				targetedNodes.Add(d)
-			}
-		}
+	targetedOutputNodes := t.getTargetedOutputNodes(targetedNodes, g)
+	for _, outputNode := range targetedOutputNodes {
+		targetedNodes.Add(outputNode)
 	}
 
 	return targetedNodes, nil
@@ -214,6 +170,15 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 	}
 
 	// Step 3: Add outputs
+	targetedOutputNodes := t.getTargetedOutputNodes(targetedNodes, g)
+	for _, outputNode := range targetedOutputNodes {
+		targetedNodes.Add(outputNode)
+	}
+
+	return targetedNodes, nil
+}
+
+func (t *TargetsTransformer) getTargetedOutputNodes(targetedNodes dag.Set, graph *Graph) dag.Set {
 	// It is expected that outputs which are only derived from targeted
 	// resources are also updated. While we don't include any other possible
 	// side effects from the targeted nodes, these are added because outputs
@@ -226,6 +191,9 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 	// that depends on a module output might be updated, if said module output
 	// does not depend on any resource of the module itself.
 	// Right now, we will not change this behaviour
+
+	targetedOutputNodes := make(dag.Set)
+	vertices := graph.Vertices()
 
 	// Start by finding the root module output nodes themselves
 	for _, v := range vertices {
@@ -243,7 +211,7 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 
 		// If this output is descended only from targeted resources, then we
 		// will keep it
-		deps, _ := g.Ancestors(v)
+		deps, _ := graph.Ancestors(v)
 		found := 0
 		for _, d := range deps {
 			switch d.(type) {
@@ -253,7 +221,6 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 				continue
 			}
 
-			// AREL TODO - DRY the output logic with targets?
 			if !targetedNodes.Include(d) {
 				// this dependency isn't being targeted, so we can't process this
 				// output
@@ -266,14 +233,14 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 
 		if found > 0 {
 			// we found an output we can keep; add it, and all it's dependencies
-			targetedNodes.Add(v)
+			targetedOutputNodes.Add(v)
 			for _, d := range deps {
-				targetedNodes.Add(d)
+				targetedOutputNodes.Add(d)
 			}
 		}
 	}
 
-	return targetedNodes, nil
+	return targetedOutputNodes
 }
 
 func (t *TargetsTransformer) nodeIsExcluded(vertexAddr addrs.Targetable, excludes []addrs.Targetable) bool {
