@@ -281,13 +281,17 @@ var connectionBlockSupersetSchema = &configschema.Block{
 
 func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	// TODO Ronny fix
-	if 1 == 1 {
-		// BUG BUG BUG
-		return diags
+
+	var absProvider addrs.AbsProviderConfig
+	if n.ResolvedResourceProvider.Provider.Type != "" {
+		absProvider = n.ResolvedResourceProvider
+	} else {
+		// If the provider has yet to be resolved (will be resolved at the expansion on instance level), we can use any
+		// of the potentialProviders instead, as the interface and schema will be the same for all potential providers
+		absProvider = n.potentialProviders[0].concreteProvider.ProviderAddr()
 	}
 
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedResourceProvider) //TODO Ronny - validate this part, shouldn't we support instance provider?
+	provider, providerSchema, err := getProvider(ctx, absProvider)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
