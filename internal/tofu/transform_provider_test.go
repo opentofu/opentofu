@@ -166,6 +166,36 @@ func TestCloseProviderTransformer_withTargets(t *testing.T) {
 	}
 }
 
+func TestCloseProviderTransformer_withExcludes(t *testing.T) {
+	mod := testModule(t, "transform-provider-basic")
+
+	g := testProviderTransformerGraph(t, mod)
+	transforms := []GraphTransformer{
+		&MissingProviderTransformer{},
+		&ProviderTransformer{},
+		&CloseProviderTransformer{},
+		&TargetsTransformer{
+			Excludes: []addrs.Targetable{
+				addrs.RootModuleInstance.Resource(
+					addrs.ManagedResourceMode, "aws_instance", "web",
+				),
+			},
+		},
+	}
+
+	for _, tr := range transforms {
+		if err := tr.Transform(g); err != nil {
+			t.Fatalf("err: %s", err)
+		}
+	}
+
+	actual := strings.TrimSpace(g.String())
+	expected := strings.TrimSpace(``)
+	if actual != expected {
+		t.Fatalf("expected:%s\n\ngot:\n\n%s", expected, actual)
+	}
+}
+
 func TestMissingProviderTransformer(t *testing.T) {
 	mod := testModule(t, "transform-provider-missing")
 

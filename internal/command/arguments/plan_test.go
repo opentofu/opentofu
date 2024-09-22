@@ -6,6 +6,7 @@
 package arguments
 
 import (
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"strings"
 	"testing"
 
@@ -157,6 +158,79 @@ func TestParsePlan_targets(t *testing.T) {
 				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Targets, tc.want))
 			}
 		})
+	}
+}
+
+func TestParsePlan_excludes(t *testing.T) {
+	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	boop, _ := addrs.ParseTargetStr("module.boop")
+	testCases := map[string]struct {
+		args    []string
+		want    []addrs.Targetable
+		wantErr string
+	}{
+		"no excludes by default": {
+			args: nil,
+			want: nil,
+		},
+		"one exclude": {
+			args: []string{"-exclude=foo_bar.baz"},
+			want: []addrs.Targetable{foobarbaz.Subject},
+		},
+		"two excludes": {
+			args: []string{"-exclude=foo_bar.baz", "-exclude", "module.boop"},
+			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		"invalid traversal": {
+			args:    []string{"-exclude=foo."},
+			want:    nil,
+			wantErr: "Dot must be followed by attribute name",
+		},
+		"invalid target": {
+			args:    []string{"-exclude=data[0].foo"},
+			want:    nil,
+			wantErr: "A data source name is required",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			got, diags := ParsePlan(tc.args)
+			if len(diags) > 0 {
+				if tc.wantErr == "" {
+					t.Fatalf("unexpected diags: %v", diags)
+				} else if got := diags.Err().Error(); !strings.Contains(got, tc.wantErr) {
+					t.Fatalf("wrong diags\n got: %s\nwant: %s", got, tc.wantErr)
+				}
+			}
+			if !cmp.Equal(got.Operation.Excludes, tc.want) {
+				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Excludes, tc.want))
+			}
+		})
+	}
+}
+
+func TestParsePlan_excludeAndTarget(t *testing.T) {
+	got, gotDiags := ParsePlan([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
+	if len(gotDiags) == 0 {
+		t.Fatalf("expected error, but there was none")
+	}
+
+	wantDiags := tfdiags.Diagnostics{
+		tfdiags.Sourceless(
+			tfdiags.Error,
+			"-target and -exclude flags used together",
+			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+		),
+	}
+	if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
+		t.Errorf("wrong diagnostics\n%s", diff)
+	}
+	if len(got.Operation.Targets) > 0 {
+		t.Errorf("Did not expect operation to parse targets, but it parsed %d targets", len(got.Operation.Targets))
+	}
+	if len(got.Operation.Excludes) > 0 {
+		t.Errorf("Did not expect operation to parse excludes, but it parsed %d targets", len(got.Operation.Excludes))
 	}
 }
 

@@ -456,7 +456,42 @@ func TestApplyGraphBuilder_targetModule(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 
-	testGraphNotContains(t, g, "module.child1.output.instance_id")
+	testGraphNotContains(t, g, "test_object.foo")
+}
+
+func TestApplyGraphBuilder_excludeModule(t *testing.T) {
+	changes := &plans.Changes{
+		Resources: []*plans.ResourceInstanceChangeSrc{
+			{
+				Addr: mustResourceInstanceAddr("test_object.foo"),
+				ChangeSrc: plans.ChangeSrc{
+					Action: plans.Update,
+				},
+			},
+			{
+				Addr: mustResourceInstanceAddr("module.child2.test_object.foo"),
+				ChangeSrc: plans.ChangeSrc{
+					Action: plans.Update,
+				},
+			},
+		},
+	}
+
+	b := &ApplyGraphBuilder{
+		Config:  testModule(t, "graph-builder-apply-target-module"),
+		Changes: changes,
+		Plugins: simpleMockPluginLibrary(),
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child2", addrs.NoKey),
+		},
+	}
+
+	g, err := b.Build(addrs.RootModuleInstance)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	testGraphNotContains(t, g, "mod.child2.test_object.foo")
 }
 
 // Ensure that an update resulting from the removal of a resource happens after
