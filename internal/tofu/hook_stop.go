@@ -92,11 +92,11 @@ func (h *stopHook) PostApplyImport(addr addrs.AbsResourceInstance, importing pla
 	return h.hook()
 }
 
-func (h *stopHook) PreApplyForget(addr addrs.AbsResourceInstance) (HookAction, error) {
+func (h *stopHook) PreApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
 	return h.hook()
 }
 
-func (h *stopHook) PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, error) {
+func (h *stopHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
 	return h.hook()
 }
 
