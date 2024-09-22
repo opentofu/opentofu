@@ -29,7 +29,6 @@ type countHook struct {
 	ToChange       int
 	ToRemove       int
 	ToRemoveAndAdd int
-	ToForget       int
 
 	sync.Mutex
 	pending map[string]plans.Action
@@ -84,8 +83,7 @@ func (h *countHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generat
 					h.Removed++
 				case plans.Update:
 					h.Changed++
-				case plans.Forget:
-					h.Forgotten++
+
 				}
 			}
 		}
@@ -112,8 +110,6 @@ func (h *countHook) PostDiff(addr addrs.AbsResourceInstance, gen states.Generati
 		h.ToRemove += 1
 	case plans.Update:
 		h.ToChange += 1
-	case plans.Forget:
-		h.ToForget++
 	}
 
 	return tofu.HookActionContinue, nil
