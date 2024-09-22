@@ -178,13 +178,16 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 			deps, _ := g.Descendents(v)
 			for _, d := range deps {
 				// In general, we'd like to exclude any descendant targetable node of the current node.
-				// During apply, and before resource expansion, there might be a tofu.NodeApplyableResourceInstance
-				// created for a tofu.nodeExpandApplyableResource, with the same address. When excluding a specific
-				// resource instance, we do not want to exclude the address of the entire resource.
-				// Therefor, we should ignore descendant targetable nodes with the exact same address as the current
-				// node
+				// We exclude any resource dependent on this resource (which is more general than resources dependent
+				// on the resource instance, but is in-line with how -target works).
+				//
+				// The exception to this is when excluding a specific instance of a resource that has multiple instances.
+				// During apply, the specific instance tofu.NodeApplyableResourceInstance would be dependent on the
+				// resource tofu.nodeExpandApplyableResource.
+				// Since we do not want to exclude all resource instances (other than the ones that we've explicitly
+				// excluded), we should only exclude dependents whose target is not contained in the current node.
 				depVertexAddr := t.getTargetableNodeResourceAddr(d)
-				if depVertexAddr != nil && (!depVertexAddr.TargetContains(vertexAddr) || !vertexAddr.TargetContains(depVertexAddr)) {
+				if depVertexAddr != nil && !vertexAddr.TargetContains(depVertexAddr) {
 					excludedNodes.Add(d)
 				}
 			}
@@ -215,6 +218,15 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 	// resources are also updated. While we don't include any other possible
 	// side effects from the targeted nodes, these are added because outputs
 	// cannot be targeted on their own.
+	//
+	// Note: This behaviour has some quirks, as there are specific cases where
+	// you would think an output should not be updated, but it is
+	// For example, when there's a module call with an input that is dependent
+	// on a root resource, and only the root resource is targeted, any output
+	// that depends on a module output might be updated, if said module output
+	// does not depend on any resource of the module itself.
+	// Right now, we will not change this behaviour
+
 	// Start by finding the root module output nodes themselves
 	for _, v := range vertices {
 		// outputs are all temporary value types
@@ -241,8 +253,9 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 				continue
 			}
 
-			if excludedNodes.Include(d) {
-				// this dependency is excluded, so we can't process this
+			// AREL TODO - DRY the output logic with targets?
+			if !targetedNodes.Include(d) {
+				// this dependency isn't being targeted, so we can't process this
 				// output
 				found = 0
 				break
