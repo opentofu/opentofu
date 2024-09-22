@@ -650,7 +650,7 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 type distinguishableProvider struct {
 	moduleIdentifier   []addrs.ModuleInstanceStep
 	resourceIdentifier addrs.InstanceKey
-	concreteProvider   GraphNodeProvider
+	concreteProvider   GraphNodeProvider // Ronny TODO: I don't like that this GraphNodeProvider type is leaking into the node abstract resource itself
 }
 
 func (d *distinguishableProvider) isSingleOption() bool {
