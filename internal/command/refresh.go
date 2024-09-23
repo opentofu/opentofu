@@ -193,32 +193,40 @@ Usage: tofu [global options] refresh [options]
 
 Options:
 
-  -compact-warnings   If OpenTofu produces any warnings that are not
-                      accompanied by errors, show them in a more compact form
-                      that includes only the summary messages.
+  -compact-warnings      If OpenTofu produces any warnings that are not
+                         accompanied by errors, show them in a more compact form
+                         that includes only the summary messages.
 
-  -input=true         Ask for input for variables if not directly set.
+  -consolidate-warnings  If OpenTofu produces any warnings, no consolodation
+                         will be performed. All locations, for all warnings
+                         will be listed. Enabled by default.
 
-  -lock=false         Don't hold a state lock during the operation. This is
-                      dangerous if others might concurrently run commands
-                      against the same workspace.
+  -consolidate-errors    If OpenTofu produces any errors, no consolodation
+                         will be performed. All locations, for all errors
+                         will be listed. Disabled by default
 
-  -lock-timeout=0s    Duration to retry a state lock.
+  -input=true            Ask for input for variables if not directly set.
 
-  -no-color           If specified, output won't contain any color.
+  -lock=false            Don't hold a state lock during the operation. This is
+                         dangerous if others might concurrently run commands
+                         against the same workspace.
 
-  -parallelism=n      Limit the number of concurrent operations. Defaults to 10.
+  -lock-timeout=0s       Duration to retry a state lock.
 
-  -target=resource    Resource to target. Operation will be limited to this
-                      resource and its dependencies. This flag can be used
-                      multiple times.
+  -no-color              If specified, output won't contain any color.
 
-  -var 'foo=bar'      Set a variable in the OpenTofu configuration. This
-                      flag can be set multiple times.
+  -parallelism=n         Limit the number of concurrent operations. Defaults to 10.
 
-  -var-file=foo       Set variables in the OpenTofu configuration from
-                      a file. If "terraform.tfvars" or any ".auto.tfvars"
-                      files are present, they will be automatically loaded.
+  -target=resource       Resource to target. Operation will be limited to this
+                         resource and its dependencies. This flag can be used
+                         multiple times.
+
+  -var 'foo=bar'         Set a variable in the OpenTofu configuration. This
+                         flag can be set multiple times.
+
+  -var-file=foo          Set variables in the OpenTofu configuration from
+                         a file. If "terraform.tfvars" or any ".auto.tfvars"
+                         files are present, they will be automatically loaded.
 
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.

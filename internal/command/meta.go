@@ -252,16 +252,24 @@ type Meta struct {
 	//
 	// compactWarnings (-compact-warnings) selects a more compact presentation
 	// of warnings in the output when they are not accompanied by errors.
-	statePath        string
-	stateOutPath     string
-	backupPath       string
-	parallelism      int
-	stateLock        bool
-	stateLockTimeout time.Duration
-	forceInitCopy    bool
-	reconfigure      bool
-	migrateState     bool
-	compactWarnings  bool
+	//
+	// consolidateWarnings (-consolidate-warnings=false) disables consolodation
+	// of warnings in the output, printing all instances of a particular warning.
+	//
+	// consolidateErrors (-consolidate-errors=true) enables consolodation
+	// of errors in the output, printing a single instances of a particular warning.
+	statePath           string
+	stateOutPath        string
+	backupPath          string
+	parallelism         int
+	stateLock           bool
+	stateLockTimeout    time.Duration
+	forceInitCopy       bool
+	reconfigure         bool
+	migrateState        bool
+	compactWarnings     bool
+	consolidateWarnings bool
+	consolidateErrors   bool
 
 	// Used with commands which write state to allow users to write remote
 	// state even if the remote and local OpenTofu versions don't match.
@@ -611,6 +619,8 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 	f.BoolVar(&m.input, "input", true, "input")
 	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
+	f.BoolVar(&m.consolidateWarnings, "consolidate-warnings", true, "consolidate warnings")
+	f.BoolVar(&m.consolidateErrors, "consolidate-errors", false, "consolidate errors")
 
 	m.varFlagSet(f)
 
@@ -661,8 +671,10 @@ func (m *Meta) process(args []string) []string {
 	// views.View and cli.Ui during the migration phase.
 	if m.View != nil {
 		m.View.Configure(&arguments.View{
-			CompactWarnings: m.compactWarnings,
-			NoColor:         !m.Color,
+			CompactWarnings:     m.compactWarnings,
+			ConsolidateWarnings: m.consolidateWarnings,
+			ConsolidateErrors:   m.consolidateErrors,
+			NoColor:             !m.Color,
 		})
 	}
 
@@ -707,6 +719,7 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 // Internally this function uses Diagnostics.Append, and so it will panic
 // if given unsupported value types, just as Append does.
 func (m *Meta) showDiagnostics(vals ...interface{}) {
+
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(vals...)
 	diags.Sort()
@@ -723,7 +736,12 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 
 	outputWidth := m.ErrorColumns()
 
-	diags = diags.ConsolidateWarnings(1)
+	if m.consolidateWarnings {
+		diags = diags.Consolidate(1, tfdiags.Warning)
+	}
+	if m.consolidateErrors {
+		diags = diags.Consolidate(1, tfdiags.Error)
+	}
 
 	// Since warning messages are generally competing
 	if m.compactWarnings {

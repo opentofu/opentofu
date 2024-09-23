@@ -96,7 +96,7 @@ func TestConsolidateWarnings(t *testing.T) {
 
 	// We're using ForRPC here to force the diagnostics to be of a consistent
 	// type that we can easily assert against below.
-	got := diags.ConsolidateWarnings(2).ForRPC()
+	got := diags.Consolidate(2, Warning).ForRPC()
 	want := Diagnostics{
 		// First set
 		&rpcFriendlyDiag{
@@ -260,4 +260,62 @@ var _ DiagnosticExtraDoNotConsolidate = doNotConsolidate(true)
 
 func (d doNotConsolidate) DoNotConsolidateDiagnostic() bool {
 	return bool(d)
+}
+
+func TestConsolidateError(t *testing.T) {
+	var diags Diagnostics
+
+	// create a multiplicity of errors
+	for i := 0; i < 5; i++ {
+		diags = diags.Append(
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Error 1",
+				Detail:   "Error diag have duplicated subjects",
+				Subject: &hcl.Range{
+					Filename: "foo.tf",
+					Start:    hcl.Pos{Line: 1, Column: 1, Byte: 0},
+					End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
+				},
+			},
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Error 2",
+				Detail:   "Error diag have different subjects",
+				Subject: &hcl.Range{
+					Filename: "foo.tf",
+					Start:    hcl.Pos{Line: i + 1, Column: 1, Byte: 0},
+					End:      hcl.Pos{Line: i + 1, Column: 1, Byte: 0},
+				},
+			},
+		)
+	}
+
+	got := diags.Consolidate(1, Error).ForRPC()
+	want := Diagnostics{
+		&rpcFriendlyDiag{
+			Severity_: Error,
+			Summary_:  "Error 1",
+			Detail_:   "Error diag have duplicated subjects\n\n(and 4 more similar errors elsewhere)",
+			Subject_: &SourceRange{
+				Filename: "foo.tf",
+				Start:    SourcePos{Line: 1, Column: 1, Byte: 0},
+				End:      SourcePos{Line: 1, Column: 1, Byte: 0},
+			},
+		},
+		&rpcFriendlyDiag{
+			Severity_: Error,
+			Summary_:  "Error 2",
+			Detail_:   "Error diag have different subjects\n\n(and 4 more similar errors elsewhere)",
+			Subject_: &SourceRange{
+				Filename: "foo.tf",
+				Start:    SourcePos{Line: 1, Column: 1, Byte: 0},
+				End:      SourcePos{Line: 1, Column: 1, Byte: 0},
+			},
+		},
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("wrong result\n%s", diff)
+	}
 }

@@ -223,15 +223,27 @@ Usage: tofu [global options] console [options]
 
 Options:
 
-  -state=path       Legacy option for the local backend only. See the local
-                    backend's documentation for more information.
+  -compact-warnings      If OpenTofu produces any warnings that are not
+                         accompanied by errors, show them in a more compact
+                         form that includes only the summary messages.
 
-  -var 'foo=bar'    Set a variable in the OpenTofu configuration. This
-                    flag can be set multiple times.
+  -consolidate-warnings  If OpenTofu produces any warnings, no consolodation
+                         will be performed. All locations, for all warnings
+                         will be listed. Enabled by default.
 
-  -var-file=foo     Set variables in the OpenTofu configuration from
-                    a file. If "terraform.tfvars" or any ".auto.tfvars"
-                    files are present, they will be automatically loaded.
+  -consolidate-errors    If OpenTofu produces any errors, no consolodation
+                         will be performed. All locations, for all errors
+                         will be listed. Disabled by default
+
+  -state=path            Legacy option for the local backend only. See the local
+                         backend's documentation for more information.
+
+  -var 'foo=bar'         Set a variable in the OpenTofu configuration. This
+                         flag can be set multiple times.
+
+  -var-file=foo          Set variables in the OpenTofu configuration from
+                         a file. If "terraform.tfvars" or any ".auto.tfvars"
+                         files are present, they will be automatically loaded.
 `
 	return strings.TrimSpace(helpText)
 }

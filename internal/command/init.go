@@ -1193,6 +1193,18 @@ Options:
                           times. The backend type must be in the configuration
                           itself.
 
+  -compact-warnings       If OpenTofu produces any warnings that are not
+                          accompanied by errors, show them in a more compact
+                          form that includes only the summary messages.
+
+  -consolidate-warnings   If OpenTofu produces any warnings, no consolodation
+                          will be performed. All locations, for all warnings
+                          will be listed. Enabled by default.
+
+  -consolidate-errors     If OpenTofu produces any errors, no consolodation
+                          will be performed. All locations, for all errors
+                          will be listed. Disabled by default
+
   -force-copy             Suppress prompts about copying state data when
                           initializing a new state backend. This is
                           equivalent to providing a "yes" to all confirmation

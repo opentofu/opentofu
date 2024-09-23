@@ -187,7 +187,7 @@ func DiagnosticWarningsCompact(diags tfdiags.Diagnostics, color *colorstring.Col
 	var b strings.Builder
 	b.WriteString(color.Color("[bold][yellow]Warnings:[reset]\n\n"))
 	for _, diag := range diags {
-		sources := tfdiags.WarningGroupSourceRanges(diag)
+		sources := tfdiags.ConsolidatedGroupSourceRanges(diag)
 		b.WriteString(fmt.Sprintf("- %s\n", diag.Description().Summary))
 		if len(sources) > 0 {
 			mainSource := sources[0]
