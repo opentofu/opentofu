@@ -434,15 +434,21 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					}
 
 					// see if this is a proxy provider pointing to another concrete config
-					if _, ok := provider.(*graphNodeProxyProvider); ok {
-						// TODO Ronny fix
-						//g.Remove(p)
-						//provider = p.Target()
-						panic("BUG")
-					}
+					if p, ok := provider.(*graphNodeProxyProvider); ok {
+						g.Remove(p)
 
-					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
-					g.Connect(dag.BasicEdge(v, provider))
+						potentialProviders := p.Expanded()
+
+						for i := range potentialProviders {
+							pp := potentialProviders[i]
+
+							log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs potential provider %s", dag.VertexName(v), v, dag.VertexName(provider))
+							g.Connect(dag.BasicEdge(v, pp.concreteProvider))
+						}
+					} else {
+						log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs concrete provider %s", dag.VertexName(v), v, dag.VertexName(provider))
+						g.Connect(dag.BasicEdge(v, provider))
+					}
 
 					// Save for future lookups
 					providerReferences[key] = provider
