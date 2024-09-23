@@ -52,7 +52,7 @@ func (rs *Resource) InstanceProvider(key addrs.InstanceKey) (provider addrs.AbsP
 	if instance.Current != nil && instance.Current.InstanceProvider.Provider.Type != "" {
 		instanceProvider = instance.Current.InstanceProvider
 	} else {
-		// Take the provider from an arbitrary item from the deposed map TODO Ronny: validate with deposed scenario
+		// Take the provider from an arbitrary item from the deposed map
 		for _, deposedInstance := range instance.Deposed {
 			instanceProvider = deposedInstance.InstanceProvider
 			break // Exit after the first iteration

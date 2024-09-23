@@ -34,7 +34,7 @@ type graphNodeImportState struct {
 func (n *graphNodeImportState) SetPotentialProviders(potentialProviders []distinguishableProvider) {
 	// Technically we shouldn't get here as we don't support import with for_each on providers in resources / modules
 	// So we should panic here (ensure we have a code that validates it somewhere else) / implement a proper user error.
-	//TODO Ronny implement me
+	//TODO Ronny - don't forget to handle this scenario ^
 	panic("implement me")
 }
 

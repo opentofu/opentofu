@@ -384,13 +384,12 @@ func (n *NodeAbstractResource) ProvidedByImpl(resolvedInstanceProvider addrs.Abs
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
 			return map[addrs.InstanceKey]addrs.ProviderConfig{
-				addrs.NoKey: addrs.LocalProviderConfig{ // TODO Ronny: Should I really return addrs.NoKey here? Or read the key from the state (need to first get it in there)
+				addrs.NoKey: addrs.LocalProviderConfig{
 					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
 					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
 				},
 			}, ExactProvider{}
-
-		} // TODO Ronny - check import flow
+		}
 	}
 	// No provider configuration found; return a default address
 	return map[addrs.InstanceKey]addrs.ProviderConfig{

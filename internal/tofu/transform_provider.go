@@ -141,9 +141,11 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), providerAddr)
 
 				requested[v][providerAddr.String()] = ProviderRequest{
-					Addr:        addrs.AbsProviderConfig{},
-					Exact:       exactProvider,
-					instanceKey: addrs.NoKey, //TODO Ronny is this OK? Theoretically we won't be using the instanceKey
+					Addr:  addrs.AbsProviderConfig{},
+					Exact: exactProvider,
+					// If we are providing an exact provider, we won't need to use the instanceKey prop on the request.
+					// That's why we can set addrs.NoKey as the instanceKey.
+					instanceKey: addrs.NoKey,
 				}
 
 				// Direct references need the provider configured as well as initialized
@@ -261,7 +263,6 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				break
 			}
 
-			// TODO ronny - improve this piece of code
 			// If exact is true, it means we are in one in two scenarios:
 			// 1. The provider transformer is running after the resources were expanded to instances, and the instances
 			// already resolved their providers and the provider level (provider is set for the resource or for the
@@ -725,12 +726,6 @@ func (n *graphNodeProxyProvider) ModulePath() addrs.Module {
 func (n *graphNodeProxyProvider) Name() string {
 	return n.addr.String() + " (proxy)"
 }
-
-// root (provider[0] + provider[1]) -> module.mod[0] (provider[0]) -> module.inner -> module.bip -> resource.a
-// root (provider[0] + provider[1]) -> module.mod[1] (provider[1]) -> module.inner -> module.bip -> resource.a
-// root (provider[0] + provider[1]) -> module.another (provider[0] + provider[1]) -> module.inner[0] (provider[0]) -> resource.b
-// root (provider[0] + provider[1]) -> module.another (provider[0] + provider[1]) -> module.inner[1] (provider[1]) -> resource.b
-// TODO Ronny test multiple cases described above ^
 
 // Expanded recurses over the graphNodeProxyProvider, trying to find all the possible concrete providers.
 // Because we might have for_each on providers in the resource/module, we cannot calculate the concrete provider per
