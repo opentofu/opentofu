@@ -773,20 +773,18 @@ func (m *ProviderConfigRefMapping) setForEachAliases(eval *StaticEvaluator, refs
 		DeclRange: m.Alias.Range(),
 	}
 
-	forEachVals, forEachDiags := evalchecks.EvaluateForEachExpression(forEachExpr, func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-		var tfDiags tfdiags.Diagnostics
-		evalContext, hclDiags := eval.EvalContext(aliasStaticID, refs)
-		return evalContext, tfDiags.Append(hclDiags)
+	evalCtx, evalCtxDiags := eval.EvalContext(aliasStaticID, refs)
+	diags = diags.Extend(evalCtxDiags)
+	if evalCtxDiags.HasErrors() {
+		return diags
+	}
+
+	forEachVals, forEachDiags := evalchecks.EvaluateForEachExpression(forEachExpr, func(_ []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+		return evalCtx, nil
 	})
 
 	diags = diags.Extend(forEachDiags.ToHCL())
 	if forEachDiags.HasErrors() {
-		return diags
-	}
-
-	evalCtx, evalCtxDiags := eval.EvalContext(aliasStaticID, refs)
-	diags = diags.Extend(evalCtxDiags)
-	if evalCtxDiags.HasErrors() {
 		return diags
 	}
 
