@@ -6,6 +6,7 @@
 package states
 
 import (
+	"fmt"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -150,6 +151,14 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 	// If the instanceProvider is not empty, populate the obj with its value
 	if instanceProvider.Provider.Type != "" {
 		obj.InstanceProvider = instanceProvider
+	}
+
+	if resourceProvider.Provider.Type == "" && instanceProvider.Provider.Type == "" {
+		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) cannot find a provider (resourceProvider / instanceProvider) to write in state", addr, addr.Key.String()))
+	}
+
+	if resourceProvider.Provider.Type != "" && instanceProvider.Provider.Type != "" {
+		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) got two providers (resourceProvider & instanceProvider) to write in state", addr, addr.Key.String()))
 	}
 
 	is.Current = obj

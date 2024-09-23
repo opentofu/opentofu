@@ -49,7 +49,7 @@ func (rs *Resource) InstanceProvider(key addrs.InstanceKey) (provider addrs.AbsP
 	// If the provider is set on the instance level, we can't get it from the resource
 	instance := rs.Instances[key]
 
-	if instance.Current.InstanceProvider.Provider.Type != "" {
+	if instance.Current != nil && instance.Current.InstanceProvider.Provider.Type != "" {
 		instanceProvider = instance.Current.InstanceProvider
 	} else {
 		// Take the provider from an arbitrary item from the deposed map TODO Ronny: validate with deposed scenario

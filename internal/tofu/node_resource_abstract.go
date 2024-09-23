@@ -539,9 +539,9 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance, instanceProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance, resolvedProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, instanceProvider)
+	provider, providerSchema, err := getProvider(ctx, resolvedProvider)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -580,9 +580,9 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
 // instance in the state.
-func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey, instanceProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey, resolvedProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, instanceProvider)
+	provider, providerSchema, err := getProvider(ctx, resolvedProvider)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags

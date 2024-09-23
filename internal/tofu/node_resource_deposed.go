@@ -88,7 +88,7 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 	log.Printf("[TRACE] NodePlanDeposedResourceInstanceObject: planning %s deposed object %s", n.Addr, n.DeposedKey)
 
 	// Read the state for the deposed resource instance
-	state, err := n.readResourceInstanceStateDeposed(ctx, n.Addr, n.DeposedKey, n.ResolvedInstanceProvider)
+	state, err := n.readResourceInstanceStateDeposed(ctx, n.Addr, n.DeposedKey, n.ResolvedProvider())
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -253,7 +253,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) Execute(ctx EvalContext, op w
 	var change *plans.ResourceInstanceChange
 
 	// Read the state for the deposed resource instance
-	state, err := n.readResourceInstanceStateDeposed(ctx, n.Addr, n.DeposedKey, n.ResolvedInstanceProvider)
+	state, err := n.readResourceInstanceStateDeposed(ctx, n.Addr, n.DeposedKey, n.ResolvedProvider())
 	if err != nil {
 		return diags.Append(err)
 	}
@@ -400,7 +400,7 @@ func (n *NodeForgetDeposedResourceInstanceObject) References() []*addrs.Referenc
 // GraphNodeExecutable impl.
 func (n *NodeForgetDeposedResourceInstanceObject) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	// Read the state for the deposed resource instance
-	state, err := n.readResourceInstanceStateDeposed(ctx, n.Addr, n.DeposedKey, n.ResolvedInstanceProvider)
+	state, err := n.readResourceInstanceStateDeposed(ctx, n.Addr, n.DeposedKey, n.ResolvedProvider())
 	if err != nil {
 		return diags.Append(err)
 	}
