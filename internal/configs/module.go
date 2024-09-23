@@ -167,6 +167,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 // analysis of the returned Module is still possible in this case, but the
 // module will probably not be semantically valid.
 func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
+	//nolint: cyclop // Will be fixed when the feature branch for #300 is merged
 	var diags hcl.Diagnostics
 	mod := &Module{
 		ProviderConfigs:    map[string]*Provider{},
