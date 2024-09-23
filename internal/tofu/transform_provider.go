@@ -196,7 +196,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	// for provider inheritance and passing.
 	m := providerVertexMap(g)
 	for v, reqs := range requested {
-		var targets []distinguishableProvider
+		var potentialTargets []distinguishableProvider
 
 		for key, req := range reqs {
 			p := req.Addr
@@ -267,9 +267,12 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// already resolved their providers and the provider level (provider is set for the resource or for the
 			// instance).
 			// 2. This resource is not in the configuration, so the providers were taken from the state.
-			// In both if those cases, as the providers were previously resolved, so we don't need to go through the whole
+			//
+			// In both of those cases, as the providers were previously resolved, we don't need to go through the whole
 			// process of resolving them again. We'll set them straight on the resource and use the given
 			// "isResourceProvider", to set the provider on the already known provider level.
+			// We are also breaking the loop and stopping to process this request, as we don't need to proceed and
+			// calculate the potentialTargets, as we already know the resolved provider.
 			if isRequestedExactProvider {
 				if pv, ok := v.(GraphNodeProviderConsumer); ok {
 					log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
@@ -302,25 +305,24 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 					g.Connect(dag.BasicEdge(v, pp.concreteProvider))
 				}
 
-				targets = potentialProviders
+				potentialTargets = potentialProviders
 			} else {
 				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs the potential provider %s", dag.VertexName(v), v, dag.VertexName(target))
 				g.Connect(dag.BasicEdge(v, target))
-				targets = append(targets, distinguishableProvider{moduleIdentifier: nil, resourceIdentifier: req.instanceKey, concreteProvider: target})
+				potentialTargets = append(potentialTargets, distinguishableProvider{moduleIdentifier: nil, resourceIdentifier: req.instanceKey, concreteProvider: target})
 			}
 
 		}
 
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			if len(targets) == 1 && targets[0].isSingleOption() {
+			if len(potentialTargets) == 1 && potentialTargets[0].isSingleOption() {
 				// If we only have a single target with a single potential provider,
 				// set the provider on the resource level
-				pv.SetProvider(targets[0].concreteProvider.ProviderAddr(), true)
+				pv.SetProvider(potentialTargets[0].concreteProvider.ProviderAddr(), true)
 			} else {
-				pv.SetPotentialProviders(targets)
+				pv.SetPotentialProviders(potentialTargets)
 			}
 		}
-
 	}
 
 	return diags.Err()
