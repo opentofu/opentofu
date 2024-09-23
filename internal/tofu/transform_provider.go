@@ -649,10 +649,15 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 	}
 }
 
+// distinguishableProvider is a representation of a concrete provider and identifiers that match the provider to a
+// specific resource instance. Because we might have for_each on providers in the resource/module, we cannot calculate
+// the concrete provider per instance in stages of building the graph; we can only do that after the expansion of
+// instances (while walking the graph). So, this structure will be passed on to the resource as potential providers
+// and resolved using IsResourceInstanceMatching() once we get to the expansion stage.
 type distinguishableProvider struct {
 	moduleIdentifier   []addrs.ModuleInstanceStep
 	resourceIdentifier addrs.InstanceKey
-	concreteProvider   GraphNodeProvider // Ronny TODO: I don't like that this GraphNodeProvider type is leaking into the node abstract resource itself
+	concreteProvider   GraphNodeProvider // Ronny TODO: I don't like that this GraphNodeProvider type is eventually leaking into the node abstract resource itself
 }
 
 func (d *distinguishableProvider) isSingleOption() bool {
@@ -668,7 +673,7 @@ func (d *distinguishableProvider) AddModuleIdentifierToTheEnd(step addrs.ModuleI
 	d.moduleIdentifier = append(d.moduleIdentifier, step)
 }
 
-func (d *distinguishableProvider) IsResourceMatching(resourceInstance addrs.AbsResourceInstance) bool {
+func (d *distinguishableProvider) IsResourceInstanceMatching(resourceInstance addrs.AbsResourceInstance) bool {
 	if d.resourceIdentifier != resourceInstance.Resource.Key {
 		return false
 	}
@@ -719,7 +724,13 @@ func (n *graphNodeProxyProvider) Name() string {
 // root (provider[0] + provider[1]) -> module.mod[1] (provider[1]) -> module.inner -> module.bip -> resource.a
 // root (provider[0] + provider[1]) -> module.another (provider[0] + provider[1]) -> module.inner[0] (provider[0]) -> resource.b
 // root (provider[0] + provider[1]) -> module.another (provider[0] + provider[1]) -> module.inner[1] (provider[1]) -> resource.b
-// TODO Ronny add comment + test multiple cases described above
+// TODO Ronny test multiple cases described above ^
+
+// Expanded recurses over the graphNodeProxyProvider, trying to find all the possible concrete providers.
+// Because we might have for_each on providers in the resource/module, we cannot calculate the concrete provider per
+// instance in this part of building the graph, we can only do that after the expansion of instances. That is why, in
+// here, we are returning an array of distinguishableProviders, each with identifiers that later will help us match a
+// specific resource instance to a specific concrete provider.
 func (n *graphNodeProxyProvider) Expanded() []distinguishableProvider {
 	var concrete []distinguishableProvider
 
@@ -732,19 +743,20 @@ func (n *graphNodeProxyProvider) Expanded() []distinguishableProvider {
 			for i := range providers {
 				provider := &providers[i]
 
-				updatedModulePath := addrs.ModuleInstanceStep{
+				// We want to add all the modules we went through during the recursion as part of the ModuleIdentifier
+				currModuleIdentifier := addrs.ModuleInstanceStep{
 					Name:        n.ModulePath()[len(n.ModulePath())-1],
-					InstanceKey: ik, // Can I use '*' instead of nil/NoKey? NoKey can be confusing here
+					InstanceKey: ik,
 				}
 
-				provider.AddModuleIdentifierToTheEnd(updatedModulePath)
+				provider.AddModuleIdentifierToTheEnd(currModuleIdentifier)
 			}
 			targetConcrete = append(targetConcrete, providers...)
-
 		} else {
+			// We hit a concrete provider
 			modulePath := addrs.ModuleInstanceStep{
 				Name:        n.ModulePath()[len(n.ModulePath())-1],
-				InstanceKey: ik, // Can I use '*' instead of nil/NoKey? NoKey can be confusing here
+				InstanceKey: ik,
 			}
 			targetConcrete = append(targetConcrete, distinguishableProvider{moduleIdentifier: []addrs.ModuleInstanceStep{modulePath}, resourceIdentifier: nil, concreteProvider: target})
 		}

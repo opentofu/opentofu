@@ -310,7 +310,7 @@ func (n *NodeAbstractResource) SetPotentialProviders(potentialProviders []distin
 // configuration, or one of the containing module's configuration, contains a for_each on the providers.
 func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourceInstance) addrs.AbsProviderConfig {
 	for _, potentialProvider := range n.potentialProviders {
-		if potentialProvider.IsResourceMatching(instance) {
+		if potentialProvider.IsResourceInstanceMatching(instance) {
 			return potentialProvider.concreteProvider.ProviderAddr()
 		}
 	}
