@@ -6,9 +6,10 @@
 package arguments
 
 import (
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"strings"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"

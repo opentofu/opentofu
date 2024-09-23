@@ -579,11 +579,9 @@ func TestApply_targetedDestroy(t *testing.T) {
 				if actualStr != expectedStr {
 					t.Fatalf("bad:\n\nactual:\n%s\n\nexpected:\nb%s", actualStr, expectedStr)
 				}
-			} else {
+			} else if !stateFile.State.Empty() {
 				// Missing wantStatFunc means expected empty state
-				if !stateFile.State.Empty() {
-					t.Fatalf("unexpected final state\ngot: %s\nwant: empty state", spew.Sdump(stateFile.State))
-				}
+				t.Fatalf("unexpected final state\ngot: %s\nwant: empty state", spew.Sdump(stateFile.State))
 			}
 
 			// Should have a backup file
@@ -603,7 +601,6 @@ func TestApply_targetedDestroy(t *testing.T) {
 			if backupActualStr != backupExpectedStr {
 				t.Fatalf("bad:\n\nactual:\n%s\n\nexpected:\nb%s", backupActualStr, backupExpectedStr)
 			}
-
 		})
 	}
 }

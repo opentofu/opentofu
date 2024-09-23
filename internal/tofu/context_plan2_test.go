@@ -1966,7 +1966,8 @@ resource "test_object" "b" {
 	// external changes trigger a "drift report", but because test_object.b was
 	// excluded, the state was not fixed to match the schema and cannot be
 	// deocded for the report.
-	p.ReadResourceFn = func(req providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+		var resp providers.ReadResourceResponse
 		obj := req.PriorState.AsValueMap()
 		// test_number changed externally
 		obj["test_number"] = cty.NumberIntVal(1)

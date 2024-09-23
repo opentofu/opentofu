@@ -95,8 +95,10 @@ type Operation struct {
 	refreshOnlyRaw  bool
 }
 
-func parseRawTargets(targets []string) (targetables []addrs.Targetable, diags tfdiags.Diagnostics) {
-	targetables = nil
+func parseRawTargets(targets []string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+	var targetables []addrs.Targetable
+	var diags tfdiags.Diagnostics
+
 	for _, tr := range targets {
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
 		if syntaxDiags.HasErrors() {
@@ -120,17 +122,21 @@ func parseRawTargets(targets []string) (targetables []addrs.Targetable, diags tf
 
 		targetables = append(targetables, target.Subject)
 	}
-	return
+	return targetables, diags
 }
 
-func parseRawTargetsAndExcludes(targets []string, excludes []string) (parsedTargets []addrs.Targetable, parsedExcludes []addrs.Targetable, diags tfdiags.Diagnostics) {
+func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
+	var parsedTargets []addrs.Targetable
+	var parsedExcludes []addrs.Targetable
+	var diags tfdiags.Diagnostics
+
 	if len(targets) > 0 && len(excludes) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"-target and -exclude flags used together",
 			"-target and -exclude flags cannot be used together. Please remove one of the flags",
 		))
-		return
+		return parsedTargets, parsedExcludes, diags
 	}
 
 	var parseDiags tfdiags.Diagnostics
@@ -140,7 +146,7 @@ func parseRawTargetsAndExcludes(targets []string, excludes []string) (parsedTarg
 	parsedExcludes, parseDiags = parseRawTargets(excludes)
 	diags = diags.Append(parseDiags)
 
-	return
+	return parsedTargets, parsedExcludes, diags
 }
 
 // Parse must be called on Operation after initial flag parse. This processes

@@ -487,11 +487,11 @@ func (c *Context) prePlanFindAndApplyMoves(config *configs.Config, prevRunState 
 func (c *Context) prePlanVerifyTargetedMoves(moveResults refactoring.MoveResults, targets []addrs.Targetable, excludes []addrs.Targetable) tfdiags.Diagnostics {
 	if len(targets) > 0 {
 		return c.prePlanVerifyMovesWithTargetFlag(moveResults, targets)
-	} else if len(excludes) > 0 {
-		return c.prePlanVerifyMovesWithExcludeFlag(moveResults, excludes)
-	} else {
-		return nil
 	}
+	if len(excludes) > 0 {
+		return c.prePlanVerifyMovesWithExcludeFlag(moveResults, excludes)
+	}
+	return nil
 }
 
 func (c *Context) prePlanVerifyMovesWithTargetFlag(moveResults refactoring.MoveResults, targets []addrs.Targetable) tfdiags.Diagnostics {

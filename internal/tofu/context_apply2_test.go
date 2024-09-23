@@ -3570,7 +3570,6 @@ func TestContext2Apply_excludedResourceOrphanModule(t *testing.T) {
 	state, diags = ctx.Apply(plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
-
 	}
 
 	checkStateString(t, state, `
@@ -3621,7 +3620,6 @@ func TestContext2Apply_excludedOrphanModule(t *testing.T) {
 	state, diags = ctx.Apply(plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
-
 	}
 
 	checkStateString(t, state, `
