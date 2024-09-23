@@ -168,7 +168,7 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 
 	for _, mod := range versions.Modules {
 		for _, v := range mod.Versions {
-			log.Printf("[DEBUG] found available version %q for %s", v.Version, mod.Source)
+			log.Printf("[DEBUG] found available version %q for %s", v.Version, module.Module())
 		}
 	}
 
