@@ -764,7 +764,7 @@ func providerToConfigRefMapping(p *Provider) *ProviderConfigRefMapping {
 	return m
 }
 
-func (m *ProviderConfigRefMapping) getForEachValues(eval *StaticEvaluator, forEachExpr hcl.Expression) (map[addrs.InstanceKey]map[string]cty.Value, hcl.Diagnostics) {
+func evaluateForEachValues(eval *StaticEvaluator, forEachExpr hcl.Expression) (map[addrs.InstanceKey]map[string]cty.Value, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	forEachID := StaticIdentifier{
@@ -794,7 +794,7 @@ func (m *ProviderConfigRefMapping) getForEachValues(eval *StaticEvaluator, forEa
 	return result, diags
 }
 
-func (m *ProviderConfigRefMapping) getCountValues(eval *StaticEvaluator, countExpr hcl.Expression) (map[addrs.InstanceKey]map[string]cty.Value, hcl.Diagnostics) {
+func evaluateCountValues(eval *StaticEvaluator, countExpr hcl.Expression) (map[addrs.InstanceKey]map[string]cty.Value, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	countID := StaticIdentifier{
@@ -907,9 +907,9 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 
 	switch {
 	case refInfo.hasCountRef:
-		instanceVariableMap, instanceDiags = m.getCountValues(eval, countExpr)
+		instanceVariableMap, instanceDiags = evaluateCountValues(eval, countExpr)
 	case refInfo.hasEachRef:
-		instanceVariableMap, instanceDiags = m.getForEachValues(eval, forEachExpr)
+		instanceVariableMap, instanceDiags = evaluateForEachValues(eval, forEachExpr)
 	default:
 		instanceVariableMap = map[addrs.InstanceKey]map[string]cty.Value{addrs.NoKey: nil}
 	}
@@ -928,6 +928,8 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 	if evalCtxDiags.HasErrors() {
 		return diags
 	}
+
+	m.Aliases = make(map[addrs.InstanceKey]string)
 	for k, v := range instanceVariableMap {
 		instanceEvalCtx := evalCtx.NewChild()
 		instanceEvalCtx.Variables = v
