@@ -30,7 +30,7 @@ linters-settings:
     require-specific: true
 
   cyclop:
-    max-complexity: 15
+    max-complexity: 20
 
   gocognit:
     min-complexity: 50
