@@ -764,180 +764,63 @@ func providerToConfigRefMapping(p *Provider) *ProviderConfigRefMapping {
 	return m
 }
 
-func (m *ProviderConfigRefMapping) setForEachAliases(eval *StaticEvaluator, refs []*addrs.Reference, forEachExpr hcl.Expression) hcl.Diagnostics {
+func evaluateForEachValues(eval *StaticEvaluator, forEachExpr hcl.Expression) (map[addrs.InstanceKey]map[string]cty.Value, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	aliasStaticID := StaticIdentifier{
+	forEachID := StaticIdentifier{
 		Module:    eval.call.addr,
-		Subject:   "alias",
-		DeclRange: m.Alias.Range(),
+		Subject:   "for_each", // TODO better message here
+		DeclRange: forEachExpr.Range(),
 	}
-
-	evalCtx, evalCtxDiags := eval.EvalContext(aliasStaticID, refs)
-	diags = diags.Extend(evalCtxDiags)
-	if evalCtxDiags.HasErrors() {
-		return diags
-	}
-
-	forEachVals, forEachDiags := evalchecks.EvaluateForEachExpression(forEachExpr, func(_ []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-		return evalCtx, nil
+	forEachVals, forEachDiags := evalchecks.EvaluateForEachExpression(forEachExpr, func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+		evalCtx, evalDiags := eval.EvalContext(forEachID, refs)
+		return evalCtx, tfdiags.Diagnostics{}.Append(evalDiags)
 	})
-
 	diags = diags.Extend(forEachDiags.ToHCL())
 	if forEachDiags.HasErrors() {
-		return diags
+		return nil, diags
 	}
 
-	aliases, aliasesDiags := generateForEachAliases(forEachVals, evalCtx, m.Alias)
-	diags = diags.Extend(aliasesDiags)
-	if diags.HasErrors() {
-		return diags
-	}
-
-	m.Aliases = aliases
-	return diags
-}
-
-func generateForEachAliases(vals map[string]cty.Value, evalCtx *hcl.EvalContext, alias hcl.Expression) (map[addrs.InstanceKey]string, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-
-	aliases := make(map[addrs.InstanceKey]string)
-
-	for k, v := range vals {
-		instanceEvalCtx := evalCtx.NewChild()
-		instanceEvalCtx.Variables = map[string]cty.Value{
+	result := make(map[addrs.InstanceKey]map[string]cty.Value)
+	for k, v := range forEachVals {
+		result[addrs.StringKey(k)] = map[string]cty.Value{
 			"each": cty.ObjectVal(map[string]cty.Value{
 				"key":   cty.StringVal(k),
 				"value": v,
 			}),
 		}
-
-		aliasVal, aliasDiags := alias.Value(instanceEvalCtx)
-		diags = diags.Extend(aliasDiags)
-		if aliasDiags.HasErrors() {
-			continue
-		}
-
-		if !aliasVal.Type().Equals(cty.String) {
-			return nil, diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider alias reference",
-				Detail:   fmt.Sprintf("Alias must be of type 'string', got '%v' instead.", aliasVal.Type().FriendlyName()),
-				Subject:  alias.Range().Ptr(),
-			})
-		}
-
-		aliases[addrs.StringKey(k)] = aliasVal.AsString()
 	}
 
-	return aliases, diags
+	return result, diags
 }
 
-func (m *ProviderConfigRefMapping) setCountAliases(eval *StaticEvaluator, refs []*addrs.Reference, countExpr hcl.Expression) hcl.Diagnostics {
+func evaluateCountValues(eval *StaticEvaluator, countExpr hcl.Expression) (map[addrs.InstanceKey]map[string]cty.Value, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	aliasStaticID := StaticIdentifier{
+	countID := StaticIdentifier{
 		Module:    eval.call.addr,
-		Subject:   "alias",
-		DeclRange: m.Alias.Range(),
+		Subject:   "count", // TODO better message here
+		DeclRange: countExpr.Range(),
 	}
 
 	lastIndex, countDiags := evalchecks.EvaluateCountExpression(countExpr, func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
-		var tfDiags tfdiags.Diagnostics
-		v, hclDiags := eval.Evaluate(expr, aliasStaticID)
-		return v, tfDiags.Append(hclDiags)
+		v, evalDiags := eval.Evaluate(expr, countID)
+		return v, tfdiags.Diagnostics{}.Append(evalDiags)
 	})
 
 	diags = diags.Extend(countDiags.ToHCL())
 	if countDiags.HasErrors() {
-		return diags
+		return nil, diags
 	}
-
-	evalCtx, evalCtxDiags := eval.EvalContext(aliasStaticID, refs)
-	diags = diags.Extend(evalCtxDiags)
-	if evalCtxDiags.HasErrors() {
-		return diags
-	}
-
-	aliases, aliasesDiags := generateCountAliases(lastIndex, evalCtx, m.Alias)
-	diags = diags.Extend(aliasesDiags)
-	if diags.HasErrors() {
-		return diags
-	}
-
-	m.Aliases = aliases
-	return diags
-}
-
-func generateCountAliases(lastIndex int, evalCtx *hcl.EvalContext, alias hcl.Expression) (map[addrs.InstanceKey]string, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-
-	aliases := make(map[addrs.InstanceKey]string, lastIndex+1)
-
+	result := make(map[addrs.InstanceKey]map[string]cty.Value)
 	for i := 0; i < lastIndex; i++ {
-		instanceEvalCtx := evalCtx.NewChild()
-		instanceEvalCtx.Variables = map[string]cty.Value{
+		result[addrs.IntKey(i)] = map[string]cty.Value{
 			"count": cty.ObjectVal(map[string]cty.Value{
 				"index": cty.NumberVal(big.NewFloat(float64(i))),
 			}),
 		}
-
-		aliasVal, aliasDiags := alias.Value(instanceEvalCtx)
-		diags = diags.Extend(aliasDiags)
-		if aliasDiags.HasErrors() {
-			continue
-		}
-
-		if !aliasVal.Type().Equals(cty.String) {
-			return nil, diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider alias reference",
-				Detail:   fmt.Sprintf("Alias must be of type 'string', got '%v' instead.", aliasVal.Type().FriendlyName()),
-				Subject:  alias.Range().Ptr(),
-			})
-		}
-
-		aliases[addrs.IntKey(i)] = aliasVal.AsString()
 	}
-
-	return aliases, diags
-}
-
-func (m *ProviderConfigRefMapping) setNoKeyAliases(eval *StaticEvaluator, refs []*addrs.Reference) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-
-	aliasStaticID := StaticIdentifier{
-		Module:    eval.call.addr,
-		Subject:   "alias",
-		DeclRange: m.Alias.Range(),
-	}
-
-	evalCtx, evalCtxDiags := eval.EvalContext(aliasStaticID, refs)
-	diags = diags.Extend(evalCtxDiags)
-	if evalCtxDiags.HasErrors() {
-		return diags
-	}
-
-	aliasVal, aliasDiags := m.Alias.Value(evalCtx)
-	diags = diags.Extend(aliasDiags)
-	if aliasDiags.HasErrors() {
-		return diags
-	}
-
-	if !aliasVal.Type().Equals(cty.String) {
-		return diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid provider alias reference",
-			Detail:   fmt.Sprintf("Alias must be of type 'string', got '%v' instead.", aliasVal.Type().FriendlyName()),
-			Subject:  m.Alias.Range().Ptr(),
-		})
-	}
-
-	m.Aliases = map[addrs.InstanceKey]string{
-		addrs.NoKey: aliasVal.AsString(),
-	}
-
-	return diags
+	return result, diags
 }
 
 type nonInstanceRefs struct {
@@ -980,9 +863,9 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 	// We don't want to try evaluate 'each' / 'count' references so
 	// we filter them out to process separately via child evaluation
 	// contexts.
-	refs := filterNonInstanceRefs(unfilteredRefs)
+	refInfo := filterNonInstanceRefs(unfilteredRefs)
 
-	if refs.hasEachRef && refs.hasCountRef {
+	if refInfo.hasEachRef && refInfo.hasCountRef {
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider alias reference",
@@ -991,8 +874,7 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 		})
 	}
 
-	switch {
-	case refs.hasCountRef && countExpr == nil:
+	if refInfo.hasCountRef && countExpr == nil {
 		didYouMean := ""
 		if forEachExpr != nil {
 			didYouMean = " Did you mean to use 'each' instead?"
@@ -1004,11 +886,9 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 			Detail:   fmt.Sprintf("Alias expression references 'count' without the declaration.%v", didYouMean),
 			Subject:  m.Alias.Range().Ptr(),
 		})
+	}
 
-	case refs.hasCountRef:
-		diags = diags.Extend(m.setCountAliases(eval, refs.filtered, countExpr))
-
-	case refs.hasEachRef && forEachExpr == nil:
+	if refInfo.hasEachRef && forEachExpr == nil {
 		didYouMean := ""
 		if countExpr != nil {
 			didYouMean = " Did you mean to use 'count' instead?"
@@ -1020,12 +900,48 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 			Detail:   fmt.Sprintf("Alias expression references 'each' without the 'for_each' declaration.%v", didYouMean),
 			Subject:  m.Alias.Range().Ptr(),
 		})
+	}
 
-	case refs.hasEachRef:
-		diags = diags.Extend(m.setForEachAliases(eval, refs.filtered, countExpr))
+	var instanceVariableMap map[addrs.InstanceKey]map[string]cty.Value
+	var instanceDiags hcl.Diagnostics
 
+	switch {
+	case refInfo.hasCountRef:
+		instanceVariableMap, instanceDiags = evaluateCountValues(eval, countExpr)
+	case refInfo.hasEachRef:
+		instanceVariableMap, instanceDiags = evaluateForEachValues(eval, forEachExpr)
 	default:
-		diags = diags.Extend(m.setNoKeyAliases(eval, refs.filtered))
+		instanceVariableMap = map[addrs.InstanceKey]map[string]cty.Value{addrs.NoKey: nil}
+	}
+
+	diags = diags.Extend(instanceDiags)
+	if instanceDiags.HasErrors() {
+		return diags
+	}
+
+	evalCtx, evalCtxDiags := eval.EvalContext(StaticIdentifier{
+		Module:    eval.call.addr,
+		Subject:   "providers.alias",
+		DeclRange: m.Alias.Range(),
+	}, refInfo.filtered)
+	diags = diags.Extend(evalCtxDiags)
+	if evalCtxDiags.HasErrors() {
+		return diags
+	}
+
+	m.Aliases = make(map[addrs.InstanceKey]string)
+	for k, v := range instanceVariableMap {
+		instanceEvalCtx := evalCtx.NewChild()
+		instanceEvalCtx.Variables = v
+
+		var alias string
+		aliasDiags := gohcl.DecodeExpression(m.Alias, instanceEvalCtx, &alias)
+		diags = diags.Extend(aliasDiags)
+		if aliasDiags.HasErrors() {
+			continue
+		}
+
+		m.Aliases[k] = alias
 	}
 
 	return diags
