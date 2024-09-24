@@ -113,7 +113,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	var diags tfdiags.Diagnostics
 
 	// To start, we'll collect the _requested_ provider addresses for each
-	// node, which we'll then resolve (handling provider inheritence, etc) in
+	// node, which we'll then resolve (handling provider inheritance, etc) in
 	// the next step.
 	// Our "requested" map is from graph vertices to string representations of
 	// provider config addresses (for deduping) to requests.
@@ -475,7 +475,7 @@ func (t *CloseProviderTransformer) Transform(g *Graph) error {
 	for _, p := range pm {
 		key := p.ProviderAddr().String()
 
-		// get the close provider of this type if we alread created it
+		// get the close provider of this type if we already created it
 		closer := cpm[key]
 
 		if closer == nil {
@@ -517,7 +517,7 @@ func (t *CloseProviderTransformer) Transform(g *Graph) error {
 // This transformer may create extra nodes that are not needed in practice,
 // due to overriding provider configurations in child modules.
 // PruneProviderTransformer can then remove these once ProviderTransformer
-// has resolved all of the inheritence, etc.
+// has resolved all of the inheritance, etc.
 type MissingProviderTransformer struct {
 	// MissingProviderTransformer needs the config to rule out _implied_ default providers
 	Config *configs.Config
