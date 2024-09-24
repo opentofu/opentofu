@@ -335,9 +335,9 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 // GraphNodeProviderConsumer
 func (n *NodeAbstractResource) ProvidedByImpl(resolvedInstanceProvider addrs.AbsProviderConfig) (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
 	// Once the provider is fully resolved, we can return the known value.
-	if n.ResolvedResourceProvider.Provider.Type != "" {
+	if !n.ResolvedResourceProvider.IsSet() {
 		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: true}
-	} else if resolvedInstanceProvider.Provider.Type != "" {
+	} else if !resolvedInstanceProvider.IsSet() {
 		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: false}
 
 	}
@@ -368,7 +368,7 @@ func (n *NodeAbstractResource) ProvidedByImpl(resolvedInstanceProvider addrs.Abs
 	}
 
 	// See if we have a valid provider config from the state.
-	if n.storedProviderConfig.provider.Provider.Type != "" {
+	if !n.storedProviderConfig.provider.IsSet() {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
@@ -405,7 +405,7 @@ func (n *NodeAbstractResource) Provider() addrs.Provider {
 	if n.Config != nil {
 		return n.Config.Provider
 	}
-	if n.storedProviderConfig.provider.Provider.Type != "" {
+	if !n.storedProviderConfig.provider.IsSet() {
 		return n.storedProviderConfig.provider.Provider
 	}
 

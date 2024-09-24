@@ -129,14 +129,14 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
 			providerAddrs, exactProvider := pv.ProvidedBy()
 
-			if providerAddrs == nil && exactProvider.provider.Provider.Type == "" {
+			if providerAddrs == nil && exactProvider.provider.IsSet() {
 				// no provider is required
 				continue
 			}
 
 			requested[v] = make(map[string]ProviderRequest)
 
-			if exactProvider.provider.Provider.Type != "" {
+			if !exactProvider.provider.IsSet() {
 				providerAddr := exactProvider.provider
 				log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), providerAddr)
 
@@ -216,7 +216,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", p, dag.VertexName(v))
 			}
 
-			isRequestedExactProvider := req.Exact.provider.Provider.Type != ""
+			isRequestedExactProvider := !req.Exact.provider.IsSet()
 
 			// if we don't have a provider at this level, walk up the path looking for one,
 			// unless we were told to be exact.

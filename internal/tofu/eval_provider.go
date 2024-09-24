@@ -49,7 +49,7 @@ func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *
 
 // getProvider returns the providers.Interface and schema for a given provider.
 func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
-	if addr.Provider.Type == "" {
+	if addr.IsSet() {
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")
 	}

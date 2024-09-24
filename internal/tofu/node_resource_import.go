@@ -90,18 +90,18 @@ func (n *graphNodeImportState) ModulePath() addrs.Module {
 
 func (n *graphNodeImportState) ResolvedProvider() addrs.AbsProviderConfig {
 	var result addrs.AbsProviderConfig
-	if n.ResolvedResourceProvider.Provider.Type != "" {
+	if !n.ResolvedResourceProvider.IsSet() {
 		result = n.ResolvedResourceProvider
 	} else {
 		result = n.ResolvedInstanceProvider
 	}
 
-	if result.Provider.Type == "" {
+	if result.IsSet() {
 		panic(fmt.Sprintf("ResolvedProvider for graphNodeImportState of %s cannot get a provider", n.Addr))
 	}
 
 	// Throw an error if ResolvedResourceProvider and ResolvedInstanceProvider exists at the same time.
-	if n.ResolvedInstanceProvider.Provider.Type != "" && n.ResolvedResourceProvider.Provider.Type != "" {
+	if !n.ResolvedInstanceProvider.IsSet() && !n.ResolvedResourceProvider.IsSet() {
 		panic(fmt.Sprintf("ResolvedProvider for graphNodeImportState of %s has a provider set for both the resource and the resource's instance", n.Addr))
 	}
 

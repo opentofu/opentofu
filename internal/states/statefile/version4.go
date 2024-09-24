@@ -409,7 +409,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 			}
 
 			providerConfigValue := ""
-			if rs.ProviderConfig.Provider.Type != "" {
+			if !rs.ProviderConfig.IsSet() {
 				providerConfigValue = rs.ProviderConfig.String()
 			}
 
@@ -530,7 +530,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	diags = diags.Append(pathsDiags)
 
 	instanceProviderValue := ""
-	if obj.InstanceProvider.Provider.Type != "" {
+	if !obj.InstanceProvider.IsSet() {
 		instanceProviderValue = obj.InstanceProvider.String()
 	}
 

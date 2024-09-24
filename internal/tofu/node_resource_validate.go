@@ -283,7 +283,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 	var diags tfdiags.Diagnostics
 
 	var absProvider addrs.AbsProviderConfig
-	if n.ResolvedResourceProvider.Provider.Type != "" {
+	if !n.ResolvedResourceProvider.IsSet() {
 		absProvider = n.ResolvedResourceProvider
 	} else {
 		// If the provider has yet to be resolved (will be resolved at the expansion on instance level), we can use any

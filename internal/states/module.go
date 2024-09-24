@@ -70,7 +70,7 @@ func (ms *Module) SetResourceProvider(addr addrs.Resource, provider addrs.AbsPro
 		ms.Resources[addr.String()] = rs
 	}
 
-	if provider.Provider.Type != "" {
+	if !provider.IsSet() {
 		rs.ProviderConfig = provider
 	}
 }
@@ -144,20 +144,20 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 	}
 
 	// Update the resource's ProviderConfig, in case the provider has updated
-	if resourceProvider.Provider.Type != "" {
+	if !resourceProvider.IsSet() {
 		rs.ProviderConfig = resourceProvider
 	}
 
 	// If the instanceProvider is not empty, populate the obj with its value
-	if instanceProvider.Provider.Type != "" {
+	if !instanceProvider.IsSet() {
 		obj.InstanceProvider = instanceProvider
 	}
 
-	if resourceProvider.Provider.Type == "" && instanceProvider.Provider.Type == "" {
+	if resourceProvider.IsSet() && instanceProvider.IsSet() {
 		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) cannot find a provider (resourceProvider / instanceProvider) to write in state", addr, addr.Key.String()))
 	}
 
-	if resourceProvider.Provider.Type != "" && instanceProvider.Provider.Type != "" {
+	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
 		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) got two providers (resourceProvider & instanceProvider) to write in state", addr, addr.Key.String()))
 	}
 
@@ -187,7 +187,7 @@ func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key De
 	is := rs.EnsureInstance(addr.Key)
 
 	// If the instanceProvider is not empty, populate the obj with its value
-	if instanceProvider.Provider.Type != "" {
+	if !instanceProvider.IsSet() {
 		obj.InstanceProvider = instanceProvider
 	}
 
