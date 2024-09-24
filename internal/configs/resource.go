@@ -919,13 +919,11 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 		return diags
 	}
 
-	aliasStaticID := StaticIdentifier{
+	evalCtx, evalCtxDiags := eval.EvalContext(StaticIdentifier{
 		Module:    eval.call.addr,
 		Subject:   "providers.alias",
 		DeclRange: m.Alias.Range(),
-	}
-
-	evalCtx, evalCtxDiags := eval.EvalContext(aliasStaticID, refInfo.filtered)
+	}, refInfo.filtered)
 	diags = diags.Extend(evalCtxDiags)
 	if evalCtxDiags.HasErrors() {
 		return diags
