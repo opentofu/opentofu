@@ -52,8 +52,10 @@ func (rs *Resource) InstanceProvider(key addrs.InstanceKey) (provider addrs.AbsP
 	if instance.Current != nil && !instance.Current.InstanceProvider.IsSet() {
 		instanceProvider = instance.Current.InstanceProvider
 	} else {
-		// Take the provider from an arbitrary item from the deposed map
+		// If instance.Current is not set, then maybe the resource has deposed instances instead
 		for _, deposedInstance := range instance.Deposed {
+			// All the deposed instances should have the same instance provider, so we can get it from the first
+			// deposed instance we stumble upon
 			instanceProvider = deposedInstance.InstanceProvider
 			break // Exit after the first iteration
 		}
