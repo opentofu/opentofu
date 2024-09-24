@@ -909,7 +909,7 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 	case refInfo.hasCountRef:
 		instanceVariableMap, instanceDiags = m.getCountValues(eval, countExpr)
 	case refInfo.hasEachRef:
-		instanceVariableMap, instanceDiags = m.getForEachValues(eval, countExpr)
+		instanceVariableMap, instanceDiags = m.getForEachValues(eval, forEachExpr)
 	default:
 		instanceVariableMap = map[addrs.InstanceKey]map[string]cty.Value{addrs.NoKey: nil}
 	}
