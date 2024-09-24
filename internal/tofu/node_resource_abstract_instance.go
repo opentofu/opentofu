@@ -82,24 +82,24 @@ func (n *NodeAbstractResourceInstance) SetProvider(provider addrs.AbsProviderCon
 
 func (n *NodeAbstractResourceInstance) ResolvedProvider() addrs.AbsProviderConfig {
 	var result addrs.AbsProviderConfig
-	if !n.ResolvedResourceProvider.IsSet() {
+	if n.ResolvedResourceProvider.IsSet() {
 		result = n.ResolvedResourceProvider
 	} else {
 		// This function is called during the apply graph transformer phase to get the resolved provider.
 		// As this is an instance with a known address, we can lookup the resolved provider for the instance here..
-		if n.ResolvedInstanceProvider.IsSet() {
+		if !n.ResolvedInstanceProvider.IsSet() {
 			n.ResolvedInstanceProvider = n.resolveInstanceProvider(n.Addr)
 		}
 
 		result = n.ResolvedInstanceProvider
 	}
 
-	if result.IsSet() {
+	if !result.IsSet() {
 		panic(fmt.Sprintf("ResolvedProvider for %s cannot get a provider", n.Addr))
 	}
 
 	// Throw an error if ResolvedResourceProvider and ResolvedInstanceProvider exists at the same time.
-	if !n.ResolvedInstanceProvider.IsSet() && !n.ResolvedResourceProvider.IsSet() {
+	if n.ResolvedInstanceProvider.IsSet() && n.ResolvedResourceProvider.IsSet() {
 		panic(fmt.Sprintf("ResolvedProvider for %s has a provider set for the resource and the resource's instance", n.Addr))
 	}
 
@@ -424,7 +424,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 
 	absAddr := n.Addr
 
-	if n.ResolvedProvider().IsSet() {
+	if !n.ResolvedProvider().IsSet() {
 		if deposedKey == "" {
 			panic(fmt.Sprintf("planDestroy for %s does not have ProviderAddr set", absAddr))
 		} else {

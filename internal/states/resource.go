@@ -49,7 +49,7 @@ func (rs *Resource) InstanceProvider(key addrs.InstanceKey) (provider addrs.AbsP
 	// If the provider is set on the instance level, we can't get it from the resource
 	instance := rs.Instances[key]
 
-	if instance.Current != nil && !instance.Current.InstanceProvider.IsSet() {
+	if instance.Current != nil && instance.Current.InstanceProvider.IsSet() {
 		instanceProvider = instance.Current.InstanceProvider
 	} else {
 		// If instance.Current is not set, then maybe the resource has deposed instances instead
@@ -61,15 +61,15 @@ func (rs *Resource) InstanceProvider(key addrs.InstanceKey) (provider addrs.AbsP
 		}
 	}
 
-	if resourceProvider.IsSet() && instanceProvider.IsSet() {
+	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
 		panic(fmt.Sprintf("InstanceProvider for %s (instance key %s) failed to read provider from the state", rs.Addr, key.String()))
 	}
 
-	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
+	if resourceProvider.IsSet() && instanceProvider.IsSet() {
 		panic(fmt.Sprintf("InstanceProvider for %s (instance key %s) found two providers in state for the instance", rs.Addr, key.String()))
 	}
 
-	if !resourceProvider.IsSet() {
+	if resourceProvider.IsSet() {
 		return resourceProvider, true
 	} else {
 		return instanceProvider, false
