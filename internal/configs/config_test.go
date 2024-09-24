@@ -709,7 +709,7 @@ func TestTransformForTest(t *testing.T) {
 					InChild: &ProviderConfigRef{
 						Name: "foo",
 					},
-					InParent: &ProviderConfigRef{
+					InParentMapping: &ProviderConfigRefMapping{
 						Name: "bar",
 					},
 				},
@@ -729,7 +729,7 @@ func TestTransformForTest(t *testing.T) {
 					InChild: &ProviderConfigRef{
 						Name: "foo",
 					},
-					InParent: &ProviderConfigRef{
+					InParentMapping: &ProviderConfigRefMapping{
 						Name: "bar",
 					},
 				},
@@ -765,7 +765,7 @@ func TestTransformForTest(t *testing.T) {
 					InChild: &ProviderConfigRef{
 						Name: "bar",
 					},
-					InParent: &ProviderConfigRef{
+					InParentMapping: &ProviderConfigRefMapping{
 						Name: "bar",
 					},
 				},
@@ -788,7 +788,7 @@ func TestTransformForTest(t *testing.T) {
 					InChild: &ProviderConfigRef{
 						Name: "foo.secondary",
 					},
-					InParent: &ProviderConfigRef{
+					InParentMapping: &ProviderConfigRefMapping{
 						Name: "foo",
 					},
 				},
