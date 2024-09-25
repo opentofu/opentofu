@@ -1,5 +1,18 @@
 # Weekly Updates
 
+## 2024-09-20
+
+Well hello there! We have a week of housekeeping behind us, but also a few important changes:
+
+- Starting with OpenTofu 1.10, the `ghcr.io/opentofu/opentofu` will no longer be usable as a base image for custom container builds due to security reasons and will only be available as a CLI image. See [the pull request for details](https://github.com/opentofu/opentofu/pull/1993).
+- We are moving into the testing and documentation phase with passing providers to modules and resources using `for_each`, as well as `-exclude`.
+- We are expanding the scope of the [Registry Search](https://search.opentofu.org) indexing and will hopefully have the entire registry indexed soon. We also continued working on providing a user documentation for the OpenTofu Registry.
+- How you can help:
+  - If you are experienced in TypeScript/HTML/CSS, please take a look at the [Registry Search](https://github.com/opentofu/registry-ui/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) repository! There are several issues related to accessibility we like to resolve but currently don't have the capacity for.
+  - Keep an eye out for issues labeled with `help wanted`. These are issues open for a community member to contribute a PR and we'd love to review it.
+  - [Report and upvote issues](https://github.com/opentofu/opentofu/issues/1496) that are important to you. We are a community-driven organization and prioritize issues that are affecting a lot of people.
+  - Take the [OpenTofu Registry Docs API](https://api.opentofu.org/) for a spin and build something cool with it.
+
 ## 2024-09-13
 
 Hi there! It's been a busy month since the last "Weekly Update". Here are the latest updates:

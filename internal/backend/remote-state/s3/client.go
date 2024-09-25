@@ -469,6 +469,10 @@ func (c *RemoteClient) getSSECustomerKeyMD5() string {
 	return base64.StdEncoding.EncodeToString(b[:])
 }
 
+func (c *RemoteClient) IsLockingEnabled() bool {
+	return c.ddbTable != ""
+}
+
 const errBadChecksumFmt = `state data in S3 does not have the expected content.
 
 This may be caused by unusually long delays in S3 processing a previous state

@@ -152,16 +152,17 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 			} else {
 				val = attrS.EmptyValue()
 			}
-			if val.Type() == cty.String {
-				// SHAMELESS HACK: If we have "" for an optional value, assume
-				// it is actually null, due to the legacy SDK.
-				if !val.IsNull() && attrS.Optional && len(val.AsString()) == 0 {
-					val = attrS.EmptyValue()
-				}
-			}
 			if attrS.Sensitive || val.IsMarked() {
 				buf.WriteString("null # sensitive")
 			} else {
+				if val.Type() == cty.String {
+					// SHAMELESS HACK: If we have "" for an optional value, assume
+					// it is actually null, due to the legacy SDK.
+					if !val.IsNull() && attrS.Optional && len(val.AsString()) == 0 {
+						val = attrS.EmptyValue()
+					}
+				}
+
 				tok := tryWrapAsJsonEncodeFunctionCall(val)
 				if _, err := tok.WriteTo(buf); err != nil {
 					diags = diags.Append(&hcl.Diagnostic{
