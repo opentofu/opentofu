@@ -284,7 +284,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		defer stop()
 		defer cancel()
 
-		runner.Start(variables)
+		runner.Start()
 	}()
 
 	// Wait for the operation to complete, or for an interrupt to occur.
@@ -365,7 +365,7 @@ type TestSuiteRunner struct {
 	Verbose bool
 }
 
-func (runner *TestSuiteRunner) Start(globals map[string]backend.UnparsedVariableValue) {
+func (runner *TestSuiteRunner) Start() {
 	var files []string
 	for name := range runner.Suite.Files {
 		files = append(files, name)
