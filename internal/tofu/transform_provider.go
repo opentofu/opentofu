@@ -316,9 +316,9 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 		}
 
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			if len(potentialTargets) == 1 && potentialTargets[0].isSingleOption() {
-				// If we only have a single target with a single potential provider,
-				// set the provider on the resource level
+			if len(potentialTargets) == 1 {
+				// If we only have a single potential provider, it means all the future resource instances will use
+				// this provider. So we can set the provider straight on the resource level
 				pv.SetProvider(potentialTargets[0].concreteProvider.ProviderAddr(), true)
 			} else {
 				pv.SetPotentialProviders(potentialTargets)
@@ -667,11 +667,6 @@ type distinguishableProvider struct {
 	concreteProvider   GraphNodeProvider // Ronny TODO: I don't like that this GraphNodeProvider type is eventually leaking into the node abstract resource itself
 }
 
-func (d *distinguishableProvider) isSingleOption() bool {
-	result := d.resourceIdentifier == nil && d.moduleIdentifier == nil
-	return result
-}
-
 func (d *distinguishableProvider) SetResourceIdentifier(ik addrs.InstanceKey) {
 	d.resourceIdentifier = ik
 }
@@ -960,21 +955,40 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 		}
 
 		// Build the proxy provider
-		for key, alias := range pair.InParentMapping.Aliases {
+		if len(pair.InParentMapping.Aliases) > 0 {
+			// If we have aliases set in InParentMapping, we'll calculate a target for each one
+			for key, alias := range pair.InParentMapping.Aliases {
+				fullParentAddr := addrs.AbsProviderConfig{
+					Provider: fqn,
+					Module:   parentPath,
+					Alias:    alias,
+				}
+				fullParentName := fullParentAddr.String()
+
+				parentProvider := t.providers[fullParentName]
+
+				if parentProvider == nil {
+					return fmt.Errorf("missing provider %s", fullParentName)
+				}
+
+				proxy.targets[key] = parentProvider
+			}
+		} else {
+			// If we have no aliases in InParentMapping, we still need to calculate a single target
 			fullParentAddr := addrs.AbsProviderConfig{
 				Provider: fqn,
 				Module:   parentPath,
-				Alias:    alias,
+				Alias:    "",
 			}
-			fullParentName := fullParentAddr.String()
 
+			fullParentName := fullParentAddr.String()
 			parentProvider := t.providers[fullParentName]
 
 			if parentProvider == nil {
 				return fmt.Errorf("missing provider %s", fullParentName)
 			}
 
-			proxy.targets[key] = parentProvider
+			proxy.targets[addrs.NoKey] = parentProvider
 		}
 
 		concreteProvider := t.providers[fullName]

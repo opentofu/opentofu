@@ -358,12 +358,22 @@ func (n *NodeAbstractResource) ProvidedByImpl(resolvedInstanceProvider addrs.Abs
 
 		result := make(map[addrs.InstanceKey]addrs.ProviderConfig)
 
-		for key, alias := range n.Config.ProviderConfigRef.Aliases {
-			result[key] = addrs.LocalProviderConfig{
+		if len(n.Config.ProviderConfigRef.Aliases) > 0 {
+			// If we have aliases set in ProviderConfigRef, we'll calculate a LocalProviderConfig for each one
+			for key, alias := range n.Config.ProviderConfigRef.Aliases {
+				result[key] = addrs.LocalProviderConfig{
+					LocalName: n.Config.ProviderConfigRef.Name,
+					Alias:     alias,
+				}
+			}
+		} else {
+			// If we have no aliases in ProviderConfigRef, we still need to calculate a single LocalProviderConfig
+			result[addrs.NoKey] = addrs.LocalProviderConfig{
 				LocalName: n.Config.ProviderConfigRef.Name,
-				Alias:     alias,
+				Alias:     "",
 			}
 		}
+
 		return result, ExactProvider{}
 	}
 

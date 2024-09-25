@@ -153,12 +153,20 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 		obj.InstanceProvider = instanceProvider
 	}
 
+	var stringInstanceKey string
+
+	if addr.Key == nil {
+		stringInstanceKey = "nil"
+	} else {
+		stringInstanceKey = addr.Key.String()
+	}
+
 	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
-		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) cannot find a provider (resourceProvider / instanceProvider) to write in state", addr, addr.Key.String()))
+		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) cannot find a provider (resourceProvider / instanceProvider) to write in state", addr, stringInstanceKey))
 	}
 
 	if resourceProvider.IsSet() && instanceProvider.IsSet() {
-		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) got two providers (resourceProvider & instanceProvider) to write in state", addr, addr.Key.String()))
+		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) got two providers (resourceProvider & instanceProvider) to write in state", addr, stringInstanceKey))
 	}
 
 	is.Current = obj
