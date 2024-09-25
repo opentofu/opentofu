@@ -84,3 +84,47 @@ func testOpenTofuProvidersMirror(t *testing.T, fixture string) {
 		t.Errorf("unexpected files in result\n%s", diff)
 	}
 }
+
+// this test is based on testOpenTofuProvidersMirror above.
+func TestOpenTofuProvidersMirrorBadLockfile(t *testing.T) {
+	// This test reaches out to registry.opentofu.org to download the
+	// template and null providers, so it can only run if network access is
+	// allowed.
+	skipIfCannotAccessNetwork(t)
+
+	outputDir := t.TempDir()
+	t.Logf("creating mirror directory in %s", outputDir)
+
+	fixturePath := filepath.Join("testdata", "tofu-providers-mirror-with-bad-lock-file")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	stdout, stderr, err := tf.Run("providers", "mirror", outputDir)
+	if err == nil {
+		t.Fatalf("expected error: %s\nstdout:\n%s\nstderr:\n%s", err, stdout, stderr)
+	}
+
+	var want []string
+	var got []string
+	walkErr := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil // we only care about leaf files for this test
+		}
+		relPath, err := filepath.Rel(outputDir, path)
+		if err != nil {
+			return err
+		}
+		got = append(got, filepath.ToSlash(relPath))
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatal(walkErr)
+	}
+	sort.Strings(got)
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("unexpected files in result\n%s", diff)
+	}
+}
