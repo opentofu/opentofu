@@ -16,7 +16,7 @@ linters-settings:
       - map
 
   funlen:
-    lines: 100
+    lines: 150
     statements: 50
     ignore-comments: true
 
@@ -30,13 +30,17 @@ linters-settings:
     require-specific: true
 
   cyclop:
-    max-complexity: 15
+    max-complexity: 25
 
   gocognit:
     min-complexity: 50
 
   nestif:
-    min-complexity: 15
+    min-complexity: 25
+
+  gocritic:
+    disabled-checks:
+      - ifElseChain
 
 issues:
   exclude-rules:

@@ -751,7 +751,6 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 				Detail:   fmt.Sprintf("Unexpected type %s", val.Type().FriendlyName()),
 				Subject:  attr.Expr.Range().Ptr(),
 			})
-
 		}
 	}
 
