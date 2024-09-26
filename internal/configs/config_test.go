@@ -832,3 +832,151 @@ func TestTransformForTest(t *testing.T) {
 		})
 	}
 }
+
+func TestProviderReferenceParsing(t *testing.T) {
+	mod, diags := testModuleFromDir("testdata/provider-references")
+	if len(diags) != 0 {
+		t.Fatalf("Got unexpected diags when parsing: %s", diags.Error())
+	}
+
+	wantProviders := providerSet{
+		"null":       {},
+		"null.alias": {},
+		"null.a-0":   {},
+		"null.a-1":   {},
+	}
+
+	providersWithCount := providerSet{
+		"null.a-0": {},
+		"null.a-1": {},
+	}
+
+	providersWithForEach := providerSet{
+		"null.alias": {},
+		"null.a-0":   {},
+		"null.a-1":   {},
+	}
+
+	singleAliasedProvider := providerSet{
+		"null.alias": {},
+	}
+
+	singleProvider := providerSet{
+		"null": {},
+	}
+
+	// module call -> in child provider -> in parent provider scope
+	wantProvidersInModCalls := map[string]map[string]providerSet{
+		"submod-a": {
+			"null":             singleProvider,
+			"null.alternative": providersWithCount,
+		},
+		"submod-b": {
+			"null":             singleAliasedProvider,
+			"null.alternative": providersWithForEach,
+		},
+		"submod-c": {
+			"null":             singleAliasedProvider,
+			"null.alternative": providersWithForEach,
+		},
+		"submod-d": {
+			"null":             singleAliasedProvider,
+			"null.alternative": singleAliasedProvider,
+		},
+		"submod-e": {
+			"null":             singleAliasedProvider,
+			"null.alternative": singleAliasedProvider,
+		},
+	}
+
+	wantProvidersInResources := map[string]providerSet{
+		"a": singleProvider,
+		"b": singleAliasedProvider,
+		"c": singleAliasedProvider,
+		"d": singleAliasedProvider,
+		"e": providersWithForEach,
+		"f": providersWithForEach,
+		"g": providersWithCount,
+		"h": singleAliasedProvider,
+	}
+
+	if len(wantProviders) != len(mod.ProviderConfigs) {
+		t.Fatalf("Unexpected number of provider configs: want = %v; got = %v", wantProviders, mod.ProviderConfigs)
+	}
+
+	for _, p := range mod.ProviderConfigs {
+		if _, ok := wantProviders[p.Addr().StringCompact()]; !ok {
+			t.Fatalf("Unexpected provider config: %s", p.Addr().StringCompact())
+		}
+	}
+
+	if len(wantProvidersInModCalls) != len(mod.ModuleCalls) {
+		t.Fatalf("Unexpected number of module calls: want = %v; got = %v", wantProvidersInModCalls, mod.ModuleCalls)
+	}
+
+	for _, mc := range mod.ModuleCalls {
+		wantPassedProviders, ok := wantProvidersInModCalls[mc.Name]
+		if !ok {
+			t.Fatalf("Unexpected module call: %s", mc.Name)
+		}
+
+		for _, pc := range mc.Providers {
+			wantProviderSet, ok := wantPassedProviders[pc.InChild.String()]
+			if !ok {
+				t.Fatalf("Unexpected passed provider config in module call (%s): %s", mc.Name, pc.InChild.String())
+			}
+
+			gotProviderSet := inParentMappingToProviderSet(pc.InParentMapping)
+
+			if len(wantProviderSet) != len(gotProviderSet) {
+				t.Fatalf("Unexpected number of provider set in module call (%s): want = %v; got = %v", mc.Name, wantProviderSet, gotProviderSet)
+			}
+
+			for p := range gotProviderSet {
+				if _, ok := wantProviderSet[p]; !ok {
+					t.Fatalf("Unexpected provider in module call (%s) provider set: %s", mc.Name, p)
+				}
+			}
+		}
+	}
+
+	if len(wantProvidersInResources) != len(mod.ManagedResources) {
+		t.Fatalf("Unexpected number of resources: want = %v; got = %v", wantProvidersInResources, mod.ManagedResources)
+	}
+
+	for _, r := range mod.ManagedResources {
+		wantProviderSet, ok := wantProvidersInResources[r.Name]
+		if !ok {
+			t.Fatalf("Unexpected resource: %s", r.Name)
+		}
+
+		gotProviderSet := inParentMappingToProviderSet(r.ProviderConfigRef)
+
+		if len(wantProviderSet) != len(gotProviderSet) {
+			t.Fatalf("Unexpected number of provider set in resource (%s): want = %v; got = %v", r.Name, wantProviderSet, gotProviderSet)
+		}
+
+		for p := range gotProviderSet {
+			if _, ok := wantProviderSet[p]; !ok {
+				t.Fatalf("Unexpected provider in resource (%s) provider set: %s", r.Name, p)
+			}
+		}
+	}
+}
+
+type providerSet = map[string]struct{}
+
+func inParentMappingToProviderSet(m *ProviderConfigRefMapping) providerSet {
+	if len(m.Aliases) == 0 {
+		return providerSet{
+			m.Name: {},
+		}
+	}
+
+	s := make(providerSet)
+	for _, a := range m.Aliases {
+		s[fmt.Sprintf("%s.%s", m.Name, a)] = struct{}{}
+	}
+
+	return s
+}
