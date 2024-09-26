@@ -722,10 +722,18 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 					"",
 					hcl.InitialPos,
 				)
-				diags = append(diags, tDiags...)
 				if tDiags.HasErrors() {
+					// Record a helpful message before cryptic parse message(s)
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid ignore_changes input",
+						Detail:   fmt.Sprintf(`Unable to parse %q as traversal`, item.AsString()),
+						Subject:  attr.Expr.Range().Ptr(),
+					}).Extend(tDiags)
 					continue
 				}
+				diags = diags.Extend(tDiags)
+
 				traversal[0] = hcl.TraverseAttr{
 					Name:     traversal[0].(hcl.TraverseRoot).Name,
 					SrcRange: attr.Expr.Range(),
@@ -754,10 +762,8 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 		}
 	}
 
-	var ignoreAllRange hcl.Range
 	for _, trav := range r.Managed.IgnoreChanges {
 		if root, ok := trav[0].(hcl.TraverseAttr); ok && root.Name == "*" {
-			ignoreAllRange = trav.SourceRange()
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid ignore_changes wildcard",
@@ -768,15 +774,6 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 		}
 	}
 
-	if r.Managed.IgnoreAllChanges && len(r.Managed.IgnoreChanges) != 0 {
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid ignore_changes ruleset",
-			Detail:   "Cannot mix wildcard string \"*\" with non-wildcard references.",
-			Subject:  &ignoreAllRange,
-			Context:  attr.Expr.Range().Ptr(),
-		})
-	}
 	return diags
 }
 
