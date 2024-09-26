@@ -112,8 +112,12 @@ If you have Docker or a compatible alternative installed, you can run the entire
 docker run \
   --rm \
   -v "$PWD":/usr/src/opentofu\
-  -w /usr/src/opentofu golang:1.21.3\
-  GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o tofu -v -buildvcs=false ./cmd/tofu
+  -w /usr/src/opentofu\
+  -e GOOS=linux\
+  -e GOARCH=amd64\
+  -e CGO_ENABLED=0\
+  golang:1.21.3\
+  go build -o tofu -v -buildvcs=false ./cmd/tofu
 ```
 
 This will create the `tofu` binary in the current working directory, which you can test by running `./tofu --version`.

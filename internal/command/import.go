@@ -316,6 +316,18 @@ Usage: tofu [global options] import [options] ADDR ID
 
 Options:
 
+  -compact-warnings       If OpenTofu produces any warnings that are not
+                          accompanied by errors, show them in a more compact
+                          form that includes only the summary messages.
+
+  -consolidate-warnings   If OpenTofu produces any warnings, no consolodation
+                          will be performed. All locations, for all warnings
+                          will be listed. Enabled by default.
+
+  -consolidate-errors     If OpenTofu produces any errors, no consolodation
+                          will be performed. All locations, for all errors
+                          will be listed. Disabled by default
+
   -config=path            Path to a directory of OpenTofu configuration files
                           to use to configure the provider. Defaults to pwd.
                           If no config files are present, they must be provided

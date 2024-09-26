@@ -58,6 +58,18 @@ Usage: tofu [global options] test [options]
 
 Options:
 
+  -compact-warnings     If OpenTofu produces any warnings that are not
+                        accompanied by errors, show them in a more compact
+                        form that includes only the summary messages.
+
+  -consolidate-warnings If OpenTofu produces any warnings, no consolodation
+                        will be performed. All locations, for all warnings
+                        will be listed. Enabled by default.
+
+  -consolidate-errors   If OpenTofu produces any errors, no consolodation
+                        will be performed. All locations, for all errors
+                        will be listed. Disabled by default
+
   -filter=testfile      If specified, OpenTofu will only execute the test files
                         specified by this flag. You can use this option multiple
                         times to execute more than one test file.
@@ -272,7 +284,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		defer stop()
 		defer cancel()
 
-		runner.Start(variables)
+		runner.Start()
 	}()
 
 	// Wait for the operation to complete, or for an interrupt to occur.
@@ -353,7 +365,7 @@ type TestSuiteRunner struct {
 	Verbose bool
 }
 
-func (runner *TestSuiteRunner) Start(globals map[string]backend.UnparsedVariableValue) {
+func (runner *TestSuiteRunner) Start() {
 	var files []string
 	for name := range runner.Suite.Files {
 		files = append(files, name)
