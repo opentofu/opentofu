@@ -90,7 +90,7 @@ round trip time for each resource is hundreds of milliseconds. On top of this,
 cloud providers almost always have API rate limiting so OpenTofu can only
 request a certain number of resources in a period of time. Larger users
 of OpenTofu make heavy use of the `-refresh=false` flag as well as the
-`-target` flag in order to work around this. In these scenarios, the cached
+`-target`/`-exclude` flags in order to work around this. In these scenarios, the cached
 state is treated as the record of truth.
 
 ## Syncing
