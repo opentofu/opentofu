@@ -23,7 +23,7 @@ type descriptor struct {
 }
 
 func (f descriptor) ID() keyprovider.ID {
-	return "pbkdf2"
+	return "externalcommand"
 }
 
 func (f descriptor) TypedConfig() *Config {
