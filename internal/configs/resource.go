@@ -708,6 +708,7 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 						Severity: hcl.DiagError,
 						Summary:  "Invalid ignore_changes input",
 						Detail:   fmt.Sprintf(`Expected collection of string, not %s`, item.Type().FriendlyName()),
+						Subject:  attr.Expr.Range().Ptr(),
 					})
 					continue
 				}
