@@ -25,11 +25,14 @@ type Resource struct {
 	Instances map[addrs.InstanceKey]*ResourceInstance
 
 	// ProviderConfig is the absolute address for the provider configuration that
-	// most recently managed this resource. This is used to connect a resource
-	// with a provider configuration when the resource configuration block is
-	// not available, such as if it has been removed from configuration
-	// altogether.
-	ProviderConfig addrs.AbsProviderConfig // Ronny TODO: should we rename to ProviderResourceConfig? (this doesn't impact the state file)
+	// most recently managed this resource and all its instances. This is used to
+	// connect a resource with a provider configuration when the resource
+	// configuration block is not available, such as if it has been removed from
+	// configuration altogether.
+	// ProviderConfig can be not set if the provider is set in the instance level,
+	// in cases we have count / for_each in provider reference of the resource /
+	// module. Then, instead, ProviderInstanceConfig will be set on each instance.
+	ProviderConfig addrs.AbsProviderConfig
 }
 
 // Instance returns the state for the instance with the given key, or nil

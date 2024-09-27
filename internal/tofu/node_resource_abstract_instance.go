@@ -47,9 +47,10 @@ type NodeAbstractResourceInstance struct {
 	// to be stored in the final change.
 	generatedConfigHCL string
 
-	// In the case where we have for_each on the provider on the containing
-	// module or the resource the NodeAbstractResource will not have a
-	// ResolvedResourceProvider, instead the ResolvedInstanceProvider will be set
+	// In the case where we have for_each or count on the provider on the
+	// containing module or the resource the NodeAbstractResource will not have
+	// a ResolvedResourceProvider, instead the ResolvedInstanceProvider will be
+	// set
 	ResolvedInstanceProvider addrs.AbsProviderConfig
 }
 

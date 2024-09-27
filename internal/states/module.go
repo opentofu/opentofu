@@ -92,7 +92,7 @@ func (ms *Module) RemoveResource(addr addrs.Resource) {
 //
 // The provider address can be either a resource-wide settings or set for the
 // specific instance, and it depends on the given resourceProvider / instanceProvider
-func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
+func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, resourceProvider, instanceProvider addrs.AbsProviderConfig) {
 	rs := ms.Resource(addr.Resource)
 	// if the resource is nil and the object is nil, don't do anything!
 	// you'll probably just cause issues

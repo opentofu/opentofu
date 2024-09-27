@@ -76,13 +76,13 @@ type NodeAbstractResource struct {
 	// The address of the provider this resource will use.
 	// Can be empty if the provider is not set on the resource level but in the resource instance instead. In this case,
 	// the potentialProviders property will be populated.
-	// It can happen when we have a for_each on the providers in the resource or containing module.
+	// It can happen when we have a for_each or count on the providers in the resource or containing module.
 	ResolvedResourceProvider addrs.AbsProviderConfig
 
 	// potentialProviders is a list of provider and their identifiers, meant to be resolved per each instance to
 	// calculate its provider.
 	// If the potentialProviders is populated, it means the ResolvedResourceProvider is empty and the provider will be
-	//defined per resource instance and not on the whole resource.
+	// defined per resource instance and not on the whole resource.
 	potentialProviders []distinguishableProvider
 
 	// storedProviderConfig is the provider address retrieved from the state of the resource,
@@ -307,7 +307,7 @@ func (n *NodeAbstractResource) SetPotentialProviders(potentialProviders []distin
 
 // resolveInstanceProvider gets the specific expanded instance of the resource, and tries to calculate the resolved
 // InstanceProvider if a few potential providers exist. A few potential providers might exist if the resource
-// configuration, or one of the containing module's configuration, contains a for_each on the providers.
+// configuration, or one of the containing module's configuration, contains a for_each or count in the provider reference.
 func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourceInstance) addrs.AbsProviderConfig {
 	for _, potentialProvider := range n.potentialProviders {
 		if potentialProvider.IsResourceInstanceMatching(instance) {

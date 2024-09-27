@@ -50,9 +50,9 @@ type ResourceInstanceObject struct {
 	// removed from the config will still be destroyed in the same manner.
 	CreateBeforeDestroy bool
 
-	// InstanceProvider, if non-nil, this instance has a specific provider different
-	// from the whole resource's provider. Happens in the case we have a
-	// for_each on providers in the resource / module
+	// InstanceProvider, if set, this instance has a specific provider different
+	// from the whole resource's provider. Happens in cases when we have a
+	// for_each or count in provider reference of the resource / module
 	InstanceProvider addrs.AbsProviderConfig
 }
 

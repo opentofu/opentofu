@@ -343,7 +343,7 @@ func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) A
 	}
 }
 
-// IsSet returns true if the Provider's Type is empty.
+// IsSet returns true if the Provider's Type is not empty.
 func (pc AbsProviderConfig) IsSet() bool {
 	return pc.Provider.Type != ""
 }

@@ -740,7 +740,7 @@ type resourceStateV4 struct {
 	Type           string                  `json:"type"`
 	Name           string                  `json:"name"`
 	EachMode       string                  `json:"each,omitempty"`
-	ProviderConfig string                  `json:"provider,omitempty"` // Ronny TODO: Do we want to omit? Or save an empty string / nil?
+	ProviderConfig string                  `json:"provider,omitempty"`
 	Instances      []instanceObjectStateV4 `json:"instances"`
 }
 

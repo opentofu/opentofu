@@ -657,10 +657,10 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 }
 
 // distinguishableProvider is a representation of a concrete provider and identifiers that match the provider to a
-// specific resource instance. Because we might have for_each on providers in the resource/module, we cannot calculate
-// the concrete provider per instance in stages of building the graph; we can only do that after the expansion of
-// instances (while walking the graph). So, this structure will be passed on to the resource as potential providers
-// and resolved using IsResourceInstanceMatching() once we get to the expansion stage.
+// specific resource instance. Because we might have for_each or count on providers in the resource/module, we cannot
+// calculate the concrete provider per instance in stages of building the graph; we can only do that after the
+// expansion of instances (while walking the graph). So, this structure will be passed on to the resource as potential
+// providers and resolved using IsResourceInstanceMatching() once we get to the expansion stage.
 type distinguishableProvider struct {
 	moduleIdentifier   []addrs.ModuleInstanceStep
 	resourceIdentifier addrs.InstanceKey
@@ -771,7 +771,7 @@ type ProviderConfigTransformer struct {
 	// each provider node is stored here so that the proxy nodes can look up
 	// their targets by name.
 	providers map[string]GraphNodeProvider
-	// record providers that can be overriden with a proxy
+	// record providers that can be overridden with a proxy
 	proxiable map[string]bool
 
 	// Config is the root node of the configuration tree to add providers from.
