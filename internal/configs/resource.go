@@ -767,7 +767,7 @@ func (r *Resource) decodeLifecycleIgnoreChanges(eval *StaticEvaluator, attr *hcl
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid ignore_changes wildcard",
-				Detail:   "The [\"*\"] form of ignore_changes wildcard is was deprecated and is now invalid. Use \"ignore_changes = all\" to ignore changes to all attributes.",
+				Detail:   "The [\"*\"] form of ignore_changes wildcard is deprecated and now invalid. Please use \"ignore_changes = all\" to ignore changes to all attributes.",
 				Subject:  attr.Expr.Range().Ptr(),
 			})
 			continue
