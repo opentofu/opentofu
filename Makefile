@@ -5,6 +5,16 @@ export PATH := $(abspath bin/):${PATH}
 # Dependency versions
 LICENSEI_VERSION = 0.9.0
 
+# run Go tests and generate a coverage report
+#
+# NOTE:
+#   The coverage counters are to be updated atomically,
+#   which is useful for tests that run in parallel.
+.PHONY: test-with-coverage
+test-with-coverage:
+	go test -coverprofile=coverage.out -covermode=atomic ./...
+	go tool cover -html=coverage.out -o coverage.html
+
 # run the unit tests across all packages in the tofu project
 .PHONY: test
 test:
