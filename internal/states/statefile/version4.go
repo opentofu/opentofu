@@ -160,11 +160,11 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 			// We'll validate that we have exactly one provider set on the resource / instance level
 			if !resourceProviderAddr.IsSet() && !instanceProviderAddr.IsSet() {
-				panic(fmt.Sprintf("prepareStateV4 for resource instance %s  cannot find a provider (resourceProvider / instanceProvider) to write in state", instAddr.String()))
+				panic(fmt.Sprintf("prepareStateV4 for resource instance %s  cannot find a provider (resourceProvider / instanceProvider) when reading from the state", instAddr.String()))
 			}
 
 			if resourceProviderAddr.IsSet() && instanceProviderAddr.IsSet() {
-				panic(fmt.Sprintf("prepareStateV4 for resource instance %s got two providers (resourceProvider & instanceProvider) to write in state", instAddr.String()))
+				panic(fmt.Sprintf("prepareStateV4 for resource instance %s got two providers (resourceProvider & instanceProvider) when reading from the state", instAddr.String()))
 			}
 
 			obj := &states.ResourceInstanceObjectSrc{
