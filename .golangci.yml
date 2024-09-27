@@ -25,6 +25,10 @@ linters-settings:
     disable:
       - fieldalignment # rule is too strict
 
+  mnd:
+    ignored-numbers:
+      - 2
+
   nolintlint:
     require-explanation: true
     require-specific: true
@@ -41,6 +45,10 @@ linters-settings:
   gocritic:
     disabled-checks:
       - ifElseChain
+
+  gomoddirectives:
+    replace-allow-list:
+      github.com/hashicorp/hcl/v2
 
 issues:
   exclude-rules:

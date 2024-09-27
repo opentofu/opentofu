@@ -239,6 +239,7 @@ func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdia
 	return addr, diags
 }
 
+//nolint:gochecknoglobals // existing standard
 var providerBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{

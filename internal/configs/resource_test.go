@@ -9,7 +9,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// nolint: gocognit // It's a test
+//nolint:gocognit // It's a test
 func TestResource_IgnoreChanges(t *testing.T) {
 	cases := []struct {
 		input            string
@@ -179,7 +179,7 @@ func TestResource_IgnoreChanges(t *testing.T) {
 				for j := range expectTrav {
 					expectPart := expectTrav[j]
 					gotPart := gotTrav[j]
-					// nolint: gocritic // Code is more consistent without type assignment
+					//nolint:gocritic // Code is more consistent without type assignment
 					switch expectPart.(type) {
 					case hcl.TraverseAttr:
 						expectName := expectPart.(hcl.TraverseAttr).Name
