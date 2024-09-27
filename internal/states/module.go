@@ -199,6 +199,22 @@ func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key De
 		obj.InstanceProvider = instanceProvider
 	}
 
+	var stringInstanceKey string
+
+	if addr.Key == nil {
+		stringInstanceKey = "nil"
+	} else {
+		stringInstanceKey = addr.Key.String()
+	}
+
+	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
+		panic(fmt.Sprintf("SetResourceInstanceDeposed for %s (instance key %s, deposed key %s) cannot find a provider (resourceProvider / instanceProvider) to write in state", addr, stringInstanceKey, key))
+	}
+
+	if resourceProvider.IsSet() && instanceProvider.IsSet() {
+		panic(fmt.Sprintf("SetResourceInstanceDeposed for %s (instance key %s, deposed key %s) got two providers (resourceProvider & instanceProvider) to write in state", addr, stringInstanceKey, key))
+	}
+
 	if obj != nil {
 		is.Deposed[key] = obj
 	} else {
