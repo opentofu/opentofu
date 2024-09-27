@@ -26,11 +26,9 @@ body:
   - type: textarea
     id: tf-use-case
     attributes:
-      label: Use Cases
+      label: The problem in your OpenTofu project
       description: |
-        In order to properly evaluate a feature request, it is necessary to understand the use cases for it.
-        Please describe below the _end goal_ you are trying to achieve that has led you to request this feature.
-        Please keep this section focused on the problem and not on the suggested solution. We'll get to that in a moment, below!
+        **Please describe the problem you are trying to solve in your project.** This field should contain a description of what you are trying to achieve in your project using OpenTofu that is difficult today.
       placeholder:
       value:
     validations:
