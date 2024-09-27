@@ -28,7 +28,7 @@ body:
     attributes:
       label: The problem in your OpenTofu project
       description: |
-        **Please describe the problem you are trying to solve in your project.** This field should contain a description of what you are trying to achieve in your project using OpenTofu that is not possible today.
+        **Please describe the problem you are trying to solve in your project.** This field should contain a description of what you are trying to achieve in your project using OpenTofu that is difficult today.
       placeholder:
       value:
     validations:
