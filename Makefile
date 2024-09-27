@@ -15,6 +15,11 @@ test-with-coverage:
 	go test -coverprofile=coverage.out -covermode=atomic ./...
 	go tool cover -html=coverage.out -o coverage.html
 
+# run the unit tests across all packages in the tofu project
+.PHONY: test
+test:
+	go test -v ./...
+
 # build tofu binary in the current directory with the version set to the git tag
 # or commit hash if there is no tag.
 .PHONY: build
