@@ -147,14 +147,24 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 			// The provider can either be set on the resource level or on the instance level
 			var instanceProviderAddr addrs.AbsProviderConfig
+
 			if isV4.InstanceProvider != "" {
-				// Looks like it is set on the resource level
+				// Looks like it is set on the instance level
 				var addrDiags tfdiags.Diagnostics
 				instanceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(isV4.InstanceProvider)
 				diags.Append(addrDiags)
 				if addrDiags.HasErrors() {
 					continue
 				}
+			}
+
+			// We'll validate that we have exactly one provider set on the resource / instance level
+			if !resourceProviderAddr.IsSet() && !instanceProviderAddr.IsSet() {
+				panic(fmt.Sprintf("prepareStateV4 for resource instance %s  cannot find a provider (resourceProvider / instanceProvider) to write in state", instAddr.String()))
+			}
+
+			if resourceProviderAddr.IsSet() && instanceProviderAddr.IsSet() {
+				panic(fmt.Sprintf("prepareStateV4 for resource instance %s got two providers (resourceProvider & instanceProvider) to write in state", instAddr.String()))
 			}
 
 			obj := &states.ResourceInstanceObjectSrc{
