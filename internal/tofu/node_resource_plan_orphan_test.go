@@ -108,6 +108,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.AbsProviderConfig{},
 		)
 
 		schema := providers.ProviderSchema{
@@ -188,6 +189,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.AbsProviderConfig{},
 	)
 	refreshState := state.DeepCopy()
 	prevRunState := state.DeepCopy()
@@ -270,6 +272,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.AbsProviderConfig{},
 	)
 	refreshState := state.DeepCopy()
 	prevRunState := state.DeepCopy()
