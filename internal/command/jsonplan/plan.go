@@ -521,7 +521,6 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 		r.Name = addr.Resource.Resource.Name
 		r.Type = addr.Resource.Resource.Type
 		r.ProviderName = rc.ProviderAddr.Provider.String()
-		r.FullProvider = rc.ProviderAddr.String() // TODO Ronny - remove later, only used for simple QAing
 
 		switch rc.ActionReason {
 		case plans.ResourceInstanceChangeNoReason:
