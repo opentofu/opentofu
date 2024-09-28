@@ -131,9 +131,9 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 				// function. (This would not be valid for some other functions.)
 				Addr: test.Addr,
 				NodeAbstractResource: NodeAbstractResource{
-					Addr:                         test.Addr.ConfigResource(),
-					Config:                       test.Config,
-					storedResourceProviderConfig: test.StoredProviderConfig,
+					Addr:                 test.Addr.ConfigResource(),
+					Config:               test.Config,
+					storedProviderConfig: ExactProvider{isResourceProvider: true, provider: test.StoredProviderConfig},
 				},
 			}
 			got := node.Provider()
