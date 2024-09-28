@@ -54,13 +54,23 @@ func (rs *Resource) InstanceProvider(key addrs.InstanceKey) (provider addrs.AbsP
 
 	if instance.Current != nil && instance.Current.InstanceProvider.IsSet() {
 		instanceProvider = instance.Current.InstanceProvider
-	} else {
+	}
+
+	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
+		// At this point we are trying to find any provider
 		// If instance.Current is not set, then maybe the resource has deposed instances instead
 		for _, deposedInstance := range instance.Deposed {
-			// All the deposed instances should have the same instance provider, so we can get it from the first
-			// deposed instance we stumble upon
-			instanceProvider = deposedInstance.InstanceProvider
-			break // Exit after the first iteration
+			// We are assuming that all the deposed instances should have the same instance provider, so we can get it
+			// from the first deposed instance we stumble upon.
+			// This assumption might cause a bug, in the scenario where the provider of the resource got changed between
+			// runs, and the deposed object still requires the old provider configuration. This bug exists not only for
+			// the InstanceProvider, but also always existed for the resourceProvider, and we should solve it in a
+			// holistic approach.
+			if deposedInstance.InstanceProvider.IsSet() {
+				// Found one, let's assume it's good enough for now
+				instanceProvider = deposedInstance.InstanceProvider
+				break // Exit after the first iteration
+			}
 		}
 	}
 
