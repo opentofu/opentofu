@@ -336,7 +336,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 func (n *NodeAbstractResource) ProvidedByImpl(resolvedInstanceProvider addrs.AbsProviderConfig) (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
 	// Once the provider is fully resolved, we can return the known value.
 	if n.ResolvedResourceProvider.IsSet() {
-		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: true}
+		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: n.ResolvedResourceProvider, isResourceProvider: true}
 	} else if resolvedInstanceProvider.IsSet() {
 		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: false}
 
