@@ -520,8 +520,6 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 		buf.WriteString("  # [reset][yellow]Warning: this will destroy the imported resource[reset]\n")
 	}
 
-	buf.WriteString(fmt.Sprintf("  # Using the provider: [bold] %s[reset] \n", resource.FullProvider)) // TODO Ronny - remove later, only used for simple QAing
-
 	return buf.String()
 }
 

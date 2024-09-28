@@ -76,7 +76,6 @@ type ResourceChange struct {
 	Name         string          `json:"name,omitempty"`
 	Index        json.RawMessage `json:"index,omitempty"`
 	ProviderName string          `json:"provider_name,omitempty"`
-	FullProvider string          `json:"full_provider,omitempty"` // TODO Ronny - remove later, only used for simple QAing
 
 	// "deposed", if set, indicates that this action applies to a "deposed"
 	// object of the given instance rather than to its "current" object. Omitted
