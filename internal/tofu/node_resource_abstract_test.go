@@ -142,10 +142,16 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		},
 	}
 
-	p, exact := node.ProvidedBy()
-	if exact {
-		t.Fatalf("no exact provider should be found from this confniguration, got %q\n", p)
+	providersPerInstances, exact := node.ProvidedBy()
+	if exact.provider.IsSet() {
+		t.Fatalf("no exact provider should be found from this confniguration, got %q\n", exact.provider)
 	}
+
+	if len(providersPerInstances) > 1 {
+		t.Fatalf("should have returned a single provider, got %d of providers instead\n", len(providersPerInstances))
+	}
+
+	p := providersPerInstances[addrs.NoKey]
 
 	// the implied non-exact provider should be "terraform"
 	lpc, ok := p.(addrs.LocalProviderConfig)
@@ -168,11 +174,14 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		Alias:  "test",
 	}
 
-	node.SetProvider(resolved)
-	p, exact = node.ProvidedBy()
-	if !exact {
-		t.Fatalf("exact provider should be found, got %q\n", p)
+	node.SetProvider(resolved, true)
+
+	providersPerInstances, exact = node.ProvidedBy()
+	if !exact.provider.IsSet() {
+		t.Fatalf("exact provider should be found, but it is empty\n")
 	}
+
+	p = exact.provider
 
 	apc, ok := p.(addrs.AbsProviderConfig)
 	if !ok {
@@ -217,7 +226,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 				s.SetResourceInstanceCurrent(oneAddr.Instance(addrs.NoKey), &states.ResourceInstanceObjectSrc{
 					Status:    states.ObjectReady,
 					AttrsJSON: []byte(`{"id":"i-abc123"}`),
-				}, providerAddr)
+				}, providerAddr, addrs.AbsProviderConfig{})
 			}),
 			Node: &NodeAbstractResource{
 				Addr:                     mustConfigResourceAddr("aws_instance.bar"),
@@ -236,7 +245,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 
 			ctx.ProviderProvider = providers.Interface(mockProvider)
 
-			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance), test.Node.ResolvedResourceProvider) // TODO ROnny: validate this change
+			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance), test.Node.ResolvedResourceProvider)
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
 			}
@@ -283,7 +292,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 				s.SetResourceInstanceDeposed(oneAddr.Instance(addrs.NoKey), states.DeposedKey("00000001"), &states.ResourceInstanceObjectSrc{
 					Status:    states.ObjectReady,
 					AttrsJSON: []byte(`{"id":"i-abc123"}`),
-				}, providerAddr)
+				}, providerAddr, addrs.AbsProviderConfig{})
 			}),
 			Node: &NodeAbstractResource{
 				Addr:                     mustConfigResourceAddr("aws_instance.bar"),
@@ -302,7 +311,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 
 			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
 
-			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance), key)
+			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance), key, test.Node.ResolvedResourceProvider)
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
 			}
