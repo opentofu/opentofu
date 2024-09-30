@@ -117,6 +117,147 @@ func TestNodeAbstractResourceProvider(t *testing.T) {
 	}
 }
 
+func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
+	applyableProvider := NodeApplyableProvider{
+		NodeAbstractProvider: &NodeAbstractProvider{
+			Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/null"]`),
+		},
+	}
+
+	tests := []struct {
+		name               string
+		instanceAddr       addrs.AbsResourceInstance
+		potentialProviders []distinguishableProvider
+		Want               addrs.AbsProviderConfig
+	}{
+		{
+			name:         "potential provider pointing to a resource instance with an instance key",
+			instanceAddr: mustResourceInstanceAddr("null_resource.resource[\"first\"]"),
+			potentialProviders: []distinguishableProvider{{
+				concreteProvider:   applyableProvider,
+				resourceIdentifier: addrs.StringKey("first")}},
+			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
+				Hostname:  addrs.DefaultProviderRegistryHost,
+				Namespace: "hashicorp",
+				Type:      "null",
+			}},
+		},
+		{
+			name:         "potential provider pointing to a resource instance under a child module with an instance key",
+			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].null_resource.resource"),
+			potentialProviders: []distinguishableProvider{{
+				concreteProvider: applyableProvider,
+				moduleIdentifier: []addrs.ModuleInstanceStep{
+					{
+						Name:        "child_module",
+						InstanceKey: addrs.StringKey("first"),
+					},
+				}}},
+			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
+				Hostname:  addrs.DefaultProviderRegistryHost,
+				Namespace: "hashicorp",
+				Type:      "null",
+			}},
+		},
+		{
+			name:         "potential provider pointing to a resource instance with an instance key under a child module with an instance key",
+			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].null_resource.resource[\"first\"]"),
+			potentialProviders: []distinguishableProvider{{
+				concreteProvider:   applyableProvider,
+				resourceIdentifier: addrs.StringKey("first"),
+				moduleIdentifier: []addrs.ModuleInstanceStep{
+					{
+						Name:        "child_module",
+						InstanceKey: addrs.StringKey("first"),
+					},
+				}}},
+			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
+				Hostname:  addrs.DefaultProviderRegistryHost,
+				Namespace: "hashicorp",
+				Type:      "null",
+			}},
+		},
+		{
+			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on the nested module",
+			instanceAddr: mustResourceInstanceAddr("module.child_module.module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
+			potentialProviders: []distinguishableProvider{{
+				concreteProvider:   applyableProvider,
+				resourceIdentifier: addrs.StringKey("first"),
+				moduleIdentifier: []addrs.ModuleInstanceStep{
+					{
+						Name: "child_module",
+					},
+					{
+						Name:        "nested_module",
+						InstanceKey: addrs.StringKey("first"),
+					},
+				}}},
+			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
+				Hostname:  addrs.DefaultProviderRegistryHost,
+				Namespace: "hashicorp",
+				Type:      "null",
+			}},
+		},
+		{
+			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on the nested module (with the instance key on the child module ignored)",
+			instanceAddr: mustResourceInstanceAddr("module.child_module[\"ignored\"].module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
+			potentialProviders: []distinguishableProvider{{
+				concreteProvider:   applyableProvider,
+				resourceIdentifier: addrs.StringKey("first"),
+				moduleIdentifier: []addrs.ModuleInstanceStep{
+					{
+						Name: "child_module",
+					},
+					{
+						Name:        "nested_module",
+						InstanceKey: addrs.StringKey("first"),
+					},
+				}}},
+			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
+				Hostname:  addrs.DefaultProviderRegistryHost,
+				Namespace: "hashicorp",
+				Type:      "null",
+			}},
+		},
+		{
+			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on both modules",
+			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
+			potentialProviders: []distinguishableProvider{{
+				concreteProvider:   applyableProvider,
+				resourceIdentifier: addrs.StringKey("first"),
+				moduleIdentifier: []addrs.ModuleInstanceStep{
+					{
+						Name:        "child_module",
+						InstanceKey: addrs.StringKey("first"),
+					},
+					{
+						Name:        "nested_module",
+						InstanceKey: addrs.StringKey("first"),
+					},
+				}}},
+			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
+				Hostname:  addrs.DefaultProviderRegistryHost,
+				Namespace: "hashicorp",
+				Type:      "null",
+			}},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			node := &NodeAbstractResource{
+				// Just enough NodeAbstractResource for the resolveInstanceProvider function.
+				// (This would not be valid for some other functions.)
+				potentialProviders: test.potentialProviders,
+			}
+			got := node.resolveInstanceProvider(test.instanceAddr)
+			if got.String() != test.Want.String() {
+				t.Errorf("wrong result\ninstanceAddr:  %s\npotentialProviders: %#v\ngot:   %s\nwant:  %s", test.instanceAddr, test.potentialProviders, got, test.Want)
+			}
+		})
+	}
+}
+
 // Make sure ProvideBy returns the final resolved provider
 func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	node := &NodeAbstractResource{
