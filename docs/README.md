@@ -31,6 +31,9 @@ to [the main OpenTofu CLI documentation](https://opentofu.org/docs/cli/index.htm
   This documentation is for SDK developers, and is not necessary reading for
   those implementing a provider using the official SDK.
 
+* [Testing in the OpenTofu Codebase](./testing.md): An overview of the different
+  modes of regression testing, etc in this codebase.
+
 * [How OpenTofu Uses Unicode](./unicode.md): an overview of the various
   features of OpenTofu that rely on Unicode and how to change those features
   to adopt new versions of Unicode.

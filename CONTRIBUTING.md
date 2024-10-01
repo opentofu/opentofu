@@ -139,6 +139,8 @@ go test ./internal/command/...
 go test ./internal/addrs
 ```
 
+Unit tests are the primary testing strategy. For fuller information on all of OpenTofu's automated testing strategies, refer to [Testing in the OpenTofu Codebase](./docs/testing.md).
+
 > [!TIP]
 > You can find more information on testing in the [Go documentation](https://pkg.go.dev/cmd/go#hdr-Test_packages).
 
