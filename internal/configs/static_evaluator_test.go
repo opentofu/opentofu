@@ -321,8 +321,11 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 	}{{
 		expr: `"static"`,
 	}, {
-		expr:  `count`,
-		diags: []string{`eval.tf:1,1-6: Invalid reference; The "count" object cannot be accessed directly. Instead, access one of its attributes.`},
+		expr: `count`,
+		diags: []string{
+			`eval.tf:1,1-6: Invalid reference; The "count" object cannot be accessed directly. Instead, access one of its attributes.`,
+			`:0,0-0: Dynamic value in static context; Unable to use count. in static context, which is required by local.test`,
+		},
 	}, {
 		expr:  `module.foo.bar`,
 		diags: []string{`eval.tf:1,1-15: Module output not supported in static context; Unable to use module.foo.bar in static context, which is required by local.test`},
@@ -372,7 +375,27 @@ terraform {
 	}
 }`,
 		diags: []string{`eval.tf:4,11-25: Module output not supported in static context; Unable to use module.foo.bar in static context, which is required by backend.badeval`},
+	}, {
+		ident: "sensitive",
+		body: `
+locals {
+	sens = sensitive("magic")
+}
+terraform {
+	backend "sensitive" {
+		thing = local.sens
+	}
+}`,
+		diags: []string{`eval.tf:6,2-21: Backend config contains sensitive values; The backend configuration is stored in .terraform/terraform.tfstate as well as plan files. It is recommended to instead supply sensitive credentials via backend specific environment variables`},
 	}}
+
+	schema := &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"thing": &configschema.Attribute{
+				Type: cty.String,
+			},
+		},
+	}
 
 	for _, tc := range cases {
 		t.Run(tc.ident, func(t *testing.T) {
@@ -383,13 +406,14 @@ terraform {
 			}
 
 			mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
-			_, diags := mod.Backend.Decode(&configschema.Block{
-				Attributes: map[string]*configschema.Attribute{
-					"thing": &configschema.Attribute{
-						Type: cty.String,
-					},
-				},
-			})
+
+			_, diags := mod.Backend.Hash(schema)
+			if diags.HasErrors() {
+				assertExactDiagnostics(t, diags, tc.diags)
+				return
+			}
+
+			_, diags = mod.Backend.Decode(schema)
 
 			assertExactDiagnostics(t, diags, tc.diags)
 		})
