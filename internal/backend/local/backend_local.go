@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -277,6 +278,9 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 					Summary:  "Missing plan variable " + variable.Name,
 				})
 			}
+			if variable.Sensitive {
+				return variable.Default.Mark(marks.Sensitive), nil
+			}
 			return variable.Default, nil
 		}
 
@@ -286,6 +290,9 @@ func (b *Local) localRunForPlanFile(op *backend.Operation, pf *planfile.Reader, 
 				Severity: hcl.DiagError,
 				Summary:  parsedErr.Error(),
 			})
+		}
+		if variable.Sensitive {
+			parsed = parsed.Mark(marks.Sensitive)
 		}
 		return parsed, diags
 	})

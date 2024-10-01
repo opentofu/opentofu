@@ -24,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/initwd"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -140,10 +141,19 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 					Subject:  variable.DeclRange.Ptr(),
 				}}
 			}
+			if variable.Sensitive {
+				return variable.Default.Mark(marks.Sensitive), nil
+			}
 			return variable.Default, nil
 		}
 
 		parsed, parsedDiags := v.ParseVariableValue(variable.ParsingMode)
+		if parsedDiags.HasErrors() {
+			return cty.DynamicVal, parsedDiags.ToHCL()
+		}
+		if variable.Sensitive {
+			parsed.Value = parsed.Value.Mark(marks.Sensitive)
+		}
 		return parsed.Value, parsedDiags.ToHCL()
 	}, rootDir, workspace)
 	m.rootModuleCallCache = &call

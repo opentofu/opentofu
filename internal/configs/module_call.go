@@ -15,6 +15,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 // ModuleCall represents a "module" block in a module or file.
@@ -259,6 +260,9 @@ func (mc *ModuleCall) decodeStaticVariables(eval *StaticEvaluator) {
 					Summary:  "Missing required variable in module call",
 					Subject:  mc.Config.MissingItemRange().Ptr(),
 				}}
+			}
+			if variable.Sensitive {
+				return variable.Default.Mark(marks.Sensitive), nil
 			}
 			return variable.Default, nil
 		}
