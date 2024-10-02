@@ -5,6 +5,7 @@ NEW FEATURES:
 ENHANCEMENTS:
 
 BUG FIXES:
+* Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
 
 ## 1.7.3
 
