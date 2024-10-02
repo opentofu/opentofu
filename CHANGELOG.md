@@ -1,3 +1,8 @@
+## 1.8.3
+
+BUG FIXES:
+* Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
+
 ## 1.8.2
 
 SECURITY:
