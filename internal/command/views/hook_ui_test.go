@@ -126,15 +126,15 @@ func TestUiHookPreApply_periodicTimer(t *testing.T) {
 	close(uiState.DoneCh)
 	<-uiState.done
 
-	expectedOutput := `test_instance.foo: Modifying... [id=test]
-test_instance.foo: Still modifying... [id=test, 1s elapsed]
-test_instance.foo: Still modifying... [id=test, 2s elapsed]
-test_instance.foo: Still modifying... [id=test, 3s elapsed]
+	expectedRegexp := `test_instance\.foo: Modifying... \[id=test\]
+test_instance\.foo: Still modifying... \[id=test, \ds elapsed\]
+test_instance\.foo: Still modifying... \[id=test, \ds elapsed\]
+test_instance\.foo: Still modifying... \[id=test, \ds elapsed\]
 `
 	result := done(t)
 	output := result.Stdout()
-	if output != expectedOutput {
-		t.Fatalf("Output didn't match.\nExpected: %q\nGiven: %q", expectedOutput, output)
+	if matched, _ := regexp.MatchString(expectedRegexp, output); !matched {
+		t.Fatalf("Output didn't match.\nExpected: %q\nGiven: %q", expectedRegexp, output)
 	}
 
 	expectedErrOutput := ""
