@@ -199,7 +199,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	}
 	c.variableArgs = rawFlags{items: &items}
 
-	variables, variableDiags := c.collectVariableValues()
+	variables, variableDiags := c.collectVariableValuesWithTests(args.TestDirectory)
 	diags = diags.Append(variableDiags)
 	if variableDiags.HasErrors() {
 		view.Diagnostics(nil, nil, diags)
