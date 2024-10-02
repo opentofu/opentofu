@@ -22,6 +22,7 @@ import (
 	backendConsul "github.com/opentofu/opentofu/internal/backend/remote-state/consul"
 	backendCos "github.com/opentofu/opentofu/internal/backend/remote-state/cos"
 	backendGCS "github.com/opentofu/opentofu/internal/backend/remote-state/gcs"
+	backendGitlab "github.com/opentofu/opentofu/internal/backend/remote-state/gitlab"
 	backendHTTP "github.com/opentofu/opentofu/internal/backend/remote-state/http"
 	backendInmem "github.com/opentofu/opentofu/internal/backend/remote-state/inmem"
 	backendKubernetes "github.com/opentofu/opentofu/internal/backend/remote-state/kubernetes"
@@ -63,6 +64,7 @@ func Init(services *disco.Disco) {
 		"consul":     func(enc encryption.StateEncryption) backend.Backend { return backendConsul.New(enc) },
 		"cos":        func(enc encryption.StateEncryption) backend.Backend { return backendCos.New(enc) },
 		"gcs":        func(enc encryption.StateEncryption) backend.Backend { return backendGCS.New(enc) },
+		"gitlab":     func(enc encryption.StateEncryption) backend.Backend { return backendGitlab.New(enc) },
 		"http":       func(enc encryption.StateEncryption) backend.Backend { return backendHTTP.New(enc) },
 		"inmem":      func(enc encryption.StateEncryption) backend.Backend { return backendInmem.New(enc) },
 		"kubernetes": func(enc encryption.StateEncryption) backend.Backend { return backendKubernetes.New(enc) },
