@@ -23,6 +23,7 @@ BUG FIXES:
 * Ensured that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
 * Fixed a crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
 * Fixed a crash when importing an empty optional sensitive string ([#1986](https://github.com/opentofu/opentofu/pull/1986))
+* Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
 
 ## Previous Releases
 
