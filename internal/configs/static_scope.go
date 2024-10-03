@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -255,6 +256,18 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 	}
 
 	val, valDiags := s.eval.call.vars(variable)
+	if variable.Sensitive {
+		if os.Getenv("TOFU_ENABLE_STATIC_SENSITIVE") != "" {
+			val = val.Mark(marks.Sensitive)
+		} else {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Sensitive value used in static context",
+				Detail:   "Due to a bug in the v1.8.0 OpenTofu release, variables in a static context were not checked for sensitivity. In order to prevent a patch release from breaking compatability, this additional security check defaults to a warning and is flagged behind the TOFU_ENABLE_STATIC_SENSITIVE environment variable.  It is highly recommended to enable this check as it will be enabled by default in OpenTofu v1.9.0",
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
+	}
 	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
 }
 

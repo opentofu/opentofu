@@ -170,7 +170,7 @@ func (m *Meta) Backend(opts *BackendOpts, enc encryption.StateEncryption) (backe
 	// then return that as-is. This works even if b == nil (it will be !ok).
 	if enhanced, ok := b.(backend.Enhanced); ok {
 		log.Printf("[TRACE] Meta.Backend: backend %T supports operations", b)
-		return enhanced, nil
+		return enhanced, diags
 	}
 
 	// We either have a non-enhanced backend or no backend configured at
@@ -211,7 +211,7 @@ func (m *Meta) Backend(opts *BackendOpts, enc encryption.StateEncryption) (backe
 		}
 	}
 
-	return local, nil
+	return local, diags
 }
 
 // selectWorkspace gets a list of existing workspaces and then checks
