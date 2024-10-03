@@ -66,4 +66,4 @@ A considerable amount of time is spent scanning the provider cache.  Instead, it
 
 ## Potential Alternatives
 
-Terragrunt/Gruntworks provides a http provider mirror that can be run locally and maintains a provider cache (archives) external to OpenTofu itself. While this does have some advantages, it still requires each provider to be extracted into the local provider cache folder, taking additional time and space.  It may be a safer alternative to using a networked filesystem between systems.
+Terragrunt/Gruntwork provides a http provider mirror that can be run locally and maintains a provider cache (archives) external to OpenTofu itself. While this does have some advantages, it still requires each provider to be extracted into the local provider cache folder, taking additional time and space.  It may be a safer alternative to using a networked filesystem between systems.
