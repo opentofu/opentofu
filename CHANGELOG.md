@@ -1,7 +1,14 @@
 ## 1.8.3
 
+SECURITY:
+* Added option to enable the sensitive flag for variables used in module sources/versions and backend configurations.
+  * This emits a warning by default to prevent breaking compatability with previous 1.8.x versions.
+  * It is *highly recommended* to set `TOFU_ENABLE_STATIC_SENSITIVE=1` in any environments using this release.
+  * This will be enabled by default as a breaking change in v1.9.0
+
 BUG FIXES:
 * Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
+* Fixed crash when using sensitive values in module sources/versions and backend configurations ([#2046](https://github.com/opentofu/opentofu/pull/2046))
 
 ## 1.8.2
 
