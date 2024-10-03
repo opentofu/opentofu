@@ -1,7 +1,11 @@
 ## 1.9.0 (Unreleased)
 
+BREAKING CHANGES:
+* Due to a bug in OpenTofu 1.8.0 through 1.8.2, variables used in module sources/versions and backend configurations did not propagate correctly. This has been fixed in this version and may cause some previously functional configurations to produce errors. See the [security advisory](https://github.com/opentofu/opentofu/security/advisories/GHSA-wpr2-j6gr-pjw9) for more details.
+
 UPGRADE NOTES:
 
+* The environment variable `TOFU_ENABLE_STATIC_SENSITIVE` (introduced in 1.8.3) has been removed as it was a compatibility workaround for improper handing of sensitive variables in OpenTofu 1.8.0 through 1.8.2.
 * Using the `ghcr.io/opentofu/opentofu` image as a base image for custom images is deprecated and this will be removed in OpenTofu 1.10. Please see https://opentofu.org/docs/intro/install/docker/ for instructions on building your own image.
 
 NEW FEATURES:
@@ -24,6 +28,7 @@ BUG FIXES:
 * Fixed a crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
 * Fixed a crash when importing an empty optional sensitive string ([#1986](https://github.com/opentofu/opentofu/pull/1986))
 * Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
+* Fixed crash when using sensitive values in module sources/versions and backend configurations ([#2045](https://github.com/opentofu/opentofu/pull/2045))
 
 ## Previous Releases
 
