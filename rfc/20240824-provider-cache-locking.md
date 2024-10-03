@@ -10,7 +10,7 @@ Additionally, as we build out true e2e tests for OpenTofu, safe access to the gl
 
 ## Proposed Solution
 
-A filesystem level lock should be added that is safe for cross-process and in some scenarios cross-machine access. It will be best-effort and should rely on standard locking practices (not home grown) and be transparent to the user.
+A filesystem level lock via native syscall (fcntl flock in POSIX / LockFileEx in Windows) should be added that is safe for cross-process and in some scenarios cross-machine access. It will be best-effort and should rely on standard locking practices (not home grown) and be transparent to the user.
 
 ### User Documentation
 
@@ -49,7 +49,7 @@ The provider lock file may have been generated on a system with a different arch
 
 This proposal hinges on a stable and consistent cross-platform lock. The codebase already contains this in the form of locking local state files.  This code is battle tested and overall quite simple to use.  With some light refactoring, this filesystem locking code can be moved into it's own internal package and used both to lock providers and to lock the local state file.
 
-The existing file locking should be safe on any local filesystems, but should be used with caution on shared volumes such as legacy NFS shares who do not provide strong locking consistency.
+The existing file locking should be safe on any local filesystems, but should be used with caution on shared volumes such as legacy NFS shares who do not provide strong locking consistency. We will add explicit warnings to the documentation which recommend against using networked filesystems for this use case.
 
 Within the provider installation code, the whole section which inspects and links to the current providers available should be locked at the provider level.  The lock should be done at this granularity specifically for the complicating factors mentioned above.
 
@@ -57,7 +57,8 @@ Additionally, we should make the package installer smarter and able to check the
 
 ### Open Questions
 
-* Is fnctl flock safe enough? It is industry standard and battle tested.  Are there any additional caveats that should be mentioned in the docs?
+* Is a filesystem lock syscall safe enough? It is industry standard and battle tested.  Are there any additional caveats that should be mentioned in the docs?
+  - Yes. As mentioned above, we should document that networked filesystems are not recommended for this use case.
 
 ### Future Considerations
 
