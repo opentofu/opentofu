@@ -6,7 +6,7 @@ Many CI/CD systems download all providers for every single tofu action run. The 
 
 Another common use case is terragrunt. When running `tofu init` on multiple projects simultaneously via the tool, there is a high likely hood of a conflicting write to a provider's directory. This has caused some interesting tooling workarounds on their end, which are not ideal.
 
-Additionally, as we build out true e2e tests for OpenTofu, safe access to the global provider cache can dramatically reduce run times.
+Additionally, as we build out true e2e tests for OpenTofu, safe access to the global provider cache can dramatically reduce run times by allowing us to run these concurrently.
 
 ## Proposed Solution
 
