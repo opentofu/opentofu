@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -255,6 +256,9 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 	}
 
 	val, valDiags := s.eval.call.vars(variable)
+	if variable.Sensitive {
+		val = val.Mark(marks.Sensitive)
+	}
 	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
 }
 
