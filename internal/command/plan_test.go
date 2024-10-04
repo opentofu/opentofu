@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -924,53 +923,33 @@ func TestPlan_providerArgumentUnset(t *testing.T) {
 // does Plan ask for input
 func TestPlan_resource_variable_inputs(t *testing.T) {
 	td := t.TempDir()
-	testCopyDir(t, testFixturePath("plan-vars-prompt"), td)
+	testCopyDir(t, testFixturePath("plan-vars-unset"), td)
 	defer testChdir(t, td)()
 
-	p := planFixtureProvider()
+	// The plan command will prompt for interactive input of var.src.
+	// We'll answer "mod" to that prompt, which should then allow this
+	// configuration to apply even though var.src doesn't have a
+	// default value and there are no -var arguments on our command line.
 
-	type testCase struct {
-		answers       []string
-		expectedCode  int
-		expectedError string
-	}
+	// This will (helpfully) panic if more than one variable is requested during plan:
+	// https://github.com/hashicorp/terraform/issues/26027
+	inputClose := testInteractiveInput(t, []string{"./mod"})
+	defer inputClose()
 
-	tests := map[string]testCase{
-		"resource_value": {
-			answers:      []string{"resource_value"},
-			expectedCode: 0,
+	p := planVarsFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		},
 	}
 
-	for testName, tc := range tests {
-		t.Run(testName, func(t *testing.T) {
-			ui := new(cli.MockUi)
-			view, done := testView(t)
-			c := &PlanCommand{
-				Meta: Meta{
-					testingOverrides: metaOverridesForProvider(p),
-					View:             view,
-					Ui:               ui,
-				},
-			}
-			closeInput := testInteractiveInput(t, tc.answers)
-			defer closeInput()
-			args := []string{}
-
-			code := c.Run(args)
-			output := done(t)
-			if code != tc.expectedCode {
-				t.Fatalf("bad error code. actual: %d, expecyed: %d\n\n%s", code, tc.expectedCode, output.Stderr())
-			}
-			if tc.expectedError != "" {
-				errStr := ui.ErrorWriter.String()
-				// we use strings.Contains as the test commands nearly always return warnings about lock files etc and that's a nightmare
-				// to parse.
-				if !strings.Contains(errStr, tc.expectedError) {
-					t.Fatalf("Expected error: %s\n\n not found in:\n\n%s", tc.expectedError, errStr)
-				}
-			}
-		})
+	args := []string{}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 }
 

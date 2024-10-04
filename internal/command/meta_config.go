@@ -146,7 +146,7 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 					name:       name,
 					sourceType: tofu.ValueFromInput,
 				}
-				variables[name] = v
+				m.updateInputVariableCache(name, v)
 			} else {
 				return variable.Default, nil
 			}
@@ -160,6 +160,9 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 }
 
 func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string, error) {
+	if !m.Input() {
+		return "", fmt.Errorf("input is disabled")
+	}
 	uiInput := m.UIInput()
 	rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
 		Id:          fmt.Sprintf("var.%s", variable.Name),
@@ -168,7 +171,7 @@ func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string
 		Secret:      variable.Sensitive,
 	})
 	if err != nil {
-		log.Printf("[TRACE] Context.Input: Failed to prompt for %s: %s", variable.Name, err)
+		log.Printf("[TRACE] Meta.getInput Failed to prompt for %s: %s", variable.Name, err)
 		return "", err
 	}
 	return rawValue, nil
