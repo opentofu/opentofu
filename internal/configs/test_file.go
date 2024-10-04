@@ -1016,7 +1016,7 @@ var testFileSchema = &hcl.BodySchema{
 		{
 			// run block defines the steps to execute during a test run.
 			Type:       "run",
-			LabelNames: []string{"name"}, // The "name" label uniquely identifies each run.
+			LabelNames: []string{"name"},  // The "name" label uniquely identifies each run.
 		},
 		{
 			// provider block specifies the infrastructure provider to use for the test.
