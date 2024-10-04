@@ -1083,7 +1083,6 @@ var testRunBlockSchema = &hcl.BodySchema{
 	},
 }
 
-
 // testRunOptionsBlockSchema defines the structure of the plan_options block
 // within a test, allowing configuration of test planning behavior.
 var testRunOptionsBlockSchema = &hcl.BodySchema{
