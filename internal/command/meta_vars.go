@@ -132,6 +132,10 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 	return ret, diags
 }
 
+func (m *Meta) updateInputVariableCache(key string, value backend.UnparsedVariableValue) {
+	m.inputVariableCache[key] = value
+}
+
 func (m *Meta) addVarsFromDir(currDir string, ret map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 

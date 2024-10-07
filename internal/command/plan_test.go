@@ -918,6 +918,41 @@ func TestPlan_providerArgumentUnset(t *testing.T) {
 	}
 }
 
+// based on the TestPlan_varsUnset test
+// this is to check if we use the static variable in a resource
+// does Plan ask for input
+func TestPlan_resource_variable_inputs(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan-vars-unset"), td)
+	defer testChdir(t, td)()
+
+	// The plan command will prompt for interactive input of var.src.
+	// We'll answer "mod" to that prompt, which should then allow this
+	// configuration to apply even though var.src doesn't have a
+	// default value and there are no -var arguments on our command line.
+
+	// This will (helpfully) panic if more than one variable is requested during plan:
+	// https://github.com/hashicorp/terraform/issues/26027
+	inputClose := testInteractiveInput(t, []string{"./mod"})
+	defer inputClose()
+
+	p := planVarsFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+}
+
 // Test that tofu properly merges provider configuration that's split
 // between config files and interactive input variables.
 // https://github.com/hashicorp/terraform/issues/28956
