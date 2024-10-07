@@ -7222,7 +7222,7 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 		t.Fatalf("expected 1 outputs, got: %#v", mod.OutputValues)
 	}
 
-	// the module instance should remain
+	// the module instance should not remain
 	mod = state.Module(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	if mod != nil {
 		t.Fatalf("expected child module to not exist in state, but it does")
