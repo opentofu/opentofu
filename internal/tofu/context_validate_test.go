@@ -2453,6 +2453,7 @@ resource "aws_instance" "test" {
 	}
 }
 
+//nolint:var-naming // existing pattern
 func TestContext2Validate_deprecatedAttr(t *testing.T) {
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
