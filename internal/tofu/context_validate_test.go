@@ -2453,7 +2453,6 @@ resource "aws_instance" "test" {
 	}
 }
 
-//nolint:var-naming // existing pattern
 func TestContext2Validate_deprecatedAttr(t *testing.T) {
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -2489,6 +2488,7 @@ locals {
 	}
 }
 
+//nolint:var-naming // existing pattern
 func TextContext2Validate_providerFunctions(t *testing.T) {
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -2508,27 +2508,27 @@ func TextContext2Validate_providerFunctions(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 terraform {
-        required_providers {
-                aws = ">=5.70.0"
-        }
+  required_providers {
+    aws = ">=5.70.0"
+  }
 }
 
 provider "aws" {
-        region="us-east-1"
+  region="us-east-1"
 }
 
 module "mod" {
-        source = "./mod"
-        providers = {
-                aws = aws
-        }
+  source = "./mod"
+  providers = {
+    aws = aws
+  }
 }
  `,
 		"mod/mod.tf": `
-	terraform {
-        required_providers {
-                aws = ">=5.70.0"
-        }
+  terraform {
+    required_providers {
+      aws = ">=5.70.0"
+    }
 }
 
 variable "obfmod" {
@@ -2545,9 +2545,9 @@ variable "obfmod" {
   }
 
   default = {
-        arns = [
-          "arn:partition:service:region:account-id:resource-id",
-        ]
+    arns = [
+      "arn:partition:service:region:account-id:resource-id",
+    ]
   }
 }
 `,
