@@ -354,6 +354,46 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 	}
 }
 
+func TestNodeValidatableResource_ValidateResource_validWithPotentialProviderSet(t *testing.T) {
+	mp := simpleMockProvider()
+	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+		return providers.ValidateResourceConfigResponse{}
+	}
+
+	p := providers.Interface(mp)
+	rc := &configs.Resource{
+		Mode:   addrs.ManagedResourceMode,
+		Type:   "test_object",
+		Name:   "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{}),
+	}
+
+	applyableProvider := NodeApplyableProvider{
+		NodeAbstractProvider: &NodeAbstractProvider{
+			Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		},
+	}
+
+	node := NodeValidatableResource{
+		NodeAbstractResource: &NodeAbstractResource{
+			Addr:   mustConfigResourceAddr("test_object.foo"),
+			Config: rc,
+			potentialProviders: []distinguishableProvider{{
+				concreteProvider: applyableProvider}},
+		},
+	}
+
+	ctx := &MockEvalContext{}
+	ctx.installSimpleEval()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
+	ctx.ProviderProvider = p
+
+	diags := node.validateResource(ctx)
+	if diags.HasErrors() {
+		t.Fatalf("err: %s", diags.Err())
+	}
+}
+
 func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough(t *testing.T) {
 	mp := simpleMockProvider()
 	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
