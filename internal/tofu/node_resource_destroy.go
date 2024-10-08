@@ -49,10 +49,10 @@ func (n *NodeDestroyResourceInstance) Name() string {
 	return n.ResourceInstanceAddr().String() + " (destroy)"
 }
 
-func (n *NodeDestroyResourceInstance) ProvidedBy() addrs.ProviderConfig {
+func (n *NodeDestroyResourceInstance) ProvidedBy() (addr map[addrs.InstanceKey]addrs.ProviderConfig, exactProvider ExactProvider) {
 	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		// indicate that this node does not require a configured provider
-		return nil
+		return nil, ExactProvider{}
 	}
 	return n.NodeAbstractResourceInstance.ProvidedBy()
 }
@@ -164,7 +164,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 	var changeApply *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider())
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -183,7 +183,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 		return diags
 	}
 
-	state, readDiags := n.readResourceInstanceState(ctx, addr)
+	state, readDiags := n.readResourceInstanceState(ctx, addr, n.ResolvedProvider())
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -234,6 +234,6 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 
 func (n *NodeDestroyResourceInstance) dataResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] NodeDestroyResourceInstance: removing state object for %s", n.Addr)
-	ctx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider)
+	ctx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
 	return diags.Append(updateStateHook(ctx))
 }
