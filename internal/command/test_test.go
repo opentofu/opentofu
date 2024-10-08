@@ -1182,6 +1182,72 @@ Success! 1 passed, 0 failed.
 `,
 			code: 0,
 		},
+		"invalid_variable_warning_expected": {
+			expected: `main.tftest.hcl... fail
+  run "invalid_object"... fail
+
+Warning: Invalid Variable in test file
+
+Variable var.variable1, has an invalid value within the test. Although this
+was an expected failure, it has meant the apply stage was unable to run so
+the overall test will fail.
+
+Error: Invalid value for variable
+
+  on main.tf line 2:
+   2: variable "variable1" {
+    ├────────────────
+    │ var.variable1 is "lalalala"
+
+The variable1 value must be: foobar
+
+This was checked by the validation rule at main.tf:5,3-13.
+
+Error: Invalid value for variable
+
+  on main.tf line 11:
+  11: variable "variable2" {
+    ├────────────────
+    │ var.variable2 is "lalalala"
+
+The variable2 value must be: barfoo
+
+This was checked by the validation rule at main.tf:14,3-13.
+
+Failure! 0 passed, 1 failed.
+`,
+			code: 1,
+		},
+		"invalid_variable_warning_no_expected": {
+			expected: `main.tftest.hcl... fail
+  run "invalid_object"... fail
+
+Error: Invalid value for variable
+
+  on main.tf line 2:
+   2: variable "variable1" {
+    ├────────────────
+    │ var.variable1 is "lalalala"
+
+The variable1 value must be: foobar
+
+This was checked by the validation rule at main.tf:5,3-13.
+
+Error: Invalid value for variable
+
+  on main.tf line 11:
+  11: variable "variable2" {
+    ├────────────────
+    │ var.variable2 is "lalalala"
+
+The variable2 value must be: barfoo
+
+This was checked by the validation rule at main.tf:14,3-13.
+
+Failure! 0 passed, 1 failed.
+`,
+			code: 1,
+		},
 	}
 
 	for name, tc := range tcs {
