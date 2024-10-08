@@ -56,7 +56,7 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
-	graph, operation, diags := c.applyGraph(plan, config, true, providerFunctionTracker)
+	graph, operation, diags := c.applyGraph(plan, config, providerFunctionTracker)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -122,8 +122,7 @@ Note that the -target and -exclude options are not suitable for routine use, and
 	return newState, diags
 }
 
-//nolint:revive,unparam // TODO remove validate bool as it's not used
-func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate bool, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	variables := InputValues{}
@@ -210,7 +209,7 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 
 	var diags tfdiags.Diagnostics
 
-	graph, _, moreDiags := c.applyGraph(plan, config, false, make(ProviderFunctionMapping))
+	graph, _, moreDiags := c.applyGraph(plan, config, make(ProviderFunctionMapping))
 	diags = diags.Append(moreDiags)
 	return graph, diags
 }
