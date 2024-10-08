@@ -282,7 +282,16 @@ var connectionBlockSupersetSchema = &configschema.Block{
 func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	var absProvider addrs.AbsProviderConfig
+	if n.ResolvedResourceProvider.IsSet() {
+		absProvider = n.ResolvedResourceProvider
+	} else if len(n.potentialProviders) > 0 {
+		// If the provider has yet to be resolved (will be resolved at the expansion on instance level), we can use any
+		// of the potentialProviders instead, as the interface and schema will be the same for all potential providers
+		absProvider = n.potentialProviders[0].concreteProvider.ProviderAddr()
+	}
+
+	provider, providerSchema, err := getProvider(ctx, absProvider)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags

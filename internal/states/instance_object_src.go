@@ -64,6 +64,11 @@ type ResourceInstanceObjectSrc struct {
 	Status              ObjectStatus
 	Dependencies        []addrs.ConfigResource
 	CreateBeforeDestroy bool
+
+	// InstanceProvider, if set, this instance has a specific provider different
+	// from the whole resource's provider. Happens in cases when we have a
+	// for_each or count in provider reference of the resource / module
+	InstanceProvider addrs.AbsProviderConfig
 }
 
 // Decode unmarshals the raw representation of the object attributes. Pass the
@@ -102,6 +107,7 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 		Dependencies:        os.Dependencies,
 		Private:             os.Private,
 		CreateBeforeDestroy: os.CreateBeforeDestroy,
+		InstanceProvider:    os.InstanceProvider,
 	}, nil
 }
 
