@@ -100,41 +100,53 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	// getComparableProvider inspects the node to try and get the most precise
 	// description of the provider being used to help determine if 2 nodes are
 	// from the same provider instance.
-	getComparableProvider := func(pc GraphNodeProviderConsumer) string {
-		ps := pc.Provider().String()
+	getComparableProvider := func(pc GraphNodeProviderConsumer) []string {
 
-		// we don't care about `exact` here, since we're only looking for any
-		// clue that the providers may differ.
-		/*  p, _ := pc.ProvidedBy() // TODO Ronny fix
-		switch p := p.(type) {
-		case addrs.AbsProviderConfig:
-			ps = p.String()
-		case addrs.LocalProviderConfig:
-			ps = p.String()
-		}*/
-
+		pmap, exact := pc.ProvidedBy()
+		if exact.provider.IsSet() {
+			return []string{exact.provider.String()}
+		}
+		if len(pmap) == 0 {
+			return []string{pc.Provider().String()}
+		}
+		var ps []string
+		for _, p := range pmap {
+			switch p := p.(type) {
+			case addrs.AbsProviderConfig:
+				ps = append(ps, p.String())
+			case addrs.LocalProviderConfig:
+				ps = append(ps, p.String())
+			}
+		}
 		return ps
+
 	}
 
 	pc, ok := from.(GraphNodeProviderConsumer)
 	if !ok {
 		return
 	}
-	fromProvider := getComparableProvider(pc)
+	fromProviders := getComparableProvider(pc)
 
 	pc, ok = to.(GraphNodeProviderConsumer)
 	if !ok {
 		return
 	}
-	toProvider := getComparableProvider(pc)
+	toProviders := getComparableProvider(pc)
 
 	// Check for cycles, and back out the edge if there are any.
 	// The cycles we are looking for only appears between providers, so don't
 	// waste time checking for cycles if both nodes use the same provider.
-	if fromProvider != toProvider && len(g.Cycles()) > 0 {
-		log.Printf("[DEBUG] DestroyEdgeTransformer: skipping inter-provider edge %s->%s which creates a cycle",
-			dag.VertexName(from), dag.VertexName(to))
-		g.RemoveEdge(e)
+	// TODO this comparison is not efficient
+	for _, fromProvider := range fromProviders {
+		for _, toProvider := range toProviders {
+			if fromProvider != toProvider && len(g.Cycles()) > 0 {
+				log.Printf("[DEBUG] DestroyEdgeTransformer: skipping inter-provider edge %s->%s which creates a cycle",
+					dag.VertexName(from), dag.VertexName(to))
+				g.RemoveEdge(e)
+				break
+			}
+		}
 	}
 }
 
