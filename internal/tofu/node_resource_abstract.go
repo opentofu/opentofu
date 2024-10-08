@@ -73,12 +73,23 @@ type NodeAbstractResource struct {
 	dependsOn      []addrs.ConfigResource
 	forceDependsOn bool
 
-	// The address of the provider this resource will use
-	ResolvedProvider addrs.AbsProviderConfig
-	// storedProviderConfig is the provider address retrieved from the
-	// state. This is defined here for access within the ProvidedBy method, but
-	// will be set from the embedding instance type when the state is attached.
-	storedProviderConfig addrs.AbsProviderConfig
+	// The address of the provider this resource will use.
+	// Can be empty if the provider is not set on the resource level but in the resource instance instead. In this case,
+	// the potentialProviders property will be populated.
+	// It can happen when we have a for_each or count on the providers in the resource or containing module.
+	ResolvedResourceProvider addrs.AbsProviderConfig
+
+	// potentialProviders is a list of provider and their identifiers, meant to be resolved per each instance to
+	// calculate its provider.
+	// If the potentialProviders is populated, it means the ResolvedResourceProvider is empty and the provider will be
+	// defined per resource instance and not on the whole resource.
+	potentialProviders []distinguishableProvider
+
+	// storedProviderConfig is the provider address retrieved from the state of the resource,
+	// with a bool indication on whether this provider is se on the Resource level or on the instance level.
+	// This is defined here for access within the ProvidedBy method, but will be set from the embedding
+	// instance type when the state is attached.
+	storedProviderConfig ExactProvider
 
 	// This resource may expand into instances which need to be imported.
 	importTargets []*ImportTarget
@@ -290,33 +301,88 @@ func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
 	return result
 }
 
-func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig) {
-	n.ResolvedProvider = p
+func (n *NodeAbstractResource) SetPotentialProviders(potentialProviders []distinguishableProvider) {
+	n.potentialProviders = potentialProviders
+}
+
+// resolveInstanceProvider gets the specific expanded instance of the resource, and tries to calculate the resolved
+// InstanceProvider if a few potential providers exist. A few potential providers might exist if the resource
+// configuration, or one of the containing module's configuration, contains a for_each or count in the provider reference.
+func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourceInstance) addrs.AbsProviderConfig {
+	for _, potentialProvider := range n.potentialProviders {
+		if potentialProvider.IsResourceInstanceMatching(instance) {
+			return potentialProvider.concreteProvider.ProviderAddr()
+		}
+	}
+
+	// Can happen if ResolvedResourceProvider is already set for the whole resource, and we don't have a specific
+	// provider set for the instances
+	return addrs.AbsProviderConfig{}
+}
+
+func (n *NodeAbstractResource) SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool) {
+	if isResourceProvider {
+		n.ResolvedResourceProvider = provider
+	} else {
+		panic(fmt.Sprintf("SetProvider for %s cannot set an instance provider on a NodeAbstractResource", n.Addr))
+	}
+}
+
+func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
+	return n.ProvidedByImpl(addrs.AbsProviderConfig{})
 }
 
 // GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedBy() addrs.ProviderConfig {
+func (n *NodeAbstractResource) ProvidedByImpl(resolvedInstanceProvider addrs.AbsProviderConfig) (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
 	// Once the provider is fully resolved, we can return the known value.
-	if n.ResolvedProvider.Provider.Type != "" {
-		return n.ResolvedProvider
+	if n.ResolvedResourceProvider.IsSet() {
+		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: n.ResolvedResourceProvider, isResourceProvider: true}
+	} else if resolvedInstanceProvider.IsSet() {
+		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: false}
+
 	}
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
-		// TODO/Oleksandr: should be overwritten by Ronny's changes
-		relAddr := n.Config.AnyProviderConfigAddr()
-		return addrs.LocalProviderConfig{
-			LocalName: relAddr.LocalName,
-			Alias:     relAddr.Alias,
+		if n.Config.ProviderConfigRef == nil {
+			// If no specific "provider" argument is given, we want to look up the
+			// provider config where the local name matches the implied provider
+			// from the resource type. This may be different from the resource's
+			// provider type.
+			return map[addrs.InstanceKey]addrs.ProviderConfig{
+				addrs.NoKey: addrs.LocalProviderConfig{
+					LocalName: n.Config.Addr().ImpliedProvider(),
+				},
+			}, ExactProvider{}
 		}
+
+		result := make(map[addrs.InstanceKey]addrs.ProviderConfig)
+
+		if len(n.Config.ProviderConfigRef.Aliases) > 0 {
+			// If we have aliases set in ProviderConfigRef, we'll calculate a LocalProviderConfig for each one
+			for key, alias := range n.Config.ProviderConfigRef.Aliases {
+				result[key] = addrs.LocalProviderConfig{
+					LocalName: n.Config.ProviderConfigRef.Name,
+					Alias:     alias,
+				}
+			}
+		} else {
+			// If we have no aliases in ProviderConfigRef, we still need to calculate a single LocalProviderConfig
+			result[addrs.NoKey] = addrs.LocalProviderConfig{
+				LocalName: n.Config.ProviderConfigRef.Name,
+				Alias:     "",
+			}
+		}
+
+		return result, ExactProvider{}
 	}
 
 	// See if we have a valid provider config from the state.
-	if n.storedProviderConfig.Provider.Type != "" {
+	if n.storedProviderConfig.provider.IsSet() {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
-		return n.storedProviderConfig
+		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: n.storedProviderConfig.provider, isResourceProvider: n.storedProviderConfig.isResourceProvider}
 	}
 
 	// We might have an import target that is providing a specific provider,
@@ -327,29 +393,30 @@ func (n *NodeAbstractResource) ProvidedBy() addrs.ProviderConfig {
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			return addrs.LocalProviderConfig{
-				LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
-				Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
-			}
+			return map[addrs.InstanceKey]addrs.ProviderConfig{
+				addrs.NoKey: addrs.LocalProviderConfig{
+					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
+					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
+				},
+			}, ExactProvider{}
 		}
 	}
-
 	// No provider configuration found; return a default address
-	return addrs.LocalProviderConfig{
-		LocalName: n.Addr.Resource.ImpliedProvider(), // Unused, see ProviderTransformer
-	}
+	return map[addrs.InstanceKey]addrs.ProviderConfig{
+		addrs.NoKey: addrs.AbsProviderConfig{
+			Provider: n.Provider(),
+			Module:   n.ModulePath(),
+		},
+	}, ExactProvider{}
 }
 
 // GraphNodeProviderConsumer
 func (n *NodeAbstractResource) Provider() addrs.Provider {
-	if n.ResolvedProvider.Provider.Type != "" {
-		return n.ResolvedProvider.Provider
-	}
 	if n.Config != nil {
 		return n.Config.Provider
 	}
-	if n.storedProviderConfig.Provider.Type != "" {
-		return n.storedProviderConfig.Provider
+	if n.storedProviderConfig.provider.IsSet() {
+		return n.storedProviderConfig.provider.Provider
 	}
 
 	if len(n.importTargets) > 0 {
@@ -442,7 +509,6 @@ func (n *NodeAbstractResource) DotNode(name string, opts *dag.DotOpts) *dag.DotN
 // rather than as not set at all.
 func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
 	state := ctx.State()
-
 	// We'll record our expansion decision in the shared "expander" object
 	// so that later operations (i.e. DynamicExpand and expression evaluation)
 	// can refer to it. Since this node represents the abstract module, we need
@@ -457,7 +523,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 			return diags
 		}
 
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedResourceProvider)
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.ForEach != nil:
@@ -469,11 +535,11 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 		// This method takes care of all of the business logic of updating this
 		// while ensuring that any existing instances are preserved, etc.
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedResourceProvider)
 		expander.SetResourceForEach(addr.Module, n.Addr.Resource, forEach)
 
 	default:
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedResourceProvider)
 		expander.SetResourceSingle(addr.Module, n.Addr.Resource)
 	}
 
@@ -482,9 +548,9 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance, resolvedProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, resolvedProvider)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -523,9 +589,9 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
 // instance in the state.
-func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey, resolvedProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, resolvedProvider)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
