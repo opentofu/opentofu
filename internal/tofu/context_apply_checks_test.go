@@ -472,7 +472,8 @@ check "error" {
 					addrs.AbsProviderConfig{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
-					})
+					},
+					addrs.AbsProviderConfig{})
 			}),
 			plan: map[string]checksTestingStatus{
 				"error": {
@@ -572,7 +573,8 @@ check "passing" {
 					addrs.AbsProviderConfig{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
-					})
+					},
+					addrs.AbsProviderConfig{})
 			}),
 			plan: map[string]checksTestingStatus{
 				"passing": {

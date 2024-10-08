@@ -6,6 +6,7 @@
 package states
 
 import (
+	"fmt"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -58,7 +59,7 @@ func (ms *Module) ResourceInstance(addr addrs.ResourceInstance) *ResourceInstanc
 
 // SetResourceProvider updates the resource-level metadata for the resource
 // with the given address, creating the resource state for it if it doesn't
-// already exist.
+// already exist. Also sets the provider on the resource level (if not empty).
 func (ms *Module) SetResourceProvider(addr addrs.Resource, provider addrs.AbsProviderConfig) {
 	rs := ms.Resource(addr)
 	if rs == nil {
@@ -69,7 +70,9 @@ func (ms *Module) SetResourceProvider(addr addrs.Resource, provider addrs.AbsPro
 		ms.Resources[addr.String()] = rs
 	}
 
-	rs.ProviderConfig = provider
+	if provider.IsSet() {
+		rs.ProviderConfig = provider
+	}
 }
 
 // RemoveResource removes the entire state for the given resource, taking with
@@ -87,9 +90,9 @@ func (ms *Module) RemoveResource(addr addrs.Resource) {
 // Set obj to nil to remove the primary generation object altogether. If there
 // are no deposed objects then the instance will be removed altogether.
 //
-// The provider address is a resource-wide setting and is updated for all other
-// instances of the same resource as a side-effect of this call.
-func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
+// The provider address can be either a resource-wide settings or set for the
+// specific instance, and it depends on the given resourceProvider / instanceProvider
+func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, resourceProvider, instanceProvider addrs.AbsProviderConfig) {
 	rs := ms.Resource(addr.Resource)
 	// if the resource is nil and the object is nil, don't do anything!
 	// you'll probably just cause issues
@@ -123,9 +126,11 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 		// Nothing more to do here, so return!
 		return
 	}
+
 	if rs == nil && obj != nil {
 		// We don't have have a resource so make one, which is a side effect of setResourceMeta
-		ms.SetResourceProvider(addr.Resource, provider)
+		ms.SetResourceProvider(addr.Resource, resourceProvider)
+
 		// now we have a resource! so update the rs value to point to it
 		rs = ms.Resource(addr.Resource)
 	}
@@ -135,10 +140,35 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 		// if we don't have a resource, create one and add to the instances
 		is = rs.CreateInstance(addr.Key)
 		// update the resource meta because we have a new
-		ms.SetResourceProvider(addr.Resource, provider)
+		ms.SetResourceProvider(addr.Resource, resourceProvider)
 	}
+
 	// Update the resource's ProviderConfig, in case the provider has updated
-	rs.ProviderConfig = provider
+	if resourceProvider.IsSet() {
+		rs.ProviderConfig = resourceProvider
+	}
+
+	// If the instanceProvider is not empty, populate the obj with its value
+	if instanceProvider.IsSet() {
+		obj.InstanceProvider = instanceProvider
+	}
+
+	var stringInstanceKey string
+
+	if addr.Key == nil {
+		stringInstanceKey = "nil"
+	} else {
+		stringInstanceKey = addr.Key.String()
+	}
+
+	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
+		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) cannot find a provider (resourceProvider / instanceProvider) to write in state", addr, stringInstanceKey))
+	}
+
+	if resourceProvider.IsSet() && instanceProvider.IsSet() {
+		panic(fmt.Sprintf("SetResourceInstanceCurrent for %s (instance key %s) got two providers (resourceProvider & instanceProvider) to write in state", addr, stringInstanceKey))
+	}
+
 	is.Current = obj
 }
 
@@ -158,11 +188,33 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 // is overwritten. Set obj to nil to remove the deposed object altogether. If
 // the instance is left with no objects after this operation then it will
 // be removed from its containing resource altogether.
-func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
-	ms.SetResourceProvider(addr.Resource, provider)
+func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
+	ms.SetResourceProvider(addr.Resource, resourceProvider)
 
 	rs := ms.Resource(addr.Resource)
 	is := rs.EnsureInstance(addr.Key)
+
+	// If the instanceProvider is not empty, populate the obj with its value
+	if instanceProvider.IsSet() {
+		obj.InstanceProvider = instanceProvider
+	}
+
+	var stringInstanceKey string
+
+	if addr.Key == nil {
+		stringInstanceKey = "nil"
+	} else {
+		stringInstanceKey = addr.Key.String()
+	}
+
+	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
+		panic(fmt.Sprintf("SetResourceInstanceDeposed for %s (instance key %s, deposed key %s) cannot find a provider (resourceProvider / instanceProvider) to write in state", addr, stringInstanceKey, key))
+	}
+
+	if resourceProvider.IsSet() && instanceProvider.IsSet() {
+		panic(fmt.Sprintf("SetResourceInstanceDeposed for %s (instance key %s, deposed key %s) got two providers (resourceProvider & instanceProvider) to write in state", addr, stringInstanceKey, key))
+	}
+
 	if obj != nil {
 		is.Deposed[key] = obj
 	} else {
