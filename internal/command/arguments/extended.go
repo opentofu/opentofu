@@ -133,7 +133,7 @@ func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Ta
 	if len(targets) > 0 && len(excludes) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"-target and -exclude flags used together",
+			"Invalid combination of arguments",
 			"-target and -exclude flags cannot be used together. Please remove one of the flags",
 		))
 		return parsedTargets, parsedExcludes, diags

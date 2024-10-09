@@ -220,7 +220,7 @@ func TestParsePlan_excludeAndTarget(t *testing.T) {
 	wantDiags := tfdiags.Diagnostics{
 		tfdiags.Sourceless(
 			tfdiags.Error,
-			"-target and -exclude flags used together",
+			"Invalid combination of arguments",
 			"-target and -exclude flags cannot be used together. Please remove one of the flags",
 		),
 	}
