@@ -1574,9 +1574,9 @@ func TestContext2Plan_movedResourceUntargeted(t *testing.T) {
 			tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Resource targeting is in effect",
-				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
 				tfdiags.Error,
@@ -1614,9 +1614,9 @@ Note that adding these options may include further additional resource instances
 			tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Resource targeting is in effect",
-				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
 				tfdiags.Error,
@@ -1654,9 +1654,9 @@ Note that adding these options may include further additional resource instances
 			tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Resource targeting is in effect",
-				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			tfdiags.Sourceless(
 				tfdiags.Error,
@@ -1702,9 +1702,167 @@ Note that adding these options may include further additional resource instances
 			tfdiags.Sourceless(
 				tfdiags.Warning,
 				"Resource targeting is in effect",
-				`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+			),
+			// ...but now we have no error about test_object.a
+		}.ForRPC()
+
+		if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+	})
+	t.Run("excluding instance A", func(t *testing.T) {
+		_, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			Excludes: []addrs.Targetable{
+				// NOTE: addrA isn't excluded, and it's pending move to addrB
+				// and so this plan request is invalid.
+				addrA,
+			},
+		})
+		diags.Sort()
+
+		// We're semi-abusing "ForRPC" here just to get diagnostics that are
+		// more easily comparable than the various different diagnostics types
+		// tfdiags uses internally. The RPC-friendly diagnostics are also
+		// comparison-friendly, by discarding all of the dynamic type information.
+		gotDiags := diags.ForRPC()
+		wantDiags := tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Resource targeting is in effect",
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+			),
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Moved resource instances excluded by targeting",
+				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -exclude=... options exclude some of those resource instances.
+
+To create a valid plan, either remove your -exclude=... options altogether or just specifically remove the following options:
+  -exclude="test_object.a"
+
+Note that removing these options may include further additional resource instances in your plan, in order to respect object dependencies.`,
+			),
+		}.ForRPC()
+
+		if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+	})
+	t.Run("excluding instance B", func(t *testing.T) {
+		_, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			Excludes: []addrs.Targetable{
+				addrB,
+				// NOTE: addrB is excluded here, and it's pending move from
+				// addrA and so this plan request is invalid.
+			},
+		})
+		diags.Sort()
+
+		// We're semi-abusing "ForRPC" here just to get diagnostics that are
+		// more easily comparable than the various different diagnostics types
+		// tfdiags uses internally. The RPC-friendly diagnostics are also
+		// comparison-friendly, by discarding all of the dynamic type information.
+		gotDiags := diags.ForRPC()
+		wantDiags := tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Resource targeting is in effect",
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+			),
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Moved resource instances excluded by targeting",
+				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -exclude=... options exclude some of those resource instances.
+
+To create a valid plan, either remove your -exclude=... options altogether or just specifically remove the following options:
+  -exclude="test_object.b"
+
+Note that removing these options may include further additional resource instances in your plan, in order to respect object dependencies.`,
+			),
+		}.ForRPC()
+
+		if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+	})
+	t.Run("excluding both addresses", func(t *testing.T) {
+		_, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			Excludes: []addrs.Targetable{
+				// NOTE: both addrA nor addrB are excluded here, but there's
+				// a pending move between them and so this is invalid.
+				addrA,
+				addrB,
+			},
+		})
+		diags.Sort()
+
+		// We're semi-abusing "ForRPC" here just to get diagnostics that are
+		// more easily comparable than the various different diagnostics types
+		// tfdiags uses internally. The RPC-friendly diagnostics are also
+		// comparison-friendly, by discarding all of the dynamic type information.
+		gotDiags := diags.ForRPC()
+		wantDiags := tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Resource targeting is in effect",
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+			),
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Moved resource instances excluded by targeting",
+				`Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -exclude=... options exclude some of those resource instances.
+
+To create a valid plan, either remove your -exclude=... options altogether or just specifically remove the following options:
+  -exclude="test_object.a"
+  -exclude="test_object.b"
+
+Note that removing these options may include further additional resource instances in your plan, in order to respect object dependencies.`,
+			),
+		}.ForRPC()
+
+		if diff := cmp.Diff(wantDiags, gotDiags); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+	})
+	t.Run("without excluding either instance", func(t *testing.T) {
+		// The error messages in the other subtests above suggest removing
+		// addresses to the set of excludes. This additional test makes sure that
+		// following that advice actually leads to a valid result.
+		_, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.NormalMode,
+			Excludes: []addrs.Targetable{
+				mustResourceInstanceAddr("test_object.unrelated"),
+				// This time we're excluding neither address,
+				// to get the same effect an end-user would get if following
+				// the advice in our error message in the other subtests.
+			},
+		})
+		diags.Sort()
+
+		// We're semi-abusing "ForRPC" here just to get diagnostics that are
+		// more easily comparable than the various different diagnostics types
+		// tfdiags uses internally. The RPC-friendly diagnostics are also
+		// comparison-friendly, by discarding all of the dynamic type information.
+		gotDiags := diags.ForRPC()
+		wantDiags := tfdiags.Diagnostics{
+			// Still get the warning about the -target option...
+			tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Resource targeting is in effect",
+				`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 			),
 			// ...but now we have no error about test_object.a
 		}.ForRPC()
@@ -1759,7 +1917,7 @@ resource "test_object" "b" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrA,
@@ -1767,6 +1925,79 @@ resource "test_object" "b" {
 	})
 	//
 	assertNoErrors(t, diags)
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatalf("expected 1 resource change, but got %d", len(plan.Changes.Resources))
+	}
+
+	instPlan := plan.Changes.ResourceInstance(addrA)
+	if instPlan == nil {
+		t.Fatalf("expected plan for %s; but got none", addrA)
+	}
+}
+
+func TestContext2Plan_excludedResourceSchemaChange(t *testing.T) {
+	// an excluded resource which requires a schema migration should not
+	// block planning due external changes in the plan.
+	addrA := mustResourceInstanceAddr("test_object.a")
+	addrB := mustResourceInstanceAddr("test_object.b")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+}
+resource "test_object" "b" {
+}`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		s.SetResourceInstanceCurrent(addrB, &states.ResourceInstanceObjectSrc{
+			// old_list is no longer in the schema
+			AttrsJSON: []byte(`{"old_list":["used to be","a list here"]}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+	})
+
+	p := simpleMockProvider()
+
+	// external changes trigger a "drift report", but because test_object.b was
+	// excluded, the state was not fixed to match the schema and cannot be
+	// deocded for the report.
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+		var resp providers.ReadResourceResponse
+		obj := req.PriorState.AsValueMap()
+		// test_number changed externally
+		obj["test_number"] = cty.NumberIntVal(1)
+		resp.NewState = cty.ObjectVal(obj)
+		return resp
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrB,
+		},
+	})
+	//
+	assertNoErrors(t, diags)
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatalf("expected 1 resource change, but got %d", len(plan.Changes.Resources))
+	}
+
+	instPlan := plan.Changes.ResourceInstance(addrA)
+	if instPlan == nil {
+		t.Fatalf("expected plan for %s; but got none", addrA)
+	}
 }
 
 func TestContext2Plan_movedResourceRefreshOnly(t *testing.T) {

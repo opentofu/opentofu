@@ -4,5 +4,5 @@ module "mod" {
 
 
 resource "aws_instance" "c" {
-  name = "${module.mod.output}"
+  foo = "${module.mod.output}"
 }
