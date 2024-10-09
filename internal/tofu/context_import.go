@@ -251,14 +251,17 @@ func (c *Context) Import(config *configs.Config, prevRunState *states.State, opt
 
 	variables := opts.SetVariables
 
+	providerFunctionTracker := make(ProviderFunctionMapping)
+
 	// Initialize our graph builder
 	builder := &PlanGraphBuilder{
-		ImportTargets:      opts.Targets,
-		Config:             config,
-		State:              state,
-		RootVariableValues: variables,
-		Plugins:            c.plugins,
-		Operation:          walkImport,
+		ImportTargets:           opts.Targets,
+		Config:                  config,
+		State:                   state,
+		RootVariableValues:      variables,
+		Plugins:                 c.plugins,
+		Operation:               walkImport,
+		ProviderFunctionTracker: providerFunctionTracker,
 	}
 
 	// Build the graph
@@ -270,8 +273,9 @@ func (c *Context) Import(config *configs.Config, prevRunState *states.State, opt
 
 	// Walk it
 	walker, walkDiags := c.walk(graph, walkImport, &graphWalkOpts{
-		Config:     config,
-		InputState: state,
+		Config:                  config,
+		InputState:              state,
+		ProviderFunctionTracker: providerFunctionTracker,
 	})
 	diags = diags.Append(walkDiags)
 	if walkDiags.HasErrors() {

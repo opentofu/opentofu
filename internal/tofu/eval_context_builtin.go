@@ -73,15 +73,16 @@ type BuiltinEvalContext struct {
 	ProvisionerLock  *sync.Mutex
 	ProvisionerCache map[string]provisioners.Interface
 
-	ChangesValue          *plans.ChangesSync
-	StateValue            *states.SyncState
-	ChecksValue           *checks.State
-	RefreshStateValue     *states.SyncState
-	PrevRunStateValue     *states.SyncState
-	InstanceExpanderValue *instances.Expander
-	MoveResultsValue      refactoring.MoveResults
-	ImportResolverValue   *ImportResolver
-	Encryption            encryption.Encryption
+	ChangesValue            *plans.ChangesSync
+	StateValue              *states.SyncState
+	ChecksValue             *checks.State
+	RefreshStateValue       *states.SyncState
+	PrevRunStateValue       *states.SyncState
+	InstanceExpanderValue   *instances.Expander
+	MoveResultsValue        refactoring.MoveResults
+	ImportResolverValue     *ImportResolver
+	Encryption              encryption.Encryption
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -432,7 +433,7 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-		return evalContextProviderFunction(ctx.Provider, mc, ctx.Evaluator.Operation, pf, rng)
+		return evalContextProviderFunction(ctx.Provider, mc.Path, ctx.ProviderFunctionTracker, ctx.Evaluator.Operation, pf, rng)
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 
