@@ -28,6 +28,7 @@ import (
 	backendOSS "github.com/opentofu/opentofu/internal/backend/remote-state/oss"
 	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
 	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
+	backendVault "github.com/opentofu/opentofu/internal/backend/remote-state/vault"
 	backendCloud "github.com/opentofu/opentofu/internal/cloud"
 )
 
@@ -69,6 +70,7 @@ func Init(services *disco.Disco) {
 		"oss":        func(enc encryption.StateEncryption) backend.Backend { return backendOSS.New(enc) },
 		"pg":         func(enc encryption.StateEncryption) backend.Backend { return backendPg.New(enc) },
 		"s3":         func(enc encryption.StateEncryption) backend.Backend { return backendS3.New(enc) },
+		"vault":      func(enc encryption.StateEncryption) backend.Backend { return backendVault.New(enc) },
 
 		// Terraform Cloud 'backend'
 		// This is an implementation detail only, used for the cloud package
