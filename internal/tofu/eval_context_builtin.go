@@ -164,6 +164,10 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.Interface {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
+	println("PROVIDERS LU: " + addr.String())
+	for k := range ctx.ProviderCache {
+		println(k)
+	}
 
 	return ctx.ProviderCache[addr.String()]
 }

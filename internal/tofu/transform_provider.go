@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -235,6 +236,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				g.Remove(p)
+				println("Transform Remove " + dag.VertexName(p))
 				target = p.Target()
 			}
 
@@ -264,8 +266,8 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 		return nil
 	}
 
-	// Locate all providers in the graph
-	providers := providerVertexMap(g)
+	// Locate all providerVerts in the graph
+	providerVerts := providerVertexMap(g)
 
 	type providerReference struct {
 		path  string
@@ -285,6 +287,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 						name:  pf.ProviderName,
 						alias: pf.ProviderAlias,
 					}
+					fmt.Printf("key: %#v\n", key)
 
 					// We already know about this provider and can link directly
 					if provider, ok := providerReferences[key]; ok {
@@ -317,6 +320,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 						})
 						continue
 					}
+					fmt.Printf("PR: %#v\n", pr)
 
 					// Build fully qualified provider address
 					absPc := addrs.AbsProviderConfig{
@@ -327,13 +331,31 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 					log.Printf("[TRACE] ProviderFunctionTransformer: %s in %s is provided by %s", pf, dag.VertexName(v), absPc)
 
+					println(absPc.String())
+
 					// Lookup provider via full address
-					provider := providers[absPc.String()]
+					provider := providerVerts[absPc.String()]
 
 					if provider != nil {
 						// Providers with configuration will already exist within the graph and can be directly referenced
 						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
+						println("FOUND DIRECT")
 					} else {
+						println("STUB")
+
+						// At this point, all provider schemas should be loaded.  We
+						// can now check to see if configuration is optional for this function.
+						providerSchema, ok := providers.SchemaCache.Get(absPc.Provider)
+						if !ok {
+							panic("ERROR INVALID PROVIDER")
+						}
+						_, functionOk := providerSchema.Functions[pf.Function]
+						if !functionOk {
+							panic("CONFIGURED FUNCTION REQUIRED OR BUG")
+						}
+
+						println("VALID UNCONFIGURED FUNCTION")
+
 						// If this provider doesn't need to be configured then we can just
 						// stub it out with an init-only provider node, which will just
 						// start up the provider and fetch its schema.
@@ -341,13 +363,13 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
 						}
-						if provider, ok = providers[stubAddr.String()]; !ok {
+						if provider, ok = providerVerts[stubAddr.String()]; !ok {
 							stub := &NodeEvalableProvider{
 								&NodeAbstractProvider{
 									Addr: stubAddr,
 								},
 							}
-							providers[stubAddr.String()] = stub
+							providerVerts[stubAddr.String()] = stub
 							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
 							provider = stub
 							g.Add(provider)
@@ -356,6 +378,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 					// see if this is a proxy provider pointing to another concrete config
 					if p, ok := provider.(*graphNodeProxyProvider); ok {
+						println("FUNC PROV PROXY")
 						g.Remove(p)
 						provider = p.Target()
 					}
@@ -363,12 +386,19 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
 					g.Connect(dag.BasicEdge(v, provider))
 
+					// HAXXX
+					providerAddr := provider.ProviderAddr()
+					pf.ProviderAddr.Module = providerAddr.Module
+					pf.ProviderAddr.Provider = providerAddr.Provider
+					pf.ProviderAddr.Alias = providerAddr.Alias
+
 					// Save for future lookups
 					providerReferences[key] = provider
 				}
 			}
 		}
 	}
+	println(g.String())
 
 	return diags.Err()
 }
@@ -516,10 +546,12 @@ func (t *PruneProviderTransformer) Transform(g *Graph) error {
 }
 
 func providerVertexMap(g *Graph) map[string]GraphNodeProvider {
+	println("MAP")
 	m := make(map[string]GraphNodeProvider)
 	for _, v := range g.Vertices() {
 		if pv, ok := v.(GraphNodeProvider); ok {
 			addr := pv.ProviderAddr()
+			println(addr.String() + " : " + dag.VertexName(v))
 			m[addr.String()] = pv
 		}
 	}
