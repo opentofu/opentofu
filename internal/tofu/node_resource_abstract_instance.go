@@ -1198,7 +1198,7 @@ func (n *NodeAbstractResource) processIgnoreChanges(prior, config cty.Value, sch
 		return config, nil
 	}
 
-	ignoreChanges := traversalsToPaths(n.Config.Managed.IgnoreChanges)
+	ignoreChanges := n.Config.Managed.IgnoreChanges
 	ignoreAll := n.Config.Managed.IgnoreAllChanges
 
 	if len(ignoreChanges) == 0 && !ignoreAll {
@@ -1274,7 +1274,7 @@ func traversalToPath(traversal hcl.Traversal) cty.Path {
 	return path
 }
 
-func processIgnoreChangesIndividual(prior, config cty.Value, ignoreChangesPath []cty.Path) (cty.Value, tfdiags.Diagnostics) {
+func processIgnoreChangesIndividual(prior, config cty.Value, ignoreChangesPath []configs.IgnoreChangesPattern) (cty.Value, tfdiags.Diagnostics) {
 	type ignoreChange struct {
 		// Path is the full path, minus any trailing map index
 		path cty.Path
