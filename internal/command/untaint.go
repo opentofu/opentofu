@@ -132,7 +132,6 @@ func (c *UntaintCommand) Run(args []string) int {
 	ss := state.SyncWrapper()
 
 	// Get the resource and instance we're going to taint
-	rs := ss.Resource(addr.ContainingResource())
 	is := ss.ResourceInstance(addr)
 	if is == nil {
 		if allowMissing {
@@ -187,7 +186,7 @@ func (c *UntaintCommand) Run(args []string) int {
 	}
 
 	obj.Status = states.ObjectReady
-	ss.SetResourceInstanceCurrent(addr, obj, rs.ProviderConfig, is.Current.InstanceProvider)
+	ss.SetResourceInstanceCurrent(addr, obj, is.Current.InstanceProvider)
 
 	if err := stateMgr.WriteState(state); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))

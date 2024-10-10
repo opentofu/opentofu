@@ -114,7 +114,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		ms := state.EnsureModule(moduleAddr)
 
 		// Ensure the resource container object is present in the state.
-		ms.SetResourceProvider(rAddr, resourceProviderAddr)
+		ms.EnsureResourceExists(rAddr)
 
 		for _, isV4 := range rsV4.Instances {
 			keyRaw := isV4.IndexKey
@@ -165,6 +165,10 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 			if resourceProviderAddr.IsSet() && instanceProviderAddr.IsSet() {
 				panic(fmt.Sprintf("prepareStateV4 for resource instance %s got two providers (resourceProvider & instanceProvider) when reading from the state", instAddr.String()))
+			}
+
+			if !instanceProviderAddr.IsSet() {
+				instanceProviderAddr = resourceProviderAddr
 			}
 
 			obj := &states.ResourceInstanceObjectSrc{
@@ -264,7 +268,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceDeposed(instAddr, dk, obj, resourceProviderAddr, instanceProviderAddr)
+				ms.SetResourceInstanceDeposed(instAddr, dk, obj, instanceProviderAddr)
 			default:
 				is := ms.ResourceInstance(instAddr)
 				if is.HasCurrent() {
@@ -276,16 +280,9 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceCurrent(instAddr, obj, resourceProviderAddr, instanceProviderAddr)
+				ms.SetResourceInstanceCurrent(instAddr, obj, instanceProviderAddr)
 			}
 		}
-
-		// We repeat this after creating the instances because
-		// SetResourceInstanceCurrent automatically resets this metadata based
-		// on the incoming objects. That behavior is useful when we're making
-		// piecemeal updates to the state during an apply, but when we're
-		// reading the state file we want to reflect its contents exactly.
-		ms.SetResourceProvider(rAddr, resourceProviderAddr)
 	}
 
 	// The root module is special in that we persist its attributes and thus
@@ -418,9 +415,28 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				continue
 			}
 
-			providerConfigValue := ""
-			if rs.ProviderConfig.IsSet() {
-				providerConfigValue = rs.ProviderConfig.String()
+			var providerConfigValue string
+			identicalProviderConfigValue := true
+			for _, is := range rs.Instances {
+				if is.HasCurrent() {
+					if providerConfigValue == "" {
+						providerConfigValue = is.Current.InstanceProvider.String()
+					} else {
+						identicalProviderConfigValue = identicalProviderConfigValue && providerConfigValue == is.Current.InstanceProvider.String()
+					}
+				}
+				for _, obj := range is.Deposed {
+					if providerConfigValue == "" {
+						providerConfigValue = obj.InstanceProvider.String()
+					} else {
+						identicalProviderConfigValue = identicalProviderConfigValue && providerConfigValue == obj.InstanceProvider.String()
+					}
+				}
+			}
+
+			// Only store the ProviderConfig on the resource if all of the sub-objects have the same provider
+			if !identicalProviderConfigValue {
+				providerConfigValue = ""
 			}
 
 			sV4.Resources = append(sV4.Resources, resourceStateV4{
@@ -437,7 +453,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				if is.HasCurrent() {
 					var objDiags tfdiags.Diagnostics
 					rsV4.Instances, objDiags = appendInstanceObjectStateV4(
-						rs, is, key, is.Current, states.NotDeposed,
+						rs, is, key, is.Current, states.NotDeposed, !identicalProviderConfigValue,
 						rsV4.Instances,
 					)
 					diags = diags.Append(objDiags)
@@ -445,7 +461,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				for dk, obj := range is.Deposed {
 					var objDiags tfdiags.Diagnostics
 					rsV4.Instances, objDiags = appendInstanceObjectStateV4(
-						rs, is, key, obj, dk,
+						rs, is, key, obj, dk, !identicalProviderConfigValue,
 						rsV4.Instances,
 					)
 					diags = diags.Append(objDiags)
@@ -486,7 +502,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 	return diags
 }
 
-func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstance, key addrs.InstanceKey, obj *states.ResourceInstanceObjectSrc, deposed states.DeposedKey, isV4s []instanceObjectStateV4) ([]instanceObjectStateV4, tfdiags.Diagnostics) {
+func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstance, key addrs.InstanceKey, obj *states.ResourceInstanceObjectSrc, deposed states.DeposedKey, useInstanceProvider bool, isV4s []instanceObjectStateV4) ([]instanceObjectStateV4, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	var status string
@@ -540,7 +556,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	diags = diags.Append(pathsDiags)
 
 	instanceProviderValue := ""
-	if obj.InstanceProvider.IsSet() {
+	if obj.InstanceProvider.IsSet() && useInstanceProvider {
 		instanceProviderValue = obj.InstanceProvider.String()
 	}
 

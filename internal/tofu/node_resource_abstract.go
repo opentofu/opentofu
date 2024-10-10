@@ -76,23 +76,11 @@ type NodeAbstractResource struct {
 	dependsOn      []addrs.ConfigResource
 	forceDependsOn bool
 
-	// The address of the provider this resource will use.
-	// Can be empty if the provider is not set on the resource level but in the resource instance instead. In this case,
-	// the potentialProviders property will be populated.
-	// It can happen when we have a for_each or count on the providers in the resource or containing module.
-	ResolvedResourceProvider addrs.AbsProviderConfig
-
 	// potentialProviders is a list of provider and their identifiers, meant to be resolved per each instance to
 	// calculate its provider.
 	// If the potentialProviders is populated, it means the ResolvedResourceProvider is empty and the provider will be
 	// defined per resource instance and not on the whole resource.
 	potentialProviders ResourceInstanceProviderResolver
-
-	// storedProviderConfig is the provider address retrieved from the state of the resource,
-	// with a bool indication on whether this provider is se on the Resource level or on the instance level.
-	// This is defined here for access within the ProvidedBy method, but will be set from the embedding
-	// instance type when the state is attached.
-	storedProviderConfig addrs.AbsProviderConfig
 
 	// This resource may expand into instances which need to be imported.
 	importTargets []*ImportTarget
@@ -316,6 +304,9 @@ func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourc
 }
 
 func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
+	return n.ProvidedByImpl(addrs.NoKey, addrs.AbsProviderConfig{})
+}
+func (n *NodeAbstractResource) ProvidedByImpl(instanceKey addrs.InstanceKey, storedProviderConfig addrs.AbsProviderConfig) (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
 		if n.Config.ProviderConfigRef == nil {
@@ -324,7 +315,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 			// from the resource type. This may be different from the resource's
 			// provider type.
 			return map[addrs.InstanceKey]addrs.ProviderConfig{
-				addrs.NoKey: addrs.LocalProviderConfig{
+				instanceKey: addrs.LocalProviderConfig{
 					LocalName: n.Config.Addr().ImpliedProvider(),
 				},
 			}, false
@@ -335,6 +326,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 		if len(n.Config.ProviderConfigRef.Aliases) > 0 {
 			// If we have aliases set in ProviderConfigRef, we'll calculate a LocalProviderConfig for each one
 			for key, alias := range n.Config.ProviderConfigRef.Aliases {
+				// TODO consider filtering InstanceKey
 				result[key] = addrs.LocalProviderConfig{
 					LocalName: n.Config.ProviderConfigRef.Name,
 					Alias:     alias,
@@ -342,7 +334,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 			}
 		} else {
 			// If we have no aliases in ProviderConfigRef, we still need to calculate a single LocalProviderConfig
-			result[addrs.NoKey] = addrs.LocalProviderConfig{
+			result[instanceKey] = addrs.LocalProviderConfig{
 				LocalName: n.Config.ProviderConfigRef.Name,
 			}
 		}
@@ -351,12 +343,12 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 	}
 
 	// See if we have a valid provider config from the state.
-	if n.storedProviderConfig.IsSet() {
+	if storedProviderConfig.IsSet() {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
 		return map[addrs.InstanceKey]addrs.ProviderConfig{
-			addrs.NoKey: n.storedProviderConfig,
+			instanceKey: storedProviderConfig,
 		}, true
 	}
 
@@ -369,7 +361,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
 			return map[addrs.InstanceKey]addrs.ProviderConfig{
-				addrs.NoKey: addrs.LocalProviderConfig{
+				instanceKey: addrs.LocalProviderConfig{
 					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
 					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
 				},
@@ -378,7 +370,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 	}
 	// No provider configuration found; return a default address
 	return map[addrs.InstanceKey]addrs.ProviderConfig{
-		addrs.NoKey: addrs.AbsProviderConfig{
+		instanceKey: addrs.AbsProviderConfig{
 			Provider: n.Provider(),
 			Module:   n.ModulePath(),
 		},
@@ -387,11 +379,14 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 
 // GraphNodeProviderConsumer
 func (n *NodeAbstractResource) Provider() addrs.Provider {
+	return n.ProviderImpl(addrs.AbsProviderConfig{})
+}
+func (n *NodeAbstractResource) ProviderImpl(storedProviderConfig addrs.AbsProviderConfig) addrs.Provider {
 	if n.Config != nil {
 		return n.Config.Provider
 	}
-	if n.storedProviderConfig.IsSet() {
-		return n.storedProviderConfig.Provider
+	if storedProviderConfig.IsSet() {
+		return storedProviderConfig.Provider
 	}
 
 	if len(n.importTargets) > 0 {
@@ -503,7 +498,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 			return diags
 		}
 
-		state.SetResourceProvider(addr, n.ResolvedResourceProvider)
+		state.EnsureResourceExists(addr)
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.ForEach != nil:
@@ -515,11 +510,11 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 		// This method takes care of all of the business logic of updating this
 		// while ensuring that any existing instances are preserved, etc.
-		state.SetResourceProvider(addr, n.ResolvedResourceProvider)
+		state.EnsureResourceExists(addr)
 		expander.SetResourceForEach(addr.Module, n.Addr.Resource, forEach)
 
 	default:
-		state.SetResourceProvider(addr, n.ResolvedResourceProvider)
+		state.EnsureResourceExists(addr)
 		expander.SetResourceSingle(addr.Module, n.Addr.Resource)
 	}
 
