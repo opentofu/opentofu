@@ -62,9 +62,21 @@ type GraphNodeCloseProvider interface {
 	CloseProviderAddr() addrs.AbsProviderConfig
 }
 
-type ExactProvider struct {
-	isResourceProvider bool
-	provider           addrs.AbsProviderConfig
+type ResourceProvidedBy struct {
+	Resource addrs.AbsResourceInstance
+	Provider addrs.AbsProviderConfig
+}
+
+type ProvidedBy struct {
+	// Relative to the containing module
+	Relative map[addrs.InstanceKey]addrs.AbsProviderConfig
+
+	// Usually from state
+	Absolute []ResourceProvidedBy
+}
+
+func (p ProvidedBy) IsSet() bool {
+	return len(p.Absolute) != 0 || len(p.Relative) != 0
 }
 
 // GraphNodeProviderConsumer is an interface that nodes that require
@@ -75,16 +87,8 @@ type ExactProvider struct {
 type GraphNodeProviderConsumer interface {
 	GraphNodeModulePath
 	// ProvidedBy returns the address of the provider configuration the node
-	// refers to, if available. The following value types may be returned:
-	//
-	//   nil + empty ExactProvider{}: the node does not require a provider
-	// * addrs.LocalProviderConfig + empty ExactProvider{}: the provider was set in the resource config
-	// * empty addrs.AbsProviderConfig + non-empty ExactProvider{}: the provider configuration was
-	//   taken from the instance state or previously calculated in previous runs of the provider transformer.
-	// * addrs.AbsProviderConfig + empty ExactProvider{}: no config or state; the returned
-	//   value is a default provider configuration address for the resource's
-	//   Provider
-	ProvidedBy() (addr map[addrs.InstanceKey]addrs.ProviderConfig, exact bool)
+	// refers to, if available.
+	ProvidedBy() ProvidedBy
 
 	// Provider returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
@@ -110,79 +114,52 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 
 	var diags tfdiags.Diagnostics
 
-	// To start, we'll collect the _requested_ provider addresses for each
-	// node, which we'll then resolve (handling provider inheritance, etc) in
-	// the next step.
-	// Our "requested" map is from graph vertices to string representations of
-	// provider config addresses (for deduping) to requests.
-	type ProviderRequest struct {
-		Addr  addrs.AbsProviderConfig
-		Exact bool // If true, inheritance from parent modules is not attempted
-	}
-	requested := make(map[dag.Vertex]map[addrs.InstanceKey]ProviderRequest)
-	for _, v := range g.Vertices() {
-		// Does the vertex _directly_ use a provider?
-		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			providerAddrs, exact := pv.ProvidedBy()
-
-			if providerAddrs == nil && !exact {
-				// no provider is required
-				continue
-			}
-
-			requested[v] = make(map[addrs.InstanceKey]ProviderRequest)
-
-			for ik, providerAddr := range providerAddrs {
-				var absPc addrs.AbsProviderConfig
-
-				switch p := providerAddr.(type) {
-				case addrs.AbsProviderConfig:
-					// ProvidedBy() returns an AbsProviderConfig when the provider
-					// configuration is implied from the resource, so we do not need to verify
-					// the FQN matches.
-					absPc = p
-
-					if exact {
-						log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
-					}
-
-				case addrs.LocalProviderConfig:
-					// ProvidedBy() return a LocalProviderConfig when the resource
-					// contains a `provider` attribute
-					absPc.Provider = pv.Provider()
-					modPath := pv.ModulePath()
-					if t.Config == nil {
-						absPc.Module = modPath
-						absPc.Alias = p.Alias
-						break
-					}
-
-					absPc.Module = modPath
-					absPc.Alias = p.Alias
-
-				default:
-					// This should never happen; the case statements are meant to be exhaustive
-					panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
-				}
-
-				requested[v][ik] = ProviderRequest{
-					Addr:  absPc,
-					Exact: exact,
-				}
-			}
-		}
-	}
-
 	// Now we'll go through all the requested addresses we just collected and
 	// figure out which _actual_ config address each belongs to, after resolving
 	// for provider inheritance and passing.
 	m := providerVertexMap(g)
-	for v, reqs := range requested {
-		// Mapping from resource.InstanceKey to one of many ModuleInstancePotentialProvider
-		potentialTargets := make(ResourceInstanceProviderResolver)
+	for _, v := range g.Vertices() {
+		pv, ok := v.(GraphNodeProviderConsumer)
+		if !ok {
+			continue
+		}
 
-		for resourceKey, req := range reqs {
-			p := req.Addr
+		providedBy := pv.ProvidedBy()
+		if !providedBy.IsSet() {
+			// Sometimes nodes decide to opt-out of needing a provider
+			continue
+		}
+
+		resolver := ResourceInstanceProviderResolver{
+			Absolute:      providedBy.Absolute,
+			ByResourceKey: make(map[addrs.InstanceKey]ModuleInstanceProviderResolver),
+		}
+
+		// Handle Absolute providers
+		// These come from state or are pre-computed
+		// They should never require additional graph traversal
+		for _, abs := range providedBy.Absolute {
+			provider, ok := m[abs.Provider.String()]
+			if !ok {
+				diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), abs.Provider))
+				continue
+			}
+
+			if _, isProxy := provider.(*graphNodeProxyProvider); isProxy {
+				panic("todo error message")
+			}
+
+			log.Printf("[TRACE] ProviderTransformer: exact absolute match for %s serving %s", abs.Provider, dag.VertexName(v))
+
+			g.Connect(dag.BasicEdge(v, provider))
+		}
+
+		// Handle relative resources with keys, usually from config
+		// They point to an AbsProviderConfig that either exists
+		// directly, or which can be used to walk up the module tree
+		// to locate a matching declaration in a parent module
+		// This breaks in *fun* ways when a provider's Name != Type
+		for resourceKey, p := range providedBy.Relative {
 			target := m[p.String()]
 
 			_, ok := v.(GraphNodeModulePath)
@@ -195,11 +172,8 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			if target != nil {
 				// Providers with configuration will already exist within the graph and can be directly referenced
 				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", p, dag.VertexName(v))
-			}
-
-			// if we don't have a provider at this level, walk up the path looking for one,
-			// unless we were told to be exact.
-			if target == nil && !req.Exact {
+			} else {
+				// if we don't have a provider at this level, walk up the path looking for one,
 				for pp, ok := p.Inherited(); ok; pp, ok = pp.Inherited() {
 					key := pp.String()
 					target = m[key]
@@ -242,11 +216,11 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				g.Connect(dag.BasicEdge(v, target))
 			}
 
-			potentialTargets[resourceKey] = moduleExpansionProviders
+			resolver.ByResourceKey[resourceKey] = moduleExpansionProviders
 		}
 
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			pv.SetPotentialProviders(potentialTargets)
+			pv.SetPotentialProviders(resolver)
 		}
 	}
 
@@ -581,10 +555,16 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 	}
 }
 
-type ResourceInstanceProviderResolver map[addrs.InstanceKey]ModuleInstanceProviderResolver
+type ResourceInstanceProviderResolver struct {
+	Absolute      []ResourceProvidedBy
+	ByResourceKey map[addrs.InstanceKey]ModuleInstanceProviderResolver
+}
 
 func (r ResourceInstanceProviderResolver) Any() addrs.AbsProviderConfig {
-	for _, m := range r {
+	for _, m := range r.Absolute {
+		return m.Provider
+	}
+	for _, m := range r.ByResourceKey {
 		for _, p := range m {
 			return p.concreteProvider.ProviderAddr()
 		}
@@ -593,13 +573,18 @@ func (r ResourceInstanceProviderResolver) Any() addrs.AbsProviderConfig {
 }
 
 func (r ResourceInstanceProviderResolver) Resolve(addr addrs.AbsResourceInstance) addrs.AbsProviderConfig {
+	for _, m := range r.Absolute {
+		if addr.Equal(m.Resource) {
+			return m.Provider
+		}
+	}
 	// First check for an exact match on the resource instance key
-	if p, ok := r[addr.Resource.Key]; ok {
+	if p, ok := r.ByResourceKey[addr.Resource.Key]; ok {
 		return p.Resolve(addr.Module)
 	}
 	// If the resource instance key is not an exact match, the other possibility is that there is no
 	// alternate mapping to ModuleInstanceProviderResovlers based on the provider key
-	if p, ok := r[addrs.NoKey]; ok {
+	if p, ok := r.ByResourceKey[addrs.NoKey]; ok {
 		return p.Resolve(addr.Module)
 	}
 	panic("TODO better message here")
