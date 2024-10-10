@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -629,6 +630,9 @@ func (m ModuleInstanceProviderResolver) Resolve(addr addrs.ModuleInstance) addrs
 			return pr.concreteProvider.ProviderAddr()
 		}
 	}
+	spew.Dump(m)
+	println("====")
+	spew.Dump(addr)
 	panic("TODO better message here")
 }
 
