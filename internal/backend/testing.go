@@ -159,7 +159,6 @@ func TestBackendStates(t *testing.T, b Backend) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 
 		// write a distinct known state to bar
