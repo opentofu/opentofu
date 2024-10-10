@@ -133,7 +133,7 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 				NodeAbstractResource: NodeAbstractResource{
 					Addr:                 test.Addr.ConfigResource(),
 					Config:               test.Config,
-					storedProviderConfig: test.StoredProviderConfig,
+					storedProviderConfig: ExactProvider{isResourceProvider: true, provider: test.StoredProviderConfig},
 				},
 			}
 			got := node.Provider()
@@ -170,7 +170,7 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedResourceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		},
 	}
 	ctx.ProviderProvider = mockProvider
@@ -186,4 +186,72 @@ aws_instance.foo:
   ID = i-abc123
   provider = provider["registry.opentofu.org/hashicorp/aws"]
 	`)
+}
+
+func TestNodeAbstractResourceInstance_ResolvedProvider(t *testing.T) {
+	provider := mustProviderConfig(`provider["registry.opentofu.org/hashicorp/null"]`)
+
+	tests := []struct {
+		name                     string
+		ResolvedResourceProvider addrs.AbsProviderConfig
+		ResolvedInstanceProvider addrs.AbsProviderConfig
+		expectPanic              bool
+		expectedPanicMessage     string
+	}{
+		{
+			name:                     "ResolvedResourceProvider is set",
+			ResolvedResourceProvider: provider,
+			ResolvedInstanceProvider: addrs.AbsProviderConfig{},
+		},
+		{
+			name:                     "ResolvedInstanceProvider is set",
+			ResolvedResourceProvider: addrs.AbsProviderConfig{},
+			ResolvedInstanceProvider: provider,
+		},
+		{
+			name:                     "Panic if both providers are set",
+			ResolvedResourceProvider: provider,
+			ResolvedInstanceProvider: provider,
+			expectPanic:              true,
+			expectedPanicMessage:     "ResolvedProvider for null_resource.resource has a provider set for the resource and the resource's instance",
+		},
+		{
+			name:                     "Panic if no provider set",
+			ResolvedResourceProvider: addrs.AbsProviderConfig{},
+			ResolvedInstanceProvider: addrs.AbsProviderConfig{},
+			expectPanic:              true,
+			expectedPanicMessage:     "ResolvedProvider for null_resource.resource cannot get a provider",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			n := &NodeAbstractResourceInstance{
+				NodeAbstractResource: NodeAbstractResource{
+					ResolvedResourceProvider: test.ResolvedResourceProvider,
+				},
+				ResolvedInstanceProvider: test.ResolvedInstanceProvider,
+				Addr:                     mustResourceInstanceAddr("null_resource.resource"),
+			}
+
+			if test.expectPanic {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("Expected panic, but got none")
+					} else if r != test.expectedPanicMessage {
+						t.Errorf("Expected panic message '%s', but got '%v'", test.expectedPanicMessage, r)
+					}
+				}()
+				n.ResolvedProvider()
+			} else {
+				result := n.ResolvedProvider()
+				if !result.IsSet() {
+					t.Errorf("Expected provider to be set, but it was not")
+				}
+				if result.String() != provider.String() {
+					t.Errorf("Expected provider %v, but got %v", provider, result)
+				}
+			}
+		})
+	}
 }

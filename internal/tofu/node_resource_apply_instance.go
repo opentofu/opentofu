@@ -153,7 +153,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx EvalContext, op walkOperatio
 }
 
 func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider())
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -221,7 +221,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	var deposedKey states.DeposedKey
 
 	addr := n.ResourceInstanceAddr().Resource
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider())
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -262,7 +262,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		log.Printf("[TRACE] managedResourceExecute: prior object for %s now deposed with key %s", n.Addr, deposedKey)
 	}
 
-	state, readDiags := n.readResourceInstanceState(ctx, n.ResourceInstanceAddr())
+	state, readDiags := n.readResourceInstanceState(ctx, n.ResourceInstanceAddr(), n.ResolvedProvider())
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -443,7 +443,7 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(ctx EvalContext, plan
 				"Provider produced inconsistent final plan",
 				fmt.Sprintf(
 					"When expanding the plan for %s to include new values learned so far during apply, provider %q changed the planned action from %s to %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-					absAddr, n.ResolvedProvider.Provider.String(),
+					absAddr, n.ResolvedProvider().Provider.String(),
 					plannedChange.Action, actualChange.Action,
 				),
 			))
@@ -457,7 +457,7 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(ctx EvalContext, plan
 			"Provider produced inconsistent final plan",
 			fmt.Sprintf(
 				"When expanding the plan for %s to include new values learned so far during apply, provider %q produced an invalid new value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				absAddr, n.ResolvedProvider.Provider.String(), tfdiags.FormatError(err),
+				absAddr, n.ResolvedProvider().Provider.String(), tfdiags.FormatError(err),
 			),
 		))
 	}

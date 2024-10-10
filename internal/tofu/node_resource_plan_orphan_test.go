@@ -108,6 +108,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.AbsProviderConfig{},
 		)
 
 		schema := providers.ProviderSchema{
@@ -142,7 +143,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 		node := NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: addrs.AbsProviderConfig{
+					ResolvedResourceProvider: addrs.AbsProviderConfig{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -188,6 +189,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.AbsProviderConfig{},
 	)
 	refreshState := state.DeepCopy()
 	prevRunState := state.DeepCopy()
@@ -217,7 +219,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: addrs.AbsProviderConfig{
+				ResolvedResourceProvider: addrs.AbsProviderConfig{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},
@@ -270,6 +272,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.AbsProviderConfig{},
 	)
 	refreshState := state.DeepCopy()
 	prevRunState := state.DeepCopy()
@@ -299,7 +302,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: addrs.AbsProviderConfig{
+				ResolvedResourceProvider: addrs.AbsProviderConfig{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},

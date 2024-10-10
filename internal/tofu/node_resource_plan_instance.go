@@ -103,7 +103,7 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx EvalContext) (di
 
 	var change *plans.ResourceInstanceChange
 
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider())
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -164,7 +164,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		checkRuleSeverity = tfdiags.Warning
 	}
 
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider())
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -203,7 +203,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		instanceRefreshState, diags = n.importState(ctx, addr, n.importTarget.ID, provider, providerSchema)
 	} else {
 		var readDiags tfdiags.Diagnostics
-		instanceRefreshState, readDiags = n.readResourceInstanceState(ctx, addr)
+		instanceRefreshState, readDiags = n.readResourceInstanceState(ctx, addr, n.ResolvedProvider())
 		diags = diags.Append(readDiags)
 		if diags.HasErrors() {
 			return diags
@@ -294,7 +294,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 				change := &plans.ResourceInstanceChange{
 					Addr:         n.Addr,
 					PrevRunAddr:  n.prevRunAddr(ctx),
-					ProviderAddr: n.ResolvedProvider,
+					ProviderAddr: n.ResolvedProvider(),
 					Change: plans.Change{
 						// we only need a placeholder, so this will be a NoOp
 						Action:          plans.NoOp,
@@ -530,7 +530,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 	riNode := &NodeAbstractResourceInstance{
 		Addr: n.Addr,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: n.ResolvedProvider,
+			ResolvedResourceProvider: n.ResolvedProvider(),
 		},
 	}
 	instanceRefreshState, refreshDiags := riNode.refresh(ctx, states.NotDeposed, importedState)
@@ -632,7 +632,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 			Name:     n.Addr.Resource.Resource.Name,
 			Config:   remain,
 			Managed:  &configs.ManagedResource{},
-			Provider: n.ResolvedProvider.Provider,
+			Provider: n.ResolvedProvider().Provider,
 		}
 	}
 
@@ -675,8 +675,8 @@ func (n *NodePlannableResourceInstance) generateHCLStringAttributes(addr addrs.A
 	)
 
 	providerAddr := addrs.LocalProviderConfig{
-		LocalName: n.ResolvedProvider.Provider.Type,
-		Alias:     n.ResolvedProvider.Alias,
+		LocalName: n.ResolvedProvider().Provider.Type,
+		Alias:     n.ResolvedProvider().Alias,
 	}
 
 	return genconfig.GenerateResourceContents(addr, filteredSchema, providerAddr, state.Value)

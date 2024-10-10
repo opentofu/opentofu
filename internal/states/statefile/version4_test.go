@@ -6,6 +6,7 @@
 package statefile
 
 import (
+	"github.com/opentofu/opentofu/internal/addrs"
 	"sort"
 	"strings"
 	"testing"
@@ -257,6 +258,158 @@ func TestVersion4_marshalPaths(t *testing.T) {
 
 			if got, want := string(json), tc.json; got != want {
 				t.Fatalf("wrong JSON output\n got: %s\nwant: %s\n", got, want)
+			}
+		})
+	}
+}
+
+func Test_prepareStateV4_readProviders(t *testing.T) {
+	provider, _ := addrs.ParseAbsProviderConfigStr("provider[\"registry.opentofu.org/hashicorp/aws\"]")
+
+	tests := []struct {
+		name                     string
+		inputState               *stateV4
+		expectedResourceProvider addrs.AbsProviderConfig
+		expectedInstanceProvider addrs.AbsProviderConfig
+		expectedPanic            string
+	}{
+		{
+			name: "Read resource provider",
+			inputState: &stateV4{
+				TerraformVersion: "1.2.0",
+				Resources: []resourceStateV4{
+					{
+						Type:           "aws_instance",
+						Name:           "example",
+						Mode:           "managed",
+						ProviderConfig: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
+						Instances: []instanceObjectStateV4{
+							{
+								IndexKey:         0,
+								SchemaVersion:    1,
+								Status:           "",
+								InstanceProvider: "",
+							},
+						},
+					},
+				},
+			},
+			expectedResourceProvider: provider,
+		},
+		{
+			name: "Read instance provider",
+			inputState: &stateV4{
+				TerraformVersion: "1.2.0",
+				Resources: []resourceStateV4{
+					{
+						Type:           "aws_instance",
+						Name:           "example",
+						Mode:           "managed",
+						ProviderConfig: "",
+						Instances: []instanceObjectStateV4{
+							{
+								IndexKey:         0,
+								SchemaVersion:    1,
+								Status:           "",
+								InstanceProvider: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
+							},
+						},
+					},
+				},
+			},
+			expectedInstanceProvider: provider,
+		},
+		{
+			name: "Panic when both resource and instance providers are set",
+			inputState: &stateV4{
+				TerraformVersion: "1.2.0",
+				Resources: []resourceStateV4{
+					{
+						Type:           "aws_instance",
+						Name:           "example",
+						Mode:           "managed",
+						ProviderConfig: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
+						Instances: []instanceObjectStateV4{
+							{
+								IndexKey:         0,
+								SchemaVersion:    1,
+								Status:           "",
+								InstanceProvider: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
+							},
+						},
+					},
+				},
+			},
+			expectedPanic: "prepareStateV4 for resource instance aws_instance.example[0] got two providers (resourceProvider & instanceProvider) when reading from the state",
+		},
+		{
+			name: "Panic when resource and instance providers are not set",
+			inputState: &stateV4{
+				TerraformVersion: "1.2.0",
+				Resources: []resourceStateV4{
+					{
+						Type:           "aws_instance",
+						Name:           "example",
+						Mode:           "managed",
+						ProviderConfig: "",
+						Instances: []instanceObjectStateV4{
+							{
+								IndexKey:         0,
+								SchemaVersion:    1,
+								Status:           "",
+								InstanceProvider: "",
+							},
+						},
+					},
+				},
+			},
+			expectedPanic: "prepareStateV4 for resource instance aws_instance.example[0]  cannot find a provider (resourceProvider / instanceProvider) when reading from the state",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if test.expectedPanic != "" {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Errorf("expected a panic but none occurred")
+					} else if r != test.expectedPanic {
+						t.Errorf("unexpected panic message: got %q, expected to contain %q", r, test.expectedPanic)
+					}
+				}()
+
+				prepareStateV4(test.inputState)
+			} else {
+				file, diags := prepareStateV4(test.inputState)
+
+				if diags.HasErrors() {
+					t.Fatalf("unexpected error: %s", diags.Err())
+				}
+
+				state := file.State
+				for _, r := range state.RootModule().Resources {
+					for _, inst := range r.Instances {
+						if test.expectedInstanceProvider.IsSet() {
+							if !inst.Current.InstanceProvider.IsSet() {
+								t.Fatalf("Expected InstanceProvider is not set")
+							}
+
+							if inst.Current.InstanceProvider.String() != test.expectedInstanceProvider.String() {
+								t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedInstanceProvider.String(), inst.Current.InstanceProvider.String())
+							}
+						}
+					}
+
+					if test.expectedResourceProvider.IsSet() {
+						if !r.ProviderConfig.IsSet() {
+							t.Fatalf("Expected InstanceProvider is not set")
+						}
+
+						if r.ProviderConfig.String() != test.expectedResourceProvider.String() {
+							t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedResourceProvider.String(), r.ProviderConfig.String())
+						}
+					}
+				}
 			}
 		})
 	}

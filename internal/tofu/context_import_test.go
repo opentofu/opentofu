@@ -218,6 +218,7 @@ func TestContextImport_collision(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.AbsProviderConfig{},
 		)
 	})
 
