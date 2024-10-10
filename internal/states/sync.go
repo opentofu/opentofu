@@ -203,12 +203,12 @@ func (s *SyncState) ResourceInstanceObject(addr addrs.AbsResourceInstance, gen G
 // SetResourceProvider updates the resource-level metadata for the resource at
 // the given address, creating the containing module state and resource state
 // as a side-effect if not already present.
-func (s *SyncState) SetResourceProvider(addr addrs.AbsResource, provider addrs.AbsProviderConfig) {
+func (s *SyncState) EnsureResourceExists(addr addrs.AbsResource) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceProvider(addr.Resource, provider)
+	ms.EnsureResourceExists(addr.Resource)
 }
 
 // RemoveResource removes the entire state for the given resource, taking with
@@ -274,12 +274,12 @@ func (s *SyncState) RemoveResourceIfEmpty(addr addrs.AbsResource) bool {
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
 // SetResourceInstanceCurrent
-func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
+func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, instanceProvider addrs.AbsProviderConfig) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), resourceProvider, instanceProvider)
+	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), instanceProvider)
 	s.maybePruneModule(addr.Module)
 }
 
@@ -306,12 +306,12 @@ func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, o
 //
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
-func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, resourceProvider addrs.AbsProviderConfig, instanceProvider addrs.AbsProviderConfig) {
+func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, instanceProvider addrs.AbsProviderConfig) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), resourceProvider, instanceProvider)
+	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), instanceProvider)
 	s.maybePruneModule(addr.Module)
 }
 
@@ -444,7 +444,7 @@ func (s *SyncState) RemovePlannedResourceInstanceObjects() {
 				if is.Current != nil && is.Current.Status == ObjectPlanned {
 					// Setting the current instance to nil removes it from the
 					// state altogether if there are not also deposed instances.
-					ms.SetResourceInstanceCurrent(instAddr, nil, rs.ProviderConfig, is.Current.InstanceProvider)
+					ms.SetResourceInstanceCurrent(instAddr, nil, is.Current.InstanceProvider)
 				}
 
 				for dk, obj := range is.Deposed {

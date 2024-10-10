@@ -23,70 +23,12 @@ type Resource struct {
 	// this resource. This map can contain a mixture of different key types,
 	// but only the ones of InstanceKeyType are considered current.
 	Instances map[addrs.InstanceKey]*ResourceInstance
-
-	// ProviderConfig is the absolute address for the provider configuration that
-	// most recently managed this resource and all its instances. This is used to
-	// connect a resource with a provider configuration when the resource
-	// configuration block is not available, such as if it has been removed from
-	// configuration altogether.
-	// ProviderConfig can be not set if the provider is set in the instance level,
-	// in cases we have count / for_each in provider reference of the resource /
-	// module. Then, instead, ProviderInstanceConfig will be set on each instance.
-	ProviderConfig addrs.AbsProviderConfig
 }
 
 // Instance returns the state for the instance with the given key, or nil
 // if no such instance is tracked within the state.
 func (rs *Resource) Instance(key addrs.InstanceKey) *ResourceInstance {
 	return rs.Instances[key]
-}
-
-// InstanceProvider returns the calculated provider for the instance with the given key. It also returns an indication
-// whether the provider was set on the resource level or the instance level
-func (rs *Resource) InstanceProvider(key addrs.InstanceKey) (provider addrs.AbsProviderConfig, isSetOnInstanceLevel bool) {
-	var resourceProvider addrs.AbsProviderConfig
-	var instanceProvider addrs.AbsProviderConfig
-
-	resourceProvider = rs.ProviderConfig
-
-	// If the provider is set on the instance level, we can't get it from the resource
-	instance := rs.Instances[key]
-
-	if instance.Current != nil && instance.Current.InstanceProvider.IsSet() {
-		instanceProvider = instance.Current.InstanceProvider
-	}
-
-	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
-		// At this point we are trying to find any provider
-		// If instance.Current is not set, then maybe the resource has deposed instances instead
-		for _, deposedInstance := range instance.Deposed {
-			// We are assuming that all the deposed instances should have the same instance provider, so we can get it
-			// from the first deposed instance we stumble upon.
-			// This assumption might cause a bug, in the scenario where the provider of the resource got changed between
-			// runs, and the deposed object still requires the old provider configuration. This bug exists not only for
-			// the InstanceProvider, but also always existed for the resourceProvider, and we should solve it in a
-			// holistic approach.
-			if deposedInstance.InstanceProvider.IsSet() {
-				// Found one, let's assume it's good enough for now
-				instanceProvider = deposedInstance.InstanceProvider
-				break // Exit after the first iteration
-			}
-		}
-	}
-
-	if !resourceProvider.IsSet() && !instanceProvider.IsSet() {
-		panic(fmt.Sprintf("InstanceProvider for %s (instance key %s) failed to read provider from the state", rs.Addr, key.String()))
-	}
-
-	if resourceProvider.IsSet() && instanceProvider.IsSet() {
-		panic(fmt.Sprintf("InstanceProvider for %s (instance key %s) found two providers in state for the instance", rs.Addr, key.String()))
-	}
-
-	if resourceProvider.IsSet() {
-		return resourceProvider, true
-	} else {
-		return instanceProvider, false
-	}
 }
 
 // CreateInstance creates an instance and adds it to the resource

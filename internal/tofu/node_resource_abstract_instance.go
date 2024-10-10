@@ -47,6 +47,11 @@ type NodeAbstractResourceInstance struct {
 	// to be stored in the final change.
 	generatedConfigHCL string
 
+	// storedProviderConfig is the provider address retrieved from the
+	// state. This is defined here for access within the ProvidedBy method, but
+	// will be set from the embedding instance type when the state is attached.
+	storedProviderConfig addrs.AbsProviderConfig
+
 	// In the case where we have for_each or count on the provider on the
 	// containing module or the resource the NodeAbstractResource will not have
 	// a ResolvedResourceProvider, instead the ResolvedInstanceProvider will be
@@ -77,30 +82,24 @@ func (n *NodeAbstractResourceInstance) ProvidedBy() (map[addrs.InstanceKey]addrs
 		}, true
 	}
 	// TODO consider filtering out only the providers that apply to this instance to simplify the expanded graph
-	return n.NodeAbstractResource.ProvidedBy()
+	return n.NodeAbstractResource.ProvidedByImpl(n.Addr.Resource.Key, n.storedProviderConfig)
+}
+
+func (n *NodeAbstractResourceInstance) Provider() addrs.Provider {
+	return n.ProviderImpl(n.storedProviderConfig)
 }
 
 func (n *NodeAbstractResourceInstance) ResolvedProvider() addrs.AbsProviderConfig {
-	var result addrs.AbsProviderConfig
-	if n.ResolvedResourceProvider.IsSet() {
-		result = n.ResolvedResourceProvider
-	} else {
-		// This function is called during the apply graph transformer phase to get the resolved provider.
-		// As this is an instance with a known address, we can lookup the resolved provider for the instance here..
-		if !n.ResolvedInstanceProvider.IsSet() {
-			n.ResolvedInstanceProvider = n.resolveInstanceProvider(n.Addr)
-		}
-
-		result = n.ResolvedInstanceProvider
+	// This function is called during the apply graph transformer phase to get the resolved provider.
+	// As this is an instance with a known address, we can lookup the resolved provider for the instance here..
+	if !n.ResolvedInstanceProvider.IsSet() {
+		n.ResolvedInstanceProvider = n.resolveInstanceProvider(n.Addr)
 	}
+
+	result := n.ResolvedInstanceProvider
 
 	if !result.IsSet() {
 		panic(fmt.Sprintf("ResolvedProvider for %s cannot get a provider", n.Addr))
-	}
-
-	// Throw an error if ResolvedResourceProvider and ResolvedInstanceProvider exists at the same time.
-	if n.ResolvedInstanceProvider.IsSet() && n.ResolvedResourceProvider.IsSet() {
-		panic(fmt.Sprintf("ResolvedProvider for %s has a provider set for the resource and the resource's instance", n.Addr))
 	}
 
 	return result
@@ -179,10 +178,7 @@ func (n *NodeAbstractResourceInstance) AttachResourceState(s *states.Resource) {
 
 	log.Printf("[TRACE] NodeAbstractResourceInstance.AttachResourceState for %s", n.Addr)
 	n.instanceState = s.Instance(n.Addr.Resource.Key)
-
-	providerConfig, _ := s.InstanceProvider(n.Addr.Resource.Key)
-
-	n.storedProviderConfig = providerConfig
+	n.storedProviderConfig = n.instanceState.Current.InstanceProvider
 }
 
 // readDiff returns the planned change for a particular resource instance
@@ -358,11 +354,11 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 	var write func(src *states.ResourceInstanceObjectSrc)
 	if deposedKey == states.NotDeposed {
 		write = func(src *states.ResourceInstanceObjectSrc) {
-			state.SetResourceInstanceCurrent(absAddr, src, n.NodeAbstractResource.ResolvedResourceProvider, n.ResolvedInstanceProvider)
+			state.SetResourceInstanceCurrent(absAddr, src, n.ResolvedInstanceProvider)
 		}
 	} else {
 		write = func(src *states.ResourceInstanceObjectSrc) {
-			state.SetResourceInstanceDeposed(absAddr, deposedKey, src, n.ResolvedResourceProvider, n.ResolvedInstanceProvider)
+			state.SetResourceInstanceDeposed(absAddr, deposedKey, src, n.ResolvedInstanceProvider)
 		}
 	}
 
