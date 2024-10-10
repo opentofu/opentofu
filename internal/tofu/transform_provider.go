@@ -719,7 +719,7 @@ func (d *distinguishableProvider) AddModuleIdentifierToTheEnd(step addrs.ModuleI
 }
 
 func (d *distinguishableProvider) IsResourceInstanceMatching(resourceInstance addrs.AbsResourceInstance) bool {
-	if d.resourceIdentifier != resourceInstance.Resource.Key {
+	if d.resourceIdentifier != nil && d.resourceIdentifier != resourceInstance.Resource.Key {
 		return false
 	}
 
@@ -777,18 +777,15 @@ func (n *graphNodeProxyProvider) Expanded() []distinguishableProvider {
 		var targetConcrete []distinguishableProvider
 
 		if t, ok := target.(*graphNodeProxyProvider); ok {
+			// We want to add all the modules we went through during the recursion as part of the ModuleIdentifier
+			currModuleIdentifier := addrs.ModuleInstanceStep{
+				Name:        n.ModulePath()[len(n.ModulePath())-1],
+				InstanceKey: ik,
+			}
+
 			providers := t.Expanded()
-
 			for i := range providers {
-				provider := &providers[i]
-
-				// We want to add all the modules we went through during the recursion as part of the ModuleIdentifier
-				currModuleIdentifier := addrs.ModuleInstanceStep{
-					Name:        n.ModulePath()[len(n.ModulePath())-1],
-					InstanceKey: ik,
-				}
-
-				provider.AddModuleIdentifierToTheEnd(currModuleIdentifier)
+				providers[i].AddModuleIdentifierToTheEnd(currModuleIdentifier)
 			}
 			targetConcrete = append(targetConcrete, providers...)
 		} else {
