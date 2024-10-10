@@ -539,7 +539,7 @@ func Test_graphNodeProxyProvider_Expanded_noForEachOnModules(t *testing.T) {
 		targets: map[addrs.InstanceKey]GraphNodeProvider{addrs.NoKey: &SecondLevelProxy},
 	}
 
-	want := []distinguishableProvider{
+	want := []ModuleInstancePotentialProvider{
 		{
 			moduleIdentifier: []addrs.ModuleInstanceStep{
 				{
@@ -598,7 +598,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInSecondModule(t *testing.T) {
 		targets: map[addrs.InstanceKey]GraphNodeProvider{addrs.StringKey("first"): &SecondLevelProxyFirst, addrs.StringKey("second"): &SecondLevelProxySecond},
 	}
 
-	want := []distinguishableProvider{
+	want := []ModuleInstancePotentialProvider{
 		{
 			moduleIdentifier: []addrs.ModuleInstanceStep{
 				{
@@ -675,7 +675,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInRootModule(t *testing.T) {
 		targets: map[addrs.InstanceKey]GraphNodeProvider{addrs.NoKey: &SecondLevelProxy},
 	}
 
-	want := []distinguishableProvider{
+	want := []ModuleInstancePotentialProvider{
 		{
 			moduleIdentifier: []addrs.ModuleInstanceStep{
 				{
@@ -727,7 +727,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInRootModule(t *testing.T) {
 	})
 }
 
-func isDistinguishableProviderEqual(got distinguishableProvider, want distinguishableProvider) bool {
+func isDistinguishableProviderEqual(got ModuleInstancePotentialProvider, want ModuleInstancePotentialProvider) bool {
 	return !reflect.DeepEqual(got.moduleIdentifier, want.moduleIdentifier) ||
 		!reflect.DeepEqual(got.resourceIdentifier, want.resourceIdentifier) ||
 		got.concreteProvider.Name() != want.concreteProvider.Name()
