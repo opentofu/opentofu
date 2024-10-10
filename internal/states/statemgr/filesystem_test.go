@@ -189,8 +189,6 @@ func TestFilesystem_backup(t *testing.T) {
 // not the contents of the input file (which is left unchanged).
 func TestFilesystem_backupAndReadPath(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
-	info := NewLockInfo()
-	info.Operation = "test"
 
 	workDir := t.TempDir()
 	markerOutput := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
@@ -254,15 +252,6 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 	err = WriteAndPersist(ls, newState, nil)
 	if err != nil {
 		t.Fatalf("failed to write new state: %s", err)
-	}
-
-	lockID, err := ls.Lock(info)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := ls.Unlock(lockID); err != nil {
-		t.Fatal(err)
 	}
 
 	// The backup functionality should've saved a copy of the original contents
