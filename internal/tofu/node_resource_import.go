@@ -49,24 +49,15 @@ func (n *graphNodeImportState) Name() string {
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
+func (n *graphNodeImportState) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
 	// This has already been resolved by nodeExpandPlannableResource
-	return map[addrs.InstanceKey]addrs.ProviderConfig{addrs.NoKey: n.ResolvedInstanceProvider}, ExactProvider{}
+	return map[addrs.InstanceKey]addrs.ProviderConfig{addrs.NoKey: n.ResolvedInstanceProvider}, false
 }
 
 // GraphNodeProviderConsumer
 func (n *graphNodeImportState) Provider() addrs.Provider {
 	// This has already been resolved by nodeExpandPlannableResource
 	return n.ResolvedInstanceProvider.Provider
-}
-
-// GraphNodeProviderConsumer
-func (n *graphNodeImportState) SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool) {
-	if isResourceProvider {
-		n.ResolvedResourceProvider = provider
-	} else {
-		n.ResolvedInstanceProvider = provider
-	}
 }
 
 // GraphNodeModuleInstance

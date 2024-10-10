@@ -92,7 +92,7 @@ type NodeAbstractResource struct {
 	// with a bool indication on whether this provider is se on the Resource level or on the instance level.
 	// This is defined here for access within the ProvidedBy method, but will be set from the embedding
 	// instance type when the state is attached.
-	storedProviderConfig ExactProvider
+	storedProviderConfig addrs.AbsProviderConfig
 
 	// This resource may expand into instances which need to be imported.
 	importTargets []*ImportTarget
@@ -315,20 +315,7 @@ func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourc
 	return n.potentialProviders.Resolve(instance)
 }
 
-func (n *NodeAbstractResource) SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool) {
-	if isResourceProvider {
-		n.ResolvedResourceProvider = provider
-	} else {
-		panic(fmt.Sprintf("SetProvider for %s cannot set an instance provider on a NodeAbstractResource", n.Addr))
-	}
-}
-
-func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
-	// Once the provider is fully resolved, we can return the known value.
-	if n.ResolvedResourceProvider.IsSet() {
-		return nil, ExactProvider{provider: n.ResolvedResourceProvider, isResourceProvider: true}
-	}
-
+func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
 		if n.Config.ProviderConfigRef == nil {
@@ -340,7 +327,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 				addrs.NoKey: addrs.LocalProviderConfig{
 					LocalName: n.Config.Addr().ImpliedProvider(),
 				},
-			}, ExactProvider{}
+			}, false
 		}
 
 		result := make(map[addrs.InstanceKey]addrs.ProviderConfig)
@@ -357,19 +344,20 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 			// If we have no aliases in ProviderConfigRef, we still need to calculate a single LocalProviderConfig
 			result[addrs.NoKey] = addrs.LocalProviderConfig{
 				LocalName: n.Config.ProviderConfigRef.Name,
-				Alias:     "",
 			}
 		}
 
-		return result, ExactProvider{}
+		return result, false
 	}
 
 	// See if we have a valid provider config from the state.
-	if n.storedProviderConfig.provider.IsSet() {
+	if n.storedProviderConfig.IsSet() {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
-		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: n.storedProviderConfig.provider, isResourceProvider: n.storedProviderConfig.isResourceProvider}
+		return map[addrs.InstanceKey]addrs.ProviderConfig{
+			addrs.NoKey: n.storedProviderConfig,
+		}, true
 	}
 
 	// We might have an import target that is providing a specific provider,
@@ -385,7 +373,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
 					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
 				},
-			}, ExactProvider{}
+			}, false
 		}
 	}
 	// No provider configuration found; return a default address
@@ -394,7 +382,7 @@ func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.Provide
 			Provider: n.Provider(),
 			Module:   n.ModulePath(),
 		},
-	}, ExactProvider{}
+	}, false
 }
 
 // GraphNodeProviderConsumer
@@ -402,8 +390,8 @@ func (n *NodeAbstractResource) Provider() addrs.Provider {
 	if n.Config != nil {
 		return n.Config.Provider
 	}
-	if n.storedProviderConfig.provider.IsSet() {
-		return n.storedProviderConfig.provider.Provider
+	if n.storedProviderConfig.IsSet() {
+		return n.storedProviderConfig.Provider
 	}
 
 	if len(n.importTargets) > 0 {
