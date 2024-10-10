@@ -1182,72 +1182,6 @@ Success! 1 passed, 0 failed.
 `,
 			code: 0,
 		},
-		"invalid_variable_warning_expected": {
-			expected: `main.tftest.hcl... fail
-  run "invalid_object"... fail
-
-Warning: Invalid Variable in test file
-
-Variable var.variable1, has an invalid value within the test. Although this
-was an expected failure, it has meant the apply stage was unable to run so
-the overall test will fail.
-
-Error: Invalid value for variable
-
-  on main.tf line 2:
-   2: variable "variable1" {
-    ├────────────────
-    │ var.variable1 is "lalalala"
-
-The variable1 value must be: foobar
-
-This was checked by the validation rule at main.tf:5,3-13.
-
-Error: Invalid value for variable
-
-  on main.tf line 11:
-  11: variable "variable2" {
-    ├────────────────
-    │ var.variable2 is "lalalala"
-
-The variable2 value must be: barfoo
-
-This was checked by the validation rule at main.tf:14,3-13.
-
-Failure! 0 passed, 1 failed.
-`,
-			code: 1,
-		},
-		"invalid_variable_warning_no_expected": {
-			expected: `main.tftest.hcl... fail
-  run "invalid_object"... fail
-
-Error: Invalid value for variable
-
-  on main.tf line 2:
-   2: variable "variable1" {
-    ├────────────────
-    │ var.variable1 is "lalalala"
-
-The variable1 value must be: foobar
-
-This was checked by the validation rule at main.tf:5,3-13.
-
-Error: Invalid value for variable
-
-  on main.tf line 11:
-  11: variable "variable2" {
-    ├────────────────
-    │ var.variable2 is "lalalala"
-
-The variable2 value must be: barfoo
-
-This was checked by the validation rule at main.tf:14,3-13.
-
-Failure! 0 passed, 1 failed.
-`,
-			code: 1,
-		},
 	}
 
 	for name, tc := range tcs {
@@ -1302,6 +1236,100 @@ Failure! 0 passed, 1 failed.
 
 			if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
 				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+			}
+		})
+	}
+}
+
+func TestTest_InvalidLocalVariables(t *testing.T) {
+	tcs := map[string]struct {
+		contains    []string
+		notContains []string
+		code        int
+		skip        bool
+	}{
+		"invalid_variable_warning_expected": {
+			contains: []string{
+				"Warning: Invalid Variable in test file",
+				"Error: Invalid value for variable",
+				"This was checked by the validation rule at main.tf:5,3-13.",
+				"This was checked by the validation rule at main.tf:14,3-13.",
+			},
+			code: 1,
+		},
+		"invalid_variable_warning_no_expected": {
+			contains: []string{
+				"Error: Invalid value for variable",
+				"This was checked by the validation rule at main.tf:5,3-13.",
+				"This was checked by the validation rule at main.tf:14,3-13.",
+			},
+			notContains: []string{
+				"Warning: Invalid Variable in test file",
+			},
+			code: 1,
+		},
+	}
+
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			file := name
+
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			defer testChdir(t, td)()
+
+			provider := testing_command.NewProvider(nil)
+			providerSource, providerClose := newMockProviderSource(t, map[string][]string{
+				"test": {"1.0.0"},
+			})
+			defer providerClose()
+
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			ui := new(cli.MockUi)
+			meta := Meta{
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				Ui:               ui,
+				View:             view,
+				Streams:          streams,
+				ProviderSource:   providerSource,
+			}
+
+			init := &InitCommand{
+				Meta: meta,
+			}
+
+			if code := init.Run(nil); code != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			}
+
+			command := &TestCommand{
+				Meta: meta,
+			}
+
+			code := command.Run([]string{"-verbose", "-no-color"})
+			output := done(t)
+
+			if code != tc.code {
+				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
+			}
+
+			actual := output.All()
+
+			for _, containsString := range tc.contains {
+				if !strings.Contains(actual, containsString) {
+					t.Errorf("expected '%s' in output but didn't find it: \n%s", containsString, output.All())
+				}
+			}
+
+			for _, notContainsString := range tc.notContains {
+				if strings.Contains(actual, notContainsString) {
+					t.Errorf("expected not to find '%s' in output: \n%s", notContainsString, output.All())
+				}
 			}
 		})
 	}
