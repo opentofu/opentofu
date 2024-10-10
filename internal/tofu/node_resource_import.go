@@ -31,7 +31,7 @@ type graphNodeImportState struct {
 	states []providers.ImportedResource
 }
 
-func (n *graphNodeImportState) SetPotentialProviders(potentialProviders []distinguishableProvider) {
+func (n *graphNodeImportState) SetPotentialProviders(potentialProviders ResourceInstanceProviderResolver) {
 	// Technically we shouldn't get here as we don't support import with for_each on providers in resources / modules.
 	// We should panic here since we validated provider match between import/resource previously on configuration parsing.
 	panic("implement me")

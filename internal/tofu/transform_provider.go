@@ -94,7 +94,7 @@ type GraphNodeProviderConsumer interface {
 	// SetPotentialProviders sets the potential providers to be resolved later, after the expansion of instances.
 	// Sometimes we won't know the exact provider, and will have a list of potential providers that can be resolved once
 	// the instances are expanded and known.
-	SetPotentialProviders(potentialProviders []distinguishableProvider)
+	SetPotentialProviders(potentialProviders ResourceInstanceProviderResolver)
 }
 
 // ProviderTransformer is a GraphTransformer that maps resources to providers
@@ -198,7 +198,8 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	// for provider inheritance and passing.
 	m := providerVertexMap(g)
 	for v, reqs := range requested {
-		var potentialTargets []distinguishableProvider
+		// Mapping from resource.InstanceKey to one of many ModuleInstancePotentialProvider
+		potentialTargets := make(ResourceInstanceProviderResolver)
 
 		for key, req := range reqs {
 			p := req.Addr
@@ -291,38 +292,33 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 
 			}
 
+			// Module expansions for this particular resource InstanceKey
+			var moduleExpansionProviders []ModuleInstancePotentialProvider
+
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				g.Remove(p)
-				potentialProviders := p.Expanded()
 
-				for i := range potentialProviders {
-					pp := potentialProviders[i]
-					// If we have multiple requests for different instanceKey of the resource, we need to update the
-					// potential provider with that info
-					pp.SetResourceIdentifier(req.instanceKey)
-
+				moduleExpansionProviders = p.Expanded()
+				for _, pp := range moduleExpansionProviders {
 					log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs the potential provider %s", dag.VertexName(v), v, dag.VertexName(pp))
 					g.Connect(dag.BasicEdge(v, pp.concreteProvider))
 				}
-
-				potentialTargets = potentialProviders
 			} else {
 				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs the potential provider %s", dag.VertexName(v), v, dag.VertexName(target))
+				moduleExpansionProviders = []ModuleInstancePotentialProvider{{
+					moduleIdentifier: nil, // TODO should this construct the actual module path here?
+					concreteProvider: target,
+				}}
 				g.Connect(dag.BasicEdge(v, target))
-				potentialTargets = append(potentialTargets, distinguishableProvider{moduleIdentifier: nil, resourceIdentifier: req.instanceKey, concreteProvider: target})
 			}
 
+			potentialTargets[req.instanceKey] = moduleExpansionProviders
 		}
 
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			if len(potentialTargets) == 1 {
-				// If we only have a single potential provider, it means all the future resource instances will use
-				// this provider. So we can set the provider straight on the resource level
-				pv.SetProvider(potentialTargets[0].concreteProvider.ProviderAddr(), true)
-			} else {
-				pv.SetPotentialProviders(potentialTargets)
-			}
+			pv.SetPotentialProviders(potentialTargets)
+
 		}
 	}
 
@@ -656,32 +652,58 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 	}
 }
 
-// distinguishableProvider is a representation of a concrete provider and identifiers that match the provider to a
-// specific resource instance. Because we might have for_each or count on providers in the resource/module, we cannot
+type ResourceInstanceProviderResolver map[addrs.InstanceKey]ModuleInstanceProviderResolver
+
+func (r ResourceInstanceProviderResolver) Any() addrs.AbsProviderConfig {
+	for _, m := range r {
+		for _, p := range m {
+			return p.concreteProvider.ProviderAddr()
+		}
+	}
+	panic("unreachable")
+}
+
+func (r ResourceInstanceProviderResolver) Resolve(addr addrs.AbsResourceInstance) addrs.AbsProviderConfig {
+	// First check for an exact match on the resource instance key
+	if p, ok := r[addr.Resource.Key]; ok {
+		return p.Resolve(addr.Module)
+	}
+	// If the resource instance key is not an exact match, the other possibility is that there is no
+	// alternate mapping to ModuleInstanceProviderResovlers based on the provider key
+	if p, ok := r[addrs.NoKey]; ok {
+		return p.Resolve(addr.Module)
+	}
+	panic("TODO better message here")
+}
+
+type ModuleInstanceProviderResolver []ModuleInstancePotentialProvider
+
+func (m ModuleInstanceProviderResolver) Resolve(addr addrs.ModuleInstance) addrs.AbsProviderConfig {
+	for _, pr := range m {
+		if pr.ModuleInstanceMatches(addr) {
+			return pr.concreteProvider.ProviderAddr()
+		}
+	}
+	panic("TODO better message here")
+}
+
+// ModuleInstancePotentialProvider is a representation of a concrete provider and identifiers that match the provider to a
+// specific module instance. Because we might have for_each or count on providers in the module, we cannot
 // calculate the concrete provider per instance in stages of building the graph; we can only do that after the
 // expansion of instances (while walking the graph). So, this structure will be passed on to the resource as potential
 // providers and resolved using IsResourceInstanceMatching() once we get to the expansion stage.
-type distinguishableProvider struct {
-	moduleIdentifier   []addrs.ModuleInstanceStep
-	resourceIdentifier addrs.InstanceKey
-	concreteProvider   GraphNodeProvider // Ronny TODO: I don't like that this GraphNodeProvider type is eventually leaking into the node abstract resource itself
+type ModuleInstancePotentialProvider struct {
+	moduleIdentifier []addrs.ModuleInstanceStep
+	concreteProvider GraphNodeProvider // Ronny TODO: I don't like that this GraphNodeProvider type is eventually leaking into the node abstract resource itself
 }
 
-func (d *distinguishableProvider) SetResourceIdentifier(ik addrs.InstanceKey) {
-	d.resourceIdentifier = ik
-}
-
-func (d *distinguishableProvider) AddModuleIdentifierToTheEnd(step addrs.ModuleInstanceStep) {
+func (d *ModuleInstancePotentialProvider) AddModuleIdentifierToTheEnd(step addrs.ModuleInstanceStep) {
 	d.moduleIdentifier = append(d.moduleIdentifier, step)
 }
 
-func (d *distinguishableProvider) IsResourceInstanceMatching(resourceInstance addrs.AbsResourceInstance) bool {
-	if d.resourceIdentifier != nil && d.resourceIdentifier != resourceInstance.Resource.Key {
-		return false
-	}
-
+func (d *ModuleInstancePotentialProvider) ModuleInstanceMatches(moduleInstance addrs.ModuleInstance) bool {
 	for i, moduleInstanceStep := range d.moduleIdentifier {
-		parallelResourceModuleAddress := resourceInstance.Module[i]
+		parallelResourceModuleAddress := moduleInstance[i]
 
 		if moduleInstanceStep.Name != parallelResourceModuleAddress.Name {
 			return false
@@ -725,13 +747,13 @@ func (n *graphNodeProxyProvider) Name() string {
 // Expanded recurses over the graphNodeProxyProvider, trying to find all the possible concrete providers.
 // Because we might have for_each on providers in the resource/module, we cannot calculate the concrete provider per
 // instance in this part of building the graph, we can only do that after the expansion of instances. That is why, in
-// here, we are returning an array of distinguishableProviders, each with identifiers that later will help us match a
+// here, we are returning an array of ModuleInstancePotentialProvider, each with identifiers that later will help us match a
 // specific resource instance to a specific concrete provider.
-func (n *graphNodeProxyProvider) Expanded() []distinguishableProvider {
-	var concrete []distinguishableProvider
+func (n *graphNodeProxyProvider) Expanded() []ModuleInstancePotentialProvider {
+	var concrete []ModuleInstancePotentialProvider
 
 	for ik, target := range n.targets {
-		var targetConcrete []distinguishableProvider
+		var targetConcrete []ModuleInstancePotentialProvider
 
 		if t, ok := target.(*graphNodeProxyProvider); ok {
 			// We want to add all the modules we went through during the recursion as part of the ModuleIdentifier
@@ -751,7 +773,10 @@ func (n *graphNodeProxyProvider) Expanded() []distinguishableProvider {
 				Name:        n.ModulePath()[len(n.ModulePath())-1],
 				InstanceKey: ik,
 			}
-			targetConcrete = append(targetConcrete, distinguishableProvider{moduleIdentifier: []addrs.ModuleInstanceStep{modulePath}, resourceIdentifier: nil, concreteProvider: target})
+			targetConcrete = []ModuleInstancePotentialProvider{{
+				moduleIdentifier: []addrs.ModuleInstanceStep{modulePath},
+				concreteProvider: target,
+			}}
 		}
 
 		concrete = append(concrete, targetConcrete...)
