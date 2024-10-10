@@ -69,19 +69,15 @@ func NewNodeAbstractResourceInstance(addr addrs.AbsResourceInstance) *NodeAbstra
 	}
 }
 
-func (n *NodeAbstractResourceInstance) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
+func (n *NodeAbstractResourceInstance) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
+	// Once the provider is fully resolved, we can return the known value.
 	if n.ResolvedInstanceProvider.IsSet() {
-		return nil, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: false}
+		return map[addrs.InstanceKey]addrs.ProviderConfig{
+			n.Addr.Resource.Key: n.ResolvedInstanceProvider,
+		}, true
 	}
+	// TODO consider filtering out only the providers that apply to this instance to simplify the expanded graph
 	return n.NodeAbstractResource.ProvidedBy()
-}
-
-func (n *NodeAbstractResourceInstance) SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool) {
-	if isResourceProvider {
-		n.ResolvedResourceProvider = provider
-	} else {
-		n.ResolvedInstanceProvider = provider
-	}
 }
 
 func (n *NodeAbstractResourceInstance) ResolvedProvider() addrs.AbsProviderConfig {
@@ -184,9 +180,9 @@ func (n *NodeAbstractResourceInstance) AttachResourceState(s *states.Resource) {
 	log.Printf("[TRACE] NodeAbstractResourceInstance.AttachResourceState for %s", n.Addr)
 	n.instanceState = s.Instance(n.Addr.Resource.Key)
 
-	providerConfig, isResourceProvider := s.InstanceProvider(n.Addr.Resource.Key)
+	providerConfig, _ := s.InstanceProvider(n.Addr.Resource.Key)
 
-	n.storedProviderConfig = ExactProvider{isResourceProvider: isResourceProvider, provider: providerConfig}
+	n.storedProviderConfig = providerConfig
 }
 
 // readDiff returns the planned change for a particular resource instance
