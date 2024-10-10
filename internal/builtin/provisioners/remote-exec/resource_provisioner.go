@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/mitchellh/go-linereader"
@@ -215,7 +216,7 @@ func collectScripts(v cty.Value) ([]io.ReadCloser, error) {
 	// Open all the scripts
 	var fhs []io.ReadCloser
 	for _, s := range scripts {
-		fh, err := os.Open(s)
+		fh, err := os.Open(filepath.Clean(s))
 		if err != nil {
 			for _, fh := range fhs {
 				fh.Close()
