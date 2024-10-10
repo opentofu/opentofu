@@ -46,10 +46,18 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 		// like to show some helpful output that mirrors the way we show other changes.
 		if rc.Importing != nil {
 			for _, h := range c.hooks {
-				// In future, we may need to call PostApplyImport separately elsewhere in the apply
+				// In the future, we may need to call PostApplyImport separately elsewhere in the apply
 				// operation. For now, though, we'll call Pre and Post hooks together.
 				h.PreApplyImport(rc.Addr, *rc.Importing)
 				h.PostApplyImport(rc.Addr, *rc.Importing)
+			}
+		}
+
+		// Following the same logic, we want to show helpful output for forget operations as well.
+		if rc.Action == plans.Forget {
+			for _, h := range c.hooks {
+				h.PreApplyForget(rc.Addr)
+				h.PostApplyForget(rc.Addr)
 			}
 		}
 	}
