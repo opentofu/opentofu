@@ -127,13 +127,13 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 	tests := []struct {
 		name               string
 		instanceAddr       addrs.AbsResourceInstance
-		potentialProviders []distinguishableProvider
+		potentialProviders []ModuleInstancePotentialProvider
 		Want               addrs.AbsProviderConfig
 	}{
 		{
 			name:         "potential provider pointing to a resource instance with an instance key",
 			instanceAddr: mustResourceInstanceAddr("null_resource.resource[\"first\"]"),
-			potentialProviders: []distinguishableProvider{{
+			potentialProviders: []ModuleInstancePotentialProvider{{
 				concreteProvider:   applyableProvider,
 				resourceIdentifier: addrs.StringKey("first")}},
 			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
@@ -145,7 +145,7 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance under a child module with an instance key",
 			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].null_resource.resource"),
-			potentialProviders: []distinguishableProvider{{
+			potentialProviders: []ModuleInstancePotentialProvider{{
 				concreteProvider: applyableProvider,
 				moduleIdentifier: []addrs.ModuleInstanceStep{
 					{
@@ -162,7 +162,7 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance with an instance key under a child module with an instance key",
 			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].null_resource.resource[\"first\"]"),
-			potentialProviders: []distinguishableProvider{{
+			potentialProviders: []ModuleInstancePotentialProvider{{
 				concreteProvider:   applyableProvider,
 				resourceIdentifier: addrs.StringKey("first"),
 				moduleIdentifier: []addrs.ModuleInstanceStep{
@@ -180,7 +180,7 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on the nested module",
 			instanceAddr: mustResourceInstanceAddr("module.child_module.module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
-			potentialProviders: []distinguishableProvider{{
+			potentialProviders: []ModuleInstancePotentialProvider{{
 				concreteProvider:   applyableProvider,
 				resourceIdentifier: addrs.StringKey("first"),
 				moduleIdentifier: []addrs.ModuleInstanceStep{
@@ -201,7 +201,7 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on the nested module (with the instance key on the child module ignored)",
 			instanceAddr: mustResourceInstanceAddr("module.child_module[\"ignored\"].module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
-			potentialProviders: []distinguishableProvider{{
+			potentialProviders: []ModuleInstancePotentialProvider{{
 				concreteProvider:   applyableProvider,
 				resourceIdentifier: addrs.StringKey("first"),
 				moduleIdentifier: []addrs.ModuleInstanceStep{
@@ -222,7 +222,7 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on both modules",
 			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
-			potentialProviders: []distinguishableProvider{{
+			potentialProviders: []ModuleInstancePotentialProvider{{
 				concreteProvider:   applyableProvider,
 				resourceIdentifier: addrs.StringKey("first"),
 				moduleIdentifier: []addrs.ModuleInstanceStep{
