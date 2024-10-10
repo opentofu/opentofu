@@ -235,8 +235,6 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
-				g.Remove(p)
-				println("Transform Remove " + dag.VertexName(p))
 				target = p.Target()
 			}
 
@@ -251,10 +249,19 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	return diags.Err()
 }
 
+type ProviderFunctionReference struct {
+	ModulePath    string
+	ProviderName  string
+	ProviderAlias string
+}
+
+type ProviderFunctionMapping map[ProviderFunctionReference]addrs.AbsProviderConfig
+
 // ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
 // within the graph. This will error if there are any provider functions that don't map to known providers.
 type ProviderFunctionTransformer struct {
-	Config *configs.Config
+	Config                  *configs.Config
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
@@ -268,26 +275,19 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 	// Locate all providerVerts in the graph
 	providerVerts := providerVertexMap(g)
-
-	type providerReference struct {
-		path  string
-		name  string
-		alias string
-	}
 	// LuT of provider reference -> provider vertex
-	providerReferences := make(map[providerReference]dag.Vertex)
+	providerReferences := make(map[ProviderFunctionReference]dag.Vertex)
 
 	for _, v := range g.Vertices() {
 		// Provider function references
 		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
 			for _, ref := range nr.References() {
 				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
-					key := providerReference{
-						path:  nr.ModulePath().String(),
-						name:  pf.ProviderName,
-						alias: pf.ProviderAlias,
+					key := ProviderFunctionReference{
+						ModulePath:    nr.ModulePath().String(),
+						ProviderName:  pf.ProviderName,
+						ProviderAlias: pf.ProviderAlias,
 					}
-					fmt.Printf("key: %#v\n", key)
 
 					// We already know about this provider and can link directly
 					if provider, ok := providerReferences[key]; ok {
@@ -320,7 +320,6 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 						})
 						continue
 					}
-					fmt.Printf("PR: %#v\n", pr)
 
 					// Build fully qualified provider address
 					absPc := addrs.AbsProviderConfig{
@@ -331,18 +330,13 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 					log.Printf("[TRACE] ProviderFunctionTransformer: %s in %s is provided by %s", pf, dag.VertexName(v), absPc)
 
-					println(absPc.String())
-
 					// Lookup provider via full address
 					provider := providerVerts[absPc.String()]
 
 					if provider != nil {
 						// Providers with configuration will already exist within the graph and can be directly referenced
 						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
-						println("FOUND DIRECT")
 					} else {
-						println("STUB")
-
 						// At this point, all provider schemas should be loaded.  We
 						// can now check to see if configuration is optional for this function.
 						providerSchema, ok := providers.SchemaCache.Get(absPc.Provider)
@@ -353,8 +347,6 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 						if !functionOk {
 							panic("CONFIGURED FUNCTION REQUIRED OR BUG")
 						}
-
-						println("VALID UNCONFIGURED FUNCTION")
 
 						// If this provider doesn't need to be configured then we can just
 						// stub it out with an init-only provider node, which will just
@@ -378,7 +370,6 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 					// see if this is a proxy provider pointing to another concrete config
 					if p, ok := provider.(*graphNodeProxyProvider); ok {
-						println("FUNC PROV PROXY")
 						g.Remove(p)
 						provider = p.Target()
 					}
@@ -386,19 +377,13 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
 					g.Connect(dag.BasicEdge(v, provider))
 
-					// HAXXX
-					providerAddr := provider.ProviderAddr()
-					pf.ProviderAddr.Module = providerAddr.Module
-					pf.ProviderAddr.Provider = providerAddr.Provider
-					pf.ProviderAddr.Alias = providerAddr.Alias
-
 					// Save for future lookups
 					providerReferences[key] = provider
+					t.ProviderFunctionTracker[key] = provider.ProviderAddr()
 				}
 			}
 		}
 	}
-	println(g.String())
 
 	return diags.Err()
 }
@@ -546,12 +531,10 @@ func (t *PruneProviderTransformer) Transform(g *Graph) error {
 }
 
 func providerVertexMap(g *Graph) map[string]GraphNodeProvider {
-	println("MAP")
 	m := make(map[string]GraphNodeProvider)
 	for _, v := range g.Vertices() {
 		if pv, ok := v.(GraphNodeProvider); ok {
 			addr := pv.ProviderAddr()
-			println(addr.String() + " : " + dag.VertexName(v))
 			m[addr.String()] = pv
 		}
 	}
