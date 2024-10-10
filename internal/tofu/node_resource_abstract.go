@@ -86,7 +86,7 @@ type NodeAbstractResource struct {
 	// calculate its provider.
 	// If the potentialProviders is populated, it means the ResolvedResourceProvider is empty and the provider will be
 	// defined per resource instance and not on the whole resource.
-	potentialProviders []distinguishableProvider
+	potentialProviders ResourceInstanceProviderResolver
 
 	// storedProviderConfig is the provider address retrieved from the state of the resource,
 	// with a bool indication on whether this provider is se on the Resource level or on the instance level.
@@ -304,7 +304,7 @@ func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
 	return result
 }
 
-func (n *NodeAbstractResource) SetPotentialProviders(potentialProviders []distinguishableProvider) {
+func (n *NodeAbstractResource) SetPotentialProviders(potentialProviders ResourceInstanceProviderResolver) {
 	n.potentialProviders = potentialProviders
 }
 
@@ -312,15 +312,7 @@ func (n *NodeAbstractResource) SetPotentialProviders(potentialProviders []distin
 // InstanceProvider if a few potential providers exist. A few potential providers might exist if the resource
 // configuration, or one of the containing module's configuration, contains a for_each or count in the provider reference.
 func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourceInstance) addrs.AbsProviderConfig {
-	for _, potentialProvider := range n.potentialProviders {
-		if potentialProvider.IsResourceInstanceMatching(instance) {
-			return potentialProvider.concreteProvider.ProviderAddr()
-		}
-	}
-
-	// Can happen if ResolvedResourceProvider is already set for the whole resource, and we don't have a specific
-	// provider set for the instances
-	return addrs.AbsProviderConfig{}
+	return n.potentialProviders.Resolve(instance)
 }
 
 func (n *NodeAbstractResource) SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool) {

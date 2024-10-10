@@ -288,7 +288,7 @@ func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diag
 	} else if len(n.potentialProviders) > 0 {
 		// If the provider has yet to be resolved (will be resolved at the expansion on instance level), we can use any
 		// of the potentialProviders instead, as the interface and schema will be the same for all potential providers
-		absProvider = n.potentialProviders[0].concreteProvider.ProviderAddr()
+		absProvider = n.potentialProviders.Any()
 	}
 
 	provider, providerSchema, err := getProvider(ctx, absProvider)
