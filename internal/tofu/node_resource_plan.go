@@ -127,7 +127,6 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) *NodePlannableResourceInstanceOrphan {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedResourceProvider = n.ResolvedResourceProvider
 		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
@@ -337,7 +336,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 				return &graphNodeImportState{
 					Addr:                     c.Addr,
 					ID:                       c.ID,
-					ResolvedResourceProvider: n.ResolvedResourceProvider,
 					ResolvedInstanceProvider: n.resolveInstanceProvider(a.Addr),
 					Schema:                   n.Schema,
 					SchemaVersion:            n.SchemaVersion,
@@ -348,7 +346,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedResourceProvider = n.ResolvedResourceProvider
 		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
@@ -382,7 +379,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedResourceProvider = n.ResolvedResourceProvider
 		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas

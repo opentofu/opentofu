@@ -127,11 +127,20 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	}
 
 	var willReplace []*states.Resource
+	var willReplaceInstances []*states.ResourceInstanceObjectSrc
 
 	// Update all matching resources with new provider
 	for _, resource := range resources {
-		if resource.ProviderConfig.Provider.Equals(from) {
-			willReplace = append(willReplace, resource)
+		hasMarked := false
+		for _, instance := range resource.Instances {
+			if instance.Current.InstanceProvider.Provider.Equals(from) {
+				if !hasMarked {
+					willReplace = append(willReplace, resource)
+					hasMarked = true
+				}
+				willReplaceInstances = append(willReplaceInstances, instance.Current)
+				// TODO deposed
+			}
 		}
 	}
 	c.showDiagnostics(diags)
@@ -171,8 +180,8 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	}
 
 	// Update the provider for each resource
-	for _, resource := range willReplace {
-		resource.ProviderConfig.Provider = to
+	for _, instance := range willReplaceInstances {
+		instance.InstanceProvider.Provider = to
 	}
 
 	b, backendDiags := c.Backend(nil, enc.State())

@@ -330,9 +330,9 @@ func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
 	m := map[string]addrs.AbsProviderConfig{}
 	for _, ms := range s.Modules {
 		for _, rc := range ms.Resources {
-			for key := range rc.Instances {
-				provider, _ := rc.InstanceProvider(key)
-				m[provider.String()] = provider
+			for _, instance := range rc.Instances {
+				// TODO should we check deposed as well just in case?
+				m[instance.Current.InstanceProvider.String()] = instance.Current.InstanceProvider
 			}
 		}
 	}
@@ -472,8 +472,6 @@ func (s *State) MoveAbsResourceInstance(src, dst addrs.AbsResourceInstance) {
 		panic(fmt.Sprintf("dst resource %s already exists", dst.String()))
 	}
 
-	srcResourceState := s.Resource(src.ContainingResource())
-	srcProviderAddr := srcResourceState.ProviderConfig
 	dstResourceAddr := dst.ContainingResource()
 
 	// Remove the source resource instance from the module's state, and then the
@@ -494,10 +492,7 @@ func (s *State) MoveAbsResourceInstance(src, dst addrs.AbsResourceInstance) {
 		// resource and the instance at the same time (since the
 		// address covers both). If there's an index in the
 		// target then allow creating the new instance here.
-		dstModule.SetResourceProvider(
-			dstResourceAddr.Resource,
-			srcProviderAddr, // in this case, we bring the provider along as if we were moving the whole resource
-		)
+		dstModule.EnsureResourceExists(dstResourceAddr.Resource)
 		dstResourceState = dstModule.Resource(dstResourceAddr.Resource)
 	}
 
