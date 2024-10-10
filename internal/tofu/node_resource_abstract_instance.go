@@ -74,15 +74,18 @@ func NewNodeAbstractResourceInstance(addr addrs.AbsResourceInstance) *NodeAbstra
 	}
 }
 
-func (n *NodeAbstractResourceInstance) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
+func (n *NodeAbstractResourceInstance) ProvidedBy() ProvidedBy {
 	// Once the provider is fully resolved, we can return the known value.
 	if n.ResolvedInstanceProvider.IsSet() {
-		return map[addrs.InstanceKey]addrs.ProviderConfig{
-			n.Addr.Resource.Key: n.ResolvedInstanceProvider,
-		}, true
+		return ProvidedBy{
+			Absolute: []ResourceProvidedBy{{
+				Provider: n.ResolvedInstanceProvider,
+				Resource: n.Addr,
+			}},
+		}
 	}
 	// TODO consider filtering out only the providers that apply to this instance to simplify the expanded graph
-	return n.NodeAbstractResource.ProvidedByImpl(n.Addr.Resource.Key, n.storedProviderConfig)
+	return n.NodeAbstractResource.ProvidedBy()
 }
 
 func (n *NodeAbstractResourceInstance) Provider() addrs.Provider {
