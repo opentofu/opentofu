@@ -378,7 +378,7 @@ func TestNodeValidatableResource_ValidateResource_validWithPotentialProviderSet(
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:   mustConfigResourceAddr("test_object.foo"),
 			Config: rc,
-			potentialProviders: []distinguishableProvider{{
+			potentialProviders: []ModuleInstancePotentialProvider{{
 				concreteProvider: applyableProvider}},
 		},
 	}
