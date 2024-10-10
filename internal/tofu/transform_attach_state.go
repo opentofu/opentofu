@@ -28,6 +28,12 @@ type GraphNodeAttachResourceState interface {
 	AttachResourceState(*states.Resource)
 }
 
+type GraphNodeAttachResourceStates interface {
+	GraphNodeConfigResource
+
+	AttachResourceStates([]*states.Resource)
+}
+
 // AttachStateTransformer goes through the graph and attaches
 // state to nodes that implement the interfaces above.
 type AttachStateTransformer struct {
@@ -42,6 +48,10 @@ func (t *AttachStateTransformer) Transform(g *Graph) error {
 	}
 
 	for _, v := range g.Vertices() {
+		if an, ok := v.(GraphNodeAttachResourceStates); ok {
+			an.AttachResourceStates(t.State.Resources(an.ResourceAddr()))
+		}
+
 		// Nodes implement this interface to request state attachment.
 		an, ok := v.(GraphNodeAttachResourceState)
 		if !ok {

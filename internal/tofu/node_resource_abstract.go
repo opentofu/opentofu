@@ -88,6 +88,8 @@ type NodeAbstractResource struct {
 	// generateConfigPath tells this node which file to write generated config
 	// into. If empty, then config should not be generated.
 	generateConfigPath string
+
+	knownResourceStates []*states.Resource
 }
 
 var (
@@ -102,6 +104,7 @@ var (
 	_ GraphNodeAttachProviderMetaConfigs   = (*NodeAbstractResource)(nil)
 	_ GraphNodeTargetable                  = (*NodeAbstractResource)(nil)
 	_ graphNodeAttachDataResourceDependsOn = (*NodeAbstractResource)(nil)
+	_ GraphNodeAttachResourceStates        = (*NodeAbstractResource)(nil)
 	_ dag.GraphNodeDotter                  = (*NodeAbstractResource)(nil)
 )
 
@@ -292,6 +295,10 @@ func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
 	return result
 }
 
+func (n *NodeAbstractResource) AttachResourceStates(known []*states.Resource) {
+	n.knownResourceStates = known
+}
+
 func (n *NodeAbstractResource) SetPotentialProviders(potentialProviders ResourceInstanceProviderResolver) {
 	n.potentialProviders = potentialProviders
 }
@@ -303,10 +310,25 @@ func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourc
 	return n.potentialProviders.Resolve(instance)
 }
 
-func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
-	return n.ProvidedByImpl(addrs.NoKey, addrs.AbsProviderConfig{})
-}
-func (n *NodeAbstractResource) ProvidedByImpl(instanceKey addrs.InstanceKey, storedProviderConfig addrs.AbsProviderConfig) (map[addrs.InstanceKey]addrs.ProviderConfig, bool) {
+func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
+	var result ProvidedBy
+
+	// Make sure orphans are properly accounted for
+	// TODO this could introduce some funkiness in the
+	// execution, where providers that are no longer
+	// needed due to provider alias changes are still
+	// required.  I don't know if there is a way to
+	// determine the orphans ahead of time and prune
+	// this list down to the essentials.
+	for _, rs := range n.knownResourceStates {
+		for key, inst := range rs.Instances {
+			result.Absolute = append(result.Absolute, ResourceProvidedBy{
+				Provider: inst.Current.InstanceProvider,
+				Resource: rs.Addr.Instance(key),
+			})
+		}
+	}
+
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
 		if n.Config.ProviderConfigRef == nil {
@@ -314,42 +336,33 @@ func (n *NodeAbstractResource) ProvidedByImpl(instanceKey addrs.InstanceKey, sto
 			// provider config where the local name matches the implied provider
 			// from the resource type. This may be different from the resource's
 			// provider type.
-			return map[addrs.InstanceKey]addrs.ProviderConfig{
-				instanceKey: addrs.LocalProviderConfig{
-					LocalName: n.Config.Addr().ImpliedProvider(),
-				},
-			}, false
+			result.Relative[addrs.NoKey] = addrs.AbsProviderConfig{
+				Provider: n.Provider(),
+				Module:   n.ModulePath(),
+			}
+			return result
 		}
 
-		result := make(map[addrs.InstanceKey]addrs.ProviderConfig)
-
 		if len(n.Config.ProviderConfigRef.Aliases) > 0 {
+			result.Relative = make(map[addrs.InstanceKey]addrs.AbsProviderConfig)
+
 			// If we have aliases set in ProviderConfigRef, we'll calculate a LocalProviderConfig for each one
 			for key, alias := range n.Config.ProviderConfigRef.Aliases {
-				// TODO consider filtering InstanceKey
-				result[key] = addrs.LocalProviderConfig{
-					LocalName: n.Config.ProviderConfigRef.Name,
-					Alias:     alias,
+				result.Relative[key] = addrs.AbsProviderConfig{
+					Provider: n.Provider(),
+					Module:   n.ModulePath(),
+					Alias:    alias,
 				}
 			}
 		} else {
 			// If we have no aliases in ProviderConfigRef, we still need to calculate a single LocalProviderConfig
-			result[instanceKey] = addrs.LocalProviderConfig{
-				LocalName: n.Config.ProviderConfigRef.Name,
+			result.Relative[addrs.NoKey] = addrs.AbsProviderConfig{
+				Provider: n.Provider(),
+				Module:   n.ModulePath(),
 			}
 		}
 
-		return result, false
-	}
-
-	// See if we have a valid provider config from the state.
-	if storedProviderConfig.IsSet() {
-		// An address from the state must match exactly, since we must ensure
-		// we refresh/destroy a resource with the same provider configuration
-		// that created it.
-		return map[addrs.InstanceKey]addrs.ProviderConfig{
-			instanceKey: storedProviderConfig,
-		}, true
+		return result
 	}
 
 	// We might have an import target that is providing a specific provider,
@@ -360,21 +373,21 @@ func (n *NodeAbstractResource) ProvidedByImpl(instanceKey addrs.InstanceKey, sto
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			return map[addrs.InstanceKey]addrs.ProviderConfig{
-				instanceKey: addrs.LocalProviderConfig{
-					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
-					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
-				},
-			}, false
+			result.Relative[addrs.NoKey] = addrs.AbsProviderConfig{
+				Provider: n.Provider(),
+				Module:   n.ModulePath(),
+				//LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
+				Alias: n.importTargets[0].Config.ProviderConfigRef.Alias,
+			}
+			return result
 		}
 	}
 	// No provider configuration found; return a default address
-	return map[addrs.InstanceKey]addrs.ProviderConfig{
-		instanceKey: addrs.AbsProviderConfig{
-			Provider: n.Provider(),
-			Module:   n.ModulePath(),
-		},
-	}, false
+	result.Relative[addrs.NoKey] = addrs.AbsProviderConfig{
+		Provider: n.Provider(),
+		Module:   n.ModulePath(),
+	}
+	return result
 }
 
 // GraphNodeProviderConsumer
