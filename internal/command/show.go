@@ -63,7 +63,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 
 	// Parse and validate flags
 	args, diags := arguments.ParseShow(rawArgs)
-	if diags.HasErrors() {
+	if c.View.HasErrors(diags) {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("show")
 		return 1
@@ -88,15 +88,15 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+	if view.HasErrors(encDiags) {
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Get the data we need to display
 	plan, jsonPlan, stateFile, config, schemas, showDiags := c.show(args.Path, enc)
 	diags = diags.Append(showDiags)
-	if showDiags.HasErrors() {
+	if view.HasErrors(showDiags) {
 		view.Diagnostics(diags)
 		return 1
 	}

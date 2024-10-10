@@ -7,7 +7,6 @@ package command
 
 import (
 	"fmt"
-
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 )
@@ -53,4 +52,16 @@ func (u *ColorizeUi) colorize(message string, color string) string {
 	}
 
 	return u.Colorize.Color(fmt.Sprintf("%s%s[reset]", color, message))
+}
+
+// pedanticUI is a UI implementation which directs warning messages to the error output stream
+type pedanticUI struct {
+	cli.Ui
+	notifyWarning func()
+}
+
+// Warn sends the warning to stderr and notifies of the warning
+func (pui *pedanticUI) Warn(msg string) {
+	pui.Ui.Error(msg)
+	pui.notifyWarning()
 }
