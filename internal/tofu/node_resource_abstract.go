@@ -321,17 +321,9 @@ func (n *NodeAbstractResource) SetProvider(provider addrs.AbsProviderConfig, isR
 }
 
 func (n *NodeAbstractResource) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
-	return n.ProvidedByImpl(addrs.AbsProviderConfig{})
-}
-
-// GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedByImpl(resolvedInstanceProvider addrs.AbsProviderConfig) (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
 	// Once the provider is fully resolved, we can return the known value.
 	if n.ResolvedResourceProvider.IsSet() {
-		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: n.ResolvedResourceProvider, isResourceProvider: true}
-	} else if resolvedInstanceProvider.IsSet() {
-		return map[addrs.InstanceKey]addrs.ProviderConfig{}, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: false}
-
+		return nil, ExactProvider{provider: n.ResolvedResourceProvider, isResourceProvider: true}
 	}
 
 	// If we have a config we prefer that above all else

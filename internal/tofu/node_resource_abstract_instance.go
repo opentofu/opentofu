@@ -70,7 +70,10 @@ func NewNodeAbstractResourceInstance(addr addrs.AbsResourceInstance) *NodeAbstra
 }
 
 func (n *NodeAbstractResourceInstance) ProvidedBy() (map[addrs.InstanceKey]addrs.ProviderConfig, ExactProvider) {
-	return n.NodeAbstractResource.ProvidedByImpl(n.ResolvedInstanceProvider)
+	if n.ResolvedInstanceProvider.IsSet() {
+		return nil, ExactProvider{provider: resolvedInstanceProvider, isResourceProvider: false}
+	}
+	return n.NodeAbstractResource.ProvidedBy()
 }
 
 func (n *NodeAbstractResourceInstance) SetProvider(provider addrs.AbsProviderConfig, isResourceProvider bool) {
