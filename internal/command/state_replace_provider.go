@@ -127,19 +127,18 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	}
 
 	var willReplace []*states.Resource
-	var willReplaceInstances []*states.ResourceInstanceObjectSrc
+	var willReplaceInstances []*states.ResourceInstance
 
 	// Update all matching resources with new provider
 	for _, resource := range resources {
 		hasMarked := false
 		for _, instance := range resource.Instances {
-			if instance.Current.InstanceProvider.Provider.Equals(from) {
+			if instance.InstanceProvider.Provider.Equals(from) {
 				if !hasMarked {
 					willReplace = append(willReplace, resource)
 					hasMarked = true
 				}
-				willReplaceInstances = append(willReplaceInstances, instance.Current)
-				// TODO deposed
+				willReplaceInstances = append(willReplaceInstances, instance)
 			}
 		}
 	}
