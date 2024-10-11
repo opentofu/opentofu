@@ -6,6 +6,7 @@
 package copy
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,12 +41,12 @@ import (
 func CopyDir(dst, src string) error {
 	src, err := filepath.EvalSymlinks(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to evaluate symlinks for source: %w", err)
 	}
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("error walking the path %q: %w", path, err)
 		}
 
 		if path == src {
@@ -81,7 +82,7 @@ func CopyDir(dst, src string) error {
 			}
 
 			if err := os.MkdirAll(dstPath, 0755); err != nil {
-				return err
+				return fmt.Errorf("failed to create directory %q: %w", dstPath, err)
 			}
 
 			return nil
@@ -92,7 +93,7 @@ func CopyDir(dst, src string) error {
 		if info.Mode()&os.ModeSymlink == os.ModeSymlink {
 			target, err := os.Readlink(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read symlink %q: %w", path, err)
 			}
 
 			return os.Symlink(target, dstPath)
