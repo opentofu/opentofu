@@ -56,6 +56,7 @@ type LocalProviderInstance struct {
 }
 
 var _ ProviderInstance = LocalProviderInstance{}
+var _ Referenceable = LocalProviderInstance{}
 
 // NewDefaultLocalProviderInstance returns the address of the default (un-aliased)
 // configuration for the provider with the given local type name.
@@ -89,6 +90,18 @@ func (pc LocalProviderInstance) StringCompact() string {
 	}
 	return pc.LocalName
 }
+
+// UniqueKey implements UniqueKeyer and Referenceable.
+func (pc LocalProviderInstance) UniqueKey() UniqueKey {
+	// A LocalProviderInstance can be its own UniqueKey
+	return pc
+}
+
+// uniqueKeySigil implements UniqueKey.
+func (pc LocalProviderInstance) uniqueKeySigil() {}
+
+// referenceableSigil implements Referenceable.
+func (pc LocalProviderInstance) referenceableSigil() {}
 
 // ConfigProviderInstance is the address of a provider block in the configuration,
 // before any module expansion although already including a statically-configured
