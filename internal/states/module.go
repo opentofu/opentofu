@@ -136,7 +136,7 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 		is = rs.CreateInstance(addr.Key)
 	}
 
-	obj.InstanceProvider = instanceProvider
+	is.InstanceProvider = instanceProvider
 	is.Current = obj
 }
 
@@ -164,7 +164,7 @@ func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key De
 
 	// If the instanceProvider is not empty, populate the obj with its value
 	if instanceProvider.IsSet() {
-		obj.InstanceProvider = instanceProvider
+		is.InstanceProvider = instanceProvider
 	}
 
 	if obj != nil {

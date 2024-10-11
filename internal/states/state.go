@@ -331,8 +331,7 @@ func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
 	for _, ms := range s.Modules {
 		for _, rc := range ms.Resources {
 			for _, instance := range rc.Instances {
-				// TODO should we check deposed as well just in case?
-				m[instance.Current.InstanceProvider.String()] = instance.Current.InstanceProvider
+				m[instance.InstanceProvider.String()] = instance.InstanceProvider
 			}
 		}
 	}

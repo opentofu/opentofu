@@ -162,8 +162,8 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	// check if the resource has a configured provider, otherwise this will use the default provider
 	absInstanceProvider := addrs.AbsProviderConfig{
-		Provider: is.Current.InstanceProvider.Provider,
-		Alias:    is.Current.InstanceProvider.Alias,
+		Provider: is.InstanceProvider.Provider,
+		Alias:    is.InstanceProvider.Alias,
 		Module:   addrs.RootModule,
 	}
 

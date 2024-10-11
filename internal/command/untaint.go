@@ -186,7 +186,7 @@ func (c *UntaintCommand) Run(args []string) int {
 	}
 
 	obj.Status = states.ObjectReady
-	ss.SetResourceInstanceCurrent(addr, obj, is.Current.InstanceProvider)
+	ss.SetResourceInstanceCurrent(addr, obj, is.InstanceProvider)
 
 	if err := stateMgr.WriteState(state); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))

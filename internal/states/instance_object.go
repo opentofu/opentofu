@@ -49,11 +49,6 @@ type ResourceInstanceObject struct {
 	// destroy operations, we need to record the status to ensure a resource
 	// removed from the config will still be destroyed in the same manner.
 	CreateBeforeDestroy bool
-
-	// InstanceProvider, if set, this instance has a specific provider different
-	// from the whole resource's provider. Happens in cases when we have a
-	// for_each or count in provider reference of the resource / module
-	InstanceProvider addrs.AbsProviderConfig
 }
 
 // ObjectStatus represents the status of a RemoteObject.
@@ -140,7 +135,6 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 		Status:              o.Status,
 		Dependencies:        dependencies,
 		CreateBeforeDestroy: o.CreateBeforeDestroy,
-		InstanceProvider:    o.InstanceProvider,
 	}, nil
 }
 

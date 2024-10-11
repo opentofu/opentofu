@@ -850,7 +850,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				newIS := newState.ResourceInstance(addr)
 
 				schema, _ := schemas.ResourceTypeConfig(
-					oldIS.Current.InstanceProvider.Provider,
+					oldIS.InstanceProvider.Provider,
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
@@ -923,7 +923,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				change := &plans.ResourceInstanceChange{
 					Addr:         addr,
 					PrevRunAddr:  prevRunAddr,
-					ProviderAddr: oldIS.Current.InstanceProvider,
+					ProviderAddr: oldIS.InstanceProvider,
 					Change: plans.Change{
 						Action: action,
 						Before: oldVal,
