@@ -308,7 +308,9 @@ func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourc
 }
 
 func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
-	var result ProvidedBy
+	result := ProvidedBy{
+		Relative: make(map[addrs.InstanceKey]addrs.AbsProviderConfig),
+	}
 
 	// Make sure orphans are properly accounted for
 	// TODO this could introduce some funkiness in the
@@ -329,7 +331,6 @@ func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
 		if n.Config.ProviderConfigRef == nil {
-			result.Relative = make(map[addrs.InstanceKey]addrs.AbsProviderConfig)
 
 			// If no specific "provider" argument is given, we want to look up the
 			// provider config where the local name matches the implied provider
