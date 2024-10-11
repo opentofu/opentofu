@@ -814,10 +814,10 @@ func (c *Config) ProviderTypes() []addrs.Provider {
 // The module address to resolve local addresses in must be given in the second
 // argument, and must refer to a module that exists under the receiver or
 // else this method will panic.
-func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderConfig, inModule addrs.Module) addrs.AbsProviderConfig {
+func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderConfig, inModule addrs.Module) addrs.ConfigProviderInstance {
 	switch addr := addr.(type) {
 
-	case addrs.AbsProviderConfig:
+	case addrs.ConfigProviderInstance:
 		return addr
 
 	case addrs.LocalProviderConfig:
@@ -835,7 +835,7 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderConfig, inModule addr
 			provider = addrs.ImpliedProviderForUnqualifiedType(addr.LocalName)
 		}
 
-		return addrs.AbsProviderConfig{
+		return addrs.ConfigProviderInstance{
 			Module:   inModule,
 			Provider: provider,
 			Alias:    addr.Alias,

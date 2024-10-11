@@ -127,7 +127,7 @@ func (ctx *BuiltinEvalContext) Input() UIInput {
 	return ctx.InputValue
 }
 
-func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
+func (ctx *BuiltinEvalContext) InitProvider(addr addrs.ConfigProviderInstance) (providers.Interface, error) {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
@@ -161,18 +161,18 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 	return p, nil
 }
 
-func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.Interface {
+func (ctx *BuiltinEvalContext) Provider(addr addrs.ConfigProviderInstance) providers.Interface {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
 	return ctx.ProviderCache[addr.String()]
 }
 
-func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
+func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.ConfigProviderInstance) (providers.ProviderSchema, error) {
 	return ctx.Plugins.ProviderSchema(addr.Provider)
 }
 
-func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
+func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.ConfigProviderInstance) error {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
@@ -186,7 +186,7 @@ func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error
 	return nil
 }
 
-func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, cfg cty.Value) tfdiags.Diagnostics {
+func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.ConfigProviderInstance, cfg cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if !addr.Module.Equal(ctx.Path().Module()) {
 		// This indicates incorrect use of ConfigureProvider: it should be used
@@ -209,7 +209,7 @@ func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, c
 	return resp.Diagnostics
 }
 
-func (ctx *BuiltinEvalContext) ProviderInput(pc addrs.AbsProviderConfig) map[string]cty.Value {
+func (ctx *BuiltinEvalContext) ProviderInput(pc addrs.ConfigProviderInstance) map[string]cty.Value {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
@@ -227,7 +227,7 @@ func (ctx *BuiltinEvalContext) ProviderInput(pc addrs.AbsProviderConfig) map[str
 	return ctx.ProviderInputConfig[pc.String()]
 }
 
-func (ctx *BuiltinEvalContext) SetProviderInput(pc addrs.AbsProviderConfig, c map[string]cty.Value) {
+func (ctx *BuiltinEvalContext) SetProviderInput(pc addrs.ConfigProviderInstance, c map[string]cty.Value) {
 	absProvider := pc
 	if !pc.Module.IsRoot() {
 		// Only root module provider configurations can have input.

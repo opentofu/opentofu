@@ -90,7 +90,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			}
 		}
 
-		providerAddr, addrDiags := addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
+		providerAddr, addrDiags := addrs.ParseConfigProviderInstanceStr(rsV4.ProviderConfig)
 		diags.Append(addrDiags)
 		if addrDiags.HasErrors() {
 			// If ParseAbsProviderConfigStr returns an error, the state may have
@@ -99,7 +99,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			// we treat it like a legacy provider (namespace "-") and let the
 			// provider installer handle detecting the FQN.
 			var legacyAddrDiags tfdiags.Diagnostics
-			providerAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
+			providerAddr, legacyAddrDiags = addrs.ParseLegacyConfigProviderInstanceStr(rsV4.ProviderConfig)
 			if legacyAddrDiags.HasErrors() {
 				continue
 			}

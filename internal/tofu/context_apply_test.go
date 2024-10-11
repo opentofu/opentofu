@@ -1428,7 +1428,7 @@ func TestContext2Apply_destroyDependsOnStateOnly(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"foo"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
@@ -1453,7 +1453,7 @@ func TestContext2Apply_destroyDependsOnStateOnly(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
@@ -1522,7 +1522,7 @@ func TestContext2Apply_destroyDependsOnStateOnlyModule(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"foo"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
@@ -1547,7 +1547,7 @@ func TestContext2Apply_destroyDependsOnStateOnlyModule(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
@@ -2774,7 +2774,7 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 	// At this point both resources should be recorded in the state, along
 	// with the single instance associated with test_thing.one.
 	want := states.BuildState(func(s *states.SyncState) {
-		providerAddr := addrs.AbsProviderConfig{
+		providerAddr := addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		}
@@ -6387,7 +6387,7 @@ func TestContext2Apply_errorDestroy(t *testing.T) {
 				Status:    states.ObjectReady,
 				AttrsJSON: []byte(`{"id":"baz"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -6519,7 +6519,7 @@ func TestContext2Apply_errorUpdateNullNew(t *testing.T) {
 				Status:    states.ObjectReady,
 				AttrsJSON: []byte(`{"value":"old"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
@@ -7869,7 +7869,7 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","require_new":"ami-old"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
@@ -7895,7 +7895,7 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
@@ -7997,7 +7997,7 @@ func TestContext2Apply_singleDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","require_new":"ami-old"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
@@ -8023,7 +8023,7 @@ func TestContext2Apply_singleDestroy(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
@@ -9336,7 +9336,7 @@ func TestContext2Apply_issue19908(t *testing.T) {
 				AttrsJSON: []byte(`{"baz":"old"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -9453,7 +9453,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 				AttrsJSON:           []byte(`{"id":"a","require_new":"old"}`),
 				CreateBeforeDestroy: mode == "cbd",
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
@@ -9470,7 +9470,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 				Status:    states.ObjectReady,
 				AttrsJSON: []byte(`{"id":"b","require_new":"old"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
@@ -9519,7 +9519,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 						Type: "aws_instance",
 						Name: "a",
 					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance.Child("a", addrs.NoKey)),
-					ProviderAddr: addrs.AbsProviderConfig{
+					ProviderAddr: addrs.ConfigProviderInstance{
 						Provider: addrs.NewDefaultProvider("aws"),
 						Module:   addrs.RootModule,
 					},
@@ -9535,7 +9535,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 						Type: "aws_instance",
 						Name: "b",
 					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance.Child("b", addrs.NoKey)),
-					ProviderAddr: addrs.AbsProviderConfig{
+					ProviderAddr: addrs.ConfigProviderInstance{
 						Provider: addrs.NewDefaultProvider("aws"),
 						Module:   addrs.RootModule,
 					},
@@ -9592,7 +9592,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"a"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("null"),
 			Module:   addrs.RootModule,
 		},
@@ -9617,7 +9617,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -9632,7 +9632,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"old"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("null"),
 			Module:   addrs.RootModule,
 		},
@@ -9739,7 +9739,7 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"a","foo":"a"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -9754,7 +9754,7 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"b","foo":"b"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -9769,7 +9769,7 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"c","foo":"old"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -9944,7 +9944,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -9969,7 +9969,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -9984,7 +9984,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"c","require_new":"old"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.ConfigProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -12161,7 +12161,7 @@ resource "test_resource" "foo" {
 				AttrsJSON: []byte(`{"id":"foo", "value":"hello"}`),
 				// No AttrSensitivePaths present
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},

@@ -29,7 +29,7 @@ func TestStateReplaceProvider(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"alpha","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
@@ -44,7 +44,7 @@ func TestStateReplaceProvider(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"beta","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
@@ -59,7 +59,7 @@ func TestStateReplaceProvider(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"gamma","baz":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewLegacyProvider("azurerm"),
 				Module:   addrs.RootModule,
 			},
@@ -316,7 +316,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"alpha","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
@@ -331,7 +331,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"beta","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
@@ -346,7 +346,7 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"gamma","baz":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewLegacyProvider("azurerm"),
 				Module:   addrs.RootModule,
 			},

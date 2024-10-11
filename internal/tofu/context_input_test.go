@@ -442,7 +442,7 @@ func TestContext2Input_dataSourceRequiresRefresh(t *testing.T) {
 				},
 				Status: states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("null"),
 				Module:   addrs.RootModule,
 			},

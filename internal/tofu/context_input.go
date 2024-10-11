@@ -178,7 +178,7 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 				vals[key] = cty.StringVal(rawVal)
 			}
 
-			absConfigAddr := addrs.AbsProviderConfig{
+			absConfigAddr := addrs.ConfigProviderInstance{
 				Provider: providerFqn,
 				Alias:    pa.Alias,
 				Module:   config.Path,

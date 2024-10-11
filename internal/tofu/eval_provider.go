@@ -18,7 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 )
 
-func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *configs.Provider) hcl.Body {
+func buildProviderConfig(ctx EvalContext, addr addrs.ConfigProviderInstance, config *configs.Provider) hcl.Body {
 	var configBody hcl.Body
 	if config != nil {
 		configBody = config.Config
@@ -48,7 +48,7 @@ func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *
 }
 
 // getProvider returns the providers.Interface and schema for a given provider.
-func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
+func getProvider(ctx EvalContext, addr addrs.ConfigProviderInstance) (providers.Interface, providers.ProviderSchema, error) {
 	if addr.Provider.Type == "" {
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")

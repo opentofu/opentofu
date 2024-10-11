@@ -111,12 +111,12 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				// we encounter for each resource. While this is lossy in
 				// theory, in practice there is no reason for these values to
 				// differ between instances.
-				var providerAddr addrs.AbsProviderConfig
+				var providerAddr addrs.ConfigProviderInstance
 				oldProviderAddr := rsOld.Provider
 				if strings.Contains(oldProviderAddr, "provider.") {
 					// Smells like a new-style provider address, but we'll test it.
 					var diags tfdiags.Diagnostics
-					providerAddr, diags = addrs.ParseLegacyAbsProviderConfigStr(oldProviderAddr)
+					providerAddr, diags = addrs.ParseLegacyConfigProviderInstanceStr(oldProviderAddr)
 					if diags.HasErrors() {
 						if strings.Contains(oldProviderAddr, "${") {
 							// There seems to be a common misconception that
@@ -157,7 +157,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 							}
 							return nil, fmt.Errorf("invalid legacy provider config reference %q for %s: %w", oldProviderAddr, instAddr, diags.Err())
 						}
-						providerAddr = addrs.AbsProviderConfig{
+						providerAddr = addrs.ConfigProviderInstance{
 							Module: moduleAddr.Module(),
 							// We use NewLegacyProvider here so we can use
 							// LegacyString() below to get the appropriate
@@ -166,7 +166,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 							Alias:    localAddr.Alias,
 						}
 					} else {
-						providerAddr = addrs.AbsProviderConfig{
+						providerAddr = addrs.ConfigProviderInstance{
 							Module: moduleAddr.Module(),
 							// We use NewLegacyProvider here so we can use
 							// LegacyString() below to get the appropriate

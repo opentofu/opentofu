@@ -70,7 +70,7 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Type: "test_thing",
 						Name: "woot",
 					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.AbsProviderConfig{
+					ProviderAddr: addrs.ConfigProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -113,7 +113,7 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Name: "woot",
 					}.Instance(addrs.IntKey(1)).Absolute(addrs.RootModuleInstance),
 					DeposedKey: "foodface",
-					ProviderAddr: addrs.AbsProviderConfig{
+					ProviderAddr: addrs.ConfigProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -135,7 +135,7 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Type: "test_thing",
 						Name: "forget",
 					}.Instance(addrs.IntKey(1)).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.AbsProviderConfig{
+					ProviderAddr: addrs.ConfigProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -157,7 +157,7 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Type: "test_thing",
 						Name: "importing",
 					}.Instance(addrs.IntKey(1)).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.AbsProviderConfig{
+					ProviderAddr: addrs.ConfigProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -187,7 +187,7 @@ func TestTFPlanRoundTrip(t *testing.T) {
 					Type: "test_thing",
 					Name: "woot",
 				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-				ProviderAddr: addrs.AbsProviderConfig{
+				ProviderAddr: addrs.ConfigProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},
@@ -374,7 +374,7 @@ func TestTFPlanRoundTripDestroy(t *testing.T) {
 						Type: "test_thing",
 						Name: "woot",
 					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.AbsProviderConfig{
+					ProviderAddr: addrs.ConfigProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},

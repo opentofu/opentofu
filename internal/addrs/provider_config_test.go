@@ -18,12 +18,12 @@ import (
 func TestParseAbsProviderConfig(t *testing.T) {
 	tests := []struct {
 		Input    string
-		Want     AbsProviderConfig
+		Want     ConfigProviderInstance
 		WantDiag string
 	}{
 		{
 			`provider["registry.opentofu.org/hashicorp/aws"]`,
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module: RootModule,
 				Provider: Provider{
 					Type:      "aws",
@@ -35,7 +35,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 		},
 		{
 			`provider["registry.opentofu.org/hashicorp/aws"].foo`,
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module: RootModule,
 				Provider: Provider{
 					Type:      "aws",
@@ -48,7 +48,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 		},
 		{
 			`module.baz.provider["registry.opentofu.org/hashicorp/aws"]`,
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module: Module{"baz"},
 				Provider: Provider{
 					Type:      "aws",
@@ -60,7 +60,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 		},
 		{
 			`module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo`,
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module: Module{"baz"},
 				Provider: Provider{
 					Type:      "aws",
@@ -73,52 +73,52 @@ func TestParseAbsProviderConfig(t *testing.T) {
 		},
 		{
 			`module.baz["foo"].provider["registry.opentofu.org/hashicorp/aws"]`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Provider address cannot contain module indexes`,
 		},
 		{
 			`module.baz[1].provider["registry.opentofu.org/hashicorp/aws"]`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Provider address cannot contain module indexes`,
 		},
 		{
 			`module.baz[1].module.bar.provider["registry.opentofu.org/hashicorp/aws"]`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Provider address cannot contain module indexes`,
 		},
 		{
 			`aws`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
 			`aws.foo`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
 			`provider`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
 			`provider.aws.foo.bar`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Extraneous operators after provider configuration alias.`,
 		},
 		{
 			`provider["aws"]["foo"]`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Provider type name must be followed by a configuration alias name.`,
 		},
 		{
 			`module.foo`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
 			`provider[0]`,
-			AbsProviderConfig{},
+			ConfigProviderInstance{},
 			`The prefix "provider." must be followed by a provider type name.`,
 		},
 	}
@@ -134,7 +134,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 				return
 			}
 
-			got, diags := ParseAbsProviderConfig(traversal)
+			got, diags := ParseConfigProviderInstance(traversal)
 
 			if test.WantDiag != "" {
 				if len(diags) != 1 {
@@ -160,25 +160,25 @@ func TestParseAbsProviderConfig(t *testing.T) {
 
 func TestAbsProviderConfigString(t *testing.T) {
 	tests := []struct {
-		Config AbsProviderConfig
+		Config ConfigProviderInstance
 		Want   string
 	}{
 		{
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule,
 				Provider: NewLegacyProvider("foo"),
 			},
 			`provider["registry.opentofu.org/-/foo"]`,
 		},
 		{
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule.Child("child_module"),
 				Provider: NewDefaultProvider("foo"),
 			},
 			`module.child_module.provider["registry.opentofu.org/hashicorp/foo"]`,
 		},
 		{
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule,
 				Alias:    "bar",
 				Provider: NewDefaultProvider("foo"),
@@ -186,7 +186,7 @@ func TestAbsProviderConfigString(t *testing.T) {
 			`provider["registry.opentofu.org/hashicorp/foo"].bar`,
 		},
 		{
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule.Child("child_module"),
 				Alias:    "bar",
 				Provider: NewDefaultProvider("foo"),
@@ -205,25 +205,25 @@ func TestAbsProviderConfigString(t *testing.T) {
 
 func TestAbsProviderConfigLegacyString(t *testing.T) {
 	tests := []struct {
-		Config AbsProviderConfig
+		Config ConfigProviderInstance
 		Want   string
 	}{
 		{
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule,
 				Provider: NewLegacyProvider("foo"),
 			},
 			`provider.foo`,
 		},
 		{
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule.Child("child_module"),
 				Provider: NewLegacyProvider("foo"),
 			},
 			`module.child_module.provider.foo`,
 		},
 		{
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule,
 				Alias:    "bar",
 				Provider: NewLegacyProvider("foo"),
@@ -231,7 +231,7 @@ func TestAbsProviderConfigLegacyString(t *testing.T) {
 			`provider.foo.bar`,
 		},
 		{
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule.Child("child_module"),
 				Alias:    "bar",
 				Provider: NewLegacyProvider("foo"),
@@ -251,25 +251,25 @@ func TestAbsProviderConfigLegacyString(t *testing.T) {
 func TestParseLegacyAbsProviderConfigStr(t *testing.T) {
 	tests := []struct {
 		Config string
-		Want   AbsProviderConfig
+		Want   ConfigProviderInstance
 	}{
 		{
 			`provider.foo`,
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule,
 				Provider: NewLegacyProvider("foo"),
 			},
 		},
 		{
 			`module.child_module.provider.foo`,
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule.Child("child_module"),
 				Provider: NewLegacyProvider("foo"),
 			},
 		},
 		{
 			`provider.terraform`,
-			AbsProviderConfig{
+			ConfigProviderInstance{
 				Module:   RootModule,
 				Provider: NewBuiltInProvider("terraform"),
 			},
@@ -277,7 +277,7 @@ func TestParseLegacyAbsProviderConfigStr(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		got, _ := ParseLegacyAbsProviderConfigStr(test.Config)
+		got, _ := ParseLegacyConfigProviderInstanceStr(test.Config)
 		if !reflect.DeepEqual(got, test.Want) {
 			t.Errorf("wrong result. Got %s, want %s\n", got, test.Want)
 		}

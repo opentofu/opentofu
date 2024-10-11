@@ -111,7 +111,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		}
 	}()
 
-	providerSupplier := func(addr addrs.AbsProviderConfig) providers.Interface {
+	providerSupplier := func(addr addrs.ConfigProviderInstance) providers.Interface {
 		providerInstanceLock.Lock()
 		defer providerInstanceLock.Unlock()
 

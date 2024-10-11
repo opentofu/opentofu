@@ -88,7 +88,7 @@ func TestImpliedMoveStatements(t *testing.T) {
 	instObjState := func() *states.ResourceInstanceObjectSrc {
 		return &states.ResourceInstanceObjectSrc{}
 	}
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.ConfigProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.MustParseProviderSourceString("hashicorp/foo"),
 	}

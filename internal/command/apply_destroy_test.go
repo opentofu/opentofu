@@ -39,7 +39,7 @@ func TestApply_destroy(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -144,7 +144,7 @@ func TestApply_destroyApproveNo(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -212,7 +212,7 @@ func TestApply_destroyApproveYes(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -282,7 +282,7 @@ func TestApply_destroyLockedState(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -406,7 +406,7 @@ func TestApply_destroyTargetedDependencies(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"i-ab123"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -422,7 +422,7 @@ func TestApply_destroyTargetedDependencies(t *testing.T) {
 				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
 				Status:       states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -540,7 +540,7 @@ func TestApply_destroyTargeted(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"i-ab123"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -556,7 +556,7 @@ func TestApply_destroyTargeted(t *testing.T) {
 				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
 				Status:       states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -573,7 +573,7 @@ func TestApply_destroyTargeted(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"i-ab123"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},

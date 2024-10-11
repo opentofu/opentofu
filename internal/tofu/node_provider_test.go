@@ -43,7 +43,7 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		},
 	}
 	provider := mockProviderWithConfigSchema(schema)
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.ConfigProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -93,7 +93,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		},
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.ConfigProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -130,7 +130,7 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 		},
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.ConfigProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -168,7 +168,7 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 		},
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.ConfigProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -207,7 +207,7 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 		},
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.ConfigProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -251,7 +251,7 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 			},
 		},
 	})
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.ConfigProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -451,7 +451,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 	//
 	// This is an unlikely but real situation that occurs:
 	// https://github.com/hashicorp/terraform/issues/23087
-	ctx.ConfigureProviderFn = func(addr addrs.AbsProviderConfig, cfg cty.Value) (diags tfdiags.Diagnostics) {
+	ctx.ConfigureProviderFn = func(addr addrs.ConfigProviderInstance, cfg cty.Value) (diags tfdiags.Diagnostics) {
 		if cfg.IsNull() {
 			diags = diags.Append(fmt.Errorf("no config provided"))
 		} else {

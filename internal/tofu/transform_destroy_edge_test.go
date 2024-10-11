@@ -336,7 +336,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 	}
 
 	resourceInstAddr := mustResourceInstanceAddr("test.a")
-	providerCfgAddr := addrs.AbsProviderConfig{
+	providerCfgAddr := addrs.ConfigProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.MustParseProviderSourceString("foo/test"),
 	}

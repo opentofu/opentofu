@@ -87,7 +87,7 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 	}
 
 	t.Run("already absolute", func(t *testing.T) {
-		addr := addrs.AbsProviderConfig{
+		addr := addrs.ConfigProviderInstance{
 			Module:   addrs.RootModule,
 			Provider: addrs.NewDefaultProvider("test"),
 			Alias:    "boop",
@@ -103,7 +103,7 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 			Alias:     "boop",
 		}
 		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModule)
-		want := addrs.AbsProviderConfig{
+		want := addrs.ConfigProviderInstance{
 			Module:   addrs.RootModule,
 			Provider: addrs.NewDefaultProvider("implied"),
 			Alias:    "boop",
@@ -118,7 +118,7 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 			Alias:     "boop",
 		}
 		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModule)
-		want := addrs.AbsProviderConfig{
+		want := addrs.ConfigProviderInstance{
 			Module:   addrs.RootModule,
 			Provider: addrs.NewProvider(addrs.DefaultProviderRegistryHost, "foo", "test"),
 			Alias:    "boop",

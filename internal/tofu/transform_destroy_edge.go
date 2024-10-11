@@ -107,7 +107,7 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 		// clue that the providers may differ.
 		p, _ := pc.ProvidedBy()
 		switch p := p.(type) {
-		case addrs.AbsProviderConfig:
+		case addrs.ConfigProviderInstance:
 			ps = p.String()
 		case addrs.LocalProviderConfig:
 			ps = p.String()

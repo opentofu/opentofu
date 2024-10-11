@@ -322,12 +322,12 @@ func (s *State) LocalValue(addr addrs.AbsLocalValue) cty.Value {
 // referenced throughout the receiving state.
 //
 // The result is de-duplicated so that each distinct address appears only once.
-func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
+func (s *State) ProviderAddrs() []addrs.ConfigProviderInstance {
 	if s == nil {
 		return nil
 	}
 
-	m := map[string]addrs.AbsProviderConfig{}
+	m := map[string]addrs.ConfigProviderInstance{}
 	for _, ms := range s.Modules {
 		for _, rc := range ms.Resources {
 			m[rc.ProviderConfig.String()] = rc.ProviderConfig
@@ -344,7 +344,7 @@ func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
 	}
 	sort.Strings(keys)
 
-	ret := make([]addrs.AbsProviderConfig, len(keys))
+	ret := make([]addrs.ConfigProviderInstance, len(keys))
 	for i, key := range keys {
 		ret[i] = m[key]
 	}

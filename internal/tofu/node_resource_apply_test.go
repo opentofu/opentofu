@@ -53,7 +53,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 					Type: "test_instance",
 					Name: "foo",
 				},
-				ResolvedProvider: addrs.AbsProviderConfig{
+				ResolvedProvider: addrs.ConfigProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},

@@ -21,7 +21,7 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 	tests := []struct {
 		Addr                 addrs.AbsResourceInstance
 		Config               *configs.Resource
-		StoredProviderConfig addrs.AbsProviderConfig
+		StoredProviderConfig addrs.ConfigProviderInstance
 		Want                 addrs.Provider
 	}{
 		{
@@ -101,7 +101,7 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 				Name: "baz",
 			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 			Config: nil,
-			StoredProviderConfig: addrs.AbsProviderConfig{
+			StoredProviderConfig: addrs.ConfigProviderInstance{
 				Module: addrs.RootModule,
 				Provider: addrs.Provider{
 					Hostname:  addrs.DefaultProviderRegistryHost,

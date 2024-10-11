@@ -1534,17 +1534,17 @@ func (s *ResourceState) Untaint() {
 // ProviderAddr returns the provider address for the receiver, by parsing the
 // string representation saved in state. An error can be returned if the
 // value in state is corrupt.
-func (s *ResourceState) ProviderAddr() (addrs.AbsProviderConfig, error) {
+func (s *ResourceState) ProviderAddr() (addrs.ConfigProviderInstance, error) {
 	var diags tfdiags.Diagnostics
 
 	str := s.Provider
 	traversal, travDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(travDiags)
 	if travDiags.HasErrors() {
-		return addrs.AbsProviderConfig{}, diags.Err()
+		return addrs.ConfigProviderInstance{}, diags.Err()
 	}
 
-	addr, addrDiags := addrs.ParseAbsProviderConfig(traversal)
+	addr, addrDiags := addrs.ParseConfigProviderInstance(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags.Err()
 }

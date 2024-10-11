@@ -227,8 +227,8 @@ func mustAbsResourceAddr(s string) addrs.AbsResource {
 	return addr
 }
 
-func mustProviderConfig(s string) addrs.AbsProviderConfig {
-	p, diags := addrs.ParseAbsProviderConfigStr(s)
+func mustProviderConfig(s string) addrs.ConfigProviderInstance {
+	p, diags := addrs.ParseConfigProviderInstanceStr(s)
 	if diags.HasErrors() {
 		panic(diags.Err())
 	}

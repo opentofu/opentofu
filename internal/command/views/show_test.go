@@ -229,7 +229,7 @@ func testState() *states.State {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.ConfigProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},

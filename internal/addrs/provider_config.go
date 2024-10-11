@@ -17,25 +17,26 @@ import (
 )
 
 // ProviderConfig is an interface type whose dynamic type can be either
-// LocalProviderConfig or AbsProviderConfig, in order to represent situations
-// where a value might either be module-local or absolute but the decision
-// cannot be made until runtime.
+// LocalProviderConfig or ConfigProviderInstance, in order to represent
+// situations where a value might either be module-local or absolute but the
+// decision cannot be made until runtime.
 //
-// Where possible, use either LocalProviderConfig or AbsProviderConfig directly
-// instead, to make intent more clear. ProviderConfig can be used only in
-// situations where the recipient of the value has some out-of-band way to
+// Where possible, use either LocalProviderConfig or ConfigProviderInstance
+// directly instead, to make intent more clear. ProviderConfig can be used only
+// in situations where the recipient of the value has some out-of-band way to
 // determine a "current module" to use if the value turns out to be
 // a LocalProviderConfig.
 //
 // Recipients of non-nil ProviderConfig values that actually need
-// AbsProviderConfig values should call ResolveAbsProviderAddr on the
+// ConfigProviderInstance values should call ResolveAbsProviderAddr on the
 // *configs.Config value representing the root module configuration, which
 // handles the translation from local to fully-qualified using mapping tables
 // defined in the configuration.
 //
 // Recipients of a ProviderConfig value can assume it can contain only a
-// LocalProviderConfig value, an AbsProviderConfigValue, or nil to represent
-// the absence of a provider config in situations where that is meaningful.
+// LocalProviderConfig value, an ConfigProviderInstance value, or nil to
+// represent the absence of a provider config in situations where that is
+// meaningful.
 type ProviderConfig interface {
 	providerConfig()
 }
@@ -43,7 +44,7 @@ type ProviderConfig interface {
 // LocalProviderConfig is the address of a provider configuration from the
 // perspective of references in a particular module.
 //
-// Finding the corresponding AbsProviderConfig will require looking up the
+// Finding the corresponding ConfigProviderInstance will require looking up the
 // LocalName in the providers table in the module's configuration; there is
 // no syntax-only translation between these types.
 type LocalProviderConfig struct {
@@ -89,19 +90,24 @@ func (pc LocalProviderConfig) StringCompact() string {
 	return pc.LocalName
 }
 
-// AbsProviderConfig is the absolute address of a provider configuration
-// within a particular module instance.
-type AbsProviderConfig struct {
+// ConfigProviderInstance is the address of a provider block in the configuration,
+// before any module expansion although already including a statically-configured
+// "alias".
+//
+// In earlier versions this was called "AbsProviderConfig", but that was a misnomer
+// because the "Abs..." prefix is for addresses that include a [ModuleInstance],
+// not those that include a [Module].
+type ConfigProviderInstance struct {
 	Module   Module
 	Provider Provider
 	Alias    string
 }
 
-var _ ProviderConfig = AbsProviderConfig{}
+var _ ProviderConfig = ConfigProviderInstance{}
 
-// ParseAbsProviderConfig parses the given traversal as an absolute provider
-// configuration address. The following are examples of traversals that can be
-// successfully parsed as absolute provider configuration addresses:
+// ParseConfigProviderInstance parses the given traversal as a module-path-sensitive
+// provider configuration address. The following are examples of traversals that can be
+// successfully parsed as provider configuration addresses using this function:
 //
 //   - provider["registry.opentofu.org/hashicorp/aws"]
 //   - provider["registry.opentofu.org/hashicorp/aws"].foo
@@ -112,9 +118,9 @@ var _ ProviderConfig = AbsProviderConfig{}
 // between resources and provider configurations in the state structure.
 // This type of address is typically not used prominently in the UI, except in
 // error messages that refer to provider configurations.
-func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags.Diagnostics) {
+func ParseConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderInstance, tfdiags.Diagnostics) {
 	modInst, remain, diags := parseModuleInstancePrefix(traversal)
-	var ret AbsProviderConfig
+	var ret ConfigProviderInstance
 
 	// Providers cannot resolve within module instances, so verify that there
 	// are no instance keys in the module path before converting to a Module.
@@ -193,7 +199,7 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 	return ret, diags
 }
 
-// ParseAbsProviderConfigStr is a helper wrapper around ParseAbsProviderConfig
+// ParseConfigProviderInstanceStr is a helper wrapper around ParseConfigProviderInstance
 // that takes a string and parses it with the HCL native syntax traversal parser
 // before interpreting it.
 //
@@ -202,39 +208,39 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 // If a reference string is coming from a source that should be identified in
 // error messages then the caller should instead parse it directly using a
 // suitable function from the HCL API and pass the traversal itself to
-// ParseAbsProviderConfig.
+// ParseConfigProviderInstance.
 //
 // Error diagnostics are returned if either the parsing fails or the analysis
 // of the traversal fails. There is no way for the caller to distinguish the
 // two kinds of diagnostics programmatically. If error diagnostics are returned
 // the returned address is invalid.
-func ParseAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Diagnostics) {
+func ParseConfigProviderInstanceStr(str string) (ConfigProviderInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(parseDiags)
 	if parseDiags.HasErrors() {
-		return AbsProviderConfig{}, diags
+		return ConfigProviderInstance{}, diags
 	}
-	addr, addrDiags := ParseAbsProviderConfig(traversal)
+	addr, addrDiags := ParseConfigProviderInstance(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags
 }
 
-func ParseLegacyAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Diagnostics) {
+func ParseLegacyConfigProviderInstanceStr(str string) (ConfigProviderInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(parseDiags)
 	if parseDiags.HasErrors() {
-		return AbsProviderConfig{}, diags
+		return ConfigProviderInstance{}, diags
 	}
 
-	addr, addrDiags := ParseLegacyAbsProviderConfig(traversal)
+	addr, addrDiags := ParseLegacyConfigProviderInstance(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags
 }
 
-// ParseLegacyAbsProviderConfig parses the given traversal as an absolute
+// ParseLegacyConfigProviderInstance parses the given traversal as an absolute
 // provider address in the legacy form used by OpenTofu v0.12 and earlier.
 // The following are examples of traversals that can be successfully parsed as
 // legacy absolute provider configuration addresses:
@@ -251,9 +257,9 @@ func ParseLegacyAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Dia
 // in that case.
 //
 // We will not use this address form for any new file formats.
-func ParseLegacyAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags.Diagnostics) {
+func ParseLegacyConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderInstance, tfdiags.Diagnostics) {
 	modInst, remain, diags := parseModuleInstancePrefix(traversal)
-	var ret AbsProviderConfig
+	var ret ConfigProviderInstance
 
 	// Providers cannot resolve within module instances, so verify that there
 	// are no instance keys in the module path before converting to a Module.
@@ -326,8 +332,8 @@ func ParseLegacyAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, t
 
 // ProviderConfigDefault returns the address of the default provider config of
 // the given type inside the receiving module instance.
-func (m ModuleInstance) ProviderConfigDefault(provider Provider) AbsProviderConfig {
-	return AbsProviderConfig{
+func (m ModuleInstance) ProviderConfigDefault(provider Provider) ConfigProviderInstance {
+	return ConfigProviderInstance{
 		Module:   m.Module(),
 		Provider: provider,
 	}
@@ -335,8 +341,8 @@ func (m ModuleInstance) ProviderConfigDefault(provider Provider) AbsProviderConf
 
 // ProviderConfigAliased returns the address of an aliased provider config of
 // the given type and alias inside the receiving module instance.
-func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) AbsProviderConfig {
-	return AbsProviderConfig{
+func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) ConfigProviderInstance {
+	return ConfigProviderInstance{
 		Module:   m.Module(),
 		Provider: provider,
 		Alias:    alias,
@@ -344,7 +350,7 @@ func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) A
 }
 
 // providerConfig Implements addrs.ProviderConfig.
-func (pc AbsProviderConfig) providerConfig() {}
+func (pc ConfigProviderInstance) providerConfig() {}
 
 // Inherited returns an address that the receiving configuration address might
 // inherit from in a parent module. The second bool return value indicates if
@@ -357,29 +363,29 @@ func (pc AbsProviderConfig) providerConfig() {}
 // The ProviderTransformer graph transform in the main tofu module has the
 // authoritative logic for provider inheritance, and this method is here mainly
 // just for its benefit.
-func (pc AbsProviderConfig) Inherited() (AbsProviderConfig, bool) {
+func (pc ConfigProviderInstance) Inherited() (ConfigProviderInstance, bool) {
 	// Can't inherit if we're already in the root.
 	if len(pc.Module) == 0 {
-		return AbsProviderConfig{}, false
+		return ConfigProviderInstance{}, false
 	}
 
 	// Can't inherit if we have an alias.
 	if pc.Alias != "" {
-		return AbsProviderConfig{}, false
+		return ConfigProviderInstance{}, false
 	}
 
 	// Otherwise, we might inherit from a configuration with the same
 	// provider type in the parent module instance.
 	parentMod := pc.Module.Parent()
-	return AbsProviderConfig{
+	return ConfigProviderInstance{
 		Module:   parentMod,
 		Provider: pc.Provider,
 	}, true
 
 }
 
-// LegacyString() returns a legacy-style AbsProviderConfig string and should only be used for legacy state shimming.
-func (pc AbsProviderConfig) LegacyString() string {
+// LegacyString() returns a legacy-style ConfigProviderInstance string and should only be used for legacy state shimming.
+func (pc ConfigProviderInstance) LegacyString() string {
 	if pc.Alias != "" {
 		if len(pc.Module) == 0 {
 			return fmt.Sprintf("%s.%s.%s", "provider", pc.Provider.LegacyString(), pc.Alias)
@@ -393,13 +399,13 @@ func (pc AbsProviderConfig) LegacyString() string {
 	return fmt.Sprintf("%s.%s.%s", pc.Module.String(), "provider", pc.Provider.LegacyString())
 }
 
-// String() returns a string representation of an AbsProviderConfig in a format like the following examples:
+// String() returns a string representation of a ConfigProviderInstance in a format like the following examples:
 //
 //   - provider["example.com/namespace/name"]
 //   - provider["example.com/namespace/name"].alias
 //   - module.module-name.provider["example.com/namespace/name"]
 //   - module.module-name.provider["example.com/namespace/name"].alias
-func (pc AbsProviderConfig) String() string {
+func (pc ConfigProviderInstance) String() string {
 	var parts []string
 	if len(pc.Module) > 0 {
 		parts = append(parts, pc.Module.String())

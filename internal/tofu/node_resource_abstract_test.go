@@ -158,7 +158,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	}
 
 	// now set a resolved provider for the resource
-	resolved := addrs.AbsProviderConfig{
+	resolved := addrs.ConfigProviderInstance{
 		Provider: addrs.Provider{
 			Hostname:  addrs.DefaultProviderRegistryHost,
 			Namespace: "awesomecorp",
@@ -174,7 +174,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		t.Fatalf("exact provider should be found, got %q\n", p)
 	}
 
-	apc, ok := p.(addrs.AbsProviderConfig)
+	apc, ok := p.(addrs.ConfigProviderInstance)
 	if !ok {
 		t.Fatalf("expected AbsProviderConfig, got %#v\n", p)
 	}
@@ -204,7 +204,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 	}{
 		"ReadState gets primary instance state": {
 			State: states.BuildState(func(s *states.SyncState) {
-				providerAddr := addrs.AbsProviderConfig{
+				providerAddr := addrs.ConfigProviderInstance{
 					Provider: addrs.NewDefaultProvider("aws"),
 					Module:   addrs.RootModule,
 				}
@@ -270,7 +270,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 	}{
 		"ReadStateDeposed gets deposed instance": {
 			State: states.BuildState(func(s *states.SyncState) {
-				providerAddr := addrs.AbsProviderConfig{
+				providerAddr := addrs.ConfigProviderInstance{
 					Provider: addrs.NewDefaultProvider("aws"),
 					Module:   addrs.RootModule,
 				}

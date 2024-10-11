@@ -18,10 +18,10 @@ import (
 )
 
 type graphNodeImportState struct {
-	Addr             addrs.AbsResourceInstance // Addr is the resource address to import into
-	ID               string                    // ID is the ID to import as
-	ProviderAddr     addrs.AbsProviderConfig   // Provider address given by the user, or implied by the resource type
-	ResolvedProvider addrs.AbsProviderConfig   // provider node address after resolution
+	Addr             addrs.AbsResourceInstance    // Addr is the resource address to import into
+	ID               string                       // ID is the ID to import as
+	ProviderAddr     addrs.ConfigProviderInstance // Provider address given by the user, or implied by the resource type
+	ResolvedProvider addrs.ConfigProviderInstance // provider node address after resolution
 
 	Schema        *configschema.Block // Schema for processing the configuration body
 	SchemaVersion uint64              // Schema version of "Schema", as decided by the provider
@@ -62,7 +62,7 @@ func (n *graphNodeImportState) Provider() addrs.Provider {
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) SetProvider(addr addrs.AbsProviderConfig) {
+func (n *graphNodeImportState) SetProvider(addr addrs.ConfigProviderInstance) {
 	n.ResolvedProvider = addr
 }
 
@@ -202,7 +202,7 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 type graphNodeImportStateSub struct {
 	TargetAddr       addrs.AbsResourceInstance
 	State            providers.ImportedResource
-	ResolvedProvider addrs.AbsProviderConfig
+	ResolvedProvider addrs.ConfigProviderInstance
 
 	Schema        *configschema.Block // Schema for processing the configuration body
 	SchemaVersion uint64              // Schema version of "Schema", as decided by the provider
