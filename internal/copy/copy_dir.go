@@ -95,7 +95,10 @@ func CopyDir(dst, src string) error {
 				return fmt.Errorf("failed to read symlink %q: %w", path, err)
 			}
 
-			return os.Symlink(target, dstPath)
+			if err := os.Symlink(target, dstPath); err != nil {
+				return fmt.Errorf("failed to create symlink %q: %w", dstPath, err)
+			}
+			return nil
 		}
 
 		// If we have a file, copy the contents.
