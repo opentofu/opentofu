@@ -340,8 +340,6 @@ func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
 		}
 
 		if len(n.Config.ProviderConfigRef.Aliases) > 0 {
-			result.Relative = make(map[addrs.InstanceKey]addrs.AbsProviderConfig)
-
 			// If we have aliases set in ProviderConfigRef, we'll calculate a LocalProviderConfig for each one
 			for key, alias := range n.Config.ProviderConfigRef.Aliases {
 				result.Relative[key] = addrs.AbsProviderConfig{
