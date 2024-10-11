@@ -111,7 +111,7 @@ func TestProviderForLocalConfig(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
-	lc := addrs.LocalProviderConfig{LocalName: "foo-test"}
+	lc := addrs.LocalProviderInstance{LocalName: "foo-test"}
 	got := mod.ProviderForLocalConfig(lc)
 	want := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "foo", "test")
 	if !got.Equals(want) {

@@ -17,15 +17,15 @@ import (
 )
 
 // ProviderConfig is an interface type whose dynamic type can be either
-// LocalProviderConfig or ConfigProviderInstance, in order to represent
+// LocalProviderInstance or ConfigProviderInstance, in order to represent
 // situations where a value might either be module-local or absolute but the
 // decision cannot be made until runtime.
 //
-// Where possible, use either LocalProviderConfig or ConfigProviderInstance
+// Where possible, use either LocalProviderInstance or ConfigProviderInstance
 // directly instead, to make intent more clear. ProviderConfig can be used only
 // in situations where the recipient of the value has some out-of-band way to
 // determine a "current module" to use if the value turns out to be
-// a LocalProviderConfig.
+// a LocalProviderInstance.
 //
 // Recipients of non-nil ProviderConfig values that actually need
 // ConfigProviderInstance values should call ResolveAbsProviderAddr on the
@@ -34,20 +34,20 @@ import (
 // defined in the configuration.
 //
 // Recipients of a ProviderConfig value can assume it can contain only a
-// LocalProviderConfig value, an ConfigProviderInstance value, or nil to
+// LocalProviderInstance value, an ConfigProviderInstance value, or nil to
 // represent the absence of a provider config in situations where that is
 // meaningful.
 type ProviderConfig interface {
 	providerConfig()
 }
 
-// LocalProviderConfig is the address of a provider configuration from the
+// LocalProviderInstance is the address of a provider configuration from the
 // perspective of references in a particular module.
 //
 // Finding the corresponding ConfigProviderInstance will require looking up the
 // LocalName in the providers table in the module's configuration; there is
 // no syntax-only translation between these types.
-type LocalProviderConfig struct {
+type LocalProviderInstance struct {
 	LocalName string
 
 	// If not empty, Alias identifies which non-default (aliased) provider
@@ -55,20 +55,20 @@ type LocalProviderConfig struct {
 	Alias string
 }
 
-var _ ProviderConfig = LocalProviderConfig{}
+var _ ProviderConfig = LocalProviderInstance{}
 
-// NewDefaultLocalProviderConfig returns the address of the default (un-aliased)
+// NewDefaultLocalProviderInstance returns the address of the default (un-aliased)
 // configuration for the provider with the given local type name.
-func NewDefaultLocalProviderConfig(LocalNameName string) LocalProviderConfig {
-	return LocalProviderConfig{
+func NewDefaultLocalProviderInstance(LocalNameName string) LocalProviderInstance {
+	return LocalProviderInstance{
 		LocalName: LocalNameName,
 	}
 }
 
 // providerConfig Implements addrs.ProviderConfig.
-func (pc LocalProviderConfig) providerConfig() {}
+func (pc LocalProviderInstance) providerConfig() {}
 
-func (pc LocalProviderConfig) String() string {
+func (pc LocalProviderInstance) String() string {
 	if pc.LocalName == "" {
 		// Should never happen; always indicates a bug
 		return "provider.<invalid>"
@@ -83,7 +83,7 @@ func (pc LocalProviderConfig) String() string {
 
 // StringCompact is an alternative to String that returns the form that can
 // be parsed by ParseProviderConfigCompact, without the "provider." prefix.
-func (pc LocalProviderConfig) StringCompact() string {
+func (pc LocalProviderInstance) StringCompact() string {
 	if pc.Alias != "" {
 		return fmt.Sprintf("%s.%s", pc.LocalName, pc.Alias)
 	}

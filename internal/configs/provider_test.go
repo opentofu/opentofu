@@ -40,19 +40,19 @@ func TestProviderReservedNames(t *testing.T) {
 func TestParseProviderConfigCompact(t *testing.T) {
 	tests := []struct {
 		Input    string
-		Want     addrs.LocalProviderConfig
+		Want     addrs.LocalProviderInstance
 		WantDiag string
 	}{
 		{
 			`aws`,
-			addrs.LocalProviderConfig{
+			addrs.LocalProviderInstance{
 				LocalName: "aws",
 			},
 			``,
 		},
 		{
 			`aws.foo`,
-			addrs.LocalProviderConfig{
+			addrs.LocalProviderInstance{
 				LocalName: "aws",
 				Alias:     "foo",
 			},
@@ -60,7 +60,7 @@ func TestParseProviderConfigCompact(t *testing.T) {
 		},
 		{
 			`aws["foo"]`,
-			addrs.LocalProviderConfig{},
+			addrs.LocalProviderInstance{},
 			`The provider type name must either stand alone or be followed by an alias name separated with a dot.`,
 		},
 	}
@@ -103,19 +103,19 @@ func TestParseProviderConfigCompact(t *testing.T) {
 func TestParseProviderConfigCompactStr(t *testing.T) {
 	tests := []struct {
 		Input    string
-		Want     addrs.LocalProviderConfig
+		Want     addrs.LocalProviderInstance
 		WantDiag string
 	}{
 		{
 			`aws`,
-			addrs.LocalProviderConfig{
+			addrs.LocalProviderInstance{
 				LocalName: "aws",
 			},
 			``,
 		},
 		{
 			`aws.foo`,
-			addrs.LocalProviderConfig{
+			addrs.LocalProviderInstance{
 				LocalName: "aws",
 				Alias:     "foo",
 			},
@@ -123,7 +123,7 @@ func TestParseProviderConfigCompactStr(t *testing.T) {
 		},
 		{
 			`aws["foo"]`,
-			addrs.LocalProviderConfig{},
+			addrs.LocalProviderInstance{},
 			`The provider type name must either stand alone or be followed by an alias name separated with a dot.`,
 		},
 	}

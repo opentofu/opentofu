@@ -137,7 +137,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 					log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
 				}
 
-			case addrs.LocalProviderConfig:
+			case addrs.LocalProviderInstance:
 				// ProvidedBy() return a LocalProviderConfig when the resource
 				// contains a `provider` attribute
 				absPc.Provider = pv.Provider()

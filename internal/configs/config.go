@@ -562,7 +562,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 func (c *Config) addProviderRequirementsFromProviderBlock(reqs getproviders.Requirements, provider *Provider) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	fqn := c.Module.ProviderForLocalConfig(addrs.LocalProviderConfig{LocalName: provider.Name})
+	fqn := c.Module.ProviderForLocalConfig(addrs.LocalProviderInstance{LocalName: provider.Name})
 	if _, ok := reqs[fqn]; !ok {
 		// We'll at least have an unconstrained dependency then, but might
 		// add to this in the loop below.
@@ -820,7 +820,7 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderConfig, inModule addr
 	case addrs.ConfigProviderInstance:
 		return addr
 
-	case addrs.LocalProviderConfig:
+	case addrs.LocalProviderInstance:
 		// Find the descendent Config that contains the module that this
 		// local config belongs to.
 		mc := c.Descendent(inModule)
@@ -850,7 +850,7 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderConfig, inModule addr
 // ProviderForConfigAddr returns the FQN for a given addrs.ProviderConfig, first
 // by checking for the provider in module.ProviderRequirements and falling
 // back to addrs.NewDefaultProvider if it is not found.
-func (c *Config) ProviderForConfigAddr(addr addrs.LocalProviderConfig) addrs.Provider {
+func (c *Config) ProviderForConfigAddr(addr addrs.LocalProviderInstance) addrs.Provider {
 	if provider, exists := c.Module.ProviderRequirements.RequiredProviders[addr.LocalName]; exists {
 		return provider.Type
 	}

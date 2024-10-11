@@ -109,7 +109,7 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 		switch p := p.(type) {
 		case addrs.ConfigProviderInstance:
 			ps = p.String()
-		case addrs.LocalProviderConfig:
+		case addrs.LocalProviderInstance:
 			ps = p.String()
 		}
 

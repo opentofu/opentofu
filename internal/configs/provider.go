@@ -72,11 +72,11 @@ type Provider struct {
 //
 // If the returned diagnostics contains errors then the result value is invalid
 // and must not be used.
-func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
+func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderInstance, tfdiags.Diagnostics) {
 	// added as a const to keep the linter happy
 	const providerAddrMaxTraversal = 2
 	var diags tfdiags.Diagnostics
-	ret := addrs.LocalProviderConfig{
+	ret := addrs.LocalProviderInstance{
 		LocalName: traversal.RootName(),
 	}
 
@@ -126,13 +126,13 @@ func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderCon
 // of the traversal fails. There is no way for the caller to distinguish the
 // two kinds of diagnostics programmatically. If error diagnostics are returned
 // then the returned address is invalid.
-func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
+func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(parseDiags)
 	if parseDiags.HasErrors() {
-		return addrs.LocalProviderConfig{}, diags
+		return addrs.LocalProviderInstance{}, diags
 	}
 
 	addr, addrDiags := ParseProviderConfigCompact(traversal)
@@ -284,8 +284,8 @@ func checkProviderNameNormalized(name string, declrange hcl.Range) hcl.Diagnosti
 
 // Addr returns the address of the receiving provider configuration, relative
 // to its containing module.
-func (p *Provider) Addr() addrs.LocalProviderConfig {
-	return addrs.LocalProviderConfig{
+func (p *Provider) Addr() addrs.LocalProviderInstance {
+	return addrs.LocalProviderInstance{
 		LocalName: p.Name,
 		Alias:     p.Alias,
 	}

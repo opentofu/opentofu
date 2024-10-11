@@ -148,7 +148,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	}
 
 	// the implied non-exact provider should be "terraform"
-	lpc, ok := p.(addrs.LocalProviderConfig)
+	lpc, ok := p.(addrs.LocalProviderInstance)
 	if !ok {
 		t.Fatalf("expected LocalProviderConfig, got %#v\n", p)
 	}

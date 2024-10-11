@@ -74,7 +74,7 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 		// using count or for_each.
 
 		pcs := make(map[string]*configs.Provider)
-		pas := make(map[string]addrs.LocalProviderConfig)
+		pas := make(map[string]addrs.LocalProviderInstance)
 		for _, pc := range config.Module.ProviderConfigs {
 			addr := pc.Addr()
 			pcs[addr.String()] = pc

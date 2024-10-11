@@ -29,7 +29,7 @@ import (
 // resource header around the attributes and blocks returned by this function.
 func GenerateResourceContents(addr addrs.AbsResourceInstance,
 	schema *configschema.Block,
-	pc addrs.LocalProviderConfig,
+	pc addrs.LocalProviderInstance,
 	stateVal cty.Value) (string, tfdiags.Diagnostics) {
 	var buf strings.Builder
 

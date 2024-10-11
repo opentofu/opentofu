@@ -98,7 +98,7 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 		}
 	})
 	t.Run("local, implied mapping", func(t *testing.T) {
-		addr := addrs.LocalProviderConfig{
+		addr := addrs.LocalProviderInstance{
 			LocalName: "implied",
 			Alias:     "boop",
 		}
@@ -113,7 +113,7 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 		}
 	})
 	t.Run("local, explicit mapping", func(t *testing.T) {
-		addr := addrs.LocalProviderConfig{
+		addr := addrs.LocalProviderInstance{
 			LocalName: "foo-test", // this is explicitly set in the config
 			Alias:     "boop",
 		}
@@ -539,14 +539,14 @@ func TestConfigProviderForConfigAddr(t *testing.T) {
 	cfg, diags := testModuleConfigFromDir("testdata/valid-modules/providers-fqns")
 	assertNoDiagnostics(t, diags)
 
-	got := cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderConfig("foo-test"))
+	got := cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderInstance("foo-test"))
 	want := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "foo", "test")
 	if !got.Equals(want) {
 		t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
 	}
 
 	// now check a provider that isn't in the configuration. It should return a DefaultProvider.
-	got = cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderConfig("bar-test"))
+	got = cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderInstance("bar-test"))
 	want = addrs.NewDefaultProvider("bar-test")
 	if !got.Equals(want) {
 		t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)

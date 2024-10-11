@@ -674,7 +674,7 @@ func (n *NodePlannableResourceInstance) generateHCLStringAttributes(addr addrs.A
 		configschema.FilterDeprecatedBlock,
 	)
 
-	providerAddr := addrs.LocalProviderConfig{
+	providerAddr := addrs.LocalProviderInstance{
 		LocalName: n.ResolvedProvider.Provider.Type,
 		Alias:     n.ResolvedProvider.Alias,
 	}
