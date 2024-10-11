@@ -31,10 +31,10 @@ type graphNodeImportState struct {
 }
 
 var (
-	_ GraphNodeModulePath        = (*graphNodeImportState)(nil)
-	_ GraphNodeExecutable        = (*graphNodeImportState)(nil)
-	_ GraphNodeProviderConsumer  = (*graphNodeImportState)(nil)
-	_ GraphNodeDynamicExpandable = (*graphNodeImportState)(nil)
+	_ GraphNodeModulePath               = (*graphNodeImportState)(nil)
+	_ GraphNodeExecutable               = (*graphNodeImportState)(nil)
+	_ GraphNodeProviderInstanceConsumer = (*graphNodeImportState)(nil)
+	_ GraphNodeDynamicExpandable        = (*graphNodeImportState)(nil)
 )
 
 func (n *graphNodeImportState) Name() string {

@@ -25,14 +25,14 @@ func TestRootTransformer(t *testing.T) {
 		}
 
 		{
-			transform := &MissingProviderTransformer{}
+			transform := &MissingProviderInstanceTransformer{}
 			if err := transform.Transform(&g); err != nil {
 				t.Fatalf("err: %s", err)
 			}
 		}
 
 		{
-			transform := &ProviderTransformer{}
+			transform := &ProviderInstanceTransformer{}
 			if err := transform.Transform(&g); err != nil {
 				t.Fatalf("err: %s", err)
 			}

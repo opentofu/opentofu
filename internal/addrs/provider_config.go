@@ -373,7 +373,7 @@ func (pc ConfigProviderInstance) providerInstance() {}
 // other than the root module. Even if a valid address is returned, inheritance
 // may not be performed for other reasons, such as if the calling module
 // provided explicit provider configurations within the call for this module.
-// The ProviderTransformer graph transform in the main tofu module has the
+// The ProviderInstanceTransformer graph transform in the main tofu module has the
 // authoritative logic for provider inheritance, and this method is here mainly
 // just for its benefit.
 func (pc ConfigProviderInstance) Inherited() (ConfigProviderInstance, bool) {

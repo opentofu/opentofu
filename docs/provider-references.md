@@ -339,10 +339,10 @@ The full list of required provider types is collated, downloaded, hashed and cac
 
 Providers are then added to the graph in a few transformers:
 * ProviderConfigTransformer: Adds configured providers to the graph
-* MissingProviderTransformer: Adds unconfigured but required providers to the graph
-* ProviderTransformer: Links provider nodes to self reported nodes that require them
-* ProviderFunctionTransformer: Links provider nodes to other nodes by inspecting their "OpenTofu Function References"
-* ProviderPruneTransformer: Removes provider nodes that are not in use by other nodes
+* MissingProviderInstanceTransformer: Adds unconfigured but required provider instances to the graph
+* ProviderInstanceTransformer: Links provider instance nodes to self reported nodes that require them
+* ProviderFunctionTransformer: Links provider instance nodes to other nodes by inspecting their "OpenTofu Function References"
+* PruneProviderInstanceTransformer: Removes provider instance nodes that are not in use by other nodes
 
 Providers are then managed and scoped by the EvalContextBuiltin where the actual `provider.Interface`s are created and attached to resources.
 

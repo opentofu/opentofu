@@ -93,7 +93,7 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		&ProviderFunctionTransformer{Config: b.Config},
 
 		// Remove unused providers and proxies
-		&PruneProviderTransformer{},
+		&PruneProviderInstanceTransformer{},
 
 		// Create expansion nodes for all of the module calls. This must
 		// come after all other transformers that create nodes representing
@@ -106,7 +106,7 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 
 		// Although we don't configure providers, we do still start them up
 		// to get their schemas, and so we must shut them down again here.
-		&CloseProviderTransformer{},
+		&CloseProviderInstanceTransformer{},
 
 		// Close root module
 		&CloseRootModuleTransformer{

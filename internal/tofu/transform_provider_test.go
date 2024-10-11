@@ -15,7 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 )
 
-func testProviderTransformerGraph(t *testing.T, cfg *configs.Config) *Graph {
+func testProviderInstanceTransformerGraph(t *testing.T, cfg *configs.Config) *Graph {
 	t.Helper()
 
 	g := &Graph{Path: addrs.RootModuleInstance}
@@ -40,33 +40,33 @@ func testTransformProviders(concrete ConcreteProviderNodeFunc, config *configs.C
 			Concrete: concrete,
 		},
 		// Add any remaining missing providers
-		&MissingProviderTransformer{
+		&MissingProviderInstanceTransformer{
 			Config:   config,
 			Concrete: concrete,
 		},
 		// Connect the providers
-		&ProviderTransformer{
+		&ProviderInstanceTransformer{
 			Config: config,
 		},
 		// After schema transformer, we can add function references
 		//  &ProviderFunctionTransformer{Config: config},
 		// Remove unused providers and proxies
-		&PruneProviderTransformer{},
+		&PruneProviderInstanceTransformer{},
 	)
 }
 
-func TestProviderTransformer(t *testing.T) {
+func TestProviderInstanceTransformer(t *testing.T) {
 	mod := testModule(t, "transform-provider-basic")
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	{
-		transform := &MissingProviderTransformer{}
+		transform := &MissingProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
-	transform := &ProviderTransformer{}
+	transform := &ProviderInstanceTransformer{}
 	if err := transform.Transform(g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -79,19 +79,19 @@ func TestProviderTransformer(t *testing.T) {
 }
 
 // Test providers with FQNs that do not match the typeName
-func TestProviderTransformer_fqns(t *testing.T) {
+func TestProviderInstanceTransformer_fqns(t *testing.T) {
 	for _, mod := range []string{"fqns", "fqns-module"} {
 		mod := testModule(t, fmt.Sprintf("transform-provider-%s", mod))
 
-		g := testProviderTransformerGraph(t, mod)
+		g := testProviderInstanceTransformerGraph(t, mod)
 		{
-			transform := &MissingProviderTransformer{Config: mod}
+			transform := &MissingProviderInstanceTransformer{Config: mod}
 			if err := transform.Transform(g); err != nil {
 				t.Fatalf("err: %s", err)
 			}
 		}
 
-		transform := &ProviderTransformer{Config: mod}
+		transform := &ProviderInstanceTransformer{Config: mod}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -104,26 +104,26 @@ func TestProviderTransformer_fqns(t *testing.T) {
 	}
 }
 
-func TestCloseProviderTransformer(t *testing.T) {
+func TestCloseProviderInstanceTransformer(t *testing.T) {
 	mod := testModule(t, "transform-provider-basic")
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 
 	{
-		transform := &MissingProviderTransformer{}
+		transform := &MissingProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
-		transform := &ProviderTransformer{}
+		transform := &ProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
-		transform := &CloseProviderTransformer{}
+		transform := &CloseProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -136,14 +136,14 @@ func TestCloseProviderTransformer(t *testing.T) {
 	}
 }
 
-func TestCloseProviderTransformer_withTargets(t *testing.T) {
+func TestCloseProviderInstanceTransformer_withTargets(t *testing.T) {
 	mod := testModule(t, "transform-provider-basic")
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	transforms := []GraphTransformer{
-		&MissingProviderTransformer{},
-		&ProviderTransformer{},
-		&CloseProviderTransformer{},
+		&MissingProviderInstanceTransformer{},
+		&ProviderInstanceTransformer{},
+		&CloseProviderInstanceTransformer{},
 		&TargetsTransformer{
 			Targets: []addrs.Targetable{
 				addrs.RootModuleInstance.Resource(
@@ -166,26 +166,26 @@ func TestCloseProviderTransformer_withTargets(t *testing.T) {
 	}
 }
 
-func TestMissingProviderTransformer(t *testing.T) {
+func TestMissingProviderInstanceTransformer(t *testing.T) {
 	mod := testModule(t, "transform-provider-missing")
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	{
-		transform := &MissingProviderTransformer{}
+		transform := &MissingProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
-		transform := &ProviderTransformer{}
+		transform := &ProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
-		transform := &CloseProviderTransformer{}
+		transform := &CloseProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -198,12 +198,12 @@ func TestMissingProviderTransformer(t *testing.T) {
 	}
 }
 
-func TestMissingProviderTransformer_grandchildMissing(t *testing.T) {
+func TestMissingProviderInstanceTransformer_grandchildMissing(t *testing.T) {
 	mod := testModule(t, "transform-provider-missing-grandchild")
 
 	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	{
 		transform := testTransformProviders(concrete, mod)
 		if err := transform.Transform(g); err != nil {
@@ -224,33 +224,33 @@ func TestMissingProviderTransformer_grandchildMissing(t *testing.T) {
 	}
 }
 
-func TestPruneProviderTransformer(t *testing.T) {
+func TestPruneProviderInstanceTransformer(t *testing.T) {
 	mod := testModule(t, "transform-provider-prune")
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	{
-		transform := &MissingProviderTransformer{}
+		transform := &MissingProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
-		transform := &ProviderTransformer{}
+		transform := &ProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
-		transform := &CloseProviderTransformer{}
+		transform := &CloseProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
-		transform := &PruneProviderTransformer{}
+		transform := &PruneProviderInstanceTransformer{}
 		if err := transform.Transform(g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -268,7 +268,7 @@ func TestProviderConfigTransformer_parentProviders(t *testing.T) {
 	mod := testModule(t, "transform-provider-inherit")
 	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
 		if err := tf.Transform(g); err != nil {
@@ -288,7 +288,7 @@ func TestProviderConfigTransformer_grandparentProviders(t *testing.T) {
 	mod := testModule(t, "transform-provider-grandchild-inherit")
 	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
 		if err := tf.Transform(g); err != nil {
@@ -322,7 +322,7 @@ resource "test_object" "a" {
 	})
 	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
 		if err := tf.Transform(g); err != nil {
@@ -400,7 +400,7 @@ resource "test_object" "a" {
 	})
 	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	{
 		tf := testTransformProviders(concrete, mod)
 		if err := tf.Transform(g); err != nil {
@@ -442,7 +442,7 @@ provider "test" {
 `})
 	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
 
-	g := testProviderTransformerGraph(t, mod)
+	g := testProviderInstanceTransformerGraph(t, mod)
 	tf := ProviderConfigTransformer{
 		Config:   mod,
 		Concrete: concrete,

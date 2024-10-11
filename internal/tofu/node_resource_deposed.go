@@ -58,7 +58,7 @@ var (
 	_ GraphNodeReferenceable                 = (*NodePlanDeposedResourceInstanceObject)(nil)
 	_ GraphNodeReferencer                    = (*NodePlanDeposedResourceInstanceObject)(nil)
 	_ GraphNodeExecutable                    = (*NodePlanDeposedResourceInstanceObject)(nil)
-	_ GraphNodeProviderConsumer              = (*NodePlanDeposedResourceInstanceObject)(nil)
+	_ GraphNodeProviderInstanceConsumer      = (*NodePlanDeposedResourceInstanceObject)(nil)
 	_ GraphNodeProvisionerConsumer           = (*NodePlanDeposedResourceInstanceObject)(nil)
 )
 
@@ -201,7 +201,7 @@ var (
 	_ GraphNodeReferenceable                 = (*NodeDestroyDeposedResourceInstanceObject)(nil)
 	_ GraphNodeReferencer                    = (*NodeDestroyDeposedResourceInstanceObject)(nil)
 	_ GraphNodeExecutable                    = (*NodeDestroyDeposedResourceInstanceObject)(nil)
-	_ GraphNodeProviderConsumer              = (*NodeDestroyDeposedResourceInstanceObject)(nil)
+	_ GraphNodeProviderInstanceConsumer      = (*NodeDestroyDeposedResourceInstanceObject)(nil)
 	_ GraphNodeProvisionerConsumer           = (*NodeDestroyDeposedResourceInstanceObject)(nil)
 )
 
@@ -372,7 +372,7 @@ var (
 	_ GraphNodeReferenceable                 = (*NodeForgetDeposedResourceInstanceObject)(nil)
 	_ GraphNodeReferencer                    = (*NodeForgetDeposedResourceInstanceObject)(nil)
 	_ GraphNodeExecutable                    = (*NodeForgetDeposedResourceInstanceObject)(nil)
-	_ GraphNodeProviderConsumer              = (*NodeForgetDeposedResourceInstanceObject)(nil)
+	_ GraphNodeProviderInstanceConsumer      = (*NodeForgetDeposedResourceInstanceObject)(nil)
 	_ GraphNodeProvisionerConsumer           = (*NodeForgetDeposedResourceInstanceObject)(nil)
 )
 

@@ -33,7 +33,7 @@ type NodeAbstractProvider struct {
 var (
 	_ GraphNodeModulePath                 = (*NodeAbstractProvider)(nil)
 	_ GraphNodeReferencer                 = (*NodeAbstractProvider)(nil)
-	_ GraphNodeProvider                   = (*NodeAbstractProvider)(nil)
+	_ GraphNodeProviderInstance           = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProvider             = (*NodeAbstractProvider)(nil)
 	_ GraphNodeAttachProviderConfigSchema = (*NodeAbstractProvider)(nil)
 	_ dag.GraphNodeDotter                 = (*NodeAbstractProvider)(nil)

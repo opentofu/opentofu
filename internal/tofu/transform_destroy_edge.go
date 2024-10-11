@@ -100,7 +100,7 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	// getComparableProvider inspects the node to try and get the most precise
 	// description of the provider being used to help determine if 2 nodes are
 	// from the same provider instance.
-	getComparableProvider := func(pc GraphNodeProviderConsumer) string {
+	getComparableProvider := func(pc GraphNodeProviderInstanceConsumer) string {
 		ps := pc.Provider().String()
 
 		// we don't care about `exact` here, since we're only looking for any
@@ -116,13 +116,13 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 		return ps
 	}
 
-	pc, ok := from.(GraphNodeProviderConsumer)
+	pc, ok := from.(GraphNodeProviderInstanceConsumer)
 	if !ok {
 		return
 	}
 	fromProvider := getComparableProvider(pc)
 
-	pc, ok = to.(GraphNodeProviderConsumer)
+	pc, ok = to.(GraphNodeProviderInstanceConsumer)
 	if !ok {
 		return
 	}
@@ -352,7 +352,7 @@ func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
 						}
 					}
 
-				case GraphNodeProvider:
+				case GraphNodeProviderInstance:
 					// Only keep providers for evaluation if they have
 					// resources to handle.
 					// The provider transformers removed most unused providers
@@ -364,7 +364,7 @@ func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
 					des, _ := g.Descendents(n)
 					for _, v := range des {
 						switch v.(type) {
-						case GraphNodeProviderConsumer:
+						case GraphNodeProviderInstanceConsumer:
 							return
 						case GraphNodeReferencer:
 							return

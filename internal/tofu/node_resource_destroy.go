@@ -30,16 +30,16 @@ type NodeDestroyResourceInstance struct {
 }
 
 var (
-	_ GraphNodeModuleInstance      = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeConfigResource      = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeResourceInstance    = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeDestroyer           = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeDestroyerCBD        = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeReferenceable       = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeReferencer          = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeExecutable          = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeProviderConsumer    = (*NodeDestroyResourceInstance)(nil)
-	_ GraphNodeProvisionerConsumer = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeModuleInstance           = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeConfigResource           = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeResourceInstance         = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeDestroyer                = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeDestroyerCBD             = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeReferenceable            = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeReferencer               = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeExecutable               = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeProviderInstanceConsumer = (*NodeDestroyResourceInstance)(nil)
+	_ GraphNodeProvisionerConsumer      = (*NodeDestroyResourceInstance)(nil)
 )
 
 func (n *NodeDestroyResourceInstance) Name() string {

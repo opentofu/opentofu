@@ -203,7 +203,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&ProviderFunctionTransformer{Config: b.Config},
 
 		// Remove unused providers and proxies
-		&PruneProviderTransformer{},
+		&PruneProviderInstanceTransformer{},
 
 		// Create expansion nodes for all of the module calls. This must
 		// come after all other transformers that create nodes representing
@@ -241,7 +241,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&ForcedCBDTransformer{},
 
 		// Close opened plugin connections
-		&CloseProviderTransformer{},
+		&CloseProviderInstanceTransformer{},
 
 		// Close the root module
 		&CloseRootModuleTransformer{

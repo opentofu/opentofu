@@ -202,9 +202,9 @@ important examples include:
   which analyses the configuration to find dependencies between resources and
   other objects and creates any necessary "happens after" edges for these.
 
-* [`ProviderTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ProviderTransformer),
+* [`ProviderInstanceTransformer`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/tofu#ProviderInstanceTransformer),
   which associates each resource or resource instance with exactly one
-  provider configuration (implementing
+  provider instance (implementing
   [the inheritance rules](https://opentofu.org/docs/language/providers/))
   and then creates "happens after" edges to ensure that the providers are
   initialized before taking any actions with the resources that belong to

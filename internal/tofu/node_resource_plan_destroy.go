@@ -25,16 +25,16 @@ type NodePlanDestroyableResourceInstance struct {
 }
 
 var (
-	_ GraphNodeModuleInstance       = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeReferenceable        = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeReferencer           = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeDestroyer            = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeConfigResource       = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeResourceInstance     = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeAttachResourceConfig = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeAttachResourceState  = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeExecutable           = (*NodePlanDestroyableResourceInstance)(nil)
-	_ GraphNodeProviderConsumer     = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeModuleInstance           = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeReferenceable            = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeReferencer               = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeDestroyer                = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeConfigResource           = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeResourceInstance         = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeAttachResourceConfig     = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeAttachResourceState      = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeExecutable               = (*NodePlanDestroyableResourceInstance)(nil)
+	_ GraphNodeProviderInstanceConsumer = (*NodePlanDestroyableResourceInstance)(nil)
 )
 
 // GraphNodeDestroyer

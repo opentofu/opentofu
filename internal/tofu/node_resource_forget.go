@@ -26,14 +26,14 @@ type NodeForgetResourceInstance struct {
 }
 
 var (
-	_ GraphNodeModuleInstance      = (*NodeForgetResourceInstance)(nil)
-	_ GraphNodeConfigResource      = (*NodeForgetResourceInstance)(nil)
-	_ GraphNodeResourceInstance    = (*NodeForgetResourceInstance)(nil)
-	_ GraphNodeReferenceable       = (*NodeForgetResourceInstance)(nil)
-	_ GraphNodeReferencer          = (*NodeForgetResourceInstance)(nil)
-	_ GraphNodeExecutable          = (*NodeForgetResourceInstance)(nil)
-	_ GraphNodeProviderConsumer    = (*NodeForgetResourceInstance)(nil)
-	_ GraphNodeProvisionerConsumer = (*NodeForgetResourceInstance)(nil)
+	_ GraphNodeModuleInstance           = (*NodeForgetResourceInstance)(nil)
+	_ GraphNodeConfigResource           = (*NodeForgetResourceInstance)(nil)
+	_ GraphNodeResourceInstance         = (*NodeForgetResourceInstance)(nil)
+	_ GraphNodeReferenceable            = (*NodeForgetResourceInstance)(nil)
+	_ GraphNodeReferencer               = (*NodeForgetResourceInstance)(nil)
+	_ GraphNodeExecutable               = (*NodeForgetResourceInstance)(nil)
+	_ GraphNodeProviderInstanceConsumer = (*NodeForgetResourceInstance)(nil)
+	_ GraphNodeProvisionerConsumer      = (*NodeForgetResourceInstance)(nil)
 )
 
 func (n *NodeForgetResourceInstance) Name() string {

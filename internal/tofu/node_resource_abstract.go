@@ -91,7 +91,7 @@ type NodeAbstractResource struct {
 var (
 	_ GraphNodeReferenceable               = (*NodeAbstractResource)(nil)
 	_ GraphNodeReferencer                  = (*NodeAbstractResource)(nil)
-	_ GraphNodeProviderConsumer            = (*NodeAbstractResource)(nil)
+	_ GraphNodeProviderInstanceConsumer    = (*NodeAbstractResource)(nil)
 	_ GraphNodeProvisionerConsumer         = (*NodeAbstractResource)(nil)
 	_ GraphNodeConfigResource              = (*NodeAbstractResource)(nil)
 	_ GraphNodeAttachResourceConfig        = (*NodeAbstractResource)(nil)
@@ -116,7 +116,7 @@ var (
 	_ GraphNodeReferenceable             = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeReferencer                = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeRootReferencer            = (*NodeAbstractResourceInstance)(nil)
-	_ GraphNodeProviderConsumer          = (*NodeAbstractResourceInstance)(nil)
+	_ GraphNodeProviderInstanceConsumer  = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeProvisionerConsumer       = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeConfigResource            = (*NodeAbstractResourceInstance)(nil)
 	_ GraphNodeResourceInstance          = (*NodeAbstractResourceInstance)(nil)
