@@ -24,7 +24,7 @@ type providerConfigTransformer struct {
 	//
 	// This allows varying the chosen node type for different walk types that
 	// need differing subsets of the services offered by providers.
-	concreteProvider ConcreteProviderNodeFunc
+	concreteProvider concreteProviderInstanceNodeFunc
 }
 
 var _ GraphTransformer = (*providerConfigTransformer)(nil)

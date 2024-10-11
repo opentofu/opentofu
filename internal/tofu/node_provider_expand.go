@@ -28,7 +28,7 @@ import (
 type nodeProvider struct {
 	addr     addrs.Provider
 	configs  []providerConfigBlock
-	concrete ConcreteProviderNodeFunc
+	concrete concreteProviderInstanceNodeFunc
 }
 
 var _ GraphNodeDynamicExpandable = (*nodeProvider)(nil)
@@ -100,7 +100,7 @@ func (n *nodeProvider) DynamicExpand(globalCtx EvalContext) (*Graph, error) {
 			return false
 		}
 
-		nodeAbstract := &NodeAbstractProvider{
+		nodeAbstract := &nodeAbstractProviderInstance{
 			Addr:   stubAddrForSchema, // FIXME: This should be instAddr, but need to update NodeAbstractProvider's field type first
 			Config: config,
 			Schema: schema.Provider.Block,

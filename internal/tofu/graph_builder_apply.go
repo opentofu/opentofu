@@ -72,9 +72,9 @@ func (b *ApplyGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Di
 // See GraphBuilder
 func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 	// Custom factory for creating providers.
-	concreteProvider := func(a *NodeAbstractProvider) dag.Vertex {
-		return &NodeApplyableProvider{
-			NodeAbstractProvider: a,
+	concreteProvider := func(a *nodeAbstractProviderInstance) dag.Vertex {
+		return &nodeProviderInstance{
+			nodeAbstractProviderInstance: a,
 		}
 	}
 

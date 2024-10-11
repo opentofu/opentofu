@@ -5,20 +5,22 @@
 
 package tofu
 
-import "github.com/opentofu/opentofu/internal/tfdiags"
+import (
+	"github.com/opentofu/opentofu/internal/tfdiags"
+)
 
-// NodeEvalableProvider represents a provider during an "eval" walk.
-// This special provider node type just initializes a provider and
-// fetches its schema, without configuring it or otherwise interacting
+// nodeProviderInstanceEval represents a provider instance during an
+// "eval" walk. This special provider node type just initializes a provider
+// and fetches its schema, without configuring it or otherwise interacting
 // with it.
-type NodeEvalableProvider struct {
-	*NodeAbstractProvider
+type nodeProviderInstanceEval struct {
+	*nodeAbstractProviderInstance
 }
 
-var _ GraphNodeExecutable = (*NodeEvalableProvider)(nil)
+var _ GraphNodeExecutable = (*nodeProviderInstanceEval)(nil)
 
 // GraphNodeExecutable
-func (n *NodeEvalableProvider) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeProviderInstanceEval) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	_, err := ctx.InitProvider(n.Addr)
 	return diags.Append(err)
 }

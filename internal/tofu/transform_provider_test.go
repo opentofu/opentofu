@@ -32,7 +32,7 @@ func testProviderInstanceTransformerGraph(t *testing.T, cfg *configs.Config) *Gr
 }
 
 // This variant exists purely for testing and can not currently include the ProviderFunctionTransformer
-func testTransformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config) GraphTransformer {
+func testTransformProviders(concrete concreteProviderInstanceNodeFunc, config *configs.Config) GraphTransformer {
 	return GraphTransformMulti(
 		// Add providers from the config
 		&providerConfigTransformer{
@@ -201,7 +201,7 @@ func TestMissingProviderInstanceTransformer(t *testing.T) {
 func TestMissingProviderInstanceTransformer_grandchildMissing(t *testing.T) {
 	mod := testModule(t, "transform-provider-missing-grandchild")
 
-	concrete := func(a *NodeAbstractProvider) dag.Vertex { return a }
+	concrete := func(a *nodeAbstractProviderInstance) dag.Vertex { return a }
 
 	g := testProviderInstanceTransformerGraph(t, mod)
 	{

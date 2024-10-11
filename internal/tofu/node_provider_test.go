@@ -46,7 +46,7 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
-	n := &NodeApplyableProvider{&NodeAbstractProvider{
+	n := &nodeProviderInstance{&nodeAbstractProviderInstance{
 		Addr:   providerAddr,
 		Config: config,
 	}}
@@ -93,7 +93,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
-	n := &NodeApplyableProvider{&NodeAbstractProvider{
+	n := &nodeProviderInstance{&nodeAbstractProviderInstance{
 		Addr:   providerAddr,
 		Config: config,
 	}}
@@ -128,7 +128,7 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
-	n := &NodeApplyableProvider{&NodeAbstractProvider{
+	n := &nodeProviderInstance{&nodeAbstractProviderInstance{
 		Addr:   providerAddr,
 		Config: config,
 	}}
@@ -165,7 +165,7 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
-	n := &NodeApplyableProvider{&NodeAbstractProvider{
+	n := &nodeProviderInstance{&nodeAbstractProviderInstance{
 		Addr:   providerAddr,
 		Config: config,
 	}}
@@ -202,7 +202,7 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
-	n := &NodeApplyableProvider{&NodeAbstractProvider{
+	n := &nodeProviderInstance{&nodeAbstractProviderInstance{
 		Addr:   providerAddr,
 		Config: config,
 	}}
@@ -244,7 +244,7 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
-	n := &NodeApplyableProvider{&NodeAbstractProvider{
+	n := &nodeProviderInstance{&nodeAbstractProviderInstance{
 		Addr:   providerAddr,
 		Config: config,
 	}}
@@ -280,8 +280,8 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			}),
 		}
 
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
@@ -301,8 +301,8 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			}),
 		}
 
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
@@ -315,8 +315,8 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 	})
 
 	t.Run("empty config", func(t *testing.T) {
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
@@ -362,8 +362,8 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			}),
 		}
 
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
@@ -376,8 +376,8 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 	})
 
 	t.Run("missing required config (no config at all)", func(t *testing.T) {
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
@@ -396,8 +396,8 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			Name:   "test",
 			Config: hcl.EmptyBody(),
 		}
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
@@ -451,8 +451,8 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			}),
 		}
 
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
@@ -465,8 +465,8 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 	})
 
 	t.Run("missing required config (no config at all)", func(t *testing.T) {
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
@@ -485,8 +485,8 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			Name:   "test",
 			Config: hcl.EmptyBody(),
 		}
-		node := NodeApplyableProvider{
-			NodeAbstractProvider: &NodeAbstractProvider{
+		node := nodeProviderInstance{
+			nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
@@ -512,8 +512,8 @@ func TestGetSchemaError(t *testing.T) {
 	providerAddr := mustProviderConfig(`provider["terraform.io/some/provider"]`)
 	ctx := &MockEvalContext{ProviderProvider: provider}
 	ctx.installSimpleEval()
-	node := NodeApplyableProvider{
-		NodeAbstractProvider: &NodeAbstractProvider{
+	node := nodeProviderInstance{
+		nodeAbstractProviderInstance: &nodeAbstractProviderInstance{
 			Addr: providerAddr,
 		},
 	}

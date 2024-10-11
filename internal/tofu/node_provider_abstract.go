@@ -13,13 +13,13 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 )
 
-// ConcreteProviderNodeFunc is a callback type used to convert an
+// concreteProviderInstanceNodeFunc is a callback type used to convert an
 // abstract provider to a concrete one of some type.
-type ConcreteProviderNodeFunc func(*NodeAbstractProvider) dag.Vertex
+type concreteProviderInstanceNodeFunc func(*nodeAbstractProviderInstance) dag.Vertex
 
-// NodeAbstractProvider represents a provider that has no associated operations.
+// nodeAbstractProviderInstance represents a provider that has no associated operations.
 // It registers all the common interfaces across operations for providers.
-type NodeAbstractProvider struct {
+type nodeAbstractProviderInstance struct {
 	Addr addrs.ConfigProviderInstance
 
 	// The fields below will be automatically set using the Attach
@@ -31,32 +31,32 @@ type NodeAbstractProvider struct {
 }
 
 var (
-	_ GraphNodeModulePath                 = (*NodeAbstractProvider)(nil)
-	_ GraphNodeReferencer                 = (*NodeAbstractProvider)(nil)
-	_ GraphNodeProviderInstance           = (*NodeAbstractProvider)(nil)
-	_ GraphNodeAttachProvider             = (*NodeAbstractProvider)(nil)
-	_ GraphNodeAttachProviderConfigSchema = (*NodeAbstractProvider)(nil)
-	_ dag.GraphNodeDotter                 = (*NodeAbstractProvider)(nil)
+	_ GraphNodeModulePath                 = (*nodeAbstractProviderInstance)(nil)
+	_ GraphNodeReferencer                 = (*nodeAbstractProviderInstance)(nil)
+	_ GraphNodeProviderInstance           = (*nodeAbstractProviderInstance)(nil)
+	_ GraphNodeAttachProvider             = (*nodeAbstractProviderInstance)(nil)
+	_ GraphNodeAttachProviderConfigSchema = (*nodeAbstractProviderInstance)(nil)
+	_ dag.GraphNodeDotter                 = (*nodeAbstractProviderInstance)(nil)
 )
 
-func (n *NodeAbstractProvider) Name() string {
+func (n *nodeAbstractProviderInstance) Name() string {
 	return n.Addr.String()
 }
 
 // GraphNodeModuleInstance
-func (n *NodeAbstractProvider) Path() addrs.ModuleInstance {
+func (n *nodeAbstractProviderInstance) Path() addrs.ModuleInstance {
 	// Providers cannot be contained inside an expanded module, so this shim
 	// converts our module path to the correct ModuleInstance.
 	return n.Addr.Module.UnkeyedInstanceShim()
 }
 
 // GraphNodeModulePath
-func (n *NodeAbstractProvider) ModulePath() addrs.Module {
+func (n *nodeAbstractProviderInstance) ModulePath() addrs.Module {
 	return n.Addr.Module
 }
 
 // GraphNodeReferencer
-func (n *NodeAbstractProvider) References() []*addrs.Reference {
+func (n *nodeAbstractProviderInstance) References() []*addrs.Reference {
 	if n.Config == nil || n.Schema == nil {
 		return nil
 	}
@@ -65,12 +65,12 @@ func (n *NodeAbstractProvider) References() []*addrs.Reference {
 }
 
 // GraphNodeProvider
-func (n *NodeAbstractProvider) ProviderAddr() addrs.ConfigProviderInstance {
+func (n *nodeAbstractProviderInstance) ProviderAddr() addrs.ConfigProviderInstance {
 	return n.Addr
 }
 
 // GraphNodeProvider
-func (n *NodeAbstractProvider) ProviderConfig() *configs.Provider {
+func (n *nodeAbstractProviderInstance) ProviderConfig() *configs.Provider {
 	if n.Config == nil {
 		return nil
 	}
@@ -79,17 +79,17 @@ func (n *NodeAbstractProvider) ProviderConfig() *configs.Provider {
 }
 
 // GraphNodeAttachProvider
-func (n *NodeAbstractProvider) AttachProvider(c *configs.Provider) {
+func (n *nodeAbstractProviderInstance) AttachProvider(c *configs.Provider) {
 	n.Config = c
 }
 
 // GraphNodeAttachProviderConfigSchema impl.
-func (n *NodeAbstractProvider) AttachProviderConfigSchema(schema *configschema.Block) {
+func (n *nodeAbstractProviderInstance) AttachProviderConfigSchema(schema *configschema.Block) {
 	n.Schema = schema
 }
 
 // GraphNodeDotter impl.
-func (n *NodeAbstractProvider) DotNode(name string, opts *dag.DotOpts) *dag.DotNode {
+func (n *nodeAbstractProviderInstance) DotNode(name string, opts *dag.DotOpts) *dag.DotNode {
 	return &dag.DotNode{
 		Name: name,
 		Attrs: map[string]string{

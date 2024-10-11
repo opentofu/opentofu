@@ -16,7 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config) GraphTransformer {
+func transformProviders(concrete concreteProviderInstanceNodeFunc, config *configs.Config) GraphTransformer {
 	return GraphTransformMulti(
 		// Add providers from the config
 		&providerConfigTransformer{
@@ -209,8 +209,8 @@ func (t *ProviderInstanceTransformer) Transform(g *Graph) error {
 					Module:   addrs.RootModule,
 					Provider: p.Provider,
 				}
-				stub := &NodeEvalableProvider{
-					&NodeAbstractProvider{
+				stub := &nodeProviderInstanceEval{
+					&nodeAbstractProviderInstance{
 						Addr: stubAddr,
 					},
 				}
@@ -342,8 +342,8 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 							Provider: absPc.Provider,
 						}
 						if provider, ok = providers[stubAddr.String()]; !ok {
-							stub := &NodeEvalableProvider{
-								&NodeAbstractProvider{
+							stub := &nodeProviderInstanceEval{
+								&nodeAbstractProviderInstance{
 									Addr: stubAddr,
 								},
 							}
@@ -435,13 +435,13 @@ type MissingProviderInstanceTransformer struct {
 	Config *configs.Config
 
 	// Concrete, if set, overrides how the providers are made.
-	Concrete ConcreteProviderNodeFunc
+	Concrete concreteProviderInstanceNodeFunc
 }
 
 func (t *MissingProviderInstanceTransformer) Transform(g *Graph) error {
 	// Initialize factory
 	if t.Concrete == nil {
-		t.Concrete = func(a *NodeAbstractProvider) dag.Vertex {
+		t.Concrete = func(a *nodeAbstractProviderInstance) dag.Vertex {
 			return a
 		}
 	}
@@ -474,7 +474,7 @@ func (t *MissingProviderInstanceTransformer) Transform(g *Graph) error {
 		log.Printf("[DEBUG] adding implicit provider configuration %s, implied first by %s", defaultAddr, dag.VertexName(v))
 
 		// create the missing top-level provider
-		provider = t.Concrete(&NodeAbstractProvider{
+		provider = t.Concrete(&nodeAbstractProviderInstance{
 			Addr: defaultAddr,
 		}).(GraphNodeProviderInstance)
 

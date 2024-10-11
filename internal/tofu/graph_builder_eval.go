@@ -55,9 +55,9 @@ func (b *EvalGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Dia
 
 // See GraphBuilder
 func (b *EvalGraphBuilder) Steps() []GraphTransformer {
-	concreteProvider := func(a *NodeAbstractProvider) dag.Vertex {
-		return &NodeEvalableProvider{
-			NodeAbstractProvider: a,
+	concreteProvider := func(a *nodeAbstractProviderInstance) dag.Vertex {
+		return &nodeProviderInstanceEval{
+			nodeAbstractProviderInstance: a,
 		}
 	}
 

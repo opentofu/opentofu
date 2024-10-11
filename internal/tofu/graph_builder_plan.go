@@ -65,7 +65,7 @@ type PlanGraphBuilder struct {
 	// where we _only_ do the refresh step.)
 	skipPlanChanges bool
 
-	ConcreteProvider                ConcreteProviderNodeFunc
+	ConcreteProvider                concreteProviderInstanceNodeFunc
 	ConcreteResource                ConcreteResourceNodeFunc
 	ConcreteResourceInstance        ConcreteResourceInstanceNodeFunc
 	ConcreteResourceOrphan          ConcreteResourceInstanceNodeFunc
@@ -257,9 +257,9 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 }
 
 func (b *PlanGraphBuilder) initPlan() {
-	b.ConcreteProvider = func(a *NodeAbstractProvider) dag.Vertex {
-		return &NodeApplyableProvider{
-			NodeAbstractProvider: a,
+	b.ConcreteProvider = func(a *nodeAbstractProviderInstance) dag.Vertex {
+		return &nodeProviderInstance{
+			nodeAbstractProviderInstance: a,
 		}
 	}
 
@@ -307,9 +307,9 @@ func (b *PlanGraphBuilder) initDestroy() {
 
 func (b *PlanGraphBuilder) initValidate() {
 	// Set the provider to the normal provider. This will ask for input.
-	b.ConcreteProvider = func(a *NodeAbstractProvider) dag.Vertex {
-		return &NodeApplyableProvider{
-			NodeAbstractProvider: a,
+	b.ConcreteProvider = func(a *nodeAbstractProviderInstance) dag.Vertex {
+		return &nodeProviderInstance{
+			nodeAbstractProviderInstance: a,
 		}
 	}
 
@@ -327,9 +327,9 @@ func (b *PlanGraphBuilder) initValidate() {
 }
 
 func (b *PlanGraphBuilder) initImport() {
-	b.ConcreteProvider = func(a *NodeAbstractProvider) dag.Vertex {
-		return &NodeApplyableProvider{
-			NodeAbstractProvider: a,
+	b.ConcreteProvider = func(a *nodeAbstractProviderInstance) dag.Vertex {
+		return &nodeProviderInstance{
+			nodeAbstractProviderInstance: a,
 		}
 	}
 

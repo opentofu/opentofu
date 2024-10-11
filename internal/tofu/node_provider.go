@@ -16,17 +16,18 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// NodeApplyableProvider represents a provider during an apply.
-type NodeApplyableProvider struct {
-	*NodeAbstractProvider
+// nodeProviderInstance represents a provider instance during
+// most phases.
+type nodeProviderInstance struct {
+	*nodeAbstractProviderInstance
 }
 
 var (
-	_ GraphNodeExecutable = (*NodeApplyableProvider)(nil)
+	_ GraphNodeExecutable = (*nodeProviderInstance)(nil)
 )
 
 // GraphNodeExecutable
-func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeProviderInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	_, err := ctx.InitProvider(n.Addr)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
@@ -52,7 +53,7 @@ func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) (diag
 	return diags
 }
 
-func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider providers.Interface) (diags tfdiags.Diagnostics) {
+func (n *nodeProviderInstance) ValidateProvider(ctx EvalContext, provider providers.Interface) (diags tfdiags.Diagnostics) {
 
 	configBody := buildProviderConfig(ctx, n.Addr, n.ProviderConfig())
 
@@ -105,7 +106,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 // ConfigureProvider configures a provider that is already initialized and retrieved.
 // If verifyConfigIsKnown is true, ConfigureProvider will return an error if the
 // provider configVal is not wholly known and is meant only for use during import.
-func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider providers.Interface, verifyConfigIsKnown bool) (diags tfdiags.Diagnostics) {
+func (n *nodeProviderInstance) ConfigureProvider(ctx EvalContext, provider providers.Interface, verifyConfigIsKnown bool) (diags tfdiags.Diagnostics) {
 	config := n.ProviderConfig()
 
 	configBody := buildProviderConfig(ctx, n.Addr, config)
