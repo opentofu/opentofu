@@ -592,18 +592,25 @@ func (r ResourceInstanceProviderResolver) Resolve(addr addrs.AbsResourceInstance
 	}
 	// First check for an exact match on the resource instance key
 	if p, ok := r.ByResourceKey[addr.Resource.Key]; ok {
-		return p.Resolve(addr.Module)
+		if resolved := p.Resolve(addr.Module); resolved.IsSet() {
+			return resolved
+		}
 	}
 	// If the resource instance key is not an exact match, the other possibility is that there is no
 	// alternate mapping to ModuleInstanceProviderResovlers based on the provider key
 	if p, ok := r.ByResourceKey[addrs.NoKey]; ok {
-		return p.Resolve(addr.Module)
+		if resolved := p.Resolve(addr.Module); resolved.IsSet() {
+			return resolved
+		}
 	}
 	for _, m := range r.Absolute {
 		if addr.Equal(m.Resource) && m.Optional {
 			return m.Provider
 		}
 	}
+	spew.Dump(addr)
+	println("=========")
+	spew.Dump(r)
 	panic("TODO better message here")
 }
 
@@ -619,10 +626,7 @@ func (m ModuleInstanceProviderResolver) Resolve(addr addrs.ModuleInstance) addrs
 			return pr.concreteProvider.ProviderAddr()
 		}
 	}
-	spew.Dump(m)
-	println("====")
-	spew.Dump(addr)
-	panic("TODO better message here")
+	return addrs.AbsProviderConfig{}
 }
 
 // ModuleInstancePotentialProvider is a representation of a concrete provider and identifiers that match the provider to a
