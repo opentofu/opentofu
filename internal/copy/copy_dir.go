@@ -101,28 +101,39 @@ func CopyDir(dst, src string) error {
 			return nil
 		}
 
-		// If we have a file, copy the contents.
-		srcF, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer srcF.Close()
-
-		dstF, err := os.Create(dstPath)
-		if err != nil {
-			return err
-		}
-		defer dstF.Close()
-
-		if _, err := io.Copy(dstF, srcF); err != nil {
+		if err := copyFile(dstPath, path, info.Mode()); err != nil {
 			return err
 		}
 
-		// Chmod it
-		return os.Chmod(dstPath, info.Mode())
+		return nil
 	}
 
 	return filepath.Walk(src, walkFn)
+}
+
+// copyFile copies the contents and mode of the file from src to dst.
+func copyFile(dst, src string, mode os.FileMode) error {
+	srcF, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file %q: %w", src, err)
+	}
+	defer srcF.Close()
+
+	dstF, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file %q: %w", dst, err)
+	}
+	defer dstF.Close()
+
+	if _, err := io.Copy(dstF, srcF); err != nil {
+		return fmt.Errorf("failed to copy contents from %q to %q: %w", src, dst, err)
+	}
+
+	if err := os.Chmod(dst, mode); err != nil {
+		return fmt.Errorf("failed to set file mode for %q: %w", dst, err)
+	}
+
+	return nil
 }
 
 // SameFile returns true if the two given paths refer to the same physical
