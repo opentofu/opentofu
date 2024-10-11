@@ -295,19 +295,24 @@ func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig) {
 }
 
 // GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
+func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
 	// Once the provider is fully resolved, we can return the known value.
 	if n.ResolvedProvider.Provider.Type != "" {
-		return n.ResolvedProvider, true
+		return ProvidedBy{Exact: n.ResolvedProvider}
 	}
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
 		relAddr := n.Config.ProviderConfigAddr()
-		return addrs.LocalProviderConfig{
-			LocalName: relAddr.LocalName,
-			Alias:     relAddr.Alias,
-		}, false
+
+		// This used to use LocalName: relAddr.LocalName, but it is always
+		// overridden in the ProviderTransformer regardless.  This is part
+		// of the reason why provider name != type is not functional.
+		return ProvidedBy{Local: addrs.AbsProviderConfig{
+			Provider: n.Provider(),
+			Module:   n.ModulePath(),
+			Alias:    relAddr.Alias,
+		}}
 	}
 
 	// See if we have a valid provider config from the state.
@@ -315,7 +320,7 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
-		return n.storedProviderConfig, true
+		return ProvidedBy{Exact: n.storedProviderConfig}
 	}
 
 	// We might have an import target that is providing a specific provider,
@@ -326,18 +331,21 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			return addrs.LocalProviderConfig{
-				LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
-				Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
-			}, false
+			// This also ignores LocalName: n.importTargets[0].Config.ProviderConfigRef.Name, which
+			// is also why provider name != type is not functional
+			return ProvidedBy{Local: addrs.AbsProviderConfig{
+				Provider: n.Provider(),
+				Module:   n.ModulePath(),
+				Alias:    n.importTargets[0].Config.ProviderConfigRef.Alias,
+			}}
 		}
 	}
 
 	// No provider configuration found; return a default address
-	return addrs.AbsProviderConfig{
+	return ProvidedBy{Local: addrs.AbsProviderConfig{
 		Provider: n.Provider(),
 		Module:   n.ModulePath(),
-	}, false
+	}}
 }
 
 // GraphNodeProviderConsumer
