@@ -113,11 +113,11 @@ Hclog fulfills almost all requirements, with the following notes:
 
 ### Go log
 
-Go's built-in log functionality in the `log` package provides a basic, Sprintf-style logger. However, it does not provide an interface, and it is very cumbersome to route log messages to `t.Logf`, which makes it less than ideal for our purposes. It also does not provide a context passing functionality. 
+Go's built-in log functionality in the `log` package provides a basic, Sprintf-style logger. However, it does not provide an interface, and it is very cumbersome to route log messages to `t.Logf`, which makes it less than ideal for our purposes. It also does not provide a context passing functionality, nor does it provide a trace log level.
 
 ### Go slog
 
-Go's structured logger in the `log/slog` package provides as structured logging interface for Go. However, it does not provide an interface, does not provide an Sprintf-style calling convention as it is meant primarily for structured logging. Callers must call `fmt.Sprintf` themselves to create a readable parametrized error message. It also provides no easy way to route messages to `t.Logf`.
+Go's structured logger in the `log/slog` package provides as structured logging interface for Go. However, it does not provide an interface, does not provide an Sprintf-style calling convention as it is meant primarily for structured logging. Callers must call `fmt.Sprintf` themselves to create a readable parametrized error message. It also provides no easy way to route messages to `t.Logf`. It also does not provide a Trace log level, which has to be added.
 
 ### Custom overlay
 
