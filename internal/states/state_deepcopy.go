@@ -178,7 +178,6 @@ func (os *ResourceInstanceObjectSrc) DeepCopy() *ResourceInstanceObjectSrc {
 		AttrSensitivePaths:  attrPaths,
 		Dependencies:        dependencies,
 		CreateBeforeDestroy: os.CreateBeforeDestroy,
-		InstanceProvider:    os.InstanceProvider,
 	}
 }
 

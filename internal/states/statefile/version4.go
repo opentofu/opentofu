@@ -174,7 +174,6 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			obj := &states.ResourceInstanceObjectSrc{
 				SchemaVersion:       isV4.SchemaVersion,
 				CreateBeforeDestroy: isV4.CreateBeforeDestroy,
-				InstanceProvider:    instanceProviderAddr,
 			}
 
 			{
@@ -418,19 +417,10 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 			var providerConfigValue string
 			identicalProviderConfigValue := true
 			for _, is := range rs.Instances {
-				if is.HasCurrent() {
-					if providerConfigValue == "" {
-						providerConfigValue = is.Current.InstanceProvider.String()
-					} else {
-						identicalProviderConfigValue = identicalProviderConfigValue && providerConfigValue == is.Current.InstanceProvider.String()
-					}
-				}
-				for _, obj := range is.Deposed {
-					if providerConfigValue == "" {
-						providerConfigValue = obj.InstanceProvider.String()
-					} else {
-						identicalProviderConfigValue = identicalProviderConfigValue && providerConfigValue == obj.InstanceProvider.String()
-					}
+				if providerConfigValue == "" {
+					providerConfigValue = is.InstanceProvider.String()
+				} else {
+					identicalProviderConfigValue = identicalProviderConfigValue && providerConfigValue == is.InstanceProvider.String()
 				}
 			}
 
@@ -556,8 +546,8 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	diags = diags.Append(pathsDiags)
 
 	instanceProviderValue := ""
-	if obj.InstanceProvider.IsSet() && useInstanceProvider {
-		instanceProviderValue = obj.InstanceProvider.String()
+	if is.InstanceProvider.IsSet() && useInstanceProvider {
+		instanceProviderValue = is.InstanceProvider.String()
 	}
 
 	return append(isV4s, instanceObjectStateV4{
