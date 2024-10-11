@@ -57,9 +57,8 @@ func CopyDir(dst, src string) error {
 			// Skip any dot files
 			if info.IsDir() {
 				return filepath.SkipDir
-			} else {
-				return nil
 			}
+			return nil
 		}
 
 		// The "path" has the src prefixed to it. We need to join our
