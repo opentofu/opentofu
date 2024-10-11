@@ -332,6 +332,8 @@ func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
 		if n.Config.ProviderConfigRef == nil {
+			result.Relative = make(map[addrs.InstanceKey]addrs.AbsProviderConfig)
+
 			// If no specific "provider" argument is given, we want to look up the
 			// provider config where the local name matches the implied provider
 			// from the resource type. This may be different from the resource's
