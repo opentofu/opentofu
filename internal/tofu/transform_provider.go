@@ -65,6 +65,7 @@ type GraphNodeCloseProvider interface {
 type ResourceProvidedBy struct {
 	Resource addrs.AbsResourceInstance
 	Provider addrs.AbsProviderConfig
+	Optional bool
 }
 
 type ProvidedBy struct {
@@ -141,7 +142,11 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 		for _, abs := range providedBy.Absolute {
 			provider, ok := m[abs.Provider.String()]
 			if !ok {
-				diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), abs.Provider))
+				if abs.Optional {
+					log.Printf("[TRACE] ProviderTransformer: optional provider for %s serving %s not found, orphaned node may fail", abs.Provider, dag.VertexName(v))
+				} else {
+					diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), abs.Provider))
+				}
 				continue
 			}
 
@@ -576,11 +581,18 @@ type ResourceInstanceProviderResolver struct {
 
 func (r ResourceInstanceProviderResolver) Any() addrs.AbsProviderConfig {
 	for _, m := range r.Absolute {
-		return m.Provider
+		if !m.Optional {
+			return m.Provider
+		}
 	}
 	for _, m := range r.ByResourceKey {
 		for _, p := range m {
 			return p.concreteProvider.ProviderAddr()
+		}
+	}
+	for _, m := range r.Absolute {
+		if m.Optional {
+			return m.Provider
 		}
 	}
 	panic("unreachable")
@@ -588,7 +600,7 @@ func (r ResourceInstanceProviderResolver) Any() addrs.AbsProviderConfig {
 
 func (r ResourceInstanceProviderResolver) Resolve(addr addrs.AbsResourceInstance) addrs.AbsProviderConfig {
 	for _, m := range r.Absolute {
-		if addr.Equal(m.Resource) {
+		if addr.Equal(m.Resource) && !m.Optional {
 			return m.Provider
 		}
 	}
@@ -600,6 +612,11 @@ func (r ResourceInstanceProviderResolver) Resolve(addr addrs.AbsResourceInstance
 	// alternate mapping to ModuleInstanceProviderResovlers based on the provider key
 	if p, ok := r.ByResourceKey[addrs.NoKey]; ok {
 		return p.Resolve(addr.Module)
+	}
+	for _, m := range r.Absolute {
+		if addr.Equal(m.Resource) && m.Optional {
+			return m.Provider
+		}
 	}
 	panic("TODO better message here")
 }
