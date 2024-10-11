@@ -108,6 +108,7 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 			return
 		}
 		// if we have an instance, update the current
+		is.InstanceProvider = instanceProvider
 		is.Current = obj
 		if !is.HasObjects() {
 			// If we have no objects at all then we'll clean up.
