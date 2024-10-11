@@ -315,18 +315,14 @@ func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
 		Relative: make(map[addrs.InstanceKey]addrs.AbsProviderConfig),
 	}
 
-	// Make sure orphans are properly accounted for
-	// TODO this could introduce some funkiness in the
-	// execution, where providers that are no longer
-	// needed due to provider alias changes are still
-	// required.  I don't know if there is a way to
-	// determine the orphans ahead of time and prune
-	// this list down to the essentials.
+	// Make sure orphans are properly accounted for.  TODO better comment that the
+	// checking of exists can happen outside the transformer as it may not be needed.
 	for _, rs := range n.knownResourceStates {
 		for key, inst := range rs.Instances {
 			result.Absolute = append(result.Absolute, ResourceProvidedBy{
 				Provider: inst.Current.InstanceProvider,
 				Resource: rs.Addr.Instance(key),
+				Optional: true,
 			})
 		}
 	}
