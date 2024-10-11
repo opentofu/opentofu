@@ -1,5 +1,18 @@
 # Weekly Updates
 
+## 2024-10-11
+
+Hey folks, the last week we've been impacted by several sicknesses and out of office colleagues. Nevertheless, we have made progress with several issues related to static evaluation. Specifically:
+
+- We have released [OpenTofu 1.8.3](https://github.com/opentofu/opentofu/releases/tag/v1.8.3), a security update related to early static evaluation. We highly recommend setting the `TOFU_ENABLE_STATIC_SENSITIVE=1` environment variable to enable the secure behavior.
+- We have expended significant effort on Dynamic Provider Configuration Assignment ([#300](https://github.com/opentofu/opentofu/issues/300)).
+- We started the full indexing of the [OpenTofu Registry Search](https://search.opentofu.org), which means that all providers and modules should be available within the next week. We have also published the [full documentation for the registry](https://search.opentofu.org/docs), including a guide for writing providers and modules.
+- How you can help:
+  - If you are experienced in TypeScript/HTML/CSS, please take a look at the [Registry Search](https://github.com/opentofu/registry-ui/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22) repository! There are several issues related to accessibility we like to resolve but currently don't have the capacity for.
+  - Keep an eye out for issues labeled with `help wanted`. These are issues open for a community member to contribute a PR and we'd love to review it.
+  - [Report and upvote issues](https://github.com/opentofu/opentofu/issues/1496) that are important to you. We are a community-driven organization and prioritize issues that are affecting a lot of people.
+  - Take the [OpenTofu Registry Docs API](https://api.opentofu.org/) for a spin and build something cool with it.
+
 ## 2024-09-20
 
 Well hello there! We have a week of housekeeping behind us, but also a few important changes:
