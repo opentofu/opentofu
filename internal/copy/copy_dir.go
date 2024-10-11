@@ -66,10 +66,10 @@ func CopyDir(dst, src string) error {
 		dstPath := filepath.Join(dst, path[len(src):])
 
 		// we don't want to try and copy the same file over itself.
-		if eq, err := SameFile(path, dstPath); eq {
+		if eq, err := SameFile(path, dstPath); err != nil {
+			return fmt.Errorf("failed to check if files are the same: %w", err)
+		} else if eq {
 			return nil
-		} else if err != nil {
-			return err
 		}
 
 		// If we have a directory, make that subdirectory, then continue
