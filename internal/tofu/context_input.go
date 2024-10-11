@@ -6,15 +6,8 @@
 package tofu
 
 import (
-	"context"
-	"log"
-	"sort"
-
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hcldec"
-	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -50,144 +43,12 @@ func (c *Context) Input(config *configs.Config, mode InputMode) tfdiags.Diagnost
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("input")()
 
-	schemas, moreDiags := c.Schemas(config, nil)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return diags
-	}
-
-	if c.uiInput == nil {
-		log.Printf("[TRACE] Context.Input: uiInput is nil, so skipping")
-		return diags
-	}
-
-	ctx := context.Background()
-
-	if mode&InputModeProvider != 0 {
-		log.Printf("[TRACE] Context.Input: Prompting for provider arguments")
-
-		// We prompt for input only for provider configurations defined in
-		// the root module. Provider configurations in other modules are a
-		// legacy thing we no longer recommend, and even if they weren't we
-		// can't practically prompt for their inputs here because we've not
-		// yet done "expansion" and so we don't know whether the modules are
-		// using count or for_each.
-
-		pcs := make(map[string]*configs.Provider)
-		pas := make(map[string]addrs.LocalProviderInstance)
-		for _, pc := range config.Module.ProviderConfigs {
-			addr := pc.Addr()
-			pcs[addr.String()] = pc
-			pas[addr.String()] = addr
-			log.Printf("[TRACE] Context.Input: Provider %s declared at %s", addr, pc.DeclRange)
-		}
-		// We also need to detect _implied_ provider configs from resources.
-		// These won't have *configs.Provider objects, but they will still
-		// exist in the map and we'll just treat them as empty below.
-		for _, rc := range config.Module.ManagedResources {
-			pa := rc.ProviderConfigAddr()
-			if pa.Alias != "" {
-				continue // alias configurations cannot be implied
-			}
-			if _, exists := pcs[pa.String()]; !exists {
-				pcs[pa.String()] = nil
-				pas[pa.String()] = pa
-				log.Printf("[TRACE] Context.Input: Provider %s implied by resource block at %s", pa, rc.DeclRange)
-			}
-		}
-		for _, rc := range config.Module.DataResources {
-			pa := rc.ProviderConfigAddr()
-			if pa.Alias != "" {
-				continue // alias configurations cannot be implied
-			}
-			if _, exists := pcs[pa.String()]; !exists {
-				pcs[pa.String()] = nil
-				pas[pa.String()] = pa
-				log.Printf("[TRACE] Context.Input: Provider %s implied by data block at %s", pa, rc.DeclRange)
-			}
-		}
-
-		for pk, pa := range pas {
-			pc := pcs[pk] // will be nil if this is an implied config
-
-			// Wrap the input into a namespace
-			input := &PrefixUIInput{
-				IdPrefix:    pk,
-				QueryPrefix: pk + ".",
-				UIInput:     c.uiInput,
-			}
-
-			providerFqn := config.Module.ProviderForLocalConfig(pa)
-			schema := schemas.ProviderConfig(providerFqn)
-			if schema == nil {
-				// Could either be an incorrect config or just an incomplete
-				// mock in tests. We'll let a later pass decide, and just
-				// ignore this for the purposes of gathering input.
-				log.Printf("[TRACE] Context.Input: No schema available for provider type %q", pa.LocalName)
-				continue
-			}
-
-			// For our purposes here we just want to detect if attributes are
-			// set in config at all, so rather than doing a full decode
-			// (which would require us to prepare an evalcontext, etc) we'll
-			// use the low-level HCL API to process only the top-level
-			// structure.
-			var attrExprs hcl.Attributes // nil if there is no config
-			if pc != nil && pc.Config != nil {
-				lowLevelSchema := schemaForInputSniffing(hcldec.ImpliedSchema(schema.DecoderSpec()))
-				content, _, diags := pc.Config.PartialContent(lowLevelSchema)
-				if diags.HasErrors() {
-					log.Printf("[TRACE] Context.Input: %s has decode error, so ignoring: %s", pa, diags.Error())
-					continue
-				}
-				attrExprs = content.Attributes
-			}
-
-			keys := make([]string, 0, len(schema.Attributes))
-			for key := range schema.Attributes {
-				keys = append(keys, key)
-			}
-			sort.Strings(keys)
-
-			vals := map[string]cty.Value{}
-			for _, key := range keys {
-				attrS := schema.Attributes[key]
-				if attrS.Optional {
-					continue
-				}
-				if attrExprs != nil {
-					if _, exists := attrExprs[key]; exists {
-						continue
-					}
-				}
-				if !attrS.Type.Equals(cty.String) {
-					continue
-				}
-
-				log.Printf("[TRACE] Context.Input: Prompting for %s argument %s", pa, key)
-				rawVal, err := input.Input(ctx, &InputOpts{
-					Id:          key,
-					Query:       key,
-					Description: attrS.Description,
-				})
-				if err != nil {
-					log.Printf("[TRACE] Context.Input: Failed to prompt for %s argument %s: %s", pa, key, err)
-					continue
-				}
-
-				vals[key] = cty.StringVal(rawVal)
-			}
-
-			absConfigAddr := addrs.ConfigProviderInstance{
-				Provider: providerFqn,
-				Alias:    pa.Alias,
-				Module:   config.Path,
-			}
-			c.providerInputConfig[absConfigAddr.String()] = vals
-
-			log.Printf("[TRACE] Context.Input: Input for %s: %#v", pk, vals)
-		}
-	}
+	// FIXME: Figure out what makes sense to do here when we have
+	// dynamically-expanded provider instances. Maybe we just only
+	// show prompts for the providers whose Alias expression is
+	// a static keyword?
+	// For now we just don't prompt at all because prompting isn't
+	// crucial for OpenTofu's runtime behavior.
 
 	return diags
 }

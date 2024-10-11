@@ -18,6 +18,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/zclconf/go-cty/cty"
 
 	version "github.com/hashicorp/go-version"
@@ -616,10 +617,10 @@ func TestTransformForTest(t *testing.T) {
 		return buffer.String()
 	}
 
-	convertToProviders := func(t *testing.T, contents map[string]string) map[string]*Provider {
+	convertToProviders := func(t *testing.T, contents map[string]string) []*Provider {
 		t.Helper()
 
-		providers := make(map[string]*Provider)
+		providers := make([]*Provider, 0, len(contents))
 		for key, content := range contents {
 			parser := hclparse.NewParser()
 			file, diags := parser.ParseHCL([]byte(content), fmt.Sprintf("%s.hcl", key))
@@ -628,27 +629,27 @@ func TestTransformForTest(t *testing.T) {
 			}
 
 			provider := &Provider{
-				ProviderCommon: ProviderCommon{
-					Config: file.Body,
-				},
+				Config: file.Body,
 			}
 
 			parts := strings.Split(key, ".")
 			provider.Name = parts[0]
 			if len(parts) > 1 {
-				provider.Alias = parts[1]
+				provider.Alias = hcltest.MockExprLiteral(cty.StringVal(parts[1]))
 			}
 
-			providers[key] = provider
+			providers = append(providers, provider)
 		}
 		return providers
 	}
 
-	validate := func(t *testing.T, msg string, expected map[string]string, actual map[string]*Provider) {
+	validate := func(t *testing.T, msg string, expected map[string]string, actual []*Provider) {
 		t.Helper()
 
-		converted := make(map[string]string)
-		for key, provider := range actual {
+		t.Fatal("not yet updated for dynamic provider instances")
+
+		converted := make([]string, 0, len(actual))
+		for _, provider := range actual {
 			content, err := provider.Config.Content(&hcl.BodySchema{
 				Attributes: []hcl.AttributeSchema{
 					{Name: "source", Required: true},
@@ -662,11 +663,11 @@ func TestTransformForTest(t *testing.T) {
 			if diags.HasErrors() {
 				t.Fatal(diags.Error())
 			}
-			converted[key] = fmt.Sprintf("source = %q", source.AsString())
+			converted = append(converted, fmt.Sprintf("source = %q", source.AsString()))
 		}
 
 		if diff := cmp.Diff(expected, converted); len(diff) > 0 {
-			t.Errorf("%s\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", msg, str(expected), str(converted), diff)
+			t.Errorf("%s\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", msg, str(expected), converted, diff)
 		}
 	}
 
@@ -807,8 +808,9 @@ func TestTransformForTest(t *testing.T) {
 				},
 			}
 
+			t.Fatal("test framework not yet updated to support dynamically-instantiated providers")
 			file := &TestFile{
-				Providers: convertToProviders(t, tc.fileProviders),
+				//Providers: convertToProviders(t, tc.fileProviders),
 			}
 
 			run := &TestRun{

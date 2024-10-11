@@ -37,7 +37,7 @@ type Module struct {
 
 	Backend              *Backend
 	CloudConfig          *CloudConfig
-	ProviderConfigs      map[string]*Provider
+	ProviderConfigs      []*Provider
 	ProviderRequirements *RequiredProviders
 	ProviderLocalNames   map[addrs.Provider]string
 	ProviderMetas        map[addrs.Provider]*ProviderMeta
@@ -68,13 +68,6 @@ type Module struct {
 	StaticEvaluator *StaticEvaluator
 }
 
-// GetProviderConfig uses name and alias to find the respective Provider configuration.
-func (m *Module) GetProviderConfig(name, alias string) (*Provider, bool) {
-	tp := &Provider{ProviderCommon: ProviderCommon{Name: name}, Alias: alias}
-	p, ok := m.ProviderConfigs[tp.Addr().StringCompact()]
-	return p, ok
-}
-
 // File describes the contents of a single configuration file.
 //
 // Individual files are not usually used alone, but rather combined together
@@ -93,7 +86,7 @@ type File struct {
 
 	Backends          []*Backend
 	CloudConfigs      []*CloudConfig
-	ProviderConfigs   []*ProviderBlock
+	ProviderConfigs   []*Provider
 	ProviderMetas     []*ProviderMeta
 	RequiredProviders []*RequiredProviders
 	Encryptions       []*config.EncryptionConfig
@@ -169,7 +162,7 @@ func NewModuleWithTests(primaryFiles, overrideFiles []*File, testFiles map[strin
 func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourceDir string, load SelectiveLoader) (*Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	mod := &Module{
-		ProviderConfigs:    map[string]*Provider{},
+		ProviderConfigs:    nil,
 		ProviderLocalNames: map[addrs.Provider]string{},
 		Variables:          map[string]*Variable{},
 		Locals:             map[string]*Local{},
@@ -717,80 +710,23 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 }
 
 func (m *Module) appendFileProviders(file *File) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-	for _, pci := range file.ProviderConfigs {
-		pcs, decodeDiags := pci.decodeStaticFields(m.StaticEvaluator)
-		diags = append(diags, decodeDiags...)
-		if decodeDiags.HasErrors() {
-			continue
-		}
-
-		for _, pc := range pcs {
-			key := pc.Addr().StringCompact()
-			if existing, exists := m.ProviderConfigs[key]; exists {
-				if existing.Alias == "" {
-					diags = append(diags, &hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Duplicate provider configuration",
-						Detail:   fmt.Sprintf("A default (non-aliased) provider configuration for %q was already given at %s. If multiple configurations are required, set the \"alias\" argument for alternative configurations.", existing.Name, existing.DeclRange),
-						Subject:  &pc.DeclRange,
-					})
-				} else {
-					diags = append(diags, &hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Duplicate provider configuration",
-						Detail:   fmt.Sprintf("A provider configuration for %q with alias %q was already given at %s. Each configuration for the same provider must have a distinct alias.", existing.Name, existing.Alias, existing.DeclRange),
-						Subject:  &pc.DeclRange,
-					})
-				}
-				continue
-			}
-			m.ProviderConfigs[key] = pc
-		}
-	}
-	return diags
+	m.ProviderConfigs = append(m.ProviderConfigs, file.ProviderConfigs...)
+	return nil
 }
 
 func (m *Module) mergeFileProviders(file *File) hcl.Diagnostics {
+	// FIXME: With dynamic-expanding providers we must handle merging at
+	// runtime rather than config load time, so to make this work again
+	// we'll need to figure out what the rules ought to be for dynamic
+	// expansion of providers in an override file.
 	var diags hcl.Diagnostics
-	for _, pci := range file.ProviderConfigs {
-		pcs, decodeDiags := pci.decodeStaticFields(m.StaticEvaluator)
-		diags = append(diags, decodeDiags...)
-		if decodeDiags.HasErrors() {
-			continue
-		}
-
-		for _, pc := range pcs {
-			key := pc.Addr().StringCompact()
-			existing, exists := m.ProviderConfigs[key]
-			if pc.Alias == "" {
-				// We allow overriding a non-existing _default_ provider configuration
-				// because the user model is that an absent provider configuration
-				// implies an empty provider configuration, which is what the user
-				// is therefore overriding here.
-				if exists {
-					mergeDiags := existing.merge(pc)
-					diags = append(diags, mergeDiags...)
-				} else {
-					m.ProviderConfigs[key] = pc
-				}
-			} else {
-				// For aliased providers, there must be a base configuration to
-				// override. This allows us to detect and report alias typos
-				// that might otherwise cause the override to not apply.
-				if !exists {
-					diags = append(diags, &hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Missing base provider configuration for override",
-						Detail:   fmt.Sprintf("There is no %s provider configuration with the alias %q. An override file can only override an aliased provider configuration that was already defined in a primary configuration file.", pc.Name, pc.Alias),
-						Subject:  &pc.DeclRange,
-					})
-					continue
-				}
-				mergeDiags := existing.merge(pc)
-				diags = append(diags, mergeDiags...)
-			}
-		}
+	for _, pc := range file.ProviderConfigs {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Cannot override 'provider' blocks",
+			Detail:   "Provider configuration blocks can appear only in normal files, not in override files.",
+			Subject:  &pc.DeclRange,
+		})
 	}
 	return diags
 }

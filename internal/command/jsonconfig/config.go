@@ -163,31 +163,40 @@ func marshalProviderConfigs(
 	reqs, _ := c.ProviderRequirementsShallow()
 
 	// Add an entry for each provider configuration block in the module.
-	for k, pc := range c.Module.ProviderConfigs {
-		providerFqn := c.ProviderForConfigAddr(addrs.LocalProviderInstance{LocalName: pc.Name})
-		schema := schemas.ProviderConfig(providerFqn)
+	// FIXME: Figure out what to do with this under the new dynamic provider expansion rules.
+	/*
+		for k, pc := range c.Module.ProviderConfigs {
+			providerFqn := c.ProviderForConfigAddr(addrs.LocalProviderInstance{LocalName: pc.Name})
+			schema := schemas.ProviderConfig(providerFqn)
 
-		p := providerConfig{
-			Name:          pc.Name,
-			FullName:      providerFqn.String(),
-			Alias:         pc.Alias,
-			ModuleAddress: c.Path.String(),
-			Expressions:   marshalExpressions(pc.Config, schema),
+			// TODO: Restore the alias here if it happens to be defined statically,
+			// as it would've been for any module written before dynamic provider
+			// expansion. For newer modules we'll need an "expression" representation
+			// instead so that we can announce the symbols it was populated from
+			// when it isn't a constant.
+
+			p := providerConfig{
+				Name:          pc.Name,
+				FullName:      providerFqn.String(),
+				Alias:         pc.Alias,
+				ModuleAddress: c.Path.String(),
+				Expressions:   marshalExpressions(pc.Config, schema),
+			}
+
+			// Store the fully resolved provider version constraint, rather than
+			// using the version argument in the configuration block. This is both
+			// future proof (for when we finish the deprecation of the provider config
+			// version argument) and more accurate (as it reflects the full set of
+			// constraints, in case there are multiple).
+			if vc, ok := reqs[providerFqn]; ok {
+				p.VersionConstraint = getproviders.VersionConstraintsString(vc)
+			}
+
+			key := opaqueProviderKey(k, c.Path.String())
+
+			m[key] = p
 		}
-
-		// Store the fully resolved provider version constraint, rather than
-		// using the version argument in the configuration block. This is both
-		// future proof (for when we finish the deprecation of the provider config
-		// version argument) and more accurate (as it reflects the full set of
-		// constraints, in case there are multiple).
-		if vc, ok := reqs[providerFqn]; ok {
-			p.VersionConstraint = getproviders.VersionConstraintsString(vc)
-		}
-
-		key := opaqueProviderKey(k, c.Path.String())
-
-		m[key] = p
-	}
+	*/
 
 	// Ensure that any required providers with no associated configuration
 	// block are included in the set.

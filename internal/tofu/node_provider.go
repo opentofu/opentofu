@@ -78,10 +78,9 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 		configSchema = &configschema.Block{}
 	}
 
+	// TODO: Should have the keyData saved as a field of NodeAbstractProvider, once
+	// we get that updated to work with the new dynamic expansion mechanism.
 	data := EvalDataForNoInstanceKey
-	if n.Config != nil {
-		data = n.Config.InstanceData
-	}
 
 	configVal, _, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, data)
 	if evalDiags.HasErrors() {
@@ -111,17 +110,10 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 
 	configBody := buildProviderConfig(ctx, n.Addr, config)
 
-	resp := provider.GetProviderSchema()
-	diags = diags.Append(resp.Diagnostics.InConfigBody(configBody, n.Addr.String()))
-	if diags.HasErrors() {
-		return diags
-	}
-
-	configSchema := resp.Provider.Block
+	configSchema := n.Schema
+	// TODO: Should have the keyData saved as a field of NodeAbstractProvider, once
+	// we get that updated to work with the new dynamic expansion mechanism.
 	data := EvalDataForNoInstanceKey
-	if n.Config != nil {
-		data = n.Config.InstanceData
-	}
 
 	configVal, configBody, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, data)
 	diags = diags.Append(evalDiags)

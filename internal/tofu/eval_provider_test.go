@@ -34,10 +34,8 @@ func TestBuildProviderConfig(t *testing.T) {
 		},
 	}
 	gotBody := buildProviderConfig(ctx, providerAddr, &configs.Provider{
-		ProviderCommon: configs.ProviderCommon{
-			Name:   "foo",
-			Config: configBody,
-		},
+		Name:   "foo",
+		Config: configBody,
 	})
 
 	schema := &configschema.Block{

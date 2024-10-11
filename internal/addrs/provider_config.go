@@ -432,3 +432,64 @@ func (pc ConfigProviderInstance) String() string {
 
 	return strings.Join(parts, ".")
 }
+
+// AbsProviderInstance represents the fully-qualified of an instance of a
+// provider, after instance expansion is complete.
+//
+// Each "provider" block in the configuration can become zero or more
+// AbsProviderInstance after expansion, and all of the expanded instances
+// must have unique AbsProviderInstance addresses.
+type AbsProviderInstance struct {
+	Module   ModuleInstance
+	Provider Provider
+
+	// Key is the instance key of an additional (aka "aliased") provider
+	// instance. This is populated either from the "alias" argument of
+	// the associated provider configuration, or from one of the keys
+	// in the for_each argument.
+	//
+	// Unlike most other multi-instance address types, the key for a
+	// provider instance is currently always either NoKey or a string,
+	// and a string key always contains a valid HCL identifier. However,
+	// best to try to avoid depending on those constraints as much as
+	// possible in other code and in new language features so that we
+	// can potentially generalize this more later if someone finds a
+	// compelling use-case for making this behave more like other
+	// expandable objects.
+	Key InstanceKey
+}
+
+var _ UniqueKeyer = AbsProviderInstance{}
+
+// String returns a string representation of the instance address suitable for
+// display in the UI when talking about providers in global scope.
+//
+// This representation isn't so appropriate for situations when talking about
+// provider instances only within a specific module. In that case it might be
+// better to translate to a [LocalProviderInstance] and use its string
+// representation so that the provider is described using the module's
+// chosen short local name, rather than the global provider source address.
+func (pi AbsProviderInstance) String() string {
+	var buf strings.Builder
+	if !pi.Module.IsRoot() {
+		buf.WriteString(pi.Module.String())
+		buf.WriteByte('.')
+	}
+	fmt.Fprintf(&buf, "provider[%s]", pi.Provider)
+	if pi.Key != nil {
+		buf.WriteString(pi.Key.String())
+	}
+	return buf.String()
+}
+
+// UniqueKey implements UniqueKeyer.
+func (pi AbsProviderInstance) UniqueKey() UniqueKey {
+	return absProviderInstanceKey{pi.String()}
+}
+
+type absProviderInstanceKey struct {
+	s string
+}
+
+// uniqueKeySigil implements UniqueKey.
+func (a absProviderInstanceKey) uniqueKeySigil() {}

@@ -131,34 +131,39 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.ConfigProviderInstance) (
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
-	key := addr.String()
+	// TODO: Rework this to work with the new addrs.AbsProviderInstance instead
+	return nil, fmt.Errorf("BuiltinEvalContext.InitProvider not yet reworked for new provider address model")
 
-	// If we have already initialized, it is an error
-	if _, ok := ctx.ProviderCache[key]; ok {
-		return nil, fmt.Errorf("%s is already initialized", addr)
-	}
+	/*
+		key := addr.String()
 
-	p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
-	if err != nil {
-		return nil, err
-	}
+		// If we have already initialized, it is an error
+		if _, ok := ctx.ProviderCache[key]; ok {
+			return nil, fmt.Errorf("%s is already initialized", addr)
+		}
 
-	if ctx.Evaluator != nil && ctx.Evaluator.Config != nil && ctx.Evaluator.Config.Module != nil {
-		// If an aliased provider is mocked, we use providerForTest wrapper.
-		// We cannot wrap providers.Factory itself, because factories don't support aliases.
-		pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
-		if ok && pc.IsMocked {
-			p, err = newProviderForTest(p, pc.MockResources)
-			if err != nil {
-				return nil, err
+		p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
+		if err != nil {
+			return nil, err
+		}
+
+		if ctx.Evaluator != nil && ctx.Evaluator.Config != nil && ctx.Evaluator.Config.Module != nil {
+			// If an aliased provider is mocked, we use providerForTest wrapper.
+			// We cannot wrap providers.Factory itself, because factories don't support aliases.
+			pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
+			if ok && pc.IsMocked {
+				p, err = newProviderForTest(p, pc.MockResources)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
-	}
 
-	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
-	ctx.ProviderCache[key] = p
+		log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
+		ctx.ProviderCache[key] = p
 
-	return p, nil
+		return p, nil
+	*/
 }
 
 func (ctx *BuiltinEvalContext) Provider(addr addrs.ConfigProviderInstance) providers.Interface {

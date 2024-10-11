@@ -9,19 +9,33 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// ProviderCommon is the common fields between a Provider Block and a Provider
-type ProviderCommon struct {
+// Provider represents a "provider" block in a module or file. A provider
+// block is a provider configuration, and there can be zero or more
+// configurations for each actual provider.
+type Provider struct {
 	Name      string
 	NameRange hcl.Range
+
+	// Each provider block can either have "alias", "for_each", or neither,
+	// giving the following combinations
+	//
+	// - Alias == nil, ForEach == nil: The "default" (unaliased) configuration
+	//   for this provider in the current module.
+	// - Alias != nil, ForEach == nil: A single "additional" (aliased) configuration
+	//   for this provider in the current module, whose name is decided dynamically
+	//   based on the value of the expression.
+	// - Alias == nil, ForEach != nil: Zero or more "additional" (aliased) configurations
+	//   for this provider in the current module, decided dynamically based on the
+	//   value of the expression. The expression must be a mapping whose keys are
+	//   then used as the aliases.
+	Alias   hcl.Expression
+	ForEach hcl.Expression
 
 	Version VersionConstraint
 
@@ -40,24 +54,6 @@ type ProviderCommon struct {
 	// testing framework to instantiate test provider wrapper.
 	IsMocked      bool
 	MockResources []*MockResource
-}
-
-// ProviderBlock represents a "provider" block in a module or file. A provider
-// block is a provider configuration
-type ProviderBlock struct {
-	ProviderCommon
-	AliasExpr  hcl.Expression // nil if no alias set
-	AliasRange *hcl.Range     // nil if no alias set
-	ForEach    hcl.Expression
-}
-
-// Provider represents an instance of a "provider" block. Created after
-// the exvaluation of a provider block containing the specific data
-// for each instance derived from the evaluation
-type Provider struct {
-	ProviderCommon
-	Alias        string
-	InstanceData instances.RepetitionData
 }
 
 // ParseProviderConfigCompact parses the given absolute traversal as a relative
@@ -140,7 +136,7 @@ func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderInstance, tfd
 	return addr, diags
 }
 
-func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
+func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	content, config, moreDiags := block.Body.PartialContent(providerBlockSchema)
@@ -158,30 +154,27 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 		return nil, diags
 	}
 
-	provider := &ProviderBlock{
-		ProviderCommon: ProviderCommon{
-			Name:      name,
-			NameRange: block.LabelRanges[0],
-			Config:    config,
-			DeclRange: block.DefRange,
-		},
+	provider := &Provider{
+		Name:      name,
+		NameRange: block.LabelRanges[0],
+		Config:    config,
+		DeclRange: block.DefRange,
 	}
 
 	if attr, exists := content.Attributes["alias"]; exists {
-		provider.AliasExpr = attr.Expr
-		provider.AliasRange = attr.Expr.Range().Ptr()
+		provider.Alias = attr.Expr
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
 		provider.ForEach = attr.Expr
 	}
 
-	if provider.AliasExpr != nil && provider.ForEach != nil {
+	if provider.Alias != nil && provider.ForEach != nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Invalid combination of "alias" and "for_each"`,
-			Detail:   `The "alias" and "for_each" arguments are mutually-exclusive, only one may be used.`,
-			Subject:  provider.AliasExpr.Range().Ptr(),
+			Detail:   `The "alias" and "for_each" arguments are mutually-exclusive, so only one may be used in each provider block.`,
+			Subject:  provider.Alias.Range().Ptr(),
 		})
 	}
 
@@ -280,101 +273,6 @@ func checkProviderNameNormalized(name string, declrange hcl.Range) hcl.Diagnosti
 		})
 	}
 	return diags
-}
-
-// Addr returns the address of the receiving provider configuration, relative
-// to its containing module.
-func (p *Provider) Addr() addrs.LocalProviderInstance {
-	return addrs.LocalProviderInstance{
-		LocalName: p.Name,
-		Alias:     p.Alias,
-	}
-}
-
-func (p *ProviderBlock) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	if p.ForEach != nil {
-		return p.generateForEachProviders(eval)
-	}
-
-	result := Provider{ProviderCommon: p.ProviderCommon}
-	if p.AliasExpr != nil {
-		if eval != nil {
-			valDiags := eval.DecodeExpression(p.AliasExpr, StaticIdentifier{
-				Module:    eval.call.addr,
-				Subject:   fmt.Sprintf("provider.%s.alias", p.Name),
-				DeclRange: p.AliasExpr.Range(),
-			}, &result.Alias)
-			diags = append(diags, valDiags...)
-		} else {
-			// Test files don't have a static context
-			valDiags := gohcl.DecodeExpression(p.AliasExpr, nil, &result.Alias)
-			diags = append(diags, valDiags...)
-		}
-
-		if diags.HasErrors() {
-			return nil, diags
-		}
-
-		if !hclsyntax.ValidIdentifier(result.Alias) {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider configuration alias",
-				Detail:   fmt.Sprintf("Alias %q must be a valid name. %s", result.Alias, badIdentifierDetail),
-				Subject:  p.AliasExpr.Range().Ptr(),
-			})
-		}
-	}
-	return []*Provider{&result}, diags
-}
-
-func (p *ProviderBlock) generateForEachProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	if eval == nil {
-		return nil, diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Iteration not allowed in test files",
-			Detail:   "for_each was declared as a provider attribute in a test file",
-			Subject:  p.ForEach.Range().Ptr(),
-		})
-	}
-
-	forEachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-		var diags tfdiags.Diagnostics
-		evalContext, evalDiags := eval.EvalContext(StaticIdentifier{
-			Module:    eval.call.addr,
-			Subject:   fmt.Sprintf("provider.%s.for_each", p.Name),
-			DeclRange: p.ForEach.Range(),
-		}, refs)
-		return evalContext, diags.Append(evalDiags)
-	}
-
-	forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc)
-	diags = append(diags, evalDiags.ToHCL()...)
-	if evalDiags.HasErrors() {
-		return nil, diags
-	}
-
-	var out []*Provider
-	for k, v := range forVal {
-		if !hclsyntax.ValidIdentifier(k) {
-			return nil, diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid for_each key alias",
-				Detail:   fmt.Sprintf("Alias %q must be a valid name. %s", k, badIdentifierDetail),
-				Subject:  p.ForEach.Range().Ptr(),
-			})
-		}
-
-		out = append(out, &Provider{
-			ProviderCommon: p.ProviderCommon,
-			Alias:          k,
-			InstanceData: instances.RepetitionData{
-				EachValue: v,
-			},
-		})
-	}
-	return out, diags
 }
 
 var providerBlockSchema = &hcl.BodySchema{ //nolint: gochecknoglobals // pre-existing code

@@ -99,15 +99,18 @@ func (file *TestFile) getTestProviderOrMock(addr string) (*Provider, bool) {
 
 	mockProvider, ok := file.MockProviders[addr]
 	if ok {
+		var aliasRange hcl.Range
+		if mockProvider.AliasRange != nil {
+			aliasRange = *mockProvider.AliasRange
+		}
+
 		p := &Provider{
-			ProviderCommon: ProviderCommon{
-				Name:          mockProvider.Name,
-				NameRange:     mockProvider.NameRange,
-				DeclRange:     mockProvider.DeclRange,
-				IsMocked:      true,
-				MockResources: mockProvider.MockResources,
-			},
-			Alias: mockProvider.Alias,
+			Name:          mockProvider.Name,
+			NameRange:     mockProvider.NameRange,
+			DeclRange:     mockProvider.DeclRange,
+			IsMocked:      true,
+			MockResources: mockProvider.MockResources,
+			Alias:         hcl.StaticExpr(cty.StringVal(mockProvider.Alias), aliasRange),
 		}
 
 		return p, true
@@ -397,18 +400,8 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			}
 
 		case "provider":
-			providerBlock, providerDiags := decodeProviderBlock(block)
-			diags = append(diags, providerDiags...)
-			if providerBlock != nil {
-				providers, diagsStatic := providerBlock.decodeStaticFields(nil)
-				diags = append(diags, diagsStatic...)
-				if diagsStatic.HasErrors() {
-					continue
-				}
-				for _, provider := range providers {
-					tf.Providers[provider.Addr().StringCompact()] = provider
-				}
-			}
+			// FIXME: Figure out what makes sense to do here
+			panic("test scenario language not yet updated for dynamic provider instance expansion")
 
 		case blockNameOverrideResource:
 			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
