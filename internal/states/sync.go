@@ -444,7 +444,7 @@ func (s *SyncState) RemovePlannedResourceInstanceObjects() {
 				if is.Current != nil && is.Current.Status == ObjectPlanned {
 					// Setting the current instance to nil removes it from the
 					// state altogether if there are not also deposed instances.
-					ms.SetResourceInstanceCurrent(instAddr, nil, is.Current.InstanceProvider)
+					ms.SetResourceInstanceCurrent(instAddr, nil, is.InstanceProvider)
 				}
 
 				for dk, obj := range is.Deposed {

@@ -320,7 +320,7 @@ func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
 	for _, rs := range n.knownResourceStates {
 		for key, inst := range rs.Instances {
 			result.Absolute = append(result.Absolute, ResourceProvidedBy{
-				Provider: inst.Current.InstanceProvider,
+				Provider: inst.InstanceProvider,
 				Resource: rs.Addr.Instance(key),
 				Optional: true,
 			})
