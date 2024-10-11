@@ -389,8 +389,8 @@ func TestHttpClient_lock(t *testing.T) {
 }
 
 func trimString(str string) string {
-	// Helper function
-	// Remove new line, tab, and space characters from a string
+	// Helper function to remove new line, tab
+	// and space characters from a string
 	space := regexp.MustCompile(`\s+`)
 	return space.ReplaceAllString(str, " ")
 }
