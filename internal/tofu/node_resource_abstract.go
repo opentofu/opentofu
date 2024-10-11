@@ -295,7 +295,7 @@ func (n *NodeAbstractResource) SetProvider(p addrs.ConfigProviderInstance) {
 }
 
 // GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderConfig, bool) {
+func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderInstance, bool) {
 	// Once the provider is fully resolved, we can return the known value.
 	if n.ResolvedProvider.Provider.Type != "" {
 		return n.ResolvedProvider, true

@@ -16,29 +16,29 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
-// ProviderConfig is an interface type whose dynamic type can be either
+// ProviderInstance is an interface type whose dynamic type can be either
 // LocalProviderInstance or ConfigProviderInstance, in order to represent
 // situations where a value might either be module-local or absolute but the
 // decision cannot be made until runtime.
 //
 // Where possible, use either LocalProviderInstance or ConfigProviderInstance
-// directly instead, to make intent more clear. ProviderConfig can be used only
+// directly instead, to make intent more clear. ProviderInstance can be used only
 // in situations where the recipient of the value has some out-of-band way to
 // determine a "current module" to use if the value turns out to be
 // a LocalProviderInstance.
 //
-// Recipients of non-nil ProviderConfig values that actually need
+// Recipients of non-nil ProviderInstance values that actually need
 // ConfigProviderInstance values should call ResolveAbsProviderAddr on the
 // *configs.Config value representing the root module configuration, which
 // handles the translation from local to fully-qualified using mapping tables
 // defined in the configuration.
 //
-// Recipients of a ProviderConfig value can assume it can contain only a
+// Recipients of a ProviderInstance value can assume it can contain only a
 // LocalProviderInstance value, an ConfigProviderInstance value, or nil to
 // represent the absence of a provider config in situations where that is
 // meaningful.
-type ProviderConfig interface {
-	providerConfig()
+type ProviderInstance interface {
+	providerInstance()
 }
 
 // LocalProviderInstance is the address of a provider configuration from the
@@ -55,7 +55,7 @@ type LocalProviderInstance struct {
 	Alias string
 }
 
-var _ ProviderConfig = LocalProviderInstance{}
+var _ ProviderInstance = LocalProviderInstance{}
 
 // NewDefaultLocalProviderInstance returns the address of the default (un-aliased)
 // configuration for the provider with the given local type name.
@@ -65,8 +65,8 @@ func NewDefaultLocalProviderInstance(LocalNameName string) LocalProviderInstance
 	}
 }
 
-// providerConfig Implements addrs.ProviderConfig.
-func (pc LocalProviderInstance) providerConfig() {}
+// providerInstance Implements addrs.ProviderInstance.
+func (pc LocalProviderInstance) providerInstance() {}
 
 func (pc LocalProviderInstance) String() string {
 	if pc.LocalName == "" {
@@ -81,8 +81,8 @@ func (pc LocalProviderInstance) String() string {
 	return "provider." + pc.LocalName
 }
 
-// StringCompact is an alternative to String that returns the form that can
-// be parsed by ParseProviderConfigCompact, without the "provider." prefix.
+// StringCompact is an alternative to String that returns the compact form
+// without the "provider." prefix.
 func (pc LocalProviderInstance) StringCompact() string {
 	if pc.Alias != "" {
 		return fmt.Sprintf("%s.%s", pc.LocalName, pc.Alias)
@@ -103,7 +103,7 @@ type ConfigProviderInstance struct {
 	Alias    string
 }
 
-var _ ProviderConfig = ConfigProviderInstance{}
+var _ ProviderInstance = ConfigProviderInstance{}
 
 // ParseConfigProviderInstance parses the given traversal as a module-path-sensitive
 // provider configuration address. The following are examples of traversals that can be
@@ -349,8 +349,8 @@ func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) C
 	}
 }
 
-// providerConfig Implements addrs.ProviderConfig.
-func (pc ConfigProviderInstance) providerConfig() {}
+// providerInstance Implements addrs.ProviderConfig.
+func (pc ConfigProviderInstance) providerInstance() {}
 
 // Inherited returns an address that the receiving configuration address might
 // inherit from in a parent module. The second bool return value indicates if
