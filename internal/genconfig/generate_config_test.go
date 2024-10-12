@@ -278,7 +278,7 @@ resource "tfcoremock_simple_resource" "empty" {
 			},
 			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
-				Alias:     "alternate",
+				Key:       addrs.StringKey("alternate"),
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
 				"id":    cty.StringVal("D2320658"),

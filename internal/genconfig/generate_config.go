@@ -35,7 +35,7 @@ func GenerateResourceContents(addr addrs.AbsResourceInstance,
 
 	var diags tfdiags.Diagnostics
 
-	if pc.LocalName != addr.Resource.Resource.ImpliedProvider() || pc.Alias != "" {
+	if pc.LocalName != addr.Resource.Resource.ImpliedProvider() || pc.Key != addrs.NoKey {
 		buf.WriteString(strings.Repeat(" ", 2))
 		buf.WriteString(fmt.Sprintf("provider = %s\n", pc.StringCompact()))
 	}

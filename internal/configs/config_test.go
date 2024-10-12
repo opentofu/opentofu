@@ -101,7 +101,7 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 	t.Run("local, implied mapping", func(t *testing.T) {
 		addr := addrs.LocalProviderInstance{
 			LocalName: "implied",
-			Alias:     "boop",
+			Key:       addrs.StringKey("boop"),
 		}
 		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModule)
 		want := addrs.ConfigProviderInstance{
@@ -116,7 +116,7 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 	t.Run("local, explicit mapping", func(t *testing.T) {
 		addr := addrs.LocalProviderInstance{
 			LocalName: "foo-test", // this is explicitly set in the config
-			Alias:     "boop",
+			Key:       addrs.StringKey("boop"),
 		}
 		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModule)
 		want := addrs.ConfigProviderInstance{

@@ -303,11 +303,7 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderInstance, bool) {
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
-		relAddr := n.Config.ProviderConfigAddr()
-		return addrs.LocalProviderInstance{
-			LocalName: relAddr.LocalName,
-			Alias:     relAddr.Alias,
-		}, false
+		return n.Config.ProviderConfigAddr(), false
 	}
 
 	// See if we have a valid provider config from the state.
@@ -326,10 +322,7 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderInstance, bool) {
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			return addrs.LocalProviderInstance{
-				LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
-				Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
-			}, false
+			return n.importTargets[0].Config.ProviderConfigRef.Addr(), false
 		}
 	}
 

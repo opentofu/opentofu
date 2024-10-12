@@ -49,10 +49,7 @@ type ProviderInstance interface {
 // no syntax-only translation between these types.
 type LocalProviderInstance struct {
 	LocalName string
-
-	// If not empty, Alias identifies which non-default (aliased) provider
-	// configuration this address refers to.
-	Alias string
+	Key       InstanceKey
 }
 
 var _ ProviderInstance = LocalProviderInstance{}
@@ -75,8 +72,15 @@ func (pc LocalProviderInstance) String() string {
 		return "provider.<invalid>"
 	}
 
-	if pc.Alias != "" {
-		return fmt.Sprintf("provider.%s.%s", pc.LocalName, pc.Alias)
+	if pc.Key != NoKey {
+		if strKey, ok := pc.Key.(StringKey); ok && hclsyntax.ValidIdentifier(string(strKey)) {
+			// We'll return using the old-style identifier syntax if possible,
+			// since that's backward-compatible.
+			return fmt.Sprintf("provider.%s.%s", pc.LocalName, strKey)
+		}
+		// Otherwise we'll use the more general index syntax, so that
+		// we can evolve towards treating providers more like everything else.
+		return fmt.Sprintf("provider.%s%s", pc.LocalName, pc.Key)
 	}
 
 	return "provider." + pc.LocalName
@@ -85,8 +89,15 @@ func (pc LocalProviderInstance) String() string {
 // StringCompact is an alternative to String that returns the compact form
 // without the "provider." prefix.
 func (pc LocalProviderInstance) StringCompact() string {
-	if pc.Alias != "" {
-		return fmt.Sprintf("%s.%s", pc.LocalName, pc.Alias)
+	if pc.Key != NoKey {
+		if strKey, ok := pc.Key.(StringKey); ok && hclsyntax.ValidIdentifier(string(strKey)) {
+			// We'll return using the old-style identifier syntax if possible,
+			// since that's backward-compatible.
+			return fmt.Sprintf("%s.%s", pc.LocalName, strKey)
+		}
+		// Otherwise we'll use the more general index syntax, so that
+		// we can evolve towards treating providers more like everything else.
+		return fmt.Sprintf("%s%s", pc.LocalName, pc.Key)
 	}
 	return pc.LocalName
 }

@@ -803,7 +803,7 @@ func (c *Config) ProviderTypes() []addrs.Provider {
 	return ret
 }
 
-// ResolveAbsProviderAddr returns the AbsProviderConfig represented by the given
+// ResolveAbsProviderAddr returns the AbsProviderInstance represented by the given
 // ProviderConfig address, which must not be nil or this method will panic.
 //
 // If the given address is already an AbsProviderConfig then this method returns
@@ -835,10 +835,15 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderInstance, inModule ad
 			provider = addrs.ImpliedProviderForUnqualifiedType(addr.LocalName)
 		}
 
+		// TEMP: Temporary shim until we replace this with AbsProviderInstance in a future commit.
+		// Once everything's tidied up we'll be assigning an InstanceKey to an InstanceKey so
+		// won't need this anymore.
+		strKey, _ := addr.Key.(addrs.StringKey)
+
 		return addrs.ConfigProviderInstance{
 			Module:   inModule,
 			Provider: provider,
-			Alias:    addr.Alias,
+			Alias:    string(strKey),
 		}
 
 	default:

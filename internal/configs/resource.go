@@ -105,10 +105,7 @@ func (r *Resource) ProviderConfigAddr() addrs.LocalProviderInstance {
 		}
 	}
 
-	return addrs.LocalProviderInstance{
-		LocalName: r.ProviderConfigRef.Name,
-		Alias:     r.ProviderConfigRef.Alias,
-	}
+	return r.ProviderConfigRef.Addr()
 }
 
 // HasCustomConditions returns true if and only if the resource has at least
@@ -734,6 +731,13 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 	return ret, diags
 }
 
+func (r *ProviderConfigRef) InstanceKey() addrs.InstanceKey {
+	if r.Alias != "" {
+		return addrs.StringKey(r.Alias)
+	}
+	return addrs.NoKey
+}
+
 // Addr returns the provider config address corresponding to the receiving
 // config reference.
 //
@@ -742,7 +746,7 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 func (r *ProviderConfigRef) Addr() addrs.LocalProviderInstance {
 	return addrs.LocalProviderInstance{
 		LocalName: r.Name,
-		Alias:     r.Alias,
+		Key:       r.InstanceKey(),
 	}
 }
 

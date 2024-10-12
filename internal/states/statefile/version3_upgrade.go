@@ -157,13 +157,16 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 							}
 							return nil, fmt.Errorf("invalid legacy provider config reference %q for %s: %w", oldProviderAddr, instAddr, diags.Err())
 						}
+						// TEMP SHIM: We need this just until we get rid of ConfigProviderInstance
+						// in favor of AbsResourceInstance.
+						strKey, _ := localAddr.Key.(addrs.StringKey)
 						providerAddr = addrs.ConfigProviderInstance{
 							Module: moduleAddr.Module(),
 							// We use NewLegacyProvider here so we can use
 							// LegacyString() below to get the appropriate
 							// legacy-style provider string.
 							Provider: addrs.NewLegacyProvider(localAddr.LocalName),
-							Alias:    localAddr.Alias,
+							Alias:    string(strKey),
 						}
 					} else {
 						providerAddr = addrs.ConfigProviderInstance{

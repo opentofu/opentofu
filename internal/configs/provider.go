@@ -84,7 +84,7 @@ func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderIns
 	aliasStep := traversal[1]
 	switch ts := aliasStep.(type) {
 	case hcl.TraverseAttr:
-		ret.Alias = ts.Name
+		ret.Key = addrs.StringKey(ts.Name)
 		return ret, diags
 	default:
 		diags = diags.Append(&hcl.Diagnostic{

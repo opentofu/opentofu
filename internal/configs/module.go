@@ -505,10 +505,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 		}
 
 		if i.ProviderConfigRef != nil {
-			i.Provider = m.ProviderForLocalConfig(addrs.LocalProviderInstance{
-				LocalName: i.ProviderConfigRef.Name,
-				Alias:     i.ProviderConfigRef.Alias,
-			})
+			i.Provider = m.ProviderForLocalConfig(i.ProviderConfigRef.Addr())
 		} else {
 			implied, err := addrs.ParseProviderPart(i.StaticTo.Resource.ImpliedProvider())
 			if err == nil {

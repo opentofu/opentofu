@@ -54,7 +54,7 @@ func TestParseProviderConfigCompact(t *testing.T) {
 			`aws.foo`,
 			addrs.LocalProviderInstance{
 				LocalName: "aws",
-				Alias:     "foo",
+				Key:       addrs.StringKey("foo"),
 			},
 			``,
 		},
@@ -117,7 +117,7 @@ func TestParseProviderConfigCompactStr(t *testing.T) {
 			`aws.foo`,
 			addrs.LocalProviderInstance{
 				LocalName: "aws",
-				Alias:     "foo",
+				Key:       addrs.StringKey("foo"),
 			},
 			``,
 		},

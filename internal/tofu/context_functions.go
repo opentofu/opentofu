@@ -49,7 +49,7 @@ func evalContextProviderFunction(providers func(addrs.ConfigProviderInstance) pr
 		validAlias := pf.ProviderAlias == ""
 		if !validAlias {
 			for _, alias := range pr.Aliases {
-				if alias.Alias == pf.ProviderAlias {
+				if alias.Key == addrs.NoKey && pf.ProviderAlias == "" || alias.Key == addrs.StringKey(pf.ProviderAlias) {
 					validAlias = true
 					break
 				}

@@ -674,9 +674,14 @@ func (n *NodePlannableResourceInstance) generateHCLStringAttributes(addr addrs.A
 		configschema.FilterDeprecatedBlock,
 	)
 
+	var instKey addrs.InstanceKey
+	if n.ResolvedProvider.Alias != "" {
+		instKey = addrs.StringKey(n.ResolvedProvider.Alias)
+	}
+
 	providerAddr := addrs.LocalProviderInstance{
 		LocalName: n.ResolvedProvider.Provider.Type,
-		Alias:     n.ResolvedProvider.Alias,
+		Key:       instKey,
 	}
 
 	return genconfig.GenerateResourceContents(addr, filteredSchema, providerAddr, state.Value)

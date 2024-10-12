@@ -142,14 +142,18 @@ func (t *ProviderInstanceTransformer) Transform(g *Graph) error {
 				// contains a `provider` attribute
 				absPc.Provider = pv.Provider()
 				modPath := pv.ModulePath()
+
+				// TEMP SHIM: until absPc becomes an addrs.AbsProviderInstance instead
+				strKey, _ := p.Key.(addrs.StringKey)
+
 				if t.Config == nil {
 					absPc.Module = modPath
-					absPc.Alias = p.Alias
+					absPc.Alias = string(strKey)
 					break
 				}
 
 				absPc.Module = modPath
-				absPc.Alias = p.Alias
+				absPc.Alias = string(strKey)
 
 			default:
 				// This should never happen; the case statements are meant to be exhaustive
