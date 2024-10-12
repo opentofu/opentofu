@@ -7178,9 +7178,9 @@ func runTestCases(t *testing.T, testCases map[string]testCase) {
 				Addr:        addr,
 				PrevRunAddr: prevRunAddr,
 				DeposedKey:  tc.DeposedKey,
-				ProviderAddr: addrs.ConfigProviderInstance{
+				ProviderAddr: addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
+					Module:   addrs.RootModuleInstance,
 				},
 				ActionReason:    tc.ActionReason,
 				RequiredReplace: tc.RequiredReplace,

@@ -62,8 +62,8 @@ run "test_case" {
 							"value": cty.StringVal("Hello, world!"),
 						})),
 					},
-					addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					})
 			}),
@@ -120,8 +120,8 @@ run "test_case" {
 							},
 						},
 					},
-					addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					})
 			}),
@@ -180,8 +180,8 @@ run "test_case" {
 							"value": cty.StringVal("Hello, world!"),
 						})),
 					},
-					addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					})
 			}),
@@ -237,8 +237,8 @@ run "test_case" {
 							"value": cty.StringVal("Hello, world!"),
 						})),
 					},
-					addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					})
 			}),
@@ -300,8 +300,8 @@ run "test_case" {
 							"value": cty.StringVal("Hello, world!"),
 						})),
 					},
-					addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					})
 			}),
@@ -400,8 +400,8 @@ run "test_case" {
 							"value": cty.String,
 						}))),
 					},
-					addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					})
 			}),
@@ -414,8 +414,8 @@ run "test_case" {
 								Type: "test_resource",
 								Name: "a",
 							}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-							ProviderAddr: addrs.ConfigProviderInstance{
-								Module:   addrs.RootModule,
+							ProviderAddr: addrs.AbsProviderInstance{
+								Module:   addrs.RootModuleInstance,
 								Provider: addrs.NewDefaultProvider("test"),
 							},
 							ChangeSrc: plans.ChangeSrc{
@@ -476,8 +476,8 @@ run "test_case" {
 							"value": cty.String,
 						}))),
 					},
-					addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					})
 			}),
@@ -490,8 +490,8 @@ run "test_case" {
 								Type: "test_resource",
 								Name: "a",
 							}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-							ProviderAddr: addrs.ConfigProviderInstance{
-								Module:   addrs.RootModule,
+							ProviderAddr: addrs.AbsProviderInstance{
+								Module:   addrs.RootModuleInstance,
 								Provider: addrs.NewDefaultProvider("test"),
 							},
 							ChangeSrc: plans.ChangeSrc{

@@ -280,9 +280,9 @@ func TestMarshalPlanResources(t *testing.T) {
 							Type: "test_thing",
 							Name: "example",
 						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-						ProviderAddr: addrs.ConfigProviderInstance{
+						ProviderAddr: addrs.AbsProviderInstance{
 							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
+							Module:   addrs.RootModuleInstance,
 						},
 						ChangeSrc: plans.ChangeSrc{
 							Action: test.Action,
@@ -327,9 +327,9 @@ func TestMarshalPlanValuesNoopDeposed(t *testing.T) {
 					Name: "example",
 				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 				DeposedKey: "12345678",
-				ProviderAddr: addrs.ConfigProviderInstance{
+				ProviderAddr: addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
+					Module:   addrs.RootModuleInstance,
 				},
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.NoOp,

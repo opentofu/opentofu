@@ -199,12 +199,6 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		// analyze the configuration to find references.
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
-		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config},
-
-		// Remove unused providers and proxies
-		&PruneProviderInstanceTransformer{},
-
 		// Create expansion nodes for all of the module calls. This must
 		// come after all other transformers that create nodes representing
 		// objects that can belong to modules.
@@ -239,9 +233,6 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		// Detect when create_before_destroy must be forced on for a particular
 		// node due to dependency edges, to avoid graph cycles during apply.
 		&ForcedCBDTransformer{},
-
-		// Close opened plugin connections
-		&CloseProviderInstanceTransformer{},
 
 		// Close the root module
 		&CloseRootModuleTransformer{

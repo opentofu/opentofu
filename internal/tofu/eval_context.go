@@ -44,7 +44,7 @@ type EvalContext interface {
 	// It is an error to initialize the same provider more than once. This
 	// method will panic if the module instance address of the given provider
 	// configuration does not match the Path() of the EvalContext.
-	InitProvider(addr addrs.ConfigProviderInstance) (providers.Interface, error)
+	InitProvider(addr addrs.AbsProviderInstance) (providers.Interface, error)
 
 	// Provider gets the provider instance with the given address (already
 	// initialized) or returns nil if the provider isn't initialized.
@@ -53,20 +53,20 @@ type EvalContext interface {
 	// resources in one module are able to use providers from other modules.
 	// InitProvider must've been called on the EvalContext of the module
 	// that owns the given provider before calling this method.
-	Provider(addrs.ConfigProviderInstance) providers.Interface
+	Provider(addrs.AbsProviderInstance) providers.Interface
 
 	// ProviderSchema retrieves the schema for a particular provider, which
 	// must have already been initialized with InitProvider.
 	//
 	// This method expects an _absolute_ provider configuration address, since
 	// resources in one module are able to use providers from other modules.
-	ProviderSchema(addrs.ConfigProviderInstance) (providers.ProviderSchema, error)
+	ProviderSchema(addrs.AbsProviderInstance) (providers.ProviderSchema, error)
 
 	// CloseProvider closes provider connections that aren't needed anymore.
 	//
 	// This method will panic if the module instance address of the given
 	// provider configuration does not match the Path() of the EvalContext.
-	CloseProvider(addrs.ConfigProviderInstance) error
+	CloseProvider(addrs.AbsProviderInstance) error
 
 	// ConfigureProvider configures the provider with the given
 	// configuration. This is a separate context call because this call
@@ -75,15 +75,15 @@ type EvalContext interface {
 	//
 	// This method will panic if the module instance address of the given
 	// provider configuration does not match the Path() of the EvalContext.
-	ConfigureProvider(addrs.ConfigProviderInstance, cty.Value) tfdiags.Diagnostics
+	ConfigureProvider(addrs.AbsProviderInstance, cty.Value) tfdiags.Diagnostics
 
 	// ProviderInput and SetProviderInput are used to configure providers
 	// from user input.
 	//
 	// These methods will panic if the module instance address of the given
 	// provider configuration does not match the Path() of the EvalContext.
-	ProviderInput(addrs.ConfigProviderInstance) map[string]cty.Value
-	SetProviderInput(addrs.ConfigProviderInstance, map[string]cty.Value)
+	ProviderInput(addrs.AbsProviderInstance) map[string]cty.Value
+	SetProviderInput(addrs.AbsProviderInstance, map[string]cty.Value)
 
 	// Provisioner gets the provisioner instance with the given name.
 	Provisioner(string) (provisioners.Interface, error)

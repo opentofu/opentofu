@@ -111,7 +111,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		}
 	}()
 
-	providerSupplier := func(addr addrs.ConfigProviderInstance) providers.Interface {
+	providerSupplier := func(addr addrs.AbsProviderInstance) providers.Interface {
 		providerInstanceLock.Lock()
 		defer providerInstanceLock.Unlock()
 
@@ -144,7 +144,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		PureOnly:      operation != walkApply,
 		PlanTimestamp: ctx.Plan.Timestamp,
 		ProviderFunctions: func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-			return evalContextProviderFunction(providerSupplier, ctx.Config, walkPlan, pf, rng)
+			return evalContextProviderFunction(providerSupplier, addrs.RootModuleInstance, ctx.Config, walkPlan, pf, rng)
 		},
 	}
 

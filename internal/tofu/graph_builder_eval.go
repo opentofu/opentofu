@@ -89,12 +89,6 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		// analyze the configuration to find references.
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
-		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config},
-
-		// Remove unused providers and proxies
-		&PruneProviderInstanceTransformer{},
-
 		// Create expansion nodes for all of the module calls. This must
 		// come after all other transformers that create nodes representing
 		// objects that can belong to modules.
@@ -103,10 +97,6 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 		// Connect so that the references are ready for targeting. We'll
 		// have to connect again later for providers and so on.
 		&ReferenceTransformer{},
-
-		// Although we don't configure providers, we do still start them up
-		// to get their schemas, and so we must shut them down again here.
-		&CloseProviderInstanceTransformer{},
 
 		// Close root module
 		&CloseRootModuleTransformer{

@@ -39,36 +39,36 @@ type MockEvalContext struct {
 
 	InitProviderCalled   bool
 	InitProviderType     string
-	InitProviderAddr     addrs.ConfigProviderInstance
+	InitProviderAddr     addrs.AbsProviderInstance
 	InitProviderProvider providers.Interface
 	InitProviderError    error
 
 	ProviderCalled   bool
-	ProviderAddr     addrs.ConfigProviderInstance
+	ProviderAddr     addrs.AbsProviderInstance
 	ProviderProvider providers.Interface
 
 	ProviderSchemaCalled bool
-	ProviderSchemaAddr   addrs.ConfigProviderInstance
+	ProviderSchemaAddr   addrs.AbsProviderInstance
 	ProviderSchemaSchema providers.ProviderSchema
 	ProviderSchemaError  error
 
 	CloseProviderCalled   bool
-	CloseProviderAddr     addrs.ConfigProviderInstance
+	CloseProviderAddr     addrs.AbsProviderInstance
 	CloseProviderProvider providers.Interface
 
 	ProviderInputCalled bool
-	ProviderInputAddr   addrs.ConfigProviderInstance
+	ProviderInputAddr   addrs.AbsProviderInstance
 	ProviderInputValues map[string]cty.Value
 
 	SetProviderInputCalled bool
-	SetProviderInputAddr   addrs.ConfigProviderInstance
+	SetProviderInputAddr   addrs.AbsProviderInstance
 	SetProviderInputValues map[string]cty.Value
 
 	ConfigureProviderFn func(
-		addr addrs.ConfigProviderInstance,
+		addr addrs.AbsProviderInstance,
 		cfg cty.Value) tfdiags.Diagnostics // overrides the other values below, if set
 	ConfigureProviderCalled bool
-	ConfigureProviderAddr   addrs.ConfigProviderInstance
+	ConfigureProviderAddr   addrs.AbsProviderInstance
 	ConfigureProviderConfig cty.Value
 	ConfigureProviderDiags  tfdiags.Diagnostics
 
@@ -183,32 +183,32 @@ func (c *MockEvalContext) Input() UIInput {
 	return c.InputInput
 }
 
-func (c *MockEvalContext) InitProvider(addr addrs.ConfigProviderInstance) (providers.Interface, error) {
+func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderInstance) (providers.Interface, error) {
 	c.InitProviderCalled = true
 	c.InitProviderType = addr.String()
 	c.InitProviderAddr = addr
 	return c.InitProviderProvider, c.InitProviderError
 }
 
-func (c *MockEvalContext) Provider(addr addrs.ConfigProviderInstance) providers.Interface {
+func (c *MockEvalContext) Provider(addr addrs.AbsProviderInstance) providers.Interface {
 	c.ProviderCalled = true
 	c.ProviderAddr = addr
 	return c.ProviderProvider
 }
 
-func (c *MockEvalContext) ProviderSchema(addr addrs.ConfigProviderInstance) (providers.ProviderSchema, error) {
+func (c *MockEvalContext) ProviderSchema(addr addrs.AbsProviderInstance) (providers.ProviderSchema, error) {
 	c.ProviderSchemaCalled = true
 	c.ProviderSchemaAddr = addr
 	return c.ProviderSchemaSchema, c.ProviderSchemaError
 }
 
-func (c *MockEvalContext) CloseProvider(addr addrs.ConfigProviderInstance) error {
+func (c *MockEvalContext) CloseProvider(addr addrs.AbsProviderInstance) error {
 	c.CloseProviderCalled = true
 	c.CloseProviderAddr = addr
 	return nil
 }
 
-func (c *MockEvalContext) ConfigureProvider(addr addrs.ConfigProviderInstance, cfg cty.Value) tfdiags.Diagnostics {
+func (c *MockEvalContext) ConfigureProvider(addr addrs.AbsProviderInstance, cfg cty.Value) tfdiags.Diagnostics {
 
 	c.ConfigureProviderCalled = true
 	c.ConfigureProviderAddr = addr
@@ -219,13 +219,13 @@ func (c *MockEvalContext) ConfigureProvider(addr addrs.ConfigProviderInstance, c
 	return c.ConfigureProviderDiags
 }
 
-func (c *MockEvalContext) ProviderInput(addr addrs.ConfigProviderInstance) map[string]cty.Value {
+func (c *MockEvalContext) ProviderInput(addr addrs.AbsProviderInstance) map[string]cty.Value {
 	c.ProviderInputCalled = true
 	c.ProviderInputAddr = addr
 	return c.ProviderInputValues
 }
 
-func (c *MockEvalContext) SetProviderInput(addr addrs.ConfigProviderInstance, vals map[string]cty.Value) {
+func (c *MockEvalContext) SetProviderInput(addr addrs.AbsProviderInstance, vals map[string]cty.Value) {
 	c.SetProviderInputCalled = true
 	c.SetProviderInputAddr = addr
 	c.SetProviderInputValues = vals

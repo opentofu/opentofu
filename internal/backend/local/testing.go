@@ -188,8 +188,8 @@ func testStateFile(t *testing.T, path string, s *states.State) {
 	}
 }
 
-func mustProviderConfig(s string) addrs.ConfigProviderInstance {
-	p, diags := addrs.ParseConfigProviderInstanceStr(s)
+func mustProviderConfig(s string) addrs.AbsProviderInstance {
+	p, diags := addrs.ParseAbsProviderInstanceStr(s)
 	if diags.HasErrors() {
 		panic(diags.Err())
 	}

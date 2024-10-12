@@ -29,9 +29,9 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 		return addr
 	}
 
-	makeRootProviderAddr := func(s string) addrs.ConfigProviderInstance {
-		return addrs.ConfigProviderInstance{
-			Module:   addrs.RootModule,
+	makeRootProviderAddr := func(s string) addrs.AbsProviderInstance {
+		return addrs.AbsProviderInstance{
+			Module:   addrs.RootModuleInstance,
 			Provider: addrs.MustParseProviderSourceString(s),
 		}
 	}

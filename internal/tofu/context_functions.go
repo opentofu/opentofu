@@ -20,7 +20,7 @@ import (
 
 // This builds a provider function using an EvalContext and some additional information
 // This is split out of BuiltinEvalContext for testing
-func evalContextProviderFunction(providers func(addrs.ConfigProviderInstance) providers.Interface, mc *configs.Config, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+func evalContextProviderFunction(providers func(addrs.AbsProviderInstance) providers.Interface, moduleInstAddr addrs.ModuleInstance, mc *configs.Config, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	pr, ok := mc.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
@@ -34,10 +34,12 @@ func evalContextProviderFunction(providers func(addrs.ConfigProviderInstance) pr
 	}
 
 	// Very similar to transform_provider.go
-	absPc := addrs.ConfigProviderInstance{
+	absPc := addrs.AbsProviderInstance{
 		Provider: pr.Type,
-		Module:   mc.Path,
-		Alias:    pf.ProviderAlias,
+		Module:   moduleInstAddr,
+	}
+	if pf.ProviderAlias != "" {
+		absPc.Key = addrs.StringKey(pf.ProviderAlias)
 	}
 
 	provider := providers(absPc)
@@ -64,7 +66,7 @@ func evalContextProviderFunction(providers func(addrs.ConfigProviderInstance) pr
 			}
 		}
 
-		provider = providers(addrs.ConfigProviderInstance{Provider: pr.Type})
+		provider = providers(addrs.AbsProviderInstance{Provider: pr.Type})
 		if provider == nil {
 			// This should not be possible
 			return nil, diags.Append(&hcl.Diagnostic{

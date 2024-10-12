@@ -111,12 +111,12 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				// we encounter for each resource. While this is lossy in
 				// theory, in practice there is no reason for these values to
 				// differ between instances.
-				var providerAddr addrs.ConfigProviderInstance
+				var providerAddr addrs.AbsProviderInstance
 				oldProviderAddr := rsOld.Provider
 				if strings.Contains(oldProviderAddr, "provider.") {
 					// Smells like a new-style provider address, but we'll test it.
 					var diags tfdiags.Diagnostics
-					providerAddr, diags = addrs.ParseLegacyConfigProviderInstanceStr(oldProviderAddr)
+					providerAddr, diags = addrs.ParseLegacyAbsProviderInstanceStr(oldProviderAddr)
 					if diags.HasErrors() {
 						if strings.Contains(oldProviderAddr, "${") {
 							// There seems to be a common misconception that
@@ -157,20 +157,17 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 							}
 							return nil, fmt.Errorf("invalid legacy provider config reference %q for %s: %w", oldProviderAddr, instAddr, diags.Err())
 						}
-						// TEMP SHIM: We need this just until we get rid of ConfigProviderInstance
-						// in favor of AbsResourceInstance.
-						strKey, _ := localAddr.Key.(addrs.StringKey)
-						providerAddr = addrs.ConfigProviderInstance{
-							Module: moduleAddr.Module(),
+						providerAddr = addrs.AbsProviderInstance{
+							Module: moduleAddr,
 							// We use NewLegacyProvider here so we can use
 							// LegacyString() below to get the appropriate
 							// legacy-style provider string.
 							Provider: addrs.NewLegacyProvider(localAddr.LocalName),
-							Alias:    string(strKey),
+							Key:      localAddr.Key,
 						}
 					} else {
-						providerAddr = addrs.ConfigProviderInstance{
-							Module: moduleAddr.Module(),
+						providerAddr = addrs.AbsProviderInstance{
+							Module: moduleAddr,
 							// We use NewLegacyProvider here so we can use
 							// LegacyString() below to get the appropriate
 							// legacy-style provider string.
@@ -185,7 +182,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 					Type:           resAddr.Type,
 					Name:           resAddr.Name,
 					Instances:      []instanceObjectStateV4{},
-					ProviderConfig: providerAddr.LegacyString(),
+					ProviderConfig: providerAddr.String(),
 				}
 				resourceStates[resAddr.String()] = rs
 			}

@@ -70,9 +70,9 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Type: "test_thing",
 						Name: "woot",
 					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
+					ProviderAddr: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 					ChangeSrc: plans.ChangeSrc{
 						Action: plans.DeleteThenCreate,
@@ -113,9 +113,9 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Name: "woot",
 					}.Instance(addrs.IntKey(1)).Absolute(addrs.RootModuleInstance),
 					DeposedKey: "foodface",
-					ProviderAddr: addrs.ConfigProviderInstance{
+					ProviderAddr: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 					ChangeSrc: plans.ChangeSrc{
 						Action: plans.Delete,
@@ -135,9 +135,9 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Type: "test_thing",
 						Name: "forget",
 					}.Instance(addrs.IntKey(1)).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
+					ProviderAddr: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 					ChangeSrc: plans.ChangeSrc{
 						Action: plans.Forget,
@@ -157,9 +157,9 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						Type: "test_thing",
 						Name: "importing",
 					}.Instance(addrs.IntKey(1)).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
+					ProviderAddr: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 					ChangeSrc: plans.ChangeSrc{
 						Action: plans.NoOp,
@@ -187,9 +187,9 @@ func TestTFPlanRoundTrip(t *testing.T) {
 					Type: "test_thing",
 					Name: "woot",
 				}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-				ProviderAddr: addrs.ConfigProviderInstance{
+				ProviderAddr: addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
+					Module:   addrs.RootModuleInstance,
 				},
 				ChangeSrc: plans.ChangeSrc{
 					Action: plans.DeleteThenCreate,
@@ -374,9 +374,9 @@ func TestTFPlanRoundTripDestroy(t *testing.T) {
 						Type: "test_thing",
 						Name: "woot",
 					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
+					ProviderAddr: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 					ChangeSrc: plans.ChangeSrc{
 						Action: plans.Delete,

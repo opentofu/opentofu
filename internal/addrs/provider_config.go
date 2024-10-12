@@ -17,7 +17,7 @@ import (
 )
 
 // ProviderInstance is an interface type whose dynamic type can be either
-// LocalProviderInstance or ConfigProviderInstance, in order to represent
+// LocalProviderInstance or AbsProviderInstance, in order to represent
 // situations where a value might either be module-local or absolute but the
 // decision cannot be made until runtime.
 //
@@ -114,52 +114,53 @@ func (pc LocalProviderInstance) uniqueKeySigil() {}
 // referenceableSigil implements Referenceable.
 func (pc LocalProviderInstance) referenceableSigil() {}
 
-// ConfigProviderInstance is the address of a provider block in the configuration,
-// before any module expansion although already including a statically-configured
-// "alias".
+// AbsProviderInstance represents the fully-qualified of an instance of a
+// provider, after instance expansion is complete.
 //
-// In earlier versions this was called "AbsProviderConfig", but that was a misnomer
-// because the "Abs..." prefix is for addresses that include a [ModuleInstance],
-// not those that include a [Module].
-type ConfigProviderInstance struct {
-	Module   Module
+// Each "provider" block in the configuration can become zero or more
+// AbsProviderInstance after expansion, and all of the expanded instances
+// must have unique AbsProviderInstance addresses.
+type AbsProviderInstance struct {
+	Module   ModuleInstance
 	Provider Provider
-	Alias    string
+
+	// Key is the instance key of an additional (aka "aliased") provider
+	// instance. This is populated either from the "alias" argument of
+	// the associated provider configuration, or from one of the keys
+	// in the for_each argument.
+	//
+	// Unlike most other multi-instance address types, the key for a
+	// provider instance is currently always either NoKey or a string,
+	// and a string key always contains a valid HCL identifier. However,
+	// best to try to avoid depending on those constraints as much as
+	// possible in other code and in new language features so that we
+	// can potentially generalize this more later if someone finds a
+	// compelling use-case for making this behave more like other
+	// expandable objects.
+	Key InstanceKey
 }
 
-var _ ProviderInstance = ConfigProviderInstance{}
+var _ ProviderInstance = AbsProviderInstance{}
+var _ UniqueKeyer = AbsProviderInstance{}
 
-// ParseConfigProviderInstance parses the given traversal as a module-path-sensitive
-// provider configuration address. The following are examples of traversals that can be
-// successfully parsed as provider configuration addresses using this function:
+// ParseConfigProviderInstance parses the given traversal as an absolute
+// provider instance address. The following are examples of traversals that can be
+// successfully parsed as provider instance addresses using this function:
 //
 //   - provider["registry.opentofu.org/hashicorp/aws"]
 //   - provider["registry.opentofu.org/hashicorp/aws"].foo
 //   - module.bar.provider["registry.opentofu.org/hashicorp/aws"]
-//   - module.bar.module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo
+//   - module.bar["foo"].module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo
 //
 // This type of address is used, for example, to record the relationships
 // between resources and provider configurations in the state structure.
 // This type of address is typically not used prominently in the UI, except in
 // error messages that refer to provider configurations.
-func ParseConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderInstance, tfdiags.Diagnostics) {
+func ParseAbsProviderInstance(traversal hcl.Traversal) (AbsProviderInstance, tfdiags.Diagnostics) {
 	modInst, remain, diags := parseModuleInstancePrefix(traversal)
-	var ret ConfigProviderInstance
+	var ret AbsProviderInstance
 
-	// Providers cannot resolve within module instances, so verify that there
-	// are no instance keys in the module path before converting to a Module.
-	for _, step := range modInst {
-		if step.InstanceKey != NoKey {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider configuration address",
-				Detail:   "Provider address cannot contain module indexes",
-				Subject:  remain.SourceRange().Ptr(),
-			})
-			return ret, diags
-		}
-	}
-	ret.Module = modInst.Module()
+	ret.Module = modInst
 
 	if len(remain) < 2 || remain.RootName() != "provider" {
 		diags = diags.Append(&hcl.Diagnostic{
@@ -207,9 +208,30 @@ func ParseConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderInstanc
 	}
 
 	if len(remain) == 3 {
-		if tt, ok := remain[2].(hcl.TraverseAttr); ok {
-			ret.Alias = tt.Name
-		} else {
+		// We accept both attribute and index syntax for this last part, because
+		// the attribute syntax is backward-compatible with older versions that
+		// think this is just a static alias identifier, while index is more
+		// general as we try to make progress towards provider instances being
+		// increasingly similar to everything else that can dynamic-expand
+		// over time.
+		switch tt := remain[2].(type) {
+		case hcl.TraverseAttr:
+			ret.Key = StringKey(tt.Name)
+		case hcl.TraverseIndex:
+			switch tt.Key.Type() {
+			case cty.String:
+				ret.Key = StringKey(tt.Key.AsString())
+			default:
+				// No other types are allowed for provider instance keys in particular.
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid address operator",
+					Detail:   "Invalid provider instance key: must be a string.",
+					Subject:  tt.SourceRange().Ptr(),
+				})
+				return ret, diags
+			}
+		default:
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration address",
@@ -223,7 +245,7 @@ func ParseConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderInstanc
 	return ret, diags
 }
 
-// ParseConfigProviderInstanceStr is a helper wrapper around ParseConfigProviderInstance
+// ParseAbsProviderInstanceStr is a helper wrapper around ParseAbsProviderInstance
 // that takes a string and parses it with the HCL native syntax traversal parser
 // before interpreting it.
 //
@@ -232,39 +254,54 @@ func ParseConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderInstanc
 // If a reference string is coming from a source that should be identified in
 // error messages then the caller should instead parse it directly using a
 // suitable function from the HCL API and pass the traversal itself to
-// ParseConfigProviderInstance.
+// ParseAbsProviderInstance.
 //
 // Error diagnostics are returned if either the parsing fails or the analysis
 // of the traversal fails. There is no way for the caller to distinguish the
 // two kinds of diagnostics programmatically. If error diagnostics are returned
 // the returned address is invalid.
-func ParseConfigProviderInstanceStr(str string) (ConfigProviderInstance, tfdiags.Diagnostics) {
+func ParseAbsProviderInstanceStr(str string) (AbsProviderInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(parseDiags)
 	if parseDiags.HasErrors() {
-		return ConfigProviderInstance{}, diags
+		return AbsProviderInstance{}, diags
 	}
-	addr, addrDiags := ParseConfigProviderInstance(traversal)
+	addr, addrDiags := ParseAbsProviderInstance(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags
 }
 
-func ParseLegacyConfigProviderInstanceStr(str string) (ConfigProviderInstance, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
-	diags = diags.Append(parseDiags)
-	if parseDiags.HasErrors() {
-		return ConfigProviderInstance{}, diags
+// String returns a string representation of the instance address suitable for
+// display in the UI when talking about providers in global scope.
+//
+// This representation isn't so appropriate for situations when talking about
+// provider instances only within a specific module. In that case it might be
+// better to translate to a [LocalProviderInstance] and use its string
+// representation so that the provider is described using the module's
+// chosen short local name, rather than the global provider source address.
+func (pi AbsProviderInstance) String() string {
+	var buf strings.Builder
+	if !pi.Module.IsRoot() {
+		buf.WriteString(pi.Module.String())
+		buf.WriteByte('.')
 	}
-
-	addr, addrDiags := ParseLegacyConfigProviderInstance(traversal)
-	diags = diags.Append(addrDiags)
-	return addr, diags
+	fmt.Fprintf(&buf, "provider[%s]", pi.Provider)
+	if pi.Key != nil {
+		if str, ok := pi.Key.(StringKey); ok && hclsyntax.ValidIdentifier(string(str)) {
+			// We prefer to use the attribute syntax if the key is valid for it,
+			// because that's backward-compatible with older versions of OpenTofu
+			// that think this portion just represents a static alias identifier.
+			buf.WriteByte('.')
+			buf.WriteString(string(str))
+		} else {
+			buf.WriteString(pi.Key.String())
+		}
+	}
+	return buf.String()
 }
 
-// ParseLegacyConfigProviderInstance parses the given traversal as an absolute
+// ParseLegacyAbsProviderInstance parses the given traversal as an absolute
 // provider address in the legacy form used by OpenTofu v0.12 and earlier.
 // The following are examples of traversals that can be successfully parsed as
 // legacy absolute provider configuration addresses:
@@ -281,24 +318,24 @@ func ParseLegacyConfigProviderInstanceStr(str string) (ConfigProviderInstance, t
 // in that case.
 //
 // We will not use this address form for any new file formats.
-func ParseLegacyConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderInstance, tfdiags.Diagnostics) {
+func ParseLegacyAbsProviderInstance(traversal hcl.Traversal) (AbsProviderInstance, tfdiags.Diagnostics) {
 	modInst, remain, diags := parseModuleInstancePrefix(traversal)
-	var ret ConfigProviderInstance
+	var ret AbsProviderInstance
 
-	// Providers cannot resolve within module instances, so verify that there
-	// are no instance keys in the module path before converting to a Module.
+	// OpenTofu v0.12 and earlier didn't have dynamic module instances yet,
+	// so if we encounter those then this can't possibly be a legacy address.
 	for _, step := range modInst {
 		if step.InstanceKey != NoKey {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration address",
-				Detail:   "Provider address cannot contain module indexes",
+				Detail:   "Legacy provider instance address cannot contain module instance key",
 				Subject:  remain.SourceRange().Ptr(),
 			})
 			return ret, diags
 		}
 	}
-	ret.Module = modInst.Module()
+	ret.Module = modInst
 
 	if len(remain) < 2 || remain.RootName() != "provider" {
 		diags = diags.Append(&hcl.Diagnostic{
@@ -339,7 +376,7 @@ func ParseLegacyConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderI
 
 	if len(remain) == 3 {
 		if tt, ok := remain[2].(hcl.TraverseAttr); ok {
-			ret.Alias = tt.Name
+			ret.Key = StringKey(tt.Name)
 		} else {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -354,143 +391,18 @@ func ParseLegacyConfigProviderInstance(traversal hcl.Traversal) (ConfigProviderI
 	return ret, diags
 }
 
-// ProviderConfigDefault returns the address of the default provider config of
-// the given type inside the receiving module instance.
-func (m ModuleInstance) ProviderConfigDefault(provider Provider) ConfigProviderInstance {
-	return ConfigProviderInstance{
-		Module:   m.Module(),
-		Provider: provider,
-	}
-}
+func ParseLegacyAbsProviderInstanceStr(str string) (AbsProviderInstance, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
 
-// ProviderConfigAliased returns the address of an aliased provider config of
-// the given type and alias inside the receiving module instance.
-func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) ConfigProviderInstance {
-	return ConfigProviderInstance{
-		Module:   m.Module(),
-		Provider: provider,
-		Alias:    alias,
-	}
-}
-
-// providerInstance Implements addrs.ProviderConfig.
-func (pc ConfigProviderInstance) providerInstance() {}
-
-// Inherited returns an address that the receiving configuration address might
-// inherit from in a parent module. The second bool return value indicates if
-// such inheritance is possible, and thus whether the returned address is valid.
-//
-// Inheritance is possible only for default (un-aliased) providers in modules
-// other than the root module. Even if a valid address is returned, inheritance
-// may not be performed for other reasons, such as if the calling module
-// provided explicit provider configurations within the call for this module.
-// The ProviderInstanceTransformer graph transform in the main tofu module has the
-// authoritative logic for provider inheritance, and this method is here mainly
-// just for its benefit.
-func (pc ConfigProviderInstance) Inherited() (ConfigProviderInstance, bool) {
-	// Can't inherit if we're already in the root.
-	if len(pc.Module) == 0 {
-		return ConfigProviderInstance{}, false
+	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return AbsProviderInstance{}, diags
 	}
 
-	// Can't inherit if we have an alias.
-	if pc.Alias != "" {
-		return ConfigProviderInstance{}, false
-	}
-
-	// Otherwise, we might inherit from a configuration with the same
-	// provider type in the parent module instance.
-	parentMod := pc.Module.Parent()
-	return ConfigProviderInstance{
-		Module:   parentMod,
-		Provider: pc.Provider,
-	}, true
-
-}
-
-// LegacyString() returns a legacy-style ConfigProviderInstance string and should only be used for legacy state shimming.
-func (pc ConfigProviderInstance) LegacyString() string {
-	if pc.Alias != "" {
-		if len(pc.Module) == 0 {
-			return fmt.Sprintf("%s.%s.%s", "provider", pc.Provider.LegacyString(), pc.Alias)
-		} else {
-			return fmt.Sprintf("%s.%s.%s.%s", pc.Module.String(), "provider", pc.Provider.LegacyString(), pc.Alias)
-		}
-	}
-	if len(pc.Module) == 0 {
-		return fmt.Sprintf("%s.%s", "provider", pc.Provider.LegacyString())
-	}
-	return fmt.Sprintf("%s.%s.%s", pc.Module.String(), "provider", pc.Provider.LegacyString())
-}
-
-// String() returns a string representation of a ConfigProviderInstance in a format like the following examples:
-//
-//   - provider["example.com/namespace/name"]
-//   - provider["example.com/namespace/name"].alias
-//   - module.module-name.provider["example.com/namespace/name"]
-//   - module.module-name.provider["example.com/namespace/name"].alias
-func (pc ConfigProviderInstance) String() string {
-	var parts []string
-	if len(pc.Module) > 0 {
-		parts = append(parts, pc.Module.String())
-	}
-
-	parts = append(parts, fmt.Sprintf("provider[%q]", pc.Provider))
-
-	if pc.Alias != "" {
-		parts = append(parts, pc.Alias)
-	}
-
-	return strings.Join(parts, ".")
-}
-
-// AbsProviderInstance represents the fully-qualified of an instance of a
-// provider, after instance expansion is complete.
-//
-// Each "provider" block in the configuration can become zero or more
-// AbsProviderInstance after expansion, and all of the expanded instances
-// must have unique AbsProviderInstance addresses.
-type AbsProviderInstance struct {
-	Module   ModuleInstance
-	Provider Provider
-
-	// Key is the instance key of an additional (aka "aliased") provider
-	// instance. This is populated either from the "alias" argument of
-	// the associated provider configuration, or from one of the keys
-	// in the for_each argument.
-	//
-	// Unlike most other multi-instance address types, the key for a
-	// provider instance is currently always either NoKey or a string,
-	// and a string key always contains a valid HCL identifier. However,
-	// best to try to avoid depending on those constraints as much as
-	// possible in other code and in new language features so that we
-	// can potentially generalize this more later if someone finds a
-	// compelling use-case for making this behave more like other
-	// expandable objects.
-	Key InstanceKey
-}
-
-var _ UniqueKeyer = AbsProviderInstance{}
-
-// String returns a string representation of the instance address suitable for
-// display in the UI when talking about providers in global scope.
-//
-// This representation isn't so appropriate for situations when talking about
-// provider instances only within a specific module. In that case it might be
-// better to translate to a [LocalProviderInstance] and use its string
-// representation so that the provider is described using the module's
-// chosen short local name, rather than the global provider source address.
-func (pi AbsProviderInstance) String() string {
-	var buf strings.Builder
-	if !pi.Module.IsRoot() {
-		buf.WriteString(pi.Module.String())
-		buf.WriteByte('.')
-	}
-	fmt.Fprintf(&buf, "provider[%s]", pi.Provider)
-	if pi.Key != nil {
-		buf.WriteString(pi.Key.String())
-	}
-	return buf.String()
+	addr, addrDiags := ParseLegacyAbsProviderInstance(traversal)
+	diags = diags.Append(addrDiags)
+	return addr, diags
 }
 
 // UniqueKey implements UniqueKeyer.
@@ -504,3 +416,6 @@ type absProviderInstanceKey struct {
 
 // uniqueKeySigil implements UniqueKey.
 func (a absProviderInstanceKey) uniqueKeySigil() {}
+
+// providerInstance implements ProviderInstance.
+func (pi AbsProviderInstance) providerInstance() {}

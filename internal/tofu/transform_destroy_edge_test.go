@@ -336,8 +336,8 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 	}
 
 	resourceInstAddr := mustResourceInstanceAddr("test.a")
-	providerCfgAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerCfgAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.MustParseProviderSourceString("foo/test"),
 	}
 	emptyObjDynamicVal, err := plans.NewDynamicValue(cty.EmptyObjectVal, cty.EmptyObject)

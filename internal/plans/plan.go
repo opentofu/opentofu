@@ -169,12 +169,12 @@ func (p *Plan) CanApply() bool {
 // referenced throughout the receiving plan.
 //
 // The result is de-duplicated so that each distinct address appears only once.
-func (p *Plan) ProviderAddrs() []addrs.ConfigProviderInstance {
+func (p *Plan) ProviderAddrs() []addrs.AbsProviderInstance {
 	if p == nil || p.Changes == nil {
 		return nil
 	}
 
-	m := map[string]addrs.ConfigProviderInstance{}
+	m := map[string]addrs.AbsProviderInstance{}
 	for _, rc := range p.Changes.Resources {
 		m[rc.ProviderAddr.String()] = rc.ProviderAddr
 	}
@@ -189,7 +189,7 @@ func (p *Plan) ProviderAddrs() []addrs.ConfigProviderInstance {
 	}
 	sort.Strings(keys)
 
-	ret := make([]addrs.ConfigProviderInstance, len(keys))
+	ret := make([]addrs.AbsProviderInstance, len(keys))
 	for i, key := range keys {
 		ret[i] = m[key]
 	}

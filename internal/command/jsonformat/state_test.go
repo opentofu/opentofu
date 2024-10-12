@@ -267,9 +267,9 @@ func basicState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	rootModule.SetResourceInstanceCurrent(
@@ -283,9 +283,9 @@ func basicState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"compute":"sure"}`),
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	return state
@@ -319,9 +319,9 @@ func stateWithMoreOutputs(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	return state
@@ -346,9 +346,9 @@ func nestedState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles","nested": [{"value": "42"}]}`),
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	return state
@@ -369,9 +369,9 @@ func deposedState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles","nested": [{"value": "42"}]}`),
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	return state
@@ -398,9 +398,9 @@ func onlyDeposedState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles","nested": [{"value": "42"}]}`),
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	rootModule.SetResourceInstanceDeposed(
@@ -415,9 +415,9 @@ func onlyDeposedState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles","nested": [{"value": "42"}]}`),
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	return state

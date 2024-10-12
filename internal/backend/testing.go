@@ -155,9 +155,9 @@ func TestBackendStates(t *testing.T, b Backend) {
 				Status:        states.ObjectReady,
 				SchemaVersion: 0,
 			},
-			addrs.ConfigProviderInstance{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
+				Module:   addrs.RootModuleInstance,
 			},
 		)
 

@@ -48,9 +48,9 @@ func TestDiffTransformer(t *testing.T) {
 						Type: "aws_instance",
 						Name: "foo",
 					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
+					ProviderAddr: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("aws"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 					ChangeSrc: plans.ChangeSrc{
 						Action: plans.Update,
@@ -123,9 +123,9 @@ resource "aws_instance" "foo" {
 						Type: "aws_instance",
 						Name: "foo",
 					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
+					ProviderAddr: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("aws"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 					ChangeSrc: plans.ChangeSrc{
 						// A "no-op" change has the no-op action and has the
@@ -141,9 +141,9 @@ resource "aws_instance" "foo" {
 						Type: "aws_instance",
 						Name: "bar",
 					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
+					ProviderAddr: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("aws"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 					ChangeSrc: plans.ChangeSrc{
 						// A "no-op" change has the no-op action and has the

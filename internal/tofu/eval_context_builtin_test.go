@@ -29,12 +29,12 @@ func TestBuiltinEvalContextProviderInput(t *testing.T) {
 	ctx2.ProviderInputConfig = cache
 	ctx2.ProviderLock = &lock
 
-	providerAddr1 := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr1 := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
-	providerAddr2 := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule.Child("child"),
+	providerAddr2 := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance.Child("child", addrs.NoKey),
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
@@ -68,14 +68,14 @@ func TestBuildingEvalContextInitProvider(t *testing.T) {
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(testP),
 	}, nil)
 
-	providerAddrDefault := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddrDefault := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("test"),
 	}
-	providerAddrAlias := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddrAlias := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("test"),
-		Alias:    "foo",
+		Key:      addrs.StringKey("foo"),
 	}
 
 	_, err := ctx.InitProvider(providerAddrDefault)

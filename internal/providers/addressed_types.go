@@ -13,7 +13,7 @@ import (
 
 // AddressedTypesAbs is a helper that extracts all of the distinct provider
 // types from the given list of absolute provider configuration addresses.
-func AddressedTypesAbs(providerAddrs []addrs.ConfigProviderInstance) []addrs.Provider {
+func AddressedTypesAbs(providerAddrs []addrs.AbsProviderInstance) []addrs.Provider {
 	if len(providerAddrs) == 0 {
 		return nil
 	}

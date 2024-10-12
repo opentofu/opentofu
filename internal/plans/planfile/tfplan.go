@@ -289,7 +289,7 @@ func resourceChangeFromTfplan(rawChange *planproto.ResourceInstanceChange) (*pla
 		}
 	}
 
-	providerAddr, diags := addrs.ParseConfigProviderInstanceStr(rawChange.Provider)
+	providerAddr, diags := addrs.ParseAbsProviderInstanceStr(rawChange.Provider)
 	if diags.HasErrors() {
 		return nil, diags.Err()
 	}

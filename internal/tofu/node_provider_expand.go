@@ -76,32 +76,17 @@ func (n *nodeProvider) DynamicExpand(globalCtx EvalContext) (*Graph, error) {
 		}
 		seenInsts.Put(instAddr, config)
 
-		// TEMP: We need to update the provider schema cache to be keyed by
-		// addrs.Provider rather than by a provider instance address. Right
-		// now it's still backed by addrs.ConfigProviderInstance for legacy
-		// reasons but we'll be dropping that type in future since provider
-		// configuration blocks are no longer uniquely addressible now that
-		// we're doing dynamic evaluation of the alias/for_each arguments.
-		// For now we'll just fake up a suitable address to look up the
-		// schema with.
-		stubAddrForSchema := addrs.ConfigProviderInstance{
-			Module:   instAddr.Module.Module(),
-			Provider: instAddr.Provider,
-		}
-		if strKey, ok := instAddr.Key.(addrs.StringKey); ok {
-			stubAddrForSchema.Alias = string(strKey)
-		}
-		schema, err := globalCtx.ProviderSchema(stubAddrForSchema)
+		schema, err := globalCtx.ProviderSchema(instAddr)
 		if err != nil {
 			// We shouldn't get here and this code is only temporary until we
 			// update how schema is represented, so this is intentionally a
 			// low-quality message.
-			diags = diags.Append(fmt.Errorf("missing schema for %s", stubAddrForSchema))
+			diags = diags.Append(fmt.Errorf("missing schema for %s", instAddr))
 			return false
 		}
 
 		nodeAbstract := &nodeAbstractProviderInstance{
-			Addr:   stubAddrForSchema, // FIXME: This should be instAddr, but need to update NodeAbstractProvider's field type first
+			Addr:   instAddr,
 			Config: config,
 			Schema: schema.Provider.Block,
 

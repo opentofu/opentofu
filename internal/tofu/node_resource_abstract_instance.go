@@ -2579,7 +2579,7 @@ func resourceInstancePrevRunAddr(ctx EvalContext, currentAddr addrs.AbsResourceI
 	return table.OldAddr(currentAddr)
 }
 
-func (n *NodeAbstractResourceInstance) getProvider(ctx EvalContext, addr addrs.ConfigProviderInstance) (providers.Interface, providers.ProviderSchema, error) {
+func (n *NodeAbstractResourceInstance) getProvider(ctx EvalContext, addr addrs.AbsProviderInstance) (providers.Interface, providers.ProviderSchema, error) {
 	underlyingProvider, schema, err := getProvider(ctx, addr)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, err

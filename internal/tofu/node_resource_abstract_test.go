@@ -174,9 +174,9 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		t.Fatalf("exact provider should be found, got %q\n", p)
 	}
 
-	apc, ok := p.(addrs.ConfigProviderInstance)
+	apc, ok := p.(addrs.AbsProviderInstance)
 	if !ok {
-		t.Fatalf("expected AbsProviderConfig, got %#v\n", p)
+		t.Fatalf("expected AbsProviderInstance, got %#v\n", p)
 	}
 
 	if apc.String() != resolved.String() {
@@ -204,9 +204,9 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 	}{
 		"ReadState gets primary instance state": {
 			State: states.BuildState(func(s *states.SyncState) {
-				providerAddr := addrs.ConfigProviderInstance{
+				providerAddr := addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("aws"),
-					Module:   addrs.RootModule,
+					Module:   addrs.RootModuleInstance,
 				}
 				oneAddr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,
@@ -270,9 +270,9 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 	}{
 		"ReadStateDeposed gets deposed instance": {
 			State: states.BuildState(func(s *states.SyncState) {
-				providerAddr := addrs.ConfigProviderInstance{
+				providerAddr := addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("aws"),
-					Module:   addrs.RootModule,
+					Module:   addrs.RootModuleInstance,
 				}
 				oneAddr := addrs.Resource{
 					Mode: addrs.ManagedResourceMode,

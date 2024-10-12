@@ -18,6 +18,7 @@ type nodeProviderInstanceEval struct {
 }
 
 var _ GraphNodeExecutable = (*nodeProviderInstanceEval)(nil)
+var _ GraphNodeProviderInstance = (*nodeProviderInstanceEval)(nil)
 
 // GraphNodeExecutable
 func (n *nodeProviderInstanceEval) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {

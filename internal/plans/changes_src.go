@@ -47,7 +47,7 @@ type ResourceInstanceChangeSrc struct {
 	// Provider is the address of the provider configuration that was used
 	// to plan this change, and thus the configuration that must also be
 	// used to apply it.
-	ProviderAddr addrs.ConfigProviderInstance
+	ProviderAddr addrs.AbsProviderInstance
 
 	// ChangeSrc is an embedded description of the not-yet-decoded change.
 	ChangeSrc

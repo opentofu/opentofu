@@ -94,9 +94,9 @@ func TestContext2Refresh_dynamicAttr(t *testing.T) {
 				Status:    states.ObjectReady,
 				AttrsJSON: []byte(`{"dynamic":{"type":"string","value":"hello"}}`),
 			},
-			addrs.ConfigProviderInstance{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
+				Module:   addrs.RootModuleInstance,
 			},
 		)
 	})
@@ -1301,9 +1301,9 @@ func TestContext2Refresh_schemaUpgradeFlatmap(t *testing.T) {
 					"id": "foo",
 				},
 			},
-			addrs.ConfigProviderInstance{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
+				Module:   addrs.RootModuleInstance,
 			},
 		)
 	})
@@ -1383,9 +1383,9 @@ func TestContext2Refresh_schemaUpgradeJSON(t *testing.T) {
 				SchemaVersion: 3,
 				AttrsJSON:     []byte(`{"id":"foo"}`),
 			},
-			addrs.ConfigProviderInstance{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
+				Module:   addrs.RootModuleInstance,
 			},
 		)
 	})
@@ -1520,9 +1520,9 @@ func TestRefresh_updateLifecycle(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 
@@ -1573,9 +1573,9 @@ func TestContext2Refresh_dataSourceOrphan(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"foo"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	p := testProvider("test")
@@ -1663,9 +1663,9 @@ resource "test_resource" "foo" {
 			AttrsJSON:    []byte(`{"id":"foo", "network_interface":[]}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 

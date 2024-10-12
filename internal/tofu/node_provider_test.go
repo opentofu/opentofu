@@ -41,8 +41,8 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		},
 	}
 	provider := mockProviderWithConfigSchema(schema)
-	providerAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
@@ -89,8 +89,8 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 	n := &nodeProviderInstance{&nodeAbstractProviderInstance{
@@ -124,8 +124,8 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 	n := &nodeProviderInstance{&nodeAbstractProviderInstance{
@@ -160,8 +160,8 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
@@ -197,8 +197,8 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
@@ -239,8 +239,8 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 			},
 		},
 	})
-	providerAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
@@ -431,7 +431,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 	//
 	// This is an unlikely but real situation that occurs:
 	// https://github.com/hashicorp/terraform/issues/23087
-	ctx.ConfigureProviderFn = func(addr addrs.ConfigProviderInstance, cfg cty.Value) (diags tfdiags.Diagnostics) {
+	ctx.ConfigureProviderFn = func(addr addrs.AbsProviderInstance, cfg cty.Value) (diags tfdiags.Diagnostics) {
 		if cfg.IsNull() {
 			diags = diags.Append(fmt.Errorf("no config provided"))
 		} else {

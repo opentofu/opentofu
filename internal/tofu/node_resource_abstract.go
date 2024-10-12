@@ -74,11 +74,11 @@ type NodeAbstractResource struct {
 	forceDependsOn bool
 
 	// The address of the provider this resource will use
-	ResolvedProvider addrs.ConfigProviderInstance
+	ResolvedProvider addrs.AbsProviderInstance
 	// storedProviderConfig is the provider address retrieved from the
 	// state. This is defined here for access within the ProvidedBy method, but
 	// will be set from the embedding instance type when the state is attached.
-	storedProviderConfig addrs.ConfigProviderInstance
+	storedProviderConfig addrs.AbsProviderInstance
 
 	// This resource may expand into instances which need to be imported.
 	importTargets []*ImportTarget
@@ -327,7 +327,7 @@ func (n *NodeAbstractResource) ProvidedBy() (addrs.ProviderInstance, bool) {
 	}
 
 	// No provider configuration found; return a default address
-	return addrs.ConfigProviderInstance{
+	return addrs.AbsProviderInstance{
 		Provider: n.Provider(),
 		Module:   n.ModulePath(),
 	}, false

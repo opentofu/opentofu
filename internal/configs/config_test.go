@@ -88,12 +88,12 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 	}
 
 	t.Run("already absolute", func(t *testing.T) {
-		addr := addrs.ConfigProviderInstance{
-			Module:   addrs.RootModule,
+		addr := addrs.AbsProviderInstance{
+			Module:   addrs.RootModuleInstance,
 			Provider: addrs.NewDefaultProvider("test"),
-			Alias:    "boop",
+			Key:      addrs.StringKey("boop"),
 		}
-		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModule)
+		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModuleInstance)
 		if got, want := got.String(), addr.String(); got != want {
 			t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
 		}
@@ -103,11 +103,11 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 			LocalName: "implied",
 			Key:       addrs.StringKey("boop"),
 		}
-		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModule)
-		want := addrs.ConfigProviderInstance{
-			Module:   addrs.RootModule,
+		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModuleInstance)
+		want := addrs.AbsProviderInstance{
+			Module:   addrs.RootModuleInstance,
 			Provider: addrs.NewDefaultProvider("implied"),
-			Alias:    "boop",
+			Key:      addrs.StringKey("boop"),
 		}
 		if got, want := got.String(), want.String(); got != want {
 			t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
@@ -118,11 +118,11 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 			LocalName: "foo-test", // this is explicitly set in the config
 			Key:       addrs.StringKey("boop"),
 		}
-		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModule)
-		want := addrs.ConfigProviderInstance{
-			Module:   addrs.RootModule,
+		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModuleInstance)
+		want := addrs.AbsProviderInstance{
+			Module:   addrs.RootModuleInstance,
 			Provider: addrs.NewProvider(addrs.DefaultProviderRegistryHost, "foo", "test"),
-			Alias:    "boop",
+			Key:      addrs.StringKey("boop"),
 		}
 		if got, want := got.String(), want.String(); got != want {
 			t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)

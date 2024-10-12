@@ -127,57 +127,54 @@ func (ctx *BuiltinEvalContext) Input() UIInput {
 	return ctx.InputValue
 }
 
-func (ctx *BuiltinEvalContext) InitProvider(addr addrs.ConfigProviderInstance) (providers.Interface, error) {
+func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderInstance) (providers.Interface, error) {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
-	// TODO: Rework this to work with the new addrs.AbsProviderInstance instead
-	return nil, fmt.Errorf("BuiltinEvalContext.InitProvider not yet reworked for new provider address model")
+	key := addr.String()
 
-	/*
-		key := addr.String()
+	// If we have already initialized, it is an error
+	if _, ok := ctx.ProviderCache[key]; ok {
+		return nil, fmt.Errorf("%s is already initialized", addr)
+	}
 
-		// If we have already initialized, it is an error
-		if _, ok := ctx.ProviderCache[key]; ok {
-			return nil, fmt.Errorf("%s is already initialized", addr)
-		}
+	p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
+	if err != nil {
+		return nil, err
+	}
 
-		p, err := ctx.Plugins.NewProviderInstance(addr.Provider)
-		if err != nil {
-			return nil, err
-		}
-
-		if ctx.Evaluator != nil && ctx.Evaluator.Config != nil && ctx.Evaluator.Config.Module != nil {
-			// If an aliased provider is mocked, we use providerForTest wrapper.
-			// We cannot wrap providers.Factory itself, because factories don't support aliases.
-			pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
-			if ok && pc.IsMocked {
-				p, err = newProviderForTest(p, pc.MockResources)
-				if err != nil {
-					return nil, err
-				}
+	if ctx.Evaluator != nil && ctx.Evaluator.Config != nil && ctx.Evaluator.Config.Module != nil {
+		// If an aliased provider is mocked, we use providerForTest wrapper.
+		// We cannot wrap providers.Factory itself, because factories don't support aliases.
+		// TODO: Figure out how to rework the test harness's mocking for a world with
+		// dynamic provider instance keys.
+		/*pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
+		if ok && pc.IsMocked {
+			p, err = newProviderForTest(p, pc.MockResources)
+			if err != nil {
+				return nil, err
 			}
-		}
+		}*/
+	}
 
-		log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
-		ctx.ProviderCache[key] = p
+	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
+	ctx.ProviderCache[key] = p
 
-		return p, nil
-	*/
+	return p, nil
 }
 
-func (ctx *BuiltinEvalContext) Provider(addr addrs.ConfigProviderInstance) providers.Interface {
+func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderInstance) providers.Interface {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
 	return ctx.ProviderCache[addr.String()]
 }
 
-func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.ConfigProviderInstance) (providers.ProviderSchema, error) {
+func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderInstance) (providers.ProviderSchema, error) {
 	return ctx.Plugins.ProviderSchema(addr.Provider)
 }
 
-func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.ConfigProviderInstance) error {
+func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderInstance) error {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
@@ -191,9 +188,9 @@ func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.ConfigProviderInstance) 
 	return nil
 }
 
-func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.ConfigProviderInstance, cfg cty.Value) tfdiags.Diagnostics {
+func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderInstance, cfg cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	if !addr.Module.Equal(ctx.Path().Module()) {
+	if !addr.Module.Equal(ctx.Path()) {
 		// This indicates incorrect use of ConfigureProvider: it should be used
 		// only from the module that the provider configuration belongs to.
 		panic(fmt.Sprintf("%s configured by wrong module %s", addr, ctx.Path()))
@@ -214,11 +211,11 @@ func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.ConfigProviderInstan
 	return resp.Diagnostics
 }
 
-func (ctx *BuiltinEvalContext) ProviderInput(pc addrs.ConfigProviderInstance) map[string]cty.Value {
+func (ctx *BuiltinEvalContext) ProviderInput(pc addrs.AbsProviderInstance) map[string]cty.Value {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
-	if !pc.Module.Equal(ctx.Path().Module()) {
+	if !pc.Module.Equal(ctx.Path()) {
 		// This indicates incorrect use of InitProvider: it should be used
 		// only from the module that the provider configuration belongs to.
 		panic(fmt.Sprintf("%s initialized by wrong module %s", pc, ctx.Path()))
@@ -232,7 +229,7 @@ func (ctx *BuiltinEvalContext) ProviderInput(pc addrs.ConfigProviderInstance) ma
 	return ctx.ProviderInputConfig[pc.String()]
 }
 
-func (ctx *BuiltinEvalContext) SetProviderInput(pc addrs.ConfigProviderInstance, c map[string]cty.Value) {
+func (ctx *BuiltinEvalContext) SetProviderInput(pc addrs.AbsProviderInstance, c map[string]cty.Value) {
 	absProvider := pc
 	if !pc.Module.IsRoot() {
 		// Only root module provider configurations can have input.
@@ -437,7 +434,7 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-		return evalContextProviderFunction(ctx.Provider, mc, ctx.Evaluator.Operation, pf, rng)
+		return evalContextProviderFunction(ctx.Provider, ctx.Path(), mc, ctx.Evaluator.Operation, pf, rng)
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 

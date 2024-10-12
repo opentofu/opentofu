@@ -21,8 +21,8 @@ import (
 )
 
 func TestApplyMoves(t *testing.T) {
-	providerAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.MustParseProviderSourceString("example.com/foo/bar"),
 	}
 

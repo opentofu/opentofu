@@ -23,14 +23,6 @@ type GraphNodeAttachResourceSchema interface {
 	AttachResourceSchema(schema *configschema.Block, version uint64)
 }
 
-// GraphNodeAttachProviderConfigSchema is an interface implemented by node types
-// that need a provider configuration schema attached.
-type GraphNodeAttachProviderConfigSchema interface {
-	GraphNodeProviderInstance
-
-	AttachProviderConfigSchema(*configschema.Block)
-}
-
 // GraphNodeAttachProvisionerSchema is an interface implemented by node types
 // that need one or more provisioner schemas attached.
 type GraphNodeAttachProvisionerSchema interface {
@@ -77,20 +69,6 @@ func (t *AttachSchemaTransformer) Transform(g *Graph) error {
 			}
 			log.Printf("[TRACE] AttachSchemaTransformer: attaching resource schema to %s", dag.VertexName(v))
 			tv.AttachResourceSchema(schema, version)
-		}
-
-		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
-			providerAddr := tv.ProviderAddr()
-			schema, err := t.Plugins.ProviderConfigSchema(providerAddr.Provider)
-			if err != nil {
-				return fmt.Errorf("failed to read provider configuration schema for %s: %w", providerAddr.Provider, err)
-			}
-			if schema == nil {
-				log.Printf("[ERROR] AttachSchemaTransformer: No provider config schema available for %s", providerAddr)
-				continue
-			}
-			log.Printf("[TRACE] AttachSchemaTransformer: attaching provider config schema to %s", dag.VertexName(v))
-			tv.AttachProviderConfigSchema(schema)
 		}
 
 		if tv, ok := v.(GraphNodeAttachProvisionerSchema); ok {

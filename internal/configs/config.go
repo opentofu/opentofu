@@ -814,18 +814,18 @@ func (c *Config) ProviderTypes() []addrs.Provider {
 // The module address to resolve local addresses in must be given in the second
 // argument, and must refer to a module that exists under the receiver or
 // else this method will panic.
-func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderInstance, inModule addrs.Module) addrs.ConfigProviderInstance {
+func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderInstance, inModuleInst addrs.ModuleInstance) addrs.AbsProviderInstance {
 	switch addr := addr.(type) {
 
-	case addrs.ConfigProviderInstance:
+	case addrs.AbsProviderInstance:
 		return addr
 
 	case addrs.LocalProviderInstance:
 		// Find the descendent Config that contains the module that this
 		// local config belongs to.
-		mc := c.Descendent(inModule)
+		mc := c.DescendentForInstance(inModuleInst)
 		if mc == nil {
-			panic(fmt.Sprintf("ResolveAbsProviderAddr with non-existent module %s", inModule.String()))
+			panic(fmt.Sprintf("ResolveAbsProviderAddr with non-existent module instance %s", inModuleInst.String()))
 		}
 
 		var provider addrs.Provider
@@ -835,15 +835,10 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderInstance, inModule ad
 			provider = addrs.ImpliedProviderForUnqualifiedType(addr.LocalName)
 		}
 
-		// TEMP: Temporary shim until we replace this with AbsProviderInstance in a future commit.
-		// Once everything's tidied up we'll be assigning an InstanceKey to an InstanceKey so
-		// won't need this anymore.
-		strKey, _ := addr.Key.(addrs.StringKey)
-
-		return addrs.ConfigProviderInstance{
-			Module:   inModule,
+		return addrs.AbsProviderInstance{
+			Module:   inModuleInst,
 			Provider: provider,
-			Alias:    string(strKey),
+			Key:      addr.Key,
 		}
 
 	default:
@@ -859,7 +854,7 @@ func (c *Config) ProviderForConfigAddr(addr addrs.LocalProviderInstance) addrs.P
 	if provider, exists := c.Module.ProviderRequirements.RequiredProviders[addr.LocalName]; exists {
 		return provider.Type
 	}
-	return c.ResolveAbsProviderAddr(addr, addrs.RootModule).Provider
+	return c.ResolveAbsProviderAddr(addr, addrs.RootModuleInstance).Provider
 }
 
 func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {

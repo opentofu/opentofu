@@ -104,9 +104,9 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				},
 				Status: states.ObjectReady,
 			},
-			addrs.ConfigProviderInstance{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
+				Module:   addrs.RootModuleInstance,
 			},
 		)
 
@@ -142,9 +142,9 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 		node := NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: addrs.ConfigProviderInstance{
+					ResolvedProvider: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
+						Module:   addrs.RootModuleInstance,
 					},
 				},
 				Addr: absResource,
@@ -184,9 +184,9 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 			},
 			Status: states.ObjectReady,
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	refreshState := state.DeepCopy()
@@ -217,9 +217,9 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: addrs.ConfigProviderInstance{
+				ResolvedProvider: addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
+					Module:   addrs.RootModuleInstance,
 				},
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
@@ -266,9 +266,9 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 			},
 			Status: states.ObjectReady,
 		},
-		addrs.ConfigProviderInstance{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
-			Module:   addrs.RootModule,
+			Module:   addrs.RootModuleInstance,
 		},
 	)
 	refreshState := state.DeepCopy()
@@ -299,9 +299,9 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: addrs.ConfigProviderInstance{
+				ResolvedProvider: addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
+					Module:   addrs.RootModuleInstance,
 				},
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),

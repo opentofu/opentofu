@@ -25,8 +25,8 @@ func TestProviderAddrs(t *testing.T) {
 						Type: "test_thing",
 						Name: "woot",
 					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					ProviderAddr: addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					},
 				},
@@ -37,8 +37,8 @@ func TestProviderAddrs(t *testing.T) {
 						Name: "woot",
 					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
 					DeposedKey: "foodface",
-					ProviderAddr: addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule,
+					ProviderAddr: addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance,
 						Provider: addrs.NewDefaultProvider("test"),
 					},
 				},
@@ -48,8 +48,8 @@ func TestProviderAddrs(t *testing.T) {
 						Type: "test_thing",
 						Name: "what",
 					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
-					ProviderAddr: addrs.ConfigProviderInstance{
-						Module:   addrs.RootModule.Child("foo"),
+					ProviderAddr: addrs.AbsProviderInstance{
+						Module:   addrs.RootModuleInstance.Child("foo", addrs.NoKey),
 						Provider: addrs.NewDefaultProvider("test"),
 					},
 				},

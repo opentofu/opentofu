@@ -20,8 +20,8 @@ func TestBuildProviderConfig(t *testing.T) {
 	configBody := configs.SynthBody("", map[string]cty.Value{
 		"set_in_config": cty.StringVal("config"),
 	})
-	providerAddr := addrs.ConfigProviderInstance{
-		Module:   addrs.RootModule,
+	providerAddr := addrs.AbsProviderInstance{
+		Module:   addrs.RootModuleInstance,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
