@@ -1043,7 +1043,7 @@ var testFileSchema = &hcl.BodySchema{
 	},
 }
 
-// testRunBlockSchema defines the structure of the run block within a test, 
+// testRunBlockSchema defines the structure of the run block within a test,
 // including attributes like the command, expected failures, and providers.
 var testRunBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
