@@ -298,6 +298,9 @@ func TestContext2Refresh_targeted(t *testing.T) {
 	}
 }
 
+// All exclude flag tests in this file are inspired by a counterpart target flag test
+// Usually that test exists right before the exclude flag test
+
 func TestContext2Refresh_excluded(t *testing.T) {
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{

@@ -691,6 +691,7 @@ resource "test_object" "s" {
 	assertNoErrors(t, diags)
 }
 
+// This test is inspired by the above test TestContext2Apply_targetedDestroyWithMoved
 func TestContext2Apply_excludedDestroyWithMoved(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -2357,6 +2358,8 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 	}
 }
 
+// All exclude flag tests in this file, from here forward, are inspired by some counterpart target flag test
+// either from this file or from context_apply_test.go
 func TestContext2Apply_moduleProviderAliasExcludes(t *testing.T) {
 	m := testModule(t, "apply-module-provider-alias")
 	p := testProvider("aws")

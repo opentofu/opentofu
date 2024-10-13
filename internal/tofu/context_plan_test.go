@@ -4068,6 +4068,9 @@ func TestContext2Plan_targeted(t *testing.T) {
 	}
 }
 
+// All exclude flag tests in this file are inspired by a counterpart target flag test
+// Usually that test exists right before the exclude flag test
+
 func TestContext2Plan_excluded(t *testing.T) {
 	m := testModule(t, "plan-targeted")
 	p := testProvider("aws")
