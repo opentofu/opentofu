@@ -579,7 +579,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 
 	expectedFailures, sourceRanges := run.BuildExpectedFailuresAndSourceMaps()
 
-	planDiags = checkPromblematicPlanErrors(expectedFailures, planDiags)
+	planDiags = checkProblematicPlanErrors(expectedFailures, planDiags)
 
 	// Otherwise any error during the planning prevents our apply from
 	// continuing which is an error.
@@ -1272,20 +1272,24 @@ func (runner *TestFileRunner) prepareInputVariablesForAssertions(config *configs
 	}, diags
 }
 
-// checkPromblematicPlanErrors checks for plan errors that are also "expected" by the tests. In some cases we expect an error, however,
+// checkProblematicPlanErrors checks for plan errors that are also "expected" by the tests. In some cases we expect an error, however,
 // what causes the error might not be what we expected. So we try to warn about that here.
-func checkPromblematicPlanErrors(expectedFailures addrs.Map[addrs.Referenceable, bool], planDiags tfdiags.Diagnostics) tfdiags.Diagnostics {
+func checkProblematicPlanErrors(expectedFailures addrs.Map[addrs.Referenceable, bool], planDiags tfdiags.Diagnostics) tfdiags.Diagnostics {
 	for _, diag := range planDiags {
-		if rule, ok := addrs.DiagnosticOriginatesFromCheckRule(diag); ok {
-			if rule.Container.CheckableKind() == addrs.CheckableInputVariable {
-				addr, ok := rule.Container.(addrs.AbsInputVariableInstance)
-				if ok && expectedFailures.Has(addr.Variable) {
-					planDiags = planDiags.Append(tfdiags.Sourceless(
-						tfdiags.Warning,
-						"Invalid Variable in test file",
-						fmt.Sprintf("Variable %s, has an invalid value within the test. Although this was an expected failure, it has meant the apply stage was unable to run so the overall test will fail.", rule.Container.String())))
-				}
-			}
+		rule, ok := addrs.DiagnosticOriginatesFromCheckRule(diag)
+		if !ok {
+			continue
+		}
+		if rule.Container.CheckableKind() != addrs.CheckableInputVariable {
+			continue
+		}
+
+		addr, ok := rule.Container.(addrs.AbsInputVariableInstance)
+		if ok && expectedFailures.Has(addr.Variable) {
+			planDiags = planDiags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Invalid Variable in test file",
+				fmt.Sprintf("Variable %s, has an invalid value within the test. Although this was an expected failure, it has meant the apply stage was unable to run so the overall test will fail.", rule.Container.String())))
 		}
 	}
 	return planDiags
