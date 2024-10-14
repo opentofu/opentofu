@@ -307,16 +307,16 @@ func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourc
 	return n.potentialProviders.Resolve(instance)
 }
 
-func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
-	result := ProvidedBy{
-		Relative: make(map[addrs.InstanceKey]addrs.AbsProviderConfig),
+func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
+	result := ProviderRequest{
+		Local: make(map[addrs.InstanceKey]string),
 	}
 
 	// Make sure orphans are properly accounted for.  TODO better comment that the
 	// checking of exists can happen outside the transformer as it may not be needed.
 	for _, rs := range n.knownResourceStates {
 		for key, inst := range rs.Instances {
-			result.Absolute = append(result.Absolute, ResourceProvidedBy{
+			result.Exact = append(result.Exact, ProviderResourceInstanceRequest{
 				Provider: inst.InstanceProvider,
 				Resource: rs.Addr.Instance(key),
 				Optional: true,
@@ -327,33 +327,17 @@ func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
 		if n.Config.ProviderConfigRef == nil {
-
-			// If no specific "provider" argument is given, we want to look up the
-			// provider config where the local name matches the implied provider
-			// from the resource type. This may be different from the resource's
-			// provider type.
-			result.Relative[addrs.NoKey] = addrs.AbsProviderConfig{
-				Provider: n.Provider(),
-				Module:   n.ModulePath(),
-			}
+			// No specific "provider" argument is given
+			result.Local[addrs.NoKey] = ""
 			return result
 		}
 
 		if len(n.Config.ProviderConfigRef.Aliases) > 0 {
 			// If we have aliases set in ProviderConfigRef, we'll calculate a LocalProviderConfig for each one
-			for key, alias := range n.Config.ProviderConfigRef.Aliases {
-				result.Relative[key] = addrs.AbsProviderConfig{
-					Provider: n.Provider(),
-					Module:   n.ModulePath(),
-					Alias:    alias,
-				}
-			}
+			result.Local = n.Config.ProviderConfigRef.Aliases
 		} else {
 			// If we have no aliases in ProviderConfigRef, we still need to calculate a single LocalProviderConfig
-			result.Relative[addrs.NoKey] = addrs.AbsProviderConfig{
-				Provider: n.Provider(),
-				Module:   n.ModulePath(),
-			}
+			result.Local[addrs.NoKey] = ""
 		}
 
 		return result
@@ -367,20 +351,12 @@ func (n *NodeAbstractResource) ProvidedBy() ProvidedBy {
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			result.Relative[addrs.NoKey] = addrs.AbsProviderConfig{
-				Provider: n.Provider(),
-				Module:   n.ModulePath(),
-				//LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
-				Alias: n.importTargets[0].Config.ProviderConfigRef.Alias,
-			}
+			result.Local[addrs.NoKey] = n.importTargets[0].Config.ProviderConfigRef.Alias
 			return result
 		}
 	}
 	// No provider configuration found; return a default address
-	result.Relative[addrs.NoKey] = addrs.AbsProviderConfig{
-		Provider: n.Provider(),
-		Module:   n.ModulePath(),
-	}
+	result.Local[addrs.NoKey] = ""
 	return result
 }
 
