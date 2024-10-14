@@ -74,11 +74,11 @@ func NewNodeAbstractResourceInstance(addr addrs.AbsResourceInstance) *NodeAbstra
 	}
 }
 
-func (n *NodeAbstractResourceInstance) ProvidedBy() ProvidedBy {
+func (n *NodeAbstractResourceInstance) ProvidedBy() ProviderRequest {
 	// Once the provider is fully resolved, we can return the known value.
 	if n.ResolvedInstanceProvider.IsSet() {
-		return ProvidedBy{
-			Absolute: []ResourceProvidedBy{{
+		return ProviderRequest{
+			Exact: []ProviderResourceInstanceRequest{{
 				Provider: n.ResolvedInstanceProvider,
 				Resource: n.Addr,
 			}},
