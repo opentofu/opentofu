@@ -630,10 +630,8 @@ func (r ResourceInstanceProviderResolver) Resolve(addr addrs.AbsResourceInstance
 			return m.Provider
 		}
 	}
-	spew.Dump(addr)
-	println("=========")
-	spew.Dump(r)
-	panic("TODO better message here")
+
+	panic(fmt.Sprintf("Bug in provider resolution: \n%s\n\n\n%s\n", spew.Sdump(addr), spew.Sdump(r)))
 }
 
 type ModuleInstanceProviderResolver []ModuleInstancePotentialProvider
@@ -667,7 +665,7 @@ func (d *ModuleInstancePotentialProvider) AddModuleIdentifierToTheEnd(step addrs
 
 func (d *ModuleInstancePotentialProvider) ModuleInstanceMatches(moduleInstance addrs.ModuleInstance) bool {
 	if len(moduleInstance) != len(d.moduleIdentifier) {
-		panic("TODO better message")
+		panic(fmt.Sprintf("Unable to resolve %s in context of %s: %s\n", moduleInstance, d.moduleIdentifier, spew.Sdump(d)))
 	}
 	for i, moduleInstanceStep := range d.moduleIdentifier {
 		parallelResourceModuleAddress := moduleInstance[i]
