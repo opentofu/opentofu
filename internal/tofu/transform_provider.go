@@ -723,12 +723,19 @@ func (n *graphNodeProxyProvider) Expanded() []ModuleInstancePotentialProvider {
 			targetConcrete = append(targetConcrete, providers...)
 		} else {
 			// We hit a concrete provider
-			modulePath := addrs.ModuleInstanceStep{
-				Name:        n.ModulePath()[len(n.ModulePath())-1],
-				InstanceKey: ik,
+			// Build a path that matches the existing module path directly
+			path := make([]addrs.ModuleInstanceStep, len(n.ModulePath()))
+			for i, step := range n.ModulePath() {
+				path[i] = addrs.ModuleInstanceStep{
+					Name:        step,
+					InstanceKey: addrs.NoKey,
+				}
 			}
+			// Overwrite the last instance key with the current key
+			path[len(path)-1].InstanceKey = ik
+
 			targetConcrete = []ModuleInstancePotentialProvider{{
-				moduleIdentifier: []addrs.ModuleInstanceStep{modulePath},
+				moduleIdentifier: path,
 				concreteProvider: target,
 			}}
 		}
