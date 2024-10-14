@@ -62,22 +62,28 @@ type GraphNodeCloseProvider interface {
 	CloseProviderAddr() addrs.AbsProviderConfig
 }
 
-type ResourceProvidedBy struct {
+type ProviderResourceInstanceRequest struct {
 	Resource addrs.AbsResourceInstance
 	Provider addrs.AbsProviderConfig
 	Optional bool
 }
 
-type ProvidedBy struct {
-	// Relative to the containing module
-	Relative map[addrs.InstanceKey]addrs.AbsProviderConfig
+type ProviderRequest struct {
+	// Local: the provider should be looked up in
+	//   the current module path. Only the Alias field is used, the LocalName
+	//   is ignored and Provider() is preferred instead.
+	//   Examples: config, default
+	Local map[addrs.InstanceKey]string
 
-	// Usually from state
-	Absolute []ResourceProvidedBy
+	// Exact: the exact provider configuration has been
+	//   resolved elsewhere and must be referenced directly. No inheritence
+	//   logic is allowed.
+	//   Examples: state, resource instance (resolved)
+	Exact []ProviderResourceInstanceRequest
 }
 
-func (p ProvidedBy) IsSet() bool {
-	return len(p.Absolute) != 0 || len(p.Relative) != 0
+func (p ProviderRequest) IsSet() bool {
+	return len(p.Exact) != 0 || len(p.Local) != 0
 }
 
 // GraphNodeProviderConsumer is an interface that nodes that require
@@ -89,7 +95,7 @@ type GraphNodeProviderConsumer interface {
 	GraphNodeModulePath
 	// ProvidedBy returns the address of the provider configuration the node
 	// refers to, if available.
-	ProvidedBy() ProvidedBy
+	ProvidedBy() ProviderRequest
 
 	// Provider returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
@@ -132,20 +138,27 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 		}
 
 		resolver := ResourceInstanceProviderResolver{
-			Absolute:      providedBy.Absolute,
+			Absolute:      providedBy.Exact,
 			ByResourceKey: make(map[addrs.InstanceKey]ModuleInstanceProviderResolver),
 		}
 
 		// Handle Absolute providers
 		// These come from state or are pre-computed
 		// They should never require additional graph traversal
-		for _, abs := range providedBy.Absolute {
+		for _, abs := range providedBy.Exact {
 			provider, ok := m[abs.Provider.String()]
 			if !ok {
 				if abs.Optional {
 					log.Printf("[TRACE] ProviderTransformer: optional provider for %s serving %s not found, orphaned node may fail", abs.Provider, dag.VertexName(v))
 				} else {
-					diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), abs.Provider))
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"Provider configuration not present",
+						fmt.Sprintf(
+							"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
+							dag.VertexName(v), abs, dag.VertexName(v),
+						),
+					))
 				}
 				continue
 			}
@@ -164,7 +177,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// We may want to consider removing this option and replace it with an
 			// error instead.
 			if _, isProxy := provider.(*graphNodeProxyProvider); isProxy {
-				panic("todo error message")
+				panic("TODO error message")
 			}
 
 			log.Printf("[TRACE] ProviderTransformer: exact absolute match for %s serving %s", abs.Provider, dag.VertexName(v))
@@ -172,27 +185,24 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			g.Connect(dag.BasicEdge(v, provider))
 		}
 
-		// Handle relative resources with keys, usually from config
-		// They point to an AbsProviderConfig that either exists
-		// directly, or which can be used to walk up the module tree
-		// to locate a matching declaration in a parent module
-		// This breaks in *fun* ways when a provider's Name != Type
-		for resourceKey, p := range providedBy.Relative {
-			target := m[p.String()]
-
-			_, ok := v.(GraphNodeModulePath)
-			if !ok && target == nil {
-				// No target and no path to traverse up from
-				diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), p))
-				continue
+		for resourceKey, alias := range providedBy.Local {
+			// We assume that the value returned from Provider() has already been
+			// properly checked during the provider validation logic in the
+			// config package and can use that Provider Type directly instead
+			// of duplicating provider LocalNames logic.
+			fullProviderAddr := addrs.AbsProviderConfig{
+				Provider: pv.Provider(),
+				Module:   pv.ModulePath(),
+				Alias:    alias,
 			}
+			target := m[fullProviderAddr.String()]
 
 			if target != nil {
 				// Providers with configuration will already exist within the graph and can be directly referenced
-				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", p, dag.VertexName(v))
+				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", fullProviderAddr, dag.VertexName(v))
 			} else {
 				// if we don't have a provider at this level, walk up the path looking for one,
-				for pp, ok := p.Inherited(); ok; pp, ok = pp.Inherited() {
+				for pp, ok := fullProviderAddr.Inherited(); ok; pp, ok = pp.Inherited() {
 					key := pp.String()
 					target = m[key]
 					if target != nil {
@@ -238,9 +248,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			resolver.ByResourceKey[resourceKey] = moduleExpansionProviders
 		}
 
-		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			pv.SetPotentialProviders(resolver)
-		}
+		pv.SetPotentialProviders(resolver)
 	}
 
 	return diags.Err()
@@ -575,7 +583,7 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 }
 
 type ResourceInstanceProviderResolver struct {
-	Absolute      []ResourceProvidedBy
+	Absolute      []ProviderResourceInstanceRequest
 	ByResourceKey map[addrs.InstanceKey]ModuleInstanceProviderResolver
 }
 
