@@ -259,6 +259,19 @@ func TestHttpClient_IsLockingEnabled(t *testing.T) {
 // Tests the Lock method for the HTTP client.
 // Test to see correct lock info is returned
 func TestHttpClient_lock(t *testing.T) {
+	stateLockInfoA := statemgr.LockInfo{
+		ID:        "ada-lovelace-state-lock-id",
+		Who:       "AdaLovelace",
+		Operation: "TestTypePlan",
+	}
+
+	trimString := func(str string) string {
+		// Anonymous Helper function to remove new line, tab
+		// and space characters from a string
+		space := regexp.MustCompile(`\s+`)
+		return space.ReplaceAllString(str, " ")
+	}
+
 	testCases := []struct {
 		name           string
 		lockMethod     string
@@ -270,18 +283,14 @@ func TestHttpClient_lock(t *testing.T) {
 			// Successful locking HTTP remote state
 			name:       "Successfully locked",
 			lockMethod: "LOCK",
-			lockInfo: &statemgr.LockInfo{
-				ID:        "state-lock-ada-lovelace-id",
-				Who:       "AdaLovelace",
-				Operation: "TestTypePlan",
-			},
+			lockInfo:   &stateLockInfoA,
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 			},
 			validateResult: func(lockID string, errorMessage error) {
-				expectedLockID := "state-lock-ada-lovelace-id"
-				if lockID != expectedLockID {
-					t.Errorf("Lock, lockID = %q, want %q", lockID, expectedLockID)
+				expectedStateLockID := stateLockInfoA.ID
+				if lockID != stateLockInfoA.ID {
+					t.Errorf("Lock, lockID = %q, want %q", lockID, expectedStateLockID)
 				}
 				if errorMessage != nil {
 					t.Errorf("Lock, error message is not nil %v", errorMessage)
@@ -292,11 +301,7 @@ func TestHttpClient_lock(t *testing.T) {
 			// Failed to lock state, HTTP remote state already locked
 			name:       "Locked remote state",
 			lockMethod: "LOCK",
-			lockInfo: &statemgr.LockInfo{
-				ID:        "state-lock-ada-lovelace-id",
-				Who:       "AdaLovelace",
-				Operation: "TestTypePlan",
-			},
+			lockInfo:   &stateLockInfoA,
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusLocked)
 				w.Write([]byte(`{"ID":"linus-torvalds-http-remote-state-lock-id", "Path": "", "Operation": "TestTypePlan", "Who": "LinusTorvalds" }`))
@@ -310,19 +315,19 @@ func TestHttpClient_lock(t *testing.T) {
 				}
 
 				errString := trimString(errorMessage.Error())
-				expectedLockID := "linus-torvalds-http-remote-state-lock-id"
+				expectedStateLockID := "linus-torvalds-http-remote-state-lock-id"
 
-				count := strings.Count(errString, expectedLockID)
+				count := strings.Count(errString, expectedStateLockID)
 				if count != 2 {
-					t.Fatalf("Lock, expected lock id %q to occur 2 times, got %v", expectedLockID, count)
+					t.Fatalf("Lock, expected lock id %q to occur 2 times, got %v", expectedStateLockID, count)
 				}
 
-				if !strings.Contains(errString, fmt.Sprintf("HTTP remote state already locked: ID=%s", expectedLockID)) {
-					t.Fatalf("Lock, expected locked: ID= to be %q, got %q", expectedLockID, errorMessage.Error())
+				if !strings.Contains(errString, fmt.Sprintf("HTTP remote state already locked: ID=%s", expectedStateLockID)) {
+					t.Fatalf("Lock, expected locked: ID= to be %q, got %q", expectedStateLockID, errorMessage.Error())
 				}
 
-				if !strings.Contains(errString, fmt.Sprintf("ID: %s", expectedLockID)) {
-					t.Fatalf("Lock, expected ID: to be %q, got %q", expectedLockID, errorMessage.Error())
+				if !strings.Contains(errString, fmt.Sprintf("ID: %s", expectedStateLockID)) {
+					t.Fatalf("Lock, expected ID: to be %q, got %q", expectedStateLockID, errorMessage.Error())
 				}
 
 				if !strings.Contains(errString, "Who: LinusTorvalds") {
@@ -335,11 +340,7 @@ func TestHttpClient_lock(t *testing.T) {
 			// Failed to lock state HTTP remote state already locked. No remote lock details returned
 			name:       "Locked remote state failed to unmarshal body",
 			lockMethod: "LOCK",
-			lockInfo: &statemgr.LockInfo{
-				ID:        "state-lock-ada-lovelace-id",
-				Who:       "AdaLovelace",
-				Operation: "TestTypePlan",
-			},
+			lockInfo:   &stateLockInfoA,
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusLocked)
 			},
@@ -352,14 +353,14 @@ func TestHttpClient_lock(t *testing.T) {
 				}
 
 				errString := trimString(errorMessage.Error())
-				expectedLockID := "state-lock-ada-lovelace-id"
+				expectedStateLockID := stateLockInfoA.ID
 
 				if !strings.Contains(errString, "HTTP remote state already locked, failed to unmarshal body") {
 					t.Fatalf("Lock, expected substring: %q to be within the error message: %q", "HTTP remote state already locked, failed to unmarshal body", errString)
 				}
 
-				if !strings.Contains(errString, fmt.Sprintf("ID: %s", expectedLockID)) {
-					t.Fatalf("Lock, expected ID: to be %q, got %q", expectedLockID, errorMessage.Error())
+				if !strings.Contains(errString, fmt.Sprintf("ID: %s", expectedStateLockID)) {
+					t.Fatalf("Lock, expected ID: to be %q, got %q", expectedStateLockID, errorMessage.Error())
 				}
 			},
 		},
@@ -386,11 +387,4 @@ func TestHttpClient_lock(t *testing.T) {
 
 		})
 	}
-}
-
-func trimString(str string) string {
-	// Helper function to remove new line, tab
-	// and space characters from a string
-	space := regexp.MustCompile(`\s+`)
-	return space.ReplaceAllString(str, " ")
 }
