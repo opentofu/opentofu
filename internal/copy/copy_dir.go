@@ -41,7 +41,7 @@ import (
 func CopyDir(dst, src string) error {
 	src, err := filepath.EvalSymlinks(src)
 	if err != nil {
-		return fmt.Errorf("failed to evaluate symlinks for source: %w", err)
+		return fmt.Errorf("failed to evaluate symlinks for source %q: %w", src, err)
 	}
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
