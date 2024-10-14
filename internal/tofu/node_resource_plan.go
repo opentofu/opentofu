@@ -334,12 +334,12 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		for _, c := range commandLineImportTargets {
 			if c.Addr.Equal(a.Addr) {
 				return &graphNodeImportState{
-					Addr:                     c.Addr,
-					ID:                       c.ID,
-					ResolvedInstanceProvider: n.resolveInstanceProvider(a.Addr),
-					Schema:                   n.Schema,
-					SchemaVersion:            n.SchemaVersion,
-					Config:                   n.Config,
+					Addr:             c.Addr,
+					ID:               c.ID,
+					ResolvedProvider: n.resolveInstanceProvider(a.Addr),
+					Schema:           n.Schema,
+					SchemaVersion:    n.SchemaVersion,
+					Config:           n.Config,
 				}
 			}
 		}

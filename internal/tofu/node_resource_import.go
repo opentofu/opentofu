@@ -18,23 +18,15 @@ import (
 )
 
 type graphNodeImportState struct {
-	Addr                     addrs.AbsResourceInstance // Addr is the resource address to import into
-	ID                       string                    // ID is the ID to import as
-	ProviderAddr             addrs.AbsProviderConfig   // Provider address given by the user, or implied by the resource type
-	ResolvedResourceProvider addrs.AbsProviderConfig   // provider node address after resolution for the whole resource
-	ResolvedInstanceProvider addrs.AbsProviderConfig   // provider node address after resolution for instance
+	Addr             addrs.AbsResourceInstance // Addr is the resource address to import into
+	ID               string                    // ID is the ID to import as
+	ResolvedProvider addrs.AbsProviderConfig   // provider node address after resolution
 
 	Schema        *configschema.Block // Schema for processing the configuration body
 	SchemaVersion uint64              // Schema version of "Schema", as decided by the provider
 	Config        *configs.Resource   // Config is the resource in the config
 
 	states []providers.ImportedResource
-}
-
-func (n *graphNodeImportState) SetPotentialProviders(potentialProviders ResourceInstanceProviderResolver) {
-	// Technically we shouldn't get here as we don't support import with for_each on providers in resources / modules.
-	// We should panic here since we validated provider match between import/resource previously on configuration parsing.
-	panic("implement me")
 }
 
 var (
@@ -49,19 +41,24 @@ func (n *graphNodeImportState) Name() string {
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) ProvidedBy() ProvidedBy {
+func (n *graphNodeImportState) ProvidedBy() ProviderRequest {
 	// This has already been resolved by nodeExpandPlannableResource
-	return ProvidedBy{
-		Relative: map[addrs.InstanceKey]addrs.AbsProviderConfig{
-			addrs.NoKey: n.ResolvedInstanceProvider,
-		},
+	return ProviderRequest{
+		Exact: []ProviderResourceInstanceRequest{{
+			Resource: n.Addr,
+			Provider: n.ResolvedProvider,
+		}},
 	}
 }
 
 // GraphNodeProviderConsumer
 func (n *graphNodeImportState) Provider() addrs.Provider {
 	// This has already been resolved by nodeExpandPlannableResource
-	return n.ResolvedInstanceProvider.Provider
+	return n.ResolvedProvider.Provider
+}
+
+func (n *graphNodeImportState) SetPotentialProviders(potentialProviders ResourceInstanceProviderResolver) {
+	// We already have a resolved provider and do not need this additional resolver
 }
 
 // GraphNodeModuleInstance
@@ -74,32 +71,12 @@ func (n *graphNodeImportState) ModulePath() addrs.Module {
 	return n.Addr.Module.Module()
 }
 
-func (n *graphNodeImportState) ResolvedProvider() addrs.AbsProviderConfig {
-	var result addrs.AbsProviderConfig
-	if n.ResolvedResourceProvider.IsSet() {
-		result = n.ResolvedResourceProvider
-	} else {
-		result = n.ResolvedInstanceProvider
-	}
-
-	if !result.IsSet() {
-		panic(fmt.Sprintf("ResolvedProvider for graphNodeImportState of %s cannot get a provider", n.Addr))
-	}
-
-	// Throw an error if ResolvedResourceProvider and ResolvedInstanceProvider exists at the same time.
-	if n.ResolvedInstanceProvider.IsSet() && n.ResolvedResourceProvider.IsSet() {
-		panic(fmt.Sprintf("ResolvedProvider for graphNodeImportState of %s has a provider set for both the resource and the resource's instance", n.Addr))
-	}
-
-	return result
-}
-
 // GraphNodeExecutable impl.
 func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	// Reset our states
 	n.states = nil
 
-	provider, _, err := getProvider(ctx, n.ResolvedProvider())
+	provider, _, err := getProvider(ctx, n.ResolvedProvider)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -199,13 +176,12 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	// safe.
 	for i, state := range n.states {
 		g.Add(&graphNodeImportStateSub{
-			TargetAddr:               addrs[i],
-			State:                    state,
-			ResolvedResourceProvider: n.ResolvedResourceProvider,
-			ResolvedInstanceProvider: n.ResolvedInstanceProvider,
-			Schema:                   n.Schema,
-			SchemaVersion:            n.SchemaVersion,
-			Config:                   n.Config,
+			TargetAddr:       addrs[i],
+			State:            state,
+			ResolvedProvider: n.ResolvedProvider,
+			Schema:           n.Schema,
+			SchemaVersion:    n.SchemaVersion,
+			Config:           n.Config,
 		})
 	}
 
@@ -219,10 +195,9 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 // and is part of the subgraph. This node is responsible for refreshing
 // and adding a resource to the state once it is imported.
 type graphNodeImportStateSub struct {
-	TargetAddr               addrs.AbsResourceInstance
-	State                    providers.ImportedResource
-	ResolvedResourceProvider addrs.AbsProviderConfig // provider node address after resolution for the whole resource
-	ResolvedInstanceProvider addrs.AbsProviderConfig // provider node address after resolution for instance
+	TargetAddr       addrs.AbsResourceInstance
+	State            providers.ImportedResource
+	ResolvedProvider addrs.AbsProviderConfig // provider node address after resolution
 
 	Schema        *configschema.Block // Schema for processing the configuration body
 	SchemaVersion uint64              // Schema version of "Schema", as decided by the provider
@@ -256,7 +231,7 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 	// Refresh
 	riNode := &NodeAbstractResourceInstance{
 		Addr:                     n.TargetAddr,
-		ResolvedInstanceProvider: n.ResolvedInstanceProvider,
+		ResolvedInstanceProvider: n.ResolvedProvider,
 	}
 	state, refreshDiags := riNode.refresh(ctx, states.NotDeposed, state)
 	diags = diags.Append(refreshDiags)
