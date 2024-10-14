@@ -49,10 +49,10 @@ func (n *NodeDestroyResourceInstance) Name() string {
 	return n.ResourceInstanceAddr().String() + " (destroy)"
 }
 
-func (n *NodeDestroyResourceInstance) ProvidedBy() ProvidedBy {
+func (n *NodeDestroyResourceInstance) ProvidedBy() ProviderRequest {
 	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		// indicate that this node does not require a configured provider
-		return ProvidedBy{}
+		return ProviderRequest{}
 	}
 	return n.NodeAbstractResourceInstance.ProvidedBy()
 }

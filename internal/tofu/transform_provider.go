@@ -61,8 +61,11 @@ type GraphNodeCloseProvider interface {
 	CloseProviderAddr() addrs.AbsProviderConfig
 }
 
-// TODO rename ProviderRequest
-type ProvidedBy struct {
+// ProviderRequest returns a structure that represents either a provider
+// config within the same module as the graph node that is returning it, or
+// an exact provider config that must exist within the configuration in order
+// for the node to function.
+type ProviderRequest struct {
 	Local addrs.AbsProviderConfig
 	Exact addrs.AbsProviderConfig
 }
@@ -84,7 +87,7 @@ type GraphNodeProviderConsumer interface {
 	// * addrs.AbsProviderConfig + exact false: no config or state; the returned
 	//   value is a default provider configuration address for the resource's
 	//   Provider
-	ProvidedBy() ProvidedBy
+	ProvidedBy() ProviderRequest
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
@@ -130,6 +133,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				}
 
 				// TODO proxies should probably not be allowed here!
+				// Potential historical bug
 				if p, ok := target.(*graphNodeProxyProvider); ok {
 					target = p.Target()
 				}
@@ -139,11 +143,15 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				g.Connect(dag.BasicEdge(v, target))
 			} else if req.Local.Provider.Type != "" {
 				target := m[req.Local.String()]
+
 				if target != nil {
 					// Providers with configuration will already exist within the graph and can be directly referenced
 					log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", req.Local, dag.VertexName(v))
 				} else {
 					// if we don't have a provider at this level, walk up the path looking for one,
+					// This assumes that the provider has the same LocalName in the module tree
+					// If there is ever a desire to support differing local names down the module tree, this will
+					// need to be rewritten
 					for pp, ok := req.Local.Inherited(); ok; pp, ok = pp.Inherited() {
 						target = m[pp.String()]
 						if target != nil {
