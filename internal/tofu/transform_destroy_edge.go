@@ -102,11 +102,11 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	// from the same provider instance.
 	getComparableProvider := func(pc GraphNodeProviderConsumer) string {
 		p := pc.ProvidedBy()
-		if p.Exact.Provider.Type != "" {
-			return p.Exact.String()
-		}
-		if p.Local.Provider.Type != "" {
-			return p.Local.String()
+		switch p := p.(type) {
+		case addrs.AbsProviderConfig:
+			return p.String()
+		case addrs.LocalProviderConfig:
+			return p.String()
 		}
 		return pc.Provider().String()
 	}

@@ -61,15 +61,6 @@ type GraphNodeCloseProvider interface {
 	CloseProviderAddr() addrs.AbsProviderConfig
 }
 
-// ProviderRequest returns a structure that represents either a provider
-// config within the same module as the graph node that is returning it, or
-// an exact provider config that must exist within the configuration in order
-// for the node to function.
-type ProviderRequest struct {
-	Local addrs.AbsProviderConfig
-	Exact addrs.AbsProviderConfig
-}
-
 // GraphNodeProviderConsumer is an interface that nodes that require
 // a provider must implement. ProvidedBy must return the address of the provider
 // to use, which will be resolved to a configuration either in the same module
@@ -79,15 +70,16 @@ type GraphNodeProviderConsumer interface {
 	GraphNodeModulePath
 	// ProvidedBy returns the address of the provider configuration the node
 	// refers to, if available. The following value types may be returned:
-	//
-	//   nil + exact true: the node does not require a provider
-	// * addrs.LocalProviderConfig: the provider was set in the resource config
-	// * addrs.AbsProviderConfig + exact true: the provider configuration was
-	//   taken from the instance state.
-	// * addrs.AbsProviderConfig + exact false: no config or state; the returned
-	//   value is a default provider configuration address for the resource's
-	//   Provider
-	ProvidedBy() ProviderRequest
+	//   nil: the node does not require a provider
+	// * addrs.LocalProviderConfig: the provider should be looked up in
+	//   the current module path. Only the Alias field is used, the LocalName
+	//   is ignored and Provider() is preferred instead.
+	//   Examples: config, default
+	// * addrs.AbsProviderConfig: the exact provider configuration has been
+	//   resolved elsewhere and must be referenced directly. No inheritence
+	//   logic is allowed.
+	//   Examples: state, resource instance (resolved),
+	ProvidedBy() addrs.ProviderConfig
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
@@ -118,21 +110,26 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	for _, v := range g.Vertices() {
 		if pv, ok := v.(GraphNodeProviderConsumer); ok {
 			req := pv.ProvidedBy()
-			if req.Exact.Provider.Type != "" {
-				target := m[req.Exact.String()]
+			if req == nil {
+				// no provider is required
+				continue
+			}
+			switch providerAddr := req.(type) {
+			case addrs.AbsProviderConfig:
+				target := m[providerAddr.String()]
 				if target == nil {
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Error,
 						"Provider configuration not present",
 						fmt.Sprintf(
 							"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
-							dag.VertexName(v), req.Exact, dag.VertexName(v),
+							dag.VertexName(v), providerAddr, dag.VertexName(v),
 						),
 					))
-					break
+					continue
 				}
 
-				// TODO proxies should probably not be allowed here!
+				// QUESTION: should proxies be allowed here?
 				// Potential historical bug
 				if p, ok := target.(*graphNodeProxyProvider); ok {
 					target = p.Target()
@@ -141,18 +138,28 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
 				pv.SetProvider(target.ProviderAddr())
 				g.Connect(dag.BasicEdge(v, target))
-			} else if req.Local.Provider.Type != "" {
-				target := m[req.Local.String()]
+			case addrs.LocalProviderConfig:
+				// We assume that the value returned from Provider() has already been
+				// properly checked during the provider validation logic in the
+				// config package and can use that Provider Type directly instead
+				// of duplicating provider LocalNames logic.
+				fullProviderAddr := addrs.AbsProviderConfig{
+					Provider: pv.Provider(),
+					Module:   pv.ModulePath(),
+					Alias:    providerAddr.Alias,
+				}
+
+				target := m[fullProviderAddr.String()]
 
 				if target != nil {
 					// Providers with configuration will already exist within the graph and can be directly referenced
-					log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", req.Local, dag.VertexName(v))
+					log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", fullProviderAddr, dag.VertexName(v))
 				} else {
 					// if we don't have a provider at this level, walk up the path looking for one,
 					// This assumes that the provider has the same LocalName in the module tree
 					// If there is ever a desire to support differing local names down the module tree, this will
 					// need to be rewritten
-					for pp, ok := req.Local.Inherited(); ok; pp, ok = pp.Inherited() {
+					for pp, ok := fullProviderAddr.Inherited(); ok; pp, ok = pp.Inherited() {
 						target = m[pp.String()]
 						if target != nil {
 							log.Printf("[TRACE] ProviderTransformer: %s uses inherited configuration %s", dag.VertexName(v), pp)
@@ -169,10 +176,10 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 						"Provider configuration not present",
 						fmt.Sprintf(
 							"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
-							dag.VertexName(v), req.Local, dag.VertexName(v),
+							dag.VertexName(v), fullProviderAddr, dag.VertexName(v),
 						),
 					))
-					break
+					continue
 				}
 
 				// see if this is a proxy provider pointing to another concrete config
@@ -186,7 +193,6 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				}
 				g.Connect(dag.BasicEdge(v, target))
 			}
-			// no provider is required
 		}
 	}
 

@@ -295,24 +295,15 @@ func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig) {
 }
 
 // GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
+func (n *NodeAbstractResource) ProvidedBy() addrs.ProviderConfig {
 	// Once the provider is fully resolved, we can return the known value.
 	if n.ResolvedProvider.Provider.Type != "" {
-		return ProviderRequest{Exact: n.ResolvedProvider}
+		return n.ResolvedProvider
 	}
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
-		relAddr := n.Config.ProviderConfigAddr()
-		// We assume that the value returned from Provider() has already been
-		// properly validated during the provider validation logic in the
-		// config package and can use that Provider Type directly instead
-		// of duplicating provider LocalNames logic here.
-		return ProviderRequest{Local: addrs.AbsProviderConfig{
-			Provider: n.Provider(),
-			Module:   n.ModulePath(),
-			Alias:    relAddr.Alias,
-		}}
+		return n.Config.ProviderConfigAddr()
 	}
 
 	// See if we have a valid provider config from the state.
@@ -320,7 +311,7 @@ func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
-		return ProviderRequest{Exact: n.storedProviderConfig}
+		return n.storedProviderConfig
 	}
 
 	// We might have an import target that is providing a specific provider,
@@ -331,19 +322,17 @@ func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			return ProviderRequest{Local: addrs.AbsProviderConfig{
-				Provider: n.Provider(),
-				Module:   n.ModulePath(),
-				Alias:    n.importTargets[0].Config.ProviderConfigRef.Alias,
-			}}
+			return addrs.LocalProviderConfig{
+				LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
+				Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
+			}
 		}
 	}
 
 	// No provider configuration found; return a default address
-	return ProviderRequest{Local: addrs.AbsProviderConfig{
-		Provider: n.Provider(),
-		Module:   n.ModulePath(),
-	}}
+	return addrs.LocalProviderConfig{
+		LocalName: n.Addr.Resource.ImpliedProvider(), // Unused, see ProviderTransformer
+	}
 }
 
 // GraphNodeProviderConsumer

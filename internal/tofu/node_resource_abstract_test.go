@@ -143,12 +143,8 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	}
 
 	p := node.ProvidedBy()
-	if p.Exact.Provider.Type != "" {
-		t.Fatalf("no exact provider should be found from this confniguration, got %q\n", p)
-	}
 
 	// the implied non-exact provider should be "terraform"
-	/* TODO this check does not matter given the current structure of the code
 	lpc, ok := p.(addrs.LocalProviderConfig)
 	if !ok {
 		t.Fatalf("expected LocalProviderConfig, got %#v\n", p)
@@ -156,7 +152,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 
 	if lpc.LocalName != "terraform" {
 		t.Fatalf("expected non-exact provider of 'terraform', got %q", lpc.LocalName)
-	}*/
+	}
 
 	// now set a resolved provider for the resource
 	resolved := addrs.AbsProviderConfig{
@@ -171,18 +167,14 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 
 	node.SetProvider(resolved)
 	p = node.ProvidedBy()
-	if p.Exact.Provider.Type == "" {
-		t.Fatalf("exact provider should be found, got %q\n", p)
-	}
 
-	/* TODO this check does not matter given the current structure of the code
 	apc, ok := p.(addrs.AbsProviderConfig)
 	if !ok {
 		t.Fatalf("expected AbsProviderConfig, got %#v\n", p)
-	}*/
+	}
 
-	if p.Exact.String() != resolved.String() {
-		t.Fatalf("incorrect resolved config: got %#v, wanted %#v\n", p.Exact, resolved)
+	if apc.String() != resolved.String() {
+		t.Fatalf("incorrect resolved config: got %#v, wanted %#v\n", apc, resolved)
 	}
 }
 
