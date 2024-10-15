@@ -35,7 +35,6 @@ func TestStateMv(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -52,7 +51,6 @@ func TestStateMv(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -173,7 +171,6 @@ func TestStateMv_backupAndBackupOutOptionsWithNonLocalBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -421,7 +418,6 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -438,18 +434,13 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
-		s.SetResourceProvider(
+		s.EnsureResourceExists(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -514,18 +505,13 @@ func TestStateMv_resourceToInstanceErr(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
-		s.SetResourceProvider(
+		s.EnsureResourceExists(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -584,18 +570,13 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
-		s.SetResourceProvider(
+		s.EnsureResourceExists(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -655,7 +636,6 @@ func TestStateMv_instanceToResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -671,7 +651,6 @@ func TestStateMv_instanceToResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -747,7 +726,6 @@ func TestStateMv_instanceToNewResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -821,7 +799,6 @@ func TestStateMv_differentResourceTypes(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -884,7 +861,6 @@ func TestStateMv_explicitWithBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -900,7 +876,6 @@ func TestStateMv_explicitWithBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -964,7 +939,6 @@ func TestStateMv_backupExplicit(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -981,7 +955,6 @@ func TestStateMv_backupExplicit(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -1033,7 +1006,6 @@ func TestStateMv_stateOutNew(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -1090,7 +1062,6 @@ func TestStateMv_stateOutExisting(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, stateSrc)
@@ -1110,7 +1081,6 @@ func TestStateMv_stateOutExisting(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	stateOutPath := testStateFile(t, stateDst)
@@ -1194,7 +1164,6 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1210,7 +1179,6 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1226,7 +1194,6 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -1287,7 +1254,6 @@ func TestStateMv_stateOutNew_largeCount(t *testing.T) {
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},
-				addrs.AbsProviderConfig{},
 			)
 		}
 		s.SetResourceInstanceCurrent(
@@ -1304,7 +1270,6 @@ func TestStateMv_stateOutNew_largeCount(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -1361,7 +1326,6 @@ func TestStateMv_stateOutNew_nestedModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1377,7 +1341,6 @@ func TestStateMv_stateOutNew_nestedModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -1435,7 +1398,6 @@ func TestStateMv_toNewModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -1510,7 +1472,6 @@ func TestStateMv_withinBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1527,7 +1488,6 @@ func TestStateMv_withinBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -1587,7 +1547,6 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 	state.Module(addrs.RootModuleInstance).SetResourceInstanceCurrent(
 		mustResourceAddr("test_instance.baz").Resource.Instance(addrs.NoKey),
@@ -1599,7 +1558,6 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 
 	// the local backend state file is "foo"
@@ -1665,7 +1623,6 @@ func TestStateMv_onlyResourceInModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -1761,7 +1718,6 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -1778,7 +1734,6 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)

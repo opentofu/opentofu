@@ -57,7 +57,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/random"),
-						addrs.AbsProviderConfig{},
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -66,7 +65,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
-						addrs.AbsProviderConfig{},
 					)
 				}),
 			},
@@ -78,7 +76,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
-					addrs.AbsProviderConfig{},
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -87,7 +84,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
-					addrs.AbsProviderConfig{},
 				)
 			}),
 		},
@@ -103,7 +99,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/random"),
-						addrs.AbsProviderConfig{},
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -112,7 +107,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
-						addrs.AbsProviderConfig{},
 					)
 				}),
 			},
@@ -124,7 +118,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
-					addrs.AbsProviderConfig{},
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -133,7 +126,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
-					addrs.AbsProviderConfig{},
 				)
 			}),
 		},
@@ -149,7 +141,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
-						addrs.AbsProviderConfig{},
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -158,7 +149,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
-						addrs.AbsProviderConfig{},
 					)
 				}),
 			},
@@ -170,7 +160,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
-					addrs.AbsProviderConfig{},
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -179,7 +168,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
-					addrs.AbsProviderConfig{},
 				)
 			}),
 		},
@@ -195,7 +183,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/random"),
-						addrs.AbsProviderConfig{},
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -204,7 +191,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
-						addrs.AbsProviderConfig{},
 					)
 				}),
 			},
@@ -216,7 +202,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
-					addrs.AbsProviderConfig{},
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -225,7 +210,6 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
-					addrs.AbsProviderConfig{},
 				)
 			}),
 		},

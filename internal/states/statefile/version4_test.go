@@ -6,10 +6,11 @@
 package statefile
 
 import (
-	"github.com/opentofu/opentofu/internal/addrs"
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -267,11 +268,10 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 	provider, _ := addrs.ParseAbsProviderConfigStr("provider[\"registry.opentofu.org/hashicorp/aws\"]")
 
 	tests := []struct {
-		name                     string
-		inputState               *stateV4
-		expectedResourceProvider addrs.AbsProviderConfig
-		expectedInstanceProvider addrs.AbsProviderConfig
-		expectedPanic            string
+		name             string
+		inputState       *stateV4
+		expectedProvider addrs.AbsProviderConfig
+		expectedPanic    string
 	}{
 		{
 			name: "Read resource provider",
@@ -294,7 +294,7 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 					},
 				},
 			},
-			expectedResourceProvider: provider,
+			expectedProvider: provider,
 		},
 		{
 			name: "Read instance provider",
@@ -317,7 +317,7 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 					},
 				},
 			},
-			expectedInstanceProvider: provider,
+			expectedProvider: provider,
 		},
 		{
 			name: "Panic when both resource and instance providers are set",
@@ -389,24 +389,14 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 				state := file.State
 				for _, r := range state.RootModule().Resources {
 					for _, inst := range r.Instances {
-						if test.expectedInstanceProvider.IsSet() {
-							if !inst.Current.InstanceProvider.IsSet() {
+						if test.expectedProvider.IsSet() {
+							if !inst.InstanceProvider.IsSet() {
 								t.Fatalf("Expected InstanceProvider is not set")
 							}
 
-							if inst.Current.InstanceProvider.String() != test.expectedInstanceProvider.String() {
-								t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedInstanceProvider.String(), inst.Current.InstanceProvider.String())
+							if inst.InstanceProvider.String() != test.expectedProvider.String() {
+								t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedProvider.String(), inst.InstanceProvider.String())
 							}
-						}
-					}
-
-					if test.expectedResourceProvider.IsSet() {
-						if !r.ProviderConfig.IsSet() {
-							t.Fatalf("Expected InstanceProvider is not set")
-						}
-
-						if r.ProviderConfig.String() != test.expectedResourceProvider.String() {
-							t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedResourceProvider.String(), r.ProviderConfig.String())
 						}
 					}
 				}
