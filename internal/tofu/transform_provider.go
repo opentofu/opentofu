@@ -193,6 +193,8 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
 			pv.SetProvider(target.ProviderAddr())
 			g.Connect(dag.BasicEdge(v, target))
+		default:
+			panic(fmt.Sprintf("BUG: Invalid provider address type %T for %#v", req, req))
 		}
 	}
 
