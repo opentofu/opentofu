@@ -1241,6 +1241,100 @@ Success! 1 passed, 0 failed.
 	}
 }
 
+func TestTest_InvalidLocalVariables(t *testing.T) {
+	tcs := map[string]struct {
+		contains    []string
+		notContains []string
+		code        int
+		skip        bool
+	}{
+		"invalid_variable_warning_expected": {
+			contains: []string{
+				"Warning: Invalid Variable in test file",
+				"Error: Invalid value for variable",
+				"This was checked by the validation rule at main.tf:5,3-13.",
+				"This was checked by the validation rule at main.tf:14,3-13.",
+			},
+			code: 1,
+		},
+		"invalid_variable_warning_no_expected": {
+			contains: []string{
+				"Error: Invalid value for variable",
+				"This was checked by the validation rule at main.tf:5,3-13.",
+				"This was checked by the validation rule at main.tf:14,3-13.",
+			},
+			notContains: []string{
+				"Warning: Invalid Variable in test file",
+			},
+			code: 1,
+		},
+	}
+
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			if tc.skip {
+				t.Skip()
+			}
+
+			file := name
+
+			td := t.TempDir()
+			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
+			defer testChdir(t, td)()
+
+			provider := testing_command.NewProvider(nil)
+			providerSource, providerClose := newMockProviderSource(t, map[string][]string{
+				"test": {"1.0.0"},
+			})
+			defer providerClose()
+
+			streams, done := terminal.StreamsForTesting(t)
+			view := views.NewView(streams)
+			ui := new(cli.MockUi)
+			meta := Meta{
+				testingOverrides: metaOverridesForProvider(provider.Provider),
+				Ui:               ui,
+				View:             view,
+				Streams:          streams,
+				ProviderSource:   providerSource,
+			}
+
+			init := &InitCommand{
+				Meta: meta,
+			}
+
+			if code := init.Run(nil); code != 0 {
+				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+			}
+
+			command := &TestCommand{
+				Meta: meta,
+			}
+
+			code := command.Run([]string{"-verbose", "-no-color"})
+			output := done(t)
+
+			if code != tc.code {
+				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
+			}
+
+			actual := output.All()
+
+			for _, containsString := range tc.contains {
+				if !strings.Contains(actual, containsString) {
+					t.Errorf("expected '%s' in output but didn't find it: \n%s", containsString, output.All())
+				}
+			}
+
+			for _, notContainsString := range tc.notContains {
+				if strings.Contains(actual, notContainsString) {
+					t.Errorf("expected not to find '%s' in output: \n%s", notContainsString, output.All())
+				}
+			}
+		})
+	}
+}
+
 func TestTest_RunBlock(t *testing.T) {
 	tcs := map[string]struct {
 		expected string
