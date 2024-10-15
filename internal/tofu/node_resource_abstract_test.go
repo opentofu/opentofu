@@ -117,7 +117,6 @@ func TestNodeAbstractResourceProvider(t *testing.T) {
 	}
 }
 
-/* TODO
 func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 	applyableProvider := NodeApplyableProvider{
 		NodeAbstractProvider: &NodeAbstractProvider{
@@ -128,15 +127,17 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 	tests := []struct {
 		name               string
 		instanceAddr       addrs.AbsResourceInstance
-		potentialProviders []ModuleInstancePotentialProvider
+		potentialProviders ResourceInstanceProviderResolver
 		Want               addrs.AbsProviderConfig
 	}{
 		{
 			name:         "potential provider pointing to a resource instance with an instance key",
 			instanceAddr: mustResourceInstanceAddr("null_resource.resource[\"first\"]"),
-			potentialProviders: []ModuleInstancePotentialProvider{{
-				concreteProvider:   applyableProvider,
-				resourceIdentifier: addrs.StringKey("first")}},
+			potentialProviders: ResourceInstanceProviderResolver{ByResourceKey: map[addrs.InstanceKey]ModuleInstanceProviderResolver{
+				addrs.StringKey("first"): []ModuleInstancePotentialProvider{{
+					concreteProvider: applyableProvider,
+				}},
+			}},
 			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
 				Namespace: "hashicorp",
@@ -146,14 +147,12 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance under a child module with an instance key",
 			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].null_resource.resource"),
-			potentialProviders: []ModuleInstancePotentialProvider{{
-				concreteProvider: applyableProvider,
-				moduleIdentifier: []addrs.ModuleInstanceStep{
-					{
-						Name:        "child_module",
-						InstanceKey: addrs.StringKey("first"),
-					},
-				}}},
+			potentialProviders: ResourceInstanceProviderResolver{ByResourceKey: map[addrs.InstanceKey]ModuleInstanceProviderResolver{
+				addrs.NoKey: []ModuleInstancePotentialProvider{{
+					concreteProvider: applyableProvider,
+					moduleIdentifier: []addrs.ModuleInstanceStep{{Name: "child_module", InstanceKey: addrs.StringKey("first")}},
+				}},
+			}},
 			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
 				Namespace: "hashicorp",
@@ -163,15 +162,12 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance with an instance key under a child module with an instance key",
 			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].null_resource.resource[\"first\"]"),
-			potentialProviders: []ModuleInstancePotentialProvider{{
-				concreteProvider:   applyableProvider,
-				resourceIdentifier: addrs.StringKey("first"),
-				moduleIdentifier: []addrs.ModuleInstanceStep{
-					{
-						Name:        "child_module",
-						InstanceKey: addrs.StringKey("first"),
-					},
-				}}},
+			potentialProviders: ResourceInstanceProviderResolver{ByResourceKey: map[addrs.InstanceKey]ModuleInstanceProviderResolver{
+				addrs.StringKey("first"): []ModuleInstancePotentialProvider{{
+					concreteProvider: applyableProvider,
+					moduleIdentifier: []addrs.ModuleInstanceStep{{Name: "child_module", InstanceKey: addrs.StringKey("first")}},
+				}},
+			}},
 			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
 				Namespace: "hashicorp",
@@ -181,18 +177,12 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on the nested module",
 			instanceAddr: mustResourceInstanceAddr("module.child_module.module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
-			potentialProviders: []ModuleInstancePotentialProvider{{
-				concreteProvider:   applyableProvider,
-				resourceIdentifier: addrs.StringKey("first"),
-				moduleIdentifier: []addrs.ModuleInstanceStep{
-					{
-						Name: "child_module",
-					},
-					{
-						Name:        "nested_module",
-						InstanceKey: addrs.StringKey("first"),
-					},
-				}}},
+			potentialProviders: ResourceInstanceProviderResolver{ByResourceKey: map[addrs.InstanceKey]ModuleInstanceProviderResolver{
+				addrs.StringKey("first"): []ModuleInstancePotentialProvider{{
+					concreteProvider: applyableProvider,
+					moduleIdentifier: []addrs.ModuleInstanceStep{{Name: "child_module"}, {Name: "nested_module", InstanceKey: addrs.StringKey("first")}},
+				}},
+			}},
 			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
 				Namespace: "hashicorp",
@@ -202,18 +192,12 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on the nested module (with the instance key on the child module ignored)",
 			instanceAddr: mustResourceInstanceAddr("module.child_module[\"ignored\"].module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
-			potentialProviders: []ModuleInstancePotentialProvider{{
-				concreteProvider:   applyableProvider,
-				resourceIdentifier: addrs.StringKey("first"),
-				moduleIdentifier: []addrs.ModuleInstanceStep{
-					{
-						Name: "child_module",
-					},
-					{
-						Name:        "nested_module",
-						InstanceKey: addrs.StringKey("first"),
-					},
-				}}},
+			potentialProviders: ResourceInstanceProviderResolver{ByResourceKey: map[addrs.InstanceKey]ModuleInstanceProviderResolver{
+				addrs.StringKey("first"): []ModuleInstancePotentialProvider{{
+					concreteProvider: applyableProvider,
+					moduleIdentifier: []addrs.ModuleInstanceStep{{Name: "child_module"}, {Name: "nested_module", InstanceKey: addrs.StringKey("first")}},
+				}},
+			}},
 			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
 				Namespace: "hashicorp",
@@ -223,19 +207,12 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 		{
 			name:         "potential provider pointing to a resource instance with an instance key under a nested child module with an instance key on both modules",
 			instanceAddr: mustResourceInstanceAddr("module.child_module[\"first\"].module.nested_module[\"first\"].null_resource.resource[\"first\"]"),
-			potentialProviders: []ModuleInstancePotentialProvider{{
-				concreteProvider:   applyableProvider,
-				resourceIdentifier: addrs.StringKey("first"),
-				moduleIdentifier: []addrs.ModuleInstanceStep{
-					{
-						Name:        "child_module",
-						InstanceKey: addrs.StringKey("first"),
-					},
-					{
-						Name:        "nested_module",
-						InstanceKey: addrs.StringKey("first"),
-					},
-				}}},
+			potentialProviders: ResourceInstanceProviderResolver{ByResourceKey: map[addrs.InstanceKey]ModuleInstanceProviderResolver{
+				addrs.StringKey("first"): []ModuleInstancePotentialProvider{{
+					concreteProvider: applyableProvider,
+					moduleIdentifier: []addrs.ModuleInstanceStep{{Name: "child_module", InstanceKey: addrs.StringKey("first")}, {Name: "nested_module", InstanceKey: addrs.StringKey("first")}},
+				}},
+			}},
 			Want: addrs.AbsProviderConfig{Provider: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
 				Namespace: "hashicorp",
@@ -257,7 +234,7 @@ func TestNodeAbstractResourceResolveInstanceProvider(t *testing.T) {
 			}
 		})
 	}
-}*/
+}
 
 // Make sure ProvideBy returns the final resolved provider
 func TestNodeAbstractResourceSetProvider(t *testing.T) {
@@ -293,47 +270,53 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		t.Fatalf("should have returned a single provider, got %d of providers instead\n", len(req.Local))
 	}
 
-	/* TODO
-	aliasResolver := req.Local[addrs.NoKey]
-
-	// the implied non-exact provider should be "terraform"
-	lpc, ok := p.(addrs.LocalProviderConfig)
+	alias, ok := req.Local[addrs.NoKey]
 	if !ok {
-		t.Fatalf("expected LocalProviderConfig, got %#v\n", p)
+		t.Fatalf("expected no key to exist, got %#v\n", req.Local)
 	}
 
-	if lpc.LocalName != "terraform" {
-		t.Fatalf("expected non-exact provider of 'terraform', got %q", lpc.LocalName)
+	if alias != "" {
+		t.Fatalf("expected no alias, got %s", alias)
+	}
+
+	if node.Provider().Type != "happycloud" {
+		t.Fatalf("expected non-exact provider of 'terraform', got %q", node.Provider().Type)
 	}
 
 	// now set a resolved provider for the resource
-	resolved := addrs.AbsProviderConfig{
-		Provider: addrs.Provider{
-			Hostname:  addrs.DefaultProviderRegistryHost,
-			Namespace: "awesomecorp",
-			Type:      "happycloud",
+	instance := &NodeAbstractResourceInstance{
+		NodeAbstractResource: *node,
+		Addr: addrs.AbsResourceInstance{
+			Resource: addrs.Resource{
+				Mode: addrs.DataResourceMode,
+				Type: "terraform_remote_state",
+				Name: "baz",
+			}.Instance(addrs.NoKey),
 		},
-		Module: addrs.RootModule,
-		Alias:  "test",
+		ResolvedInstanceProvider: addrs.AbsProviderConfig{
+			Provider: addrs.Provider{
+				Hostname:  addrs.DefaultProviderRegistryHost,
+				Namespace: "awesomecorp",
+				Type:      "happycloud",
+			},
+			Module: addrs.RootModule,
+			Alias:  "test",
+		},
 	}
 
-	node.SetProvider(resolved, true)
-
-	providersPerInstances, exact = node.ProvidedBy()
-	if !exact.provider.IsSet() {
+	req = instance.ProvidedBy()
+	if len(req.Exact) != 1 {
 		t.Fatalf("exact provider should be found, but it is empty\n")
 	}
 
-	p = exact.provider
-
-	apc, ok := p.(addrs.AbsProviderConfig)
-	if !ok {
-		t.Fatalf("expected AbsProviderConfig, got %#v\n", p)
+	apc := req.Exact[0].Provider
+	if apc.String() != instance.ResolvedInstanceProvider.String() {
+		t.Fatalf("incorrect resolved config: got %#v, wanted %#v\n", apc, instance.ResolvedInstanceProvider)
 	}
-
-	if apc.String() != resolved.String() {
-		t.Fatalf("incorrect resolved config: got %#v, wanted %#v\n", apc, resolved)
-	}*/
+	addr := req.Exact[0].Resource
+	if addr.String() != instance.Addr.String() {
+		t.Fatalf("incorrect resolved config: got %#v, wanted %#v\n", addr, instance.Addr)
+	}
 }
 
 func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
