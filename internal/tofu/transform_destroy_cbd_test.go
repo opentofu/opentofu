@@ -105,7 +105,6 @@ func TestCBDEdgeTransformer(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -115,7 +114,6 @@ func TestCBDEdgeTransformer(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 
 	g := cbdTestGraph(t, "transform-destroy-cbd-edge-basic", changes, state)
@@ -168,7 +166,6 @@ func TestCBDEdgeTransformerMulti(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
@@ -177,7 +174,6 @@ func TestCBDEdgeTransformerMulti(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"B"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.C").Resource,
@@ -190,7 +186,6 @@ func TestCBDEdgeTransformerMulti(t *testing.T) {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 
 	g := cbdTestGraph(t, "transform-destroy-cbd-edge-multi", changes, state)
@@ -247,7 +242,6 @@ func TestCBDEdgeTransformer_depNonCBDCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B[0]").Resource,
@@ -257,7 +251,6 @@ func TestCBDEdgeTransformer_depNonCBDCount(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B[1]").Resource,
@@ -267,7 +260,6 @@ func TestCBDEdgeTransformer_depNonCBDCount(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 
 	g := cbdTestGraph(t, "transform-cbd-destroy-edge-count", changes, state)
@@ -327,7 +319,6 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.A[1]").Resource,
@@ -336,7 +327,6 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B[0]").Resource,
@@ -346,7 +336,6 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B[1]").Resource,
@@ -356,7 +345,6 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 
 	g := cbdTestGraph(t, "transform-cbd-destroy-edge-both-count", changes, state)

@@ -36,7 +36,6 @@ func TestContext2Refresh(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo","foo":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.AbsProviderConfig{},
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -99,7 +98,6 @@ func TestContext2Refresh_dynamicAttr(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -1168,7 +1166,6 @@ func TestContext2Refresh_orphanModule(t *testing.T) {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.AbsProviderConfig{},
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	child.SetResourceInstanceCurrent(
@@ -1179,7 +1176,6 @@ func TestContext2Refresh_orphanModule(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{{Module: addrs.Module{"module.grandchild"}}},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-		addrs.AbsProviderConfig{},
 	)
 	grandchild := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey).Child("grandchild", addrs.NoKey))
 	testSetResourceInstanceCurrent(grandchild, "aws_instance.baz", `{"id":"i-cde345"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
@@ -1309,7 +1305,6 @@ func TestContext2Refresh_schemaUpgradeFlatmap(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -1392,7 +1387,6 @@ func TestContext2Refresh_schemaUpgradeJSON(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -1530,7 +1524,6 @@ func TestRefresh_updateLifecycle(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 
 	m := testModuleInline(t, map[string]string{
@@ -1584,7 +1577,6 @@ func TestContext2Refresh_dataSourceOrphan(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 	p := testProvider("test")
 	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
@@ -1675,7 +1667,6 @@ resource "test_resource" "foo" {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 
 	ctx := testContext2(t, &ContextOpts{

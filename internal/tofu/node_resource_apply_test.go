@@ -53,10 +53,6 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 					Type: "test_instance",
 					Name: "foo",
 				},
-				ResolvedResourceProvider: addrs.AbsProviderConfig{
-					Provider: addrs.NewDefaultProvider("test"),
-					Module:   addrs.RootModule,
-				},
 			},
 		}
 		diags := node.Execute(ctx, walkApply)
