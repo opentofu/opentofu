@@ -374,6 +374,10 @@ func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 			return result
 		}
 	}
+	if len(result.Exact) != 0 {
+		// Orphaned nodes with no configuration should not use the default provider
+		return result
+	}
 	// No provider configuration found; return a default address
 	result.Local[addrs.NoKey] = ""
 	return result

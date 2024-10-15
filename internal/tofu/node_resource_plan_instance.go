@@ -529,7 +529,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 	// refresh
 	riNode := &NodeAbstractResourceInstance{
 		Addr:                     n.Addr,
-		ResolvedInstanceProvider: n.resolveInstanceProvider(n.Addr),
+		ResolvedInstanceProvider: n.ResolvedInstanceProvider,
 	}
 	instanceRefreshState, refreshDiags := riNode.refresh(ctx, states.NotDeposed, importedState)
 	diags = diags.Append(refreshDiags)
