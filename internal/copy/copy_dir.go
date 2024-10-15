@@ -124,11 +124,15 @@ func copyFile(dst, src string, mode os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("failed to create destination file %q: %w", dst, err)
 	}
-	defer func() {
-		if cerr := dstF.Close(); cerr != nil {
-			err = fmt.Errorf("failed to close destination file %q: %w", dst, cerr)
-		}
-	}()
+	defer dstF.Close()
+
+	if _, err := io.Copy(dstF, srcF); err != nil {
+		return fmt.Errorf("failed to copy contents from %q to %q: %w", src, dst, err)
+	}
+
+	if err := dstF.Close(); err != nil {
+		return fmt.Errorf("failed to close destination file %q: %w", dst, err)
+	}
 
 	if _, err := io.Copy(dstF, srcF); err != nil {
 		return fmt.Errorf("failed to copy contents from %q to %q: %w", src, dst, err)
