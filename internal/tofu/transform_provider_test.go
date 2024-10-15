@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -519,7 +520,6 @@ module.child.module.grandchild.aws_instance.baz
 provider["registry.opentofu.org/hashicorp/aws"].foo
 `
 
-/* TODO
 func Test_graphNodeProxyProvider_Expanded_noForEachOnModuleIs(t *testing.T) {
 	// This test describes the simplest scenario, where we don't have for_each on the providers in none of the modules:
 	// root provider -> second provider -> third provider
@@ -549,8 +549,7 @@ func Test_graphNodeProxyProvider_Expanded_noForEachOnModuleIs(t *testing.T) {
 					Name: "third",
 				},
 			},
-			resourceIdentifier: addrs.NoKey,
-			concreteProvider:   rootProvider,
+			concreteProvider: rootProvider,
 		},
 	}
 
@@ -609,8 +608,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInSecondModule(t *testing.T) {
 					InstanceKey: addrs.StringKey("first"),
 				},
 			},
-			resourceIdentifier: addrs.NoKey,
-			concreteProvider:   rootProviderFirst,
+			concreteProvider: rootProviderFirst,
 		},
 		{
 			moduleIdentifier: []addrs.ModuleInstanceStep{
@@ -622,8 +620,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInSecondModule(t *testing.T) {
 					InstanceKey: addrs.StringKey("second"),
 				},
 			},
-			resourceIdentifier: addrs.NoKey,
-			concreteProvider:   rootProviderSecond,
+			concreteProvider: rootProviderSecond,
 		},
 	}
 
@@ -686,8 +683,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInRootModule(t *testing.T) {
 					Name: "third",
 				},
 			},
-			resourceIdentifier: addrs.NoKey,
-			concreteProvider:   rootProviderFirst,
+			concreteProvider: rootProviderFirst,
 		},
 		{
 			moduleIdentifier: []addrs.ModuleInstanceStep{
@@ -699,8 +695,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInRootModule(t *testing.T) {
 					Name: "third",
 				},
 			},
-			resourceIdentifier: addrs.NoKey,
-			concreteProvider:   rootProviderSecond,
+			concreteProvider: rootProviderSecond,
 		},
 	}
 
@@ -729,6 +724,5 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInRootModule(t *testing.T) {
 
 func isDistinguishableProviderEqual(got ModuleInstancePotentialProvider, want ModuleInstancePotentialProvider) bool {
 	return !reflect.DeepEqual(got.moduleIdentifier, want.moduleIdentifier) ||
-		!reflect.DeepEqual(got.resourceIdentifier, want.resourceIdentifier) ||
 		got.concreteProvider.Name() != want.concreteProvider.Name()
-}*/
+}
