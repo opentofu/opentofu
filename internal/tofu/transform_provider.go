@@ -680,7 +680,8 @@ func (d *ModuleInstancePotentialProvider) AddModuleIdentifierToTheEnd(step addrs
 }
 
 func (d *ModuleInstancePotentialProvider) ModuleInstanceMatches(moduleInstance addrs.ModuleInstance) bool {
-	if len(moduleInstance) != len(d.moduleIdentifier) {
+	// The address we are resolving must be a subset of the moduleIdentifiers
+	if len(moduleInstance) < len(d.moduleIdentifier) {
 		panic(fmt.Sprintf("Unable to resolve %s in context of %s: %s\n", moduleInstance, d.moduleIdentifier, spew.Sdump(d)))
 	}
 	for i, moduleInstanceStep := range d.moduleIdentifier {
