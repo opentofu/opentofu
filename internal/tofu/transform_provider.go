@@ -132,8 +132,19 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				continue
 			}
 
-			// QUESTION: should proxies be allowed here?
-			// Potential historical bug
+			// This is a pretty odd edge case.
+			// The only way in which this can be triggered (as far as I understand) is
+			// by removing a resource and provider from a module, where the resource
+			// uses the provider in that module, then altering the module's provider
+			// block to supply a *different* provider configuration to perform
+			// the deletion. Effectively swapping out the explicit provider that a
+			// resource needs by manipulating the provider graph.
+			// The resource in the module should be deleted before removing the provider
+			// configuration in that module as the state has explicitly said that the
+			// exact provider configuration is required to manipulate the resource.
+			//
+			// We may want to consider removing this option and replace it with an
+			// error instead.
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				target = p.Target()
 			}
@@ -173,7 +184,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			}
 
 			if target == nil {
-				// TODO this error message is possibly misleading / may not even be able to be hit given config provider validation?
+				// This error message is possibly misleading?
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Provider configuration not present",
