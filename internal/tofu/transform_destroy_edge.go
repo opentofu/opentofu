@@ -103,14 +103,17 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	getComparableProvider := func(pc GraphNodeProviderConsumer) []string {
 
 		// TODO more checks
-		// TODO this is probably bugged on main as well!
-		pmap := pc.ProvidedBy().Local
-		if len(pmap) == 0 {
-			return []string{pc.Provider().String()}
-		}
+		pmap := pc.ProvidedBy()
 		var ps []string
-		for _, p := range pmap {
-			ps = append(ps, p)
+		for _, p := range pmap.Local {
+			// TODO this is probably bugged on main!
+			ps = append(ps, addrs.AbsProviderConfig{Provider: pc.Provider(), Module: pc.ModulePath(), Alias: p}.String())
+		}
+		for _, p := range pmap.Exact {
+			ps = append(ps, p.Provider.String())
+		}
+		if len(ps) == 0 {
+			return []string{pc.Provider().String()}
 		}
 		return ps
 
