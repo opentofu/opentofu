@@ -1000,7 +1000,6 @@ func TestApply_refresh(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -1068,7 +1067,6 @@ func TestApply_refreshFalse(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -1206,7 +1204,6 @@ func TestApply_state(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -1604,7 +1601,6 @@ func TestApply_backup(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -2132,7 +2128,6 @@ func TestApply_replace(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)

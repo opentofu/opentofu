@@ -446,7 +446,6 @@ func TestContext2Input_dataSourceRequiresRefresh(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("null"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 

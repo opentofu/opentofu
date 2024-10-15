@@ -44,7 +44,6 @@ func TestApply_destroy(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -150,7 +149,6 @@ func TestApply_destroyApproveNo(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -219,7 +217,6 @@ func TestApply_destroyApproveYes(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -290,7 +287,6 @@ func TestApply_destroyLockedState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)

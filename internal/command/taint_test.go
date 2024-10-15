@@ -33,7 +33,6 @@ func TestTaint(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -74,7 +73,6 @@ func TestTaint_lockedState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -127,7 +125,6 @@ func TestTaint_backup(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	testStateFileDefault(t, state)
@@ -172,7 +169,6 @@ func TestTaint_backupDisable(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	testStateFileDefault(t, state)
@@ -240,7 +236,6 @@ func TestTaint_defaultState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	testStateFileDefault(t, state)
@@ -283,7 +278,6 @@ func TestTaint_defaultWorkspaceState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	testWorkspace := "development"
@@ -323,7 +317,6 @@ func TestTaint_missing(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -362,7 +355,6 @@ func TestTaint_missingAllow(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -419,7 +411,6 @@ func TestTaint_stateOut(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	testStateFileDefault(t, state)
@@ -461,7 +452,6 @@ func TestTaint_module(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -477,7 +467,6 @@ func TestTaint_module(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -524,7 +513,6 @@ func TestTaint_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	path := testStateFile(t, state)

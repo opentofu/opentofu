@@ -369,7 +369,6 @@ func TestLocal_planDeposedOnly(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	}))
 	outDir := t.TempDir()
@@ -766,7 +765,6 @@ func testPlanState() *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 	return state
 }
@@ -794,7 +792,6 @@ func testPlanState_withDataSource() *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -812,7 +809,6 @@ func testPlanState_withDataSource() *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 	return state
 }
@@ -840,7 +836,6 @@ func testPlanState_tainted() *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
-		addrs.AbsProviderConfig{},
 	)
 	return state
 }
