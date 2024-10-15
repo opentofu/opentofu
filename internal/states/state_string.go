@@ -132,6 +132,7 @@ func (ms *Module) testString() string {
 
 		buf.WriteString(fmt.Sprintf("%s:%s%s\n", k, taintStr, deposedStr))
 		buf.WriteString(fmt.Sprintf("  ID = %s\n", id))
+		buf.WriteString(fmt.Sprintf("  provider = %s\n", is.InstanceProvider.String()))
 		// TODO buf.WriteString(fmt.Sprintf("  provider = %s\n", rs.ProviderConfig.String()))
 
 		// Attributes were a flatmap before, but are not anymore. To preserve
