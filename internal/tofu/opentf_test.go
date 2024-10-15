@@ -155,7 +155,6 @@ func testSetResourceInstanceCurrent(module *states.Module, resource, attrsJson, 
 			AttrsJSON: []byte(attrsJson),
 		},
 		mustProviderConfig(provider),
-		addrs.AbsProviderConfig{},
 	)
 }
 
@@ -169,7 +168,6 @@ func testSetResourceInstanceTainted(module *states.Module, resource, attrsJson, 
 			AttrsJSON: []byte(attrsJson),
 		},
 		mustProviderConfig(provider),
-		addrs.AbsProviderConfig{},
 	)
 }
 

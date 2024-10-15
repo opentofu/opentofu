@@ -211,11 +211,11 @@ func TestMarshalResources(t *testing.T) {
 								Status:    states.ObjectReady,
 								AttrsJSON: []byte(`{"woozles":"confuzles"}`),
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -253,11 +253,11 @@ func TestMarshalResources(t *testing.T) {
 								Status:    states.ObjectReady,
 								AttrsJSON: []byte(`{"woozles":"confuzles","foozles":"sensuzles"}`),
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -299,11 +299,11 @@ func TestMarshalResources(t *testing.T) {
 									Marks: cty.NewValueMarks(marks.Sensitive)},
 								},
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -342,11 +342,11 @@ func TestMarshalResources(t *testing.T) {
 								Status:        states.ObjectReady,
 								AttrsJSON:     []byte(`{"woozles":["confuzles"]}`),
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -370,11 +370,11 @@ func TestMarshalResources(t *testing.T) {
 								Status:    states.ObjectReady,
 								AttrsJSON: []byte(`{"woozles":"confuzles"}`),
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -412,11 +412,11 @@ func TestMarshalResources(t *testing.T) {
 								Status:    states.ObjectReady,
 								AttrsJSON: []byte(`{"woozles":"confuzles"}`),
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -456,11 +456,11 @@ func TestMarshalResources(t *testing.T) {
 									AttrsJSON: []byte(`{"woozles":"confuzles"}`),
 								},
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -505,11 +505,11 @@ func TestMarshalResources(t *testing.T) {
 								Status:    states.ObjectReady,
 								AttrsJSON: []byte(`{"woozles":"confuzles"}`),
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -565,11 +565,11 @@ func TestMarshalResources(t *testing.T) {
 									Marks: cty.NewValueMarks(marks.Sensitive)},
 								},
 							},
+							InstanceProvider: addrs.AbsProviderConfig{
+								Provider: addrs.NewDefaultProvider("test"),
+								Module:   addrs.RootModule,
+							},
 						},
-					},
-					ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
 					},
 				},
 			},
@@ -631,7 +631,6 @@ func TestMarshalModules_basic(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -647,7 +646,6 @@ func TestMarshalModules_basic(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   childModule.Module(),
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -663,7 +661,6 @@ func TestMarshalModules_basic(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	moduleMap := make(map[string][]addrs.ModuleInstance)
@@ -703,7 +700,6 @@ func TestMarshalModules_nested(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -719,7 +715,6 @@ func TestMarshalModules_nested(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   childModule.Module(),
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -735,7 +730,6 @@ func TestMarshalModules_nested(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	moduleMap := make(map[string][]addrs.ModuleInstance)
@@ -778,7 +772,6 @@ func TestMarshalModules_parent_no_resources(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -794,7 +787,6 @@ func TestMarshalModules_parent_no_resources(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	got, err := marshalRootModule(testState, testSchemas())

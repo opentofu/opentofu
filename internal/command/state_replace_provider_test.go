@@ -33,7 +33,6 @@ func TestStateReplaceProvider(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -49,7 +48,6 @@ func TestStateReplaceProvider(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -65,7 +63,6 @@ func TestStateReplaceProvider(t *testing.T) {
 				Provider: addrs.NewLegacyProvider("azurerm"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -323,7 +320,6 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -339,7 +335,6 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -355,7 +350,6 @@ func TestStateReplaceProvider_checkRequiredVersion(t *testing.T) {
 				Provider: addrs.NewLegacyProvider("azurerm"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 

@@ -35,7 +35,6 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 
 		// The orphan
@@ -55,7 +54,6 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 
 		// A deposed orphan should not be handled by this transformer
@@ -76,7 +74,6 @@ func TestOrphanResourceInstanceTransformer(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -126,7 +123,6 @@ func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -144,7 +140,6 @@ func TestOrphanResourceInstanceTransformer_countGood(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -193,7 +188,6 @@ func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -211,7 +205,6 @@ func TestOrphanResourceInstanceTransformer_countBad(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 
@@ -260,7 +253,6 @@ func TestOrphanResourceInstanceTransformer_modules(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -278,7 +270,6 @@ func TestOrphanResourceInstanceTransformer_modules(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 

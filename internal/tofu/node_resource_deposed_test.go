@@ -94,10 +94,9 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 
 		node := NodePlanDeposedResourceInstanceObject{
 			NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-				Addr: absResource,
-				NodeAbstractResource: NodeAbstractResource{
-					ResolvedResourceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-				},
+				Addr:                     absResource,
+				NodeAbstractResource:     NodeAbstractResource{},
+				ResolvedInstanceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 			},
 			DeposedKey:        deposedKey,
 			EndpointsToRemove: test.nodeEndpointsToRemove,
@@ -131,10 +130,9 @@ func TestNodeDestroyDeposedResourceInstanceObject_Execute(t *testing.T) {
 	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-			Addr: absResource,
-			NodeAbstractResource: NodeAbstractResource{
-				ResolvedResourceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-			},
+			Addr:                     absResource,
+			NodeAbstractResource:     NodeAbstractResource{},
+			ResolvedInstanceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		},
 		DeposedKey: deposedKey,
 	}
@@ -173,10 +171,9 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 	}
 	node := &NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-			NodeAbstractResource: NodeAbstractResource{
-				ResolvedResourceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-			},
-			Addr: mustResourceInstanceAddr("aws_instance.foo"),
+			NodeAbstractResource:     NodeAbstractResource{},
+			ResolvedInstanceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			Addr:                     mustResourceInstanceAddr("aws_instance.foo"),
 		},
 		DeposedKey: states.NewDeposedKey(),
 	}
@@ -204,10 +201,9 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 
 	node := NodeDestroyDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-			Addr: mustResourceInstanceAddr("test_object.foo"),
-			NodeAbstractResource: NodeAbstractResource{
-				ResolvedResourceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-			},
+			Addr:                     mustResourceInstanceAddr("test_object.foo"),
+			NodeAbstractResource:     NodeAbstractResource{},
+			ResolvedInstanceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		},
 		DeposedKey: states.NewDeposedKey(),
 	}
@@ -227,10 +223,9 @@ func TestNodeForgetDeposedResourceInstanceObject_Execute(t *testing.T) {
 	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeForgetDeposedResourceInstanceObject{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-			Addr: absResource,
-			NodeAbstractResource: NodeAbstractResource{
-				ResolvedResourceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-			},
+			Addr:                     absResource,
+			NodeAbstractResource:     NodeAbstractResource{},
+			ResolvedInstanceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		},
 		DeposedKey: deposedKey,
 	}
@@ -261,7 +256,6 @@ func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*M
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		addrs.AbsProviderConfig{},
 	)
 
 	schema := providers.ProviderSchema{

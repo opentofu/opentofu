@@ -43,7 +43,6 @@ func TestApply_destroy(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -149,7 +148,6 @@ func TestApply_destroyApproveNo(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -218,7 +216,6 @@ func TestApply_destroyApproveYes(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -289,7 +286,6 @@ func TestApply_destroyLockedState(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -414,7 +410,6 @@ func TestApply_destroyTargetedDependencies(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -431,7 +426,6 @@ func TestApply_destroyTargetedDependencies(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -550,7 +544,6 @@ func TestApply_destroyTargeted(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -567,7 +560,6 @@ func TestApply_destroyTargeted(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	wantState := states.BuildState(func(s *states.SyncState) {
@@ -585,7 +577,6 @@ func TestApply_destroyTargeted(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
-			addrs.AbsProviderConfig{},
 		)
 	})
 	statePath := testStateFile(t, originalState)
