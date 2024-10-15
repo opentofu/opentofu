@@ -39,9 +39,10 @@ import (
 // this function, so if you intend to change it be sure to review the callers
 // first and make sure they are compatible with the change you intend to make.
 func CopyDir(dst, src string) error {
-	src, err := filepath.EvalSymlinks(src)
+	originalSrc := src
+	src, err := filepath.EvalSymlinks(originalSrc)
 	if err != nil {
-		return fmt.Errorf("failed to evaluate symlinks for source %q: %w", src, err)
+		return fmt.Errorf("failed to evaluate symlinks for source %q: %w", originalSrc, err)
 	}
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
