@@ -101,7 +101,6 @@ func TestStatePersist(t *testing.T) {
 							Type:      "local",
 							Namespace: "namespace"},
 					},
-					addrs.AbsProviderConfig{},
 				)
 				return s, func() {}
 			},
