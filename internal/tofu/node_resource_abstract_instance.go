@@ -76,10 +76,22 @@ func NewNodeAbstractResourceInstance(addr addrs.AbsResourceInstance) *NodeAbstra
 
 func (n *NodeAbstractResourceInstance) ProvidedBy() ProviderRequest {
 	// Once the provider is fully resolved, we can return the known value.
+	// In practice, this should be the only path that is commonly hit.
 	if n.ResolvedInstanceProvider.IsSet() {
 		return ProviderRequest{
 			Exact: []ProviderResourceInstanceRequest{{
 				Provider: n.ResolvedInstanceProvider,
+				Resource: n.Addr,
+			}},
+		}
+	}
+
+	// If there is no overwriting config, we should use the storedProviderConfig
+	// This is usually an orphaned instance (by count)
+	if n.Config == nil && n.storedProviderConfig.IsSet() {
+		return ProviderRequest{
+			Exact: []ProviderResourceInstanceRequest{{
+				Provider: n.storedProviderConfig,
 				Resource: n.Addr,
 			}},
 		}
