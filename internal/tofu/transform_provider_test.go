@@ -666,7 +666,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInSecondModule(t *testing.T) {
 		for _, resultProvider := range got {
 			for _, wantProvider := range want {
 				if isDistinguishableProviderEqual(resultProvider, wantProvider) {
-					matchingCounter = matchingCounter + 1
+					matchingCounter++
 				}
 			}
 		}
@@ -741,7 +741,7 @@ func Test_graphNodeProxyProvider_Expanded_ForEachInRootModule(t *testing.T) {
 		for _, resultProvider := range got {
 			for _, wantProvider := range want {
 				if isDistinguishableProviderEqual(resultProvider, wantProvider) {
-					matchingCounter = matchingCounter + 1
+					matchingCounter++
 				}
 			}
 		}

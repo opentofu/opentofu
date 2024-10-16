@@ -57,7 +57,7 @@ func (n *graphNodeImportState) Provider() addrs.Provider {
 	return n.ResolvedProvider.Provider
 }
 
-func (n *graphNodeImportState) SetPotentialProviders(potentialProviders ResourceInstanceProviderResolver) {
+func (n *graphNodeImportState) SetPotentialProviders(_ ResourceInstanceProviderResolver) {
 	// We already have a resolved provider and do not need this additional resolver
 }
 

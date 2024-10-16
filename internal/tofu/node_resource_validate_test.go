@@ -332,7 +332,7 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 
 func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 	mp := simpleMockProvider()
-	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	mp.ValidateResourceConfigFn = func(_ providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		return providers.ValidateResourceConfigResponse{}
 	}
 
@@ -364,7 +364,7 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 
 func TestNodeValidatableResource_ValidateResource_validWithPotentialProviderSet(t *testing.T) {
 	mp := simpleMockProvider()
-	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	mp.ValidateResourceConfigFn = func(_ providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		return providers.ValidateResourceConfigResponse{}
 	}
 
@@ -403,7 +403,7 @@ func TestNodeValidatableResource_ValidateResource_validWithPotentialProviderSet(
 
 func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough(t *testing.T) {
 	mp := simpleMockProvider()
-	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	mp.ValidateResourceConfigFn = func(_ providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		var diags tfdiags.Diagnostics
 		diags = diags.Append(tfdiags.SimpleWarning("warn"))
 		diags = diags.Append(errors.New("err"))
@@ -451,7 +451,7 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 
 func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T) {
 	mp := simpleMockProvider()
-	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	mp.ValidateResourceConfigFn = func(_ providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		return providers.ValidateResourceConfigResponse{}
 	}
 
@@ -543,7 +543,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 
 func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexistent(t *testing.T) {
 	mp := simpleMockProvider()
-	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	mp.ValidateResourceConfigFn = func(_ providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		return providers.ValidateResourceConfigResponse{}
 	}
 
@@ -626,7 +626,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 		},
 	}
 
-	mp.ValidateResourceConfigFn = func(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	mp.ValidateResourceConfigFn = func(_ providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 		return providers.ValidateResourceConfigResponse{}
 	}
 
