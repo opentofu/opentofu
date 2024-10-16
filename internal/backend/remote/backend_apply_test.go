@@ -466,6 +466,45 @@ func TestRemote_applyWithTarget(t *testing.T) {
 	}
 }
 
+// Applying with an exclude flag should error
+func TestRemote_applyWithExclude(t *testing.T) {
+	b, bCleanup := testBackendDefault(t)
+	defer bCleanup()
+
+	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
+	defer configCleanup()
+
+	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
+
+	op.Workspace = backend.DefaultStateName
+	op.Excludes = []addrs.Targetable{addr}
+
+	run, err := b.Operation(context.Background(), op)
+	if err != nil {
+		t.Fatalf("error starting operation: %v", err)
+	}
+
+	<-run.Done()
+	output := done(t)
+	if run.Result == backend.OperationSuccess {
+		t.Fatal("expected apply operation to fail")
+	}
+	if !run.PlanEmpty {
+		t.Fatalf("expected plan to be empty")
+	}
+
+	errOutput := output.Stderr()
+	if !strings.Contains(errOutput, "-exclude option is not supported") {
+		t.Fatalf("expected -exclude option is not supported error, got: %v", errOutput)
+	}
+
+	stateMgr, _ := b.StateMgr(backend.DefaultStateName)
+	// An error suggests that the state was not unlocked after apply
+	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
+	}
+}
+
 func TestRemote_applyWithTargetIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()

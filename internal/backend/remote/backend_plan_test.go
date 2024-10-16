@@ -537,6 +537,39 @@ func TestRemote_planWithTargetIncompatibleAPIVersion(t *testing.T) {
 	}
 }
 
+// Planning with an exclude flag should error
+func TestRemote_planWithExclude(t *testing.T) {
+	b, bCleanup := testBackendDefault(t)
+	defer bCleanup()
+
+	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
+	defer configCleanup()
+
+	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
+
+	op.Workspace = backend.DefaultStateName
+	op.Excludes = []addrs.Targetable{addr}
+
+	run, err := b.Operation(context.Background(), op)
+	if err != nil {
+		t.Fatalf("error starting operation: %v", err)
+	}
+
+	<-run.Done()
+	output := done(t)
+	if run.Result == backend.OperationSuccess {
+		t.Fatal("expected apply operation to fail")
+	}
+	if !run.PlanEmpty {
+		t.Fatalf("expected plan to be empty")
+	}
+
+	errOutput := output.Stderr()
+	if !strings.Contains(errOutput, "-exclude option is not supported") {
+		t.Fatalf("expected -exclude option is not supported error, got: %v", errOutput)
+	}
+}
+
 func TestRemote_planWithReplace(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
