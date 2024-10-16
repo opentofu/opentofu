@@ -42,7 +42,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// diagnostics according to the desired view
 	view := views.NewPlan(args.ViewType, c.View)
 
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		view.HelpPrompt()
 		return 1
@@ -77,7 +77,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if view.HasErrors(encDiags) {
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -85,7 +85,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// Prepare the backend with the backend-specific arguments
 	be, beDiags := c.PrepareBackend(args.State, args.ViewType, enc)
 	diags = diags.Append(beDiags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -93,7 +93,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// Build the operation request
 	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
 	diags = diags.Append(opDiags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -107,7 +107,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// Perform the operation
 	op, diags := c.RunOperation(be, opReq)
 	view.Diagnostics(diags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		return 1
 	}
 

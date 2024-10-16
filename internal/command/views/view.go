@@ -44,6 +44,12 @@ type View struct {
 	// will be dereferenced as late as possible when rendering diagnostics in
 	// order to access the config loader cache.
 	configSources func() map[string]*hcl.File
+
+	// PedanticMode is used to treat warnings as errors
+	PedanticMode bool
+
+	// PedanticWarningFlagged is used to indicate a warning has been flagged when in pedantic mode
+	PedanticWarningFlagged bool
 }
 
 // Initialize a View with the given streams, a disabled colorize object, and a
@@ -83,6 +89,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.consolidateWarnings = view.ConsolidateWarnings
 	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
+	v.PedanticMode = view.PedanticMode
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -105,6 +112,14 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	}
 	if v.consolidateErrors {
 		diags = diags.Consolidate(1, tfdiags.Error)
+	}
+
+	if v.PedanticMode {
+		// Convert warnings to errors
+		var isOverridden bool
+		if diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); isOverridden {
+			v.PedanticWarningFlagged = true
+		}
 	}
 
 	// Since warning messages are generally competing
@@ -143,6 +158,23 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 			v.streams.Print(msg)
 		}
 	}
+}
+
+// HasErrors accepts a set of Diagnostics and interrogates both the View and Diagnostics returning whether an error
+// has occurred or not.
+func (v *View) HasErrors(diags tfdiags.Diagnostics) bool {
+	if v.PedanticWarningFlagged {
+		// If a pedantic warning has been flagged then we report the view is in error state.
+		// PedanticWarningFlagged can be set from legacy UI / diagnostics rendering and new view diagnostics rendering.
+		return true
+	}
+
+	if v.PedanticMode {
+		// Convert warnings to errors
+		diags, _ = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil)
+	}
+
+	return diags.HasErrors()
 }
 
 // HelpPrompt is intended to be called from commands which fail to parse all
