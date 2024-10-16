@@ -185,7 +185,7 @@ func (c *TaintCommand) Run(args []string) int {
 	}
 
 	obj.Status = states.ObjectTainted
-	ss.SetResourceInstanceCurrent(addr, obj, is.InstanceProvider)
+	ss.SetResourceInstanceCurrent(addr, obj, is.ProviderConfig)
 
 	if err := stateMgr.WriteState(state); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error writing state file: %s", err))

@@ -64,10 +64,10 @@ type ResourceInstance struct {
 	// lifecycle mode.
 	Deposed map[DeposedKey]*ResourceInstanceObjectSrc
 
-	// InstanceProvider, if set, this instance has a specific provider different
+	// ProviderConfig, if set, this instance has a specific provider different
 	// from the whole resource's provider. Happens in cases when we have a
 	// for_each or count in provider reference of the resource / module
-	InstanceProvider addrs.AbsProviderConfig
+	ProviderConfig addrs.AbsProviderConfig
 }
 
 // NewResourceInstance constructs and returns a new ResourceInstance, ready to
