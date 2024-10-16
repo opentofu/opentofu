@@ -312,8 +312,24 @@ func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 		Local: make(map[addrs.InstanceKey]string),
 	}
 
-	// Make sure orphans are properly accounted for.  TODO better comment that the
-	// checking of exists can happen outside the transformer as it may not be needed.
+	// When nodes are orphaned due to altered for_each/count, the
+	// configuration (below) may only contain providers for the instances
+	// known by configuration. We need a way to track *potentially* orphaned nodes and
+	// their provider requirements. As we have not yet performed resource expansion
+	// at this stage, we do not know what has been orphaned and what has not.
+	//
+	// The approach taken is to mark these provider requirements as optional and
+	// to store potential errors from the ProviderTransformer in the data that will
+	// eventually be passed to SetPotentialProviders / n.potentialProviders.
+	//
+	// Once we have identified these orphaned resources during expansion, they
+	// will be checked to see if their providers were unable to be resolved by
+	// the ProviderTransformer and emit the error diagnostic that was created
+	// during the initial run of the ProviderTransformer.
+	//
+	// This is not an ideal solution, but will work for now. An alternate option
+	// is to re-run the ProviderTransformer post-expansion to check all of the
+	// newly created (potentially orphaned) nodes and to emit the errors therein.
 	for _, rs := range n.knownResourceStates {
 		for key, inst := range rs.Instances {
 			result.Exact = append(result.Exact, ProviderResourceInstanceRequest{

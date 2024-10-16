@@ -140,20 +140,26 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		}
 	}
 
+	var diags tfdiags.Diagnostics
 	for _, res := range orphans {
 		for key := range res.Instances {
 			addr := res.Addr.Instance(key)
 			abs := NewNodeAbstractResourceInstance(addr)
 			abs.AttachResourceState(res)
-			n := concreteResourceOrphan(abs)
-			g.Add(n)
+			na := concreteResourceOrphan(abs)
+			g.Add(na)
+
+			// Validate that orphaned resources have valid providers
+			diag := n.potentialProviders.GetOptionalError(na.Addr)
+			if diag != nil {
+				diags = diags.Append(diag)
+			}
 		}
 	}
 
 	// Resolve addresses and IDs of all import targets that originate from import blocks
 	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
 	importResolver := ctx.ImportResolver()
-	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportBlock() {
 			err := importResolver.ExpandAndResolveImport(importTarget, ctx)
