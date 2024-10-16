@@ -101,7 +101,6 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	// description of the provider being used to help determine if 2 nodes are
 	// from the same provider instance.
 	getComparableProvider := func(pc GraphNodeProviderConsumer) []string {
-
 		// TODO more checks
 		pmap := pc.ProvidedBy()
 		var ps []string
