@@ -20,7 +20,6 @@ import (
 type graphNodeImportState struct {
 	Addr             addrs.AbsResourceInstance // Addr is the resource address to import into
 	ID               string                    // ID is the ID to import as
-	ProviderAddr     addrs.AbsProviderConfig   // Provider address given by the user, or implied by the resource type
 	ResolvedProvider addrs.AbsProviderConfig   // provider node address after resolution
 
 	Schema        *configschema.Block // Schema for processing the configuration body
@@ -42,23 +41,15 @@ func (n *graphNodeImportState) Name() string {
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) ProvidedBy() (addrs.ProviderConfig, bool) {
-	// We assume that n.ProviderAddr has been properly populated here.
-	// It's the responsibility of the code creating a graphNodeImportState
-	// to populate this, possibly by calling DefaultProviderConfig() on the
-	// resource address to infer an implied provider from the resource type
-	// name.
-	return n.ProviderAddr, false
+func (n *graphNodeImportState) ProvidedBy() addrs.ProviderConfig {
+	// This has already been resolved by nodeExpandPlannableResource
+	return n.ResolvedProvider
 }
 
 // GraphNodeProviderConsumer
 func (n *graphNodeImportState) Provider() addrs.Provider {
-	// We assume that n.ProviderAddr has been properly populated here.
-	// It's the responsibility of the code creating a graphNodeImportState
-	// to populate this, possibly by calling DefaultProviderConfig() on the
-	// resource address to infer an implied provider from the resource type
-	// name.
-	return n.ProviderAddr.Provider
+	// This has already been resolved by nodeExpandPlannableResource
+	return n.ResolvedProvider.Provider
 }
 
 // GraphNodeProviderConsumer

@@ -70,15 +70,16 @@ type GraphNodeProviderConsumer interface {
 	GraphNodeModulePath
 	// ProvidedBy returns the address of the provider configuration the node
 	// refers to, if available. The following value types may be returned:
-	//
-	//   nil + exact true: the node does not require a provider
-	// * addrs.LocalProviderConfig: the provider was set in the resource config
-	// * addrs.AbsProviderConfig + exact true: the provider configuration was
-	//   taken from the instance state.
-	// * addrs.AbsProviderConfig + exact false: no config or state; the returned
-	//   value is a default provider configuration address for the resource's
-	//   Provider
-	ProvidedBy() (addr addrs.ProviderConfig, exact bool)
+	//   nil: the node does not require a provider
+	// * addrs.LocalProviderConfig: the provider should be looked up in
+	//   the current module path. Only the Alias field is used, the LocalName
+	//   is ignored and Provider() is preferred instead.
+	//   Examples: config, default
+	// * addrs.AbsProviderConfig: the exact provider configuration has been
+	//   resolved elsewhere and must be referenced directly. No inheritence
+	//   logic is allowed.
+	//   Examples: state, resource instance (resolved),
+	ProvidedBy() addrs.ProviderConfig
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
@@ -102,97 +103,78 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 
 	var diags tfdiags.Diagnostics
 
-	// To start, we'll collect the _requested_ provider addresses for each
-	// node, which we'll then resolve (handling provider inheritance, etc) in
-	// the next step.
-	// Our "requested" map is from graph vertices to string representations of
-	// provider config addresses (for deduping) to requests.
-	type ProviderRequest struct {
-		Addr  addrs.AbsProviderConfig
-		Exact bool // If true, inheritance from parent modules is not attempted
-	}
-	requested := map[dag.Vertex]map[string]ProviderRequest{}
-	needConfigured := map[string]addrs.AbsProviderConfig{}
-	for _, v := range g.Vertices() {
-		// Does the vertex _directly_ use a provider?
-		if pv, ok := v.(GraphNodeProviderConsumer); ok {
-			providerAddr, exact := pv.ProvidedBy()
-			if providerAddr == nil && exact {
-				// no provider is required
-				continue
-			}
-
-			requested[v] = make(map[string]ProviderRequest)
-
-			var absPc addrs.AbsProviderConfig
-
-			switch p := providerAddr.(type) {
-			case addrs.AbsProviderConfig:
-				// ProvidedBy() returns an AbsProviderConfig when the provider
-				// configuration is set in state, so we do not need to verify
-				// the FQN matches.
-				absPc = p
-
-				if exact {
-					log.Printf("[TRACE] ProviderTransformer: %s is provided by %s exactly", dag.VertexName(v), absPc)
-				}
-
-			case addrs.LocalProviderConfig:
-				// ProvidedBy() return a LocalProviderConfig when the resource
-				// contains a `provider` attribute
-				absPc.Provider = pv.Provider()
-				modPath := pv.ModulePath()
-				if t.Config == nil {
-					absPc.Module = modPath
-					absPc.Alias = p.Alias
-					break
-				}
-
-				absPc.Module = modPath
-				absPc.Alias = p.Alias
-
-			default:
-				// This should never happen; the case statements are meant to be exhaustive
-				panic(fmt.Sprintf("%s: provider for %s couldn't be determined", dag.VertexName(v), absPc))
-			}
-
-			requested[v][absPc.String()] = ProviderRequest{
-				Addr:  absPc,
-				Exact: exact,
-			}
-
-			// Direct references need the provider configured as well as initialized
-			needConfigured[absPc.String()] = absPc
-		}
-	}
-
 	// Now we'll go through all the requested addresses we just collected and
 	// figure out which _actual_ config address each belongs to, after resolving
 	// for provider inheritance and passing.
 	m := providerVertexMap(g)
-	for v, reqs := range requested {
-		for key, req := range reqs {
-			p := req.Addr
-			target := m[key]
-
-			_, ok := v.(GraphNodeModulePath)
-			if !ok && target == nil {
-				// No target and no path to traverse up from
-				diags = diags.Append(fmt.Errorf("%s: provider %s couldn't be found", dag.VertexName(v), p))
+	for _, v := range g.Vertices() {
+		pv, isProviderConsumer := v.(GraphNodeProviderConsumer)
+		if !isProviderConsumer {
+			continue
+		}
+		req := pv.ProvidedBy()
+		if req == nil {
+			// no provider is required
+			continue
+		}
+		switch providerAddr := req.(type) {
+		case addrs.AbsProviderConfig:
+			target := m[providerAddr.String()]
+			if target == nil {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Provider configuration not present",
+					fmt.Sprintf(
+						"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
+						dag.VertexName(v), providerAddr, dag.VertexName(v),
+					),
+				))
 				continue
 			}
 
-			if target != nil {
-				// Providers with configuration will already exist within the graph and can be directly referenced
-				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", p, dag.VertexName(v))
+			// This is a pretty odd edge case.
+			// The only way in which this can be triggered (as far as I understand) is
+			// by removing a resource and provider from a module, where the resource
+			// uses the provider in that module, then altering the module's provider
+			// block to supply a *different* provider configuration to perform
+			// the deletion. Effectively swapping out the explicit provider that a
+			// resource needs by manipulating the provider graph.
+			// The resource in the module should be deleted before removing the provider
+			// configuration in that module as the state has explicitly said that the
+			// exact provider configuration is required to manipulate the resource.
+			//
+			// We may want to consider removing this option and replace it with an
+			// error instead.
+			if p, ok := target.(*graphNodeProxyProvider); ok {
+				target = p.Target()
 			}
 
-			// if we don't have a provider at this level, walk up the path looking for one,
-			// unless we were told to be exact.
-			if target == nil && !req.Exact {
-				for pp, ok := p.Inherited(); ok; pp, ok = pp.Inherited() {
-					key := pp.String()
-					target = m[key]
+			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
+			pv.SetProvider(target.ProviderAddr())
+			g.Connect(dag.BasicEdge(v, target))
+		case addrs.LocalProviderConfig:
+			// We assume that the value returned from Provider() has already been
+			// properly checked during the provider validation logic in the
+			// config package and can use that Provider Type directly instead
+			// of duplicating provider LocalNames logic.
+			fullProviderAddr := addrs.AbsProviderConfig{
+				Provider: pv.Provider(),
+				Module:   pv.ModulePath(),
+				Alias:    providerAddr.Alias,
+			}
+
+			target := m[fullProviderAddr.String()]
+
+			if target != nil {
+				// Providers with configuration will already exist within the graph and can be directly referenced
+				log.Printf("[TRACE] ProviderTransformer: exact match for %s serving %s", fullProviderAddr, dag.VertexName(v))
+			} else {
+				// if we don't have a provider at this level, walk up the path looking for one,
+				// This assumes that the provider has the same LocalName in the module tree
+				// If there is ever a desire to support differing local names down the module tree, this will
+				// need to be rewritten
+				for pp, ok := fullProviderAddr.Inherited(); ok; pp, ok = pp.Inherited() {
+					target = m[pp.String()]
 					if target != nil {
 						log.Printf("[TRACE] ProviderTransformer: %s uses inherited configuration %s", dag.VertexName(v), pp)
 						break
@@ -201,48 +183,29 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				}
 			}
 
-			// If this provider doesn't need to be configured then we can just
-			// stub it out with an init-only provider node, which will just
-			// start up the provider and fetch its schema.
-			if _, exists := needConfigured[key]; target == nil && !exists {
-				stubAddr := addrs.AbsProviderConfig{
-					Module:   addrs.RootModule,
-					Provider: p.Provider,
-				}
-				stub := &NodeEvalableProvider{
-					&NodeAbstractProvider{
-						Addr: stubAddr,
-					},
-				}
-				m[stubAddr.String()] = stub
-				log.Printf("[TRACE] ProviderTransformer: creating init-only node for %s", stubAddr)
-				target = stub
-				g.Add(target)
-			}
-
 			if target == nil {
+				// This error message is possibly misleading?
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Provider configuration not present",
 					fmt.Sprintf(
 						"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
-						dag.VertexName(v), p, dag.VertexName(v),
+						dag.VertexName(v), fullProviderAddr, dag.VertexName(v),
 					),
 				))
-				break
+				continue
 			}
 
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
-				g.Remove(p)
 				target = p.Target()
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
-			if pv, ok := v.(GraphNodeProviderConsumer); ok {
-				pv.SetProvider(target.ProviderAddr())
-			}
+			pv.SetProvider(target.ProviderAddr())
 			g.Connect(dag.BasicEdge(v, target))
+		default:
+			panic(fmt.Sprintf("BUG: Invalid provider address type %T for %#v", req, req))
 		}
 	}
 
@@ -503,6 +466,7 @@ func (t *PruneProviderTransformer) Transform(g *Graph) error {
 		if _, ok := v.(*graphNodeProxyProvider); ok {
 			log.Printf("[DEBUG] pruning proxy %s", dag.VertexName(v))
 			g.Remove(v)
+			continue
 		}
 
 		// Remove providers with no dependencies.
