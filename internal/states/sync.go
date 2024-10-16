@@ -200,7 +200,7 @@ func (s *SyncState) ResourceInstanceObject(addr addrs.AbsResourceInstance, gen G
 	return inst.GetGeneration(gen).DeepCopy()
 }
 
-// SetResourceProvider updates the resource-level metadata for the resource at
+// EnsureResourceExists updates the resource-level metadata for the resource at
 // the given address, creating the containing module state and resource state
 // as a side-effect if not already present.
 func (s *SyncState) EnsureResourceExists(addr addrs.AbsResource) {
@@ -267,9 +267,6 @@ func (s *SyncState) RemoveResourceIfEmpty(addr addrs.AbsResource) bool {
 // The caller must ensure that the given ResourceInstanceObject is not
 // concurrently mutated during this call, but may be freely used again once
 // this function returns.
-//
-// The provider address can be either a resource-wide settings or set for the
-// specific instance, and it depends on the given resourceProvider / instanceProvider
 //
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
