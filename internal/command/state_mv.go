@@ -350,7 +350,7 @@ func (c *StateMvCommand) Run(args []string) int {
 					// address covers both). If there's an index in the
 					// target then allow creating the new instance here.
 					resourceAddr := addrTo.ContainingResource()
-					stateTo.SyncWrapper().EnsureResourceExists(
+					stateTo.SyncWrapper().EnsureResource(
 						resourceAddr,
 					)
 					rs = stateTo.Resource(resourceAddr)

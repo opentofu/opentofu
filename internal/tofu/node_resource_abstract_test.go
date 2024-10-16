@@ -348,7 +348,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 					Type: "aws_instance",
 					Name: "bar",
 				}.Absolute(addrs.RootModuleInstance)
-				s.EnsureResourceExists(oneAddr)
+				s.EnsureResource(oneAddr)
 				s.SetResourceInstanceCurrent(oneAddr.Instance(addrs.NoKey), &states.ResourceInstanceObjectSrc{
 					Status:    states.ObjectReady,
 					AttrsJSON: []byte(`{"id":"i-abc123"}`),
@@ -416,7 +416,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 					Type: "aws_instance",
 					Name: "bar",
 				}.Absolute(addrs.RootModuleInstance)
-				s.EnsureResourceExists(oneAddr)
+				s.EnsureResource(oneAddr)
 				s.SetResourceInstanceDeposed(oneAddr.Instance(addrs.NoKey), states.DeposedKey("00000001"), &states.ResourceInstanceObjectSrc{
 					Status:    states.ObjectReady,
 					AttrsJSON: []byte(`{"id":"i-abc123"}`),

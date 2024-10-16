@@ -336,7 +336,7 @@ func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 	for _, rs := range n.knownResourceStates {
 		for key, inst := range rs.Instances {
 			result.Exact = append(result.Exact, ProviderResourceInstanceRequest{
-				Provider: inst.InstanceProvider,
+				Provider: inst.ProviderConfig,
 				Resource: rs.Addr.Instance(key),
 				Optional: true,
 			})
@@ -504,7 +504,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 			return diags
 		}
 
-		state.EnsureResourceExists(addr)
+		state.EnsureResource(addr)
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.ForEach != nil:
@@ -516,11 +516,11 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 		// This method takes care of all of the business logic of updating this
 		// while ensuring that any existing instances are preserved, etc.
-		state.EnsureResourceExists(addr)
+		state.EnsureResource(addr)
 		expander.SetResourceForEach(addr.Module, n.Addr.Resource, forEach)
 
 	default:
-		state.EnsureResourceExists(addr)
+		state.EnsureResource(addr)
 		expander.SetResourceSingle(addr.Module, n.Addr.Resource)
 	}
 

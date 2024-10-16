@@ -117,9 +117,9 @@ func (i *ResourceInstance) DeepCopy() *ResourceInstance {
 	}
 
 	return &ResourceInstance{
-		Current:          i.Current.DeepCopy(),
-		Deposed:          deposed,
-		InstanceProvider: i.InstanceProvider,
+		Current:        i.Current.DeepCopy(),
+		Deposed:        deposed,
+		ProviderConfig: i.ProviderConfig,
 	}
 }
 

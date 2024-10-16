@@ -56,10 +56,10 @@ func (ms *Module) ResourceInstance(addr addrs.ResourceInstance) *ResourceInstanc
 	return rs.Instance(addr.Key)
 }
 
-// EnsureResourceExists updates the resource-level metadata for the resource
+// EnsureResource updates the resource-level metadata for the resource
 // with the given address, creating the resource state for it if it doesn't
 // already exists.
-func (ms *Module) EnsureResourceExists(addr addrs.Resource) {
+func (ms *Module) EnsureResource(addr addrs.Resource) {
 	rs := ms.Resource(addr)
 	if rs == nil {
 		rs = &Resource{
@@ -105,7 +105,7 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 			return
 		}
 		// if we have an instance, update the current
-		is.InstanceProvider = instanceProvider
+		is.ProviderConfig = instanceProvider
 		is.Current = obj
 		if !is.HasObjects() {
 			// If we have no objects at all then we'll clean up.
@@ -122,7 +122,7 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 
 	if rs == nil && obj != nil {
 		// We don't have have a resource so make one, which is a side effect of setResourceMeta
-		ms.EnsureResourceExists(addr.Resource)
+		ms.EnsureResource(addr.Resource)
 
 		// now we have a resource! so update the rs value to point to it
 		rs = ms.Resource(addr.Resource)
@@ -134,7 +134,7 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 		is = rs.CreateInstance(addr.Key)
 	}
 
-	is.InstanceProvider = instanceProvider
+	is.ProviderConfig = instanceProvider
 	is.Current = obj
 }
 
@@ -155,14 +155,14 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 // the instance is left with no objects after this operation then it will
 // be removed from its containing resource altogether.
 func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, instanceProvider addrs.AbsProviderConfig) {
-	ms.EnsureResourceExists(addr.Resource)
+	ms.EnsureResource(addr.Resource)
 
 	rs := ms.Resource(addr.Resource)
 	is := rs.EnsureInstance(addr.Key)
 
 	// If the instanceProvider is not empty, populate the obj with its value
 	if instanceProvider.IsSet() {
-		is.InstanceProvider = instanceProvider
+		is.ProviderConfig = instanceProvider
 	}
 
 	if obj != nil {

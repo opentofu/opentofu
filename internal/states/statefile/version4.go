@@ -114,7 +114,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		ms := state.EnsureModule(moduleAddr)
 
 		// Ensure the resource container object is present in the state.
-		ms.EnsureResourceExists(rAddr)
+		ms.EnsureResource(rAddr)
 
 		for _, isV4 := range rsV4.Instances {
 			keyRaw := isV4.IndexKey
@@ -148,10 +148,10 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			// The provider can either be set on the resource level or on the instance level
 			var instanceProviderAddr addrs.AbsProviderConfig
 
-			if isV4.InstanceProvider != "" {
+			if isV4.ProviderConfig != "" {
 				// Looks like it is set on the instance level
 				var addrDiags tfdiags.Diagnostics
-				instanceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(isV4.InstanceProvider)
+				instanceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(isV4.ProviderConfig)
 				diags.Append(addrDiags)
 				if addrDiags.HasErrors() {
 					continue
@@ -418,9 +418,9 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 			identicalProviderConfigValue := true
 			for _, is := range rs.Instances {
 				if providerConfigValue == "" {
-					providerConfigValue = is.InstanceProvider.String()
+					providerConfigValue = is.ProviderConfig.String()
 				} else {
-					identicalProviderConfigValue = identicalProviderConfigValue && providerConfigValue == is.InstanceProvider.String()
+					identicalProviderConfigValue = identicalProviderConfigValue && providerConfigValue == is.ProviderConfig.String()
 				}
 			}
 
@@ -546,8 +546,8 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	diags = diags.Append(pathsDiags)
 
 	instanceProviderValue := ""
-	if is.InstanceProvider.IsSet() && useInstanceProvider {
-		instanceProviderValue = is.InstanceProvider.String()
+	if is.ProviderConfig.IsSet() && useInstanceProvider {
+		instanceProviderValue = is.ProviderConfig.String()
 	}
 
 	return append(isV4s, instanceObjectStateV4{
@@ -561,7 +561,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		PrivateRaw:              privateRaw,
 		Dependencies:            deps,
 		CreateBeforeDestroy:     obj.CreateBeforeDestroy,
-		InstanceProvider:        instanceProviderValue,
+		ProviderConfig:          instanceProviderValue,
 	}), diags
 }
 
@@ -775,7 +775,7 @@ type instanceObjectStateV4 struct {
 	Dependencies []string `json:"dependencies,omitempty"`
 
 	CreateBeforeDestroy bool   `json:"create_before_destroy,omitempty"`
-	InstanceProvider    string `json:"instance_provider,omitempty"`
+	ProviderConfig      string `json:"provider,omitempty"`
 }
 
 type checkResultsV4 struct {
