@@ -56,9 +56,9 @@ func (ms *Module) ResourceInstance(addr addrs.ResourceInstance) *ResourceInstanc
 	return rs.Instance(addr.Key)
 }
 
-// SetResourceProvider updates the resource-level metadata for the resource
+// EnsureResourceExists updates the resource-level metadata for the resource
 // with the given address, creating the resource state for it if it doesn't
-// already exist. Also sets the provider on the resource level (if not empty).
+// already exists.
 func (ms *Module) EnsureResourceExists(addr addrs.Resource) {
 	rs := ms.Resource(addr)
 	if rs == nil {
@@ -84,9 +84,6 @@ func (ms *Module) RemoveResource(addr addrs.Resource) {
 // Any existing current instance object for the given resource is overwritten.
 // Set obj to nil to remove the primary generation object altogether. If there
 // are no deposed objects then the instance will be removed altogether.
-//
-// The provider address can be either a resource-wide settings or set for the
-// specific instance, and it depends on the given resourceProvider / instanceProvider
 func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, instanceProvider addrs.AbsProviderConfig) {
 	rs := ms.Resource(addr.Resource)
 	// if the resource is nil and the object is nil, don't do anything!
