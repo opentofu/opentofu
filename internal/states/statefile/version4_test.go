@@ -379,24 +379,25 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 				}()
 
 				prepareStateV4(test.inputState)
-			} else {
-				file, diags := prepareStateV4(test.inputState)
+				return
+			}
 
-				if diags.HasErrors() {
-					t.Fatalf("unexpected error: %s", diags.Err())
-				}
+			file, diags := prepareStateV4(test.inputState)
 
-				state := file.State
-				for _, r := range state.RootModule().Resources {
-					for _, inst := range r.Instances {
-						if test.expectedProvider.IsSet() {
-							if !inst.InstanceProvider.IsSet() {
-								t.Fatalf("Expected InstanceProvider is not set")
-							}
+			if diags.HasErrors() {
+				t.Fatalf("unexpected error: %s", diags.Err())
+			}
 
-							if inst.InstanceProvider.String() != test.expectedProvider.String() {
-								t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedProvider.String(), inst.InstanceProvider.String())
-							}
+			state := file.State
+			for _, r := range state.RootModule().Resources {
+				for _, inst := range r.Instances {
+					if test.expectedProvider.IsSet() {
+						if !inst.InstanceProvider.IsSet() {
+							t.Fatalf("Expected InstanceProvider is not set")
+						}
+
+						if inst.InstanceProvider.String() != test.expectedProvider.String() {
+							t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedProvider.String(), inst.InstanceProvider.String())
 						}
 					}
 				}
