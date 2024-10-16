@@ -63,9 +63,10 @@ type GraphNodeCloseProvider interface {
 }
 
 type ProviderResourceInstanceRequest struct {
-	Resource addrs.AbsResourceInstance
-	Provider addrs.AbsProviderConfig
-	Optional bool
+	Resource      addrs.AbsResourceInstance
+	Provider      addrs.AbsProviderConfig
+	Optional      bool
+	OptionalError tfdiags.Diagnostic
 }
 
 type ProviderRequest struct {
@@ -138,7 +139,6 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 		}
 
 		resolver := ResourceInstanceProviderResolver{
-			Absolute:      providedBy.Exact,
 			ByResourceKey: make(map[addrs.InstanceKey]ModuleInstanceProviderResolver),
 		}
 
@@ -148,18 +148,24 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 		for _, abs := range providedBy.Exact {
 			provider, ok := m[abs.Provider.String()]
 			if !ok {
+				diag := tfdiags.Sourceless(
+					tfdiags.Error,
+					"Provider configuration not present",
+					fmt.Sprintf(
+						"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
+						dag.VertexName(v), abs.Provider, dag.VertexName(v),
+					),
+				)
 				if abs.Optional {
 					log.Printf("[TRACE] ProviderTransformer: optional provider for %s serving %s not found, orphaned node may fail", abs.Provider, dag.VertexName(v))
+					// Defer showing this error unless the provider is actually used by an orphaned node
+					// This is definitely a bit funky, but hard to determine pre-expansion.
+					// The resource performing the DynamicExpand should be checking the resolver during orphan initialization.
+					abs.OptionalError = diag
 				} else {
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Provider configuration not present",
-						fmt.Sprintf(
-							"To work with %s its original provider configuration at %s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.",
-							dag.VertexName(v), abs, dag.VertexName(v),
-						),
-					))
+					diags = diags.Append(diag)
 				}
+				resolver.Absolute = append(resolver.Absolute, abs)
 				continue
 			}
 
@@ -172,6 +178,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			log.Printf("[TRACE] ProviderTransformer: exact absolute match for %s serving %s", abs.Provider, dag.VertexName(v))
 
 			g.Connect(dag.BasicEdge(v, provider))
+			resolver.Absolute = append(resolver.Absolute, abs)
 		}
 
 		for resourceKey, alias := range providedBy.Local {
@@ -595,6 +602,15 @@ func (r ResourceInstanceProviderResolver) Any() addrs.AbsProviderConfig {
 	panic("unreachable")
 }
 
+func (r ResourceInstanceProviderResolver) GetOptionalError(addr addrs.AbsResourceInstance) tfdiags.Diagnostic {
+	for _, m := range r.Absolute {
+		if addr.Equal(m.Resource) && m.Optional {
+			return m.OptionalError
+		}
+	}
+	return nil
+}
+
 func (r ResourceInstanceProviderResolver) Resolve(addr addrs.AbsResourceInstance) addrs.AbsProviderConfig {
 	for _, m := range r.Absolute {
 		if addr.Equal(m.Resource) && !m.Optional {
@@ -951,7 +967,7 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 				parentProvider := t.providers[fullParentName]
 
 				if parentProvider == nil {
-					return fmt.Errorf("missing provider %s", fullParentName)
+					return fmt.Errorf("missing provider mapping: %s required by %s", fullParentAddr, fullAddr)
 				}
 
 				proxy.targets[key] = parentProvider
@@ -968,7 +984,7 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 			parentProvider := t.providers[fullParentName]
 
 			if parentProvider == nil {
-				return fmt.Errorf("missing provider %s", fullParentName)
+				return fmt.Errorf("missing provider: %s required by %s", fullParentAddr, fullAddr)
 			}
 
 			proxy.targets[addrs.NoKey] = parentProvider
