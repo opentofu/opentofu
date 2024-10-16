@@ -59,6 +59,7 @@
     "changes": {
       "add": 1,
       "change": 0,
+      "forget": 0,
       "import": 0,
       "operation": "apply",
       "remove": 0
