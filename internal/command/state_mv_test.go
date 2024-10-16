@@ -435,7 +435,7 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				Module:   addrs.RootModule,
 			},
 		)
-		s.EnsureResourceExists(
+		s.EnsureResource(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",
@@ -506,7 +506,7 @@ func TestStateMv_resourceToInstanceErr(t *testing.T) {
 				Module:   addrs.RootModule,
 			},
 		)
-		s.EnsureResourceExists(
+		s.EnsureResource(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",
@@ -571,7 +571,7 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 				Module:   addrs.RootModule,
 			},
 		)
-		s.EnsureResourceExists(
+		s.EnsureResource(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",

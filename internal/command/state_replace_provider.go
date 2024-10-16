@@ -133,7 +133,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	for _, resource := range resources {
 		hasMarked := false
 		for _, instance := range resource.Instances {
-			if instance.InstanceProvider.Provider.Equals(from) {
+			if instance.ProviderConfig.Provider.Equals(from) {
 				if !hasMarked {
 					willReplace = append(willReplace, resource)
 					hasMarked = true
@@ -180,7 +180,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 
 	// Update the provider for each resource
 	for _, instance := range willReplaceInstances {
-		instance.InstanceProvider.Provider = to
+		instance.ProviderConfig.Provider = to
 	}
 
 	b, backendDiags := c.Backend(nil, enc.State())

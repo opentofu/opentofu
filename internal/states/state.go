@@ -331,7 +331,7 @@ func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
 	for _, ms := range s.Modules {
 		for _, rc := range ms.Resources {
 			for _, instance := range rc.Instances {
-				m[instance.InstanceProvider.String()] = instance.InstanceProvider
+				m[instance.ProviderConfig.String()] = instance.ProviderConfig
 			}
 		}
 	}
@@ -491,7 +491,7 @@ func (s *State) MoveAbsResourceInstance(src, dst addrs.AbsResourceInstance) {
 		// resource and the instance at the same time (since the
 		// address covers both). If there's an index in the
 		// target then allow creating the new instance here.
-		dstModule.EnsureResourceExists(dstResourceAddr.Resource)
+		dstModule.EnsureResource(dstResourceAddr.Resource)
 		dstResourceState = dstModule.Resource(dstResourceAddr.Resource)
 	}
 
