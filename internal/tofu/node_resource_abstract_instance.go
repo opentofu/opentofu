@@ -193,7 +193,7 @@ func (n *NodeAbstractResourceInstance) AttachResourceState(s *states.Resource) {
 
 	log.Printf("[TRACE] NodeAbstractResourceInstance.AttachResourceState for %s", n.Addr)
 	n.instanceState = s.Instance(n.Addr.Resource.Key)
-	n.storedProviderConfig = n.instanceState.InstanceProvider
+	n.storedProviderConfig = n.instanceState.ProviderConfig
 }
 
 // readDiff returns the planned change for a particular resource instance

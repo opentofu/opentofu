@@ -285,10 +285,10 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 						ProviderConfig: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
 						Instances: []instanceObjectStateV4{
 							{
-								IndexKey:         0,
-								SchemaVersion:    1,
-								Status:           "",
-								InstanceProvider: "",
+								IndexKey:       0,
+								SchemaVersion:  1,
+								Status:         "",
+								ProviderConfig: "",
 							},
 						},
 					},
@@ -308,10 +308,10 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 						ProviderConfig: "",
 						Instances: []instanceObjectStateV4{
 							{
-								IndexKey:         0,
-								SchemaVersion:    1,
-								Status:           "",
-								InstanceProvider: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
+								IndexKey:       0,
+								SchemaVersion:  1,
+								Status:         "",
+								ProviderConfig: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
 							},
 						},
 					},
@@ -331,10 +331,10 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 						ProviderConfig: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
 						Instances: []instanceObjectStateV4{
 							{
-								IndexKey:         0,
-								SchemaVersion:    1,
-								Status:           "",
-								InstanceProvider: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
+								IndexKey:       0,
+								SchemaVersion:  1,
+								Status:         "",
+								ProviderConfig: "provider[\"registry.opentofu.org/hashicorp/aws\"]",
 							},
 						},
 					},
@@ -354,10 +354,10 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 						ProviderConfig: "",
 						Instances: []instanceObjectStateV4{
 							{
-								IndexKey:         0,
-								SchemaVersion:    1,
-								Status:           "",
-								InstanceProvider: "",
+								IndexKey:       0,
+								SchemaVersion:  1,
+								Status:         "",
+								ProviderConfig: "",
 							},
 						},
 					},
@@ -392,12 +392,12 @@ func Test_prepareStateV4_readProviders(t *testing.T) {
 			for _, r := range state.RootModule().Resources {
 				for _, inst := range r.Instances {
 					if test.expectedProvider.IsSet() {
-						if !inst.InstanceProvider.IsSet() {
+						if !inst.ProviderConfig.IsSet() {
 							t.Fatalf("Expected InstanceProvider is not set")
 						}
 
-						if inst.InstanceProvider.String() != test.expectedProvider.String() {
-							t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedProvider.String(), inst.InstanceProvider.String())
+						if inst.ProviderConfig.String() != test.expectedProvider.String() {
+							t.Fatalf("Expected InstanceProvider to be %s instead got %s", test.expectedProvider.String(), inst.ProviderConfig.String())
 						}
 					}
 				}
