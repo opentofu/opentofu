@@ -41,6 +41,7 @@ issues:
       linters:
         - funlen
         - dupl
+        - revive
 
 linters:
   disable-all: true

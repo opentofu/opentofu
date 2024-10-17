@@ -2488,7 +2488,6 @@ locals {
 	}
 }
 
-//nolint:var-naming // existing pattern
 func TextContext2Validate_providerFunctions(t *testing.T) {
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
