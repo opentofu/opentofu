@@ -127,7 +127,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) *NodePlannableResourceInstanceOrphan {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
+		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -150,7 +150,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 			g.Add(na)
 
 			// Validate that orphaned resources have valid providers
-			diag := n.potentialProviders.GetOptionalError(na.Addr)
+			diag := n.potentialProviders.GetOptionalError(addr)
 			if diag != nil {
 				diags = diags.Append(diag)
 			}
@@ -352,7 +352,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
+		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -385,7 +385,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedInstanceProvider = n.resolveInstanceProvider(a.Addr)
+		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
