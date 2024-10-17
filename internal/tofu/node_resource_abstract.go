@@ -520,7 +520,8 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 }
 
 // readResourceInstanceState reads the current object for a specific instance in
-// the state.
+// the state. TODO move into NodeResouceAbstractInstance and use ResolvedProvider
+// directly.
 func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance, resolvedProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	provider, providerSchema, err := getProvider(ctx, resolvedProvider)
@@ -561,7 +562,8 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 }
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
-// instance in the state.
+// instance in the state.  TODO move into NodeResouceAbstractInstance and use ResolvedProvider
+// directly.
 func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey, resolvedProvider addrs.AbsProviderConfig) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	provider, providerSchema, err := getProvider(ctx, resolvedProvider)

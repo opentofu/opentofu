@@ -101,14 +101,15 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	// description of the provider being used to help determine if 2 nodes are
 	// from the same provider instance.
 	getComparableProvider := func(pc GraphNodeProviderConsumer) []string {
-		// TODO more checks
-		pmap := pc.ProvidedBy()
+		req := pc.ProvidedBy()
 		var ps []string
-		for _, p := range pmap.Local {
-			// TODO this is probably bugged on main!
-			ps = append(ps, addrs.AbsProviderConfig{Provider: pc.Provider(), Module: pc.ModulePath(), Alias: p}.String())
+		for _, alias := range req.Local {
+			// We used to only compare the LocalName + Alias across instances. That was probably bug
+			// that was infrequently hit. We now mirror the logic of TransformProvider to construct
+			// the AbsProviderConfig based off of the vertex and the alias
+			ps = append(ps, addrs.AbsProviderConfig{Provider: pc.Provider(), Module: pc.ModulePath(), Alias: alias}.String())
 		}
-		for _, p := range pmap.Exact {
+		for _, p := range req.Exact {
 			ps = append(ps, p.Provider.String())
 		}
 		if len(ps) == 0 {

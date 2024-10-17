@@ -954,8 +954,7 @@ up manually:
 					addrs.AbsProviderConfig{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
-					},
-				)
+					})
 				state.SetResourceInstanceCurrent(
 					addrs.Resource{
 						Mode: addrs.ManagedResourceMode,
@@ -1097,10 +1096,7 @@ OpenTofu was in the process of creating the following resources for
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: addrs.NewDefaultProvider("test"),
-						})
+						addrs.AbsProviderConfig{})
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -1114,10 +1110,7 @@ OpenTofu was in the process of creating the following resources for
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: addrs.NewDefaultProvider("test"),
-						})
+						addrs.AbsProviderConfig{})
 				}),
 			},
 			created: nil,
@@ -1153,10 +1146,7 @@ test:
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: addrs.NewDefaultProvider("test"),
-						})
+						addrs.AbsProviderConfig{})
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -1170,10 +1160,7 @@ test:
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: addrs.NewDefaultProvider("test"),
-						})
+						addrs.AbsProviderConfig{})
 				}),
 			},
 			created: nil,
@@ -1209,10 +1196,7 @@ OpenTofu has already created the following resources for "setup_block" from
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: addrs.NewDefaultProvider("test"),
-						})
+						addrs.AbsProviderConfig{})
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -1226,10 +1210,7 @@ OpenTofu has already created the following resources for "setup_block" from
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: addrs.NewDefaultProvider("test"),
-						})
+						addrs.AbsProviderConfig{})
 				}),
 				nil: states.BuildState(func(state *states.SyncState) {
 					state.SetResourceInstanceCurrent(
@@ -1244,10 +1225,7 @@ OpenTofu has already created the following resources for "setup_block" from
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: addrs.NewDefaultProvider("test"),
-						})
+						addrs.AbsProviderConfig{})
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -1261,10 +1239,7 @@ OpenTofu has already created the following resources for "setup_block" from
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: addrs.NewDefaultProvider("test"),
-						})
+						addrs.AbsProviderConfig{})
 				}),
 			},
 			created: []*plans.ResourceInstanceChangeSrc{
@@ -3046,10 +3021,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						})
+						addrs.AbsProviderConfig{})
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -3063,10 +3035,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						})
+						addrs.AbsProviderConfig{})
 				}),
 			},
 			changes: nil,
@@ -3105,10 +3074,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						})
+						addrs.AbsProviderConfig{})
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -3122,10 +3088,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						})
+						addrs.AbsProviderConfig{})
 				}),
 			},
 			changes: nil,
@@ -3166,10 +3129,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						})
+						addrs.AbsProviderConfig{})
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -3183,10 +3143,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						})
+						addrs.AbsProviderConfig{})
 				}),
 				nil: states.BuildState(func(state *states.SyncState) {
 					state.SetResourceInstanceCurrent(
@@ -3201,10 +3158,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						})
+						addrs.AbsProviderConfig{})
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -3218,10 +3172,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{
-							Provider: addrs.NewDefaultProvider("test"),
-							Module:   addrs.RootModule,
-						})
+						addrs.AbsProviderConfig{})
 				}),
 			},
 			changes: []*plans.ResourceInstanceChangeSrc{
