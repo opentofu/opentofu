@@ -86,6 +86,10 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	if diags.HasErrors() {
 		return diags
 	}
+	if cfg.EncryptedMetadataKey != "" {
+		// TODO what if the metadata key is duplicated?
+		metakey = keyprovider.Addr(cfg.EncryptedMetadataKey)
+	}
 
 	// Lookup the KeyProviderDescriptor from the registry
 	id := keyprovider.ID(cfg.Type)
