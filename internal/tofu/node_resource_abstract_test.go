@@ -293,7 +293,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 				Name: "baz",
 			}.Instance(addrs.NoKey),
 		},
-		ResolvedInstanceProvider: addrs.AbsProviderConfig{
+		ResolvedProvider: addrs.AbsProviderConfig{
 			Provider: addrs.Provider{
 				Hostname:  addrs.DefaultProviderRegistryHost,
 				Namespace: "awesomecorp",
@@ -310,8 +310,8 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	}
 
 	apc := req.Exact[0].Provider
-	if apc.String() != instance.ResolvedInstanceProvider.String() {
-		t.Fatalf("incorrect resolved config: got %#v, wanted %#v\n", apc, instance.ResolvedInstanceProvider)
+	if apc.String() != instance.ResolvedProvider.String() {
+		t.Fatalf("incorrect resolved config: got %#v, wanted %#v\n", apc, instance.ResolvedProvider)
 	}
 	addr := req.Exact[0].Resource
 	if addr.String() != instance.Addr.String() {
