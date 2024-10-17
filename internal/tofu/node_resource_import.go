@@ -20,7 +20,7 @@ import (
 type graphNodeImportState struct {
 	Addr             addrs.AbsResourceInstance // Addr is the resource address to import into
 	ID               string                    // ID is the ID to import as
-	ResolvedProvider addrs.AbsProviderConfig   // provider node address after resolution
+	ResolvedProvider addrs.AbsProviderConfig
 
 	Schema        *configschema.Block // Schema for processing the configuration body
 	SchemaVersion uint64              // Schema version of "Schema", as decided by the provider

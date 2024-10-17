@@ -986,9 +986,7 @@ resource "test_object" "a" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		)
-
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1088,8 +1086,7 @@ resource "test_object" "a" {
 		s.SetResourceInstanceCurrent(addr, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"arg":"before"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
-		)
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
 	})
 
 	ctx := testContext2(t, &ContextOpts{
