@@ -230,8 +230,8 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 
 	// Refresh
 	riNode := &NodeAbstractResourceInstance{
-		Addr:                     n.TargetAddr,
-		ResolvedInstanceProvider: n.ResolvedProvider,
+		Addr:             n.TargetAddr,
+		ResolvedProvider: n.ResolvedProvider,
 	}
 	state, refreshDiags := riNode.refresh(ctx, states.NotDeposed, state)
 	diags = diags.Append(refreshDiags)

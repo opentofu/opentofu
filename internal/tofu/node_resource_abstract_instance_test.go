@@ -169,8 +169,8 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 	node := &NodeAbstractResourceInstance{
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
-		NodeAbstractResource:     NodeAbstractResource{},
-		ResolvedInstanceProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		NodeAbstractResource: NodeAbstractResource{},
+		ResolvedProvider:     mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	}
 	ctx.ProviderProvider = mockProvider
 	ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
