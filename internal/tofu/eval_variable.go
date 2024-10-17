@@ -245,7 +245,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 			continue
 		}
 
-		hclCtx, ctxDiags := ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condFuncs, errFuncs...))
+		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condFuncs, errFuncs...))
 		diags = diags.Append(ctxDiags)
 		if diags.HasErrors() {
 			continue

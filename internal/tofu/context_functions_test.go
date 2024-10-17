@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -117,51 +116,15 @@ func TestFunctions(t *testing.T) {
 		return resp
 	}
 
-	addr := addrs.NewDefaultProvider("mock")
 	rng := tfdiags.SourceRange{}
 	providerFunc := func(fn string) addrs.ProviderFunction {
 		pf, _ := addrs.ParseFunction(fn).AsProviderFunction()
 		return pf
 	}
 
-	mockCtx := new(MockEvalContext)
-	cfg := &configs.Config{
-		Module: &configs.Module{
-			ProviderRequirements: &configs.RequiredProviders{
-				RequiredProviders: map[string]*configs.RequiredProvider{
-					"mockname": &configs.RequiredProvider{
-						Name: "mock",
-						Type: addr,
-					},
-				},
-			},
-		},
-	}
-
-	// Provider missing
-	_, diags := evalContextProviderFunction(mockCtx.Provider, cfg, walkValidate, providerFunc("provider::invalid::unknown"), rng)
-	if !diags.HasErrors() {
-		t.Fatal("expected unknown function provider")
-	}
-	if diags.Err().Error() != `Unknown function provider: Provider "invalid" does not exist within the required_providers of this module` {
-		t.Fatal(diags.Err())
-	}
-
-	// Provider not initialized
-	_, diags = evalContextProviderFunction(mockCtx.Provider, cfg, walkValidate, providerFunc("provider::mockname::missing"), rng)
-	if !diags.HasErrors() {
-		t.Fatal("expected unknown function provider")
-	}
-	if diags.Err().Error() != `BUG: Uninitialized function provider: Provider "provider[\"registry.opentofu.org/hashicorp/mock\"]" has not yet been initialized` {
-		t.Fatal(diags.Err())
-	}
-
-	// "initialize" provider
-	mockCtx.ProviderProvider = mockProvider
-
 	// Function missing (validate)
 	mockProvider.GetFunctionsCalled = false
-	_, diags = evalContextProviderFunction(mockCtx.Provider, cfg, walkValidate, providerFunc("provider::mockname::missing"), rng)
+	_, diags := evalContextProviderFunction(mockProvider, walkValidate, providerFunc("provider::mockname::missing"), rng)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -171,11 +134,11 @@ func TestFunctions(t *testing.T) {
 
 	// Function missing (Non-validate)
 	mockProvider.GetFunctionsCalled = false
-	_, diags = evalContextProviderFunction(mockCtx.Provider, cfg, walkPlan, providerFunc("provider::mockname::missing"), rng)
+	_, diags = evalContextProviderFunction(mockProvider, walkPlan, providerFunc("provider::mockname::missing"), rng)
 	if !diags.HasErrors() {
 		t.Fatal("expected unknown function")
 	}
-	if diags.Err().Error() != `Function not found in provider: Function "missing" was not registered by provider "provider[\"registry.opentofu.org/hashicorp/mock\"]"` {
+	if diags.Err().Error() != `Function not found in provider: Function "provider::mockname::missing" was not registered by provider` {
 		t.Fatal(diags.Err())
 	}
 	if !mockProvider.GetFunctionsCalled {
@@ -193,7 +156,7 @@ func TestFunctions(t *testing.T) {
 	// Load functions into ctx
 	for _, fn := range []string{"echo", "concat", "coalesce", "unknown_param", "error_param"} {
 		pf := providerFunc("provider::mockname::" + fn)
-		impl, diags := evalContextProviderFunction(mockCtx.Provider, cfg, walkPlan, pf, rng)
+		impl, diags := evalContextProviderFunction(mockProvider, walkPlan, pf, rng)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
