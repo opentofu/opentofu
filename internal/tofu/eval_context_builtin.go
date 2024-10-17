@@ -433,7 +433,25 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-		return evalContextProviderFunction(ctx.Provider, mc.Path, ctx.ProviderFunctionTracker, ctx.Evaluator.Operation, pf, rng)
+		absPc := ctx.ProviderFunctionTracker[ProviderFunctionReference{
+			ModulePath:    ctx.PathValue.String(),
+			ProviderName:  pf.ProviderName,
+			ProviderAlias: pf.ProviderAlias,
+		}]
+
+		provider := ctx.Provider(absPc)
+
+		if provider == nil {
+			// This should not be possible if references are not tracked correctly
+			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "BUG: Uninitialized function provider",
+				Detail:   fmt.Sprintf("Provider %q has not yet been initialized", absPc.String()),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
+
+		return evalContextProviderFunction(provider, ctx.Evaluator.Operation, pf, rng)
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 

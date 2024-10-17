@@ -19,26 +19,8 @@ import (
 
 // This builds a provider function using an EvalContext and some additional information
 // This is split out of BuiltinEvalContext for testing
-func evalContextProviderFunction(providers func(addrs.AbsProviderConfig) providers.Interface, path addrs.Module, providerFunctionTracker ProviderFunctionMapping, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+func evalContextProviderFunction(provider providers.Interface, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
-	absPc := providerFunctionTracker[ProviderFunctionReference{
-		ModulePath:    path.String(),
-		ProviderName:  pf.ProviderName,
-		ProviderAlias: pf.ProviderAlias,
-	}]
-
-	provider := providers(absPc)
-
-	if provider == nil {
-		// This should not be possible if references are not tracked correctly
-		return nil, diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "BUG: Uninitialized function provider",
-			Detail:   fmt.Sprintf("Provider %q has not yet been initialized", absPc.String()),
-			Subject:  rng.ToHCL().Ptr(),
-		})
-	}
 
 	// First try to look up the function from provider schema
 	schema := provider.GetProviderSchema()
@@ -81,7 +63,7 @@ func evalContextProviderFunction(providers func(addrs.AbsProviderConfig) provide
 			return nil, diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Function not found in provider",
-				Detail:   fmt.Sprintf("Function %q was not registered by provider %q", pf.Function, absPc.String()),
+				Detail:   fmt.Sprintf("Function %q was not registered by provider", pf),
 				Subject:  rng.ToHCL().Ptr(),
 			})
 		}
