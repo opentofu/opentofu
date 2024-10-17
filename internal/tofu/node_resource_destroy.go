@@ -49,10 +49,10 @@ func (n *NodeDestroyResourceInstance) Name() string {
 	return n.ResourceInstanceAddr().String() + " (destroy)"
 }
 
-func (n *NodeDestroyResourceInstance) ProvidedBy() addrs.ProviderConfig {
+func (n *NodeDestroyResourceInstance) ProvidedBy() ProviderRequest {
 	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		// indicate that this node does not require a configured provider
-		return nil
+		return ProviderRequest{}
 	}
 	return n.NodeAbstractResourceInstance.ProvidedBy()
 }
@@ -183,7 +183,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 		return diags
 	}
 
-	state, readDiags := n.readResourceInstanceState(ctx, addr)
+	state, readDiags := n.readResourceInstanceState(ctx, addr, n.ResolvedProvider)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
