@@ -2487,3 +2487,84 @@ locals {
 		t.Fatalf("expected deprecated warning, got: %q\n", warn)
 	}
 }
+
+func TextContext2Validate_providerFunctions(t *testing.T) {
+	p := testProvider("aws")
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Functions: map[string]providers.FunctionSpec{
+			"arn_parse": providers.FunctionSpec{
+				Parameters: []providers.FunctionParameterSpec{{
+					Name: "arn",
+					Type: cty.String,
+				}},
+				Return: cty.Bool,
+			},
+		},
+	}
+	p.CallFunctionResponse = &providers.CallFunctionResponse{
+		Result: cty.True,
+	}
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+  required_providers {
+    aws = ">=5.70.0"
+  }
+}
+
+provider "aws" {
+  region="us-east-1"
+}
+
+module "mod" {
+  source = "./mod"
+  providers = {
+    aws = aws
+  }
+}
+ `,
+		"mod/mod.tf": `
+  terraform {
+    required_providers {
+      aws = ">=5.70.0"
+    }
+}
+
+variable "obfmod" {
+  type = object({
+    arns = optional(list(string))
+  })
+  description = "Configuration for xxx."
+
+  validation {
+    condition = alltrue([
+      for arn in var.obfmod.arns: can(provider::aws::arn_parse(arn))
+    ])
+    error_message = "All arns MUST BE a valid AWS ARN format."
+  }
+
+  default = {
+    arns = [
+      "arn:partition:service:region:account-id:resource-id",
+    ]
+  }
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	diags := ctx.Validate(m)
+	warn := diags.ErrWithWarnings().Error()
+	if !strings.Contains(warn, `The attribute "foo" is deprecated`) {
+		t.Fatalf("expected deprecated warning, got: %q\n", warn)
+	}
+
+	if !p.CallFunctionCalled {
+		t.Fatalf("Expected function call")
+	}
+}
