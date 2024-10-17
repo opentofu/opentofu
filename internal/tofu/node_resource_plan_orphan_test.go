@@ -141,7 +141,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 
 		node := NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-				ResolvedInstanceProvider: addrs.AbsProviderConfig{
+				ResolvedProvider: addrs.AbsProviderConfig{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},
@@ -214,7 +214,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-			ResolvedInstanceProvider: addrs.AbsProviderConfig{
+			ResolvedProvider: addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -294,7 +294,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-			ResolvedInstanceProvider: addrs.AbsProviderConfig{
+			ResolvedProvider: addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
