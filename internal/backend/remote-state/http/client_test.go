@@ -251,3 +251,62 @@ func TestHttpClient_IsLockingEnabled(t *testing.T) {
 		})
 	}
 }
+
+// HTTP request body reader that deliberately causes a read error
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("read error")
+}
+
+func (e *errorReader) Close() error {
+	return nil
+}
+
+func TestParseResponseBody(t *testing.T) {
+
+	testCases := []struct {
+		name           string
+		responseBody   string
+		expectedOutput string
+	}{{
+		name:           "Valid json response body",
+		responseBody:   `{"error":"Unauthorized"}`,
+		expectedOutput: `{"error":"Unauthorized"}`,
+	},
+		{
+			name:           "Empty response body",
+			responseBody:   "",
+			expectedOutput: "",
+		},
+		{
+			name:           "Response body with special characters",
+			responseBody:   "Special characters: !@#$%^&*()",
+			expectedOutput: "Special characters: !@#$%^&*()",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			resp := &http.Response{
+				Body: io.NopCloser(bytes.NewBufferString(tt.responseBody)),
+			}
+
+			output := parseResponseBody(resp)
+			if output != tt.expectedOutput {
+				t.Errorf("parseResponseBody() = %v; want %v", output, tt.expectedOutput)
+			}
+		})
+	}
+
+	t.Run("Error reading response body", func(t *testing.T) {
+		resp := &http.Response{
+			Body: io.NopCloser(&errorReader{}),
+		}
+
+		output := parseResponseBody(resp)
+		if output != "" {
+			t.Errorf("parseResponseBody() = %v; want %v", output, "")
+		}
+	})
+}
