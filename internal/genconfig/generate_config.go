@@ -156,10 +156,17 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 				buf.WriteString("null # sensitive")
 			} else {
 				if val.Type() == cty.String {
+					unmarked, marks := val.Unmark()
+
 					// SHAMELESS HACK: If we have "" for an optional value, assume
 					// it is actually null, due to the legacy SDK.
-					if !val.IsNull() && attrS.Optional && len(val.AsString()) == 0 {
-						val = attrS.EmptyValue()
+					if !unmarked.IsNull() && attrS.Optional && len(unmarked.AsString()) == 0 {
+						unmarked = attrS.EmptyValue()
+					}
+
+					// re-mark the value if it was marked originally
+					if len(marks) > 0 {
+						val = unmarked.Mark(marks)
 					}
 				}
 
@@ -557,8 +564,9 @@ func omitUnknowns(val cty.Value) cty.Value {
 	case ty.IsPrimitiveType():
 		return val
 	case ty.IsListType() || ty.IsTupleType() || ty.IsSetType():
+		unmarked, marks := val.Unmark()
 		var vals []cty.Value
-		it := val.ElementIterator()
+		it := unmarked.ElementIterator()
 		for it.Next() {
 			_, v := it.Element()
 			newVal := omitUnknowns(v)
@@ -574,10 +582,11 @@ func omitUnknowns(val cty.Value) cty.Value {
 		// may have caused the individual elements to have different types,
 		// and we're doing this work to produce JSON anyway and JSON marshalling
 		// represents all of these sequence types as an array.
-		return cty.TupleVal(vals)
+		return cty.TupleVal(vals).WithMarks(marks)
 	case ty.IsMapType() || ty.IsObjectType():
+		unmarked, marks := val.Unmark()
 		vals := make(map[string]cty.Value)
-		it := val.ElementIterator()
+		it := unmarked.ElementIterator()
 		for it.Next() {
 			k, v := it.Element()
 			newVal := omitUnknowns(v)
@@ -589,7 +598,7 @@ func omitUnknowns(val cty.Value) cty.Value {
 		// may have caused the individual elements to have different types,
 		// and we're doing this work to produce JSON anyway and JSON marshalling
 		// represents both of these mapping types as an object.
-		return cty.ObjectVal(vals)
+		return cty.ObjectVal(vals).WithMarks(marks)
 	default:
 		// Should never happen, since the above should cover all types
 		panic(fmt.Sprintf("omitUnknowns cannot handle %#v", val))
