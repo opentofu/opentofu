@@ -1010,17 +1010,21 @@ func checkForDuplicatedOverrideModules(modules []*OverrideModule) hcl.Diagnostic
 	return diags
 }
 
+// testFileSchema defines the structure of test file configuration for tofu tests.
 var testFileSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{
+			// run block defines the steps to execute during a test run.
 			Type:       "run",
 			LabelNames: []string{"name"},
 		},
 		{
+			// provider block specifies the infrastructure provider to use for the test.
 			Type:       "provider",
 			LabelNames: []string{"name"},
 		},
 		{
+			// variables block defines input variables to pass to the test.
 			Type: "variables",
 		},
 		{
@@ -1039,23 +1043,32 @@ var testFileSchema = &hcl.BodySchema{
 	},
 }
 
+// testRunBlockSchema defines the structure of the run block within a test,
+// including attributes like the command, expected failures, and providers.
 var testRunBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
+		// command specifies the shell command or script to execute during the test.
 		{Name: "command"},
+		// providers defines the list of infrastructure providers used during the test.
 		{Name: "providers"},
+		// expect_failures indicates whether test failures are expected.
 		{Name: "expect_failures"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{
+			// plan_options block configures options for the planning phase of the test.
 			Type: "plan_options",
 		},
 		{
+			// assert block allows defining conditions that must be met for the test to pass.
 			Type: "assert",
 		},
 		{
+			// variables block provides input variables to be used during the test.
 			Type: "variables",
 		},
 		{
+			// module block specifies the module to be tested.
 			Type: "module",
 		},
 		{
@@ -1070,18 +1083,28 @@ var testRunBlockSchema = &hcl.BodySchema{
 	},
 }
 
+// testRunOptionsBlockSchema defines the structure of the plan_options block
+// within a test, allowing configuration of test planning behavior.
 var testRunOptionsBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
+		// mode defines the execution mode for the plan (e.g., apply or destroy).
 		{Name: "mode"},
+		// refresh determines whether resources should be refreshed before planning.
 		{Name: "refresh"},
+		// replace specifies the resources to be replaced during the plan.
 		{Name: "replace"},
+		// target lists the specific resources to target during the plan.
 		{Name: "target"},
 	},
 }
 
+// testRunModuleBlockSchema defines the structure of the module block within a test run,
+// including attributes for the module's source and version.
 var testRunModuleBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
+		// source specifies the source of the module (e.g., a Git URL or local path).
 		{Name: "source"},
+		// version specifies the version of the module to use.
 		{Name: "version"},
 	},
 }
