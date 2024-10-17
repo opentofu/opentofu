@@ -54,7 +54,7 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 		}
 	}
 
-	graph, operation, diags := c.applyGraph(plan, config)
+	graph, operation, diags := c.applyGraph(plan, config, true)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -119,7 +119,7 @@ Note that the -target option is not suitable for routine use, and is provided on
 	return newState, diags
 }
 
-func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate bool) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	variables := InputValues{}
@@ -204,7 +204,7 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 
 	var diags tfdiags.Diagnostics
 
-	graph, _, moreDiags := c.applyGraph(plan, config)
+	graph, _, moreDiags := c.applyGraph(plan, config, false)
 	diags = diags.Append(moreDiags)
 	return graph, diags
 }
