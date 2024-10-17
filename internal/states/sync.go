@@ -271,12 +271,12 @@ func (s *SyncState) RemoveResourceIfEmpty(addr addrs.AbsResource) bool {
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
 // SetResourceInstanceCurrent
-func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, instanceProvider addrs.AbsProviderConfig) {
+func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), instanceProvider)
+	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), provider)
 	s.maybePruneModule(addr.Module)
 }
 
@@ -303,12 +303,12 @@ func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, o
 //
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
-func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, instanceProvider addrs.AbsProviderConfig) {
+func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), instanceProvider)
+	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), provider)
 	s.maybePruneModule(addr.Module)
 }
 

@@ -173,7 +173,6 @@ func (n *NodeAbstractResourceInstance) AttachResourceState(s *states.Resource) {
 	n.instanceState = s.Instance(n.Addr.Resource.Key)
 	n.storedProviderConfig = n.instanceState.ProviderConfig
 	if n.storedProviderConfig.IsSet() && !n.ResolvedProvider.IsSet() {
-		// This should always be set, but tests are sometimes misconfigured
 		n.ResolvedProvider = n.storedProviderConfig
 	}
 }
