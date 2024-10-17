@@ -42,6 +42,10 @@ issues:
         - funlen
         - dupl
         - revive
+    - path: (.+)_test.go
+      text: "ST1003"
+    - path: (.+)_test.go
+      text: "var-naming: don't use underscores in Go names"
 
 linters:
   disable-all: true
