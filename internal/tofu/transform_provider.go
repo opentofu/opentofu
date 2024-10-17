@@ -305,11 +305,23 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 						// can now check to see if configuration is optional for this function.
 						providerSchema, ok := providers.SchemaCache.Get(absPc.Provider)
 						if !ok {
-							panic("ERROR INVALID PROVIDER")
+							diags = diags.Append(&hcl.Diagnostic{
+								Severity: hcl.DiagError,
+								Summary:  "Unknown provider for function",
+								Detail:   fmt.Sprintf("Provider %q does not have it's schema initialized!", pf.ProviderName),
+								Subject:  ref.SourceRange.ToHCL().Ptr(),
+							})
+							continue
 						}
 						_, functionOk := providerSchema.Functions[pf.Function]
 						if !functionOk {
-							panic("CONFIGURED FUNCTION REQUIRED OR BUG")
+							diags = diags.Append(&hcl.Diagnostic{
+								Severity: hcl.DiagError,
+								Summary:  "Unknown provider function",
+								Detail:   fmt.Sprintf("Provider %q does not have a function %q or has not been configured!", pf.ProviderName, pf.Function),
+								Subject:  ref.SourceRange.ToHCL().Ptr(),
+							})
+							continue
 						}
 
 						// If this provider doesn't need to be configured then we can just
@@ -319,15 +331,18 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
 						}
-						if provider, ok = providerVerts[stubAddr.String()]; !ok {
-							stub := &NodeEvalableProvider{
+						// Try to look up an existing stub
+						provider, ok = providerVerts[stubAddr.String()]
+						// If it does not exist, create it
+						if !ok {
+							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
+
+							provider = &NodeEvalableProvider{
 								&NodeAbstractProvider{
 									Addr: stubAddr,
 								},
 							}
-							providerVerts[stubAddr.String()] = stub
-							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
-							provider = stub
+							providerVerts[stubAddr.String()] = provider
 							g.Add(provider)
 						}
 					}
