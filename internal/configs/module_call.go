@@ -307,23 +307,6 @@ type PassedProviderConfig struct {
 	InParentMapping *ProviderConfigRefMapping
 }
 
-// TODO/Oleksandr: get rid of this function and make a proper call via InParent
-func (c *PassedProviderConfig) InParentTODO() *ProviderConfigRef {
-	if len(c.InParentMapping.Aliases) == 0 {
-		return c.InParent(addrs.NoKey)
-	}
-
-	if _, ok := c.InParentMapping.Aliases[addrs.NoKey]; ok {
-		return c.InParent(addrs.NoKey)
-	}
-
-	for k := range c.InParentMapping.Aliases {
-		return c.InParent(k)
-	}
-
-	return nil
-}
-
 func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
 	if c.InParentMapping == nil {
 		return nil

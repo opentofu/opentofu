@@ -38,7 +38,7 @@ type providerConfig struct {
 	VersionConstraint string                 `json:"version_constraint,omitempty"`
 	ModuleAddress     string                 `json:"module_address,omitempty"`
 	Expressions       map[string]interface{} `json:"expressions,omitempty"`
-	parentKey         string
+	parentKeys        []string
 }
 
 type module struct {
@@ -81,15 +81,13 @@ type resource struct {
 	Type string `json:"type,omitempty"`
 	Name string `json:"name,omitempty"`
 
+	// TODO/Oleksandr: update comment
 	// ProviderConfigKey is the key into "provider_configs" (shown above) for
 	// the provider configuration that this resource is associated with.
 	//
 	// NOTE: If a given resource is in a ModuleCall, and the provider was
 	// configured outside of the module (in a higher level configuration file),
 	// the ProviderConfigKey will not match a key in the ProviderConfigs map.
-	ProviderConfigKey string `json:"provider_config_key,omitempty"`
-
-	// TODO/Oleksandr: comment
 	ProviderConfigKeys []string `json:"provider_config_keys,omitempty"`
 
 	// Provisioners is an optional field which describes any provisioners.
@@ -111,6 +109,23 @@ type resource struct {
 	ForEachExpression *expression `json:"for_each_expression,omitempty"`
 
 	DependsOn []string `json:"depends_on,omitempty"`
+}
+
+func (r resource) MarshalJSON() ([]byte, error) {
+	res := struct {
+		resource
+		// TODO/Oleksandr: comment
+		ProviderConfigKey string `json:"provider_config_key,omitempty"`
+	}{
+		resource: r,
+	}
+
+	if len(res.ProviderConfigKeys) == 1 {
+		res.ProviderConfigKey = res.ProviderConfigKeys[0]
+		res.ProviderConfigKeys = nil
+	}
+
+	return json.Marshal(res)
 }
 
 type output struct {
@@ -141,7 +156,7 @@ func Marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
 	normalizeModuleProviderKeys(&rootModule, pcs)
 
 	for name, pc := range pcs {
-		if pc.parentKey != "" {
+		if len(pc.parentKeys) != 0 {
 			delete(pcs, name)
 		}
 	}
@@ -242,7 +257,7 @@ func marshalProviderConfigs(
 
 		if c.Parent != nil {
 			parentKey := opaqueProviderKey(pr.Name, c.Parent.Path.String())
-			p.parentKey = findSourceProviderKey(parentKey, p.FullName, m)
+			p.parentKeys = findSourceProviderKeys([]string{parentKey}, p.FullName, m)
 		}
 
 		m[key] = p
@@ -267,7 +282,7 @@ func marshalProviderConfigs(
 		// In child modules, providers defined in the parent module can be implicitly used.
 		if c.Parent != nil {
 			parentKey := opaqueProviderKey(req.Type, c.Parent.Path.String())
-			p.parentKey = findSourceProviderKey(parentKey, p.FullName, m)
+			p.parentKeys = findSourceProviderKeys([]string{parentKey}, p.FullName, m)
 		}
 
 		m[key] = p
@@ -283,8 +298,7 @@ func marshalProviderConfigs(
 		for _, ppc := range mc.Providers {
 			// These provider names include aliases, if set
 			moduleProviderName := ppc.InChild.String()
-			// TODO/Oleksandr: update this field to resolved provider after graph execution
-			parentProviderName := ppc.InParentTODO().String()
+			parentKeys := providerAddrsToConfigKeys(cc.Parent.Path.String(), ppc.InParentMapping.AllAddrs())
 
 			// Look up the provider FQN from the module context, using the non-aliased local name
 			providerFqn := cc.ProviderForConfigAddr(addrs.LocalProviderConfig{LocalName: ppc.InChild.Name})
@@ -297,10 +311,9 @@ func marshalProviderConfigs(
 				ModuleAddress: cc.Path.String(),
 			}
 
-			key := opaqueProviderKey(moduleProviderName, cc.Path.String())
-			parentKey := opaqueProviderKey(parentProviderName, cc.Parent.Path.String())
-			p.parentKey = findSourceProviderKey(parentKey, p.FullName, m)
+			p.parentKeys = findSourceProviderKeys(parentKeys, p.FullName, m)
 
+			key := opaqueProviderKey(moduleProviderName, cc.Path.String())
 			m[key] = p
 		}
 
@@ -532,40 +545,34 @@ func normalizeModuleProviderKeys(m *module, pcs map[string]providerConfig) {
 	for i := range m.Resources {
 		res := &m.Resources[i]
 
-		if pc, exists := pcs[res.ProviderConfigKey]; exists {
-			if _, hasParent := pcs[pc.parentKey]; hasParent {
-				res.ProviderConfigKey = pc.parentKey
-			}
-		}
-
 		if len(res.ProviderConfigKeys) == 0 {
 			continue
 		}
 
-		for ki, k := range res.ProviderConfigKeys {
-			if pc, exists := pcs[k]; exists {
-				if _, hasParent := pcs[pc.parentKey]; hasParent {
-					res.ProviderConfigKeys[ki] = pc.parentKey
+		uniqueKeys := make(map[string]struct{})
+
+		for _, key := range res.ProviderConfigKeys {
+			if pc, exists := pcs[key]; exists {
+
+				if len(pc.parentKeys) == 0 {
+					uniqueKeys[key] = struct{}{}
+					continue
+				}
+
+				for _, parentKey := range pc.parentKeys {
+					if _, ok := pcs[parentKey]; ok {
+						uniqueKeys[parentKey] = struct{}{}
+					}
 				}
 			}
 		}
 
-		uniqueProviderConfigKeys := make(map[string]struct{}, len(res.ProviderConfigKeys))
-		for _, k := range res.ProviderConfigKeys {
-			uniqueProviderConfigKeys[k] = struct{}{}
-		}
-
-		res.ProviderConfigKeys = make([]string, 0, len(uniqueProviderConfigKeys))
-		for k := range uniqueProviderConfigKeys {
+		res.ProviderConfigKeys = make([]string, 0, len(uniqueKeys))
+		for k := range uniqueKeys {
 			res.ProviderConfigKeys = append(res.ProviderConfigKeys, k)
 		}
 
 		slices.Sort(res.ProviderConfigKeys)
-
-		if len(res.ProviderConfigKeys) == 1 {
-			res.ProviderConfigKey = res.ProviderConfigKeys[0]
-			res.ProviderConfigKeys = nil
-		}
 	}
 
 	for _, mc := range m.ModuleCalls {
@@ -583,25 +590,44 @@ func opaqueProviderKey(provider string, addr string) (key string) {
 	return key
 }
 
+// TODO/Oleksandr: update comment
 // Traverse up the module call tree until we find the provider
 // configuration which has no linked parent config. This is then
 // the source of the configuration used in this module call, so
 // we link to it directly
-func findSourceProviderKey(startKey string, fullName string, m map[string]providerConfig) string {
-	var parentKey string
+func findSourceProviderKeys(startKeys []string, fullName string, m map[string]providerConfig) []string {
+	var sourceKeys []string
 
-	key := startKey
-	for key != "" {
-		parent, exists := m[key]
-		if !exists || parent.FullName != fullName {
-			break
-		}
-
-		parentKey = key
-		key = parent.parentKey
+	type keySet struct {
+		own     string
+		parents []string
 	}
 
-	return parentKey
+	nextKeys := []keySet{{parents: startKeys}}
+	for len(nextKeys) != 0 {
+		key := nextKeys[0]
+		nextKeys = nextKeys[1:]
+		hasParents := false
+
+		for _, pk := range key.parents {
+			parent, exists := m[pk]
+			if !exists || parent.FullName != fullName {
+				continue
+			}
+
+			hasParents = true
+			nextKeys = append(nextKeys, keySet{
+				own:     pk,
+				parents: parent.parentKeys,
+			})
+		}
+
+		if !hasParents && key.own != "" {
+			sourceKeys = append(sourceKeys, key.own)
+		}
+	}
+
+	return sourceKeys
 }
 
 func providerAddrsToConfigKeys(moduleAddr string, localAddrs []addrs.LocalProviderConfig) []string {
