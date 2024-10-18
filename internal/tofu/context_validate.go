@@ -60,12 +60,15 @@ func (c *Context) Validate(config *configs.Config) tfdiags.Diagnostics {
 		}
 	}
 
+	providerFunctionTracker := make(ProviderFunctionMapping)
+
 	graph, moreDiags := (&PlanGraphBuilder{
-		Config:             config,
-		Plugins:            c.plugins,
-		State:              states.NewState(),
-		RootVariableValues: varValues,
-		Operation:          walkValidate,
+		Config:                  config,
+		Plugins:                 c.plugins,
+		State:                   states.NewState(),
+		RootVariableValues:      varValues,
+		Operation:               walkValidate,
+		ProviderFunctionTracker: providerFunctionTracker,
 	}).Build(addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
@@ -73,7 +76,8 @@ func (c *Context) Validate(config *configs.Config) tfdiags.Diagnostics {
 	}
 
 	walker, walkDiags := c.walk(graph, walkValidate, &graphWalkOpts{
-		Config: config,
+		Config:                  config,
+		ProviderFunctionTracker: providerFunctionTracker,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)

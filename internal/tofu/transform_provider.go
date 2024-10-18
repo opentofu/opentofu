@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -212,10 +213,36 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	return diags.Err()
 }
 
+// ProviderFunctionReference is all the information needed to identify
+// the provider required in a given module path. Alternatively, this
+// could be seen as a Module path + addrs.LocalProviderConfig.
+type ProviderFunctionReference struct {
+	ModulePath    string
+	ProviderName  string
+	ProviderAlias string
+}
+
+// ProviderFunctionMapping maps a provider used by functions at a given location in the graph to the actual AbsProviderConfig
+// that's required. This is due to the provider inheritence logic and proxy logic in the below
+// transformer needing to be known in other parts of the application.
+// Ideally, this would not be needed and be built like the ProviderTransformer. Unfortunately, it's
+// a significant refactor to get to that point which adds a lot of complexity.
+type ProviderFunctionMapping map[ProviderFunctionReference]addrs.AbsProviderConfig
+
+func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFunction) (addrs.AbsProviderConfig, bool) {
+	addr, ok := m[ProviderFunctionReference{
+		ModulePath:    module.String(),
+		ProviderName:  pf.ProviderName,
+		ProviderAlias: pf.ProviderAlias,
+	}]
+	return addr, ok
+}
+
 // ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
 // within the graph. This will error if there are any provider functions that don't map to known providers.
 type ProviderFunctionTransformer struct {
-	Config *configs.Config
+	Config                  *configs.Config
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
@@ -227,26 +254,20 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 		return nil
 	}
 
-	// Locate all providers in the graph
-	providers := providerVertexMap(g)
-
-	type providerReference struct {
-		path  string
-		name  string
-		alias string
-	}
+	// Locate all providerVerts in the graph
+	providerVerts := providerVertexMap(g)
 	// LuT of provider reference -> provider vertex
-	providerReferences := make(map[providerReference]dag.Vertex)
+	providerReferences := make(map[ProviderFunctionReference]dag.Vertex)
 
 	for _, v := range g.Vertices() {
 		// Provider function references
 		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
 			for _, ref := range nr.References() {
 				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
-					key := providerReference{
-						path:  nr.ModulePath().String(),
-						name:  pf.ProviderName,
-						alias: pf.ProviderAlias,
+					key := ProviderFunctionReference{
+						ModulePath:    nr.ModulePath().String(),
+						ProviderName:  pf.ProviderName,
+						ProviderAlias: pf.ProviderAlias,
 					}
 
 					// We already know about this provider and can link directly
@@ -291,12 +312,35 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					log.Printf("[TRACE] ProviderFunctionTransformer: %s in %s is provided by %s", pf, dag.VertexName(v), absPc)
 
 					// Lookup provider via full address
-					provider := providers[absPc.String()]
+					provider := providerVerts[absPc.String()]
 
 					if provider != nil {
 						// Providers with configuration will already exist within the graph and can be directly referenced
 						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
 					} else {
+						// At this point, all provider schemas should be loaded.  We
+						// can now check to see if configuration is optional for this function.
+						providerSchema, ok := providers.SchemaCache.Get(absPc.Provider)
+						if !ok {
+							diags = diags.Append(&hcl.Diagnostic{
+								Severity: hcl.DiagError,
+								Summary:  "Unknown provider for function",
+								Detail:   fmt.Sprintf("Provider %q does not have it's schema initialized", absPc.Provider),
+								Subject:  ref.SourceRange.ToHCL().Ptr(),
+							})
+							continue
+						}
+						_, functionOk := providerSchema.Functions[pf.Function]
+						if !functionOk {
+							diags = diags.Append(&hcl.Diagnostic{
+								Severity: hcl.DiagError,
+								Summary:  "Unknown provider function",
+								Detail:   fmt.Sprintf("Provider %q does not have a function %q or has not been configured", absPc, pf.Function),
+								Subject:  ref.SourceRange.ToHCL().Ptr(),
+							})
+							continue
+						}
+
 						// If this provider doesn't need to be configured then we can just
 						// stub it out with an init-only provider node, which will just
 						// start up the provider and fetch its schema.
@@ -304,22 +348,24 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
 						}
-						if provider, ok = providers[stubAddr.String()]; !ok {
-							stub := &NodeEvalableProvider{
+						// Try to look up an existing stub
+						provider, ok = providerVerts[stubAddr.String()]
+						// If it does not exist, create it
+						if !ok {
+							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
+
+							provider = &NodeEvalableProvider{
 								&NodeAbstractProvider{
 									Addr: stubAddr,
 								},
 							}
-							providers[stubAddr.String()] = stub
-							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
-							provider = stub
+							providerVerts[stubAddr.String()] = provider
 							g.Add(provider)
 						}
 					}
 
 					// see if this is a proxy provider pointing to another concrete config
 					if p, ok := provider.(*graphNodeProxyProvider); ok {
-						g.Remove(p)
 						provider = p.Target()
 					}
 
@@ -328,6 +374,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 					// Save for future lookups
 					providerReferences[key] = provider
+					t.ProviderFunctionTracker[key] = provider.ProviderAddr()
 				}
 			}
 		}

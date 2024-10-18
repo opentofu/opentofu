@@ -111,29 +111,29 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		}
 	}()
 
-	providerSupplier := func(addr addrs.AbsProviderConfig) providers.Interface {
+	providerSupplier := func(addr addrs.Provider) providers.Interface {
 		providerInstanceLock.Lock()
 		defer providerInstanceLock.Unlock()
 
-		if inst, ok := providerInstances[addr.Provider]; ok {
+		if inst, ok := providerInstances[addr]; ok {
 			return inst
 		}
 
-		factory, ok := ctx.plugins.providerFactories[addr.Provider]
+		factory, ok := ctx.plugins.providerFactories[addr]
 		if !ok {
 			log.Printf("[WARN] Unable to find provider %s in test context", addr)
-			providerInstances[addr.Provider] = nil
+			providerInstances[addr] = nil
 			return nil
 		}
 		log.Printf("[INFO] Starting test provider %s", addr)
 		inst, err := factory()
 		if err != nil {
 			log.Printf("[WARN] Unable to start provider %s in test context", addr)
-			providerInstances[addr.Provider] = nil
+			providerInstances[addr] = nil
 			return nil
 		} else {
 			log.Printf("[INFO] Shutting down test provider %s", addr)
-			providerInstances[addr.Provider] = inst
+			providerInstances[addr] = inst
 			return inst
 		}
 	}
@@ -144,7 +144,21 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		PureOnly:      operation != walkApply,
 		PlanTimestamp: ctx.Plan.Timestamp,
 		ProviderFunctions: func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-			return evalContextProviderFunction(providerSupplier, ctx.Config, walkPlan, pf, rng)
+			// This is a simpler flow than what is allowed during normal exection.
+			// We only support non-configured functions here.
+			pr, ok := ctx.Config.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
+			if !ok {
+				return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Unknown function provider",
+					Detail:   fmt.Sprintf("Provider %q does not exist within the required_providers of this module", pf.ProviderName),
+					Subject:  rng.ToHCL().Ptr(),
+				})
+			}
+
+			provider := providerSupplier(pr.Type)
+
+			return evalContextProviderFunction(provider, walkPlan, pf, rng)
 		},
 	}
 
