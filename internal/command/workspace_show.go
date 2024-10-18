@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/posener/complete"
 )
 
@@ -17,6 +18,8 @@ type WorkspaceShowCommand struct {
 }
 
 func (c *WorkspaceShowCommand) Run(args []string) int {
+	var diags tfdiags.Diagnostics
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("workspace show")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -31,6 +34,11 @@ func (c *WorkspaceShowCommand) Run(args []string) int {
 		return 1
 	}
 	c.Ui.Output(workspace)
+
+	c.showDiagnostics(diags)
+	if c.View.HasErrors(diags) {
+		return 1
+	}
 
 	return 0
 }

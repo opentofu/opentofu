@@ -74,7 +74,7 @@ func (b *Local) opApply(
 	// Get our context
 	lr, _, opState, contextDiags := b.localRun(op)
 	diags = diags.Append(contextDiags)
-	if contextDiags.HasErrors() {
+	if op.View.HasErrors(contextDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}
@@ -82,7 +82,7 @@ func (b *Local) opApply(
 	// when the operation completes
 	defer func() {
 		diags := op.StateLocker.Unlock()
-		if diags.HasErrors() {
+		if op.View.HasErrors(diags) {
 			op.View.Diagnostics(diags)
 			runningOp.Result = backend.OperationFailure
 		}
@@ -95,7 +95,7 @@ func (b *Local) opApply(
 
 	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	if op.View.HasErrors(moreDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}
@@ -116,7 +116,7 @@ func (b *Local) opApply(
 		log.Printf("[INFO] backend/local: apply calling Plan")
 		plan, moreDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
 		diags = diags.Append(moreDiags)
-		if moreDiags.HasErrors() {
+		if op.View.HasErrors(moreDiags) {
 			// If OpenTofu Core generated a partial plan despite the errors
 			// then we'll make the best effort to render it. OpenTofu Core
 			// promises that if it returns a non-nil plan along with errors
@@ -271,7 +271,7 @@ func (b *Local) opApply(
 
 	// Even on error with an empty state, the state value should not be nil.
 	// Return early here to prevent corrupting any existing state.
-	if diags.HasErrors() && applyState == nil {
+	if op.View.HasErrors(diags) && applyState == nil {
 		log.Printf("[ERROR] backend/local: apply returned nil state")
 		op.ReportResult(runningOp, diags)
 		return
@@ -294,7 +294,7 @@ func (b *Local) opApply(
 		return
 	}
 
-	if applyDiags.HasErrors() {
+	if op.View.HasErrors(applyDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}

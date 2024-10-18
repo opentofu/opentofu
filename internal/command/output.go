@@ -29,7 +29,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 
 	// Parse and validate flags
 	args, diags := arguments.ParseOutput(rawArgs)
-	if diags.HasErrors() {
+	if c.View.HasErrors(diags) {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("output")
 		return 1
@@ -45,14 +45,14 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
-		c.View.Diagnostics(diags)
+	if view.HasErrors(encDiags) {
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Fetch data from state
 	outputs, diags := c.Outputs(args.StatePath, enc)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -62,8 +62,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	diags = diags.Append(viewDiags)
 
 	view.Diagnostics(diags)
-
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		return 1
 	}
 
