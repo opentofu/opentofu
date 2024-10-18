@@ -282,6 +282,7 @@ type Operation struct {
 	PlanMode     plans.Mode
 	AutoApprove  bool
 	Targets      []addrs.Targetable
+	Excludes     []addrs.Targetable
 	ForceReplace []addrs.AbsResourceInstance
 	// Injected by the command creating the operation (plan/apply/refresh/etc...)
 	Variables map[string]UnparsedVariableValue
