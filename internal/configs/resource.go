@@ -8,7 +8,6 @@ package configs
 import (
 	"fmt"
 	"math/big"
-	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -94,37 +93,19 @@ func (r *Resource) Addr() addrs.Resource {
 	}
 }
 
-// TODO/Oleksandr: remove this function once merged with Ronny's changes.
-func (r *Resource) AnyProviderConfigAddr() addrs.LocalProviderConfig {
+// AllProviderConfigAddrs returns all potential local provider addresses.
+func (r *Resource) AllProviderConfigAddrs() []addrs.LocalProviderConfig {
 	if r.ProviderConfigRef == nil {
 		// If no specific "provider" argument is given, we want to look up the
 		// provider config where the local name matches the implied provider
 		// from the resource type. This may be different from the resource's
 		// provider type.
-		return addrs.LocalProviderConfig{
+		return []addrs.LocalProviderConfig{{
 			LocalName: r.Addr().ImpliedProvider(),
-		}
+		}}
 	}
 
-	if r.ProviderConfigRef.HasInstanceRefsInAlias() {
-		// This branch must return the same (first) value every time.
-		// It is used in multiple places before and after graph execution.
-		// Anyway, this function only mimics real behaviour and should be removed.
-		aliases := make([]string, 0, len(r.ProviderConfigRef.Aliases))
-		for _, alias := range r.ProviderConfigRef.Aliases {
-			aliases = append(aliases, alias)
-		}
-		slices.Sort(aliases)
-		return addrs.LocalProviderConfig{
-			LocalName: r.ProviderConfigRef.Name,
-			Alias:     aliases[0],
-		}
-	}
-
-	return addrs.LocalProviderConfig{
-		LocalName: r.ProviderConfigRef.Name,
-		Alias:     r.ProviderConfigRef.Aliases[addrs.NoKey],
-	}
+	return r.ProviderConfigRef.AllAddrs()
 }
 
 // ProviderConfigName returns configuration name of resource provider without an alias.
@@ -744,6 +725,25 @@ func (m *ProviderConfigRefMapping) HasInstanceRefsInAlias() bool {
 
 	// There is a single entry and this entry references some key.
 	return true
+}
+
+func (m *ProviderConfigRefMapping) AllAddrs() []addrs.LocalProviderConfig {
+	if !m.HasInstanceRefsInAlias() {
+		return []addrs.LocalProviderConfig{{
+			LocalName: m.Name,
+			Alias:     m.Aliases[addrs.NoKey],
+		}}
+	}
+
+	pcs := make([]addrs.LocalProviderConfig, 0, len(m.Aliases))
+	for _, alias := range m.Aliases {
+		pcs = append(pcs, addrs.LocalProviderConfig{
+			LocalName: m.Name,
+			Alias:     alias,
+		})
+	}
+
+	return pcs
 }
 
 func providerToConfigRefMapping(p *Provider) *ProviderConfigRefMapping {
