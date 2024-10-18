@@ -308,7 +308,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 							diags = diags.Append(&hcl.Diagnostic{
 								Severity: hcl.DiagError,
 								Summary:  "Unknown provider for function",
-								Detail:   fmt.Sprintf("Provider %q does not have it's schema initialized!", pf.ProviderName),
+								Detail:   fmt.Sprintf("Provider %q does not have it's schema initialized!", absPc.Provider),
 								Subject:  ref.SourceRange.ToHCL().Ptr(),
 							})
 							continue
@@ -318,7 +318,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 							diags = diags.Append(&hcl.Diagnostic{
 								Severity: hcl.DiagError,
 								Summary:  "Unknown provider function",
-								Detail:   fmt.Sprintf("Provider %q does not have a function %q or has not been configured!", pf.ProviderName, pf.Function),
+								Detail:   fmt.Sprintf("Provider %q does not have a function %q or has not been configured!", absPc, pf.Function),
 								Subject:  ref.SourceRange.ToHCL().Ptr(),
 							})
 							continue
