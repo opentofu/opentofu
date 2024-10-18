@@ -81,13 +81,9 @@ type resource struct {
 	Type string `json:"type,omitempty"`
 	Name string `json:"name,omitempty"`
 
-	// TODO/Oleksandr: update comment
-	// ProviderConfigKey is the key into "provider_configs" (shown above) for
-	// the provider configuration that this resource is associated with.
-	//
-	// NOTE: If a given resource is in a ModuleCall, and the provider was
-	// configured outside of the module (in a higher level configuration file),
-	// the ProviderConfigKey will not match a key in the ProviderConfigs map.
+	// ProviderConfigKeys is a list of keys into "provider_configs" (shown above)
+	// for the provider configuration that this resource is associated with.
+	// This field becomes ProviderConfigKey when marshaling if there is only one item.
 	ProviderConfigKeys []string `json:"provider_config_keys,omitempty"`
 
 	// Provisioners is an optional field which describes any provisioners.
@@ -114,7 +110,8 @@ type resource struct {
 func (r resource) MarshalJSON() ([]byte, error) {
 	res := struct {
 		resource
-		// TODO/Oleksandr: comment
+		// ProviderConfigKey stays here for compatibility with previous
+		// versions. It is set when there is only one provider used.
 		ProviderConfigKey string `json:"provider_config_key,omitempty"`
 	}{
 		resource: r,
@@ -590,7 +587,6 @@ func opaqueProviderKey(provider string, addr string) (key string) {
 	return key
 }
 
-// TODO/Oleksandr: update comment
 // Traverse up the module call tree until we find the provider
 // configuration which has no linked parent config. This is then
 // the source of the configuration used in this module call, so
