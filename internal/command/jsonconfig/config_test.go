@@ -6,6 +6,7 @@
 package jsonconfig
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -14,13 +15,13 @@ func TestFindSourceProviderConfig(t *testing.T) {
 		StartKey    string
 		FullName    string
 		ProviderMap map[string]providerConfig
-		Want        string
+		Want        []string
 	}{
 		{
 			StartKey:    "null",
 			FullName:    "hashicorp/null",
 			ProviderMap: map[string]providerConfig{},
-			Want:        "",
+			Want:        nil,
 		},
 		{
 			StartKey: "null",
@@ -32,7 +33,7 @@ func TestFindSourceProviderConfig(t *testing.T) {
 					ModuleAddress: "",
 				},
 			},
-			Want: "null",
+			Want: []string{"null"},
 		},
 		{
 			StartKey: "null2",
@@ -44,7 +45,7 @@ func TestFindSourceProviderConfig(t *testing.T) {
 					ModuleAddress: "",
 				},
 			},
-			Want: "",
+			Want: nil,
 		},
 		{
 			StartKey: "null",
@@ -56,7 +57,7 @@ func TestFindSourceProviderConfig(t *testing.T) {
 					ModuleAddress: "",
 				},
 			},
-			Want: "",
+			Want: nil,
 		},
 		{
 			StartKey: "module.a:null",
@@ -71,10 +72,10 @@ func TestFindSourceProviderConfig(t *testing.T) {
 					Name:          "module.a:null",
 					FullName:      "hashicorp/null",
 					ModuleAddress: "module.a",
-					parentKey:     "null",
+					parentKeys:    []string{"null"},
 				},
 			},
-			Want: "null",
+			Want: []string{"null"},
 		},
 		{
 			StartKey: "module.a:null",
@@ -89,16 +90,18 @@ func TestFindSourceProviderConfig(t *testing.T) {
 					Name:          "module.a:null",
 					FullName:      "hashicorp2/null",
 					ModuleAddress: "module.a",
-					parentKey:     "null",
+					parentKeys:    []string{"null"},
 				},
 			},
-			Want: "module.a:null",
+			Want: []string{"module.a:null"},
 		},
 	}
 
+	// TODO/Oleksandr: extend this test
+
 	for _, test := range tests {
-		got := findSourceProviderKey(test.StartKey, test.FullName, test.ProviderMap)
-		if got != test.Want {
+		got := findSourceProviderKeys([]string{test.StartKey}, test.FullName, test.ProviderMap)
+		if slices.Compare(got, test.Want) != 0 {
 			t.Errorf("wrong result:\nGot: %#v\nWant: %#v\n", got, test.Want)
 		}
 	}
@@ -108,13 +111,13 @@ var normalizeProviderConfigKeysTestProviders = map[string]providerConfig{
 	"null":   {},
 	"null.a": {},
 	"module.a:null": {
-		parentKey: "null",
+		parentKeys: []string{"null"},
 	},
 	"module.a:null.a": {
-		parentKey: "null.a",
+		parentKeys: []string{"null.a"},
 	},
 	"module.a:null.b": {
-		parentKey: "null",
+		parentKeys: []string{"null"},
 	},
 }
 
@@ -124,29 +127,29 @@ var normalizeProviderConfigKeysTests = map[string]struct {
 }{
 	"no-changes": {
 		inputMod: module{
-			Resources: []resource{{ProviderConfigKey: "null"}},
+			Resources: []resource{{ProviderConfigKeys: []string{"null"}}},
 		},
 		resultMod: module{
-			Resources: []resource{{ProviderConfigKey: "null"}},
+			Resources: []resource{{ProviderConfigKeys: []string{"null"}}},
 		},
 	},
 	"single-parent": {
 		inputMod: module{
-			Resources: []resource{{ProviderConfigKey: "null"}},
+			Resources: []resource{{ProviderConfigKeys: []string{"null"}}},
 			ModuleCalls: map[string]moduleCall{
 				"a": {
 					Module: module{
-						Resources: []resource{{ProviderConfigKey: "module.a:null"}},
+						Resources: []resource{{ProviderConfigKeys: []string{"module.a:null"}}},
 					},
 				},
 			},
 		},
 		resultMod: module{
-			Resources: []resource{{ProviderConfigKey: "null"}},
+			Resources: []resource{{ProviderConfigKeys: []string{"null"}}},
 			ModuleCalls: map[string]moduleCall{
 				"a": {
 					Module: module{
-						Resources: []resource{{ProviderConfigKey: "null"}},
+						Resources: []resource{{ProviderConfigKeys: []string{"null"}}},
 					},
 				},
 			},
@@ -155,7 +158,7 @@ var normalizeProviderConfigKeysTests = map[string]struct {
 	"multiple-parents": {
 		inputMod: module{
 			Resources: []resource{
-				{ProviderConfigKey: "null"},
+				{ProviderConfigKeys: []string{"null"}},
 			},
 			ModuleCalls: map[string]moduleCall{
 				"a": {
@@ -169,7 +172,7 @@ var normalizeProviderConfigKeysTests = map[string]struct {
 		},
 		resultMod: module{
 			Resources: []resource{
-				{ProviderConfigKey: "null"},
+				{ProviderConfigKeys: []string{"null"}},
 			},
 			ModuleCalls: map[string]moduleCall{
 				"a": {
@@ -185,7 +188,7 @@ var normalizeProviderConfigKeysTests = map[string]struct {
 	"multiple-duplicated-parents": {
 		inputMod: module{
 			Resources: []resource{
-				{ProviderConfigKey: "null"},
+				{ProviderConfigKeys: []string{"null"}},
 			},
 			ModuleCalls: map[string]moduleCall{
 				"a": {
@@ -199,13 +202,13 @@ var normalizeProviderConfigKeysTests = map[string]struct {
 		},
 		resultMod: module{
 			Resources: []resource{
-				{ProviderConfigKey: "null"},
+				{ProviderConfigKeys: []string{"null"}},
 			},
 			ModuleCalls: map[string]moduleCall{
 				"a": {
 					Module: module{
 						Resources: []resource{{
-							ProviderConfigKey: "null",
+							ProviderConfigKeys: []string{"null"},
 						}},
 					},
 				},
@@ -236,13 +239,12 @@ func compareResourceProviders(t *testing.T, want, got module) {
 	for i := range want.Resources {
 		want, got := want.Resources[i], got.Resources[i]
 
-		if want.ProviderConfigKey != got.ProviderConfigKey {
-			t.Fatalf("ProviderConfigKey fields do not match: '%v' and '%v'", want.ProviderConfigKey, got.ProviderConfigKey)
-		}
-
 		if len(want.ProviderConfigKeys) != len(got.ProviderConfigKeys) {
 			t.Fatalf("Resources have different number of ProviderConfigKeys: %v and %v", want.ProviderConfigKeys, got.ProviderConfigKeys)
 		}
+
+		slices.Sort(want.ProviderConfigKeys)
+		slices.Sort(got.ProviderConfigKeys)
 
 		for i := range want.ProviderConfigKeys {
 			want, got := want.ProviderConfigKeys[i], got.ProviderConfigKeys[i]
