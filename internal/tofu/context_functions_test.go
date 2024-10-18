@@ -639,7 +639,7 @@ variable "obfmod" {
 	if !diags.HasErrors() {
 		t.Fatal("Expected error!")
 	}
-	expected := `Unknown provider function: Provider "module.mod.provider[\"registry.opentofu.org/hashicorp/aws\"]" does not have a function "arn_parse_custom" or has not been configured!`
+	expected := `Unknown provider function: Provider "module.mod.provider[\"registry.opentofu.org/hashicorp/aws\"]" does not have a function "arn_parse_custom" or has not been configured`
 	if expected != diags.Err().Error() {
 		t.Fatalf("Expected error %q, got %q", expected, diags.Err().Error())
 	}

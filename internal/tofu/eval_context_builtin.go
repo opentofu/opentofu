@@ -433,16 +433,21 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-		absPc := ctx.ProviderFunctionTracker[ProviderFunctionReference{
-			ModulePath:    ctx.PathValue.String(),
-			ProviderName:  pf.ProviderName,
-			ProviderAlias: pf.ProviderAlias,
-		}]
+		absPc, ok := ctx.ProviderFunctionTracker.Lookup(ctx.PathValue.Module(), pf)
+		if !ok {
+			// This should not be possible if references are tracked correctly
+			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "BUG: Uninitialized function provider",
+				Detail:   fmt.Sprintf("Provider function %q has not been tracked properly", pf),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
 
 		provider := ctx.Provider(absPc)
 
 		if provider == nil {
-			// This should not be possible if references are not tracked correctly
+			// This should not be possible if references are tracked correctly
 			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "BUG: Uninitialized function provider",

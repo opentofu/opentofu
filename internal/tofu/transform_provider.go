@@ -213,13 +213,30 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 	return diags.Err()
 }
 
+// ProviderFunctionReference is all the information needed to identify
+// the provider required in a given module path. Alternatively, this
+// could be seen as a Module path + addrs.LocalProviderConfig.
 type ProviderFunctionReference struct {
 	ModulePath    string
 	ProviderName  string
 	ProviderAlias string
 }
 
+// ProviderFunctionMapping maps a provider used by functions at a given location in the graph to the actual AbsProviderConfig
+// that's required. This is due to the provider inheritence logic and proxy logic in the below
+// transformer needing to be known in other parts of the application.
+// Ideally, this would not be needed and be built like the ProviderTransformer. Unfortunately, it's
+// a significant refactor to get to that point which adds a lot of complexity.
 type ProviderFunctionMapping map[ProviderFunctionReference]addrs.AbsProviderConfig
+
+func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFunction) (addrs.AbsProviderConfig, bool) {
+	addr, ok := m[ProviderFunctionReference{
+		ModulePath:    module.String(),
+		ProviderName:  pf.ProviderName,
+		ProviderAlias: pf.ProviderAlias,
+	}]
+	return addr, ok
+}
 
 // ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
 // within the graph. This will error if there are any provider functions that don't map to known providers.
@@ -308,7 +325,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 							diags = diags.Append(&hcl.Diagnostic{
 								Severity: hcl.DiagError,
 								Summary:  "Unknown provider for function",
-								Detail:   fmt.Sprintf("Provider %q does not have it's schema initialized!", absPc.Provider),
+								Detail:   fmt.Sprintf("Provider %q does not have it's schema initialized", absPc.Provider),
 								Subject:  ref.SourceRange.ToHCL().Ptr(),
 							})
 							continue
@@ -318,7 +335,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 							diags = diags.Append(&hcl.Diagnostic{
 								Severity: hcl.DiagError,
 								Summary:  "Unknown provider function",
-								Detail:   fmt.Sprintf("Provider %q does not have a function %q or has not been configured!", absPc, pf.Function),
+								Detail:   fmt.Sprintf("Provider %q does not have a function %q or has not been configured", absPc, pf.Function),
 								Subject:  ref.SourceRange.ToHCL().Ptr(),
 							})
 							continue
