@@ -65,7 +65,7 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx EvalContext, op walkOp
 	}
 }
 
-func (n *NodePlannableResourceInstanceOrphan) ProvidedBy() (addr addrs.ProviderInstance, exact bool) {
+func (n *NodePlannableResourceInstanceOrphan) ProvidedBy() (addr addrs.LocalOrAbsProvider, exact bool) {
 	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		// indicate that this node does not require a configured provider
 		return nil, true

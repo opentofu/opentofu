@@ -99,18 +99,14 @@ func (file *TestFile) getTestProviderOrMock(addr string) (*Provider, bool) {
 
 	mockProvider, ok := file.MockProviders[addr]
 	if ok {
-		var aliasRange hcl.Range
-		if mockProvider.AliasRange != nil {
-			aliasRange = *mockProvider.AliasRange
-		}
-
 		p := &Provider{
 			Name:          mockProvider.Name,
 			NameRange:     mockProvider.NameRange,
 			DeclRange:     mockProvider.DeclRange,
 			IsMocked:      true,
 			MockResources: mockProvider.MockResources,
-			Alias:         hcl.StaticExpr(cty.StringVal(mockProvider.Alias), aliasRange),
+			Alias:         mockProvider.Alias,
+			AliasRange:    mockProvider.AliasRange,
 		}
 
 		return p, true

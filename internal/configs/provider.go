@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -22,20 +23,31 @@ type Provider struct {
 	Name      string
 	NameRange hcl.Range
 
-	// Each provider block can either have "alias", "for_each", or neither,
-	// giving the following combinations
+	// Each provider block can have optional "alias" or "for_each" arguments.
+	// If "for_each" is set then "alias" is also required, because only additional
+	// (aka "aliased") provider configurations are allowed to have multiple
+	// instances. Default (aka "unaliased") provider configurations are required
+	// to always be singletons so that they can interact with OpenTofu Core's
+	// various "magic" behaviors with automatically associating resources with
+	// provider configurations when not explicitly assigned.
 	//
-	// - Alias == nil, ForEach == nil: The "default" (unaliased) configuration
+	// Therefore the following combinations are valid, and all others are rejected
+	// as errors during loading:
+	//
+	// - Alias == "", ForEach == nil: The default ("unaliased") configuration
 	//   for this provider in the current module.
-	// - Alias != nil, ForEach == nil: A single "additional" (aliased) configuration
-	//   for this provider in the current module, whose name is decided dynamically
-	//   based on the value of the expression.
-	// - Alias == nil, ForEach != nil: Zero or more "additional" (aliased) configurations
-	//   for this provider in the current module, decided dynamically based on the
-	//   value of the expression. The expression must be a mapping whose keys are
-	//   then used as the aliases.
-	Alias   hcl.Expression
+	// - Alias != "", ForEach == nil: A singleton additional ("aliased") configuration
+	//   for this provider in the current module.
+	// - Alias != "", ForEach != nil: A multi-instance additional ("aliased") configuration
+	//   for this provider in the current module, expanding dynamically to zero or
+	//   more instances based on the ForEach expression.
+	Alias   string
 	ForEach hcl.Expression
+
+	// AliasRange is set only if Alias != "", and describes the source range where
+	// the alias was specified. For a default ("unaliased") provider configuration,
+	// AliasRange is always nil.
+	AliasRange *hcl.Range
 
 	Version VersionConstraint
 
@@ -162,20 +174,36 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["alias"]; exists {
-		provider.Alias = attr.Expr
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Alias)
+		diags = append(diags, valDiags...)
+		provider.AliasRange = attr.Expr.Range().Ptr()
+
+		if !hclsyntax.ValidIdentifier(provider.Alias) {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration alias",
+				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
+				Subject:  provider.AliasRange,
+			})
+		}
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
 		provider.ForEach = attr.Expr
-	}
 
-	if provider.Alias != nil && provider.ForEach != nil {
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  `Invalid combination of "alias" and "for_each"`,
-			Detail:   `The "alias" and "for_each" arguments are mutually-exclusive, so only one may be used in each provider block.`,
-			Subject:  provider.Alias.Range().Ptr(),
-		})
+		if provider.Alias == "" {
+			// Only additional ("aliased") provider configurations are allowed
+			// to have multiple instances, because the concept of "default
+			// provider configurations" (the unaliased kind) exists specifically
+			// to allow OpenTofu to select them automatically in various cases,
+			// which requires them to be singletons.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Provider configuration for_each requires alias",
+				Detail:   "Only an additional (aka \"aliased\") provider configuration can have dynamically-chosen instances using for_each.\n\nSet the alias argument to a name which suggests the meaning of the keys in the for_each collection. For example, if your keys are region names then it could be appropriate to set alias = \"by_region\".",
+				Subject:  attr.NameRange.Ptr(),
+			})
+		}
 	}
 
 	if attr, exists := content.Attributes["version"]; exists {

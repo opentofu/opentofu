@@ -8,12 +8,41 @@ import (
 )
 
 // providerConfigTransformer is a graph transformer that creates a graph node for each
-// distinct provider used in the configuration.
+// "provider" block in the configuration, and possibly also additional nodes for
+// implied empty provider instances for unconfigured providers that resources
+// nonetheless refer to.
 //
-// The initial graph includes just one node for each distinct provider, with each
-// containing a record of all of the associated static configuration blocks.
-// During the walk these nodes will DynamicExpand to produce zero or more
-// instances from each provider configuration.
+// A provider configuration block can produce zero or more provider instances,
+// depending on how it's written:
+//
+//   - Using neither "for_each" nor "alias" represents exactly one default provider
+//     configuration, whose instance key is NoKey.
+//   - Using "alias" without "for_each" represents exactly one additional provider
+//     configuration whose instance key is a StringKey containing the alias string.
+//   - Using "for_each" without "alias" represents zero or more additional provider
+//     configurations whose instance keys are all StringKey taken from keys given
+//     in the for_each expression.
+//
+// In all but the last case we can predict the instance key in the initial graph.
+// The last case is trickier because we won't know the instance keys -- or even how
+// many instances there are -- until DynamicExpand is called during the graph walk.
+//
+// The two different cases (known instance keys vs. unknown instance keys during
+// graph construction) is a necessary compromise to retain the ability for a
+// provider configuration block to refer to a resource that belongs to an instance
+// that was declared in a _different_ provider configuration block, which was
+// possible before we supported for_each for provider blocks. To handle this we
+// make precise connections between resources and provider blocks when both ends
+// are statically configured, but make less-precise connections when either the
+// reference to the provider instance is dynamic or the provider instance itself
+// is dynamic.
+//
+// Note also that this compromise means that we cannot necessarily detect a duplicate
+// declaration of the same provider instance key across two blocks until DynamicExpand.
+// To keep things simple we defer _all_ checking of that until DynamicExpand, even
+// though technically we could catch the static cases during initial graph construction.
+// Not catching it during graph construction just means that there are some additional
+// edges in the graph, and that doesn't affect correctness.
 type providerConfigTransformer struct {
 	// Config is the node of the configuration tree representing the root module.
 	config *configs.Config

@@ -50,7 +50,7 @@ type GraphNodeProviderInstanceConsumer interface {
 	// * addrs.AbsProviderInstance + exact false: no config or state; the returned
 	//   value is a default provider configuration address for the resource's
 	//   Provider
-	ProvidedBy() (addr addrs.ProviderInstance, exact bool)
+	ProvidedBy() (addr addrs.LocalOrAbsProvider, exact bool)
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)

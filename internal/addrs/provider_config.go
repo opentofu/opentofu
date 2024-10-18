@@ -10,36 +10,103 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 )
 
-// ProviderInstance is an interface type whose dynamic type can be either
-// LocalProviderInstance or AbsProviderInstance, in order to represent
-// situations where a value might either be module-local or absolute but the
-// decision cannot be made until runtime.
+// LocalOrAbsProvider is an interface type whose dynamic type can be either
+// LocalProvider or AbsProvider, in order to represent situations where a
+// value might either be module-local or absolute but the decision cannot be
+// made until runtime.
 //
-// Where possible, use either LocalProviderInstance or ConfigProviderInstance
-// directly instead, to make intent more clear. ProviderInstance can be used only
+// Where possible, use either LocalProvider or AbsProvider directly instead,
+// to make intent more clear. LocalOrAbsProvider can be used only
 // in situations where the recipient of the value has some out-of-band way to
 // determine a "current module" to use if the value turns out to be
-// a LocalProviderInstance.
+// a LocalProvider.
 //
-// Recipients of non-nil ProviderInstance values that actually need
-// ConfigProviderInstance values should call ResolveAbsProviderAddr on the
+// Recipients of non-nil LocalOrAbsProvider values that actually need
+// AbsProvider values should call ResolveAbsProviderAddr on the
 // *configs.Config value representing the root module configuration, which
 // handles the translation from local to fully-qualified using mapping tables
 // defined in the configuration.
 //
-// Recipients of a ProviderInstance value can assume it can contain only a
-// LocalProviderInstance value, an ConfigProviderInstance value, or nil to
-// represent the absence of a provider config in situations where that is
-// meaningful.
-type ProviderInstance interface {
-	providerInstance()
+// Recipients of a LocalOrAbsProvider value can assume it can contain only a
+// LocalProvider value, an AbsProvider value, or nil to represent the absence
+// of a provider config in situations where that is meaningful.
+type LocalOrAbsProvider interface {
+	localOrAbsProvider()
 }
+
+var _ LocalOrAbsProvider = LocalProvider{}
+var _ LocalOrAbsProvider = AbsProvider{}
+
+// LocalProvider is the address of a particular provider configuration from
+// the perspective of references in a particular module.
+//
+// This uses the "LocalName" idea, which is a module-local lookup table from
+// short names (chosen by the module author) to fully-qualified [Provider]
+// addresses. Therefore finding the corresponding [AbsProviderInstance]
+// requires consulting that lookup table; there is no syntax-only translation
+// between these types.
+//
+// This address variant is for references to "provider" blocks in the
+// configuration, regardless of how many instances they might have. To represent
+// a reference to a specific instance of a provider that was declared in a
+// provider configuration (e.g. using for_each), use [LocalProviderInstance]
+// instead to capture the instance key.
+type LocalProvider struct {
+	LocalName string
+	Alias     string
+}
+
+var _ Referenceable = LocalProvider{}
+
+// NewDefaultLocalProviderInstance returns the address of the default (un-aliased)
+// configuration for the provider with the given local type name.
+func NewDefaultLocalProvider(localName string) LocalProvider {
+	return LocalProvider{
+		LocalName: localName,
+	}
+}
+
+// Instance returns the address of the instance of the provider that
+// has the given instance key.
+func (pc LocalProvider) Instance(key InstanceKey) LocalProviderInstance {
+	return LocalProviderInstance{
+		LocalName: pc.LocalName,
+		Alias:     pc.Alias,
+		Key:       key,
+	}
+}
+
+func (pc LocalProvider) String() string {
+	if pc.LocalName == "" {
+		// Should never happen; always indicates a bug
+		return "provider.<invalid>"
+	}
+	if pc.Alias != "" {
+		return fmt.Sprintf("provider.%s.%s", pc.LocalName, pc.Alias)
+	}
+	return "provider." + pc.LocalName
+}
+
+// UniqueKey implements UniqueKeyer and Referenceable.
+func (pc LocalProvider) UniqueKey() UniqueKey {
+	// A LocalProvider can be its own UniqueKey
+	return pc
+}
+
+// uniqueKeySigil implements UniqueKey.
+func (pc LocalProvider) uniqueKeySigil() {}
+
+// referenceableSigil implements Referenceable.
+func (pc LocalProvider) referenceableSigil() {}
+
+// localOrAbsProvider Implements addrs.LocalOrAbsProvider
+func (pc LocalProvider) localOrAbsProvider() {}
 
 // LocalProviderInstance is the address of a provider configuration from the
 // perspective of references in a particular module.
@@ -49,22 +116,21 @@ type ProviderInstance interface {
 // no syntax-only translation between these types.
 type LocalProviderInstance struct {
 	LocalName string
-	Key       InstanceKey
+	Alias     string
+
+	// Key MUST be [NoKey] unless Alias != "", because default provider
+	// configurations are not allowed to have dynamic instances.
+	Key InstanceKey
 }
 
-var _ ProviderInstance = LocalProviderInstance{}
-var _ Referenceable = LocalProviderInstance{}
-
-// NewDefaultLocalProviderInstance returns the address of the default (un-aliased)
-// configuration for the provider with the given local type name.
-func NewDefaultLocalProviderInstance(LocalNameName string) LocalProviderInstance {
-	return LocalProviderInstance{
-		LocalName: LocalNameName,
+// LocalProvider returns the address of the provider configuration that this instance
+// belongs to.
+func (pc LocalProviderInstance) LocalProvider() LocalProvider {
+	return LocalProvider{
+		LocalName: pc.LocalName,
+		Alias:     pc.Alias,
 	}
 }
-
-// providerInstance Implements addrs.ProviderInstance.
-func (pc LocalProviderInstance) providerInstance() {}
 
 func (pc LocalProviderInstance) String() string {
 	if pc.LocalName == "" {
@@ -72,15 +138,14 @@ func (pc LocalProviderInstance) String() string {
 		return "provider.<invalid>"
 	}
 
-	if pc.Key != NoKey {
-		if strKey, ok := pc.Key.(StringKey); ok && hclsyntax.ValidIdentifier(string(strKey)) {
-			// We'll return using the old-style identifier syntax if possible,
-			// since that's backward-compatible.
-			return fmt.Sprintf("provider.%s.%s", pc.LocalName, strKey)
+	if pc.Alias != "" {
+		if pc.Key != NoKey {
+			return fmt.Sprintf("provider.%s.%s%s", pc.LocalName, pc.Alias, pc.Key)
 		}
-		// Otherwise we'll use the more general index syntax, so that
-		// we can evolve towards treating providers more like everything else.
-		return fmt.Sprintf("provider.%s%s", pc.LocalName, pc.Key)
+		return fmt.Sprintf("provider.%s.%s", pc.LocalName, pc.Alias)
+	} else if pc.Key != NoKey {
+		// Should never happen; always indicates a bug
+		return fmt.Sprintf("provider.%s.<invalid>%s", pc.LocalName, pc.Key)
 	}
 
 	return "provider." + pc.LocalName
@@ -89,15 +154,19 @@ func (pc LocalProviderInstance) String() string {
 // StringCompact is an alternative to String that returns the compact form
 // without the "provider." prefix.
 func (pc LocalProviderInstance) StringCompact() string {
-	if pc.Key != NoKey {
-		if strKey, ok := pc.Key.(StringKey); ok && hclsyntax.ValidIdentifier(string(strKey)) {
-			// We'll return using the old-style identifier syntax if possible,
-			// since that's backward-compatible.
-			return fmt.Sprintf("%s.%s", pc.LocalName, strKey)
+	if pc.LocalName == "" {
+		// Should never happen; always indicates a bug
+		return "<invalid>"
+	}
+
+	if pc.Alias != "" {
+		if pc.Key != NoKey {
+			return fmt.Sprintf("%s.%s%s", pc.LocalName, pc.Alias, pc.Key)
 		}
-		// Otherwise we'll use the more general index syntax, so that
-		// we can evolve towards treating providers more like everything else.
-		return fmt.Sprintf("%s%s", pc.LocalName, pc.Key)
+		return fmt.Sprintf("%s.%s", pc.LocalName, pc.Alias)
+	} else if pc.Key != NoKey {
+		// Should never happen; always indicates a bug
+		return fmt.Sprintf("%s.<invalid>%s", pc.LocalName, pc.Key)
 	}
 	return pc.LocalName
 }
@@ -111,8 +180,72 @@ func (pc LocalProviderInstance) UniqueKey() UniqueKey {
 // uniqueKeySigil implements UniqueKey.
 func (pc LocalProviderInstance) uniqueKeySigil() {}
 
-// referenceableSigil implements Referenceable.
-func (pc LocalProviderInstance) referenceableSigil() {}
+// ConfigProvider represents an unexpanded "provider" block in the
+// configuration.
+//
+// A provider block can expand to zero or more [AbsProviderInstance]
+// addresses at runtime, if it either has for_each set or is declared
+// inside a module with for_each set.
+type ConfigProvider struct {
+	Module   Module
+	Provider Provider
+
+	// Alias is empty for a default ("unaliased") provider configuration,
+	// or non-empty for an additional ("aliased") provider configuration.
+	//
+	// Only additional provider configurations can have multiple dynamic
+	// instances generated using for_each.
+	Alias string
+}
+
+func (p ConfigProvider) String() string {
+	// The string representation of this type is only for debug/error message
+	// use -- it never needs to be stored anywhere -- so we'll just borrow
+	// the AbsProvider implementation as a good-enough placeholder.
+	placeholder := AbsProvider{
+		Module:   p.Module.UnkeyedInstanceShim(),
+		Provider: p.Provider,
+		Alias:    p.Alias,
+	}
+	return placeholder.String()
+}
+
+// AbsProvider represents an unexpanded "provider" configuration block within
+// an already-expanded module instance.
+//
+// This is the absolute analog to [LocalProvider], used only for connecting
+// resource instances recorded in the prior state with the provider block
+// that declares their associated provider instances during dependency graph
+// construction. For most other situations [AbsProviderInstance] is the better
+// type to use, because it also captures one specific instance dynamically
+// declared by a provider configuration block.
+type AbsProvider struct {
+	Module   ModuleInstance
+	Provider Provider
+	Alias    string
+}
+
+// Instance returns the address of the instance of this provider that has the
+// given instance key.
+func (p AbsProvider) Instance(key InstanceKey) AbsProviderInstance {
+	return AbsProviderInstance{
+		Module:   p.Module,
+		Provider: p.Provider,
+		Alias:    p.Alias,
+		Key:      key,
+	}
+}
+
+func (p AbsProvider) String() string {
+	// Since AbsProvider is a relatively-narrow-scoped address type, and
+	// doesn't really strictly _need_ a string representation, we'll just
+	// borrow the syntax for AbsProviderInstance with no key so that
+	// we've got a useful representation to use in debug output.
+	return p.Instance(NoKey).String()
+}
+
+// localOrAbsProvider implements LocalOrAbsProvider.
+func (pi AbsProvider) localOrAbsProvider() {}
 
 // AbsProviderInstance represents the fully-qualified of an instance of a
 // provider, after instance expansion is complete.
@@ -123,27 +256,29 @@ func (pc LocalProviderInstance) referenceableSigil() {}
 type AbsProviderInstance struct {
 	Module   ModuleInstance
 	Provider Provider
+	Alias    string
 
-	// Key is the instance key of an additional (aka "aliased") provider
-	// instance. This is populated either from the "alias" argument of
-	// the associated provider configuration, or from one of the keys
-	// in the for_each argument.
+	// Key is the additional instance key used to distinguish multiple
+	// provider instances generated from the same provider block.
 	//
-	// Unlike most other multi-instance address types, the key for a
-	// provider instance is currently always either NoKey or a string,
-	// and a string key always contains a valid HCL identifier. However,
-	// best to try to avoid depending on those constraints as much as
-	// possible in other code and in new language features so that we
-	// can potentially generalize this more later if someone finds a
-	// compelling use-case for making this behave more like other
-	// expandable objects.
+	// This is always [NoKey] when Alias is empty, because default
+	// provider configurations are required to be singletons.
+	//
+	// When Alias is non-empty, [NoKey] indicates a single-instance
+	// additional provider configuration, while a [StringKey] value
+	// indicates one instance of a dynamic-expanded additional provider
+	// configuration, using the for_each argument.
+	//
+	// Currently there is no support for "count" in provider configurations
+	// and so this can currently never be an [IntKey] value, but callers
+	// should try to keep this generic (similar treatment as for [InstanceKey]
+	// values in other address types) to keep our options open for the future.
 	Key InstanceKey
 }
 
-var _ ProviderInstance = AbsProviderInstance{}
 var _ UniqueKeyer = AbsProviderInstance{}
 
-// ParseConfigProviderInstance parses the given traversal as an absolute
+// ParseAbsProviderInstance parses the given traversal as an absolute
 // provider instance address. The following are examples of traversals that can be
 // successfully parsed as provider instance addresses using this function:
 //
@@ -171,12 +306,12 @@ func ParseAbsProviderInstance(traversal hcl.Traversal) (AbsProviderInstance, tfd
 		})
 		return ret, diags
 	}
-	if len(remain) > 3 {
+	if len(remain) > 4 {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration address",
-			Detail:   "Extraneous operators after provider configuration alias.",
-			Subject:  hcl.Traversal(remain[3:]).SourceRange().Ptr(),
+			Detail:   "Extraneous operators after provider configuration address.",
+			Subject:  hcl.Traversal(remain[4:]).SourceRange().Ptr(),
 		})
 		return ret, diags
 	}
@@ -207,36 +342,45 @@ func ParseAbsProviderInstance(traversal hcl.Traversal) (AbsProviderInstance, tfd
 		return ret, diags
 	}
 
-	if len(remain) == 3 {
-		// We accept both attribute and index syntax for this last part, because
-		// the attribute syntax is backward-compatible with older versions that
-		// think this is just a static alias identifier, while index is more
-		// general as we try to make progress towards provider instances being
-		// increasingly similar to everything else that can dynamic-expand
-		// over time.
-		switch tt := remain[2].(type) {
-		case hcl.TraverseAttr:
-			ret.Key = StringKey(tt.Name)
-		case hcl.TraverseIndex:
-			switch tt.Key.Type() {
-			case cty.String:
-				ret.Key = StringKey(tt.Key.AsString())
-			default:
-				// No other types are allowed for provider instance keys in particular.
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid address operator",
-					Detail:   "Invalid provider instance key: must be a string.",
-					Subject:  tt.SourceRange().Ptr(),
-				})
-				return ret, diags
-			}
-		default:
+	if len(remain) > 2 {
+		// The next portion specifies the "alias" for an additional provider
+		// configuration. If (and only if) this is present, there can
+		// optionally be one more step after this specifying an instance
+		// key from a multi-instance provider configuration.
+		if tt, ok := remain[2].(hcl.TraverseAttr); ok {
+			ret.Alias = tt.Name
+		} else {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration address",
 				Detail:   "Provider type name must be followed by a configuration alias name.",
 				Subject:  remain[2].SourceRange().Ptr(),
+			})
+			return ret, diags
+		}
+	}
+
+	if len(remain) > 3 {
+		// The final step, if present, selects a dynamically-generated
+		// instance of a non-default provider configuration.
+		if tt, ok := remain[3].(hcl.TraverseIndex); ok {
+			key, err := ParseInstanceKey(tt.Key)
+			if err != nil {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid provider configuration address",
+					Detail:   fmt.Sprintf("Invalid provider configuration instance key: %s.", tfdiags.FormatError(err)),
+					Subject:  remain[3].SourceRange().Ptr(),
+				})
+				return ret, diags
+			}
+			ret.Key = key
+		} else {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration address",
+				Detail:   "The final optional step must be an index operator specifying one of the dynamic instances of this provider configuration.",
+				Subject:  remain[3].SourceRange().Ptr(),
 			})
 			return ret, diags
 		}
@@ -272,6 +416,16 @@ func ParseAbsProviderInstanceStr(str string) (AbsProviderInstance, tfdiags.Diagn
 	return addr, diags
 }
 
+// AbsProvider returns the address of the provider configuration block that
+// would've declared this provider instance.
+func (pi AbsProviderInstance) AbsProvider() AbsProvider {
+	return AbsProvider{
+		Module:   pi.Module,
+		Provider: pi.Provider,
+		Alias:    pi.Alias,
+	}
+}
+
 // String returns a string representation of the instance address suitable for
 // display in the UI when talking about providers in global scope.
 //
@@ -287,16 +441,12 @@ func (pi AbsProviderInstance) String() string {
 		buf.WriteByte('.')
 	}
 	fmt.Fprintf(&buf, "provider[%s]", pi.Provider)
-	if pi.Key != nil {
-		if str, ok := pi.Key.(StringKey); ok && hclsyntax.ValidIdentifier(string(str)) {
-			// We prefer to use the attribute syntax if the key is valid for it,
-			// because that's backward-compatible with older versions of OpenTofu
-			// that think this portion just represents a static alias identifier.
-			buf.WriteByte('.')
-			buf.WriteString(string(str))
-		} else {
-			buf.WriteString(pi.Key.String())
-		}
+	if pi.Alias != "" {
+		buf.WriteByte('.')
+		buf.WriteString(pi.Alias)
+	}
+	if pi.Key != NoKey {
+		buf.WriteString(pi.Key.String())
 	}
 	return buf.String()
 }
@@ -347,6 +497,10 @@ func ParseLegacyAbsProviderInstance(traversal hcl.Traversal) (AbsProviderInstanc
 		return ret, diags
 	}
 	if len(remain) > 3 {
+		// NOTE: The "legacy" syntax intentionally does not support instance keys
+		// because OpenTofu v0.12 and earlier didn't have that feature yet, and
+		// so we cannot possibly encounter an old state snapshot using the legacy
+		// syntax with an instance key.
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration address",
@@ -416,6 +570,3 @@ type absProviderInstanceKey struct {
 
 // uniqueKeySigil implements UniqueKey.
 func (a absProviderInstanceKey) uniqueKeySigil() {}
-
-// providerInstance implements ProviderInstance.
-func (pi AbsProviderInstance) providerInstance() {}

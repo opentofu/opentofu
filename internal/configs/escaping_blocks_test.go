@@ -278,7 +278,7 @@ func TestEscapingBlockProvider(t *testing.T) {
 
 	var pc *Provider
 	for _, candidate := range mod.ProviderConfigs {
-		if candidate.Name == "aws" && hcl.ExprAsKeyword(candidate.Alias) == "bar" {
+		if candidate.Name == "aws" && candidate.Alias == "bar" {
 			pc = candidate
 			break
 		}
@@ -287,7 +287,7 @@ func TestEscapingBlockProvider(t *testing.T) {
 		t.Fatal("no provider configuration named foo.bar")
 	}
 
-	if got, want := hcl.ExprAsKeyword(pc.Alias), "bar"; got != want {
+	if got, want := pc.Alias, "bar"; got != want {
 		t.Errorf("wrong alias\ngot:  %#v\nwant: %#v", got, want)
 	}
 

@@ -814,13 +814,13 @@ func (c *Config) ProviderTypes() []addrs.Provider {
 // The module address to resolve local addresses in must be given in the second
 // argument, and must refer to a module that exists under the receiver or
 // else this method will panic.
-func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderInstance, inModuleInst addrs.ModuleInstance) addrs.AbsProviderInstance {
+func (c *Config) ResolveAbsProviderAddr(addr addrs.LocalOrAbsProvider, inModuleInst addrs.ModuleInstance) addrs.AbsProvider {
 	switch addr := addr.(type) {
 
-	case addrs.AbsProviderInstance:
+	case addrs.AbsProvider:
 		return addr
 
-	case addrs.LocalProviderInstance:
+	case addrs.LocalProvider:
 		// Find the descendent Config that contains the module that this
 		// local config belongs to.
 		mc := c.DescendentForInstance(inModuleInst)
@@ -835,13 +835,15 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderInstance, inModuleIns
 			provider = addrs.ImpliedProviderForUnqualifiedType(addr.LocalName)
 		}
 
-		return addrs.AbsProviderInstance{
+		return addrs.AbsProvider{
 			Module:   inModuleInst,
 			Provider: provider,
-			Key:      addr.Key,
+			Alias:    addr.Alias,
 		}
 
 	default:
+		// Should not get here, because there are no other implementations
+		// of addrs.LocalOrAbsProvider.
 		panic(fmt.Sprintf("cannot ResolveAbsProviderAddr(%v, ...)", addr))
 	}
 
@@ -850,7 +852,7 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderInstance, inModuleIns
 // ProviderForConfigAddr returns the FQN for a given addrs.ProviderConfig, first
 // by checking for the provider in module.ProviderRequirements and falling
 // back to addrs.NewDefaultProvider if it is not found.
-func (c *Config) ProviderForConfigAddr(addr addrs.LocalProviderInstance) addrs.Provider {
+func (c *Config) ProviderForConfigAddr(addr addrs.LocalProvider) addrs.Provider {
 	if provider, exists := c.Module.ProviderRequirements.RequiredProviders[addr.LocalName]; exists {
 		return provider.Type
 	}

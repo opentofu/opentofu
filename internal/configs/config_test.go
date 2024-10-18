@@ -18,7 +18,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/zclconf/go-cty/cty"
 
 	version "github.com/hashicorp/go-version"
@@ -88,10 +87,10 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 	}
 
 	t.Run("already absolute", func(t *testing.T) {
-		addr := addrs.AbsProviderInstance{
+		addr := addrs.AbsProvider{
 			Module:   addrs.RootModuleInstance,
 			Provider: addrs.NewDefaultProvider("test"),
-			Key:      addrs.StringKey("boop"),
+			Alias:    "boop",
 		}
 		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModuleInstance)
 		if got, want := got.String(), addr.String(); got != want {
@@ -99,30 +98,30 @@ func TestConfigResolveAbsProviderAddr(t *testing.T) {
 		}
 	})
 	t.Run("local, implied mapping", func(t *testing.T) {
-		addr := addrs.LocalProviderInstance{
+		addr := addrs.LocalProvider{
 			LocalName: "implied",
-			Key:       addrs.StringKey("boop"),
+			Alias:     "boop",
 		}
 		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModuleInstance)
-		want := addrs.AbsProviderInstance{
+		want := addrs.AbsProvider{
 			Module:   addrs.RootModuleInstance,
 			Provider: addrs.NewDefaultProvider("implied"),
-			Key:      addrs.StringKey("boop"),
+			Alias:    "boop",
 		}
 		if got, want := got.String(), want.String(); got != want {
 			t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
 		}
 	})
 	t.Run("local, explicit mapping", func(t *testing.T) {
-		addr := addrs.LocalProviderInstance{
+		addr := addrs.LocalProvider{
 			LocalName: "foo-test", // this is explicitly set in the config
-			Key:       addrs.StringKey("boop"),
+			Alias:     "boop",
 		}
 		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModuleInstance)
-		want := addrs.AbsProviderInstance{
+		want := addrs.AbsProvider{
 			Module:   addrs.RootModuleInstance,
 			Provider: addrs.NewProvider(addrs.DefaultProviderRegistryHost, "foo", "test"),
-			Key:      addrs.StringKey("boop"),
+			Alias:    "boop",
 		}
 		if got, want := got.String(), want.String(); got != want {
 			t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
@@ -540,14 +539,14 @@ func TestConfigProviderForConfigAddr(t *testing.T) {
 	cfg, diags := testModuleConfigFromDir("testdata/valid-modules/providers-fqns")
 	assertNoDiagnostics(t, diags)
 
-	got := cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderInstance("foo-test"))
+	got := cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProvider("foo-test"))
 	want := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "foo", "test")
 	if !got.Equals(want) {
 		t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
 	}
 
 	// now check a provider that isn't in the configuration. It should return a DefaultProvider.
-	got = cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderInstance("bar-test"))
+	got = cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProvider("bar-test"))
 	want = addrs.NewDefaultProvider("bar-test")
 	if !got.Equals(want) {
 		t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
@@ -635,7 +634,7 @@ func TestTransformForTest(t *testing.T) {
 			parts := strings.Split(key, ".")
 			provider.Name = parts[0]
 			if len(parts) > 1 {
-				provider.Alias = hcltest.MockExprLiteral(cty.StringVal(parts[1]))
+				provider.Alias = parts[1]
 			}
 
 			providers = append(providers, provider)

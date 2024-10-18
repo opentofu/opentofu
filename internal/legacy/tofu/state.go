@@ -24,15 +24,12 @@ import (
 	multierror "github.com/hashicorp/go-multierror"
 	uuid "github.com/hashicorp/go-uuid"
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/mitchellh/copystructure"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
@@ -1529,24 +1526,6 @@ func (s *ResourceState) Untaint() {
 	if s.Primary != nil {
 		s.Primary.Tainted = false
 	}
-}
-
-// ProviderAddr returns the provider address for the receiver, by parsing the
-// string representation saved in state. An error can be returned if the
-// value in state is corrupt.
-func (s *ResourceState) ProviderAddr() (addrs.ConfigProviderInstance, error) {
-	var diags tfdiags.Diagnostics
-
-	str := s.Provider
-	traversal, travDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
-	diags = diags.Append(travDiags)
-	if travDiags.HasErrors() {
-		return addrs.ConfigProviderInstance{}, diags.Err()
-	}
-
-	addr, addrDiags := addrs.ParseConfigProviderInstance(traversal)
-	diags = diags.Append(addrDiags)
-	return addr, diags.Err()
 }
 
 func (s *ResourceState) init() {

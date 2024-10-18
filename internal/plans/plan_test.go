@@ -58,13 +58,13 @@ func TestProviderAddrs(t *testing.T) {
 	}
 
 	got := plan.ProviderAddrs()
-	want := []addrs.ConfigProviderInstance{
-		addrs.ConfigProviderInstance{
-			Module:   addrs.RootModule.Child("foo"),
+	want := []addrs.AbsProviderInstance{
+		addrs.AbsProviderInstance{
+			Module:   addrs.RootModuleInstance.Child("foo", addrs.NoKey),
 			Provider: addrs.NewDefaultProvider("test"),
 		},
-		addrs.ConfigProviderInstance{
-			Module:   addrs.RootModule,
+		addrs.AbsProviderInstance{
+			Module:   addrs.RootModuleInstance,
 			Provider: addrs.NewDefaultProvider("test"),
 		},
 	}
