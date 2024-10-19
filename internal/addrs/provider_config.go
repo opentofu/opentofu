@@ -198,10 +198,17 @@ type ConfigProvider struct {
 	Alias string
 }
 
+var _ UniqueKeyer = ConfigProvider{}
+
 func (p ConfigProvider) String() string {
-	// The string representation of this type is only for debug/error message
-	// use -- it never needs to be stored anywhere -- so we'll just borrow
-	// the AbsProvider implementation as a good-enough placeholder.
+	// For this we'll borrow the AbsProvider String method, since AbsProvider
+	// can represent a superset of the addresses that ConfigProvider can
+	// represent.
+	// (Using UnkeyedInstanceShim here, and also using this method as part
+	// of our UniqueKeyer implementation, will probably have unsuitable
+	// performance characteristics. We're accepting that for prototype but
+	// should probably do this in a more efficient way if we implement this
+	// "for real".)
 	placeholder := AbsProvider{
 		Module:   p.Module.UnkeyedInstanceShim(),
 		Provider: p.Provider,
@@ -209,6 +216,16 @@ func (p ConfigProvider) String() string {
 	}
 	return placeholder.String()
 }
+
+// UniqueKey implements UniqueKeyer.
+func (p ConfigProvider) UniqueKey() UniqueKey {
+	return configProviderKey(p.String())
+}
+
+type configProviderKey string
+
+// uniqueKeySigil implements UniqueKey.
+func (c configProviderKey) uniqueKeySigil() {}
 
 // AbsProvider represents an unexpanded "provider" configuration block within
 // an already-expanded module instance.

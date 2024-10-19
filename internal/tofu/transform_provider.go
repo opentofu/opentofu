@@ -59,6 +59,29 @@ type GraphNodeProviderInstanceConsumer interface {
 	SetProviderInstance(addrs.AbsProviderInstance)
 }
 
+// graphNodeProviderConfigConsumer is the interface implemented by graph nodes
+// that make use of fully-initialized provider instances, although it actually
+// only represents the connection to the static provider configuration block
+// that the required instances belong to since the individual instances are
+// handled collectively as a dynamic expansion.
+type graphNodeProviderConfigConsumer interface {
+	GraphNodeModulePath
+
+	// ProvidedBy returns the address of the provider configuration the node
+	// refers to, if available. The following value types may be returned:
+	//
+	// - nil + exact true: the node does not require a provider instance at all
+	// - addrs.LocalProvider: the provider instance was set in the resource config
+	//   and so uses a local name that needs to be resolved in the module's
+	//   provider local name namespace.
+	// - addrs.AbsProviderInstance + exact true: the provider instance was
+	//   taken from the instance state.
+	// - addrs.AbsProviderInstance + exact false: no config or state; the returned
+	//   value is a default provider configuration address for the resource's
+	//   Provider
+	ProvidedBy() (addr addrs.LocalOrAbsProvider, exact bool)
+}
+
 type graphNodeCloseProviderInstance struct {
 	Addr addrs.AbsProviderInstance
 }

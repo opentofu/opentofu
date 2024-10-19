@@ -16,33 +16,19 @@ import (
 // depending on how it's written:
 //
 //   - Using neither "for_each" nor "alias" represents exactly one default provider
-//     configuration, whose instance key is NoKey.
+//     instance, whose instance key is NoKey.
 //   - Using "alias" without "for_each" represents exactly one additional provider
-//     configuration whose instance key is a StringKey containing the alias string.
-//   - Using "for_each" without "alias" represents zero or more additional provider
-//     configurations whose instance keys are all StringKey taken from keys given
+//     instance whose instance key is a StringKey containing the alias string.
+//   - Using "alias" and "for_each" together represents zero or more additional provider
+//     instances whose instance keys are all StringKey taken from keys given
 //     in the for_each expression.
 //
-// In all but the last case we can predict the instance key in the initial graph.
-// The last case is trickier because we won't know the instance keys -- or even how
-// many instances there are -- until DynamicExpand is called during the graph walk.
-//
-// The two different cases (known instance keys vs. unknown instance keys during
-// graph construction) is a necessary compromise to retain the ability for a
-// provider configuration block to refer to a resource that belongs to an instance
-// that was declared in a _different_ provider configuration block, which was
-// possible before we supported for_each for provider blocks. To handle this we
-// make precise connections between resources and provider blocks when both ends
-// are statically configured, but make less-precise connections when either the
-// reference to the provider instance is dynamic or the provider instance itself
-// is dynamic.
-//
-// Note also that this compromise means that we cannot necessarily detect a duplicate
-// declaration of the same provider instance key across two blocks until DynamicExpand.
-// To keep things simple we defer _all_ checking of that until DynamicExpand, even
-// though technically we could catch the static cases during initial graph construction.
-// Not catching it during graph construction just means that there are some additional
-// edges in the graph, and that doesn't affect correctness.
+// A provider configuration block can also produce multiple instances if it is
+// declared inside a module that was itself called using either the count or
+// for_each meta-arguments. That is true regardless of whether the provider
+// configuration _itself_ is using for_each, and so for simplicity and consistency
+// we just avoid dealing with instance keys at all in here and defer all handling
+// of them until DynamicExpand.
 type providerConfigTransformer struct {
 	// Config is the node of the configuration tree representing the root module.
 	config *configs.Config
@@ -59,53 +45,57 @@ type providerConfigTransformer struct {
 var _ GraphTransformer = (*providerConfigTransformer)(nil)
 
 // Transform implements GraphTransformer with the behavior described in the
-// [providerTransformer] documentation.
+// [providerConfigTransformer] documentation.
 func (p *providerConfigTransformer) Transform(g *Graph) error {
 	// Our strategy here is to walk the configuration tree to find
-	// all of the "provider" blocks, and then group them by which
-	// provider they woud instantiate. We then produce one initial
-	// graph node for each distinct provider that "remembers" each of
-	// that provider's configuration blocks, so that we can finally
-	// decide the full set of _instances_ for each provider during
-	// the execution phase in those nodes' DynamicExpand.
-	//
-	// Note that provider configuration blocks are unlike most block
-	// types in the language in that they don't have unique identifiers
-	// of their own. Instead, each provider can have any number of
-	// configuration blocks and then we dynamically choose zero or
-	// more real provider instances based on those blocks only during
-	// DynamicExpand. After expansion, all of the provider _instance_
-	// addresses for each provider must be unique, but we don't yet
-	// have enough information to decide that in this transformer.
+	// all of the "provider" blocks, and generate one node for each.
+	// We'll also hunt for other configuration blocks that can potentially
+	// imply an empty configuration for a provider and add an additional
+	// node for each one implied, so that by the time we're done every
+	// provider-consuming node should be able to depend on another
+	// node that represents its provider configuration.
 
-	// collectNodesFromConfigBlocks modifies nodesByProvider in-place.
-	nodesByProvider := make(map[addrs.Provider]*nodeProvider)
-	p.collectNodesFromConfigBlocks(p.config, nodesByProvider)
+	// collectNodesFromExplicitBlocks modifies nodesByProviderConfig in-place.
+	nodesByProviderConfig := addrs.MakeMap[addrs.ConfigProvider, *nodeProviderConfigExpand]()
+	p.collectNodesFromExplicitBlocks(p.config, nodesByProviderConfig)
+
+	// collectNodesForImpliedEmptyConfigs continues to modify nodesByProviderConfig
+	// in-place, possibly adding some extra nodes representing implied empty
+	// provider configurations. The implied ones can be recognized by their
+	// config field being a nil pointer, thus representing the absense of an
+	// explicit configuration block.
+	p.collectNodesForImpliedEmptyConfigs(p.config, nodesByProviderConfig)
 
 	// All of the nodes node need to be added to the graph so that
 	// later transformers can add incoming dependency edges to them.
-	for _, node := range nodesByProvider {
-		log.Printf("[TRACE] providerTransformer: %s has %d configuration blocks across the whole configuration", node.addr, len(node.configs))
+	for _, elem := range nodesByProviderConfig.Elems {
+		node := elem.Value
+		if node.config != nil {
+			log.Printf("[TRACE] providerConfigTransformer: %s explicitly declared at %s", node.addr, node.config.DeclRange)
+		} else {
+			log.Printf("[TRACE] providerConfigTransformer: %s is implied by resource declaration(s)", node.addr)
+		}
 		g.Add(node)
 	}
 
-	// FIXME: We also need to deal with the possibility of implied empty
-	// provider configurations in the root module, which need to have
-	// synthetic empty configuration generated for them.
-
-	// FIXME: We also need to deal with the interesting fact that literally
-	// any expression anywhere in the configuration can depend on a provider
-	// instance by calling a function, though we can hopefully deal with
-	// _that_ case in ReferenceTransformer rather than in here.
+	// TODO: Decide whether this transformer should also be responsible for creating
+	// dependency edges from provider-consuming nodes, or if that's better handled
+	// by a separate transformer. That process involves a very similar walk to
+	// collectNodesForImpliedEmptyConfigs, so at the very least it would be good
+	// to share that logic between the two.
 
 	return nil
 }
 
-// collectNodesFromConfigBlocks performs a recursive walk of the configuration
+// collectNodesFromExplicitBlocks performs a recursive walk of the configuration
 // tree starting at the given node, adding new graph nodes to "into" as needed
-// to eventually capture all of provider config blocks found in the configuration
-// across all modules.
-func (p *providerConfigTransformer) collectNodesFromConfigBlocks(fromConfigNode *configs.Config, into map[addrs.Provider]*nodeProvider) {
+// to eventually capture all of the explicit provider config blocks found in the
+// configuration across all modules.
+//
+// This does not consider the need for implied empty configuration blocks for
+// simple no-config providers like the "null" provider; another function must
+// add those in afterwards.
+func (p *providerConfigTransformer) collectNodesFromExplicitBlocks(fromConfigNode *configs.Config, into addrs.Map[addrs.ConfigProvider, *nodeProviderConfigExpand]) {
 	for _, pc := range fromConfigNode.Module.ProviderConfigs {
 		// Unfortunate Note: There has been some terminology drift over time here.
 		// Early on, a "local name" was called an "unqualified type", before it became
@@ -116,22 +106,41 @@ func (p *providerConfigTransformer) collectNodesFromConfigBlocks(fromConfigNode 
 		// FIXME: Update this method name to reflect current terminology.
 		providerAddr := fromConfigNode.Module.ImpliedProviderForUnqualifiedType(pc.Name)
 
-		if into[providerAddr] == nil {
-			into[providerAddr] = &nodeProvider{
-				addr:     providerAddr,
-				concrete: p.concreteProvider,
-			}
+		node := &nodeProviderConfigExpand{
+			addr: addrs.ConfigProvider{
+				Module:   fromConfigNode.Path,
+				Provider: providerAddr,
+				Alias:    pc.Alias,
+			},
+			config:   pc,
+			concrete: p.concreteProvider,
 		}
-
-		node := into[providerAddr]
-		node.configs = append(node.configs, providerConfigBlock{
-			moduleAddr: fromConfigNode.Path,
-			config:     pc,
-		})
+		into.Put(node.addr, node)
 	}
 
 	// We also need to visit all of the child nodes, recursively.
 	for _, childNode := range fromConfigNode.Children {
-		p.collectNodesFromConfigBlocks(childNode, into)
+		p.collectNodesFromExplicitBlocks(childNode, into)
+	}
+}
+
+// collectNodesForImpliedEmptyConfigs performs a recursive walk of the configuration
+// tree starting at the given node, adding new graph nodes to "into" as needed
+// to eventually represent all of the implied empty provider configurations discovered
+// from resource/etc blocks.
+//
+// This should run after [providerConfigTransformer.collectNodesFromExplicitBlocks]
+// using the same "into" map, so that "into" can also serve as a record of which
+// provider configuration addresses already have explicit config blocks.
+func (p *providerConfigTransformer) collectNodesForImpliedEmptyConfigs(fromConfigNode *configs.Config, into addrs.Map[addrs.ConfigProvider, *nodeProviderConfigExpand]) {
+	// TODO: Implement something in package configs to own the concern
+	// of finding all of the connections between resource blocks and
+	// potential config blocks, and then here we'll add new nodes
+	// only for any "potential config blocks" that aren't already in
+	// the "into" map.
+
+	// We also need to visit all of the child nodes, recursively.
+	for _, childNode := range fromConfigNode.Children {
+		p.collectNodesForImpliedEmptyConfigs(childNode, into)
 	}
 }

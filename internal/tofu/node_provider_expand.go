@@ -5,41 +5,36 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/opentofu/opentofu/internal/lang"
-	"github.com/opentofu/opentofu/internal/lang/evalchecks"
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
 )
 
-// nodeProvider represents a single provider (as would be addressed
-// with [`addrs.Provider`] and expands dynamically during execution to
-// represent all of the dynamically-generated instances of the provider
-// across all modules.
+// nodeProviderConfigExpand represents a single "provider" configuration
+// block (as would be address with [`addrs.ConfigProvider`] and expands
+// dynamically during execution to represent all of the dynamically-generated
+// instances declared by that block.
 //
-// Each provider can end up with zero or more instances, which are
+// Each configuration can end up with zero or more instances, which are
 // represented by some derivation of *NodeAbstractProvider decided
 // by the "concrete" callback.
-type nodeProvider struct {
-	addr     addrs.Provider
-	configs  []providerConfigBlock
+type nodeProviderConfigExpand struct {
+	addr     addrs.ConfigProvider
+	config   *configs.Provider
 	concrete concreteProviderInstanceNodeFunc
 }
 
-var _ GraphNodeDynamicExpandable = (*nodeProvider)(nil)
+var _ GraphNodeDynamicExpandable = (*nodeProviderConfigExpand)(nil)
 
-func (n *nodeProvider) Name() string {
-	return n.addr.ForDisplay() + " (expand)"
+func (n *nodeProviderConfigExpand) Name() string {
+	return n.addr.String() + " (expand)"
 }
 
 // DynamicExpand implements GraphNodeDynamicExpandable, finding the
-// dynamically-generated set of instances for each provider.
-func (n *nodeProvider) DynamicExpand(globalCtx EvalContext) (*Graph, error) {
+// dynamically-generated set of instances for each provider configuration block.
+func (n *nodeProviderConfigExpand) DynamicExpand(globalCtx EvalContext) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
 	// There are two different modes of dynamic expansion possible for providers:
@@ -61,9 +56,17 @@ func (n *nodeProvider) DynamicExpand(globalCtx EvalContext) (*Graph, error) {
 	// graph.
 	seenInsts := addrs.MakeMap[addrs.AbsProviderInstance, *configs.Provider]()
 	recordInst := func(instAddr addrs.AbsProviderInstance, config *configs.Provider, keyData instances.RepetitionData) bool {
-		log.Printf("[TRACE] nodeProvider: found %s", instAddr)
+		log.Printf("[TRACE] nodeProviderConfigExpand: found %s", instAddr)
 
 		if existing, exists := seenInsts.GetOk(instAddr); exists {
+			// It should not actually be possible to get in here under the
+			// current rules because a specific provider block can only have
+			// multiple instances if they are in different module instances
+			// and/or the block uses for_each. In the former case the
+			// namespaces are separate anyway, and in the latter case duplicates
+			// are effectively blocked by the fact that the for_each map or set
+			// can't possibly have duplicate keys. This check is here just for
+			// robustness in case the rules change in future.
 			prevRng := existing.DeclRange
 			thisRng := config.DeclRange
 			diags = diags.Append(&hcl.Diagnostic{
@@ -100,188 +103,63 @@ func (n *nodeProvider) DynamicExpand(globalCtx EvalContext) (*Graph, error) {
 	}
 
 	allInsts := globalCtx.InstanceExpander()
-	for _, configBlock := range n.configs {
-		config := configBlock.config
-		moduleInsts := allInsts.ExpandModule(configBlock.moduleAddr)
-		for _, moduleInstAddr := range moduleInsts {
-			// We need an EvalContext bound to the module where this
-			// provider block has been instantiated so that we can
-			// evaluate expressions in the correct scope.
-			modCtx := globalCtx.WithPath(moduleInstAddr)
+	config := n.config
+	moduleInsts := allInsts.ExpandModule(n.addr.Module)
+	for _, moduleInstAddr := range moduleInsts {
+		// We need an EvalContext bound to the module where this
+		// provider block has been instantiated so that we can
+		// evaluate expressions in the correct scope.
+		modCtx := globalCtx.WithPath(moduleInstAddr)
 
-			switch {
-			case config.Alias == nil && config.ForEach == nil:
-				// A single "default" (aka "non-aliased") instance.
-				recordInst(addrs.AbsProviderInstance{
+		switch {
+		case config.Alias == "" && config.ForEach == nil:
+			// A single "default" (aka "non-aliased") instance.
+			recordInst(addrs.AbsProviderInstance{
+				Module:   moduleInstAddr,
+				Provider: n.addr.Provider,
+				Key:      addrs.NoKey, // Default configurations have no instance key
+			}, config, EvalDataForNoInstanceKey)
+		case config.Alias != "" && config.ForEach == nil:
+			// A single "additional" (aka "aliased") instance.
+			recordInst(
+				addrs.AbsProviderInstance{
 					Module:   moduleInstAddr,
-					Provider: n.addr,
-					Key:      addrs.NoKey, // Default configurations have no instance key
-				}, config, EvalDataForNoInstanceKey)
-			case config.Alias != nil && config.ForEach == nil:
-				// A single "additional" (aka "aliased") instance.
-				instKey, moreDiags := evalProviderAlias(config.Alias, modCtx)
-				diags = diags.Append(moreDiags)
-				if moreDiags.HasErrors() {
-					continue
-				}
+					Provider: n.addr.Provider,
+					Alias:    n.addr.Alias,
+					Key:      addrs.NoKey,
+				},
+				config,
+				EvalDataForNoInstanceKey,
+			)
+		case config.Alias != "" && config.ForEach != nil:
+			// Zero or more "additional" (aka "aliased") instances, with
+			// dynamically-selected instance keys.
+			instMap, moreDiags := evaluateForEachExpression(config.ForEach, modCtx)
+			diags = diags.Append(moreDiags)
+			if moreDiags.HasErrors() {
+				continue
+			}
+			for k := range instMap {
+				instKey := addrs.StringKey(k)
 				recordInst(
 					addrs.AbsProviderInstance{
 						Module:   moduleInstAddr,
-						Provider: n.addr,
+						Provider: n.addr.Provider,
+						Alias:    n.addr.Alias,
 						Key:      instKey,
 					},
 					config,
-					// In this funny case we don't need each.key or each.value set,
-					// even though we do have an instance key, because there is
-					// only one instance anyway so no need to differentiate in the
-					// main config.
-					EvalDataForNoInstanceKey,
+					EvalDataForInstanceKey(instKey, instMap),
 				)
-			case config.Alias == nil && config.ForEach != nil:
-				// Zero or more "additional" (aka "aliased") instances.
-				instMap, moreDiags := evaluateForEachExpression(config.ForEach, modCtx)
-				diags = diags.Append(moreDiags)
-				if moreDiags.HasErrors() {
-					continue
-				}
-				for k := range instMap {
-					instKey := addrs.StringKey(k)
-					recordInst(
-						addrs.AbsProviderInstance{
-							Module:   moduleInstAddr,
-							Provider: n.addr,
-							Key:      instKey,
-						},
-						config,
-						EvalDataForInstanceKey(instKey, instMap),
-					)
-				}
-			default:
-				// No other situation should be possible if the config
-				// decoder is correctly implemented, so this is just a
-				// low-quality error for robustness.
-				diags = diags.Append(fmt.Errorf("provider block has invalid combination of alias and for_each arguments; it's a bug that this wasn't caught during configuration loading, so please report it"))
 			}
+		default:
+			// No other situation should be possible if the config
+			// decoder is correctly implemented, so this is just a
+			// low-quality error for robustness.
+			diags = diags.Append(fmt.Errorf("provider block has invalid combination of alias and for_each arguments; it's a bug that this wasn't caught during configuration loading, so please report it"))
 		}
 	}
 
 	addRootNodeToGraph(g)
 	return g, diags.ErrWithWarnings()
-}
-
-func evalProviderAlias(expr hcl.Expression, ctx EvalContext) (addrs.InstanceKey, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	scope := ctx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
-
-	refs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return nil, diags
-	}
-	evalCtx, moreDiags := scope.EvalContext(refs)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return nil, diags
-	}
-	aliasVal, hclDiags := expr.Value(evalCtx)
-	diags = diags.Append(hclDiags)
-	if hclDiags.HasErrors() {
-		return nil, diags
-	}
-	aliasVal, err := convert.Convert(aliasVal, cty.String)
-	if err != nil {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid provider alias expression",
-			Detail:      fmt.Sprintf("Unsuitable value for provider alias: %s", tfdiags.FormatError(err)),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: evalCtx,
-		})
-		return nil, diags
-	}
-	if !aliasVal.IsKnown() {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid provider alias expression",
-			Detail:      "In order to determine which provider instance to use to work with each resource instance, OpenTofu needs to determine the final alias for each provider block during the planning phase, but this expression is derived from a value that won't be known until the apply phase.",
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: evalCtx,
-			Extra:       evalchecks.DiagnosticCausedByUnknown(true),
-		})
-		return nil, diags
-	}
-	if !aliasVal.IsNull() {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid provider alias expression",
-			Detail:      "The alias for an additional provider configuration must not be null.",
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: evalCtx,
-		})
-		return nil, diags
-	}
-	if aliasVal.HasMark(marks.Sensitive) {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid provider alias expression",
-			Detail:      "The alias for a provider configuration cannot be derived from a sensitive value, because references to the provider instance in the UI would need to disclose the value.",
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: evalCtx,
-			Extra:       evalchecks.DiagnosticCausedBySensitive(true),
-		})
-		return nil, diags
-	}
-	if aliasVal.IsMarked() {
-		// We don't currently have any other marks at the time of writing this, but we'll
-		// check this here just in case we add another in the future and forget to update this.
-		// If execution gets here then we should consider it a bug and add some reasonable
-		// handling for whatever new mark we've run into.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid provider alias expression",
-			Detail:      fmt.Sprintf("The alias expression produced a value with unhandled marks: %#v. This is a bug in OpenTofu, so please report it.", aliasVal),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: evalCtx,
-		})
-		return nil, diags
-	}
-	// If we get here then we can safely assume that we have a known, non-null, unmarked string
-	aliasStr := aliasVal.AsString()
-	if !hclsyntax.ValidIdentifier(aliasStr) {
-		// To avoid upsetting too many assumptions from older versions where
-		// alias was always required to be a statically-configured identifier,
-		// we're continuing to require only identifier characters here. We
-		// might relax this in future if we can be confident that it won't
-		// break anything, but for now we'll return an error.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid provider alias",
-			Detail:      "The alias for a provider instance must be a valid identifier.", // FIXME: More elaborate error message?
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: evalCtx,
-		})
-		return nil, diags
-	}
-
-	// If we get _here_ then we've finally got ourselves a valid alias.
-	return addrs.StringKey(aliasStr), diags
-}
-
-// providerConfigBlock associates a *configs.Provider with the
-// address of the static module it was declared in.
-//
-// This is used for collaboration between [providerTransformer] and
-// the [nodeExpandProvider] nodes it generates, to allow deferring the
-// actual final expansion of provider _instances_ until the execution
-// phase when we can start evaluating for_each expressions, etc.
-type providerConfigBlock struct {
-	moduleAddr addrs.Module
-	config     *configs.Provider
 }
