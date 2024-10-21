@@ -153,16 +153,16 @@ func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics 
 	var diags hcl.Diagnostics
 	diags = diags.Extend(mc.decodeStaticSource(eval))
 	diags = diags.Extend(mc.decodeStaticVersion(eval))
-	diags = diags.Extend(mc.decodeStaticProviderAliases(eval))
+	diags = diags.Extend(mc.decodeStaticProviderKeys(eval))
 
 	return diags
 }
 
-func (mc *ModuleCall) decodeStaticProviderAliases(eval *StaticEvaluator) hcl.Diagnostics {
+func (mc *ModuleCall) decodeStaticProviderKeys(eval *StaticEvaluator) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	for _, p := range mc.Providers {
-		diags = diags.Extend(p.InParentMapping.decodeStaticAlias(eval, mc.Count, mc.ForEach))
+		diags = diags.Extend(p.InParentMapping.decodeStaticKeys(eval, mc.Count, mc.ForEach))
 	}
 
 	return diags
@@ -309,19 +309,7 @@ type PassedProviderConfig struct {
 
 // TODO/Oleksandr: get rid of this function and make a proper call via InParent
 func (c *PassedProviderConfig) InParentTODO() *ProviderConfigRef {
-	if len(c.InParentMapping.Aliases) == 0 {
-		return c.InParent(addrs.NoKey)
-	}
-
-	if _, ok := c.InParentMapping.Aliases[addrs.NoKey]; ok {
-		return c.InParent(addrs.NoKey)
-	}
-
-	for k := range c.InParentMapping.Aliases {
-		return c.InParent(k)
-	}
-
-	return nil
+	return &c.InParentMapping.ProviderConfigRef
 }
 
 func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
@@ -329,20 +317,13 @@ func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef 
 		return nil
 	}
 
-	inParent := &ProviderConfigRef{
-		Name:         c.InParentMapping.Name,
-		NameRange:    c.InParentMapping.NameRange,
-		providerType: c.InParentMapping.providerType,
+	inParent := (*c).InParentMapping.ProviderConfigRef
+
+	key, ok := c.InParentMapping.Keys[k]
+	if ok {
+		inParent.Key = key
 	}
-
-	alias, ok := c.InParentMapping.Aliases[k]
-	if !ok {
-		return inParent
-	}
-
-	inParent.Alias = alias
-
-	return inParent
+	return &inParent
 }
 
 func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, hcl.Diagnostics) {
