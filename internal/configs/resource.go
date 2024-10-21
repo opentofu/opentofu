@@ -8,7 +8,6 @@ package configs
 import (
 	"fmt"
 	"math/big"
-	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -105,25 +104,25 @@ func (r *Resource) AnyProviderConfigAddr() addrs.LocalProviderConfig {
 			LocalName: r.Addr().ImpliedProvider(),
 		}
 	}
-
-	if r.ProviderConfigRef.HasInstanceRefsInAlias() {
+	if r.ProviderConfigRef.HasInstanceRefs() {
 		// This branch must return the same (first) value every time.
 		// It is used in multiple places before and after graph execution.
 		// Anyway, this function only mimics real behaviour and should be removed.
-		aliases := make([]string, 0, len(r.ProviderConfigRef.Aliases))
-		for _, alias := range r.ProviderConfigRef.Aliases {
-			aliases = append(aliases, alias)
+		keys := make([]addrs.InstanceKey, 0, len(r.ProviderConfigRef.Keys))
+		for _, key := range r.ProviderConfigRef.Keys {
+			keys = append(keys, key)
 		}
-		slices.Sort(aliases)
 		return addrs.LocalProviderConfig{
 			LocalName: r.ProviderConfigRef.Name,
-			Alias:     aliases[0],
+			Alias:     r.ProviderConfigRef.Alias,
+			Key:       keys[0],
 		}
 	}
 
 	return addrs.LocalProviderConfig{
 		LocalName: r.ProviderConfigRef.Name,
-		Alias:     r.ProviderConfigRef.Aliases[addrs.NoKey],
+		Alias:     r.ProviderConfigRef.Alias,
+		Key:       r.ProviderConfigRef.Keys[addrs.NoKey],
 	}
 }
 
@@ -148,7 +147,7 @@ func (r *Resource) HasCustomConditions() bool {
 
 func (r *Resource) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 	if r.ProviderConfigRef != nil {
-		return r.ProviderConfigRef.decodeStaticAlias(eval, r.Count, r.ForEach)
+		return r.ProviderConfigRef.decodeStaticKeys(eval, r.Count, r.ForEach)
 	}
 	return nil
 }
@@ -687,6 +686,7 @@ type ProviderConfigRef struct {
 	Name      string
 	NameRange hcl.Range
 	Alias     string
+	Key       addrs.InstanceKey
 
 	// TODO: this may not be set in some cases, so it is not yet suitable for
 	// use outside of this package. We currently only use it for internal
@@ -699,18 +699,9 @@ type ProviderConfigRef struct {
 // ProviderConfigRefMapping represents an extended version of ProviderConfigRef,
 // that supports a scope of Aliases per instance instead of a single one.
 type ProviderConfigRefMapping struct {
-	Name      string
-	NameRange hcl.Range
-
-	Alias   hcl.Expression
-	Aliases map[addrs.InstanceKey]string
-
-	// TODO: this may not be set in some cases, so it is not yet suitable for
-	// use outside of this package. We currently only use it for internal
-	// validation, but once we verify that this can be set in all cases, we can
-	// export this so providers don't need to be re-resolved.
-	// This same field is also added to the Provider struct.
-	providerType addrs.Provider
+	ProviderConfigRef
+	Key  hcl.Expression
+	Keys map[addrs.InstanceKey]addrs.InstanceKey
 }
 
 // HasAlias returns true if the provider is referenced by alias. This function
@@ -718,27 +709,30 @@ type ProviderConfigRefMapping struct {
 // In this case, we treat absent ProviderConfigRefMapping as such that doesn't have
 // an alias.
 func (m *ProviderConfigRefMapping) HasAlias() bool {
-	return m != nil && len(m.Aliases) != 0
+	return m != nil && m.Alias != ""
+}
+func (m *ProviderConfigRefMapping) HasKeys() bool {
+	return m != nil && len(m.Keys) > 0
 }
 
 // HasInstanceRefsInAlias returns true if provider is referenced
 // via instance dependend (e.g. `each`) keywords. Note, HasInstanceRefsInAlias
 // returns false even if there is a for_each set in module call / resource / data,
 // but the provider alias doesn't refer to those instances (i.e. doesn't use `each`).
-func (m *ProviderConfigRefMapping) HasInstanceRefsInAlias() bool {
+func (m *ProviderConfigRefMapping) HasInstanceRefs() bool {
 	// There is no alias so it has no instance refs.
-	if len(m.Aliases) == 0 {
+	if len(m.Keys) == 0 {
 		return false
 	}
 
 	// There is multiple entries, so it must be multiple instance keys.
-	if len(m.Aliases) != 1 {
+	if len(m.Keys) != 1 {
 		return true
 	}
 
 	// There is a single entry and this entry is NoKey so
 	// it has no references to actual instances.
-	if _, ok := m.Aliases[addrs.NoKey]; ok {
+	if _, ok := m.Keys[addrs.NoKey]; ok {
 		return false
 	}
 
@@ -748,17 +742,19 @@ func (m *ProviderConfigRefMapping) HasInstanceRefsInAlias() bool {
 
 func providerToConfigRefMapping(p *Provider) *ProviderConfigRefMapping {
 	m := &ProviderConfigRefMapping{
-		Name:         p.Name,
-		NameRange:    p.NameRange,
-		providerType: p.providerType,
+		ProviderConfigRef: ProviderConfigRef{
+			Name:         p.Name,
+			NameRange:    p.NameRange,
+			providerType: p.providerType,
+		},
 	}
 
-	if p.Alias == "" {
+	if p.Key != addrs.NoKey {
 		return m
 	}
 
-	m.Aliases = map[addrs.InstanceKey]string{
-		addrs.NoKey: p.Alias,
+	m.Keys = map[addrs.InstanceKey]addrs.InstanceKey{
+		addrs.NoKey: p.Key,
 	}
 
 	return m
@@ -846,15 +842,15 @@ func filterNonInstanceRefs(refs []*addrs.Reference) nonInstanceRefs {
 	return s
 }
 
-// decodeStaticAlias decodes alias using static evaluation with count or for_each from instanceExpr.
-func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, countExpr, forEachExpr hcl.Expression) hcl.Diagnostics {
-	if m.Alias == nil {
+// decodeStaticKeys decodes keys using static evaluation with count or for_each from instanceExpr.
+func (m *ProviderConfigRefMapping) decodeStaticKeys(eval *StaticEvaluator, countExpr, forEachExpr hcl.Expression) hcl.Diagnostics {
+	if m.Key == nil {
 		return nil
 	}
 
 	var diags hcl.Diagnostics
 
-	unfilteredRefs, refDiags := lang.ReferencesInExpr(addrs.ParseRef, m.Alias)
+	unfilteredRefs, refDiags := lang.ReferencesInExpr(addrs.ParseRef, m.Key)
 	diags = diags.Extend(refDiags.ToHCL())
 	if refDiags.HasErrors() {
 		return diags
@@ -868,9 +864,9 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 	if refInfo.hasEachRef && refInfo.hasCountRef {
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Invalid provider alias reference",
+			Summary:  "Invalid provider key reference",
 			Detail:   "Alias expression cannot reference both 'count' and 'each'.",
-			Subject:  m.Alias.Range().Ptr(),
+			Subject:  m.Key.Range().Ptr(),
 		})
 	}
 
@@ -882,9 +878,9 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Invalid provider alias reference",
+			Summary:  "Invalid provider key reference",
 			Detail:   fmt.Sprintf("Alias expression references 'count' without the declaration.%v", didYouMean),
-			Subject:  m.Alias.Range().Ptr(),
+			Subject:  m.Key.Range().Ptr(),
 		})
 	}
 
@@ -896,9 +892,9 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 
 		return diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Invalid provider alias reference",
+			Summary:  "Invalid provider key reference",
 			Detail:   fmt.Sprintf("Alias expression references 'each' without the 'for_each' declaration.%v", didYouMean),
-			Subject:  m.Alias.Range().Ptr(),
+			Subject:  m.Key.Range().Ptr(),
 		})
 	}
 
@@ -921,27 +917,28 @@ func (m *ProviderConfigRefMapping) decodeStaticAlias(eval *StaticEvaluator, coun
 
 	evalCtx, evalCtxDiags := eval.EvalContext(StaticIdentifier{
 		Module:    eval.call.addr,
-		Subject:   "providers.alias",
-		DeclRange: m.Alias.Range(),
+		Subject:   "providers.key",
+		DeclRange: m.Key.Range(),
 	}, refInfo.filtered)
 	diags = diags.Extend(evalCtxDiags)
 	if evalCtxDiags.HasErrors() {
 		return diags
 	}
 
-	m.Aliases = make(map[addrs.InstanceKey]string)
+	m.Keys = make(map[addrs.InstanceKey]addrs.InstanceKey)
 	for k, v := range instanceVariableMap {
 		instanceEvalCtx := evalCtx.NewChild()
 		instanceEvalCtx.Variables = v
 
-		var alias string
-		aliasDiags := gohcl.DecodeExpression(m.Alias, instanceEvalCtx, &alias)
-		diags = diags.Extend(aliasDiags)
-		if aliasDiags.HasErrors() {
+		// TODO support count
+		var key string
+		keyDiags := gohcl.DecodeExpression(m.Key, instanceEvalCtx, &key)
+		diags = diags.Extend(keyDiags)
+		if keyDiags.HasErrors() {
 			continue
 		}
 
-		m.Aliases[k] = alias
+		m.Keys[k] = addrs.StringKey(key)
 	}
 
 	return diags
@@ -956,19 +953,29 @@ func decodeIndexProviderConfigRefMapping(expr *hclsyntax.IndexExpr, argName stri
 		return nil, diags
 	}
 
-	if len(name) != 1 {
+	var ref ProviderConfigRef
+
+	if len(name) == 0 || len(name) > 2 {
 		return nil, append(diags, invalidProviderReferenceDiag(argName, expr.Range().Ptr()))
 	}
-
-	root, ok := name[0].(hcl.TraverseRoot)
-	if !ok {
-		return nil, append(diags, invalidProviderReferenceDiag(argName, expr.Range().Ptr()))
+	if len(name) > 0 {
+		root, ok := name[0].(hcl.TraverseRoot)
+		if !ok {
+			return nil, append(diags, invalidProviderReferenceDiag(argName, expr.Range().Ptr()))
+		}
+		ref.Name = root.Name
+	}
+	if len(name) > 1 {
+		alias, ok := name[1].(hcl.TraverseAttr)
+		if !ok {
+			return nil, append(diags, invalidProviderReferenceDiag(argName, expr.Range().Ptr()))
+		}
+		ref.Alias = alias.Name
 	}
 
 	return &ProviderConfigRefMapping{
-		Name:      root.Name,
-		NameRange: expr.Collection.Range(),
-		Alias:     expr.Key,
+		ProviderConfigRef: ref,
+		Key:               expr.Key,
 	}, diags
 }
 
@@ -983,14 +990,12 @@ func decodeProviderConfigRefMapping(expr hcl.Expression, argName string) (*Provi
 	}
 
 	m := &ProviderConfigRefMapping{
-		Name:         ref.Name,
-		NameRange:    ref.NameRange,
-		providerType: ref.providerType,
+		ProviderConfigRef: *ref,
 	}
 
-	if ref.Alias != "" {
-		m.Aliases = map[addrs.InstanceKey]string{
-			addrs.NoKey: ref.Alias,
+	if ref.Key != addrs.NoKey {
+		m.Keys = map[addrs.InstanceKey]addrs.InstanceKey{
+			addrs.NoKey: ref.Key,
 		}
 	}
 
@@ -1075,6 +1080,7 @@ func (r *ProviderConfigRef) Addr() addrs.LocalProviderConfig {
 	return addrs.LocalProviderConfig{
 		LocalName: r.Name,
 		Alias:     r.Alias,
+		Key:       r.Key,
 	}
 }
 
@@ -1082,10 +1088,14 @@ func (r *ProviderConfigRef) String() string {
 	if r == nil {
 		return "<nil>"
 	}
+	str := r.Name
 	if r.Alias != "" {
-		return fmt.Sprintf("%s.%s", r.Name, r.Alias)
+		str += "." + r.Alias
 	}
-	return r.Name
+	if r.Key != addrs.NoKey {
+		str += r.Key.String()
+	}
+	return str
 }
 
 func invalidProviderReferenceDiag(argName string, sub *hcl.Range) *hcl.Diagnostic {

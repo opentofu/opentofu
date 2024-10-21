@@ -69,8 +69,8 @@ type Module struct {
 }
 
 // GetProviderConfig uses name and alias to find the respective Provider configuration.
-func (m *Module) GetProviderConfig(name, alias string) (*Provider, bool) {
-	tp := &Provider{ProviderCommon: ProviderCommon{Name: name}, Alias: alias}
+func (m *Module) GetProviderConfig(name, alias string, key addrs.InstanceKey) (*Provider, bool) {
+	tp := &Provider{ProviderCommon: ProviderCommon{Name: name, Alias: alias}, Key: key}
 	p, ok := m.ProviderConfigs[tp.Addr().StringCompact()]
 	return p, ok
 }
@@ -500,6 +500,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			i.Provider = m.ProviderForLocalConfig(addrs.LocalProviderConfig{
 				LocalName: i.ProviderConfigRef.Name,
 				Alias:     i.ProviderConfigRef.Alias,
+				Key:       i.ProviderConfigRef.Key,
 			})
 		} else {
 			implied, err := addrs.ParseProviderPart(i.StaticTo.Resource.ImpliedProvider())
