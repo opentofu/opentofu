@@ -675,6 +675,7 @@ func (n *NodePlannableResourceInstance) generateHCLStringAttributes(addr addrs.A
 	providerAddr := addrs.LocalProviderConfig{
 		LocalName: n.ResolvedProvider.Provider.Type,
 		Alias:     n.ResolvedProvider.Alias,
+		Key:       n.ResolvedProvider.Key,
 	}
 
 	return genconfig.GenerateResourceContents(addr, filteredSchema, providerAddr, state.Value)

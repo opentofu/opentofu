@@ -103,11 +103,11 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	getComparableProvider := func(pc GraphNodeProviderConsumer) []string {
 		req := pc.ProvidedBy()
 		var ps []string
-		for _, alias := range req.Local {
+		for _, lc := range req.Local {
 			// We used to only compare the LocalName + Alias across instances. That was probably bug
 			// that was infrequently hit. We now mirror the logic of TransformProvider to construct
 			// the AbsProviderConfig based off of the vertex and the alias
-			ps = append(ps, addrs.AbsProviderConfig{Provider: pc.Provider(), Module: pc.ModulePath(), Alias: alias}.String())
+			ps = append(ps, addrs.AbsProviderConfig{Provider: pc.Provider(), Module: pc.ModulePath(), Alias: lc.Alias, Key: lc.Key}.String())
 		}
 		for _, p := range req.Exact {
 			ps = append(ps, p.Provider.String())

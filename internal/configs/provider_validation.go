@@ -189,6 +189,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 										Name:         requirement.Name,
 										NameRange:    requirement.DeclRange,
 										Alias:        alias.Alias,
+										Key:          alias.Key,
 										providerType: requirement.Type,
 									},
 									InParentMapping: providerToConfigRefMapping(provider),
@@ -375,6 +376,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 					Module:   cfg.Path,
 					Provider: req.Type,
 					Alias:    alias.Alias,
+					Key:      alias.Key,
 				}
 				configAliases[providerName(alias.LocalName, alias.Alias)] = addr
 			}
@@ -458,7 +460,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			// aliased providers are handled more strictly, and are never
 			// inherited, so they are validated within modules further down.
 			// Skip these checks to prevent redundant diagnostics.
-			if passed.InParentMapping.HasAlias() {
+			if passed.InParentMapping.HasAlias() || passed.InParentMapping.HasKeys() {
 				continue
 			}
 
@@ -471,6 +473,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			// configuration. We ignore empty configs, because they will
 			// already produce a warning.
 			if !(confOK || localOK) {
+				fmt.Printf("Parent: %#v\n", passed.InParentMapping)
 				defAddr := addrs.NewDefaultProvider(name)
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagWarning,
@@ -579,6 +582,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			Module:   cfg.Path,
 			Provider: childTy,
 			Alias:    passed.InChild.Alias,
+			Key:      passed.InChild.Key,
 		}
 
 		localAddr, localName := localNames[name]
