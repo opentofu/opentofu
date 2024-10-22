@@ -154,7 +154,7 @@ The PBKDF2 key provider allows you to use a long passphrase as to generate a key
 | iterations              | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000                            |
 | salt_length             | Length of the salt for the key derivation.                                                                                                              | 1         | 32                                 |
 | hash_function           | Specify either `sha256` or `sha512` to use as a hash function. `sha1` is not supported.                                                                 | N/A       | sha512                             |
-| encrypted_metadata_key  | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to freely change the name of a key provider.                | -         | derived from the key provider name |
+| encrypted_metadata_key  | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.               | -         | derived from the key provider name |
 
 ### AWS KMS
 
@@ -164,7 +164,7 @@ This key provider uses the [Amazon Web Servers Key Management Service](https://a
 |------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
 | kms_key_id             | [Key ID for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                            | 1    | -                                  |
 | key_spec               | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. `AES_256`). | 1    | -                                  |
-| encrypted_metadata_key | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to freely change the name of a key provider.                     | -    | derived from the key provider name |
+| encrypted_metadata_key | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                    | -    | derived from the key provider name |
 
 The following example illustrates a minimal configuration:
 
@@ -174,11 +174,11 @@ The following example illustrates a minimal configuration:
 
 This key provider uses the [Google Cloud Key Management Service](https://cloud.google.com/kms/docs) to generate keys. The authentication options are identical to the [GCS backend](../../language/settings/backends/gcs.mdx) excluding any deprecated options. In addition, please provide the following options:
 
-| Option                          | Description                                                                                                                              | Min. | Default                            |
-|---------------------------------|------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
-| kms_encryption_key *(required)* | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console).                         | N/A  | -                                  |
-| key_length *(required)*         | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                                         | 1    | -                                  |
-| encrypted_metadata_key          | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to freely change the name of a key provider. | -    | derived from the key provider name |
+| Option                          | Description                                                                                                                               | Min. | Default                            |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
+| kms_encryption_key *(required)* | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console).                          | N/A  | -                                  |
+| key_length *(required)*         | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                                          | 1    | -                                  |
+| encrypted_metadata_key          | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider. | -    | derived from the key provider name |
 
 The following example illustrates a minimal configuration:
 
@@ -195,7 +195,7 @@ This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/d
 | address                | OpenBao server address to access the API. OpenTofu can read it from the `BAO_ADDR` environment variable as well. Your system must trust the TLS certificate of the server.  | N/A  | https://127.0.0.1:8200             |
 | transit_engine_path    | Path at which the Transit Secret Engine is enabled in OpenBao. Customize this if you changed the transit engine path.                                                       | N/A  | /transit                           |
 | key_length             | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                       | 16   | 32                                 |
-| encrypted_metadata_key | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to freely change the name of a key provider.                                    | -    | derived from the key provider name |
+| encrypted_metadata_key | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                                   | -    | derived from the key provider name |
 
 The following example illustrates a possible configuration:
 
