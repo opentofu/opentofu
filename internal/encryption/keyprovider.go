@@ -30,15 +30,20 @@ func (e *targetBuilder) setupKeyProviders() hcl.Diagnostics {
 
 	e.keyValues = make(map[string]map[string]cty.Value)
 
+	kpMap := make(map[string]cty.Value)
 	for _, keyProviderConfig := range e.cfg.KeyProviderConfigs {
 		diags = append(diags, e.setupKeyProvider(keyProviderConfig, nil)...)
+		if diags.HasErrors() {
+			return diags
+		}
+		for name, kps := range e.keyValues {
+			kpMap[name] = cty.ObjectVal(kps)
+		}
+		e.ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
 	}
 
-	// Regenerate the context now that the key provider is loaded
-	kpMap := make(map[string]cty.Value)
-	for name, kps := range e.keyValues {
-		kpMap[name] = cty.ObjectVal(kps)
-	}
+	// Make sure that the key_provider variable is set even if no key providers are configured. This will ultimately
+	// result in an error, but we want to avoid unpredictable behavior.
 	e.ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
 
 	return diags
@@ -82,13 +87,13 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	stack = append(stack, cfg)
 
 	// Pull the meta key out for error messages and meta storage
-	metakey, diags := cfg.Addr()
+	tmpmetakey, diags := cfg.Addr()
 	if diags.HasErrors() {
 		return diags
 	}
+	metakey := keyprovider.MetaStorageKey(tmpmetakey)
 	if cfg.EncryptedMetadataKey != "" {
-		// TODO what if the metadata key is duplicated?
-		metakey = keyprovider.Addr(cfg.EncryptedMetadataKey)
+		metakey = keyprovider.MetaStorageKey(cfg.EncryptedMetadataKey)
 	}
 
 	// Lookup the KeyProviderDescriptor from the registry
@@ -218,7 +223,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	}
 
 	// Add the metadata
-	if meta, ok := e.keyProviderMetadata[metakey]; ok {
+	if meta, ok := e.inputKeyProviderMetadata[metakey]; ok {
 		err := json.Unmarshal(meta, keyMetaIn)
 		if err != nil {
 			return append(diags, &hcl.Diagnostic{
@@ -239,7 +244,14 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	}
 
 	if keyMetaOut != nil {
-		e.keyProviderMetadata[metakey], err = json.Marshal(keyMetaOut)
+		if _, ok := e.outputKeyProviderMetadata[metakey]; ok {
+			return append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate metadata key",
+				Detail:   fmt.Sprintf("the metadata key %s is duplicated across multiple key providers for the same method; use the encrypted_metadata_key option to specify unique metadata keys for each key provider in an encryption method", metakey),
+			})
+		}
+		e.outputKeyProviderMetadata[metakey], err = json.Marshal(keyMetaOut)
 
 		if err != nil {
 			return append(diags, &hcl.Diagnostic{
