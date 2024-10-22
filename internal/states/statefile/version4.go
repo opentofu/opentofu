@@ -96,7 +96,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			// Looks like it is set on the resource level
 			var addrDiags tfdiags.Diagnostics
 			resourceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
-			diags.Append(addrDiags)
+			diags = diags.Append(addrDiags)
 			if addrDiags.HasErrors() {
 				// If ParseAbsProviderConfigStr returns an error, the state may have
 				// been written before Provider FQNs were introduced and the
@@ -152,7 +152,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				// Looks like it is set on the instance level
 				var addrDiags tfdiags.Diagnostics
 				instanceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(isV4.ProviderConfig)
-				diags.Append(addrDiags)
+				diags = diags.Append(addrDiags)
 				if addrDiags.HasErrors() {
 					continue
 				}
