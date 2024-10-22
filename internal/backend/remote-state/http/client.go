@@ -84,7 +84,7 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what 
 	}
 
 	log.Printf("[DEBUG] HTTP remote state request for %q returned status code: %d", what, resp.StatusCode)
-	log.Printf("[DEBUG] Response headers: %s", parseHeaders(resp))
+	log.Printf("[DEBUG] HTTP response headers: %s", parseHeaders(resp))
 
 	return resp, nil
 }

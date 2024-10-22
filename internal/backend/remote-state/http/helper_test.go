@@ -7,10 +7,22 @@ package http
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"net/http"
 	"testing"
 )
+
+// HTTP request body reader that deliberately causes a read error
+type errorReader struct{}
+
+func (e *errorReader) Read(p []byte) (n int, err error) {
+	return 0, fmt.Errorf("read error")
+}
+
+func (e *errorReader) Close() error {
+	return nil
+}
 
 func TestParseResponseBody(t *testing.T) {
 	testCases := []struct {
