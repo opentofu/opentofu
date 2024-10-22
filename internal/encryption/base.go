@@ -94,10 +94,10 @@ func IsEncryptionPayload(data []byte) (bool, error) {
 	return es.Version != "", nil
 }
 
-func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}) ([]byte, error) {
+func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}) ([]byte, error) {
 	// buildTargetMethods above guarantees that there will be at least one encryption method.  They are not optional in the common target
 	// block, which is required to get to this code.
-	encryptor := s.encMethods[0]
+	encryptor := base.encMethods[0]
 
 	if unencrypted.Is(encryptor) {
 		return data, nil
@@ -105,12 +105,12 @@ func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}
 
 	encd, err := encryptor.Encrypt(data)
 	if err != nil {
-		return nil, fmt.Errorf("encryption failed for %s: %w", s.name, err)
+		return nil, fmt.Errorf("encryption failed for %s: %w", base.name, err)
 	}
 
 	es := basedata{
 		Version: encryptionVersion,
-		Meta:    s.outputEncMeta,
+		Meta:    base.outputEncMeta,
 		Data:    encd,
 	}
 	jsond, err := json.Marshal(enhance(es))
@@ -122,7 +122,7 @@ func (s *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}
 }
 
 // TODO Find a way to make these errors actionable / clear
-func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, error) {
+func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, error) {
 	inputData := basedata{}
 	err := json.Unmarshal(data, &inputData)
 
@@ -142,17 +142,17 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 		}
 
 		// Yep, it's already decrypted
-		for _, method := range s.encMethods {
+		for _, method := range base.encMethods {
 			if unencrypted.Is(method) {
 				return data, nil
 			}
 		}
 		return nil, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
 	}
+	// This is not actually used, only the map inside the Meta parameter is. This is because we are passing the map
+	// around.
 	outputData := basedata{
-		Meta:    make(map[keyprovider.MetaStorageKey][]byte),
-		Data:    make([]byte, 0),
-		Version: encryptionVersion,
+		Meta: make(map[keyprovider.MetaStorageKey][]byte),
 	}
 
 	if inputData.Version != encryptionVersion {
@@ -160,7 +160,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 	}
 
 	// TODO Discuss if we should potentially cache this based on a json-encoded version of inputData.Meta and reduce overhead dramatically
-	methods, diags := s.buildTargetMethods(inputData.Meta, outputData.Meta)
+	methods, diags := base.buildTargetMethods(inputData.Meta, outputData.Meta)
 	if diags.HasErrors() {
 		// This cast to error here is safe as we know that at least one error exists
 		// This is also quite unlikely to happen as the constructor already has checked this code path
@@ -179,7 +179,7 @@ func (s *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]b
 			return uncd, nil
 		}
 		// Record the failure
-		errs = append(errs, fmt.Errorf("attempted decryption failed for %s: %w", s.name, err))
+		errs = append(errs, fmt.Errorf("attempted decryption failed for %s: %w", base.name, err))
 	}
 
 	// This is good enough for now until we have better/distinct errors
