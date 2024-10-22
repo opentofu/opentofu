@@ -22,7 +22,7 @@ data "terraform_remote_state" "cert" {
   backend = "local"
   config = {
     # Refer to the other project here:
-    path = "../certificates/terraform.tfstate"
+    path = "../a/terraform.tfstate"
   }
 }
 
