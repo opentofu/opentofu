@@ -309,7 +309,7 @@ func (n *NodeAbstractResource) resolveInstanceProvider(instance addrs.AbsResourc
 
 func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 	result := ProviderRequest{
-		Local: make(map[addrs.InstanceKey]string),
+		Local: make(map[addrs.InstanceKey]addrs.LocalProviderConfig),
 	}
 
 	// When nodes are orphaned due to altered for_each/count, the
@@ -344,16 +344,23 @@ func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 	if n.Config != nil {
 		if n.Config.ProviderConfigRef == nil {
 			// No specific "provider" argument is given
-			result.Local[addrs.NoKey] = ""
+			result.Local[addrs.NoKey] = addrs.LocalProviderConfig{}
 			return result
 		}
 
-		if len(n.Config.ProviderConfigRef.Aliases) > 0 {
+		if len(n.Config.ProviderConfigRef.Keys) > 0 {
 			// If we have aliases set in ProviderConfigRef, we'll calculate a LocalProviderConfig for each one
-			result.Local = n.Config.ProviderConfigRef.Aliases
+			for resourceKey, providerKey := range n.Config.ProviderConfigRef.Keys {
+				result.Local[resourceKey] = addrs.LocalProviderConfig{
+					Alias: n.Config.ProviderConfigRef.Alias,
+					Key:   providerKey,
+				}
+			}
 		} else {
 			// If we have no aliases in ProviderConfigRef, we still need to calculate a single LocalProviderConfig
-			result.Local[addrs.NoKey] = ""
+			result.Local[addrs.NoKey] = addrs.LocalProviderConfig{
+				Alias: n.Config.ProviderConfigRef.Alias,
+			}
 		}
 
 		return result
@@ -367,7 +374,10 @@ func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			result.Local[addrs.NoKey] = n.importTargets[0].Config.ProviderConfigRef.Alias
+			result.Local[addrs.NoKey] = addrs.LocalProviderConfig{
+				Alias: n.importTargets[0].Config.ProviderConfigRef.Alias,
+				Key:   n.importTargets[0].Config.ProviderConfigRef.Key,
+			}
 			return result
 		}
 	}
@@ -376,7 +386,7 @@ func (n *NodeAbstractResource) ProvidedBy() ProviderRequest {
 		return result
 	}
 	// No provider configuration found; return a default address
-	result.Local[addrs.NoKey] = ""
+	result.Local[addrs.NoKey] = addrs.LocalProviderConfig{}
 	return result
 }
 

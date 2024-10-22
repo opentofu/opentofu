@@ -8,6 +8,7 @@ package tofu
 import (
 	"log"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -61,12 +62,14 @@ func (t *AttachStateTransformer) Transform(g *Graph) error {
 
 		rs := t.State.Resource(addr.ContainingResource())
 		if rs == nil {
+			spew.Dump(t.State)
 			log.Printf("[DEBUG] Resource state not found for node %q, instance %s", dag.VertexName(v), addr)
 			continue
 		}
 
 		is := rs.Instance(addr.Resource.Key)
 		if is == nil {
+			spew.Dump(rs)
 			// We don't actually need this here, since we'll attach the whole
 			// resource state, but we still check because it'd be weird
 			// for the specific instance we're attaching to not to exist.

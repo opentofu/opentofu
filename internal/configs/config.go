@@ -489,8 +489,8 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 				// providers match, we need to ensure resource's provider reference doesn't include `count` or `each`
 				// references. In that case, providers will not match.
 				haveIncompatibleAliases := true
-				if !target.ProviderConfigRef.HasInstanceRefsInAlias() {
-					haveIncompatibleAliases = i.ProviderConfigRef.Alias != target.ProviderConfigRef.Aliases[addrs.NoKey]
+				if !target.ProviderConfigRef.HasInstanceRefs() {
+					haveIncompatibleAliases = i.ProviderConfigRef.Alias != target.ProviderConfigRef.Alias // TODO check KEYS
 				}
 
 				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || haveIncompatibleAliases {
@@ -847,6 +847,7 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderConfig, inModule addr
 			Module:   inModule,
 			Provider: provider,
 			Alias:    addr.Alias,
+			Key:      addr.Key,
 		}
 
 	default:
@@ -959,7 +960,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 
 		for _, ref := range run.Providers {
 			// This should never happen since we don't allow for_each / count in runs.
-			if ref.InParentMapping.HasInstanceRefsInAlias() {
+			if ref.InParentMapping.HasInstanceRefs() {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "`for_each` and `count` are not allowed",
@@ -984,16 +985,15 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 
 			next[ref.InChild.String()] = &Provider{
 				ProviderCommon: ProviderCommon{
-
 					Name:          ref.InChild.Name,
 					NameRange:     ref.InChild.NameRange,
+					Alias:         ref.InChild.Alias,
 					Version:       testProvider.Version,
 					Config:        testProvider.Config,
 					DeclRange:     testProvider.DeclRange,
 					IsMocked:      testProvider.IsMocked,
 					MockResources: testProvider.MockResources,
 				},
-				Alias: ref.InChild.Alias,
 			}
 
 		}
@@ -1007,12 +1007,13 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 			next[mp.moduleUniqueKey()] = &Provider{
 				ProviderCommon: ProviderCommon{
 					Name:          mp.Name,
+					Alias:         mp.Alias,
+					AliasRange:    mp.AliasRange,
 					NameRange:     mp.NameRange,
 					DeclRange:     mp.DeclRange,
 					IsMocked:      true,
 					MockResources: mp.MockResources,
 				},
-				Alias: mp.Alias,
 			}
 		}
 	}

@@ -146,7 +146,7 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 	if ctx.Evaluator != nil && ctx.Evaluator.Config != nil && ctx.Evaluator.Config.Module != nil {
 		// If an aliased provider is mocked, we use providerForTest wrapper.
 		// We cannot wrap providers.Factory itself, because factories don't support aliases.
-		pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
+		pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias, addr.Key)
 		if ok && pc.IsMocked {
 			p, err = newProviderForTest(p, pc.MockResources)
 			if err != nil {

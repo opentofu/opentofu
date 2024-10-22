@@ -74,7 +74,7 @@ type ProviderRequest struct {
 	//   the current module path. Only the Alias field is used, the LocalName
 	//   is ignored and Provider() is preferred instead.
 	//   Examples: config, default
-	Local map[addrs.InstanceKey]string
+	Local map[addrs.InstanceKey]addrs.LocalProviderConfig
 
 	// Exact: the exact provider configuration has been
 	//   resolved elsewhere and must be referenced directly. No inheritence
@@ -192,7 +192,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			resolver.Absolute = append(resolver.Absolute, abs)
 		}
 
-		for resourceKey, alias := range providedBy.Local {
+		for resourceKey, localConfig := range providedBy.Local {
 			// We assume that the value returned from Provider() has already been
 			// properly checked during the provider validation logic in the
 			// config package and can use that Provider Type directly instead
@@ -200,7 +200,8 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			fullProviderAddr := addrs.AbsProviderConfig{
 				Provider: pv.Provider(),
 				Module:   pv.ModulePath(),
-				Alias:    alias,
+				Alias:    localConfig.Alias,
+				Key:      localConfig.Key,
 			}
 			target := m[fullProviderAddr.String()]
 
@@ -876,6 +877,7 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 		addr := addrs.AbsProviderConfig{
 			Provider: fqn,
 			Alias:    p.Alias,
+			Key:      p.Key,
 			Module:   path,
 		}
 
@@ -956,6 +958,7 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 			Provider: fqn,
 			Module:   path,
 			Alias:    pair.InChild.Addr().Alias,
+			Key:      pair.InChild.Addr().Key,
 		}
 
 		fullName := fullAddr.String()
@@ -966,13 +969,14 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 		}
 
 		// Build the proxy provider
-		if len(pair.InParentMapping.Aliases) > 0 {
+		if len(pair.InParentMapping.Keys) > 0 {
 			// If we have aliases set in InParentMapping, we'll calculate a target for each one
-			for key, alias := range pair.InParentMapping.Aliases {
+			for callKey, providerKey := range pair.InParentMapping.Keys {
 				fullParentAddr := addrs.AbsProviderConfig{
 					Provider: fqn,
 					Module:   parentPath,
-					Alias:    alias,
+					Alias:    pair.InParentMapping.Alias,
+					Key:      providerKey,
 				}
 				fullParentName := fullParentAddr.String()
 
@@ -982,14 +986,15 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 					return fmt.Errorf("missing provider mapping: %s required by %s", fullParentAddr, fullAddr)
 				}
 
-				proxy.targets[key] = parentProvider
+				proxy.targets[callKey] = parentProvider
 			}
 		} else {
 			// If we have no aliases in InParentMapping, we still need to calculate a single target
 			fullParentAddr := addrs.AbsProviderConfig{
 				Provider: fqn,
 				Module:   parentPath,
-				Alias:    "",
+				Alias:    pair.InParentMapping.Alias,
+				Key:      addrs.NoKey,
 			}
 
 			fullParentName := fullParentAddr.String()
@@ -1046,7 +1051,7 @@ func (t *ProviderConfigTransformer) attachProviderConfigs(g *Graph) error {
 
 		// Go through the provider configs to find the matching config
 		for _, p := range mc.Module.ProviderConfigs {
-			if p.Name == localName && p.Alias == addr.Alias {
+			if p.Name == localName && p.Alias == addr.Alias && p.Key == addr.Key {
 				log.Printf("[TRACE] ProviderConfigTransformer: attaching to %q provider configuration from %s", dag.VertexName(v), p.DeclRange)
 				apn.AttachProvider(p)
 				break

@@ -102,12 +102,13 @@ func (file *TestFile) getTestProviderOrMock(addr string) (*Provider, bool) {
 		p := &Provider{
 			ProviderCommon: ProviderCommon{
 				Name:          mockProvider.Name,
+				Alias:         mockProvider.Alias,
+				AliasRange:    mockProvider.AliasRange,
 				NameRange:     mockProvider.NameRange,
 				DeclRange:     mockProvider.DeclRange,
 				IsMocked:      true,
 				MockResources: mockProvider.MockResources,
 			},
-			Alias: mockProvider.Alias,
 		}
 
 		return p, true

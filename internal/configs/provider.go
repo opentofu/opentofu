@@ -11,6 +11,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -20,8 +22,10 @@ import (
 
 // ProviderCommon is the common fields between a Provider Block and a Provider
 type ProviderCommon struct {
-	Name      string
-	NameRange hcl.Range
+	Name       string
+	NameRange  hcl.Range
+	Alias      string
+	AliasRange *hcl.Range // nil if no alias set
 
 	Version VersionConstraint
 
@@ -46,9 +50,7 @@ type ProviderCommon struct {
 // block is a provider configuration
 type ProviderBlock struct {
 	ProviderCommon
-	AliasExpr  hcl.Expression // nil if no alias set
-	AliasRange *hcl.Range     // nil if no alias set
-	ForEach    hcl.Expression
+	ForEach hcl.Expression
 }
 
 // Provider represents an instance of a "provider" block. Created after
@@ -56,88 +58,8 @@ type ProviderBlock struct {
 // for each instance derived from the evaluation
 type Provider struct {
 	ProviderCommon
-	Alias        string
+	Key          addrs.InstanceKey
 	InstanceData instances.RepetitionData
-}
-
-// ParseProviderConfigCompact parses the given absolute traversal as a relative
-// provider address in compact form. The following are examples of traversals
-// that can be successfully parsed as compact relative provider configuration
-// addresses:
-//
-//   - aws
-//   - aws.foo
-//
-// This function will panic if given a relative traversal.
-//
-// If the returned diagnostics contains errors then the result value is invalid
-// and must not be used.
-func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
-	// added as a const to keep the linter happy
-	const providerAddrMaxTraversal = 2
-	var diags tfdiags.Diagnostics
-	ret := addrs.LocalProviderConfig{
-		LocalName: traversal.RootName(),
-	}
-
-	if len(traversal) < providerAddrMaxTraversal {
-		// Just a type name, then.
-		return ret, diags
-	}
-
-	aliasStep := traversal[1]
-	switch ts := aliasStep.(type) {
-	case hcl.TraverseAttr:
-		ret.Alias = ts.Name
-		return ret, diags
-	default:
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid provider configuration address",
-			Detail:   "The provider type name must either stand alone or be followed by an alias name separated with a dot.",
-			Subject:  aliasStep.SourceRange().Ptr(),
-		})
-	}
-
-	if len(traversal) > providerAddrMaxTraversal {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid provider configuration address",
-			Detail:   "Extraneous extra operators after provider configuration address.",
-			Subject:  traversal[providerAddrMaxTraversal:].SourceRange().Ptr(),
-		})
-	}
-
-	return ret, diags
-}
-
-// ParseProviderConfigCompactStr is a helper wrapper around ParseProviderConfigCompact
-// that takes a string and parses it with the HCL native syntax traversal parser
-// before interpreting it.
-//
-// This should be used only in specialized situations since it will cause the
-// created references to not have any meaningful source location information.
-// If a reference string is coming from a source that should be identified in
-// error messages then the caller should instead parse it directly using a
-// suitable function from the HCL API and pass the traversal itself to
-// ParseProviderConfigCompact.
-//
-// Error diagnostics are returned if either the parsing fails or the analysis
-// of the traversal fails. There is no way for the caller to distinguish the
-// two kinds of diagnostics programmatically. If error diagnostics are returned
-// then the returned address is invalid.
-func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
-	diags = diags.Append(parseDiags)
-	if parseDiags.HasErrors() {
-		return addrs.LocalProviderConfig{}, diags
-	}
-
-	addr, addrDiags := ParseProviderConfigCompact(traversal)
-	diags = diags.Append(addrDiags)
-	return addr, diags
 }
 
 func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
@@ -168,21 +90,20 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["alias"]; exists {
-		provider.AliasExpr = attr.Expr
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Alias)
+		diags = append(diags, valDiags...)
 		provider.AliasRange = attr.Expr.Range().Ptr()
+		if !hclsyntax.ValidIdentifier(provider.Alias) {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration alias",
+				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
+			})
+		}
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
 		provider.ForEach = attr.Expr
-	}
-
-	if provider.AliasExpr != nil && provider.ForEach != nil {
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  `Invalid combination of "alias" and "for_each"`,
-			Detail:   `The "alias" and "for_each" arguments are mutually-exclusive, only one may be used.`,
-			Subject:  provider.AliasExpr.Range().Ptr(),
-		})
 	}
 
 	if attr, exists := content.Attributes["version"]; exists {
@@ -288,44 +209,19 @@ func (p *Provider) Addr() addrs.LocalProviderConfig {
 	return addrs.LocalProviderConfig{
 		LocalName: p.Name,
 		Alias:     p.Alias,
+		Key:       p.Key,
 	}
 }
 
 func (p *ProviderBlock) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
 	if p.ForEach != nil {
 		return p.generateForEachProviders(eval)
 	}
 
-	result := Provider{ProviderCommon: p.ProviderCommon}
-	if p.AliasExpr != nil {
-		if eval != nil {
-			valDiags := eval.DecodeExpression(p.AliasExpr, StaticIdentifier{
-				Module:    eval.call.addr,
-				Subject:   fmt.Sprintf("provider.%s.alias", p.Name),
-				DeclRange: p.AliasExpr.Range(),
-			}, &result.Alias)
-			diags = append(diags, valDiags...)
-		} else {
-			// Test files don't have a static context
-			valDiags := gohcl.DecodeExpression(p.AliasExpr, nil, &result.Alias)
-			diags = append(diags, valDiags...)
-		}
-
-		if diags.HasErrors() {
-			return nil, diags
-		}
-
-		if !hclsyntax.ValidIdentifier(result.Alias) {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider configuration alias",
-				Detail:   fmt.Sprintf("Alias %q must be a valid name. %s", result.Alias, badIdentifierDetail),
-				Subject:  p.AliasExpr.Range().Ptr(),
-			})
-		}
-	}
-	return []*Provider{&result}, diags
+	return []*Provider{{
+		ProviderCommon: p.ProviderCommon,
+		Key:            addrs.NoKey,
+	}}, nil
 }
 
 func (p *ProviderBlock) generateForEachProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
@@ -357,24 +253,116 @@ func (p *ProviderBlock) generateForEachProviders(eval *StaticEvaluator) ([]*Prov
 
 	var out []*Provider
 	for k, v := range forVal {
-		if !hclsyntax.ValidIdentifier(k) {
-			return nil, diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid for_each key alias",
-				Detail:   fmt.Sprintf("Alias %q must be a valid name. %s", k, badIdentifierDetail),
-				Subject:  p.ForEach.Range().Ptr(),
-			})
-		}
-
 		out = append(out, &Provider{
 			ProviderCommon: p.ProviderCommon,
-			Alias:          k,
+			Key:            addrs.StringKey(k),
 			InstanceData: instances.RepetitionData{
+				EachKey:   cty.StringVal(k),
 				EachValue: v,
 			},
 		})
 	}
 	return out, diags
+}
+
+// ParseProviderConfigCompact parses the given absolute traversal as a relative
+// provider address in compact form. The following are examples of traversals
+// that can be successfully parsed as compact relative provider configuration
+// addresses:
+//
+//   - aws
+//   - aws.foo
+//
+// This function will panic if given a relative traversal.
+//
+// If the returned diagnostics contains errors then the result value is invalid
+// and must not be used.
+func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
+	// added as a const to keep the linter happy
+	var diags tfdiags.Diagnostics
+	ret := addrs.LocalProviderConfig{
+		LocalName: traversal.RootName(),
+	}
+
+	if len(traversal) < 2 {
+		// Just a type name, then.
+		return ret, diags
+	}
+	if len(traversal) > 3 {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration address",
+			Detail:   "Extraneous extra operators after provider configuration address.",
+			Subject:  traversal.SourceRange().Ptr(),
+		})
+	}
+
+	if ts, ok := traversal[1].(hcl.TraverseAttr); ok {
+		ret.Alias = ts.Name
+	} else {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration address",
+			Detail:   "The provider type name must either stand alone or be followed by an alias name separated with a dot.",
+			Subject:  traversal[1].SourceRange().Ptr(),
+		})
+	}
+
+	if len(traversal) > 2 {
+		if tt, ok := traversal[2].(hcl.TraverseIndex); ok {
+			if tt.Key.Type().Equals(cty.String) {
+				ret.Key = addrs.StringKey(tt.Key.AsString())
+			} else if tt.Key.Type().Equals(cty.Number) {
+				var idxInt int
+				err := gocty.FromCtyValue(tt.Key, &idxInt)
+				if err == nil {
+					ret.Key = addrs.IntKey(idxInt)
+				} else {
+					panic("TODO diags")
+				}
+			} else {
+				panic("TODO diags")
+			}
+		} else {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration address",
+				Detail:   "The provider type name must either stand alone or be followed by an alias name separated with a dot.",
+				Subject:  traversal[2].SourceRange().Ptr(),
+			})
+		}
+	}
+
+	return ret, diags
+}
+
+// ParseProviderConfigCompactStr is a helper wrapper around ParseProviderConfigCompact
+// that takes a string and parses it with the HCL native syntax traversal parser
+// before interpreting it.
+//
+// This should be used only in specialized situations since it will cause the
+// created references to not have any meaningful source location information.
+// If a reference string is coming from a source that should be identified in
+// error messages then the caller should instead parse it directly using a
+// suitable function from the HCL API and pass the traversal itself to
+// ParseProviderConfigCompact.
+//
+// Error diagnostics are returned if either the parsing fails or the analysis
+// of the traversal fails. There is no way for the caller to distinguish the
+// two kinds of diagnostics programmatically. If error diagnostics are returned
+// then the returned address is invalid.
+func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return addrs.LocalProviderConfig{}, diags
+	}
+
+	addr, addrDiags := ParseProviderConfigCompact(traversal)
+	diags = diags.Append(addrDiags)
+	return addr, diags
 }
 
 var providerBlockSchema = &hcl.BodySchema{ //nolint: gochecknoglobals // pre-existing code
