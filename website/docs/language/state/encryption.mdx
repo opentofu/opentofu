@@ -20,6 +20,8 @@ import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
 import FallbackToUnencrypted from '!!raw-loader!./examples/encryption/fallback_to_unencrypted.tf'
 import RemoteState from '!!raw-loader!./examples/encryption/terraform_remote_state.tf'
+import RemoteStateFullA from '!!raw-loader!./examples/encryption/terraform_remote_state_full_a.tf'
+import RemoteStateFullB from '!!raw-loader!./examples/encryption/terraform_remote_state_full_b.tf'
 
 # State and Plan Encryption
 
@@ -138,6 +140,16 @@ For specific remote states, you can use the following syntax:
 - `myname` to target a data source in the main project with the given name.
 - `mymodule.myname` to target a data source in the specified module with the given name.
 - `mymodule.myname[0]` to target the first data source in the specified module with the given name.
+
+In some cases key names between projects can conflict and you will need to use a different name for the key provider in one project than the other. In this case, you should use the `encrypted_metadata_key` option to set a fixed metadata key in order to ensure the encryption works.
+
+For example, you may create certificates in project "A" and want to reference them in project "B". In project "A", you could create the following setup:
+
+<CodeBlock language="hcl">{RemoteStateFullA}</CodeBlock>
+
+Then you can reference it in project "B" as follows:
+
+<CodeBlock language="hcl">{RemoteStateFullB}</CodeBlock>
 
 ## Key providers
 
