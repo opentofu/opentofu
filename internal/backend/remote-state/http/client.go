@@ -84,6 +84,7 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what 
 	}
 
 	log.Printf("[DEBUG] HTTP remote state request for %q returned status code: %d", what, resp.StatusCode)
+	log.Printf("[DEBUG] Response headers: %s", parseHeaders(resp))
 
 	return resp, nil
 }
@@ -280,14 +281,4 @@ func (c *httpClient) Delete() error {
 
 func (c *httpClient) IsLockingEnabled() bool {
 	return c.UnlockURL != nil
-}
-
-func parseResponseBody(resp *http.Response) string {
-	// Helper function to parse response body bytes into a string for logging
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		log.Printf("[ERROR] Failed to read HTTP response body for DEBUG logs: %v", err)
-		return ""
-	}
-	return string(body)
 }
