@@ -35,6 +35,9 @@ linters-settings:
   gocognit:
     min-complexity: 50
 
+  goconst:
+    ignore-tests: true # Is documented to be the default behaviour, but that doesn't seem to be the case
+
 issues:
   exclude-rules:
     - path: (.+)_test.go

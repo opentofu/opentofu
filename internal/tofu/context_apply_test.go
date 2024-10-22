@@ -7149,52 +7149,51 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 	m := testModule(t, "destroy-targeted")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
 
-	state := states.NewState()
-	root := state.EnsureModule(addrs.RootModuleInstance)
-	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.a").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"id":"bar"}`),
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-	)
-	root.SetOutputValue("out", cty.StringVal("bar"), false)
+	var state *states.State
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
 
-	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-	child.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.b").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-	)
+		// First plan and apply a create operation
+		if diags := ctx.Validate(m); diags.HasErrors() {
+			t.Fatalf("validate errors: %s", diags.Err())
+		}
 
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-	})
+		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		assertNoErrors(t, diags)
 
-	if diags := ctx.Validate(m); diags.HasErrors() {
-		t.Fatalf("validate errors: %s", diags.Err())
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("apply err: %s", diags.Err())
+		}
 	}
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
-		Mode: plans.DestroyMode,
-		Targets: []addrs.Targetable{
-			addrs.RootModuleInstance.Resource(
-				addrs.ManagedResourceMode, "aws_instance", "a",
-			),
-		},
-	})
-	assertNoErrors(t, diags)
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
 
-	state, diags = ctx.Apply(plan, m)
-	if diags.HasErrors() {
-		t.Fatalf("diags: %s", diags.Err())
+		plan, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.DestroyMode,
+			Targets: []addrs.Targetable{
+				addrs.RootModuleInstance.Resource(
+					addrs.ManagedResourceMode, "aws_instance", "a",
+				),
+			},
+		})
+		assertNoErrors(t, diags)
+
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("diags: %s", diags.Err())
+		}
 	}
 
 	mod := state.RootModule()
@@ -7223,10 +7222,10 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 		t.Fatalf("expected 1 outputs, got: %#v", mod.OutputValues)
 	}
 
-	// the module instance should remain
+	// the module instance should not remain
 	mod = state.Module(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-	if len(mod.Resources) != 1 {
-		t.Fatalf("expected 1 resources, got: %#v", mod.Resources)
+	if mod != nil {
+		t.Fatalf("expected child module to not exist in state, but it does")
 	}
 }
 
@@ -7554,7 +7553,8 @@ func TestContext2Apply_targetedModuleUnrelatedOutputs(t *testing.T) {
 	p.ApplyResourceChangeFn = testApplyFn
 
 	state := states.NewState()
-	_ = state.EnsureModule(addrs.RootModuleInstance.Child("child2", addrs.NoKey))
+	child1 := state.EnsureModule(addrs.RootModuleInstance.Child("child1", addrs.NoKey))
+	child1.SetOutputValue("instance_id", cty.StringVal("something"), false)
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -7643,6 +7643,7 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 	m := testModule(t, "apply-targeted-resource-orphan-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
 
 	state := states.NewState()
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("parent", addrs.NoKey))
@@ -7650,7 +7651,7 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"type":"aws_instance"}`),
+			AttrsJSON: []byte(`{"id":"abc","type":"aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 	)
@@ -7671,9 +7672,24 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	state, diags = ctx.Apply(plan, m)
+	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
+
 	}
+
+	checkStateString(t, state, `
+aws_instance.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+
+module.parent:
+  aws_instance.bar:
+    ID = abc
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+`)
 }
 
 func TestContext2Apply_unknownAttribute(t *testing.T) {

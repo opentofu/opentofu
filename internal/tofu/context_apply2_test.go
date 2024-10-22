@@ -691,6 +691,56 @@ resource "test_object" "s" {
 	assertNoErrors(t, diags)
 }
 
+// This test is inspired by the above test TestContext2Apply_targetedDestroyWithMoved
+func TestContext2Apply_excludedDestroyWithMoved(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "modb" {
+  source = "./mod"
+  for_each = toset(["a", "b"])
+}
+`,
+		"./mod/main.tf": `
+resource "test_object" "a" {
+}
+
+module "sub" {
+  for_each = toset(["a", "b"])
+  source = "./sub"
+}
+
+moved {
+  from = module.old
+  to = module.sub
+}
+`,
+		"./mod/sub/main.tf": `
+resource "test_object" "s" {
+}
+`})
+
+	p := simpleMockProvider()
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	assertNoErrors(t, diags)
+
+	// destroy excluding the module in the moved statements
+	_, diags = ctx.Plan(m, state, &PlanOpts{
+		Mode:     plans.DestroyMode,
+		Excludes: []addrs.Targetable{addrs.Module{"sub"}},
+	})
+	assertNoErrors(t, diags)
+}
+
 func TestContext2Apply_graphError(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -2306,4 +2356,1391 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 	if hook.PostApplyCalled {
 		t.Fatalf("PostApply hook should not be called as part of forget")
 	}
+}
+
+// All exclude flag tests in this file, from here forward, are inspired by some counterpart target flag test
+// either from this file or from context_apply_test.go
+func TestContext2Apply_moduleProviderAliasExcludes(t *testing.T) {
+	m := testModule(t, "apply-module-provider-alias")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.ConfigResource{
+				Module: addrs.Module{"child"},
+				Resource: addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "aws_instance",
+					Name: "foo",
+				},
+			},
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	actual := strings.TrimSpace(state.String())
+	expected := strings.TrimSpace(`
+<no state>
+	`)
+	if actual != expected {
+		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
+	}
+}
+
+func TestContext2Apply_moduleProviderAliasExcludesNonExistent(t *testing.T) {
+	m := testModule(t, "apply-module-provider-alias")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.ConfigResource{
+				Module: addrs.RootModule,
+				Resource: addrs.Resource{
+					Mode: addrs.ManagedResourceMode,
+					Type: "nonexistent",
+					Name: "thing",
+				},
+			},
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	actual := strings.TrimSpace(state.String())
+	expected := strings.TrimSpace(testTofuApplyModuleProviderAliasStr)
+	if actual != expected {
+		t.Fatalf("wrong result\n\ngot:\n%s\n\nwant:\n%s", actual, expected)
+	}
+}
+
+// Tests that a module can be excluded and everything is properly created.
+// This adds to the plan test to also just verify that apply works.
+func TestContext2Apply_moduleExclude(t *testing.T) {
+	m := testModule(t, "plan-targeted-cross-module")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("B", addrs.NoKey),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+<no state>
+module.A:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = bar
+    type = aws_instance`)
+}
+
+// Tests that a module can be excluded, and dependent resources and modules are excluded as well
+// This adds to the plan test to also just verify that apply works.
+func TestContext2Apply_moduleExcludeDependent(t *testing.T) {
+	m := testModule(t, "plan-targeted-cross-module")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("A", addrs.NoKey),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+<no state>
+`)
+}
+
+// Tests that non-existent module can be excluded, and that the apply happens fully
+// This adds to the plan test to also just verify that apply works.
+func TestContext2Apply_moduleExcludeNonExistent(t *testing.T) {
+	m := testModule(t, "plan-targeted-cross-module")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("C", addrs.NoKey),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+<no state>
+module.A:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = bar
+    type = aws_instance
+
+  Outputs:
+
+  value = foo
+module.B:
+  aws_instance.bar:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = foo
+    type = aws_instance
+
+    Dependencies:
+      module.A.aws_instance.foo
+	`)
+}
+
+func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *testing.T) {
+	m := testModule(t, "apply-destroy-mod-var-and-count")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+
+	var state *states.State
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
+
+		// First plan and apply a create operation
+		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		assertNoErrors(t, diags)
+
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("apply err: %s", diags.Err())
+		}
+	}
+
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
+
+		plan, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.DestroyMode,
+			Excludes: []addrs.Targetable{
+				addrs.RootModuleInstance.Child("child", addrs.NoKey),
+			},
+		})
+		if diags.HasErrors() {
+			t.Fatalf("plan err: %s", diags)
+		}
+		if len(diags) != 1 {
+			// Should have one warning that targeting is in effect.
+			t.Fatalf("got %d diagnostics in plan; want 1", len(diags))
+		}
+		if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+			t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+		}
+		if got, want := diags[0].Description().Summary, "Resource targeting is in effect"; got != want {
+			t.Errorf("wrong diagnostic summary %#v; want %#v", got, want)
+		}
+
+		// Destroy, excluding the module explicitly
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("destroy apply err: %s", diags)
+		}
+		if len(diags) != 1 {
+			t.Fatalf("got %d diagnostics; want 1", len(diags))
+		}
+		if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+			t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+		}
+		if got, want := diags[0].Description().Summary, "Applied changes may be incomplete"; got != want {
+			t.Errorf("wrong diagnostic summary %#v; want %#v", got, want)
+		}
+	}
+
+	// Test that things were destroyed
+	actual := strings.TrimSpace(state.String())
+	expected := strings.TrimSpace(`
+<no state>
+module.child:
+  aws_instance.foo.0:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+  aws_instance.foo.1:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+  aws_instance.foo.2:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance`)
+	if actual != expected {
+		t.Fatalf("expected: \n%s\n\nbad: \n%s", expected, actual)
+	}
+}
+
+func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
+	m := testModule(t, "apply-destroy-mod-var-and-count")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+
+	var state *states.State
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
+
+		// First plan and apply a create operation
+		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		assertNoErrors(t, diags)
+
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("apply err: %s", diags.Err())
+		}
+	}
+
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
+
+		plan, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.DestroyMode,
+			Excludes: []addrs.Targetable{
+				addrs.RootModuleInstance.Child("non-existent-child", addrs.NoKey),
+			},
+		})
+		if diags.HasErrors() {
+			t.Fatalf("plan err: %s", diags)
+		}
+		if len(diags) != 1 {
+			// Should have one warning that targeting is in effect.
+			t.Fatalf("got %d diagnostics in plan; want 1", len(diags))
+		}
+		if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+			t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+		}
+		if got, want := diags[0].Description().Summary, "Resource targeting is in effect"; got != want {
+			t.Errorf("wrong diagnostic summary %#v; want %#v", got, want)
+		}
+
+		// Destroy, excluding the module explicitly
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("destroy apply err: %s", diags)
+		}
+		if len(diags) != 1 {
+			t.Fatalf("got %d diagnostics; want 1", len(diags))
+		}
+		if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+			t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+		}
+		if got, want := diags[0].Description().Summary, "Applied changes may be incomplete"; got != want {
+			t.Errorf("wrong diagnostic summary %#v; want %#v", got, want)
+		}
+	}
+
+	// Test that things were destroyed
+	actual := strings.TrimSpace(state.String())
+	expected := strings.TrimSpace(`<no state>`)
+	if actual != expected {
+		t.Fatalf("expected: \n%s\n\nbad: \n%s", expected, actual)
+	}
+}
+
+func TestContext2Apply_excluded(t *testing.T) {
+	m := testModule(t, "apply-targeted")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "bar",
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	mod := state.RootModule()
+	if len(mod.Resources) != 1 {
+		t.Fatalf("expected 1 resource, got: %#v", mod.Resources)
+	}
+
+	checkStateString(t, state, `
+aws_instance.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  num = 2
+  type = aws_instance
+	`)
+}
+
+func TestContext2Apply_excludedCount(t *testing.T) {
+	m := testModule(t, "apply-targeted-count")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "bar",
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+aws_instance.foo.0:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+aws_instance.foo.1:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+aws_instance.foo.2:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+	`)
+}
+
+func TestContext2Apply_excludedCountIndex(t *testing.T) {
+	m := testModule(t, "apply-targeted-count")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.ResourceInstance(
+				addrs.ManagedResourceMode, "aws_instance", "foo", addrs.IntKey(1),
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+aws_instance.bar.0:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+aws_instance.bar.1:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+aws_instance.bar.2:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+aws_instance.foo.0:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+aws_instance.foo.2:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance`)
+}
+
+func TestContext2Apply_excludedDestroy(t *testing.T) {
+	m := testModule(t, "destroy-targeted")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+
+	var state *states.State
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
+
+		// First plan and apply a create operation
+		if diags := ctx.Validate(m); diags.HasErrors() {
+			t.Fatalf("validate errors: %s", diags.Err())
+		}
+
+		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		assertNoErrors(t, diags)
+
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("apply err: %s", diags.Err())
+		}
+	}
+
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
+
+		plan, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.DestroyMode,
+			Excludes: []addrs.Targetable{
+				addrs.RootModuleInstance.Resource(
+					addrs.ManagedResourceMode, "aws_instance", "a",
+				),
+			},
+		})
+		assertNoErrors(t, diags)
+
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("diags: %s", diags.Err())
+		}
+	}
+
+	// The output should not be removed, as the aws_instance resource it relies on is excluded
+	checkStateString(t, state, `
+aws_instance.a:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  foo = bar
+  type = aws_instance
+
+Outputs:
+
+out = foo`)
+}
+
+func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
+	m := testModule(t, "destroy-targeted")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+
+	var state *states.State
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
+
+		// First plan and apply a create operation
+		if diags := ctx.Validate(m); diags.HasErrors() {
+			t.Fatalf("validate errors: %s", diags.Err())
+		}
+
+		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		assertNoErrors(t, diags)
+
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("apply err: %s", diags.Err())
+		}
+	}
+
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
+
+		plan, diags := ctx.Plan(m, state, &PlanOpts{
+			Mode: plans.DestroyMode,
+			Excludes: []addrs.Targetable{
+				addrs.RootModuleInstance.Child("child", addrs.NoKey),
+			},
+		})
+		assertNoErrors(t, diags)
+
+		state, diags = ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("diags: %s", diags.Err())
+		}
+	}
+
+	// The output should not be removed, as the aws_instance resource it relies on is excluded
+	checkStateString(t, state, `
+aws_instance.a:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  foo = bar
+  type = aws_instance
+
+Outputs:
+
+out = foo
+
+module.child:
+  aws_instance.b:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    foo = foo
+    type = aws_instance
+
+    Dependencies:
+      aws_instance.a`)
+}
+
+func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
+	m := testModule(t, "apply-destroy-targeted-count")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-cde345"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-def345"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:       states.ObjectReady,
+			AttrsJSON:    []byte(`{"id":"i-abc123"}`),
+			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.DestroyMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "foo",
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags = ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+aws_instance.foo.0:
+  ID = i-bcd345
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+aws_instance.foo.1:
+  ID = i-cde345
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+aws_instance.foo.2:
+  ID = i-def345
+  provider = provider["registry.opentofu.org/hashicorp/aws"]`)
+}
+
+func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
+	m := testModule(t, "apply-destroy-targeted-count")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-cde345"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-def345"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:       states.ObjectReady,
+			AttrsJSON:    []byte(`{"id":"i-abc123"}`),
+			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.DestroyMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "bar",
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags = ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+aws_instance.bar:
+  ID = i-abc123
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+
+  Dependencies:
+    aws_instance.foo
+aws_instance.foo.0:
+  ID = i-bcd345
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+aws_instance.foo.1:
+  ID = i-cde345
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+aws_instance.foo.2:
+  ID = i-def345
+  provider = provider["registry.opentofu.org/hashicorp/aws"]`)
+}
+
+func TestContext2Apply_excludedDestroyModule(t *testing.T) {
+	m := testModule(t, "apply-targeted-module")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
+	child.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	child.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.DestroyMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
+				addrs.ManagedResourceMode, "aws_instance", "foo",
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags = ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+<no state>
+module.child:
+  aws_instance.foo:
+    ID = i-bcd345
+    provider = provider["registry.opentofu.org/hashicorp/aws"]`)
+}
+
+func TestContext2Apply_excludedDestroyCountIndex(t *testing.T) {
+	m := testModule(t, "apply-targeted-count")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+
+	foo := &states.ResourceInstanceObjectSrc{
+		Status:    states.ObjectReady,
+		AttrsJSON: []byte(`{"id":"i-bcd345"}`),
+	}
+	bar := &states.ResourceInstanceObjectSrc{
+		Status:    states.ObjectReady,
+		AttrsJSON: []byte(`{"id":"i-abc123"}`),
+	}
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
+		foo,
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
+		foo,
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
+		foo,
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar[0]").Resource,
+		bar,
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar[1]").Resource,
+		bar,
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar[2]").Resource,
+		bar,
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.DestroyMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.ResourceInstance(
+				addrs.ManagedResourceMode, "aws_instance", "foo", addrs.IntKey(2),
+			),
+			addrs.RootModuleInstance.ResourceInstance(
+				addrs.ManagedResourceMode, "aws_instance", "bar", addrs.IntKey(1),
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags = ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+aws_instance.bar.1:
+  ID = i-abc123
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+aws_instance.foo.2:
+  ID = i-bcd345
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+	`)
+}
+
+func TestContext2Apply_excludedModule(t *testing.T) {
+	m := testModule(t, "apply-targeted-module")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child", addrs.NoKey),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	mod := state.Module(addrs.RootModuleInstance.Child("child", addrs.NoKey))
+	if mod != nil {
+		t.Fatalf("child module should not be in state, but was found in the state!\n\n%#v", state)
+	}
+
+	checkStateString(t, state, `
+aws_instance.bar:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  foo = bar
+  type = aws_instance
+aws_instance.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  foo = bar
+  type = aws_instance
+	`)
+}
+
+func TestContext2Apply_excludedModuleResourceDep(t *testing.T) {
+	m := testModule(t, "apply-targeted-module-dep")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
+				addrs.ManagedResourceMode, "aws_instance", "mod",
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	} else {
+		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
+	}
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+<no state>
+`)
+}
+
+func TestContext2Apply_excludedResourceDependentOnModule(t *testing.T) {
+	m := testModule(t, "apply-targeted-module-dep")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(addrs.ManagedResourceMode, "aws_instance", "foo"),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	} else {
+		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
+	}
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+<no state>
+module.child:
+  aws_instance.mod:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+`)
+}
+
+func TestContext2Apply_excludedModuleDep(t *testing.T) {
+	m := testModule(t, "apply-targeted-module-dep")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child", addrs.NoKey),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	} else {
+		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
+	}
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+<no state>
+`)
+}
+
+func TestContext2Apply_excludedModuleUnrelatedOutputs(t *testing.T) {
+	m := testModule(t, "apply-targeted-module-unrelated-outputs")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+
+	state := states.NewState()
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			// Excluding aws_instance.foo should also exclude module.child1, which is dependent on it
+			addrs.RootModuleInstance.Resource(addrs.ManagedResourceMode, "aws_instance", "foo"),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	s, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	// - module.child1's instance_id output is dropped because we don't preserve
+	//   non-root module outputs between runs (they can be recalculated from config)
+	// - module.child2's instance_id is updated because its dependency is updated
+	// - child2_id is updated because if its transitive dependency via module.child2
+	checkStateString(t, s, `
+<no state>
+Outputs:
+
+child2_id = foo
+
+module.child2:
+  aws_instance.foo:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+
+  Outputs:
+
+  instance_id = foo
+`)
+}
+
+func TestContext2Apply_excludedModuleResource(t *testing.T) {
+	m := testModule(t, "apply-targeted-module-resource")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
+				addrs.ManagedResourceMode, "aws_instance", "foo",
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	mod := state.Module(addrs.RootModuleInstance.Child("child", addrs.NoKey))
+	if mod == nil || len(mod.Resources) != 1 {
+		t.Fatalf("expected 1 resource, got: %#v", mod)
+	}
+
+	checkStateString(t, state, `
+aws_instance.bar:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  foo = bar
+  type = aws_instance
+
+module.child:
+  aws_instance.bar:
+    ID = foo
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    num = 2
+    type = aws_instance
+	`)
+}
+
+func TestContext2Apply_excludedResourceOrphanModule(t *testing.T) {
+	m := testModule(t, "apply-targeted-resource-orphan-module")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+
+	state := states.NewState()
+	child := state.EnsureModule(addrs.RootModuleInstance.Child("parent", addrs.NoKey))
+	child.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"abc","type":"aws_instance"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("parent", addrs.NoKey).Resource(
+				addrs.ManagedResourceMode, "aws_instance", "bar",
+			),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags = ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("apply errors: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+aws_instance.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+
+module.parent:
+  aws_instance.bar:
+    ID = abc
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+`)
+}
+
+func TestContext2Apply_excludedOrphanModule(t *testing.T) {
+	m := testModule(t, "apply-targeted-resource-orphan-module")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+
+	state := states.NewState()
+	child := state.EnsureModule(addrs.RootModuleInstance.Child("parent", addrs.NoKey))
+	child.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.bar").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"abc","type":"aws_instance"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("parent", addrs.NoKey),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags = ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("apply errors: %s", diags.Err())
+	}
+
+	checkStateString(t, state, `
+aws_instance.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+
+module.parent:
+  aws_instance.bar:
+    ID = abc
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+`)
+}
+
+func TestContext2Apply_excludedWithTaintedInState(t *testing.T) {
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	m, snap := testModuleWithSnapshot(t, "apply-tainted-targets")
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.ifailedprovisioners").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectTainted,
+			AttrsJSON: []byte(`{"id":"ifailedprovisioners"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "ifailedprovisioners",
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("err: %s", diags.Err())
+	}
+
+	// Write / Read plan to simulate running it through a Plan file
+	ctxOpts, m, plan, err := contextOptsForPlanViaFile(t, snap, plan)
+	if err != nil {
+		t.Fatalf("failed to round-trip through planfile: %s", err)
+	}
+
+	ctxOpts.Providers = map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+	}
+
+	ctx, diags = NewContext(ctxOpts)
+	if diags.HasErrors() {
+		t.Fatalf("err: %s", diags.Err())
+	}
+
+	s, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("err: %s", diags.Err())
+	}
+
+	actual := strings.TrimSpace(s.String())
+	expected := strings.TrimSpace(`
+aws_instance.iambeingadded:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+aws_instance.ifailedprovisioners: (tainted)
+  ID = ifailedprovisioners
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+		`)
+	if actual != expected {
+		t.Fatalf("expected state: \n%s\ngot: \n%s", expected, actual)
+	}
+}
+
+func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
+	m := testModule(t, "apply-targeted-module-recursive")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child", addrs.NoKey),
+		},
+	})
+	assertNoErrors(t, diags)
+
+	state, diags := ctx.Apply(plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("err: %s", diags.Err())
+	}
+
+	mod := state.Module(
+		addrs.RootModuleInstance.Child("child", addrs.NoKey).Child("subchild", addrs.NoKey),
+	)
+	if mod != nil {
+		t.Fatalf("subchild module should not exist in the state, but was found!\n\n%#v", state)
+	}
+
+	checkStateString(t, state, `
+<no state>
+	`)
 }

@@ -213,6 +213,10 @@ type Meta struct {
 	targets     []addrs.Targetable
 	targetFlags []string
 
+	// Excludes for this context (private)
+	excludes     []addrs.Targetable
+	excludeFlags []string
+
 	// Internal fields
 	color bool
 	oldUi cli.Ui
@@ -618,6 +622,7 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 
 	f.BoolVar(&m.input, "input", true, "input")
 	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
+	f.Var((*FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
 	f.BoolVar(&m.consolidateWarnings, "consolidate-warnings", true, "consolidate warnings")
 	f.BoolVar(&m.consolidateErrors, "consolidate-errors", false, "consolidate errors")
