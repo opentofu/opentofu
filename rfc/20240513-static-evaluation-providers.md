@@ -60,37 +60,32 @@ locals {
 }
 
 provider "aws" {
+  alias    = "by_region"
   for_each = local.regions
+
   region = each.value
 }
 ```
 
-At first glance, this looks fairly straightforward. Following the rules in place with resources, we would expect `aws["us"]` and `aws["eu"]` to be valid.
+At first glance, this looks fairly straightforward. Following the rules in place with resources, we would expect `aws.by_region["us"]` and `aws.by_region["eu"]` to be valid.
 
-What happens if you have another aws provider with the alias of `"us"` (`aws.us`)? That would be incredibly confusing to end users. Therefore, we should consider that provider "indices" and provider aliases are identical concepts. In that previous example both `aws["us"]` and `aws.us` would both be defined.
+What happens if you use `for_each` without `alias`? That would presumably cause reference addresses like `aws["us"]` and `aws["eu"]` which, based on rules elsewhere in the language, end-users would likely assume means the same thing as `aws.us` or `aws.eu`, but that would conflict with a provider configuration that explicitly sets `alias = "us"`.
 
+Therefore we retain the current assumption that a default provider configuration (one without "alias") is always a singleton, and so `for_each` can only be used when `alias` is also set and the instance keys then appear as an extra dynamic index segment at the end of the provider reference syntax. The concept of "default provider configuration" exists in OpenTofu to allow for automatic selection of the provider for a resource in simple cases, and those automatic behaviors rely on the default provider configuration being a singleton.
 
-Providers already have an alias field, how will this interact with for_each/count?
-```hcl
-provider "aws" {
-  for_each = local.regions
-  alias = "HARDCODED"
-  region = each.value
-}
-```
+In the longer term we might allow fully-dynamic expansion and references similar to the existing `for_each` support for resources and module calls, but in prototyping so far we've learned that requires quite significant and risky changes to the core language runtime. This RFC therefore proposes an intermediate step which relies on the ideas set forth in the [Static Evaluation RFC](20240513-static-evaluation.md), which means that the `for_each` argument in a `provider` block and the dynamic index part of a provider reference in a `provider` argument of a resource will initially allow only values known during configuration processing: local values and input variables. Anything dynamic like resources/data will be forbidden for now.
 
-This would produce two provider configurations: `aws.HARDCODED` and `aws.HARDCODED`, an obvious conflict. We could try to be smart and try to make sure that the keys are not identical and in some way derived from the iteration. That approach is complex, likely error prone, and confusing to the user. Instead, we should not allow users to provide the alias field when for_each/count are present.
-
-
-What if a user tries to use a resource output in a provider for_each? In an ideal world, this would be allowed as long as there is not a cyclic dependency. However, due to the way providers are resolved deep in OpenTofu this would require a near rewrite of the core provider logic. Here we rely on the ideas set forth in the [Static Evaluation RFC](20240513-static-evaluation.md) and only allow values known during configuration processing (locals/vars). Anything dynamic like resources/data will be forbidden for now.
-
+> [!NOTE]
+> There is an initial proposal for a fully-dynamic version of this feature in the other RFC [Dynamic Provider Instances and Instance Assignment](./20241021-dynamic-provider-instances.md).
+>
+> We don't plan to pursue that immediately but have designed it just enough to feel relatively confident that it will be possible to replace the static evaluation approach with the dynamic approach in a later release without making breaking changes. That document contains some additional context that motivates some of the design decisions in this document that aren't strictly needed for the static evaluation approach.
 
 With the provider references clarified, we can now use the providers defined above in resources:
 
 ```hcl
 resource "aws_s3_bucket" "primary" {
   for_each = local.regions
-  provider = aws.us # Uses the existing reference format
+  provider = aws.by_region["us"] # Extends the existing reference format with an instance key
 }
 
 locals {
@@ -99,12 +94,18 @@ locals {
 
 module "mod" {
   source = "./mod"
-  providers {
-    aws = aws[local.region] # Uses the new reference format.
+  providers = {
+    # The new instance key segment can use arbitrary expressions in the index brackets.
+    aws = aws.by_region[local.region]
   }
 }
 ```
 
+The `provider` argument for `resource`/`data` blocks and the `providers` argument for `module` blocks retains much of the rigid static structure previously required, to ensure that it remains possible to statically recognize the relationships between resource configuration blocks and provider configuration blocks since that would be required for a later fully-dynamic version of this feature implemented in the main language runtime: it must be able to construct the dependency graph before evaluating any expressions.
+
+However, the new "index" portion delimited by square brackets is, from a syntax perspective, allowed to contain any valid HCL expression. The only constraints on that expression are on what it is derived from and on its result: it must be derived only from values known during planning, its result must be a value that convert to the type `string`, and the string after conversion must match one of the instance keys of the indicated provider configuration.
+
+Note that in particular this design forces all of the instances of a resource to refer to instances of the same provider configuration, although they are each allowed to refer to a different instance. Again, this is a forward-looking constraint to ensure that it remains possible to build a dynamic evaluation dependency graph where each `resource`/`data` block depends on the appropriate `provider` block before dynamic expression evaluation is possible, even though that isn't strictly required for the static-eval-only implementation.
 
 #### Provider Alias Mappings
 
@@ -116,23 +117,31 @@ locals {
 }
 
 provider "aws" {
+  alias    = "by_region"
   for_each = local.regions
+
   region = each.value
 }
 
 resource "aws_s3_bucket" "primary" {
   for_each = local.regions
-  provider = aws[each.key]
+  provider = aws.by_region[each.key]
+
+  # ...
 }
 
 module "mod" {
+  source   = "./mod"
   for_each = local.regions
-  source = "./mod"
-  providers {
-    aws = aws[each.key]
+  providers = {
+    aws = aws.by_region[each.key]
   }
+
+  # ...
 }
 ```
+
+This use of `each.key` is familiar from its existing use in `resource`, `data`, and `module` blocks that use `for_each`. The bracketed portion of the address is evaluated dynamically by the main language runtime, and so (unlike the `for_each` argument in `provider` blocks) this particular expression is _not_ constrained to only static-eval-compatible symbols.
 
 From a user perspective, this provider mapping is fairly simple to understand. As we will show in the Technical Approach, this will be quite difficult to implement.
 
@@ -145,28 +154,30 @@ There are scenarios that users might think could work, but we don't want to supp
 Storing a provider reference in a local or passing it as a variable
 ```hcl
 locals {
-  my_provider = aws["us"]
+  my_provider = aws.by_region["us"]
 }
 
 resource "aws_s3_bucket" "primary" {
   provider = local.my_provider
 }
 ```
-It's not well defined what a "provider reference" is outside of a "provider/providers" block. All of the provider references are built as special cases that are handled beside the code and not as part of it directly.
+It's not well defined what a "provider reference" is outside of a "provider/providers" argument. All of the provider references are built as special cases that are handled beside the code and not as part of it directly. In particular, the OpenTofu language would currently recognize `aws.by_region` as a reference to a `resource "aws" "by_region"` block in any normal expression context, so we cannot easily redefine that existing meaning while retaining backward compatibility.
 
 
-Using the "splat/*" operator in module providers block:
+Using the (`[*]`) "splat" operator in module providers block, or otherwise passing all instances of a multi-instance provider configuration into a single slot:
 ```hcl
 module "mod" {
   source = "./mod"
-  providers {
-    aws[*] = aws[*]
+  providers = {
+    aws.by_region[*] = aws.by_region[*]
   }
 }
 ```
-This implies that all aliased aws providers would be passed into the child module. This is confusing as it conflicts with the existing idea of providers configs passed implicitly to child modules with the same names.
+This suggests that all instances of `aws.by_region` would be passed into the child module. A later fully-dynamic version of this feature may support passing multi-instance provider configurations between modules, but our initial implementation will be conservative so that we have more freedom to design multi-instance configuration passing later based on concrete use-cases and the potential constraints of dynamic evaluation.
 
 ### Technical Approach
+
+> cam72cam and/or apparentlymart TODO: this all needs to be realigned to match whatever https://github.com/opentofu/opentofu/pull/2089/files turns into. The following currently still reflects the original proposal, because we first want to settle on the proposed user-facing changes to language syntax in the sections above.
 
 #### Provider Configuration Expansion
 
@@ -208,9 +219,9 @@ New validation rules will be added per the User Documentation above, all of whic
 
 The following understanding of the current OpenTofu code may be incorrect or incomplete. It is a mix of legacy patterns and fallbacks that is hard to reason about. It is based on [Provider References](../docs/provider-references.md#Provider-Workflow)
 
-Providers and their aliases are:
+Provider configurations and their aliases are:
 * Fully known at init/config time
-* Added into the graph via ProviderTransformers
+* Added into the graph via `ProviderTransformer`
 * Attached to *Unexpanded* modules/resources in the graph
 * Linked to *Unexpanded* resources in the graph.
 
@@ -332,11 +343,11 @@ terraform {
 Initial discussion with Core Team suggests that this should be moved to it's own issue as it would be useful, but does not impact the work done in this issue.
 
 
-There's also an ongoing discussion on allowing variable names in provider aliases.
+There's also an ongoing discussion on allowing variable names in provider aliases. This could potentially be supported only as a static eval feature, but it doesn't appear to be possible to support it dynamically because the main language runtime requires each provider configuration to have a statically-known unique address (currently consisting of the provider address and the alias) during graph construction, before dynamic expression evaluation is possible.
 
 Example:
 ```hcl
-# Why would you want to do this?  It looks like terraform deprecated this some time after 0.11.
+# Why would you want to do this?
 provider "aws" {
   alias = var.foo
 }
@@ -344,6 +355,8 @@ provider "aws" {
 Are there any downsides to supporting this?
 
 ### Future Considerations
+
+A potential fully-dynamic version of this feature is discussed in another RFC: [Dynamic Provider Instances and Instance Assignment](./20241021-dynamic-provider-instances.md). We don't intend to support that immediately but have "designed ahead" to reduce the risk that backward-compatibility with the static eval implementation would block a later dynamic implementation.
 
 If we ever decide to implement Static Module Expansion, how will that interact with the work proposed in this RFC?
 
