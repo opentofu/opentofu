@@ -73,15 +73,16 @@ type BuiltinEvalContext struct {
 	ProvisionerLock  *sync.Mutex
 	ProvisionerCache map[string]provisioners.Interface
 
-	ChangesValue          *plans.ChangesSync
-	StateValue            *states.SyncState
-	ChecksValue           *checks.State
-	RefreshStateValue     *states.SyncState
-	PrevRunStateValue     *states.SyncState
-	InstanceExpanderValue *instances.Expander
-	MoveResultsValue      refactoring.MoveResults
-	ImportResolverValue   *ImportResolver
-	Encryption            encryption.Encryption
+	ChangesValue            *plans.ChangesSync
+	StateValue              *states.SyncState
+	ChecksValue             *checks.State
+	RefreshStateValue       *states.SyncState
+	PrevRunStateValue       *states.SyncState
+	InstanceExpanderValue   *instances.Expander
+	MoveResultsValue        refactoring.MoveResults
+	ImportResolverValue     *ImportResolver
+	Encryption              encryption.Encryption
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -432,7 +433,30 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-		return evalContextProviderFunction(ctx.Provider, mc, ctx.Evaluator.Operation, pf, rng)
+		absPc, ok := ctx.ProviderFunctionTracker.Lookup(ctx.PathValue.Module(), pf)
+		if !ok {
+			// This should not be possible if references are tracked correctly
+			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "BUG: Uninitialized function provider",
+				Detail:   fmt.Sprintf("Provider function %q has not been tracked properly", pf),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
+
+		provider := ctx.Provider(absPc)
+
+		if provider == nil {
+			// This should not be possible if references are tracked correctly
+			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "BUG: Uninitialized function provider",
+				Detail:   fmt.Sprintf("Provider %q has not yet been initialized", absPc.String()),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
+
+		return evalContextProviderFunction(provider, ctx.Evaluator.Operation, pf, rng)
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 

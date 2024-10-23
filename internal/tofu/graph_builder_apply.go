@@ -59,6 +59,8 @@ type ApplyGraphBuilder struct {
 	// nodes that should not be pruned even if they are not referenced within
 	// the actual graph.
 	ExternalReferences []*addrs.Reference
+
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // See GraphBuilder
@@ -147,7 +149,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
 		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config},
+		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
 
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},
