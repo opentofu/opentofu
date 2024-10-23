@@ -6,6 +6,7 @@
 package genconfig
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -13,6 +14,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -150,17 +152,25 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 			} else {
 				val = attrS.EmptyValue()
 			}
-			if val.Type() == cty.String {
-				// SHAMELESS HACK: If we have "" for an optional value, assume
-				// it is actually null, due to the legacy SDK.
-				if !val.IsNull() && attrS.Optional && len(val.AsString()) == 0 {
-					val = attrS.EmptyValue()
-				}
-			}
 			if attrS.Sensitive || val.IsMarked() {
 				buf.WriteString("null # sensitive")
 			} else {
-				tok := hclwrite.TokensForValue(val)
+				if val.Type() == cty.String {
+					unmarked, marks := val.Unmark()
+
+					// SHAMELESS HACK: If we have "" for an optional value, assume
+					// it is actually null, due to the legacy SDK.
+					if !unmarked.IsNull() && attrS.Optional && len(unmarked.AsString()) == 0 {
+						unmarked = attrS.EmptyValue()
+					}
+
+					// re-mark the value if it was marked originally
+					if len(marks) > 0 {
+						val = unmarked.Mark(marks)
+					}
+				}
+
+				tok := tryWrapAsJsonEncodeFunctionCall(val)
 				if _, err := tok.WriteTo(buf); err != nil {
 					diags = diags.Append(&hcl.Diagnostic{
 						Severity: hcl.DiagWarning,
@@ -554,8 +564,9 @@ func omitUnknowns(val cty.Value) cty.Value {
 	case ty.IsPrimitiveType():
 		return val
 	case ty.IsListType() || ty.IsTupleType() || ty.IsSetType():
+		unmarked, marks := val.Unmark()
 		var vals []cty.Value
-		it := val.ElementIterator()
+		it := unmarked.ElementIterator()
 		for it.Next() {
 			_, v := it.Element()
 			newVal := omitUnknowns(v)
@@ -571,10 +582,11 @@ func omitUnknowns(val cty.Value) cty.Value {
 		// may have caused the individual elements to have different types,
 		// and we're doing this work to produce JSON anyway and JSON marshalling
 		// represents all of these sequence types as an array.
-		return cty.TupleVal(vals)
+		return cty.TupleVal(vals).WithMarks(marks)
 	case ty.IsMapType() || ty.IsObjectType():
+		unmarked, marks := val.Unmark()
 		vals := make(map[string]cty.Value)
-		it := val.ElementIterator()
+		it := unmarked.ElementIterator()
 		for it.Next() {
 			k, v := it.Element()
 			newVal := omitUnknowns(v)
@@ -586,9 +598,46 @@ func omitUnknowns(val cty.Value) cty.Value {
 		// may have caused the individual elements to have different types,
 		// and we're doing this work to produce JSON anyway and JSON marshalling
 		// represents both of these mapping types as an object.
-		return cty.ObjectVal(vals)
+		return cty.ObjectVal(vals).WithMarks(marks)
 	default:
 		// Should never happen, since the above should cover all types
 		panic(fmt.Sprintf("omitUnknowns cannot handle %#v", val))
 	}
+}
+
+func tryWrapAsJsonEncodeFunctionCall(v cty.Value) hclwrite.Tokens {
+	tokens, err := wrapAsJSONEncodeFunctionCall(v)
+	if err != nil {
+		return hclwrite.TokensForValue(v)
+	}
+	return tokens
+}
+
+func wrapAsJSONEncodeFunctionCall(v cty.Value) (hclwrite.Tokens, error) {
+	if v.IsNull() || v.Type() != cty.String || !v.IsKnown() {
+		return nil, errors.New("value cannot be treated as JSON string")
+	}
+
+	s := []byte(strings.TrimSpace(v.AsString()))
+	if len(s) == 0 {
+		return nil, errors.New("empty value")
+	}
+
+	if s[0] != '{' && s[0] != '[' {
+		return nil, errors.New("value is not a JSON object, nor a JSON array")
+	}
+
+	t, err := json.ImpliedType(s)
+	if err != nil {
+		return nil, fmt.Errorf("cannot define implied cty type (possibly not a JSON string): %w", err)
+	}
+
+	v, err = json.Unmarshal(s, t)
+	if err != nil {
+		return nil, fmt.Errorf("cannot unmarshal using implied type (possible not a JSON string): %w", err)
+	}
+
+	tokens := hclwrite.TokensForFunctionCall("jsonencode", hclwrite.TokensForValue(v))
+
+	return tokens, nil
 }

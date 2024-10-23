@@ -1,10 +1,16 @@
-## 1.7.4 (unreleased)
+## 1.7.5 (unreleased)
 
-NEW FEATURES:
+## 1.7.4
 
 ENHANCEMENTS:
+* Made `tofu plan` with `generate-config-out` flag replace JSON strings with `jsonencode` functions calls. ([#1595](https://github.com/opentofu/opentofu/pull/1595))
 
 BUG FIXES:
+
+* `tofu init` will no longer return a supurious "Backend configuration changed" error when re-initializing a working directory with identical settings, backend configuration contains references to variables or local values, and when the `-backend-config` command line option is used. That combination previously caused OpenTofu to incorrectly treat the backend configuration as invalid. ([#2055](https://github.com/opentofu/opentofu/pull/2055))
+* configuration generation should no longer fail when generating sensitive properties
+* Provider defined functions are now supported better in child modules
+* Fixed an issue where X-Terraform-Get was not being read correctly if a custom module registry returns a 200 statuscode instead of 201
 * Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
 
 ## 1.7.3
