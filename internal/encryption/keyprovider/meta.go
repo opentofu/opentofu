@@ -11,3 +11,6 @@ package keyprovider
 // Key providers can use this to store, for example, a randomly generated salt value which is required to later provide
 // the same decryption key.
 type KeyMeta any
+
+// MetaStorageKey signals the key under which the metadata for a specific key provider is stored.
+type MetaStorageKey string

@@ -26,7 +26,8 @@ type targetBuilder struct {
 	// Used to evaluate hcl expressions
 	ctx *hcl.EvalContext
 
-	keyProviderMetadata map[keyprovider.Addr][]byte
+	inputKeyProviderMetadata  map[keyprovider.MetaStorageKey][]byte
+	outputKeyProviderMetadata map[keyprovider.MetaStorageKey][]byte
 
 	// Used to build EvalContext (and related mappings)
 	keyValues    map[string]map[string]cty.Value
@@ -35,7 +36,7 @@ type targetBuilder struct {
 	staticEval   *configs.StaticEvaluator
 }
 
-func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte) ([]method.Method, hcl.Diagnostics) {
+func (base *baseEncryption) buildTargetMethods(inputMeta map[keyprovider.MetaStorageKey][]byte, outputMeta map[keyprovider.MetaStorageKey][]byte) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	builder := &targetBuilder{
@@ -47,7 +48,8 @@ func (base *baseEncryption) buildTargetMethods(meta map[keyprovider.Addr][]byte)
 			Variables: map[string]cty.Value{},
 		},
 
-		keyProviderMetadata: meta,
+		inputKeyProviderMetadata:  inputMeta,
+		outputKeyProviderMetadata: outputMeta,
 	}
 
 	keyDiags := append(diags, builder.setupKeyProviders()...)
