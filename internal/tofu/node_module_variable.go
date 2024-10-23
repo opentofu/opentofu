@@ -89,16 +89,27 @@ func (n *nodeExpandModuleVariable) ModulePath() addrs.Module {
 
 // GraphNodeReferencer
 func (n *nodeExpandModuleVariable) References() []*addrs.Reference {
+	var refs []*addrs.Reference
+	if n.Config != nil {
+		// These references will ignore GraphNodeReferenceOutside and are used by the ProviderFunctionTransformer and lang.Scope.evalContext
+		// It's an odd pattern, but it works
+		for _, validation := range n.Config.Validations {
+			condFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
+			refs = append(refs, condFuncs...)
+			errFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
+			refs = append(refs, errFuncs...)
+		}
+	}
 
 	// If we have no value expression, we cannot depend on anything.
 	if n.Expr == nil {
-		return nil
+		return refs
 	}
 
 	// Variables in the root don't depend on anything, because their values
 	// are gathered prior to the graph walk and recorded in the context.
 	if len(n.Module) == 0 {
-		return nil
+		return refs
 	}
 
 	// Otherwise, we depend on anything referenced by our value expression.
@@ -111,7 +122,9 @@ func (n *nodeExpandModuleVariable) References() []*addrs.Reference {
 	// where our associated variable was declared, which is correct because
 	// our value expression is assigned within a "module" block in the parent
 	// module.
-	refs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.Expr)
+	outerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.Expr)
+	refs = append(refs, outerRefs...)
+
 	return refs
 }
 
