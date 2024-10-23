@@ -262,7 +262,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		log.Printf("[TRACE] managedResourceExecute: prior object for %s now deposed with key %s", n.Addr, deposedKey)
 	}
 
-	state, readDiags := n.readResourceInstanceState(ctx, n.ResourceInstanceAddr())
+	state, readDiags := n.readResourceInstanceState(ctx, n.ResourceInstanceAddr(), n.ResolvedProvider)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags

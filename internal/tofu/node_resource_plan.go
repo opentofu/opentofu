@@ -127,7 +127,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) *NodePlannableResourceInstanceOrphan {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.ResolvedProvider
+		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -140,20 +140,26 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		}
 	}
 
+	var diags tfdiags.Diagnostics
 	for _, res := range orphans {
 		for key := range res.Instances {
 			addr := res.Addr.Instance(key)
 			abs := NewNodeAbstractResourceInstance(addr)
 			abs.AttachResourceState(res)
-			n := concreteResourceOrphan(abs)
-			g.Add(n)
+			na := concreteResourceOrphan(abs)
+			g.Add(na)
+
+			// Validate that orphaned resources have valid providers
+			diag := n.potentialProviders.GetOptionalError(addr)
+			if diag != nil {
+				diags = diags.Append(diag)
+			}
 		}
 	}
 
 	// Resolve addresses and IDs of all import targets that originate from import blocks
 	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
 	importResolver := ctx.ImportResolver()
-	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportBlock() {
 			err := importResolver.ExpandAndResolveImport(importTarget, ctx)
@@ -336,7 +342,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 				return &graphNodeImportState{
 					Addr:             c.Addr,
 					ID:               c.ID,
-					ResolvedProvider: n.ResolvedProvider,
+					ResolvedProvider: n.resolveInstanceProvider(a.Addr),
 					Schema:           n.Schema,
 					SchemaVersion:    n.SchemaVersion,
 					Config:           n.Config,
@@ -346,7 +352,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.ResolvedProvider
+		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -379,7 +385,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.ResolvedProvider
+		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas

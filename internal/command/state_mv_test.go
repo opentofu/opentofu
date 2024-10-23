@@ -435,16 +435,12 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				Module:   addrs.RootModule,
 			},
 		)
-		s.SetResourceProvider(
+		s.EnsureResource(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -510,16 +506,12 @@ func TestStateMv_resourceToInstanceErr(t *testing.T) {
 				Module:   addrs.RootModule,
 			},
 		)
-		s.SetResourceProvider(
+		s.EnsureResource(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -579,16 +571,12 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 				Module:   addrs.RootModule,
 			},
 		)
-		s.SetResourceProvider(
+		s.EnsureResource(
 			addrs.Resource{
 				Mode: addrs.ManagedResourceMode,
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
 		)
 	})
 	statePath := testStateFile(t, state)

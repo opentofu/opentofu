@@ -93,9 +93,8 @@ func (rs *Resource) DeepCopy() *Resource {
 	}
 
 	return &Resource{
-		Addr:           rs.Addr,
-		Instances:      instances,
-		ProviderConfig: rs.ProviderConfig, // technically mutable, but immutable by convention
+		Addr:      rs.Addr,
+		Instances: instances,
 	}
 }
 
@@ -118,8 +117,9 @@ func (i *ResourceInstance) DeepCopy() *ResourceInstance {
 	}
 
 	return &ResourceInstance{
-		Current: i.Current.DeepCopy(),
-		Deposed: deposed,
+		Current:        i.Current.DeepCopy(),
+		Deposed:        deposed,
+		ProviderConfig: i.ProviderConfig,
 	}
 }
 

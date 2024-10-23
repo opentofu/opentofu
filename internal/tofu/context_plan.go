@@ -833,7 +833,6 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				continue
 			}
 
-			provider := rs.ProviderConfig.Provider
 			for key, oldIS := range rs.Instances {
 				if oldIS.Current == nil {
 					// Not interested in instances that only have deposed objects
@@ -851,7 +850,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				newIS := newState.ResourceInstance(addr)
 
 				schema, _ := schemas.ResourceTypeConfig(
-					provider,
+					oldIS.ProviderConfig.Provider,
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
@@ -924,7 +923,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				change := &plans.ResourceInstanceChange{
 					Addr:         addr,
 					PrevRunAddr:  prevRunAddr,
-					ProviderAddr: rs.ProviderConfig,
+					ProviderAddr: oldIS.ProviderConfig,
 					Change: plans.Change{
 						Action: action,
 						Before: oldVal,

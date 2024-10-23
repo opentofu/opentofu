@@ -153,6 +153,18 @@ func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics 
 	var diags hcl.Diagnostics
 	diags = diags.Extend(mc.decodeStaticSource(eval))
 	diags = diags.Extend(mc.decodeStaticVersion(eval))
+	diags = diags.Extend(mc.decodeStaticProviderAliases(eval))
+
+	return diags
+}
+
+func (mc *ModuleCall) decodeStaticProviderAliases(eval *StaticEvaluator) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	for _, p := range mc.Providers {
+		diags = diags.Extend(p.InParentMapping.decodeStaticAlias(eval, mc.Count, mc.ForEach))
+	}
+
 	return diags
 }
 
@@ -287,9 +299,50 @@ func (mc *ModuleCall) EntersNewPackage() bool {
 
 // PassedProviderConfig represents a provider config explicitly passed down to
 // a child module, possibly giving it a new local address in the process.
+// Ex: child = parent.alias
+// Ex: child.alias = parent.alias
+// Ex: child = parent[each.value]
 type PassedProviderConfig struct {
-	InChild  *ProviderConfigRef
-	InParent *ProviderConfigRef
+	InChild         *ProviderConfigRef
+	InParentMapping *ProviderConfigRefMapping
+}
+
+// TODO/Oleksandr: get rid of this function and make a proper call via InParent
+func (c *PassedProviderConfig) InParentTODO() *ProviderConfigRef {
+	if len(c.InParentMapping.Aliases) == 0 {
+		return c.InParent(addrs.NoKey)
+	}
+
+	if _, ok := c.InParentMapping.Aliases[addrs.NoKey]; ok {
+		return c.InParent(addrs.NoKey)
+	}
+
+	for k := range c.InParentMapping.Aliases {
+		return c.InParent(k)
+	}
+
+	return nil
+}
+
+func (c *PassedProviderConfig) InParent(k addrs.InstanceKey) *ProviderConfigRef {
+	if c.InParentMapping == nil {
+		return nil
+	}
+
+	inParent := &ProviderConfigRef{
+		Name:         c.InParentMapping.Name,
+		NameRange:    c.InParentMapping.NameRange,
+		providerType: c.InParentMapping.providerType,
+	}
+
+	alias, ok := c.InParentMapping.Aliases[k]
+	if !ok {
+		return inParent
+	}
+
+	inParent.Alias = alias
+
+	return inParent
 }
 
 func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, hcl.Diagnostics) {
@@ -302,7 +355,7 @@ func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, h
 	for _, pair := range pairs {
 		key, keyDiags := decodeProviderConfigRef(pair.Key, "providers")
 		diags = append(diags, keyDiags...)
-		value, valueDiags := decodeProviderConfigRef(pair.Value, "providers")
+		value, valueDiags := decodeProviderConfigRefMapping(pair.Value, "providers")
 		diags = append(diags, valueDiags...)
 		if keyDiags.HasErrors() || valueDiags.HasErrors() {
 			continue
@@ -321,9 +374,10 @@ func decodePassedProviderConfigs(attr *hcl.Attribute) ([]PassedProviderConfig, h
 
 		rng := hcl.RangeBetween(pair.Key.Range(), pair.Value.Range())
 		seen[matchKey] = rng
+
 		providers = append(providers, PassedProviderConfig{
-			InChild:  key,
-			InParent: value,
+			InChild:         key,
+			InParentMapping: value,
 		})
 	}
 	return providers, diags

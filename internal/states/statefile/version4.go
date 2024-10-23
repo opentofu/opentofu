@@ -90,25 +90,31 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			}
 		}
 
-		providerAddr, addrDiags := addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
-		diags.Append(addrDiags)
-		if addrDiags.HasErrors() {
-			// If ParseAbsProviderConfigStr returns an error, the state may have
-			// been written before Provider FQNs were introduced and the
-			// AbsProviderConfig string format will need normalization. If so,
-			// we treat it like a legacy provider (namespace "-") and let the
-			// provider installer handle detecting the FQN.
-			var legacyAddrDiags tfdiags.Diagnostics
-			providerAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
-			if legacyAddrDiags.HasErrors() {
-				continue
+		// The provider can either be set on the resource level or on the instance level
+		var resourceProviderAddr addrs.AbsProviderConfig
+		if rsV4.ProviderConfig != "" {
+			// Looks like it is set on the resource level
+			var addrDiags tfdiags.Diagnostics
+			resourceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
+			diags = diags.Append(addrDiags)
+			if addrDiags.HasErrors() {
+				// If ParseAbsProviderConfigStr returns an error, the state may have
+				// been written before Provider FQNs were introduced and the
+				// AbsProviderConfig string format will need normalization. If so,
+				// we treat it like a legacy provider (namespace "-") and let the
+				// provider installer handle detecting the FQN.
+				var legacyAddrDiags tfdiags.Diagnostics
+				resourceProviderAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
+				if legacyAddrDiags.HasErrors() {
+					continue
+				}
 			}
 		}
 
 		ms := state.EnsureModule(moduleAddr)
 
 		// Ensure the resource container object is present in the state.
-		ms.SetResourceProvider(rAddr, providerAddr)
+		ms.EnsureResource(rAddr)
 
 		for _, isV4 := range rsV4.Instances {
 			keyRaw := isV4.IndexKey
@@ -138,6 +144,32 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			}
 
 			instAddr := rAddr.Instance(key)
+
+			// The provider can either be set on the resource level or on the instance level
+			var instanceProviderAddr addrs.AbsProviderConfig
+
+			if isV4.ProviderConfig != "" {
+				// Looks like it is set on the instance level
+				var addrDiags tfdiags.Diagnostics
+				instanceProviderAddr, addrDiags = addrs.ParseAbsProviderConfigStr(isV4.ProviderConfig)
+				diags = diags.Append(addrDiags)
+				if addrDiags.HasErrors() {
+					continue
+				}
+			}
+
+			// We'll validate that we have exactly one provider set on the resource / instance level
+			if !resourceProviderAddr.IsSet() && !instanceProviderAddr.IsSet() {
+				panic(fmt.Sprintf("prepareStateV4 for resource instance %s  cannot find a provider (resourceProvider / instanceProvider) when reading from the state", instAddr.String()))
+			}
+
+			if resourceProviderAddr.IsSet() && instanceProviderAddr.IsSet() {
+				panic(fmt.Sprintf("prepareStateV4 for resource instance %s got two providers (resourceProvider & instanceProvider) when reading from the state", instAddr.String()))
+			}
+
+			if !instanceProviderAddr.IsSet() {
+				instanceProviderAddr = resourceProviderAddr
+			}
 
 			obj := &states.ResourceInstanceObjectSrc{
 				SchemaVersion:       isV4.SchemaVersion,
@@ -235,7 +267,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceDeposed(instAddr, dk, obj, providerAddr)
+				ms.SetResourceInstanceDeposed(instAddr, dk, obj, instanceProviderAddr)
 			default:
 				is := ms.ResourceInstance(instAddr)
 				if is.HasCurrent() {
@@ -247,16 +279,9 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceCurrent(instAddr, obj, providerAddr)
+				ms.SetResourceInstanceCurrent(instAddr, obj, instanceProviderAddr)
 			}
 		}
-
-		// We repeat this after creating the instances because
-		// SetResourceInstanceCurrent automatically resets this metadata based
-		// on the incoming objects. That behavior is useful when we're making
-		// piecemeal updates to the state during an apply, but when we're
-		// reading the state file we want to reflect its contents exactly.
-		ms.SetResourceProvider(rAddr, providerAddr)
 	}
 
 	// The root module is special in that we persist its attributes and thus
@@ -389,12 +414,27 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				continue
 			}
 
+			var providerConfigValue string
+			identicalProviderConfigValue := true
+			for _, is := range rs.Instances {
+				if providerConfigValue == "" {
+					providerConfigValue = is.ProviderConfig.String()
+				} else {
+					identicalProviderConfigValue = identicalProviderConfigValue && providerConfigValue == is.ProviderConfig.String()
+				}
+			}
+
+			// Only store the ProviderConfig on the resource if all of the sub-objects have the same provider
+			if !identicalProviderConfigValue {
+				providerConfigValue = ""
+			}
+
 			sV4.Resources = append(sV4.Resources, resourceStateV4{
 				Module:         moduleAddr.String(),
 				Mode:           mode,
 				Type:           resourceAddr.Type,
 				Name:           resourceAddr.Name,
-				ProviderConfig: rs.ProviderConfig.String(),
+				ProviderConfig: providerConfigValue,
 				Instances:      []instanceObjectStateV4{},
 			})
 			rsV4 := &(sV4.Resources[len(sV4.Resources)-1])
@@ -403,7 +443,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				if is.HasCurrent() {
 					var objDiags tfdiags.Diagnostics
 					rsV4.Instances, objDiags = appendInstanceObjectStateV4(
-						rs, is, key, is.Current, states.NotDeposed,
+						rs, is, key, is.Current, states.NotDeposed, !identicalProviderConfigValue,
 						rsV4.Instances,
 					)
 					diags = diags.Append(objDiags)
@@ -411,7 +451,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				for dk, obj := range is.Deposed {
 					var objDiags tfdiags.Diagnostics
 					rsV4.Instances, objDiags = appendInstanceObjectStateV4(
-						rs, is, key, obj, dk,
+						rs, is, key, obj, dk, !identicalProviderConfigValue,
 						rsV4.Instances,
 					)
 					diags = diags.Append(objDiags)
@@ -452,7 +492,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 	return diags
 }
 
-func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstance, key addrs.InstanceKey, obj *states.ResourceInstanceObjectSrc, deposed states.DeposedKey, isV4s []instanceObjectStateV4) ([]instanceObjectStateV4, tfdiags.Diagnostics) {
+func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstance, key addrs.InstanceKey, obj *states.ResourceInstanceObjectSrc, deposed states.DeposedKey, useInstanceProvider bool, isV4s []instanceObjectStateV4) ([]instanceObjectStateV4, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	var status string
@@ -505,6 +545,11 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	attributeSensitivePaths, pathsDiags := marshalPaths(paths)
 	diags = diags.Append(pathsDiags)
 
+	instanceProviderValue := ""
+	if is.ProviderConfig.IsSet() && useInstanceProvider {
+		instanceProviderValue = is.ProviderConfig.String()
+	}
+
 	return append(isV4s, instanceObjectStateV4{
 		IndexKey:                rawKey,
 		Deposed:                 string(deposed),
@@ -516,6 +561,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		PrivateRaw:              privateRaw,
 		Dependencies:            deps,
 		CreateBeforeDestroy:     obj.CreateBeforeDestroy,
+		ProviderConfig:          instanceProviderValue,
 	}), diags
 }
 
@@ -710,7 +756,7 @@ type resourceStateV4 struct {
 	Type           string                  `json:"type"`
 	Name           string                  `json:"name"`
 	EachMode       string                  `json:"each,omitempty"`
-	ProviderConfig string                  `json:"provider"`
+	ProviderConfig string                  `json:"provider,omitempty"`
 	Instances      []instanceObjectStateV4 `json:"instances"`
 }
 
@@ -728,7 +774,8 @@ type instanceObjectStateV4 struct {
 
 	Dependencies []string `json:"dependencies,omitempty"`
 
-	CreateBeforeDestroy bool `json:"create_before_destroy,omitempty"`
+	CreateBeforeDestroy bool   `json:"create_before_destroy,omitempty"`
+	ProviderConfig      string `json:"provider,omitempty"`
 }
 
 type checkResultsV4 struct {
