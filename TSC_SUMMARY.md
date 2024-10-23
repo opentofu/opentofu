@@ -8,6 +8,20 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
 
+## 2024-10-22
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Oleksandr Levchenkov ([@ollevche](https://github.com/ollevche))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+No concerns expressed, we publish the Registry Policy. You will find it in the registry github repository: https://github.com/opentofu/registry.
+
 ## 2024-10-15
 
 ### Attendees
