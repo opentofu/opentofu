@@ -59,15 +59,6 @@ func TestParseProviderConfigCompact(t *testing.T) {
 			``,
 		},
 		{
-			`aws.foo[5]`,
-			addrs.LocalProviderConfig{
-				LocalName: "aws",
-				Alias:     "foo",
-				Key:       IntKey(5),
-			},
-			``,
-		},
-		{
 			`aws["foo"]`,
 			addrs.LocalProviderConfig{},
 			`The provider type name must either stand alone or be followed by an alias name separated with a dot.`,

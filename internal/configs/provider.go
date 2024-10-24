@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -20,8 +19,10 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// ProviderCommon is the common fields between a Provider Block and a Provider
-type ProviderCommon struct {
+// Provider represents a "provider" block in a module or file. A provider
+// block is a provider configuration, and there can be zero or more
+// configurations for each actual provider.
+type Provider struct {
 	Name       string
 	NameRange  hcl.Range
 	Alias      string
@@ -44,25 +45,14 @@ type ProviderCommon struct {
 	// testing framework to instantiate test provider wrapper.
 	IsMocked      bool
 	MockResources []*MockResource
-}
 
-// ProviderBlock represents a "provider" block in a module or file. A provider
-// block is a provider configuration
-type ProviderBlock struct {
-	ProviderCommon
+	Count   hcl.Expression
 	ForEach hcl.Expression
+
+	Instances map[addrs.InstanceKey]instances.RepetitionData
 }
 
-// Provider represents an instance of a "provider" block. Created after
-// the exvaluation of a provider block containing the specific data
-// for each instance derived from the evaluation
-type Provider struct {
-	ProviderCommon
-	Key          addrs.InstanceKey
-	InstanceData instances.RepetitionData
-}
-
-func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
+func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	content, config, moreDiags := block.Body.PartialContent(providerBlockSchema)
@@ -80,19 +70,18 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 		return nil, diags
 	}
 
-	provider := &ProviderBlock{
-		ProviderCommon: ProviderCommon{
-			Name:      name,
-			NameRange: block.LabelRanges[0],
-			Config:    config,
-			DeclRange: block.DefRange,
-		},
+	provider := &Provider{
+		Name:      name,
+		NameRange: block.LabelRanges[0],
+		Config:    config,
+		DeclRange: block.DefRange,
 	}
 
 	if attr, exists := content.Attributes["alias"]; exists {
 		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &provider.Alias)
 		diags = append(diags, valDiags...)
 		provider.AliasRange = attr.Expr.Range().Ptr()
+
 		if !hclsyntax.ValidIdentifier(provider.Alias) {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -100,10 +89,6 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 				Detail:   fmt.Sprintf("An alias must be a valid name. %s", badIdentifierDetail),
 			})
 		}
-	}
-
-	if attr, exists := content.Attributes["for_each"]; exists {
-		provider.ForEach = attr.Expr
 	}
 
 	if attr, exists := content.Attributes["version"]; exists {
@@ -118,8 +103,42 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 		diags = append(diags, versionDiags...)
 	}
 
-	reserveredDiags := checkReservedNames(content)
-	diags = append(diags, reserveredDiags...)
+	if attr, exists := content.Attributes["for_each"]; exists {
+		provider.ForEach = attr.Expr
+	}
+	if attr, exists := content.Attributes["count"]; exists {
+		provider.Count = attr.Expr
+	}
+
+	if provider.ForEach != nil && provider.Count != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid combination of "count" and "for_each"`,
+			Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of providers.`,
+			Subject:  provider.ForEach.Range().Ptr(),
+		})
+	}
+
+	if len(provider.Alias) == 0 && (provider.ForEach != nil || provider.Count != nil) {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Alias required when using "count" or "for_each"`,
+			Detail:   `TODO TODO TODO`,
+			Subject:  provider.ForEach.Range().Ptr(),
+		})
+	}
+
+	// Reserved attribute names
+	for _, name := range []string{"depends_on", "source"} {
+		if attr, exists := content.Attributes[name]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Reserved argument name in provider block",
+				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTofu in a future version.", name),
+				Subject:  &attr.NameRange,
+			})
+		}
+	}
 
 	var seenEscapeBlock *hcl.Block
 	for _, block := range content.Blocks {
@@ -159,47 +178,59 @@ func decodeProviderBlock(block *hcl.Block) (*ProviderBlock, hcl.Diagnostics) {
 	return provider, diags
 }
 
-func checkReservedNames(content *hcl.BodyContent) hcl.Diagnostics {
+func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 	var diags hcl.Diagnostics
-	// Reserved attribute names
-	for _, name := range []string{"depends_on", "source", "count"} {
-		if attr, exists := content.Attributes[name]; exists {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Reserved argument name in provider block",
-				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTofu in a future version.", name),
-				Subject:  &attr.NameRange,
-			})
+
+	if p.ForEach != nil {
+		forEachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+			var diags tfdiags.Diagnostics
+			evalContext, evalDiags := eval.EvalContext(StaticIdentifier{
+				Module:    eval.call.addr,
+				Subject:   fmt.Sprintf("provider.%s.%s.for_each", p.Name, p.Alias),
+				DeclRange: p.ForEach.Range(),
+			}, refs)
+			return evalContext, diags.Append(evalDiags)
+		}
+
+		forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc)
+		diags = append(diags, evalDiags.ToHCL()...)
+		if evalDiags.HasErrors() {
+			return diags
+		}
+
+		p.Instances = make(map[addrs.InstanceKey]instances.RepetitionData)
+		for k, v := range forVal {
+			p.Instances[addrs.StringKey(k)] = instances.RepetitionData{
+				EachKey:   cty.StringVal(k),
+				EachValue: v,
+			}
 		}
 	}
-	return diags
-}
 
-// checkProviderNameNormalized verifies that the given string is already
-// normalized and returns an error if not.
-func checkProviderNameNormalized(name string, declrange hcl.Range) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-	// verify that the provider local name is normalized
-	normalized, err := addrs.IsProviderPartNormalized(name)
-	if err != nil {
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid provider local name",
-			Detail:   fmt.Sprintf("%s is an invalid provider local name: %s", name, err),
-			Subject:  &declrange,
-		})
-		return diags
+	if p.Count != nil {
+		countFunc := func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
+			v, evalDiags := eval.Evaluate(expr, StaticIdentifier{
+				Module:    eval.call.addr,
+				Subject:   fmt.Sprintf("provider.%s.%s.count", p.Name, p.Alias),
+				DeclRange: p.Count.Range(),
+			})
+			return v, tfdiags.Diagnostics{}.Append(evalDiags)
+		}
+
+		countVal, evalDiags := evalchecks.EvaluateCountExpression(p.Count, countFunc)
+		diags = append(diags, evalDiags.ToHCL()...)
+		if evalDiags.HasErrors() {
+			return diags
+		}
+
+		p.Instances = make(map[addrs.InstanceKey]instances.RepetitionData)
+		for i := 0; i < countVal; i++ {
+			p.Instances[addrs.IntKey(i)] = instances.RepetitionData{
+				CountIndex: cty.NumberIntVal(int64(i)),
+			}
+		}
 	}
-	if !normalized {
-		// we would have returned this error already
-		normalizedProvider, _ := addrs.ParseProviderPart(name)
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid provider local name",
-			Detail:   fmt.Sprintf("Provider names must be normalized. Replace %q with %q to fix this error.", name, normalizedProvider),
-			Subject:  &declrange,
-		})
-	}
+
 	return diags
 }
 
@@ -209,60 +240,14 @@ func (p *Provider) Addr() addrs.LocalProviderConfig {
 	return addrs.LocalProviderConfig{
 		LocalName: p.Name,
 		Alias:     p.Alias,
-		Key:       p.Key,
 	}
 }
 
-func (p *ProviderBlock) decodeStaticFields(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
-	if p.ForEach != nil {
-		return p.generateForEachProviders(eval)
+func (p *Provider) moduleUniqueKey() string {
+	if p.Alias != "" {
+		return fmt.Sprintf("%s.%s", p.Name, p.Alias)
 	}
-
-	return []*Provider{{
-		ProviderCommon: p.ProviderCommon,
-		Key:            addrs.NoKey,
-	}}, nil
-}
-
-func (p *ProviderBlock) generateForEachProviders(eval *StaticEvaluator) ([]*Provider, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-	if eval == nil {
-		return nil, diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Iteration not allowed in test files",
-			Detail:   "for_each was declared as a provider attribute in a test file",
-			Subject:  p.ForEach.Range().Ptr(),
-		})
-	}
-
-	forEachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-		var diags tfdiags.Diagnostics
-		evalContext, evalDiags := eval.EvalContext(StaticIdentifier{
-			Module:    eval.call.addr,
-			Subject:   fmt.Sprintf("provider.%s.for_each", p.Name),
-			DeclRange: p.ForEach.Range(),
-		}, refs)
-		return evalContext, diags.Append(evalDiags)
-	}
-
-	forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc)
-	diags = append(diags, evalDiags.ToHCL()...)
-	if evalDiags.HasErrors() {
-		return nil, diags
-	}
-
-	var out []*Provider
-	for k, v := range forVal {
-		out = append(out, &Provider{
-			ProviderCommon: p.ProviderCommon,
-			Key:            addrs.StringKey(k),
-			InstanceData: instances.RepetitionData{
-				EachKey:   cty.StringVal(k),
-				EachValue: v,
-			},
-		})
-	}
-	return out, diags
+	return p.Name
 }
 
 // ParseProviderConfigCompact parses the given absolute traversal as a relative
@@ -278,7 +263,6 @@ func (p *ProviderBlock) generateForEachProviders(eval *StaticEvaluator) ([]*Prov
 // If the returned diagnostics contains errors then the result value is invalid
 // and must not be used.
 func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
-	// added as a const to keep the linter happy
 	var diags tfdiags.Diagnostics
 	ret := addrs.LocalProviderConfig{
 		LocalName: traversal.RootName(),
@@ -288,49 +272,28 @@ func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderCon
 		// Just a type name, then.
 		return ret, diags
 	}
-	if len(traversal) > 3 {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid provider configuration address",
-			Detail:   "Extraneous extra operators after provider configuration address.",
-			Subject:  traversal.SourceRange().Ptr(),
-		})
-	}
 
-	if ts, ok := traversal[1].(hcl.TraverseAttr); ok {
+	aliasStep := traversal[1]
+	switch ts := aliasStep.(type) {
+	case hcl.TraverseAttr:
 		ret.Alias = ts.Name
-	} else {
+		return ret, diags
+	default:
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration address",
 			Detail:   "The provider type name must either stand alone or be followed by an alias name separated with a dot.",
-			Subject:  traversal[1].SourceRange().Ptr(),
+			Subject:  aliasStep.SourceRange().Ptr(),
 		})
 	}
 
 	if len(traversal) > 2 {
-		if tt, ok := traversal[2].(hcl.TraverseIndex); ok {
-			if tt.Key.Type().Equals(cty.String) {
-				ret.Key = addrs.StringKey(tt.Key.AsString())
-			} else if tt.Key.Type().Equals(cty.Number) {
-				var idxInt int
-				err := gocty.FromCtyValue(tt.Key, &idxInt)
-				if err == nil {
-					ret.Key = addrs.IntKey(idxInt)
-				} else {
-					panic("TODO diags")
-				}
-			} else {
-				panic("TODO diags")
-			}
-		} else {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider configuration address",
-				Detail:   "The provider type name must either stand alone or be followed by an alias name separated with a dot.",
-				Subject:  traversal[2].SourceRange().Ptr(),
-			})
-		}
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration address",
+			Detail:   "Extraneous extra operators after provider configuration address.",
+			Subject:  traversal[2:].SourceRange().Ptr(),
+		})
 	}
 
 	return ret, diags
@@ -365,7 +328,7 @@ func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdia
 	return addr, diags
 }
 
-var providerBlockSchema = &hcl.BodySchema{ //nolint: gochecknoglobals // pre-existing code
+var providerBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{
 			Name: "alias",
@@ -373,12 +336,10 @@ var providerBlockSchema = &hcl.BodySchema{ //nolint: gochecknoglobals // pre-exi
 		{
 			Name: "version",
 		},
-		{
-			Name: "for_each",
-		},
+		{Name: "count"},
+		{Name: "for_each"},
 
 		// Attribute names reserved for future expansion.
-		{Name: "count"},
 		{Name: "depends_on"},
 		{Name: "source"},
 	},
@@ -389,4 +350,32 @@ var providerBlockSchema = &hcl.BodySchema{ //nolint: gochecknoglobals // pre-exi
 		{Type: "lifecycle"},
 		{Type: "locals"},
 	},
+}
+
+// checkProviderNameNormalized verifies that the given string is already
+// normalized and returns an error if not.
+func checkProviderNameNormalized(name string, declrange hcl.Range) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	// verify that the provider local name is normalized
+	normalized, err := addrs.IsProviderPartNormalized(name)
+	if err != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider local name",
+			Detail:   fmt.Sprintf("%s is an invalid provider local name: %s", name, err),
+			Subject:  &declrange,
+		})
+		return diags
+	}
+	if !normalized {
+		// we would have returned this error already
+		normalizedProvider, _ := addrs.ParseProviderPart(name)
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider local name",
+			Detail:   fmt.Sprintf("Provider names must be normalized. Replace %q with %q to fix this error.", name, normalizedProvider),
+			Subject:  &declrange,
+		})
+	}
+	return diags
 }

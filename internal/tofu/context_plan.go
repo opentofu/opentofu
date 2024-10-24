@@ -277,7 +277,7 @@ func (c *Context) checkApplyGraph(plan *plans.Plan, config *configs.Config) tfdi
 		return nil
 	}
 	log.Println("[DEBUG] building apply graph to check for errors")
-	_, _, diags := c.applyGraph(plan, config, true)
+	_, _, diags := c.applyGraph(plan, config, true, make(ProviderFunctionMapping))
 	return diags
 }
 
@@ -673,8 +673,9 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 		// strange problems that may lead to confusing error messages.
 		return nil, diags
 	}
+	providerFunctionTracker := make(ProviderFunctionMapping)
 
-	graph, walkOp, moreDiags := c.planGraph(config, prevRunState, opts)
+	graph, walkOp, moreDiags := c.planGraph(config, prevRunState, opts, providerFunctionTracker)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -686,11 +687,12 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 	// we can now walk.
 	changes := plans.NewChanges()
 	walker, walkDiags := c.walk(graph, walkOp, &graphWalkOpts{
-		Config:            config,
-		InputState:        prevRunState,
-		Changes:           changes,
-		MoveResults:       moveResults,
-		PlanTimeTimestamp: timestamp,
+		Config:                  config,
+		InputState:              prevRunState,
+		Changes:                 changes,
+		MoveResults:             moveResults,
+		PlanTimeTimestamp:       timestamp,
+		ProviderFunctionTracker: providerFunctionTracker,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
@@ -754,47 +756,50 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 	return plan, diags
 }
 
-func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, opts *PlanOpts, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	switch mode := opts.Mode; mode {
 	case plans.NormalMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:             config,
-			State:              prevRunState,
-			RootVariableValues: opts.SetVariables,
-			Plugins:            c.plugins,
-			Targets:            opts.Targets,
-			ForceReplace:       opts.ForceReplace,
-			skipRefresh:        opts.SkipRefresh,
-			preDestroyRefresh:  opts.PreDestroyRefresh,
-			Operation:          walkPlan,
-			ExternalReferences: opts.ExternalReferences,
-			ImportTargets:      opts.ImportTargets,
-			GenerateConfigPath: opts.GenerateConfigPath,
-			EndpointsToRemove:  opts.EndpointsToRemove,
+			Config:                  config,
+			State:                   prevRunState,
+			RootVariableValues:      opts.SetVariables,
+			Plugins:                 c.plugins,
+			Targets:                 opts.Targets,
+			ForceReplace:            opts.ForceReplace,
+			skipRefresh:             opts.SkipRefresh,
+			preDestroyRefresh:       opts.PreDestroyRefresh,
+			Operation:               walkPlan,
+			ExternalReferences:      opts.ExternalReferences,
+			ImportTargets:           opts.ImportTargets,
+			GenerateConfigPath:      opts.GenerateConfigPath,
+			EndpointsToRemove:       opts.EndpointsToRemove,
+			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.RefreshOnlyMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:             config,
-			State:              prevRunState,
-			RootVariableValues: opts.SetVariables,
-			Plugins:            c.plugins,
-			Targets:            opts.Targets,
-			skipRefresh:        opts.SkipRefresh,
-			skipPlanChanges:    true, // this activates "refresh only" mode.
-			Operation:          walkPlan,
-			ExternalReferences: opts.ExternalReferences,
+			Config:                  config,
+			State:                   prevRunState,
+			RootVariableValues:      opts.SetVariables,
+			Plugins:                 c.plugins,
+			Targets:                 opts.Targets,
+			skipRefresh:             opts.SkipRefresh,
+			skipPlanChanges:         true, // this activates "refresh only" mode.
+			Operation:               walkPlan,
+			ExternalReferences:      opts.ExternalReferences,
+			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.DestroyMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:             config,
-			State:              prevRunState,
-			RootVariableValues: opts.SetVariables,
-			Plugins:            c.plugins,
-			Targets:            opts.Targets,
-			skipRefresh:        opts.SkipRefresh,
-			Operation:          walkPlanDestroy,
+			Config:                  config,
+			State:                   prevRunState,
+			RootVariableValues:      opts.SetVariables,
+			Plugins:                 c.plugins,
+			Targets:                 opts.Targets,
+			skipRefresh:             opts.SkipRefresh,
+			Operation:               walkPlanDestroy,
+			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlanDestroy, diags
 	default:
@@ -833,6 +838,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				continue
 			}
 
+			provider := rs.ProviderConfig.Provider
 			for key, oldIS := range rs.Instances {
 				if oldIS.Current == nil {
 					// Not interested in instances that only have deposed objects
@@ -850,7 +856,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				newIS := newState.ResourceInstance(addr)
 
 				schema, _ := schemas.ResourceTypeConfig(
-					oldIS.ProviderConfig.Provider,
+					provider,
 					addr.Resource.Resource.Mode,
 					addr.Resource.Resource.Type,
 				)
@@ -923,7 +929,8 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 				change := &plans.ResourceInstanceChange{
 					Addr:         addr,
 					PrevRunAddr:  prevRunAddr,
-					ProviderAddr: oldIS.ProviderConfig,
+					ProviderAddr: rs.ProviderConfig,
+					ProviderKey:  oldIS.ProviderKey,
 					Change: plans.Change{
 						Action: action,
 						Before: oldVal,
@@ -961,7 +968,7 @@ func (c *Context) PlanGraphForUI(config *configs.Config, prevRunState *states.St
 
 	opts := &PlanOpts{Mode: mode}
 
-	graph, _, moreDiags := c.planGraph(config, prevRunState, opts)
+	graph, _, moreDiags := c.planGraph(config, prevRunState, opts, make(ProviderFunctionMapping))
 	diags = diags.Append(moreDiags)
 	return graph, diags
 }

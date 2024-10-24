@@ -485,15 +485,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					continue
 				}
 
-				// Import block can contain a provider reference itself. In order to check if import and resource blocks
-				// providers match, we need to ensure resource's provider reference doesn't include `count` or `each`
-				// references. In that case, providers will not match.
-				haveIncompatibleAliases := true
-				if !target.ProviderConfigRef.HasInstanceRefs() {
-					haveIncompatibleAliases = i.ProviderConfigRef.Alias != target.ProviderConfigRef.Alias // TODO check KEYS
-				}
-
-				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || haveIncompatibleAliases {
+				if i.ProviderConfigRef.Name != target.ProviderConfigRef.Name || i.ProviderConfigRef.Alias != target.ProviderConfigRef.Alias {
 					// This means we have a provider specified in both the
 					// import block and the resource block, and they disagree.
 					// This is bad as OpenTofu now has different instructions
@@ -630,8 +622,8 @@ func (c *Config) resolveProviderTypes() map[string]addrs.Provider {
 	// connect module call providers to the correct type
 	for _, mod := range c.Module.ModuleCalls {
 		for _, p := range mod.Providers {
-			if addr, known := providers[p.InParentMapping.Name]; known {
-				p.InParentMapping.providerType = addr
+			if addr, known := providers[p.InParent.Name]; known {
+				p.InParent.providerType = addr
 			}
 		}
 	}
@@ -717,19 +709,19 @@ func (c *Config) resolveProviderTypesForTests(providers map[string]addrs.Provide
 					// If we have previously assigned a type to the provider
 					// for the parent reference, then we use that for the
 					// parent type.
-					if addr, exists := matchedProviders[p.InParentMapping.Name]; exists {
-						p.InParentMapping.providerType = addr
+					if addr, exists := matchedProviders[p.InParent.Name]; exists {
+						p.InParent.providerType = addr
 						continue
 					}
 
 					// Otherwise, we'll define the parent type based on the
 					// child and reference that backwards.
-					p.InParentMapping.providerType = p.InChild.providerType
+					p.InParent.providerType = p.InChild.providerType
 
-					if aliases, exists := testProviders[p.InParentMapping.Name]; exists {
-						matchedProviders[p.InParentMapping.Name] = p.InParentMapping.providerType
+					if aliases, exists := testProviders[p.InParent.Name]; exists {
+						matchedProviders[p.InParent.Name] = p.InParent.providerType
 						for _, alias := range aliases {
-							alias.providerType = p.InParentMapping.providerType
+							alias.providerType = p.InParent.providerType
 						}
 					}
 				}
@@ -847,7 +839,6 @@ func (c *Config) ResolveAbsProviderAddr(addr addrs.ProviderConfig, inModule addr
 			Module:   inModule,
 			Provider: provider,
 			Alias:    addr.Alias,
-			Key:      addr.Key,
 		}
 
 	default:
@@ -959,41 +950,30 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// for by this run block.
 
 		for _, ref := range run.Providers {
-			// This should never happen since we don't allow for_each / count in runs.
-			if ref.InParentMapping.HasInstanceRefs() {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "`for_each` and `count` are not allowed",
-					Detail:   "You cannot use `each` or `count` keywords refering providers in `run` blocks of test files.",
-					Subject:  ref.InParentMapping.NameRange.Ptr(),
-				})
-			}
-
-			testProvider, ok := file.getTestProviderOrMock(ref.InParent(addrs.NoKey).String())
+			testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
 			if !ok {
 				// Then this reference was invalid as we didn't have the
 				// specified provider in the parent. This should have been
 				// caught earlier in validation anyway so is unlikely to happen.
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent(addrs.NoKey).String()),
+					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
 					Detail:   "This provider block references a provider definition that does not exist.",
-					Subject:  ref.InParent(addrs.NoKey).NameRange.Ptr(),
+					Subject:  ref.InParent.NameRange.Ptr(),
 				})
 				continue
 			}
 
 			next[ref.InChild.String()] = &Provider{
-				ProviderCommon: ProviderCommon{
-					Name:          ref.InChild.Name,
-					NameRange:     ref.InChild.NameRange,
-					Alias:         ref.InChild.Alias,
-					Version:       testProvider.Version,
-					Config:        testProvider.Config,
-					DeclRange:     testProvider.DeclRange,
-					IsMocked:      testProvider.IsMocked,
-					MockResources: testProvider.MockResources,
-				},
+				Name:          ref.InChild.Name,
+				NameRange:     ref.InChild.NameRange,
+				Alias:         ref.InChild.Alias,
+				AliasRange:    ref.InChild.AliasRange,
+				Version:       testProvider.Version,
+				Config:        testProvider.Config,
+				DeclRange:     testProvider.DeclRange,
+				IsMocked:      testProvider.IsMocked,
+				MockResources: testProvider.MockResources,
 			}
 
 		}
@@ -1005,15 +985,13 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		}
 		for _, mp := range file.MockProviders {
 			next[mp.moduleUniqueKey()] = &Provider{
-				ProviderCommon: ProviderCommon{
-					Name:          mp.Name,
-					Alias:         mp.Alias,
-					AliasRange:    mp.AliasRange,
-					NameRange:     mp.NameRange,
-					DeclRange:     mp.DeclRange,
-					IsMocked:      true,
-					MockResources: mp.MockResources,
-				},
+				Name:          mp.Name,
+				NameRange:     mp.NameRange,
+				Alias:         mp.Alias,
+				AliasRange:    mp.AliasRange,
+				DeclRange:     mp.DeclRange,
+				IsMocked:      true,
+				MockResources: mp.MockResources,
 			}
 		}
 	}

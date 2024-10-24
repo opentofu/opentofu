@@ -67,21 +67,25 @@ type BuiltinEvalContext struct {
 	InputValue UIInput
 
 	ProviderLock        *sync.Mutex
-	ProviderCache       map[string]providers.Interface
+	ProviderCache       map[string]map[addrs.InstanceKey]providers.Interface
 	ProviderInputConfig map[string]map[string]cty.Value
 
 	ProvisionerLock  *sync.Mutex
 	ProvisionerCache map[string]provisioners.Interface
 
-	ChangesValue          *plans.ChangesSync
-	StateValue            *states.SyncState
-	ChecksValue           *checks.State
-	RefreshStateValue     *states.SyncState
-	PrevRunStateValue     *states.SyncState
-	InstanceExpanderValue *instances.Expander
-	MoveResultsValue      refactoring.MoveResults
-	ImportResolverValue   *ImportResolver
-	Encryption            encryption.Encryption
+	ChangesValue            *plans.ChangesSync
+	StateValue              *states.SyncState
+	ChecksValue             *checks.State
+	RefreshStateValue       *states.SyncState
+	PrevRunStateValue       *states.SyncState
+	InstanceExpanderValue   *instances.Expander
+	MoveResultsValue        refactoring.MoveResults
+	ImportResolverValue     *ImportResolver
+	Encryption              encryption.Encryption
+	ProviderFunctionTracker ProviderFunctionMapping
+
+	ModuleProviderMapping     map[string][]ModuleProviderMapping
+	ModuleProviderMappingLock *sync.Mutex
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -127,14 +131,18 @@ func (ctx *BuiltinEvalContext) Input() UIInput {
 	return ctx.InputValue
 }
 
-func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
+func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, error) {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
 	key := addr.String()
 
+	if ctx.ProviderCache[key] == nil {
+		ctx.ProviderCache[key] = make(map[addrs.InstanceKey]providers.Interface)
+	}
+
 	// If we have already initialized, it is an error
-	if _, ok := ctx.ProviderCache[key]; ok {
+	if _, ok := ctx.ProviderCache[key][providerKey]; ok {
 		return nil, fmt.Errorf("%s is already initialized", addr)
 	}
 
@@ -146,7 +154,7 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 	if ctx.Evaluator != nil && ctx.Evaluator.Config != nil && ctx.Evaluator.Config.Module != nil {
 		// If an aliased provider is mocked, we use providerForTest wrapper.
 		// We cannot wrap providers.Factory itself, because factories don't support aliases.
-		pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias, addr.Key)
+		pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
 		if ok && pc.IsMocked {
 			p, err = newProviderForTest(p, pc.MockResources)
 			if err != nil {
@@ -155,17 +163,17 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig) (provi
 		}
 	}
 
-	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q provider for %s", addr.String(), addr)
-	ctx.ProviderCache[key] = p
+	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q%s provider for %s", addr.String(), providerKey, addr)
+	ctx.ProviderCache[key][providerKey] = p
 
 	return p, nil
 }
 
-func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig) providers.Interface {
+func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig, key addrs.InstanceKey) providers.Interface {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
-	return ctx.ProviderCache[addr.String()]
+	return ctx.ProviderCache[addr.String()][key]
 }
 
 func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
@@ -176,17 +184,27 @@ func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
+	var diags tfdiags.Diagnostics
+
 	key := addr.String()
-	provider := ctx.ProviderCache[key]
-	if provider != nil {
+	providerMap := ctx.ProviderCache[key]
+	if providerMap != nil {
+		for _, provider := range providerMap {
+			err := provider.Close()
+			if err != nil {
+				diags = diags.Append(err)
+			}
+		}
 		delete(ctx.ProviderCache, key)
-		return provider.Close()
+	}
+	if diags.HasErrors() {
+		return diags.Err()
 	}
 
 	return nil
 }
 
-func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, cfg cty.Value) tfdiags.Diagnostics {
+func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if !addr.Module.Equal(ctx.Path().Module()) {
 		// This indicates incorrect use of ConfigureProvider: it should be used
@@ -194,9 +212,9 @@ func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, c
 		panic(fmt.Sprintf("%s configured by wrong module %s", addr, ctx.Path()))
 	}
 
-	p := ctx.Provider(addr)
+	p := ctx.Provider(addr, providerKey)
 	if p == nil {
-		diags = diags.Append(fmt.Errorf("%s not initialized", addr))
+		diags = diags.Append(fmt.Errorf("%s%s not initialized", addr, providerKey))
 		return diags
 	}
 
@@ -432,7 +450,30 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-		return evalContextProviderFunction(ctx.Provider, mc, ctx.Evaluator.Operation, pf, rng)
+		absPc, ok := ctx.ProviderFunctionTracker.Lookup(ctx.PathValue.Module(), pf)
+		if !ok {
+			// This should not be possible if references are tracked correctly
+			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "BUG: Uninitialized function provider",
+				Detail:   fmt.Sprintf("Provider function %q has not been tracked properly", pf),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
+
+		provider := ctx.Provider(absPc, addrs.NoKey) // TODO keys not supported!
+
+		if provider == nil {
+			// This should not be possible if references are tracked correctly
+			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "BUG: Uninitialized function provider",
+				Detail:   fmt.Sprintf("Provider %q has not yet been initialized", absPc.String()),
+				Subject:  rng.ToHCL().Ptr(),
+			})
+		}
+
+		return evalContextProviderFunction(provider, ctx.Evaluator.Operation, pf, rng)
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 
@@ -490,6 +531,19 @@ func (ctx *BuiltinEvalContext) GetVariableValue(addr addrs.AbsInputVariableInsta
 		return cty.DynamicVal
 	}
 	return val
+}
+
+func (ctx *BuiltinEvalContext) SetModuleProviderMapping(addr addrs.ModuleInstance, mapping []ModuleProviderMapping) {
+	ctx.ModuleProviderMappingLock.Lock()
+	defer ctx.ModuleProviderMappingLock.Unlock()
+
+	ctx.ModuleProviderMapping[addr.String()] = mapping
+}
+
+func (ctx *BuiltinEvalContext) GetModuleProviderMapping(addr addrs.ModuleInstance) []ModuleProviderMapping {
+	ctx.ModuleProviderMappingLock.Lock()
+	defer ctx.ModuleProviderMappingLock.Unlock()
+	return ctx.ModuleProviderMapping[addr.String()]
 }
 
 func (ctx *BuiltinEvalContext) Changes() *plans.ChangesSync {

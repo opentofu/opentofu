@@ -8,7 +8,6 @@ package tofu
 import (
 	"log"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/states"
 )
@@ -29,12 +28,6 @@ type GraphNodeAttachResourceState interface {
 	AttachResourceState(*states.Resource)
 }
 
-type GraphNodeAttachResourceStates interface {
-	GraphNodeConfigResource
-
-	AttachResourceStates([]*states.Resource)
-}
-
 // AttachStateTransformer goes through the graph and attaches
 // state to nodes that implement the interfaces above.
 type AttachStateTransformer struct {
@@ -49,10 +42,6 @@ func (t *AttachStateTransformer) Transform(g *Graph) error {
 	}
 
 	for _, v := range g.Vertices() {
-		if an, ok := v.(GraphNodeAttachResourceStates); ok {
-			an.AttachResourceStates(t.State.Resources(an.ResourceAddr()))
-		}
-
 		// Nodes implement this interface to request state attachment.
 		an, ok := v.(GraphNodeAttachResourceState)
 		if !ok {
@@ -62,14 +51,12 @@ func (t *AttachStateTransformer) Transform(g *Graph) error {
 
 		rs := t.State.Resource(addr.ContainingResource())
 		if rs == nil {
-			spew.Dump(t.State)
 			log.Printf("[DEBUG] Resource state not found for node %q, instance %s", dag.VertexName(v), addr)
 			continue
 		}
 
 		is := rs.Instance(addr.Resource.Key)
 		if is == nil {
-			spew.Dump(rs)
 			// We don't actually need this here, since we'll attach the whole
 			// resource state, but we still check because it'd be weird
 			// for the specific instance we're attaching to not to exist.

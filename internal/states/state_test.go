@@ -99,11 +99,11 @@ func TestState(t *testing.T) {
 									AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 								},
 								Deposed: map[DeposedKey]*ResourceInstanceObjectSrc{},
-								ProviderConfig: addrs.AbsProviderConfig{
-									Provider: addrs.NewDefaultProvider("test"),
-									Module:   addrs.RootModule,
-								},
 							},
+						},
+						ProviderConfig: addrs.AbsProviderConfig{
+							Provider: addrs.NewDefaultProvider("test"),
+							Module:   addrs.RootModule,
 						},
 					},
 				},

@@ -11,7 +11,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -53,8 +52,6 @@ type LocalProviderConfig struct {
 	// If not empty, Alias identifies which non-default (aliased) provider
 	// configuration this address refers to.
 	Alias string
-
-	Key InstanceKey
 }
 
 var _ ProviderConfig = LocalProviderConfig{}
@@ -71,33 +68,25 @@ func NewDefaultLocalProviderConfig(LocalNameName string) LocalProviderConfig {
 func (pc LocalProviderConfig) providerConfig() {}
 
 func (pc LocalProviderConfig) String() string {
-	str := "provider." + pc.LocalName
 	if pc.LocalName == "" {
 		// Should never happen; always indicates a bug
-		str += ".<invalid>"
+		return "provider.<invalid>"
 	}
 
 	if pc.Alias != "" {
-		str += "." + pc.Alias
+		return fmt.Sprintf("provider.%s.%s", pc.LocalName, pc.Alias)
 	}
 
-	if pc.Key != NoKey {
-		str += pc.Key.String()
-	}
-	return str
+	return "provider." + pc.LocalName
 }
 
 // StringCompact is an alternative to String that returns the form that can
 // be parsed by ParseProviderConfigCompact, without the "provider." prefix.
 func (pc LocalProviderConfig) StringCompact() string {
-	str := pc.LocalName
 	if pc.Alias != "" {
-		str += "." + pc.Alias
+		return fmt.Sprintf("%s.%s", pc.LocalName, pc.Alias)
 	}
-	if pc.Key != NoKey {
-		str += pc.Key.String()
-	}
-	return str
+	return pc.LocalName
 }
 
 // AbsProviderConfig is the absolute address of a provider configuration
@@ -106,7 +95,6 @@ type AbsProviderConfig struct {
 	Module   Module
 	Provider Provider
 	Alias    string
-	Key      InstanceKey
 }
 
 var _ ProviderConfig = AbsProviderConfig{}
@@ -117,10 +105,8 @@ var _ ProviderConfig = AbsProviderConfig{}
 //
 //   - provider["registry.opentofu.org/hashicorp/aws"]
 //   - provider["registry.opentofu.org/hashicorp/aws"].foo
-//   - provider["registry.opentofu.org/hashicorp/aws"].foo[key]
 //   - module.bar.provider["registry.opentofu.org/hashicorp/aws"]
 //   - module.bar.module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo
-//   - module.bar.module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo[key]
 //
 // This type of address is used, for example, to record the relationships
 // between resources and provider configurations in the state structure.
@@ -154,7 +140,7 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 		})
 		return ret, diags
 	}
-	if len(remain) > 4 {
+	if len(remain) > 3 {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration address",
@@ -193,20 +179,6 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 	if len(remain) == 3 {
 		if tt, ok := remain[2].(hcl.TraverseAttr); ok {
 			ret.Alias = tt.Name
-		} else if tt, ok := remain[2].(hcl.TraverseIndex); ok {
-			if tt.Key.Type().Equals(cty.String) {
-				ret.Key = StringKey(tt.Key.AsString())
-			} else if tt.Key.Type().Equals(cty.Number) {
-				var idxInt int
-				err := gocty.FromCtyValue(tt.Key, &idxInt)
-				if err == nil {
-					ret.Key = IntKey(idxInt)
-				} else {
-					panic("TODO diags")
-				}
-			} else {
-				panic("TODO diags")
-			}
 		} else {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -215,36 +187,6 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 				Subject:  remain[2].SourceRange().Ptr(),
 			})
 			return ret, diags
-		}
-	}
-	if len(remain) == 4 {
-		if tt, ok := remain[2].(hcl.TraverseAttr); ok {
-			ret.Alias = tt.Name
-		} else {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider configuration address",
-				Detail:   "Provider type name must be followed by a configuration alias name.",
-				Subject:  remain[2].SourceRange().Ptr(),
-			})
-			return ret, diags
-		}
-		if tt, ok := remain[3].(hcl.TraverseIndex); ok {
-			if tt.Key.Type().Equals(cty.String) {
-				ret.Key = StringKey(tt.Key.AsString())
-			} else if tt.Key.Type().Equals(cty.Number) {
-				var idxInt int
-				err := gocty.FromCtyValue(tt.Key, &idxInt)
-				if err == nil {
-					ret.Key = IntKey(idxInt)
-				} else {
-					panic("TODO diags")
-				}
-			} else {
-				panic("TODO diags")
-			}
-		} else {
-			panic("TODO diags")
 		}
 	}
 
@@ -401,11 +343,6 @@ func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) A
 	}
 }
 
-// IsSet returns true if the Provider's Type is not empty.
-func (pc AbsProviderConfig) IsSet() bool {
-	return pc.Provider.Type != ""
-}
-
 // providerConfig Implements addrs.ProviderConfig.
 func (pc AbsProviderConfig) providerConfig() {}
 
@@ -428,9 +365,6 @@ func (pc AbsProviderConfig) Inherited() (AbsProviderConfig, bool) {
 
 	// Can't inherit if we have an alias.
 	if pc.Alias != "" {
-		return AbsProviderConfig{}, false
-	}
-	if pc.Key != NoKey {
 		return AbsProviderConfig{}, false
 	}
 
@@ -477,9 +411,5 @@ func (pc AbsProviderConfig) String() string {
 		parts = append(parts, pc.Alias)
 	}
 
-	str := strings.Join(parts, ".")
-	if pc.Key != NoKey {
-		str += pc.Key.String()
-	}
-	return str
+	return strings.Join(parts, ".")
 }

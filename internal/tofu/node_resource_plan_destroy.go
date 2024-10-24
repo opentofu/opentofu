@@ -66,7 +66,7 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	var change *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	state, err := n.readResourceInstanceState(ctx, addr, n.ResolvedProvider)
+	state, err := n.readResourceInstanceState(ctx, addr)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -122,6 +122,7 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContex
 			After:  cty.NullVal(cty.DynamicPseudoType),
 		},
 		ProviderAddr: n.ResolvedProvider,
+		ProviderKey:  n.ResolvedProviderKey,
 	}
 	return diags.Append(n.writeChange(ctx, change, ""))
 }

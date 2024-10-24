@@ -279,8 +279,7 @@ func marshalProviderConfigs(
 		for _, ppc := range mc.Providers {
 			// These provider names include aliases, if set
 			moduleProviderName := ppc.InChild.String()
-			// TODO/Oleksandr: update this field to resolved provider after graph execution
-			parentProviderName := ppc.InParentTODO().String()
+			parentProviderName := ppc.InParent.String()
 
 			// Look up the provider FQN from the module context, using the non-aliased local name
 			providerFqn := cc.ProviderForConfigAddr(addrs.LocalProviderConfig{LocalName: ppc.InChild.Name})
@@ -447,9 +446,7 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Schemas, moduleAddr string) ([]resource, error) {
 	var rs []resource
 	for _, v := range resources {
-		// TODO/Oleksandr: check what field to use after graph exectuion (at that time we should know what provider was actually used)
-		// Maybe extend ProviderConfigAddr to return resolved provider
-		providerConfigKey := opaqueProviderKey(v.AnyProviderConfigAddr().StringCompact(), moduleAddr)
+		providerConfigKey := opaqueProviderKey(v.ProviderConfigAddr().StringCompact(), moduleAddr)
 		r := resource{
 			Address:           v.Addr().String(),
 			Type:              v.Type,

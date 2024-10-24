@@ -295,8 +295,10 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 			// completely hang OpenTofu.
 			walker.providerLock.Lock()
 			ps := make([]providers.Interface, 0, len(walker.providerCache))
-			for _, p := range walker.providerCache {
-				ps = append(ps, p)
+			for _, pm := range walker.providerCache {
+				for _, p := range pm {
+					ps = append(ps, p)
+				}
 			}
 			defer walker.providerLock.Unlock()
 

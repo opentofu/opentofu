@@ -183,14 +183,14 @@ func (c *MockEvalContext) Input() UIInput {
 	return c.InputInput
 }
 
-func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderConfig) (providers.Interface, error) {
+func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, error) {
 	c.InitProviderCalled = true
 	c.InitProviderType = addr.String()
 	c.InitProviderAddr = addr
 	return c.InitProviderProvider, c.InitProviderError
 }
 
-func (c *MockEvalContext) Provider(addr addrs.AbsProviderConfig) providers.Interface {
+func (c *MockEvalContext) Provider(addr addrs.AbsProviderConfig, key addrs.InstanceKey) providers.Interface {
 	c.ProviderCalled = true
 	c.ProviderAddr = addr
 	return c.ProviderProvider
@@ -208,7 +208,7 @@ func (c *MockEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
 	return nil
 }
 
-func (c *MockEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, cfg cty.Value) tfdiags.Diagnostics {
+func (c *MockEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
 
 	c.ConfigureProviderCalled = true
 	c.ConfigureProviderAddr = addr
@@ -363,6 +363,14 @@ func (c *MockEvalContext) SetModuleCallArgument(callAddr addrs.ModuleCallInstanc
 	if c.SetModuleCallArgumentFunc != nil {
 		c.SetModuleCallArgumentFunc(callAddr, varAddr, v)
 	}
+}
+
+func (c *MockEvalContext) SetModuleProviderMapping(addrs.ModuleInstance, []ModuleProviderMapping) {
+	panic("not implemented")
+}
+
+func (c *MockEvalContext) GetModuleProviderMapping(addrs.ModuleInstance) []ModuleProviderMapping {
+	panic("not implemented")
 }
 
 func (c *MockEvalContext) GetVariableValue(addr addrs.AbsInputVariableInstance) cty.Value {

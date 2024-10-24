@@ -294,6 +294,7 @@ func resourceChangeFromTfplan(rawChange *planproto.ResourceInstanceChange) (*pla
 		return nil, diags.Err()
 	}
 	ret.ProviderAddr = providerAddr
+	// TODO ret.ProviderKey
 
 	ret.Addr = instAddr
 	ret.PrevRunAddr = prevRunAddr
@@ -700,6 +701,7 @@ func resourceChangeToTfplan(change *plans.ResourceInstanceChangeSrc) (*planproto
 
 	ret.DeposedKey = string(change.DeposedKey)
 	ret.Provider = change.ProviderAddr.String()
+	// TODO ret.ProviderKey
 
 	requiredReplace := change.RequiredReplace.List()
 	ret.RequiredReplace = make([]*planproto.Path, 0, len(requiredReplace))

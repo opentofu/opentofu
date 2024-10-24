@@ -131,10 +131,10 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 				// function. (This would not be valid for some other functions.)
 				Addr: test.Addr,
 				NodeAbstractResource: NodeAbstractResource{
-					Addr:   test.Addr.ConfigResource(),
-					Config: test.Config,
+					Addr:                 test.Addr.ConfigResource(),
+					Config:               test.Config,
+					storedProviderConfig: test.StoredProviderConfig,
 				},
-				storedProviderConfig: test.StoredProviderConfig,
 			}
 			got := node.Provider()
 			if got != test.Want {
@@ -169,8 +169,9 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 	node := &NodeAbstractResourceInstance{
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
-		NodeAbstractResource: NodeAbstractResource{},
-		ResolvedProvider:     mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		NodeAbstractResource: NodeAbstractResource{
+			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		},
 	}
 	ctx.ProviderProvider = mockProvider
 	ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()

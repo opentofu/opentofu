@@ -13,6 +13,8 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 type ConcreteModuleNodeFunc func(n *nodeExpandModule) dag.Vertex
@@ -73,6 +75,14 @@ func (n *nodeExpandModule) References() []*addrs.Reference {
 		forEachRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.ModuleCall.ForEach)
 		refs = append(refs, forEachRefs...)
 	}
+
+	for _, passed := range n.ModuleCall.Providers {
+		if passed.InParent.KeyExpression != nil {
+			providerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, passed.InParent.KeyExpression)
+			refs = append(refs, providerRefs...)
+		}
+	}
+
 	return refs
 }
 
@@ -103,6 +113,11 @@ func (n *nodeExpandModule) ReferenceOutside() (selfPath, referencePath addrs.Mod
 	return n.Addr, n.Addr.Parent()
 }
 
+type ModuleProviderMapping struct {
+	configs.PassedProviderConfig
+	InParentKey addrs.InstanceKey
+}
+
 // GraphNodeExecutable
 func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	expander := ctx.InstanceExpander()
@@ -113,6 +128,7 @@ func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfd
 	// to our module, and register module instances with each of them.
 	for _, module := range expander.ExpandModule(n.Addr.Parent()) {
 		ctx = ctx.WithPath(module)
+
 		switch {
 		case n.ModuleCall.Count != nil:
 			count, ctDiags := evaluateCountExpression(n.ModuleCall.Count, ctx)
@@ -132,6 +148,44 @@ func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfd
 
 		default:
 			expander.SetModuleSingle(module, call)
+		}
+
+	}
+
+	if len(n.ModuleCall.Providers) != 0 {
+		// At this point "module" is the parent module's address and call is the relative call within it
+		// We need to evaluate any ProviderConfigRefs within the call for each parent.call[instance]
+		for _, instanceAddr := range expander.ExpandModule(n.Addr) {
+			instanceData := expander.GetModuleInstanceRepetitionData(instanceAddr)
+
+			var entries []ModuleProviderMapping
+			for _, pc := range n.ModuleCall.Providers {
+				entry := ModuleProviderMapping{PassedProviderConfig: pc}
+				if pc.InParent.KeyExpression != nil {
+					scope := ctx.WithPath(instanceAddr).EvaluationScope(nil, nil, instanceData)
+					keyVal, keyDiags := scope.EvalExpr(pc.InParent.KeyExpression, cty.DynamicPseudoType)
+					diags = diags.Append(keyDiags)
+					if keyDiags.HasErrors() {
+						return diags
+					}
+
+					if keyVal.Type() == cty.String {
+						entry.InParentKey = addrs.StringKey(keyVal.AsString())
+						log.Printf("[TRACE] Resource %s used provider key %q", instanceAddr, keyVal.AsString())
+					} else if keyVal.Type() == cty.Number {
+						var intVal int
+						gocty.FromCtyValue(keyVal, &intVal)
+						entry.InParentKey = addrs.IntKey(intVal)
+						log.Printf("[TRACE] Resource %s used provider key %v", instanceAddr, intVal)
+					} else {
+						panic("Bad key type")
+					}
+
+				}
+
+				entries = append(entries, entry)
+			}
+			ctx.SetModuleProviderMapping(instanceAddr, entries)
 		}
 	}
 
