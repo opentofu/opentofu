@@ -142,10 +142,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		},
 	}
 
-	p, exact := node.ProvidedBy()
-	if exact {
-		t.Fatalf("no exact provider should be found from this confniguration, got %q\n", p)
-	}
+	p := node.ProvidedBy()
 
 	// the implied non-exact provider should be "terraform"
 	lpc, ok := p.(addrs.LocalProviderConfig)
@@ -169,10 +166,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	}
 
 	node.SetProvider(resolved)
-	p, exact = node.ProvidedBy()
-	if !exact {
-		t.Fatalf("exact provider should be found, got %q\n", p)
-	}
+	p = node.ProvidedBy()
 
 	apc, ok := p.(addrs.AbsProviderConfig)
 	if !ok {
