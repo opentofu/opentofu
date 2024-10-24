@@ -55,7 +55,7 @@ func (n *NodeForgetResourceInstance) Execute(ctx EvalContext, op walkOperation) 
 
 	var state *states.ResourceInstanceObject
 
-	state, readDiags := n.readResourceInstanceState(ctx, addr, n.ResolvedProvider)
+	state, readDiags := n.readResourceInstanceState(ctx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags

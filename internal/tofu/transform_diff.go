@@ -163,6 +163,8 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 		if update {
 			// All actions except destroying the node type chosen by t.Concrete
 			abstract := NewNodeAbstractResourceInstance(addr)
+			// TODO is there a better way to pass this along for new instances?
+			abstract.ResolvedProviderKey = rc.ProviderKey
 			var node dag.Vertex = abstract
 			if f := t.Concrete; f != nil {
 				node = f(abstract)
@@ -194,6 +196,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 			// or a deposed object.
 			var node GraphNodeResourceInstance
 			abstract := NewNodeAbstractResourceInstance(addr)
+			abstract.ResolvedProviderKey = rc.ProviderKey
 			if dk == states.NotDeposed {
 				node = &NodeDestroyResourceInstance{
 					NodeAbstractResourceInstance: abstract,
@@ -216,6 +219,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 		if forget {
 			var node GraphNodeResourceInstance
 			abstract := NewNodeAbstractResourceInstance(addr)
+			abstract.ResolvedProviderKey = rc.ProviderKey
 			if dk == states.NotDeposed {
 				node = &NodeForgetResourceInstance{
 					NodeAbstractResourceInstance: abstract,

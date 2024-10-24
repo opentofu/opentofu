@@ -122,6 +122,7 @@ Note that the -target and -exclude options are not suitable for routine use, and
 	return newState, diags
 }
 
+//nolint:revive,unparam // TODO remove validate bool as it's not used
 func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate bool, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 

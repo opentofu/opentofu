@@ -237,7 +237,7 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 		})
 	}
 
-	providerFqn := modCfg.Module.ImpliedProviderForUnqualifiedType(cfg.ProviderConfigName())
+	providerFqn := modCfg.Module.ProviderForLocalConfig(cfg.ProviderConfigAddr())
 	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(providerFqn, addr.Mode, addr.Type)
 	if err != nil {
 		// Prior validation should've taken care of a schema lookup error,
