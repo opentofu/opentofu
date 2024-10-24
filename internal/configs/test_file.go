@@ -100,15 +100,13 @@ func (file *TestFile) getTestProviderOrMock(addr string) (*Provider, bool) {
 	mockProvider, ok := file.MockProviders[addr]
 	if ok {
 		p := &Provider{
-			ProviderCommon: ProviderCommon{
-				Name:          mockProvider.Name,
-				Alias:         mockProvider.Alias,
-				AliasRange:    mockProvider.AliasRange,
-				NameRange:     mockProvider.NameRange,
-				DeclRange:     mockProvider.DeclRange,
-				IsMocked:      true,
-				MockResources: mockProvider.MockResources,
-			},
+			Name:          mockProvider.Name,
+			NameRange:     mockProvider.NameRange,
+			Alias:         mockProvider.Alias,
+			AliasRange:    mockProvider.AliasRange,
+			DeclRange:     mockProvider.DeclRange,
+			IsMocked:      true,
+			MockResources: mockProvider.MockResources,
 		}
 
 		return p, true
@@ -398,17 +396,10 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			}
 
 		case "provider":
-			providerBlock, providerDiags := decodeProviderBlock(block)
+			provider, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
-			if providerBlock != nil {
-				providers, diagsStatic := providerBlock.decodeStaticFields(nil)
-				diags = append(diags, diagsStatic...)
-				if diagsStatic.HasErrors() {
-					continue
-				}
-				for _, provider := range providers {
-					tf.Providers[provider.Addr().StringCompact()] = provider
-				}
+			if provider != nil {
+				tf.Providers[provider.Addr().StringCompact()] = provider
 			}
 
 		case blockNameOverrideResource:

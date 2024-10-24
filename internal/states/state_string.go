@@ -99,6 +99,7 @@ func (ms *Module) testString() string {
 
 	for _, fakeAbsAddr := range addrsOrder {
 		addr := fakeAbsAddr.Resource
+		rs := ms.Resource(addr.ContainingResource())
 		is := ms.ResourceInstance(addr)
 
 		// Here we need to fake up a legacy-style address as the old state
@@ -132,7 +133,7 @@ func (ms *Module) testString() string {
 
 		buf.WriteString(fmt.Sprintf("%s:%s%s\n", k, taintStr, deposedStr))
 		buf.WriteString(fmt.Sprintf("  ID = %s\n", id))
-		buf.WriteString(fmt.Sprintf("  provider = %s\n", is.ProviderConfig.String()))
+		buf.WriteString(fmt.Sprintf("  provider = %s\n", rs.ProviderConfig.String()))
 
 		// Attributes were a flatmap before, but are not anymore. To preserve
 		// our old output as closely as possible we need to do a conversion

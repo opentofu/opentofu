@@ -48,14 +48,15 @@ func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *
 }
 
 // getProvider returns the providers.Interface and schema for a given provider.
-func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
+func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, providers.ProviderSchema, error) {
 	if addr.Provider.Type == "" {
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")
 	}
-	provider := ctx.Provider(addr)
+	provider := ctx.Provider(addr, providerKey)
 	if provider == nil {
-		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s not initialized", addr)
+		panic(fmt.Errorf("provider %s%s not initialized", addr, providerKey))
+		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s%s not initialized", addr, providerKey)
 	}
 	// Not all callers require a schema, so we will leave checking for a nil
 	// schema to the callers.

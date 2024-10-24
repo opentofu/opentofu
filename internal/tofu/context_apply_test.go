@@ -2783,7 +2783,7 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 			Type: "test_thing",
 			Name: "one",
 		}.Absolute(addrs.RootModuleInstance)
-		s.EnsureResource(oneAddr)
+		s.SetResourceProvider(oneAddr, providerAddr)
 		s.SetResourceInstanceCurrent(oneAddr.Instance(addrs.IntKey(0)), &states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
@@ -8923,7 +8923,7 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 	}
 
 	// correct the state
-	state.Modules["module.mod.module.removed"].Resources["aws_instance.child"].Instances[addrs.NoKey].ProviderConfig = mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].bar`)
+	state.Modules["module.mod.module.removed"].Resources["aws_instance.child"].ProviderConfig = mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].bar`)
 
 	ctx = testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{

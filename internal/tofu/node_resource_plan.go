@@ -7,12 +7,15 @@ package tofu
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 // nodeExpandPlannableResource represents an addrs.ConfigResource and implements
@@ -127,7 +130,8 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) *NodePlannableResourceInstanceOrphan {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
+		a.ResolvedProvider = n.ResolvedProvider
+		// ResolvedProviderKey set in AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -140,26 +144,20 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		}
 	}
 
-	var diags tfdiags.Diagnostics
 	for _, res := range orphans {
 		for key := range res.Instances {
 			addr := res.Addr.Instance(key)
 			abs := NewNodeAbstractResourceInstance(addr)
 			abs.AttachResourceState(res)
-			na := concreteResourceOrphan(abs)
-			g.Add(na)
-
-			// Validate that orphaned resources have valid providers
-			diag := n.potentialProviders.GetOptionalError(addr)
-			if diag != nil {
-				diags = diags.Append(diag)
-			}
+			n := concreteResourceOrphan(abs)
+			g.Add(n)
 		}
 	}
 
 	// Resolve addresses and IDs of all import targets that originate from import blocks
 	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
 	importResolver := ctx.ImportResolver()
+	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
 		if importTarget.IsFromImportBlock() {
 			err := importResolver.ExpandAndResolveImport(importTarget, ctx)
@@ -331,6 +329,50 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	state := ctx.State().Lock()
 	defer ctx.State().Unlock()
 
+	providerKeys := make(map[addrs.InstanceKey]addrs.InstanceKey)
+	for _, instAddr := range instanceAddrs {
+		if n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
+			keyExpr := n.Config.ProviderConfigRef.KeyExpression
+			keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(instAddr)
+			keyScope := ctx.EvaluationScope(nil, nil, keyData)
+
+			keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
+			diags = diags.Append(keyDiags)
+			if keyDiags.HasErrors() {
+				continue
+			}
+
+			if keyVal.Type() == cty.String {
+				providerKeys[instAddr.Resource.Key] = addrs.StringKey(keyVal.AsString())
+				log.Printf("[TRACE] Resource %s used provider key %q", instAddr, keyVal.AsString())
+			} else if keyVal.Type() == cty.Number {
+				var intVal int
+				gocty.FromCtyValue(keyVal, &intVal)
+				providerKeys[instAddr.Resource.Key] = addrs.IntKey(intVal)
+				log.Printf("[TRACE] Resource %s used provider key %v", instAddr, intVal)
+			} else {
+				panic("Bad key type")
+			}
+		} else {
+			// TODO THIS IS A HACK and we should actually have proper provider resolution
+			for modAddr := instAddr.Module; len(modAddr) != 0; modAddr = modAddr.Parent() {
+				mappings := ctx.GetModuleProviderMapping(modAddr)
+				found := false
+				for _, pm := range mappings {
+					if pm.InParentKey != addrs.NoKey {
+						found = true
+						providerKeys[instAddr.Resource.Key] = pm.InParentKey
+						log.Printf("[TRACE] Resource %s used provider key %v", instAddr, pm.InParentKey)
+					}
+				}
+				if found {
+					break
+				}
+			}
+		}
+
+	}
+
 	// The concrete resource factory we'll use
 	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		var m *NodePlannableResourceInstance
@@ -342,17 +384,19 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 				return &graphNodeImportState{
 					Addr:             c.Addr,
 					ID:               c.ID,
-					ResolvedProvider: n.resolveInstanceProvider(a.Addr),
+					ResolvedProvider: n.ResolvedProvider,
 					Schema:           n.Schema,
 					SchemaVersion:    n.SchemaVersion,
 					Config:           n.Config,
+					// TODO ResolvedProviderKey?
 				}
 			}
 		}
 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
+		a.ResolvedProvider = n.ResolvedProvider
+		a.ResolvedProviderKey = providerKeys[a.Addr.Resource.Key]
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -385,7 +429,8 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
-		a.ResolvedProvider = n.resolveInstanceProvider(a.Addr)
+		a.ResolvedProvider = n.ResolvedProvider
+		//ResolvedProviderKey will be set during AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas

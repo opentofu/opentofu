@@ -47,20 +47,6 @@ func TestParseAbsProviderConfig(t *testing.T) {
 			``,
 		},
 		{
-			`provider["registry.opentofu.org/hashicorp/aws"].foo[4]`,
-			AbsProviderConfig{
-				Module: RootModule,
-				Provider: Provider{
-					Type:      "aws",
-					Namespace: "hashicorp",
-					Hostname:  "registry.opentofu.org",
-				},
-				Alias: "foo",
-				Key:   IntKey(4),
-			},
-			``,
-		},
-		{
 			`module.baz.provider["registry.opentofu.org/hashicorp/aws"]`,
 			AbsProviderConfig{
 				Module: Module{"baz"},
@@ -82,20 +68,6 @@ func TestParseAbsProviderConfig(t *testing.T) {
 					Hostname:  "registry.opentofu.org",
 				},
 				Alias: "foo",
-			},
-			``,
-		},
-		{
-			`module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo["bar"]`,
-			AbsProviderConfig{
-				Module: Module{"baz"},
-				Provider: Provider{
-					Type:      "aws",
-					Namespace: "hashicorp",
-					Hostname:  "registry.opentofu.org",
-				},
-				Alias: "foo",
-				Key:   StringKey("bar"),
 			},
 			``,
 		},
@@ -130,7 +102,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
-			`provider["aws"].foo.bar.baz`,
+			`provider.aws.foo.bar`,
 			AbsProviderConfig{},
 			`Extraneous operators after provider configuration alias.`,
 		},
@@ -175,7 +147,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 				return
 			} else {
 				if len(diags) != 0 {
-					t.Fatalf("got %q diagnostics; want 0", diags.Err())
+					t.Fatalf("got %d diagnostics; want 0", len(diags))
 				}
 			}
 

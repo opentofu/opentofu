@@ -47,16 +47,7 @@ type NodeAbstractResourceInstance struct {
 	// to be stored in the final change.
 	generatedConfigHCL string
 
-	// storedProviderConfig is the provider address retrieved from the
-	// state. This is defined here for access within the ProvidedBy method, but
-	// will be set from the embedding instance type when the state is attached.
-	storedProviderConfig addrs.AbsProviderConfig
-
-	// In the case where we have for_each or count on the provider on the
-	// containing module or the resource the NodeAbstractResource will not have
-	// a ResolvedResourceProvider, instead the ResolvedProvider will be
-	// set
-	ResolvedProvider addrs.AbsProviderConfig
+	ResolvedProviderKey addrs.InstanceKey
 }
 
 // NewNodeAbstractResourceInstance creates an abstract resource instance graph
@@ -72,26 +63,6 @@ func NewNodeAbstractResourceInstance(addr addrs.AbsResourceInstance) *NodeAbstra
 		NodeAbstractResource: *r,
 		Addr:                 addr,
 	}
-}
-
-func (n *NodeAbstractResourceInstance) ProvidedBy() ProviderRequest {
-	// Once the provider is fully resolved, we can return the known value.
-	// In practice, this should be the only path that is commonly hit.
-	if n.ResolvedProvider.IsSet() {
-		return ProviderRequest{
-			Exact: []ProviderResourceInstanceRequest{{
-				Provider: n.ResolvedProvider,
-				Resource: n.Addr,
-			}},
-		}
-	}
-
-	// TODO consider filtering out only the providers that apply to this instance to simplify the expanded graph
-	return n.NodeAbstractResource.ProvidedBy()
-}
-
-func (n *NodeAbstractResourceInstance) Provider() addrs.Provider {
-	return n.ProviderImpl(n.storedProviderConfig)
 }
 
 func (n *NodeAbstractResourceInstance) Name() string {
@@ -158,23 +129,17 @@ func (n *NodeAbstractResourceInstance) ResourceInstanceAddr() addrs.AbsResourceI
 	return n.Addr
 }
 
-func (n *NodeAbstractResourceInstance) SetPotentialProviders(potentialProviders ResourceInstanceProviderResolver) {
-	n.ResolvedProvider = potentialProviders.Resolve(n.Addr)
-}
-
 // GraphNodeAttachResourceState
 func (n *NodeAbstractResourceInstance) AttachResourceState(s *states.Resource) {
 	if s == nil {
 		log.Printf("[WARN] attaching nil state to %s", n.Addr)
 		return
 	}
-
 	log.Printf("[TRACE] NodeAbstractResourceInstance.AttachResourceState for %s", n.Addr)
 	n.instanceState = s.Instance(n.Addr.Resource.Key)
-	n.storedProviderConfig = n.instanceState.ProviderConfig
-	if n.storedProviderConfig.IsSet() && !n.ResolvedProvider.IsSet() {
-		n.ResolvedProvider = n.storedProviderConfig
-	}
+	n.storedProviderConfig = s.ProviderConfig
+	// Kind of an odd split here, but this works
+	n.ResolvedProviderKey = n.instanceState.ProviderKey
 }
 
 // readDiff returns the planned change for a particular resource instance
@@ -312,7 +277,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateDeposed(ctx Eva
 // objects you are intending to write.
 func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalContext, deposedKey states.DeposedKey, obj *states.ResourceInstanceObject, targetState phaseState) error {
 	absAddr := n.Addr
-	_, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	_, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return err
 	}
@@ -350,11 +315,11 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx EvalCo
 	var write func(src *states.ResourceInstanceObjectSrc)
 	if deposedKey == states.NotDeposed {
 		write = func(src *states.ResourceInstanceObjectSrc) {
-			state.SetResourceInstanceCurrent(absAddr, src, n.ResolvedProvider)
+			state.SetResourceInstanceCurrent(absAddr, src, n.ResolvedProvider, n.ResolvedProviderKey)
 		}
 	} else {
 		write = func(src *states.ResourceInstanceObjectSrc) {
-			state.SetResourceInstanceDeposed(absAddr, deposedKey, src, n.ResolvedProvider)
+			state.SetResourceInstanceDeposed(absAddr, deposedKey, src, n.ResolvedProvider, n.ResolvedProviderKey)
 		}
 	}
 
@@ -404,6 +369,7 @@ func (n *NodeAbstractResourceInstance) planForget(ctx EvalContext, currentState 
 			After:  nullVal,
 		},
 		ProviderAddr: n.ResolvedProvider,
+		ProviderKey:  n.ResolvedProviderKey,
 	}
 
 	return plan
@@ -416,7 +382,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 
 	absAddr := n.Addr
 
-	if !n.ResolvedProvider.IsSet() {
+	if n.ResolvedProvider.Provider.Type == "" {
 		if deposedKey == "" {
 			panic(fmt.Sprintf("planDestroy for %s does not have ProviderAddr set", absAddr))
 		} else {
@@ -441,6 +407,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 				After:  cty.NullVal(cty.DynamicPseudoType),
 			},
 			ProviderAddr: n.ResolvedProvider,
+			ProviderKey:  n.ResolvedProviderKey,
 		}
 		return noop, nil
 	}
@@ -451,7 +418,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 	// operation.
 	nullVal := cty.NullVal(unmarkedPriorVal.Type())
 
-	provider, _, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	provider, _, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return plan, diags.Append(err)
 	}
@@ -509,6 +476,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 		},
 		Private:      resp.PlannedPrivate,
 		ProviderAddr: n.ResolvedProvider,
+		ProviderKey:  n.ResolvedProviderKey,
 	}
 
 	return plan, diags
@@ -530,7 +498,7 @@ func (n *NodeAbstractResourceInstance) writeChange(ctx EvalContext, change *plan
 		return nil
 	}
 
-	_, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	_, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return err
 	}
@@ -581,7 +549,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx EvalContext, deposedKey state
 	} else {
 		log.Printf("[TRACE] NodeAbstractResourceInstance.refresh for %s (deposed object %s)", absAddr, deposedKey)
 	}
-	provider, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return state, diags.Append(err)
 	}
@@ -721,7 +689,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	var keyData instances.RepetitionData
 
 	resource := n.Addr.Resource.Resource
-	provider, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return nil, nil, keyData, diags.Append(err)
 	}
@@ -1201,6 +1169,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		PrevRunAddr:  n.prevRunAddr(ctx),
 		Private:      plannedPrivate,
 		ProviderAddr: n.ResolvedProvider,
+		ProviderKey:  n.ResolvedProviderKey,
 		Change: plans.Change{
 			Action: action,
 			Before: priorVal,
@@ -1481,7 +1450,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx EvalContext, configVal
 
 	config := *n.Config
 
-	provider, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return newVal, diags
@@ -1608,7 +1577,7 @@ func (n *NodeAbstractResourceInstance) providerMetas(ctx EvalContext) (cty.Value
 	var diags tfdiags.Diagnostics
 	metaConfigVal := cty.NullVal(cty.DynamicPseudoType)
 
-	_, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	_, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return metaConfigVal, diags.Append(err)
 	}
@@ -1646,7 +1615,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx EvalContext, checkRule
 	var keyData instances.RepetitionData
 	var configVal cty.Value
 
-	_, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	_, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return nil, nil, keyData, diags.Append(err)
 	}
@@ -1750,6 +1719,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx EvalContext, checkRule
 			Addr:         n.Addr,
 			PrevRunAddr:  n.prevRunAddr(ctx),
 			ProviderAddr: n.ResolvedProvider,
+			ProviderKey:  n.ResolvedProviderKey,
 			Change: plans.Change{
 				Action: plans.Read,
 				Before: priorVal,
@@ -1826,6 +1796,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx EvalContext, checkRule
 				Addr:         n.Addr,
 				PrevRunAddr:  n.prevRunAddr(ctx),
 				ProviderAddr: n.ResolvedProvider,
+				ProviderKey:  n.ResolvedProviderKey,
 				Change: plans.Change{
 					Action: plans.Read,
 					Before: priorVal,
@@ -1920,7 +1891,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx EvalContext, planned 
 	var diags tfdiags.Diagnostics
 	var keyData instances.RepetitionData
 
-	_, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	_, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return nil, keyData, diags.Append(err)
 	}
@@ -2298,7 +2269,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		return state, diags
 	}
 
-	provider, providerSchema, err := n.getProviderInfo(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := n.getProvider(ctx, n.ResolvedProvider)
 	if err != nil {
 		return nil, diags.Append(err)
 	}
@@ -2618,8 +2589,8 @@ func resourceInstancePrevRunAddr(ctx EvalContext, currentAddr addrs.AbsResourceI
 	return table.OldAddr(currentAddr)
 }
 
-func (n *NodeAbstractResourceInstance) getProviderInfo(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
-	underlyingProvider, schema, err := getProvider(ctx, addr)
+func (n *NodeAbstractResourceInstance) getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
+	underlyingProvider, schema, err := getProvider(ctx, addr, n.ResolvedProviderKey) // TODO remove parameter addr
 	if err != nil {
 		return nil, providers.ProviderSchema{}, err
 	}

@@ -98,15 +98,18 @@ func TestLoadModuleCall(t *testing.T) {
 							End:      hcl.Pos{Line: 27, Column: 8, Byte: 335},
 						},
 					},
-					InParentMapping: &ProviderConfigRefMapping{
+					InParent: &ProviderConfigRef{
 						Name: "aws",
 						NameRange: hcl.Range{
 							Filename: "module-calls.tf",
 							Start:    hcl.Pos{Line: 27, Column: 11, Byte: 338},
 							End:      hcl.Pos{Line: 27, Column: 14, Byte: 341},
 						},
-						Aliases: map[addrs.InstanceKey]string{
-							addrs.NoKey: "foo",
+						Alias: "foo",
+						AliasRange: &hcl.Range{
+							Filename: "module-calls.tf",
+							Start:    hcl.Pos{Line: 27, Column: 14, Byte: 341},
+							End:      hcl.Pos{Line: 27, Column: 18, Byte: 345},
 						},
 					},
 				},

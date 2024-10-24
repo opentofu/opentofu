@@ -339,6 +339,8 @@ func (c *StateMvCommand) Run(args []string) int {
 			c.Ui.Output(fmt.Sprintf("%s %q to %q", prefix, addrFrom.String(), args[1]))
 			if !dryRun {
 				fromResourceAddr := addrFrom.ContainingResource()
+				fromResource := ssFrom.Resource(fromResourceAddr)
+				fromProviderAddr := fromResource.ProviderConfig
 				ssFrom.ForgetResourceInstanceAll(addrFrom)
 				ssFrom.RemoveResourceIfEmpty(fromResourceAddr)
 
@@ -350,8 +352,9 @@ func (c *StateMvCommand) Run(args []string) int {
 					// address covers both). If there's an index in the
 					// target then allow creating the new instance here.
 					resourceAddr := addrTo.ContainingResource()
-					stateTo.SyncWrapper().EnsureResource(
+					stateTo.SyncWrapper().SetResourceProvider(
 						resourceAddr,
+						fromProviderAddr, // in this case, we bring the provider along as if we were moving the whole resource
 					)
 					rs = stateTo.Resource(resourceAddr)
 				}
