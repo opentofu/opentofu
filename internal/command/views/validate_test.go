@@ -7,6 +7,7 @@ package views
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -77,6 +78,31 @@ func TestValidateHuman(t *testing.T) {
 	}
 }
 
+func TestValidateHuman_InPedanticMode(t *testing.T) {
+	streams, done := terminal.StreamsForTesting(t)
+	view := NewView(streams)
+	view.PedanticMode = true
+
+	validate := NewValidate(arguments.ViewHuman, view)
+	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
+
+	retCode := validate.Results(diags)
+	if retCode != 1 {
+		t.Errorf("expected: 1 got: %v", retCode)
+	}
+
+	want := "Error: Output as error"
+	got := strings.TrimSpace(done(t).Stderr())
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected: %v got: %v", want, got)
+	}
+
+	if !view.PedanticWarningFlagged {
+		t.Errorf("expected: true, got: %v", view.PedanticWarningFlagged)
+	}
+}
+
 func TestValidateJSON(t *testing.T) {
 	testCases := map[string]struct {
 		diag        tfdiags.Diagnostic
@@ -134,5 +160,46 @@ func TestValidateJSON(t *testing.T) {
 				t.Fatal(err)
 			}
 		})
+	}
+}
+
+func TestValidateJSON_InPedanticMode(t *testing.T) {
+	streams, done := terminal.StreamsForTesting(t)
+	view := NewView(streams)
+	view.PedanticMode = true
+	validate := NewValidate(arguments.ViewJSON, view)
+
+	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
+
+	retCode := validate.Results(diags)
+	if retCode != 1 {
+		t.Errorf("expected: 1 got: %v", retCode)
+	}
+
+	var got map[string]interface{}
+	want := map[string]interface{}{
+		"format_version": "1.0",
+		"valid":          false,
+		"error_count":    float64(1),
+		"warning_count":  float64(0),
+		"diagnostics": []interface{}{
+			map[string]interface{}{
+				"severity": "error",
+				"summary":  "Output as error",
+				"detail":   "",
+			},
+		},
+	}
+
+	if err := json.Unmarshal([]byte(done(t).Stdout()), &got); err != nil {
+		t.Fatalf("error unmarsling json: %s", err)
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected: %v got: %v", want, got)
+	}
+
+	if !view.PedanticWarningFlagged {
+		t.Errorf("expected: true, got: %v", view.PedanticWarningFlagged)
 	}
 }

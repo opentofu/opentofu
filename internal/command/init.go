@@ -165,7 +165,7 @@ func (c *InitCommand) Run(args []string) int {
 
 		initDirFromModuleAbort, initDirFromModuleDiags := c.initDirFromModule(ctx, path, src, hooks)
 		diags = diags.Append(initDirFromModuleDiags)
-		if initDirFromModuleAbort || initDirFromModuleDiags.HasErrors() {
+		if initDirFromModuleAbort || c.View.HasErrors(initDirFromModuleDiags) {
 			c.showDiagnostics(diags)
 			span.SetStatus(codes.Error, "module installation failed")
 			span.End()
@@ -207,7 +207,7 @@ func (c *InitCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromModule(rootModEarly)
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -261,7 +261,7 @@ func (c *InitCommand) Run(args []string) int {
 	if flagGet {
 		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, testsDirectory, rootModEarly, flagUpgrade)
 		diags = diags.Append(modsDiags)
-		if modsAbort || modsDiags.HasErrors() {
+		if modsAbort || c.View.HasErrors(modsDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -282,7 +282,7 @@ func (c *InitCommand) Run(args []string) int {
 	// version, so we can produce a version-related error message rather than
 	// potentially-confusing downstream errors.
 	versionDiags := tofu.CheckCoreVersionRequirements(config)
-	if versionDiags.HasErrors() {
+	if c.View.HasErrors(versionDiags) {
 		c.showDiagnostics(versionDiags)
 		return 1
 	}
@@ -293,7 +293,7 @@ func (c *InitCommand) Run(args []string) int {
 	// Now, we can check the diagnostics from the early configuration and the
 	// backend.
 	diags = diags.Append(earlyConfDiags.StrictDeduplicateMerge(backDiags))
-	if earlyConfDiags.HasErrors() {
+	if c.View.HasErrors(earlyConfDiags) {
 		c.Ui.Error(strings.TrimSpace(errInitConfigError))
 		c.showDiagnostics(diags)
 		return 1
@@ -302,7 +302,7 @@ func (c *InitCommand) Run(args []string) int {
 	// Now, we can show any errors from initializing the backend, but we won't
 	// show the errInitConfigError preamble as we didn't detect problems with
 	// the early configuration.
-	if backDiags.HasErrors() {
+	if c.View.HasErrors(backDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -310,7 +310,7 @@ func (c *InitCommand) Run(args []string) int {
 	// If everything is ok with the core version check and backend initialization,
 	// show other errors from loading the full configuration tree.
 	diags = diags.Append(confDiags)
-	if confDiags.HasErrors() {
+	if c.View.HasErrors(confDiags) {
 		c.Ui.Error(strings.TrimSpace(errInitConfigError))
 		c.showDiagnostics(diags)
 		return 1
@@ -331,7 +331,7 @@ func (c *InitCommand) Run(args []string) int {
 		// prior to fetching providers.
 		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
 		diags = diags.Append(migrateDiags)
-		if migrateDiags.HasErrors() {
+		if c.View.HasErrors(migrateDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -341,7 +341,7 @@ func (c *InitCommand) Run(args []string) int {
 	// Now that we have loaded all modules, check the module tree for missing providers.
 	providersOutput, providersAbort, providerDiags := c.getProviders(ctx, config, state, flagUpgrade, flagPluginPath, flagLockfile)
 	diags = diags.Append(providerDiags)
-	if providersAbort || providerDiags.HasErrors() {
+	if providersAbort || c.View.HasErrors(providerDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}

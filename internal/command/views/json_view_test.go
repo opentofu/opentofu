@@ -131,6 +131,36 @@ func TestJSONView_Diagnostics(t *testing.T) {
 	testJSONViewOutputEquals(t, done(t).Stdout(), want)
 }
 
+func TestJSONView_DiagnosticsInPedanticMode(t *testing.T) {
+	streams, done := terminal.StreamsForTesting(t)
+	view := NewView(streams)
+	view.PedanticMode = true
+	jsonView := NewJSONView(view)
+
+	diags := tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Warning, "Output as error", "")}
+	jsonView.Diagnostics(diags)
+
+	want := []map[string]interface{}{
+		{
+			"@level":   "error",
+			"@message": "Error: Output as error",
+			"@module":  "tofu.ui",
+			"type":     "diagnostic",
+			"diagnostic": map[string]interface{}{
+				"severity": "error",
+				"summary":  "Output as error",
+				"detail":   "",
+			},
+		},
+	}
+
+	testJSONViewOutputEquals(t, done(t).Stdout(), want)
+
+	if !view.PedanticWarningFlagged {
+		t.Errorf("expected: true, got: %v", view.PedanticWarningFlagged)
+	}
+}
+
 func TestJSONView_DiagnosticsWithMetadata(t *testing.T) {
 	streams, done := terminal.StreamsForTesting(t)
 	jv := NewJSONView(NewView(streams))

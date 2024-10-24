@@ -25,6 +25,7 @@ type Apply interface {
 	Hooks() []tofu.Hook
 
 	Diagnostics(diags tfdiags.Diagnostics)
+	HasErrors(diags tfdiags.Diagnostics) bool
 	HelpPrompt()
 }
 
@@ -112,6 +113,11 @@ func (v *ApplyHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *ApplyHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
+
 func (v *ApplyHuman) HelpPrompt() {
 	command := "apply"
 	if v.destroy {
@@ -150,7 +156,7 @@ func (v *ApplyJSON) ResourceCount(stateOutPath string) {
 
 func (v *ApplyJSON) Outputs(outputValues map[string]*states.OutputValue) {
 	outputs, diags := json.OutputsFromMap(outputValues)
-	if diags.HasErrors() {
+	if v.HasErrors(diags) {
 		v.Diagnostics(diags)
 	} else {
 		v.view.Outputs(outputs)
@@ -170,6 +176,11 @@ func (v *ApplyJSON) Hooks() []tofu.Hook {
 
 func (v *ApplyJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
+}
+
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *ApplyJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 func (v *ApplyJSON) HelpPrompt() {

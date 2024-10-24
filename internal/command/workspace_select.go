@@ -10,9 +10,8 @@ import (
 	"strings"
 
 	"github.com/mitchellh/cli"
-	"github.com/posener/complete"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/posener/complete"
 )
 
 type WorkspaceSelectCommand struct {
@@ -22,7 +21,16 @@ type WorkspaceSelectCommand struct {
 
 func (c *WorkspaceSelectCommand) Run(args []string) int {
 	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
+
+	var diags tfdiags.Diagnostics
+
+	invokeDiags := envCommandInvoked(c.LegacyName)
+	diags = diags.Append(invokeDiags)
+
+	c.showDiagnostics(diags)
+	if c.View.HasErrors(invokeDiags) {
+		return 1
+	}
 
 	var orCreate bool
 	cmdFlags := c.Meta.defaultFlagSet("workspace select")
@@ -46,11 +54,9 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		return 1
 	}
 
-	var diags tfdiags.Diagnostics
-
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if diags.HasErrors() {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -64,7 +70,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -74,7 +80,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() {
+	if c.View.HasErrors(backendDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}

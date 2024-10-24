@@ -24,9 +24,11 @@ func TestProviders(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -34,6 +36,7 @@ func TestProviders(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo]",
@@ -60,9 +63,11 @@ func TestProviders_noConfigs(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -71,6 +76,7 @@ func TestProviders_noConfigs(t *testing.T) {
 		t.Fatal("expected command to return non-zero exit code" +
 			" when no configs are available")
 	}
+	done(t)
 
 	output := ui.ErrorWriter.String()
 	expectedErrMsg := "No configuration files"
@@ -86,6 +92,7 @@ func TestProviders_modules(t *testing.T) {
 
 	// first run init with mock provider sources to install the module
 	initUi := new(cli.MockUi)
+	view, done := testView(t)
 	providerSource, close := newMockProviderSource(t, map[string][]string{
 		"foo": {"1.0.0"},
 		"bar": {"2.0.0"},
@@ -96,6 +103,7 @@ func TestProviders_modules(t *testing.T) {
 		testingOverrides: metaOverridesForProvider(testProvider()),
 		Ui:               initUi,
 		ProviderSource:   providerSource,
+		View:             view,
 	}
 	ic := &InitCommand{
 		Meta: m,
@@ -103,12 +111,15 @@ func TestProviders_modules(t *testing.T) {
 	if code := ic.Run([]string{}); code != 0 {
 		t.Fatalf("init failed\n%s", initUi.ErrorWriter)
 	}
+	done(t)
 
 	// Providers command
 	ui := new(cli.MockUi)
+	view, done = testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -116,6 +127,7 @@ func TestProviders_modules(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
@@ -143,9 +155,11 @@ func TestProviders_state(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -153,6 +167,7 @@ func TestProviders_state(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo] 1.0.0", // from required_providers
@@ -180,9 +195,11 @@ func TestProviders_tests(t *testing.T) {
 	defer os.Chdir(cwd)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersCommand{
 		Meta: Meta{
-			Ui: ui,
+			Ui:   ui,
+			View: view,
 		},
 	}
 
@@ -190,6 +207,7 @@ func TestProviders_tests(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
 	}
+	done(t)
 
 	wantOutput := []string{
 		"provider[registry.opentofu.org/hashicorp/foo]",
