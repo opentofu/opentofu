@@ -141,6 +141,11 @@ func (n *NodeApplyableResourceInstance) Execute(ctx EvalContext, op walkOperatio
 		return diags
 	}
 
+	diags = n.ResolveProvider(ctx)
+	if diags.HasErrors() {
+		return diags
+	}
+
 	// Eval info is different depending on what kind of resource this is
 	switch n.Config.Mode {
 	case addrs.ManagedResourceMode:

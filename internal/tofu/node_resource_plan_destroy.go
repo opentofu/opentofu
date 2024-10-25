@@ -122,7 +122,6 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContex
 			After:  cty.NullVal(cty.DynamicPseudoType),
 		},
 		ProviderAddr: n.ResolvedProvider,
-		ProviderKey:  n.ResolvedProviderKey,
 	}
 	return diags.Append(n.writeChange(ctx, change, ""))
 }

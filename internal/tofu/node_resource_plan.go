@@ -7,15 +7,12 @@ package tofu
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 // nodeExpandPlannableResource represents an addrs.ConfigResource and implements
@@ -329,67 +326,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	state := ctx.State().Lock()
 	defer ctx.State().Unlock()
 
-	providerKeys := make(map[addrs.InstanceKey]addrs.InstanceKey)
-	for _, instAddr := range instanceAddrs {
-		if n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
-			if n.ResolvedProviderKeyExpr != nil {
-				// Module key and resource key are required. This is not allowed!
-				diags = diags.Append(fmt.Errorf("TODO better message: provider key required in both module and resource"))
-				continue
-			}
-
-			keyExpr := n.Config.ProviderConfigRef.KeyExpression
-			keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(instAddr)
-			keyScope := ctx.EvaluationScope(nil, nil, keyData)
-
-			keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
-			diags = diags.Append(keyDiags)
-			if keyDiags.HasErrors() {
-				continue
-			}
-
-			if keyVal.Type() == cty.String {
-				providerKeys[instAddr.Resource.Key] = addrs.StringKey(keyVal.AsString())
-				log.Printf("[TRACE] Resource %s used provider key %q", instAddr, keyVal.AsString())
-			} else if keyVal.Type() == cty.Number {
-				var intVal int
-				gocty.FromCtyValue(keyVal, &intVal)
-				providerKeys[instAddr.Resource.Key] = addrs.IntKey(intVal)
-				log.Printf("[TRACE] Resource %s used provider key %v", instAddr, intVal)
-			} else {
-				panic("Bad key type")
-			}
-		} else if n.ResolvedProviderKeyExpr != nil {
-			// This is a hack, but not as bad as what is comment out below
-			moduleInstanceForKey := instAddr.Module[:len(n.ResolvedProviderKeyPath)]
-
-			keyExpr := n.ResolvedProviderKeyExpr
-			keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(moduleInstanceForKey)
-			keyScope := ctx.WithPath(moduleInstanceForKey).EvaluationScope(nil, nil, keyData)
-
-			keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
-			diags = diags.Append(keyDiags)
-			if keyDiags.HasErrors() {
-				continue
-			}
-
-			if keyVal.Type() == cty.String {
-				providerKeys[instAddr.Resource.Key] = addrs.StringKey(keyVal.AsString())
-				log.Printf("[TRACE] Resource %s used module provider key %q", instAddr, keyVal.AsString())
-			} else if keyVal.Type() == cty.Number {
-				var intVal int
-				gocty.FromCtyValue(keyVal, &intVal)
-				providerKeys[instAddr.Resource.Key] = addrs.IntKey(intVal)
-				log.Printf("[TRACE] Resource %s used module provider key %v", instAddr, intVal)
-			} else {
-				panic("Bad key type")
-			}
-		}
-
-		// TODO at this point we should make sure that the provider instance exists and error if it does not
-
-	}
-
 	// The concrete resource factory we'll use
 	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
 		var m *NodePlannableResourceInstance
@@ -413,7 +349,9 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ResolvedProvider = n.ResolvedProvider
-		a.ResolvedProviderKey = providerKeys[a.Addr.Resource.Key]
+		// Copy in the data requried for the key expressions
+		a.ResolvedProviderKeyExpr = n.ResolvedProviderKeyExpr
+		a.ResolvedProviderKeyPath = n.ResolvedProviderKeyPath
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas

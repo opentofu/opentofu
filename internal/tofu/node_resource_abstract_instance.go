@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -105,6 +106,78 @@ func (n *NodeAbstractResourceInstance) References() []*addrs.Reference {
 
 	// If we have neither config nor state then we have no references.
 	return nil
+}
+
+func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	log.Printf("[TRACE] Resolving provider key for %s", n.Addr)
+
+	if n.Config != nil && n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
+		if n.ResolvedProviderKeyExpr != nil {
+			// Module key and resource key are required. This is not allowed!
+			diags = diags.Append(fmt.Errorf("TODO better message: provider key required in both module and resource"))
+			return diags
+		}
+
+		keyExpr := n.Config.ProviderConfigRef.KeyExpression
+		keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(n.Addr)
+		keyScope := ctx.EvaluationScope(nil, nil, keyData)
+
+		keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
+		diags = diags.Append(keyDiags)
+		if keyDiags.HasErrors() {
+			return diags
+		}
+
+		if keyVal.Type() == cty.String {
+			n.ResolvedProviderKey = addrs.StringKey(keyVal.AsString())
+			log.Printf("[TRACE] Resource %s used provider key %q", n.Addr, keyVal.AsString())
+		} else if keyVal.Type() == cty.Number {
+			var intVal int
+			gocty.FromCtyValue(keyVal, &intVal)
+			n.ResolvedProviderKey = addrs.IntKey(intVal)
+			log.Printf("[TRACE] Resource %s used provider key %v", n.Addr, intVal)
+		} else {
+			panic("Bad key type")
+		}
+	} else if n.ResolvedProviderKeyExpr != nil {
+		// This is a hack, but not as bad as what is comment out below
+		moduleInstanceForKey := n.Addr.Module[:len(n.ResolvedProviderKeyPath)]
+
+		keyExpr := n.ResolvedProviderKeyExpr
+		keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(moduleInstanceForKey)
+		keyScope := ctx.WithPath(moduleInstanceForKey).EvaluationScope(nil, nil, keyData)
+
+		keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
+		diags = diags.Append(keyDiags)
+		if keyDiags.HasErrors() {
+			return diags
+		}
+
+		if keyVal.Type() == cty.String {
+			n.ResolvedProviderKey = addrs.StringKey(keyVal.AsString())
+			log.Printf("[TRACE] Resource %s used module provider key %q", n.Addr, keyVal.AsString())
+		} else if keyVal.Type() == cty.Number {
+			var intVal int
+			gocty.FromCtyValue(keyVal, &intVal)
+			n.ResolvedProviderKey = addrs.IntKey(intVal)
+			log.Printf("[TRACE] Resource %s used module provider key %v", n.Addr, intVal)
+		} else {
+			panic("Bad key type")
+		}
+	}
+
+	log.Printf("[TRACE] Resolved provider key for %s as %s", n.Addr, n.ResolvedProviderKey)
+
+	_, _, providerErr := getProvider(ctx, n.ResolvedProvider, n.ResolvedProviderKey)
+	if providerErr != nil {
+		// TODO improve error messages
+		diags = diags.Append(providerErr)
+		diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Provider with key not found", fmt.Sprintf("Resource %s requires a provider %s with key %s", n.Addr, n.ResolvedProvider, n.ResolvedProviderKey)))
+	}
+
+	return diags
 }
 
 // StateDependencies returns the dependencies which will be saved in the state
@@ -369,7 +442,6 @@ func (n *NodeAbstractResourceInstance) planForget(ctx EvalContext, currentState 
 			After:  nullVal,
 		},
 		ProviderAddr: n.ResolvedProvider,
-		ProviderKey:  n.ResolvedProviderKey,
 	}
 
 	return plan
@@ -407,7 +479,6 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 				After:  cty.NullVal(cty.DynamicPseudoType),
 			},
 			ProviderAddr: n.ResolvedProvider,
-			ProviderKey:  n.ResolvedProviderKey,
 		}
 		return noop, nil
 	}
@@ -476,7 +547,6 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx EvalContext, currentState
 		},
 		Private:      resp.PlannedPrivate,
 		ProviderAddr: n.ResolvedProvider,
-		ProviderKey:  n.ResolvedProviderKey,
 	}
 
 	return plan, diags
@@ -1169,7 +1239,6 @@ func (n *NodeAbstractResourceInstance) plan(
 		PrevRunAddr:  n.prevRunAddr(ctx),
 		Private:      plannedPrivate,
 		ProviderAddr: n.ResolvedProvider,
-		ProviderKey:  n.ResolvedProviderKey,
 		Change: plans.Change{
 			Action: action,
 			Before: priorVal,
@@ -1719,7 +1788,6 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx EvalContext, checkRule
 			Addr:         n.Addr,
 			PrevRunAddr:  n.prevRunAddr(ctx),
 			ProviderAddr: n.ResolvedProvider,
-			ProviderKey:  n.ResolvedProviderKey,
 			Change: plans.Change{
 				Action: plans.Read,
 				Before: priorVal,
@@ -1796,7 +1864,6 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx EvalContext, checkRule
 				Addr:         n.Addr,
 				PrevRunAddr:  n.prevRunAddr(ctx),
 				ProviderAddr: n.ResolvedProvider,
-				ProviderKey:  n.ResolvedProviderKey,
 				Change: plans.Change{
 					Action: plans.Read,
 					Before: priorVal,

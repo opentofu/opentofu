@@ -86,6 +86,11 @@ var (
 func (n *NodePlannableResourceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	addr := n.ResourceInstanceAddr()
 
+	diags := n.ResolveProvider(ctx)
+	if diags.HasErrors() {
+		return diags
+	}
+
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
@@ -295,7 +300,6 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 					Addr:         n.Addr,
 					PrevRunAddr:  n.prevRunAddr(ctx),
 					ProviderAddr: n.ResolvedProvider,
-					ProviderKey:  n.ResolvedProviderKey,
 					Change: plans.Change{
 						// we only need a placeholder, so this will be a NoOp
 						Action:          plans.NoOp,
