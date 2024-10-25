@@ -28,7 +28,7 @@ var (
 
 // GraphNodeExecutable
 func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	if op == walkValidate {
+	if op == walkValidate || n.Config == nil || n.Config.Instances == nil {
 		return n.executeInstance(ctx, op, addrs.NoKey)
 	}
 	for providerKey := range n.Config.Instances {
