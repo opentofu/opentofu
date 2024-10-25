@@ -1051,15 +1051,6 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 		case hcl.TraverseAttr:
 			ret.Alias = aliasStep.Name
 		case hcl.TraverseIndex:
-			if !aliasStep.Key.Type().Equals(cty.String) {
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid provider configuration reference",
-					Detail:   "It is only allowed to reference provider by it alias, which must be a string.",
-					Subject:  traversal[1].SourceRange().Ptr(),
-				})
-				return ret, diags
-			}
 			ret.Alias = aliasStep.Key.AsString()
 		default:
 			diags = append(diags, &hcl.Diagnostic{
