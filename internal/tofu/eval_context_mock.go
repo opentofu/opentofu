@@ -365,14 +365,6 @@ func (c *MockEvalContext) SetModuleCallArgument(callAddr addrs.ModuleCallInstanc
 	}
 }
 
-func (c *MockEvalContext) SetModuleProviderMapping(addrs.ModuleInstance, []ModuleProviderMapping) {
-	panic("not implemented")
-}
-
-func (c *MockEvalContext) GetModuleProviderMapping(addrs.ModuleInstance) []ModuleProviderMapping {
-	panic("not implemented")
-}
-
 func (c *MockEvalContext) GetVariableValue(addr addrs.AbsInputVariableInstance) cty.Value {
 	c.GetVariableValueCalled = true
 	c.GetVariableValueAddr = addr

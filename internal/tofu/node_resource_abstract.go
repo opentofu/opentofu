@@ -77,7 +77,9 @@ type NodeAbstractResource struct {
 	forceDependsOn bool
 
 	// The address of the provider this resource will use
-	ResolvedProvider addrs.AbsProviderConfig
+	ResolvedProvider        addrs.AbsProviderConfig
+	ResolvedProviderKeyExpr hcl.Expression
+	ResolvedProviderKeyPath addrs.Module
 	// storedProviderConfig is the provider address retrieved from the
 	// state. This is defined here for access within the ProvidedBy method, but
 	// will be set from the embedding instance type when the state is attached.
@@ -293,8 +295,10 @@ func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
 	return result
 }
 
-func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig) {
+func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig, keyExpr hcl.Expression, keyPath addrs.Module) {
 	n.ResolvedProvider = p
+	n.ResolvedProviderKeyExpr = keyExpr
+	n.ResolvedProviderKeyPath = keyPath
 }
 
 // GraphNodeProviderConsumer

@@ -64,9 +64,6 @@ type ContextGraphWalker struct {
 
 	provisionerLock  sync.Mutex
 	provisionerCache map[string]provisioners.Interface
-
-	moduleProviderMappingLock sync.Mutex
-	moduleProviderMapping     map[string][]ModuleProviderMapping
 }
 
 func (w *ContextGraphWalker) EnterPath(path addrs.ModuleInstance) EvalContext {
@@ -103,30 +100,28 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 	}
 
 	ctx := &BuiltinEvalContext{
-		StopContext:               w.StopContext,
-		Hooks:                     w.Context.hooks,
-		InputValue:                w.Context.uiInput,
-		InstanceExpanderValue:     w.InstanceExpander,
-		Plugins:                   w.Context.plugins,
-		MoveResultsValue:          w.MoveResults,
-		ImportResolverValue:       w.ImportResolver,
-		ProviderCache:             w.providerCache,
-		ProviderInputConfig:       w.Context.providerInputConfig,
-		ProviderLock:              &w.providerLock,
-		ProvisionerCache:          w.provisionerCache,
-		ProvisionerLock:           &w.provisionerLock,
-		ChangesValue:              w.Changes,
-		ChecksValue:               w.Checks,
-		StateValue:                w.State,
-		RefreshStateValue:         w.RefreshState,
-		PrevRunStateValue:         w.PrevRunState,
-		Evaluator:                 evaluator,
-		VariableValues:            w.variableValues,
-		VariableValuesLock:        &w.variableValuesLock,
-		Encryption:                w.Encryption,
-		ProviderFunctionTracker:   w.ProviderFunctionTracker,
-		ModuleProviderMapping:     w.moduleProviderMapping,
-		ModuleProviderMappingLock: &w.moduleProviderMappingLock,
+		StopContext:             w.StopContext,
+		Hooks:                   w.Context.hooks,
+		InputValue:              w.Context.uiInput,
+		InstanceExpanderValue:   w.InstanceExpander,
+		Plugins:                 w.Context.plugins,
+		MoveResultsValue:        w.MoveResults,
+		ImportResolverValue:     w.ImportResolver,
+		ProviderCache:           w.providerCache,
+		ProviderInputConfig:     w.Context.providerInputConfig,
+		ProviderLock:            &w.providerLock,
+		ProvisionerCache:        w.provisionerCache,
+		ProvisionerLock:         &w.provisionerLock,
+		ChangesValue:            w.Changes,
+		ChecksValue:             w.Checks,
+		StateValue:              w.State,
+		RefreshStateValue:       w.RefreshState,
+		PrevRunStateValue:       w.PrevRunState,
+		Evaluator:               evaluator,
+		VariableValues:          w.variableValues,
+		VariableValuesLock:      &w.variableValuesLock,
+		Encryption:              w.Encryption,
+		ProviderFunctionTracker: w.ProviderFunctionTracker,
 	}
 
 	return ctx
@@ -136,7 +131,6 @@ func (w *ContextGraphWalker) init() {
 	w.contexts = make(map[string]*BuiltinEvalContext)
 	w.providerCache = make(map[string]map[addrs.InstanceKey]providers.Interface)
 	w.provisionerCache = make(map[string]provisioners.Interface)
-	w.moduleProviderMapping = make(map[string][]ModuleProviderMapping)
 	w.variableValues = make(map[string]map[string]cty.Value)
 
 	// Populate root module variable values. Other modules will be populated

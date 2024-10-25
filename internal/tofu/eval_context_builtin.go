@@ -83,9 +83,6 @@ type BuiltinEvalContext struct {
 	ImportResolverValue     *ImportResolver
 	Encryption              encryption.Encryption
 	ProviderFunctionTracker ProviderFunctionMapping
-
-	ModuleProviderMapping     map[string][]ModuleProviderMapping
-	ModuleProviderMappingLock *sync.Mutex
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -531,19 +528,6 @@ func (ctx *BuiltinEvalContext) GetVariableValue(addr addrs.AbsInputVariableInsta
 		return cty.DynamicVal
 	}
 	return val
-}
-
-func (ctx *BuiltinEvalContext) SetModuleProviderMapping(addr addrs.ModuleInstance, mapping []ModuleProviderMapping) {
-	ctx.ModuleProviderMappingLock.Lock()
-	defer ctx.ModuleProviderMappingLock.Unlock()
-
-	ctx.ModuleProviderMapping[addr.String()] = mapping
-}
-
-func (ctx *BuiltinEvalContext) GetModuleProviderMapping(addr addrs.ModuleInstance) []ModuleProviderMapping {
-	ctx.ModuleProviderMappingLock.Lock()
-	defer ctx.ModuleProviderMappingLock.Unlock()
-	return ctx.ModuleProviderMapping[addr.String()]
 }
 
 func (ctx *BuiltinEvalContext) Changes() *plans.ChangesSync {
