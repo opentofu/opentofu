@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -53,7 +54,7 @@ func (n *graphNodeImportState) Provider() addrs.Provider {
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) SetProvider(addr addrs.AbsProviderConfig) {
+func (n *graphNodeImportState) SetProvider(addr addrs.AbsProviderConfig, _ hcl.Expression, _ addrs.Module) {
 	n.ResolvedProvider = addr
 }
 

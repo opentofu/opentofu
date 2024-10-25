@@ -152,9 +152,6 @@ type EvalContext interface {
 	// will silently overwrite the value provided by a previous call.
 	SetModuleCallArgument(addrs.ModuleCallInstance, addrs.InputVariable, cty.Value)
 
-	SetModuleProviderMapping(addrs.ModuleInstance, []ModuleProviderMapping)
-	GetModuleProviderMapping(addrs.ModuleInstance) []ModuleProviderMapping
-
 	// GetVariableValue returns the value provided for the input variable with
 	// the given address, or cty.DynamicVal if the variable hasn't been assigned
 	// a value yet.

@@ -86,7 +86,7 @@ type GraphNodeProviderConsumer interface {
 	Provider() (provider addrs.Provider)
 
 	// Set the resolved provider address for this resource.
-	SetProvider(addrs.AbsProviderConfig)
+	SetProvider(addrs.AbsProviderConfig, hcl.Expression, addrs.Module)
 }
 
 // ProviderTransformer is a GraphTransformer that maps resources to providers
@@ -148,10 +148,11 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// error instead.
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				target = p.Target()
+				// We are ignoring p.keyExpr here for now
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
-			pv.SetProvider(target.ProviderAddr())
+			pv.SetProvider(target.ProviderAddr(), nil, nil) // In this scenario, the keys are already known
 			g.Connect(dag.BasicEdge(v, target))
 		case addrs.LocalProviderConfig:
 			// We assume that the value returned from Provider() has already been
@@ -197,13 +198,19 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				continue
 			}
 
+			var targetExpr hcl.Expression
+			var targetPath addrs.Module
+			var targetDiags hcl.Diagnostics
+
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				target = p.Target()
+				targetExpr, targetPath, targetDiags = p.TargetExpr()
+				diags = diags.Append(targetDiags)
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
-			pv.SetProvider(target.ProviderAddr())
+			pv.SetProvider(target.ProviderAddr(), targetExpr, targetPath)
 			g.Connect(dag.BasicEdge(v, target))
 		default:
 			panic(fmt.Sprintf("BUG: Invalid provider address type %T for %#v", req, req))
@@ -585,8 +592,9 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 // configurations, and are removed after all the resources have been connected
 // to their providers.
 type graphNodeProxyProvider struct {
-	addr   addrs.AbsProviderConfig
-	target GraphNodeProvider
+	addr    addrs.AbsProviderConfig
+	target  GraphNodeProvider
+	keyExpr hcl.Expression
 }
 
 var (
@@ -613,6 +621,30 @@ func (n *graphNodeProxyProvider) Target() GraphNodeProvider {
 		return t.Target()
 	default:
 		return n.target
+	}
+}
+
+// Find the *single* keyExpression that is used in the provider
+// chain.  This is not ideal, but it works with current constraints on this feature
+func (n *graphNodeProxyProvider) TargetExpr() (hcl.Expression, addrs.Module, hcl.Diagnostics) {
+	switch t := n.target.(type) {
+	case *graphNodeProxyProvider:
+		targetExpr, targetPath, diags := t.TargetExpr()
+		if targetExpr != nil && n.keyExpr != nil {
+			// Returning targetExpr allows additional nested diagnostics to be produced
+			return targetExpr, targetPath, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Only one key expression allowed in module provider chain",
+				Detail:   "TODO better description",
+				Subject:  n.keyExpr.Range().Ptr(),
+			})
+		}
+		if n.keyExpr != nil {
+			return n.keyExpr, n.ModulePath(), diags
+		}
+		return targetExpr, targetPath, diags
+	default:
+		return n.keyExpr, n.ModulePath(), nil
 	}
 }
 
@@ -816,8 +848,9 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 		}
 
 		proxy := &graphNodeProxyProvider{
-			addr:   fullAddr,
-			target: parentProvider,
+			addr:    fullAddr,
+			target:  parentProvider,
+			keyExpr: pair.InParent.KeyExpression,
 		}
 
 		concreteProvider := t.providers[fullName]

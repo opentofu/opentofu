@@ -8,6 +8,7 @@ package tofu
 import (
 	"fmt"
 	"log"
+	"runtime/debug"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -55,7 +56,7 @@ func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig, providerKey addr
 	}
 	provider := ctx.Provider(addr, providerKey)
 	if provider == nil {
-		panic(fmt.Errorf("provider %s%s not initialized", addr, providerKey))
+		debug.PrintStack()
 		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s%s not initialized", addr, providerKey)
 	}
 	// Not all callers require a schema, so we will leave checking for a nil

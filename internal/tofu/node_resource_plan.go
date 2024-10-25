@@ -332,6 +332,12 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 	providerKeys := make(map[addrs.InstanceKey]addrs.InstanceKey)
 	for _, instAddr := range instanceAddrs {
 		if n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
+			if n.ResolvedProviderKeyExpr != nil {
+				// Module key and resource key are required. This is not allowed!
+				diags = diags.Append(fmt.Errorf("TODO better message: provider key required in both module and resource"))
+				continue
+			}
+
 			keyExpr := n.Config.ProviderConfigRef.KeyExpression
 			keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(instAddr)
 			keyScope := ctx.EvaluationScope(nil, nil, keyData)
@@ -353,23 +359,34 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			} else {
 				panic("Bad key type")
 			}
-		} else {
-			// TODO THIS IS A HACK and we should actually have proper provider resolution
-			for modAddr := instAddr.Module; len(modAddr) != 0; modAddr = modAddr.Parent() {
-				mappings := ctx.GetModuleProviderMapping(modAddr)
-				found := false
-				for _, pm := range mappings {
-					if pm.InParentKey != addrs.NoKey {
-						found = true
-						providerKeys[instAddr.Resource.Key] = pm.InParentKey
-						log.Printf("[TRACE] Resource %s used provider key %v", instAddr, pm.InParentKey)
-					}
-				}
-				if found {
-					break
-				}
+		} else if n.ResolvedProviderKeyExpr != nil {
+			// This is a hack, but not as bad as what is comment out below
+			moduleInstanceForKey := instAddr.Module[:len(n.ResolvedProviderKeyPath)]
+
+			keyExpr := n.ResolvedProviderKeyExpr
+			keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(moduleInstanceForKey)
+			keyScope := ctx.WithPath(moduleInstanceForKey).EvaluationScope(nil, nil, keyData)
+
+			keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
+			diags = diags.Append(keyDiags)
+			if keyDiags.HasErrors() {
+				continue
+			}
+
+			if keyVal.Type() == cty.String {
+				providerKeys[instAddr.Resource.Key] = addrs.StringKey(keyVal.AsString())
+				log.Printf("[TRACE] Resource %s used module provider key %q", instAddr, keyVal.AsString())
+			} else if keyVal.Type() == cty.Number {
+				var intVal int
+				gocty.FromCtyValue(keyVal, &intVal)
+				providerKeys[instAddr.Resource.Key] = addrs.IntKey(intVal)
+				log.Printf("[TRACE] Resource %s used module provider key %v", instAddr, intVal)
+			} else {
+				panic("Bad key type")
 			}
 		}
+
+		// TODO at this point we should make sure that the provider instance exists and error if it does not
 
 	}
 
@@ -478,6 +495,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		Steps: steps,
 		Name:  "nodeExpandPlannableResource",
 	}
-	graph, diags := b.Build(addr.Module)
-	return graph, diags.ErrWithWarnings()
+	graph, graphDiags := b.Build(addr.Module)
+	return graph, diags.Append(graphDiags).ErrWithWarnings()
 }

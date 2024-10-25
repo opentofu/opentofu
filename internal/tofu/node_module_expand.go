@@ -13,8 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 )
 
 type ConcreteModuleNodeFunc func(n *nodeExpandModule) dag.Vertex
@@ -150,43 +148,6 @@ func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfd
 			expander.SetModuleSingle(module, call)
 		}
 
-	}
-
-	if len(n.ModuleCall.Providers) != 0 {
-		// At this point "module" is the parent module's address and call is the relative call within it
-		// We need to evaluate any ProviderConfigRefs within the call for each parent.call[instance]
-		for _, instanceAddr := range expander.ExpandModule(n.Addr) {
-			instanceData := expander.GetModuleInstanceRepetitionData(instanceAddr)
-
-			var entries []ModuleProviderMapping
-			for _, pc := range n.ModuleCall.Providers {
-				entry := ModuleProviderMapping{PassedProviderConfig: pc}
-				if pc.InParent.KeyExpression != nil {
-					scope := ctx.WithPath(instanceAddr).EvaluationScope(nil, nil, instanceData)
-					keyVal, keyDiags := scope.EvalExpr(pc.InParent.KeyExpression, cty.DynamicPseudoType)
-					diags = diags.Append(keyDiags)
-					if keyDiags.HasErrors() {
-						return diags
-					}
-
-					if keyVal.Type() == cty.String {
-						entry.InParentKey = addrs.StringKey(keyVal.AsString())
-						log.Printf("[TRACE] Resource %s used provider key %q", instanceAddr, keyVal.AsString())
-					} else if keyVal.Type() == cty.Number {
-						var intVal int
-						gocty.FromCtyValue(keyVal, &intVal)
-						entry.InParentKey = addrs.IntKey(intVal)
-						log.Printf("[TRACE] Resource %s used provider key %v", instanceAddr, intVal)
-					} else {
-						panic("Bad key type")
-					}
-
-				}
-
-				entries = append(entries, entry)
-			}
-			ctx.SetModuleProviderMapping(instanceAddr, entries)
-		}
 	}
 
 	return diags
