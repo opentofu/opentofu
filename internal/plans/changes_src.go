@@ -48,7 +48,6 @@ type ResourceInstanceChangeSrc struct {
 	// to plan this change, and thus the configuration that must also be
 	// used to apply it.
 	ProviderAddr addrs.AbsProviderConfig
-	ProviderKey  addrs.InstanceKey
 
 	// ChangeSrc is an embedded description of the not-yet-decoded change.
 	ChangeSrc
@@ -96,7 +95,6 @@ func (rcs *ResourceInstanceChangeSrc) Decode(ty cty.Type) (*ResourceInstanceChan
 		PrevRunAddr:     prevRunAddr,
 		DeposedKey:      rcs.DeposedKey,
 		ProviderAddr:    rcs.ProviderAddr,
-		ProviderKey:     rcs.ProviderKey,
 		Change:          *change,
 		ActionReason:    rcs.ActionReason,
 		RequiredReplace: rcs.RequiredReplace,

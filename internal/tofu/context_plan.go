@@ -930,7 +930,6 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 					Addr:         addr,
 					PrevRunAddr:  prevRunAddr,
 					ProviderAddr: rs.ProviderConfig,
-					ProviderKey:  oldIS.ProviderKey,
 					Change: plans.Change{
 						Action: action,
 						Before: oldVal,

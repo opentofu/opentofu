@@ -217,7 +217,6 @@ type ResourceInstanceChange struct {
 	// to plan this change, and thus the configuration that must also be
 	// used to apply it.
 	ProviderAddr addrs.AbsProviderConfig
-	ProviderKey  addrs.InstanceKey
 
 	// Change is an embedded description of the change.
 	Change
@@ -271,7 +270,6 @@ func (rc *ResourceInstanceChange) Encode(ty cty.Type) (*ResourceInstanceChangeSr
 		PrevRunAddr:     prevRunAddr,
 		DeposedKey:      rc.DeposedKey,
 		ProviderAddr:    rc.ProviderAddr,
-		ProviderKey:     rc.ProviderKey,
 		ChangeSrc:       *cs,
 		ActionReason:    rc.ActionReason,
 		RequiredReplace: rc.RequiredReplace,
@@ -311,7 +309,6 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 				DeposedKey:   rc.DeposedKey,
 				Private:      rc.Private,
 				ProviderAddr: rc.ProviderAddr,
-				ProviderKey:  rc.ProviderKey,
 				Change: Change{
 					Action:          Delete,
 					Before:          rc.Before,
@@ -326,7 +323,6 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 				DeposedKey:   rc.DeposedKey,
 				Private:      rc.Private,
 				ProviderAddr: rc.ProviderAddr,
-				ProviderKey:  rc.ProviderKey,
 				Change: Change{
 					Action:          NoOp,
 					Before:          rc.Before,
@@ -344,7 +340,6 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 				DeposedKey:   rc.DeposedKey,
 				Private:      rc.Private,
 				ProviderAddr: rc.ProviderAddr,
-				ProviderKey:  rc.ProviderKey,
 				Change: Change{
 					Action:          NoOp,
 					Before:          rc.Before,
@@ -359,7 +354,6 @@ func (rc *ResourceInstanceChange) Simplify(destroying bool) *ResourceInstanceCha
 				DeposedKey:   rc.DeposedKey,
 				Private:      rc.Private,
 				ProviderAddr: rc.ProviderAddr,
-				ProviderKey:  rc.ProviderKey,
 				Change: Change{
 					Action:          Create,
 					Before:          cty.NullVal(rc.After.Type()),
