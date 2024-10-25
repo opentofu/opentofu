@@ -282,12 +282,7 @@ var connectionBlockSupersetSchema = &configschema.Block{
 func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	if 1 == 1 {
-		println("TODO validate")
-		return diags
-	}
-
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider, addrs.NoKey) // TODO getAnyProvider()
+	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider, addrs.NoKey) // Provider Instance Keys are ignored during validate
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
