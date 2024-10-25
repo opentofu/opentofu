@@ -97,9 +97,7 @@ func TestStatePersist(t *testing.T) {
 						Status: states.ObjectReady,
 					},
 					addrs.AbsProviderConfig{
-						Provider: tfaddr.Provider{
-							Type:      "local",
-							Namespace: "namespace"},
+						Provider: tfaddr.Provider{Namespace: "local"},
 					},
 				)
 				return s, func() {}
@@ -137,7 +135,7 @@ func TestStatePersist(t *testing.T) {
 								},
 								"mode":     "managed",
 								"name":     "myfile",
-								"provider": `provider["/namespace/local"]`,
+								"provider": `provider["/local/"]`,
 								"type":     "local_file",
 							},
 						},
@@ -175,7 +173,7 @@ func TestStatePersist(t *testing.T) {
 								},
 								"mode":     "managed",
 								"name":     "myfile",
-								"provider": `provider["/namespace/local"]`,
+								"provider": `provider["/local/"]`,
 								"type":     "local_file",
 							},
 						},

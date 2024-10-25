@@ -244,17 +244,6 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		mod.CloudConfig.eval = mod.StaticEvaluator
 	}
 
-	// Process all providers with the static context
-	for _, file := range primaryFiles {
-		fileDiags := mod.appendFileProviders(file)
-		diags = append(diags, fileDiags...)
-	}
-
-	for _, file := range overrideFiles {
-		fileDiags := mod.mergeFileProviders(file)
-		diags = append(diags, fileDiags...)
-	}
-
 	// Process all module calls now that we have the static context
 	for _, mc := range mod.ModuleCalls {
 		mDiags := mc.decodeStaticFields(mod.StaticEvaluator)
@@ -773,16 +762,6 @@ func (m *Module) mergeFile(file *File) hcl.Diagnostics {
 		})
 	}
 
-	return diags
-}
-
-func (m *Module) appendFileProviders(file *File) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-	return diags
-}
-
-func (m *Module) mergeFileProviders(file *File) hcl.Diagnostics {
-	var diags hcl.Diagnostics
 	return diags
 }
 
