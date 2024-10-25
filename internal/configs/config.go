@@ -950,6 +950,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// for by this run block.
 
 		for _, ref := range run.Providers {
+
 			testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
 			if !ok {
 				// Then this reference was invalid as we didn't have the

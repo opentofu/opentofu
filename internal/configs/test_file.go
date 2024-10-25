@@ -399,7 +399,7 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			provider, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
 			if provider != nil {
-				tf.Providers[provider.Addr().StringCompact()] = provider
+				tf.Providers[provider.moduleUniqueKey()] = provider
 			}
 
 		case blockNameOverrideResource:
