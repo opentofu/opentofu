@@ -15,7 +15,6 @@ ENHANCEMENTS:
 * Added a help target to the Makefile. ([#1925](https://github.com/opentofu/opentofu/pull/1925))
 * Added a simplified Build Process with a Makefile Target ([#1926](https://github.com/opentofu/opentofu/issues/1926))
 * Ensures that the Makefile adheres to POSIX standards ([#1811](https://github.com/opentofu/opentofu/pull/1928))
-* Added for-each support to providers. ([#300](https://github.com/opentofu/opentofu/issues/300))
 
 BUG FIXES:
 * Ensure that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
