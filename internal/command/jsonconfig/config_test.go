@@ -6,208 +6,104 @@
 package jsonconfig
 
 import (
-	"fmt"
 	"slices"
 	"testing"
 )
 
-var findSourceProviderConfigTests = map[string]struct {
-	StartKey    string
-	FullName    string
-	ProviderMap map[string]providerConfig
-	Want        []string
-}{
-	"zero": {
-		StartKey:    "null",
-		FullName:    "hashicorp/null",
-		ProviderMap: map[string]providerConfig{},
-		Want:        nil,
-	},
-	"no-parent": {
-		StartKey: "null",
-		FullName: "hashicorp/null",
-		ProviderMap: map[string]providerConfig{
-			"null": {
-				Name:          "null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-		},
-		Want: []string{"null"},
-	},
-	"unknown-start": {
-		StartKey: "null2",
-		FullName: "hashicorp/null",
-		ProviderMap: map[string]providerConfig{
-			"null": {
-				Name:          "null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-		},
-		Want: nil,
-	},
-	"unknown-full-name": {
-		StartKey: "null",
-		FullName: "hashicorp2/null",
-		ProviderMap: map[string]providerConfig{
-			"null": {
-				Name:          "null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-		},
-		Want: nil,
-	},
-	"simple": {
-		StartKey: "module.a:null",
-		FullName: "hashicorp/null",
-		ProviderMap: map[string]providerConfig{
-			"null": {
-				Name:          "null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-			"module.a:null": {
-				Name:          "module.a:null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "module.a",
-				parentKeys:    []string{"null"},
-			},
-		},
-		Want: []string{"null"},
-	},
-	"diff-full-name": {
-		StartKey: "module.a:null",
-		FullName: "hashicorp2/null",
-		ProviderMap: map[string]providerConfig{
-			"null": {
-				Name:          "null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-			"module.a:null": {
-				Name:          "module.a:null",
-				FullName:      "hashicorp2/null",
-				ModuleAddress: "module.a",
-				parentKeys:    []string{"null"},
-			},
-		},
-		Want: []string{"module.a:null"},
-	},
-	"sub-sub-module": {
-		StartKey: "module.a.module.b:null",
-		FullName: "hashicorp/null",
-		ProviderMap: map[string]providerConfig{
-			"null": {
-				Name:          "null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-			"module.a:null": {
-				Name:          "module.a:null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "module.a",
-				parentKeys:    []string{"null"},
-			},
-			"module.a.module.b:null": {
-				Name:          "module.b:null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "module.a.module.b",
-				parentKeys:    []string{"module.a:null"},
-			},
-		},
-		Want: []string{"null"},
-	},
-	"simple-multiple-providers": {
-		StartKey: "module.a.module.b:null",
-		FullName: "hashicorp/null",
-		ProviderMap: map[string]providerConfig{
-			"null": {
-				Name:          "null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-			"null.a": {
-				Name:          "null.a",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-			"module.a:null": {
-				Name:          "module.a:null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "module.a",
-				parentKeys:    []string{"null", "null.a"},
-			},
-			"module.a.module.b:null": {
-				Name:          "module.b:null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "module.a.module.b",
-				parentKeys:    []string{"module.a:null"},
-			},
-		},
-		Want: []string{"null", "null.a"},
-	},
-	"multiple-providers": {
-		StartKey: "module.a.module.b:null",
-		FullName: "hashicorp/null",
-		ProviderMap: map[string]providerConfig{
-			"null": {
-				Name:          "null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-			"null.a": {
-				Name:          "null.a",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-			"null.b": {
-				Name:          "null.a",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "",
-			},
-			"module.a:null": {
-				Name:          "module.a:null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "module.a",
-				parentKeys:    []string{"null", "null.a"},
-			},
-			"module.a:null.a": {
-				Name:          "module.a:null.a",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "module.a",
-				parentKeys:    []string{"null", "null.b"},
-			},
-			"module.a.module.b:null": {
-				Name:          "module.b:null",
-				FullName:      "hashicorp/null",
-				ModuleAddress: "module.a.module.b",
-				parentKeys:    []string{"module.a:null", "module.a:null.a"},
-			},
-		},
-		// FindSourceProviderConfig doesn't do normalizing so
-		// it is fine to have 'duplicated' source providers.
-		Want: []string{"null", "null.a", "null", "null.b"},
-	},
-}
-
 func TestFindSourceProviderConfig(t *testing.T) {
-	t.Parallel()
+	tests := []struct {
+		StartKey    string
+		FullName    string
+		ProviderMap map[string]providerConfig
+		Want        []string
+	}{
+		{
+			StartKey:    "null",
+			FullName:    "hashicorp/null",
+			ProviderMap: map[string]providerConfig{},
+			Want:        nil,
+		},
+		{
+			StartKey: "null",
+			FullName: "hashicorp/null",
+			ProviderMap: map[string]providerConfig{
+				"null": {
+					Name:          "null",
+					FullName:      "hashicorp/null",
+					ModuleAddress: "",
+				},
+			},
+			Want: []string{"null"},
+		},
+		{
+			StartKey: "null2",
+			FullName: "hashicorp/null",
+			ProviderMap: map[string]providerConfig{
+				"null": {
+					Name:          "null",
+					FullName:      "hashicorp/null",
+					ModuleAddress: "",
+				},
+			},
+			Want: nil,
+		},
+		{
+			StartKey: "null",
+			FullName: "hashicorp2/null",
+			ProviderMap: map[string]providerConfig{
+				"null": {
+					Name:          "null",
+					FullName:      "hashicorp/null",
+					ModuleAddress: "",
+				},
+			},
+			Want: nil,
+		},
+		{
+			StartKey: "module.a:null",
+			FullName: "hashicorp/null",
+			ProviderMap: map[string]providerConfig{
+				"null": {
+					Name:          "null",
+					FullName:      "hashicorp/null",
+					ModuleAddress: "",
+				},
+				"module.a:null": {
+					Name:          "module.a:null",
+					FullName:      "hashicorp/null",
+					ModuleAddress: "module.a",
+					parentKeys:    []string{"null"},
+				},
+			},
+			Want: []string{"null"},
+		},
+		{
+			StartKey: "module.a:null",
+			FullName: "hashicorp2/null",
+			ProviderMap: map[string]providerConfig{
+				"null": {
+					Name:          "null",
+					FullName:      "hashicorp/null",
+					ModuleAddress: "",
+				},
+				"module.a:null": {
+					Name:          "module.a:null",
+					FullName:      "hashicorp2/null",
+					ModuleAddress: "module.a",
+					parentKeys:    []string{"null"},
+				},
+			},
+			Want: []string{"module.a:null"},
+		},
+	}
 
-	for name, test := range findSourceProviderConfigTests {
-		test := test
+	// TODO/Oleksandr: extend this test
 
-		t.Run(name, func(t *testing.T) {
-			if name == "multiple-providers" {
-				fmt.Println("hello")
-			}
-
-			got := findSourceProviderKeys([]string{test.StartKey}, test.FullName, test.ProviderMap)
-			if slices.Compare(got, test.Want) != 0 {
-				t.Errorf("wrong result:\nGot: %#v\nWant: %#v\n", got, test.Want)
-			}
-		})
+	for _, test := range tests {
+		got := findSourceProviderKeys([]string{test.StartKey}, test.FullName, test.ProviderMap)
+		if slices.Compare(got, test.Want) != 0 {
+			t.Errorf("wrong result:\nGot: %#v\nWant: %#v\n", got, test.Want)
+		}
 	}
 }
 

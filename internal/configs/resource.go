@@ -93,7 +93,7 @@ func (r *Resource) Addr() addrs.Resource {
 	}
 }
 
-// AllProviderConfigAddrs returns all potential local provider addresses.
+// TODO/Oleksandr: comment
 func (r *Resource) AllProviderConfigAddrs() []addrs.LocalProviderConfig {
 	if r.ProviderConfigRef == nil {
 		// If no specific "provider" argument is given, we want to look up the
