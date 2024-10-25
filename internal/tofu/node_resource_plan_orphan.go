@@ -54,6 +54,11 @@ func (n *NodePlannableResourceInstanceOrphan) Name() string {
 func (n *NodePlannableResourceInstanceOrphan) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	addr := n.ResourceInstanceAddr()
 
+	diags := n.EnsureProvider(ctx)
+	if diags.HasErrors() {
+		return diags
+	}
+
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:

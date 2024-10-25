@@ -170,6 +170,12 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 
 	log.Printf("[TRACE] Resolved provider key for %s as %s", n.Addr, n.ResolvedProviderKey)
 
+	return diags.Append(n.EnsureProvider(ctx))
+}
+
+func (n *NodeAbstractResourceInstance) EnsureProvider(ctx EvalContext) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
 	_, _, providerErr := getProvider(ctx, n.ResolvedProvider, n.ResolvedProviderKey)
 	if providerErr != nil {
 		// TODO improve error messages
