@@ -105,7 +105,22 @@ func (r *Resource) AllProviderConfigAddrs() []addrs.LocalProviderConfig {
 		}}
 	}
 
-	return r.ProviderConfigRef.AllAddrs()
+	if !r.ProviderConfigRef.HasInstanceRefsInAlias() {
+		return []addrs.LocalProviderConfig{{
+			LocalName: r.ProviderConfigRef.Name,
+			Alias:     r.ProviderConfigRef.Aliases[addrs.NoKey],
+		}}
+	}
+
+	pcs := make([]addrs.LocalProviderConfig, 0, len(r.ProviderConfigRef.Aliases))
+	for _, alias := range r.ProviderConfigRef.Aliases {
+		pcs = append(pcs, addrs.LocalProviderConfig{
+			LocalName: r.ProviderConfigRef.Name,
+			Alias:     alias,
+		})
+	}
+
+	return pcs
 }
 
 // ProviderConfigName returns configuration name of resource provider without an alias.
@@ -725,25 +740,6 @@ func (m *ProviderConfigRefMapping) HasInstanceRefsInAlias() bool {
 
 	// There is a single entry and this entry references some key.
 	return true
-}
-
-func (m *ProviderConfigRefMapping) AllAddrs() []addrs.LocalProviderConfig {
-	if !m.HasInstanceRefsInAlias() {
-		return []addrs.LocalProviderConfig{{
-			LocalName: m.Name,
-			Alias:     m.Aliases[addrs.NoKey],
-		}}
-	}
-
-	pcs := make([]addrs.LocalProviderConfig, 0, len(m.Aliases))
-	for _, alias := range m.Aliases {
-		pcs = append(pcs, addrs.LocalProviderConfig{
-			LocalName: m.Name,
-			Alias:     alias,
-		})
-	}
-
-	return pcs
 }
 
 func providerToConfigRefMapping(p *Provider) *ProviderConfigRefMapping {
