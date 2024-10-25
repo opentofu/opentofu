@@ -8,7 +8,6 @@ package jsonconfig
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"sort"
 
 	"github.com/zclconf/go-cty/cty"
@@ -88,9 +87,6 @@ type resource struct {
 	// configured outside of the module (in a higher level configuration file),
 	// the ProviderConfigKey will not match a key in the ProviderConfigs map.
 	ProviderConfigKey string `json:"provider_config_key,omitempty"`
-
-	// TODO/Oleksandr: comment
-	ProviderConfigKeys []string `json:"provider_config_keys,omitempty"`
 
 	// Provisioners is an optional field which describes any provisioners.
 	// Connection info will not be included here.
@@ -451,11 +447,14 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Schemas, moduleAddr string) ([]resource, error) {
 	var rs []resource
 	for _, v := range resources {
+		// TODO/Oleksandr: check what field to use after graph exectuion (at that time we should know what provider was actually used)
+		// Maybe extend ProviderConfigAddr to return resolved provider
+		providerConfigKey := opaqueProviderKey(v.AnyProviderConfigAddr().StringCompact(), moduleAddr)
 		r := resource{
-			Address:            v.Addr().String(),
-			Type:               v.Type,
-			Name:               v.Name,
-			ProviderConfigKeys: providerAddrsToConfigKeys(moduleAddr, v.AllProviderConfigAddrs()),
+			Address:           v.Addr().String(),
+			Type:              v.Type,
+			Name:              v.Name,
+			ProviderConfigKey: providerConfigKey,
 		}
 
 		switch v.Mode {
@@ -529,42 +528,11 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 // that any resources from providers using a configuration passed through the
 // module call have a direct reference to that provider configuration.
 func normalizeModuleProviderKeys(m *module, pcs map[string]providerConfig) {
-	for i := range m.Resources {
-		res := &m.Resources[i]
-
-		if pc, exists := pcs[res.ProviderConfigKey]; exists {
+	for i, r := range m.Resources {
+		if pc, exists := pcs[r.ProviderConfigKey]; exists {
 			if _, hasParent := pcs[pc.parentKey]; hasParent {
-				res.ProviderConfigKey = pc.parentKey
+				m.Resources[i].ProviderConfigKey = pc.parentKey
 			}
-		}
-
-		if len(res.ProviderConfigKeys) == 0 {
-			continue
-		}
-
-		for ki, k := range res.ProviderConfigKeys {
-			if pc, exists := pcs[k]; exists {
-				if _, hasParent := pcs[pc.parentKey]; hasParent {
-					res.ProviderConfigKeys[ki] = pc.parentKey
-				}
-			}
-		}
-
-		uniqueProviderConfigKeys := make(map[string]struct{}, len(res.ProviderConfigKeys))
-		for _, k := range res.ProviderConfigKeys {
-			uniqueProviderConfigKeys[k] = struct{}{}
-		}
-
-		res.ProviderConfigKeys = make([]string, 0, len(uniqueProviderConfigKeys))
-		for k := range uniqueProviderConfigKeys {
-			res.ProviderConfigKeys = append(res.ProviderConfigKeys, k)
-		}
-
-		slices.Sort(res.ProviderConfigKeys)
-
-		if len(res.ProviderConfigKeys) == 1 {
-			res.ProviderConfigKey = res.ProviderConfigKeys[0]
-			res.ProviderConfigKeys = nil
 		}
 	}
 
@@ -602,16 +570,4 @@ func findSourceProviderKey(startKey string, fullName string, m map[string]provid
 	}
 
 	return parentKey
-}
-
-func providerAddrsToConfigKeys(moduleAddr string, localAddrs []addrs.LocalProviderConfig) []string {
-	keys := make([]string, 0, len(localAddrs))
-
-	for _, addr := range localAddrs {
-		k := opaqueProviderKey(addr.StringCompact(), moduleAddr)
-
-		keys = append(keys, k)
-	}
-
-	return keys
 }
