@@ -125,7 +125,7 @@ func copyFile(dst, src string, mode os.FileMode) error {
 	}
 	defer func() {
 		if cerr := dstF.Close(); cerr != nil {
-			err = fmt.Errorf("failed to close destination file %q: %w", dst, cerr)
+			fmt.Printf("failed to close destination file %q: %v\n", dst, cerr)
 		}
 	}()
 
