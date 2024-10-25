@@ -28,13 +28,28 @@ var (
 
 // GraphNodeExecutable
 func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	if op == walkValidate || n.Config == nil || n.Config.Instances == nil {
+	if n.Config == nil || n.Config.Instances == nil {
 		return n.executeInstance(ctx, op, addrs.NoKey)
 	}
-	for providerKey := range n.Config.Instances {
-		diags = diags.Append(n.executeInstance(ctx, op, providerKey))
+	if op == walkValidate {
+		provider, err := ctx.InitProvider(n.Addr, addrs.NoKey)
+		diags = diags.Append(err)
 		if diags.HasErrors() {
-			break
+			return diags
+		}
+		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
+		for providerKey := range n.Config.Instances {
+			diags = diags.Append(n.ValidateProvider(ctx, provider, providerKey))
+			if diags.HasErrors() {
+				break
+			}
+		}
+	} else {
+		for providerKey := range n.Config.Instances {
+			diags = diags.Append(n.executeInstance(ctx, op, providerKey))
+			if diags.HasErrors() {
+				break
+			}
 		}
 	}
 	return diags
@@ -53,8 +68,6 @@ func (n *NodeApplyableProvider) executeInstance(ctx EvalContext, op walkOperatio
 
 	switch op {
 	case walkValidate:
-		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
-		return diags.Append(n.ValidateProvider(ctx, provider, providerKey))
 	case walkPlan, walkPlanDestroy, walkApply, walkDestroy:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
 		return diags.Append(n.ConfigureProvider(ctx, provider, providerKey, false))
@@ -92,7 +105,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 	}
 
 	data := EvalDataForNoInstanceKey
-	if n.Config != nil {
+	if n.Config != nil && n.Config.Instances != nil {
 		data = n.Config.Instances[providerKey]
 	}
 
@@ -132,7 +145,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider prov
 
 	configSchema := resp.Provider.Block
 	data := EvalDataForNoInstanceKey
-	if n.Config != nil {
+	if n.Config != nil && n.Config.Instances != nil {
 		data = n.Config.Instances[providerKey]
 	}
 
