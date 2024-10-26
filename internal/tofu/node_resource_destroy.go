@@ -140,14 +140,13 @@ func (n *NodeDestroyResourceInstance) References() []*addrs.Reference {
 func (n *NodeDestroyResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
-	diags = n.EnsureProvider(ctx)
-	if diags.HasErrors() {
-		return diags
-	}
-
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
+		diags = n.EnsureProvider(ctx)
+		if diags.HasErrors() {
+			return diags
+		}
 		return n.managedResourceExecute(ctx)
 	case addrs.DataResourceMode:
 		return n.dataResourceExecute(ctx)
