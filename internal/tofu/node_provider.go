@@ -27,47 +27,69 @@ var (
 )
 
 // GraphNodeExecutable
-func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	if n.Config == nil || n.Config.Instances == nil {
-		return n.executeInstance(ctx, op, addrs.NoKey)
-	}
-	if op == walkValidate {
-		provider, err := ctx.InitProvider(n.Addr, addrs.NoKey)
-		diags = diags.Append(err)
-		if diags.HasErrors() {
-			return diags
-		}
-		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
-		for providerKey := range n.Config.Instances {
-			diags = diags.Append(n.ValidateProvider(ctx, provider, providerKey))
-			if diags.HasErrors() {
-				break
-			}
-		}
-	} else {
-		for providerKey := range n.Config.Instances {
-			diags = diags.Append(n.executeInstance(ctx, op, providerKey))
-			if diags.HasErrors() {
-				break
-			}
-		}
-	}
-	return diags
-}
-func (n *NodeApplyableProvider) executeInstance(ctx EvalContext, op walkOperation, providerKey addrs.InstanceKey) (diags tfdiags.Diagnostics) {
-	_, err := ctx.InitProvider(n.Addr, providerKey)
-	diags = diags.Append(err)
-	if diags.HasErrors() {
-		return diags
-	}
-	provider, _, err := getProvider(ctx, n.Addr, providerKey)
-	diags = diags.Append(err)
-	if diags.HasErrors() {
-		return diags
+func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	instances, diags := n.initInstances(ctx, op)
+
+	for key, provider := range instances {
+		diags = diags.Append(n.executeInstance(ctx, op, key, provider))
 	}
 
+	return diags
+}
+func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation) (map[addrs.InstanceKey]providers.Interface, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	var initKeys []addrs.InstanceKey
+	if n.Config == nil || n.Config.Instances == nil || op == walkValidate {
+		initKeys = append(initKeys, addrs.NoKey)
+	} else {
+		// Instances are set AND we are not validating
+		for key := range n.Config.Instances {
+			initKeys = append(initKeys, key)
+		}
+	}
+
+	// init -> config (different due to validate skipping most for_each logic)
+	instanceKeys := make(map[addrs.InstanceKey]addrs.InstanceKey)
+	if n.Config == nil || n.Config.Instances == nil {
+		instanceKeys[addrs.NoKey] = addrs.NoKey
+	} else if op == walkValidate {
+		// Instances are set AND we are validating
+		for key := range n.Config.Instances {
+			instanceKeys[addrs.NoKey] = key
+		}
+	} else {
+		// Instances are set AND we are not validating
+		for key := range n.Config.Instances {
+			instanceKeys[key] = key
+		}
+	}
+
+	for _, key := range initKeys {
+		_, err := ctx.InitProvider(n.Addr, key)
+		diags = diags.Append(err)
+	}
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	instances := make(map[addrs.InstanceKey]providers.Interface)
+	for initKey, configKey := range instanceKeys {
+		provider, _, err := getProvider(ctx, n.Addr, initKey)
+		diags = diags.Append(err)
+		instances[configKey] = provider
+	}
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return instances, diags
+}
+func (n *NodeApplyableProvider) executeInstance(ctx EvalContext, op walkOperation, providerKey addrs.InstanceKey, provider providers.Interface) (diags tfdiags.Diagnostics) {
 	switch op {
 	case walkValidate:
+		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
+		diags = diags.Append(n.ValidateProvider(ctx, provider, providerKey))
 	case walkPlan, walkPlanDestroy, walkApply, walkDestroy:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
 		return diags.Append(n.ConfigureProvider(ctx, provider, providerKey, false))
