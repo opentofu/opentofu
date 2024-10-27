@@ -7,6 +7,7 @@ package command
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -463,7 +464,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			// Create a temporary working directory that is empty
-			td := t.TempDir()
+			td := filepath.Join(t.TempDir(), t.Name())
 			testCopyDir(t, testFixturePath("apply-destroy-targeted"), td)
 			defer testChdir(t, td)()
 
