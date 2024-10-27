@@ -23,19 +23,19 @@ type GraphNodeTargetable interface {
 	SetExcludes([]addrs.Targetable)
 }
 
-// TargetsTransformer is a GraphTransformer that, when the user specifies a
+// TargetingTransformer is a GraphTransformer that, when the user specifies a
 // list of resources to target, or a list of resources to exclude, limits the
 // graph to only those resources and their dependencies (or in the case of
 // excludes - limits the graph to all resources that are not excluded or not
 // dependent on excluded resources).
-type TargetsTransformer struct {
+type TargetingTransformer struct {
 	// List of targeted resource names specified by the user
 	Targets []addrs.Targetable
 	// List of excluded resource names specified by the user
 	Excludes []addrs.Targetable
 }
 
-func (t *TargetsTransformer) Transform(g *Graph) error {
+func (t *TargetingTransformer) Transform(g *Graph) error {
 	var targetedNodes dag.Set
 	if len(t.Targets) > 0 {
 		targetedNodes = t.selectTargetedNodes(g, t.Targets)
@@ -58,7 +58,7 @@ func (t *TargetsTransformer) Transform(g *Graph) error {
 // Returns a set of targeted nodes. A targeted node is either addressed
 // directly, address indirectly via its container, or it's a dependency of a
 // targeted node.
-func (t *TargetsTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targetable) dag.Set {
+func (t *TargetingTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targetable) dag.Set {
 	targetedNodes := make(dag.Set)
 
 	vertices := g.Vertices()
@@ -89,7 +89,7 @@ func (t *TargetsTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targeta
 	return targetedNodes
 }
 
-func (t *TargetsTransformer) getTargetableNodeResourceAddr(v dag.Vertex) addrs.Targetable {
+func (t *TargetingTransformer) getTargetableNodeResourceAddr(v dag.Vertex) addrs.Targetable {
 	switch r := v.(type) {
 	case GraphNodeResourceInstance:
 		return r.ResourceInstanceAddr()
@@ -104,7 +104,7 @@ func (t *TargetsTransformer) getTargetableNodeResourceAddr(v dag.Vertex) addrs.T
 // Returns a set of targeted nodes, after excluding resources. An excluded resource
 // is either addressed directly, address indirectly via its container, or it's
 // dependent on an excluded node. The rest are targeted nodes.
-func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targetable) dag.Set {
+func (t *TargetingTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targetable) dag.Set {
 	targetedNodes := make(dag.Set)
 	excludedNodes := make(dag.Set)
 	targetableNodes := make(dag.Set)
@@ -173,7 +173,7 @@ func (t *TargetsTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targ
 	return targetedNodes
 }
 
-func (t *TargetsTransformer) getTargetedOutputNodes(targetedNodes dag.Set, graph *Graph) dag.Set {
+func (t *TargetingTransformer) getTargetedOutputNodes(targetedNodes dag.Set, graph *Graph) dag.Set {
 	// It is expected that outputs which are only derived from targeted
 	// resources are also updated. While we don't include any other possible
 	// side effects from the targeted nodes, these are added because outputs
@@ -238,7 +238,7 @@ func (t *TargetsTransformer) getTargetedOutputNodes(targetedNodes dag.Set, graph
 	return targetedOutputNodes
 }
 
-func (t *TargetsTransformer) nodeIsExcluded(vertexAddr addrs.Targetable, excludes []addrs.Targetable) bool {
+func (t *TargetingTransformer) nodeIsExcluded(vertexAddr addrs.Targetable, excludes []addrs.Targetable) bool {
 	for _, excludeAddr := range excludes {
 		// The behaviour here is a bit different from targets.
 		// Before expansion - We'd like to only exclude resources that were excluded by module or resource.
@@ -256,7 +256,7 @@ func (t *TargetsTransformer) nodeIsExcluded(vertexAddr addrs.Targetable, exclude
 	return false
 }
 
-func (t *TargetsTransformer) nodeDescendantsExcluded(vertexAddr addrs.Targetable, excludes []addrs.Targetable) bool {
+func (t *TargetingTransformer) nodeDescendantsExcluded(vertexAddr addrs.Targetable, excludes []addrs.Targetable) bool {
 	for _, excludeAddr := range excludes {
 		// The behaviour here is a bit different from targets.
 		// Before expansion - We'd like to only exclude resources that were excluded by module or resource.
@@ -294,7 +294,7 @@ func (t *TargetsTransformer) nodeDescendantsExcluded(vertexAddr addrs.Targetable
 	return false
 }
 
-func (t *TargetsTransformer) nodeIsTarget(v dag.Vertex, targets []addrs.Targetable) bool {
+func (t *TargetingTransformer) nodeIsTarget(v dag.Vertex, targets []addrs.Targetable) bool {
 	var vertexAddr addrs.Targetable
 	switch r := v.(type) {
 	case GraphNodeResourceInstance:

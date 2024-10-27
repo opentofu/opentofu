@@ -144,7 +144,7 @@ func TestCloseProviderTransformer_withTargets(t *testing.T) {
 		&MissingProviderTransformer{},
 		&ProviderTransformer{},
 		&CloseProviderTransformer{},
-		&TargetsTransformer{
+		&TargetingTransformer{
 			Targets: []addrs.Targetable{
 				addrs.RootModuleInstance.Resource(
 					addrs.ManagedResourceMode, "something", "else",
@@ -174,7 +174,7 @@ func TestCloseProviderTransformer_withExcludes(t *testing.T) {
 		&MissingProviderTransformer{},
 		&ProviderTransformer{},
 		&CloseProviderTransformer{},
-		&TargetsTransformer{
+		&TargetingTransformer{
 			Excludes: []addrs.Targetable{
 				addrs.RootModuleInstance.Resource(
 					addrs.ManagedResourceMode, "aws_instance", "web",

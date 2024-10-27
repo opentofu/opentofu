@@ -38,7 +38,7 @@ func TestTargetsTransformer(t *testing.T) {
 	}
 
 	{
-		transform := &TargetsTransformer{
+		transform := &TargetingTransformer{
 			Targets: []addrs.Targetable{
 				addrs.RootModuleInstance.Resource(
 					addrs.ManagedResourceMode, "aws_instance", "me",
@@ -89,7 +89,7 @@ func TestTargetsTransformerExclude(t *testing.T) {
 	}
 
 	{
-		transform := &TargetsTransformer{
+		transform := &TargetingTransformer{
 			Excludes: []addrs.Targetable{
 				addrs.RootModuleInstance.Resource(
 					addrs.ManagedResourceMode, "aws_instance", "me",
@@ -161,7 +161,7 @@ func TestTargetsTransformer_downstream(t *testing.T) {
 	}
 
 	{
-		transform := &TargetsTransformer{
+		transform := &TargetingTransformer{
 			Targets: []addrs.Targetable{
 				addrs.RootModuleInstance.
 					Child("child", addrs.NoKey).
@@ -233,7 +233,7 @@ func TestTargetsTransformer_downstreamExclude(t *testing.T) {
 	}
 
 	{
-		transform := &TargetsTransformer{
+		transform := &TargetingTransformer{
 			Excludes: []addrs.Targetable{
 				addrs.RootModuleInstance.Resource(addrs.ManagedResourceMode, "aws_instance", "foo"),
 				addrs.RootModuleInstance.
@@ -263,7 +263,7 @@ output.grandchild_id (expand)
 	}
 }
 
-// This tests the TargetsTransformer targeting a whole module,
+// This tests the TargetingTransformer targeting a whole module,
 // rather than a resource within a module instance.
 func TestTargetsTransformer_wholeModule(t *testing.T) {
 	mod := testModule(t, "transform-targets-downstream")
@@ -305,7 +305,7 @@ func TestTargetsTransformer_wholeModule(t *testing.T) {
 	}
 
 	{
-		transform := &TargetsTransformer{
+		transform := &TargetingTransformer{
 			Targets: []addrs.Targetable{
 				addrs.RootModule.
 					Child("child").

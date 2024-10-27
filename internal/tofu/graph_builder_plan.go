@@ -227,7 +227,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&attachDataResourceDependsOnTransformer{},
 
 		// DestroyEdgeTransformer is only required during a plan so that the
-		// TargetsTransformer can determine which nodes to keep in the graph.
+		// TargetingTransformer can determine which nodes to keep in the graph.
 		&DestroyEdgeTransformer{
 			Operation: b.Operation,
 		},
@@ -237,7 +237,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		},
 
 		// Target
-		&TargetsTransformer{Targets: b.Targets, Excludes: b.Excludes},
+		&TargetingTransformer{Targets: b.Targets, Excludes: b.Excludes},
 
 		// Detect when create_before_destroy must be forced on for a particular
 		// node due to dependency edges, to avoid graph cycles during apply.

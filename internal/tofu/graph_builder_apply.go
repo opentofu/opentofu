@@ -196,7 +196,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&pruneUnusedNodesTransformer{},
 
 		// Target
-		&TargetsTransformer{Targets: b.Targets, Excludes: b.Excludes},
+		&TargetingTransformer{Targets: b.Targets, Excludes: b.Excludes},
 
 		// Close opened plugin connections
 		&CloseProviderTransformer{},
