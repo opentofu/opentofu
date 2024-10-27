@@ -95,11 +95,14 @@ type Operation struct {
 	refreshOnlyRaw  bool
 }
 
-func parseRawTargets(targets []string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+// parseTargetables gets a list of strings, each representing a targetable object, and returns a list of
+// addrs.Targetable
+// This is used for parsing the input of -target and -exclude flags
+func parseTargetables(rawTargetables []string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
-	for _, tr := range targets {
+	for _, tr := range rawTargetables {
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -140,10 +143,10 @@ func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Ta
 	}
 
 	var parseDiags tfdiags.Diagnostics
-	parsedTargets, parseDiags = parseRawTargets(targets)
+	parsedTargets, parseDiags = parseTargetables(targets)
 	diags = diags.Append(parseDiags)
 
-	parsedExcludes, parseDiags = parseRawTargets(excludes)
+	parsedExcludes, parseDiags = parseTargetables(excludes)
 	diags = diags.Append(parseDiags)
 
 	return parsedTargets, parsedExcludes, diags
