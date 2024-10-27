@@ -64,11 +64,14 @@ func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr a
 
 	log.Printf("[DEBUG] Building and walking 'eval' graph")
 
+	providerFunctionTracker := make(ProviderFunctionMapping)
+
 	graph, moreDiags := (&EvalGraphBuilder{
-		Config:             config,
-		State:              state,
-		RootVariableValues: variables,
-		Plugins:            c.plugins,
+		Config:                  config,
+		State:                   state,
+		RootVariableValues:      variables,
+		Plugins:                 c.plugins,
+		ProviderFunctionTracker: providerFunctionTracker,
 	}).Build(addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
@@ -76,8 +79,9 @@ func (c *Context) Eval(config *configs.Config, state *states.State, moduleAddr a
 	}
 
 	walkOpts := &graphWalkOpts{
-		InputState: state,
-		Config:     config,
+		InputState:              state,
+		Config:                  config,
+		ProviderFunctionTracker: providerFunctionTracker,
 	}
 
 	walker, moreDiags = c.walk(graph, walkEval, walkOpts)

@@ -2930,6 +2930,8 @@ func TestInit_moduleSource(t *testing.T) {
 
 		ui := cli.NewMockUi()
 		view, _ := testView(t)
+		closeInput := testInteractiveInput(t, []string{"./mod"})
+		defer closeInput()
 		c := &InitCommand{
 			Meta: Meta{
 				Ui:   ui,
@@ -2937,13 +2939,54 @@ func TestInit_moduleSource(t *testing.T) {
 			},
 		}
 
-		if code := c.Run(nil); code != 1 {
-			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		if code := c.Run(nil); code != 0 {
+			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		}
+	})
+
+	t.Run("missing-twice", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-module-variable-source-multiple"), td)
+		defer testChdir(t, td)()
+
+		ui := cli.NewMockUi()
+		view, _ := testView(t)
+		closeInput := testInteractiveInput(t, []string{"./mod"})
+		defer closeInput()
+		c := &InitCommand{
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
 		}
 
-		errStr := ui.ErrorWriter.String()
-		if !strings.Contains(errStr, `Variable not provided`) {
-			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
+		if code := c.Run(nil); code != 0 {
+			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		}
+	})
+
+	t.Run("no-input", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
+		defer testChdir(t, td)()
+
+		ui := cli.NewMockUi()
+		view, _ := testView(t)
+		closeInput := testInteractiveInput(t, []string{})
+		defer closeInput()
+		c := &InitCommand{
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
+		}
+
+		args := []string{
+			"-input=false",
+		}
+
+		if code := c.Run(args); code != 1 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 		}
 	})
 

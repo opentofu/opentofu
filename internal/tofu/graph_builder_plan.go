@@ -95,6 +95,8 @@ type PlanGraphBuilder struct {
 	//
 	// If empty, then config will not be generated.
 	GenerateConfigPath string
+
+	ProviderFunctionTracker ProviderFunctionMapping
 }
 
 // See GraphBuilder
@@ -203,7 +205,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		&AttachSchemaTransformer{Plugins: b.Plugins, Config: b.Config},
 
 		// After schema transformer, we can add function references
-		&ProviderFunctionTransformer{Config: b.Config},
+		&ProviderFunctionTransformer{Config: b.Config, ProviderFunctionTracker: b.ProviderFunctionTracker},
 
 		// Remove unused providers and proxies
 		&PruneProviderTransformer{},

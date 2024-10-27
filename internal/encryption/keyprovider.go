@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -185,6 +186,14 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	diags = append(diags, evalDiags...)
 	if diags.HasErrors() {
 		return diags
+	}
+
+	// gohcl does not handle marks, we need to remove the sensitive marks from any input variables
+	// We assume that the entire configuration in the encryption block should be treated as sensitive
+	for key, sv := range evalCtx.Variables {
+		if marks.Contains(sv, marks.Sensitive) {
+			evalCtx.Variables[key], _ = sv.UnmarkDeep()
+		}
 	}
 
 	// Initialize the Key Provider

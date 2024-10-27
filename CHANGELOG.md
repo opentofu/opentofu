@@ -7,6 +7,7 @@ UPGRADE NOTES:
 NEW FEATURES:
 
 ENHANCEMENTS:
+* Added user input prompt for static variables. ([#1792](https://github.com/opentofu/opentofu/issues/1792))
 * Added `-show-sensitive` flag to tofu plan, apply, state-show and output commands to display sensitive data in output. ([#1554](https://github.com/opentofu/opentofu/pull/1554))
 * Improved performance for large graphs when debug logs are not enabled. ([#1810](https://github.com/opentofu/opentofu/pull/1810))
 * Improved performance for large graphs with many submodules. ([#1809](https://github.com/opentofu/opentofu/pull/1809))
@@ -23,6 +24,7 @@ BUG FIXES:
 * Ensured that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
 * Fixed a crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
 * Fixed a crash when importing an empty optional sensitive string ([#1986](https://github.com/opentofu/opentofu/pull/1986))
+* Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
 
 ## Previous Releases
 
