@@ -185,7 +185,10 @@ func (t *TargetingTransformer) getTargetedOutputNodes(targetedNodes dag.Set, gra
 	// on a root resource, and only the root resource is targeted, any output
 	// that depends on a module output might be updated, if said module output
 	// does not depend on any resource of the module itself.
-	// Right now, we will not change this behaviour
+	// Right now, we will not change this behaviour, as this has been the
+	// behaviour for quite a while. A possible fix could be a more detailed
+	// analysis of the outputs, and making sure that module outputs are only
+	// referenced if any of the targeted nodes is in said module
 
 	targetedOutputNodes := make(dag.Set)
 	vertices := graph.Vertices()
