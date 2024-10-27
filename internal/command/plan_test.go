@@ -1369,7 +1369,7 @@ func TestPlan_targetFlagsDiags(t *testing.T) {
 // Config with multiple resources, targeted plan with exclude
 func TestPlan_excluded(t *testing.T) {
 	td := t.TempDir()
-	testCopyDir(t, testFixturePath("apply-targeted"), td)
+	testCopyDir(t, testFixturePath("apply-excluded"), td)
 	defer testChdir(t, td)()
 
 	p := testProvider()

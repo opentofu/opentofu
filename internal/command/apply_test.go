@@ -2023,7 +2023,7 @@ func TestApply_targetFlagsDiags(t *testing.T) {
 // Config with multiple resources, targeted apply with exclude
 func TestApply_excluded(t *testing.T) {
 	td := t.TempDir()
-	testCopyDir(t, testFixturePath("apply-targeted"), td)
+	testCopyDir(t, testFixturePath("apply-excluded"), td)
 	defer testChdir(t, td)()
 
 	p := testProvider()
