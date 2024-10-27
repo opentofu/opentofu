@@ -55,9 +55,9 @@ func (t *TargetingTransformer) Transform(g *Graph) error {
 	return nil
 }
 
-// Returns a set of targeted nodes. A targeted node is either addressed
-// directly, address indirectly via its container, or it's a dependency of a
-// targeted node.
+// selectTargetedNodes goes over a list of resource and modules targeted with a -target flag, and returns a set of
+// targeted nodes. A targeted node is either addressed directly, address indirectly via its container, or it's a
+// dependency of a targeted node.
 func (t *TargetingTransformer) selectTargetedNodes(g *Graph, addrs []addrs.Targetable) dag.Set {
 	targetedNodes := make(dag.Set)
 
@@ -101,9 +101,9 @@ func (t *TargetingTransformer) getTargetableNodeResourceAddr(v dag.Vertex) addrs
 	}
 }
 
-// Returns a set of targeted nodes, after excluding resources. An excluded resource
-// is either addressed directly, address indirectly via its container, or it's
-// dependent on an excluded node. The rest are targeted nodes.
+// removeExcludedNodes goes over a list of excluded resources and modules, and returns a set of targeted nodes to be
+// used for resource targeting. An excluded resource is either addressed directly, addressed indirectly via its
+// container, or it's dependent on an excluded node. The rest are the targeted nodes used for resource targeting
 func (t *TargetingTransformer) removeExcludedNodes(g *Graph, excludes []addrs.Targetable) dag.Set {
 	targetedNodes := make(dag.Set)
 	excludedNodes := make(dag.Set)
