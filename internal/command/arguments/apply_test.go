@@ -204,9 +204,11 @@ func TestParseApply_targets(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, diags := ParseApply(tc.args)
-			if len(diags) > 0 {
-				if tc.wantErr == "" {
-					t.Fatalf("unexpected diags: %v", diags)
+			if tc.wantErr == "" && len(diags) > 0 {
+				t.Fatalf("unexpected diags: %v", diags)
+			} else if tc.wantErr != "" {
+				if len(diags) == 0 {
+					t.Fatalf("expected diags but got none")
 				} else if got := diags.Err().Error(); !strings.Contains(got, tc.wantErr) {
 					t.Fatalf("wrong diags\n got: %s\nwant: %s", got, tc.wantErr)
 				}
@@ -253,9 +255,11 @@ func TestParseApply_excludes(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, diags := ParseApply(tc.args)
-			if len(diags) > 0 {
-				if tc.wantErr == "" {
-					t.Fatalf("unexpected diags: %v", diags)
+			if tc.wantErr == "" && len(diags) > 0 {
+				t.Fatalf("unexpected diags: %v", diags)
+			} else if tc.wantErr != "" {
+				if len(diags) == 0 {
+					t.Fatalf("expected diags but got none")
 				} else if got := diags.Err().Error(); !strings.Contains(got, tc.wantErr) {
 					t.Fatalf("wrong diags\n got: %s\nwant: %s", got, tc.wantErr)
 				}
@@ -336,9 +340,11 @@ func TestParseApply_replace(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, diags := ParseApply(tc.args)
-			if len(diags) > 0 {
-				if tc.wantErr == "" {
-					t.Fatalf("unexpected diags: %v", diags)
+			if tc.wantErr == "" && len(diags) > 0 {
+				t.Fatalf("unexpected diags: %v", diags)
+			} else if tc.wantErr != "" {
+				if len(diags) == 0 {
+					t.Fatalf("expected diags but got none")
 				} else if got := diags.Err().Error(); !strings.Contains(got, tc.wantErr) {
 					t.Fatalf("wrong diags\n got: %s\nwant: %s", got, tc.wantErr)
 				}
