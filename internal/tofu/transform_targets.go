@@ -243,14 +243,6 @@ func (t *TargetingTransformer) getTargetedOutputNodes(targetedNodes dag.Set, gra
 
 func (t *TargetingTransformer) nodeIsExcluded(vertexAddr addrs.Targetable, excludes []addrs.Targetable) bool {
 	for _, excludeAddr := range excludes {
-		// The behaviour here is a bit different from targets.
-		// Before expansion - We'd like to only exclude resources that were excluded by module or resource.
-		//   If the excluded target is an AbsResourceInstance, then we'd want to skip exclude until we expand the resource
-		// After expansion - We'd like to exclude any vertex that contains the exclude address
-		//   Since before expansion the vertexAddr is without an index, then if the excludeAddr is an instance, it will
-		//   only contain vertexAddr if its key is NoKey
-		// So - a simple TargetContains here should be enough, both before and after expansion
-
 		if excludeAddr.TargetContains(vertexAddr) {
 			return true
 		}
