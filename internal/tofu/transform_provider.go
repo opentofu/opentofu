@@ -13,7 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -325,32 +324,8 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 						// Providers with configuration will already exist within the graph and can be directly referenced
 						log.Printf("[TRACE] ProviderFunctionTransformer: exact match for %s serving %s", absPc, dag.VertexName(v))
 					} else {
-						// At this point, all provider schemas should be loaded.  We
-						// can now check to see if configuration is optional for this function.
-						providerSchema, ok := providers.SchemaCache.Get(absPc.Provider)
-						if !ok {
-							diags = diags.Append(&hcl.Diagnostic{
-								Severity: hcl.DiagError,
-								Summary:  "Unknown provider for function",
-								Detail:   fmt.Sprintf("Provider %q does not have it's schema initialized", absPc.Provider),
-								Subject:  ref.SourceRange.ToHCL().Ptr(),
-							})
-							continue
-						}
-						_, functionOk := providerSchema.Functions[pf.Function]
-						if !functionOk {
-							diags = diags.Append(&hcl.Diagnostic{
-								Severity: hcl.DiagError,
-								Summary:  "Unknown provider function",
-								Detail:   fmt.Sprintf("Provider %q does not have a function %q or has not been configured", absPc, pf.Function),
-								Subject:  ref.SourceRange.ToHCL().Ptr(),
-							})
-							continue
-						}
-
-						// If this provider doesn't need to be configured then we can just
-						// stub it out with an init-only provider node, which will just
-						// start up the provider and fetch its schema.
+						// If this provider doesn't exist, stub it out with an init-only provider node
+						// This works for unconfigured functions only, but that validation is elsewhere
 						stubAddr := addrs.AbsProviderConfig{
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
@@ -374,6 +349,30 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					// see if this is a proxy provider pointing to another concrete config
 					if p, ok := provider.(*graphNodeProxyProvider); ok {
 						provider = p.Target()
+					}
+
+					if p, ok := provider.(*NodeApplyableProvider); ok && p.Config != nil && len(p.Config.Instances) != 0 {
+						// Try to find or create a suitable node that works for unconfigured providers (non aliased)
+						// Alternatively, we could make t.ProviderFunctionTracker smarter and add edges to the graph
+						// This works for unconfigured functions only, but that validation is elsewhere
+						stubAddr := addrs.AbsProviderConfig{
+							Module:   addrs.RootModule,
+							Provider: absPc.Provider,
+						}
+						// Try to look up an existing stub
+						provider, ok = providerVerts[stubAddr.String()]
+						// If it does not exist, create it
+						if !ok {
+							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
+
+							provider = &NodeEvalableProvider{
+								&NodeAbstractProvider{
+									Addr: stubAddr,
+								},
+							}
+							providerVerts[stubAddr.String()] = provider
+							g.Add(provider)
+						}
 					}
 
 					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
