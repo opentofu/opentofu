@@ -99,41 +99,49 @@ func TestImpliedMoveStatements(t *testing.T) {
 			resourceAddr("formerly_count").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("formerly_count").Instance(addrs.IntKey(1)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("now_count").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("formerly_count_explicit").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("formerly_count_explicit").Instance(addrs.IntKey(1)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("now_count_explicit").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("now_for_each_formerly_count").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("now_for_each_formerly_no_count").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 
 		// This "ambiguous" resource is representing a rare but possible
@@ -147,11 +155,13 @@ func TestImpliedMoveStatements(t *testing.T) {
 			resourceAddr("ambiguous").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			resourceAddr("ambiguous").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 
 		// Add two resource nested in a module to ensure we find these
@@ -160,11 +170,13 @@ func TestImpliedMoveStatements(t *testing.T) {
 			nestedResourceAddr("child", "formerly_count").Instance(addrs.IntKey(0)),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			nestedResourceAddr("child", "now_count").Instance(addrs.NoKey),
 			instObjState(),
 			providerAddr,
+			addrs.NoKey,
 		)
 	})
 

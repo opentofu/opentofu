@@ -59,6 +59,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			emptyResults,
@@ -78,6 +79,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -105,6 +107,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -133,6 +136,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -161,6 +165,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -189,6 +194,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -217,6 +223,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("module.boo.module.hoo.foo.from"),
@@ -225,6 +232,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -258,6 +266,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -287,6 +296,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -316,6 +326,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -344,6 +355,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("module.boo.foo.to[0]"),
@@ -352,6 +364,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -386,6 +399,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("foo.to"),
@@ -394,6 +408,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -428,6 +443,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("foo.to[0]"),
@@ -436,6 +452,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -470,6 +487,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -499,6 +517,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("foo.from"),
@@ -507,6 +526,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -542,6 +562,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("bar.from"),
@@ -550,6 +571,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{
@@ -584,6 +606,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("foo.from"),
@@ -592,6 +615,7 @@ func TestApplyMoves(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					providerAddr,
+					addrs.NoKey,
 				)
 			}),
 			MoveResults{

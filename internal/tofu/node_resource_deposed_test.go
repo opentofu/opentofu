@@ -261,6 +261,7 @@ func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*M
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	schema := providers.ProviderSchema{
