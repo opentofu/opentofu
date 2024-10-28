@@ -119,12 +119,20 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		})
 	}
 
-	if len(provider.Alias) == 0 && (provider.ForEach != nil || provider.Count != nil) {
+	if len(provider.Alias) == 0 && provider.ForEach != nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Alias required when using "count" or "for_each"`,
 			Detail:   `TODO TODO TODO`,
 			Subject:  provider.ForEach.Range().Ptr(),
+		})
+	}
+	if len(provider.Alias) == 0 && provider.Count != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Alias required when using "count" or "for_each"`,
+			Detail:   `TODO TODO TODO`,
+			Subject:  provider.Count.Range().Ptr(),
 		})
 	}
 
