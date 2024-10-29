@@ -340,40 +340,41 @@ Because of how crucial it is to preserve the relationships between resource inst
 
 ### Technical Approach
 
-> cam72cam and/or apparentlymart TODO: the following sections are partially updated for the new approach but need some further review and editing to make sure that we're properly describing the new design and to improve the consistency of detail level across the sections.
+The following describes the high level changes. A potential implementation has been proposed here: https://github.com/opentofu/opentofu/pull/2105
 
-#### Provider Configuration Expansion
+Our goal is to implement this feature with as little risk as possible. We prioritize minimizing the feature and changeset to minimize the risk. Additional refactoring will likely be performed as this feature grows over time and we choose to implement the most clearly defined and useful parts first.
 
-##### Expansion
+The core of the changes needed to implement what is described above:
+* Allow for_each in provider configuration blocks and evaluate them in the static context
+* Initialize and configure a provider instance on every `for_each` entry (exec binary + pass configuration)
+* Allow provider key expressions in `resource > provider` and `module > providers` configuration blocks
+* Evaluate the provider key expressions when needed during the evaluation graph to determine which provider instance a resource should use.
+* Update state storage to understand per-resource-instance provider keys.
 
-"Expansion" is the process of deciding the set of zero or more instance keys that are declared for an object using either `count` or `for_each`. This section is about deciding the set of instance keys associated with a `provider` block when the `for_each` argument is present.
+#### Provider Configuration Blocks
 
-For this initial iteration of the feature, the `for_each` expression will be evaluated as part of the main config loader using the static evaluation context as defined in [Init-time static evaluation of constant variables and locals](https://github.com/opentofu/opentofu/blob/main/rfc/20240513-static-evaluation.md).
+A "provider configuration" is the `provider "type" {}` block in the OpenTofu Language. This is located within either the root module or a child module. Provider configurations can not be declared in child modules which have been invoked with for_each and count.
 
-This allows annotating the `configs.Provider` object representing each `provider` block with a new field that maps from `addrs.InstanceKey` to `instances.RepetitionData`, which therefore records both the final set of instances and the additional data required to evaluate `each.key` and `each.value` for each instance, as described in the following section.
+Each `provider` block in the configuration is decoded into a `configs.Provider` struct and added to it's respective `configs.Module` at the correct location within the module tree. The existence of this provider block is heavily used when validating the providers within the module tree, see `configs/provider_validation.go`.
 
-Expanding provider configurations can be done using the StaticContext available in [configs.NewModule()](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L122) as defined in the Static Evaluation RFC.
+Each provider block will need to contain it's static Expansion information.  "Expansion" is the process of deciding the set of zero or more instance keys that are declared for an object using either `count` or `for_each`. For this initial iteration of the feature, the `for_each` expression will be evaluated as part of the main config loader using the static evaluation context as defined in [Init-time static evaluation of constant variables and locals](https://github.com/opentofu/opentofu/blob/main/rfc/20240513-static-evaluation.md).
 
-At the end of the NewModule constructor, the configured provider's aliases can be expanded using the each/count, similar to how [module.ProviderLocalNames](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L186) is generated. This does not require any special workarounds and will resemble most other applications of the StaticContext.
+The `configs.Provider` struct representing each configured `provider` block will now contain new field that contains the static mapping from "provider instance key" to "provider repetition data". In practice, this is a map of `addrs.InstanceKey` to `instances.RepetitionData`.  This map can be built using the StaticContext available in [configs.NewModule()](https://github.com/opentofu/opentofu/blob/290fbd66d3f95d3fa413534c4d5e14ef7d95ea2e/internal/configs/module.go#L122) as defined in the Static Evaluation RFC.
 
-New validation rules will be added per the User Documentation above, all of which closely resemble existing checks and do not require engineering discussion.
+At the end of the `configs.NewModule` constructor, all provider configurations that contain a for_each or count will have their new "instance mapping" field set (or an error message produced). This should not change the majority of provider validation logic in the configuration package as the name/type/alias information *has not changed*.
 
-##### Configuration Evaluation
+##### Provider Node Execution
 
-"Evaluation" of a configuration block refers to the process of calculating the value resulting from each of the expressions in an HCL block to produce the final values to use as the configuration of the associated object. In the case of a `provider` block, the evaluation step involves evaluating all of the arguments described in the schema defined by the provider plugin.
+Each "provider configuration block" is turned into a "provider node" (NodeApplyableProvider) within the tofu graph. When a provider node is executed, it starts up and configures a `providers.Interface` of the corresponding provider. This "interface" is stored in the `tofu.EvalContext` and is available for use by other nodes via the context (referenced below).
 
-Evaluation for an "expanding" configuration block additionally involves tracking the "repetition data" for each instance, which determines whether each of `count.index`, `each.key`, or `each.value` is available for use in expressions and what value that symbol should return if so.
-
-The map from instance key to repetition data was produced as part of configuration loading as described in [Expansion](#expansion). Configuration _evaluation_ is handled in the main language runtime (`package tofu`) when the graph node representing a particular `provider` configuration block is visited, and therefore full dynamic evaluation of provider configuration arguments remains possible.
-
-Supporting multiple instances means that the graph transformer which adds the node representing each `provider` block must copy the `map[addrs.InstanceKey]instances.RepetitionData` from the configuration object into the graph node. That then allows the graph node (of type `NodeApplyableProvider`) to know both the set of instance keys and the repetition data needed for each one.
-
-`NodeApplyableProvider` now effectively represents all instances of a particular `provider` block at once, and its "execute" step now involves a loop performing for each instance similar behavior that was previously always singleton:
-
+`NodeApplyableProvider` now effectively represents all `provider.Interface`s of a particular `provider` configuration block at once, and its "execute" step now involves a loop performing for each instance similar behavior that was previously always singleton:
 1. Evaluate the configuration using the appropriate `instances.RepetitionData`, thereby causing `each.key` and `each.value` to be available with instance-specific values. The result is a `cty.Value` representing an object of the type implied by the provider's configuration schema.
-2. Create a child process running the appropriate provider plugin executable, creating a running provider instance.
-3. Call the `ConfigureProvider` function from the provider protocol on the new provider instance, passing it the `cty.Value` representing its instance-specific configuration.
-4. Save the provider instance in the shared `tofu.EvalContext` for use by downstream resource nodes.
+2. Create a child process running the appropriate provider plugin executable, creating a running provider interface.
+3. Call the `ConfigureProvider` function from the provider protocol on the new provider interface, passing it the `cty.Value` representing its instance-specific configuration.
+4. Save the provider interface in the shared `tofu.EvalContext` for use by downstream resource nodes.
+
+A special case exists here for `tofu validate`. The validate codepath does not configure any providers or deal with "expansion" (for_each/count). A validate graph walk should only initialize and register one `providers.Interface`.  It can still however validate the configuration for each set of provider instance data.
+
 
 ##### Selecting a provider instance for each resource instance
 
@@ -383,7 +384,7 @@ The initial graph node type for a `resource` or `data` block is `nodeExpandPlann
 
 The per-instance evaluation process now grows to include the task of evaluating the dynamic instance key portion of the `provider` argument. If an author wrote `provider = aws.by_region[each.key]` then each instance selects a different instance of `aws.by_region` based on its own value of `each.key`.
 
-OpenTofu does not need to know the final provider instance for a resource instance until just before it begins making requests to the provider, so we can safely wait until visiting an individual resource instance before deciding its provider configuration but when doing so we must deal with the possibility that the target provider instance might be accessed only indirectly through the provider instances passed by the parent module, and therefore we must now track for each resource the following new information:
+OpenTofu does not need to know the final provider instance for a resource instance until just before it begins making requests to the provider, so we can safely wait until visiting/executing an individual resource instance before deciding its provider configuration but when doing so we must deal with the possibility that the target provider instance might be accessed only indirectly through the provider instances passed by the parent module, and therefore we must now track for each resource the following new information:
 
 - The `hcl.Expression` representing the expression in the brackets at the end of the reference expression.
 - The `addrs.Module` of which module in the chain contains the dynamic instance key expression, and therefore which scope the instance key needs to be evaluated in.
@@ -417,7 +418,28 @@ This configuration means that each _instance_ of `module "example"` has its defa
 
 Therefore when resolving the dynamically-chosen provider instance for each resource in the child module, the resource instance node for each resource instance in the child module needs to be able to effectively walk up the module tree to find out that any reference to `aws` in the child module (whether explicit or implicit) must be resolved by evaluating `aws.by_region[each.key]` _in the calling module_, using the calling module's scope and the appropriate module call instance's `each.key` value.
 
-##### Providers instances in the State
+Fotunately for us, this process is already encapsulated well within the `ProviderConfigTransformer` and can be extended for this purpose. The `ProviderConfigTransformer` adds nodes to the graph that either represent "provider configurations" directly (`NodeApplyableProvider`) or proxies to those providers. These proxies know how to walk up the tree to locate the actual provider configuration.
+
+The proxy structure can easily be extended to also include the "provider key expression" required to perform the mapping. The `ProviderTransformer` is in charge of determining what "provider configuration node" is used by all of the resource nodes in the graph. Additional information from the proxy traversal can be added to each resource node's SetProvider() function call to help it determine which instance it should be using.
+
+At the end of this process, each resource node should know both what "provider configuration" it should be trying to use, as well as if there is a provider key expression which needs to be evaluated within a given module path.
+
+##### Resource Instance Visiting/Execution
+
+When a resource instance is visited (Execute method called), it's first task is to determine which provider it should be using.
+
+With all of the previously described machinery in place, it has access to:
+* The required provider configuration block address (ProviderTransformer)
+* The module level provider key expression + module path (ProviderTransformer/ProviderConfigTransformer)
+* The resource provider key expression (configs.Resource)
+
+The resource instance then determines if it should be using the module or resource provider key expression (only one is allowed). It evaluates that expression within the specified context and produces a "provider instance key".
+
+It then asks the EvalContext for the `providers.Interface` determined by "provider configuration block address" and "provider instance key".
+
+Once the provider interface has been determined (resolved), it can continue it's usual unmodified execution path.
+
+##### Providers Instances in the State
 
 Currently OpenTofu assumes that all instances of a resource must be bound to the same provider instance, because each provider configuration can have only one instance and each resource can be bound to only one provider configuration. This assumption is unfortunately exposed in the state snapshot format, which tracks the provider configuration address as a property of the overall resource rather than of each instance separately.
 
@@ -427,18 +449,20 @@ Today's state snapshot format includes the following information for each resour
 
 ```json
 {
-  "module": "module.example",
-  "type": "aws_instance",
-  "name": "example",
-  "provider": "module.example.provider[\"registry.opentofu.org/hashicorp/aws\"].by_region",
-  "instances": [
-    {
-      "index_key": "first"
-    },
-    {
-      "index_key": "second"
-    }
-  ]
+  "resources": [{
+    "module": "module.example",
+    "type": "aws_instance",
+    "name": "example",
+    "provider": "module.example.provider[\"registry.opentofu.org/hashicorp/aws\"].by_region",
+    "instances": [
+      {
+        "index_key": "first"
+      },
+      {
+        "index_key": "second"
+      }
+    ]
+  }]
 }
 ```
 
@@ -446,26 +470,27 @@ We will add a similar `"provider"` property to each of the objects under `"insta
 
 ```json
 {
-  "module": "module.example",
-  "type": "aws_instance",
-  "name": "example",
-  "provider": "module.example.provider[\"registry.opentofu.org/hashicorp/aws\"].by_region",
-  "instances": [
-    {
-      "index_key": "first",
-      "provider": "module.example.provider[\"registry.opentofu.org/hashicorp/aws\"].by_region[\"us-west-2\"]"
-    },
-    {
-      "index_key": "second",
-      "provider": "module.example.provider[\"registry.opentofu.org/hashicorp/aws\"].by_region[\"eu-east-1\"]"
-    }
-  ]
+  "resources": [{
+    "module": "module.example",
+    "type": "aws_instance",
+    "name": "example",
+    "instances": [
+      {
+        "index_key": "first",
+        "provider": "module.example.provider[\"registry.opentofu.org/hashicorp/aws\"].by_region[\"us-west-2\"]"
+      },
+      {
+        "index_key": "second",
+        "provider": "module.example.provider[\"registry.opentofu.org/hashicorp/aws\"].by_region[\"eu-east-1\"]"
+      }
+    ]
+  }]
 }
 ```
 
-The state snapshot loader will parse both the resource-level address and the instance-level addresses and will, for now, return an error if they are not identical aside from the optional trailing instance key on the instance-level addresses. This preserves our current simplification of each resource still being bound to exactly one provider configuration while offering a more general syntax that we can retain in future if we weaken that constraint. We don't yet know exactly what flexibility we will need for future features, and so capturing the entire provider instance address (and then verifying their consistency) gives us the freedom to refer to literally any valid provider instance address in future versions, without changing the syntax and thus without the need for new state snapshot format upgrade logic.
+The state snapshot loader will parse both the resource-level address and the instance-level addresses and determine which to use for each resource instance. It will, for now, return an error if any of the instance addresses are not identical aside from the optional trailing instance key. This preserves our current simplification of each resource still being bound to exactly one provider configuration while offering a more general syntax that we can retain in future if we weaken that constraint. We don't yet know exactly what flexibility we will need for future features, and so capturing the entire provider instance address (and then verifying their consistency) gives us the freedom to refer to literally any valid provider instance address in future versions, without changing the syntax and thus without the need for new state snapshot format upgrade logic.
 
-Retaining the `"provider"` argument at the resource level, despite it now being technically redundant, offers a measure of backward-compatibility with older versions of OpenTofu. Someone who upgrades to the version that introduced this feature and runs `tofu apply` should remain able to revert back to the previous OpenTofu version as long as their configuration does not make use of provider configuration expansion, because the older version will ignore the instance-level `"provider"` properties altogether.
+We could retain the `"provider"` argument at the resource level, despite it now being technically redundant. It would offer a measure of backward-compatibility with older versions of OpenTofu. When the core team discussed this in depth, we decided that it would likely be better to omit this duplicate information when possible to force the user to roll-back and apply their configuration before downgrading their OpenTofu version.  This is not a supported path, but we want to make sure that the proper steps are taken when downgrading.
 
 This section described changes only to the internal state snapshot format that is not documented for external use. We do not intend to extend the documented `tofu show -json` output formats yet as part of this change, because we want to retain design flexibility for later work and to learn more about what real-world use-cases exist for machine-consumption of the provider instance relationships before we design a final format that will then be subject to compatibilty constraints.
 
