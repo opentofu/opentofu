@@ -15,7 +15,8 @@ ENHANCEMENTS:
 * Added a help target to the Makefile. ([#1925](https://github.com/opentofu/opentofu/pull/1925))
 * Added a simplified Build Process with a Makefile Target ([#1926](https://github.com/opentofu/opentofu/issues/1926))
 * Ensures that the Makefile adheres to POSIX standards ([#1811](https://github.com/opentofu/opentofu/pull/1928))
-* Added for-each support to providers. ([#300](https://github.com/opentofu/opentofu/issues/300))
+* Added for-each support to providers ([#300](https://github.com/opentofu/opentofu/issues/300))
+* Added consolidate warnings and errors flags ([#1894](https://github.com/opentofu/opentofu/pull/1894))
 
 BUG FIXES:
 * Ensure that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
@@ -25,6 +26,12 @@ BUG FIXES:
 * Fixed a crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
 * Fixed a crash when importing an empty optional sensitive string ([#1986](https://github.com/opentofu/opentofu/pull/1986))
 * Fixed autoloaded test tfvar files being used in non-test scenarios ([#2039](https://github.com/opentofu/opentofu/pull/2039))
+* Fixed a config generation crash when importing sensitive values ([#2077](https://github.com/opentofu/opentofu/pull/2077))
+* Fixed exit command in console interactive mode ([#2086](https://github.com/opentofu/opentofu/pull/2086))
+* Fixed function references in variable validation ([#2052](https://github.com/opentofu/opentofu/pull/2052))
+* Fixed potential leaking of secret variable with static evaluation ([#2045](https://github.com/opentofu/opentofu/pull/2045))
+* Fixed a providers mirror crash with bad lock file ([#1985](https://github.com/opentofu/opentofu/pull/1985))
+
 
 ## Previous Releases
 
