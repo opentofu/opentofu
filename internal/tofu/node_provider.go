@@ -89,7 +89,7 @@ func (n *NodeApplyableProvider) executeInstance(ctx EvalContext, op walkOperatio
 	switch op {
 	case walkValidate:
 		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
-		diags = diags.Append(n.ValidateProvider(ctx, provider, providerKey))
+		return diags.Append(n.ValidateProvider(ctx, provider, providerKey))
 	case walkPlan, walkPlanDestroy, walkApply, walkDestroy:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
 		return diags.Append(n.ConfigureProvider(ctx, provider, providerKey, false))
