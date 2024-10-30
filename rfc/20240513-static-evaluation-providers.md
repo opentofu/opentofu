@@ -184,7 +184,13 @@ resource "example_thing" "example" {
   # provider configuration block remains static, so effectively all
   # of the instances of this resource _must_ belong to the one
   # single provider configuration block above.
+
+  # This is valid as "example.foo" is statically known
   provider = example.foo[each.key]
+
+  # Whereas something like this is not supported as it could refer to
+  # many potential providers depending on the result of local.alias
+  provider = example[local.alias][each.key]
 }
 ```
 
@@ -208,7 +214,12 @@ module "example" {
     # use. Each one is bound to a different instance from the provider
     # block above, but they must still nonetheless all be bound to
     # the same block.
-    example = example.foo[each.key]
+    example = example.foo[each.key] # Supported
+
+    # However, if we add uncertainty to which provider configuration is
+    # being referenced, the above assertions do not hold and become much
+    # more complex to reason about.
+    example = example[local.alias][each.key] # Unsupported
   }
 }
 ```
