@@ -44,9 +44,11 @@ func (c *EncryptionConfig) GetKeyProvider(kpType, kpName string) (KeyProviderCon
 // KeyProviderConfig describes the terraform.encryption.key_provider.* block you can use to declare a key provider for
 // encryption. The Body field will contain the remaining undeclared fields the key provider can consume.
 type KeyProviderConfig struct {
-	Type string   `hcl:"type,label"`
-	Name string   `hcl:"name,label"`
-	Body hcl.Body `hcl:",remain"`
+	// EncryptedMetadataAlias contains the key to identify the metadata by.
+	EncryptedMetadataAlias string   `hcl:"encrypted_metadata_alias,optional"`
+	Type                   string   `hcl:"type,label"`
+	Name                   string   `hcl:"name,label"`
+	Body                   hcl.Body `hcl:",remain"`
 }
 
 // Addr returns a keyprovider.Addr from the current configuration.
