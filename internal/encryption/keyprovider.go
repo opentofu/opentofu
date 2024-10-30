@@ -87,13 +87,13 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	stack = append(stack, cfg)
 
 	// Pull the meta key out for error messages and meta storage
-	tmpmetakey, diags := cfg.Addr()
+	tmpMetaKey, diags := cfg.Addr()
 	if diags.HasErrors() {
 		return diags
 	}
-	metakey := keyprovider.MetaStorageKey(tmpmetakey)
+	metaKey := keyprovider.MetaStorageKey(tmpMetaKey)
 	if cfg.EncryptedMetadataKey != "" {
-		metakey = keyprovider.MetaStorageKey(cfg.EncryptedMetadataKey)
+		metaKey = keyprovider.MetaStorageKey(cfg.EncryptedMetadataKey)
 	}
 
 	// Lookup the KeyProviderDescriptor from the registry
@@ -218,18 +218,18 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to build encryption key data",
-			Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
+			Detail:   fmt.Sprintf("%s failed with error: %s", metaKey, err.Error()),
 		})
 	}
 
 	// Add the metadata
-	if meta, ok := e.inputKeyProviderMetadata[metakey]; ok {
+	if meta, ok := e.inputKeyProviderMetadata[metaKey]; ok {
 		err := json.Unmarshal(meta, keyMetaIn)
 		if err != nil {
 			return append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Unable to decode encrypted metadata (did you change your encryption config?)",
-				Detail:   fmt.Sprintf("metadata decoder for %s failed with error: %s", metakey, err.Error()),
+				Detail:   fmt.Sprintf("metadata decoder for %s failed with error: %s", metaKey, err.Error()),
 			})
 		}
 	}
@@ -239,25 +239,25 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Unable to fetch encryption key data",
-			Detail:   fmt.Sprintf("%s failed with error: %s", metakey, err.Error()),
+			Detail:   fmt.Sprintf("%s failed with error: %s", metaKey, err.Error()),
 		})
 	}
 
 	if keyMetaOut != nil {
-		if _, ok := e.outputKeyProviderMetadata[metakey]; ok {
+		if _, ok := e.outputKeyProviderMetadata[metaKey]; ok {
 			return append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Duplicate metadata key",
-				Detail:   fmt.Sprintf("the metadata key %s is duplicated across multiple key providers for the same method; use the encrypted_metadata_key option to specify unique metadata keys for each key provider in an encryption method", metakey),
+				Detail:   fmt.Sprintf("The metadata key %s is duplicated across multiple key providers for the same method; use the encrypted_metadata_key option to specify unique metadata keys for each key provider in an encryption method", metaKey),
 			})
 		}
-		e.outputKeyProviderMetadata[metakey], err = json.Marshal(keyMetaOut)
+		e.outputKeyProviderMetadata[metaKey], err = json.Marshal(keyMetaOut)
 
 		if err != nil {
 			return append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Unable to encode encrypted metadata",
-				Detail:   fmt.Sprintf("metadata encoder for %s failed with error: %s", metakey, err.Error()),
+				Detail:   fmt.Sprintf("The metadata encoder for %s failed with error: %s", metaKey, err.Error()),
 			})
 		}
 	}
