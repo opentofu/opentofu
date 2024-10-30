@@ -46,9 +46,9 @@ type Provider struct {
 	IsMocked      bool
 	MockResources []*MockResource
 
-	Count   hcl.Expression
-	ForEach hcl.Expression
-
+	// Count is currently disabled as it is unclear what supporting "count" on provider implies
+	Count     hcl.Expression
+	ForEach   hcl.Expression
 	Instances map[addrs.InstanceKey]instances.RepetitionData
 }
 
@@ -106,9 +106,12 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	if attr, exists := content.Attributes["for_each"]; exists {
 		provider.ForEach = attr.Expr
 	}
+
+	/* Disabled as we don't have a good understanding of how count should interact with providers
 	if attr, exists := content.Attributes["count"]; exists {
 		provider.Count = attr.Expr
 	}
+	*/
 
 	if provider.ForEach != nil && provider.Count != nil {
 		diags = append(diags, &hcl.Diagnostic{
@@ -137,7 +140,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	// Reserved attribute names
-	for _, name := range []string{"depends_on", "source"} {
+	for _, name := range []string{"depends_on", "source", "count"} {
 		if attr, exists := content.Attributes[name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -344,11 +347,11 @@ var providerBlockSchema = &hcl.BodySchema{
 		{
 			Name: "version",
 		},
-		{Name: "count"},
 		{Name: "for_each"},
 
 		// Attribute names reserved for future expansion.
 		{Name: "depends_on"},
+		{Name: "count"},
 		{Name: "source"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
