@@ -111,11 +111,6 @@ func (n *nodeExpandModule) ReferenceOutside() (selfPath, referencePath addrs.Mod
 	return n.Addr, n.Addr.Parent()
 }
 
-type ModuleProviderMapping struct {
-	configs.PassedProviderConfig
-	InParentKey addrs.InstanceKey
-}
-
 // GraphNodeExecutable
 func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	expander := ctx.InstanceExpander()
@@ -126,7 +121,6 @@ func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfd
 	// to our module, and register module instances with each of them.
 	for _, module := range expander.ExpandModule(n.Addr.Parent()) {
 		ctx = ctx.WithPath(module)
-
 		switch {
 		case n.ModuleCall.Count != nil:
 			count, ctDiags := evaluateCountExpression(n.ModuleCall.Count, ctx)
@@ -147,7 +141,6 @@ func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfd
 		default:
 			expander.SetModuleSingle(module, call)
 		}
-
 	}
 
 	return diags
