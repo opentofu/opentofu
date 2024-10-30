@@ -98,7 +98,7 @@ type Operation struct {
 // parseTargetables gets a list of strings, each representing a targetable object, and returns a list of
 // addrs.Targetable
 // This is used for parsing the input of -target and -exclude flags
-func parseTargetables(rawTargetables []string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
@@ -107,7 +107,7 @@ func parseTargetables(rawTargetables []string) ([]addrs.Targetable, tfdiags.Diag
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				fmt.Sprintf("Invalid target %q", tr),
+				fmt.Sprintf("Invalid %s %q", flag, tr),
 				syntaxDiags[0].Detail,
 			))
 			continue
@@ -117,7 +117,7 @@ func parseTargetables(rawTargetables []string) ([]addrs.Targetable, tfdiags.Diag
 		if targetDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				fmt.Sprintf("Invalid target %q", tr),
+				fmt.Sprintf("Invalid %s %q", flag, tr),
 				targetDiags[0].Description().Detail,
 			))
 			continue
@@ -143,10 +143,10 @@ func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Ta
 	}
 
 	var parseDiags tfdiags.Diagnostics
-	parsedTargets, parseDiags = parseTargetables(targets)
+	parsedTargets, parseDiags = parseTargetables(targets, "target")
 	diags = diags.Append(parseDiags)
 
-	parsedExcludes, parseDiags = parseTargetables(excludes)
+	parsedExcludes, parseDiags = parseTargetables(excludes, "exclude")
 	diags = diags.Append(parseDiags)
 
 	return parsedTargets, parsedExcludes, diags

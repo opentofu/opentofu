@@ -136,17 +136,17 @@ func TestParsePlan_targets(t *testing.T) {
 		"invalid traversal": {
 			args:    []string{"-target=foo."},
 			want:    nil,
-			wantErr: "Dot must be followed by attribute name",
+			wantErr: "Invalid target \"foo.\": Dot must be followed by attribute name",
 		},
 		"invalid target": {
 			args:    []string{"-target=data[0].foo"},
 			want:    nil,
-			wantErr: "A data source name is required",
+			wantErr: "Invalid target \"data[0].foo\": A data source name is required",
 		},
 		"empty target": {
 			args:    []string{"-target="},
 			want:    nil,
-			wantErr: "Must begin with a variable name.", // The error is `Invalid target "": Must begin with a variable name.`
+			wantErr: "Invalid target \"\": Must begin with a variable name.", // The error is `Invalid target "": Must begin with a variable name.`
 		},
 	}
 
@@ -193,17 +193,17 @@ func TestParsePlan_excludes(t *testing.T) {
 		"invalid traversal": {
 			args:    []string{"-exclude=foo."},
 			want:    nil,
-			wantErr: "Dot must be followed by attribute name",
+			wantErr: "Invalid exclude \"foo.\": Dot must be followed by attribute name",
 		},
 		"invalid exclude": {
 			args:    []string{"-exclude=data[0].foo"},
 			want:    nil,
-			wantErr: "A data source name is required",
+			wantErr: "Invalid exclude \"data[0].foo\": A data source name is required",
 		},
 		"empty exclude": {
 			args:    []string{"-exclude="},
 			want:    nil,
-			wantErr: "Must begin with a variable name.", // The error is `Invalid target "": Must begin with a variable name.`
+			wantErr: "Invalid exclude \"\": Must begin with a variable name.",
 		},
 	}
 
