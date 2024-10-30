@@ -90,18 +90,22 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			}
 		}
 
-		providerAddr, addrDiags := addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
-		diags.Append(addrDiags)
-		if addrDiags.HasErrors() {
-			// If ParseAbsProviderConfigStr returns an error, the state may have
-			// been written before Provider FQNs were introduced and the
-			// AbsProviderConfig string format will need normalization. If so,
-			// we treat it like a legacy provider (namespace "-") and let the
-			// provider installer handle detecting the FQN.
-			var legacyAddrDiags tfdiags.Diagnostics
-			providerAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
-			if legacyAddrDiags.HasErrors() {
-				continue
+		var providerAddr addrs.AbsProviderConfig
+		var addrDiags tfdiags.Diagnostics
+		if rsV4.ProviderConfig != "" {
+			providerAddr, addrDiags = addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
+			diags = diags.Append(addrDiags)
+			if addrDiags.HasErrors() {
+				// If ParseAbsProviderConfigStr returns an error, the state may have
+				// been written before Provider FQNs were introduced and the
+				// AbsProviderConfig string format will need normalization. If so,
+				// we treat it like a legacy provider (namespace "-") and let the
+				// provider installer handle detecting the FQN.
+				var legacyAddrDiags tfdiags.Diagnostics
+				providerAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
+				if legacyAddrDiags.HasErrors() {
+					continue
+				}
 			}
 		}
 
@@ -109,6 +113,9 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 		// Ensure the resource container object is present in the state.
 		ms.SetResourceProvider(rAddr, providerAddr)
+
+		// Keep track of instance providers for validation
+		var instanceProviders []addrs.AbsProviderConfig
 
 		for _, isV4 := range rsV4.Instances {
 			keyRaw := isV4.IndexKey
@@ -137,31 +144,28 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				key = addrs.NoKey
 			}
 
-			// TODO bad copy paste
-			providerKeyRaw := isV4.ProviderKey
-			var providerKey addrs.InstanceKey
-			switch tk := providerKeyRaw.(type) {
-			case int:
-				providerKey = addrs.IntKey(tk)
-			case float64:
-				// Since JSON only has one number type, reading from encoding/json
-				// gives us a float64 here even if the number is whole.
-				// float64 has a smaller integer range than int, but in practice
-				// we rarely have more than a few tens of instances and so
-				// it's unlikely that we'll exhaust the 52 bits in a float64.
-				providerKey = addrs.IntKey(int(tk))
-			case string:
-				providerKey = addrs.StringKey(tk)
-			default:
-				if providerKeyRaw != nil {
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Invalid resource instance metadata in state",
-						fmt.Sprintf("Resource %s has an instance with the invalid instance providerKey %#v.", rAddr.Absolute(moduleAddr), providerKeyRaw),
-					))
-					continue
-				}
-				providerKey = addrs.NoKey
+			if isV4.ProviderConfig != "" && rsV4.ProviderConfig != "" {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Provider field conflict in state",
+					fmt.Sprintf("Resource %s has a provider address, as well as an instance with a provider address.", rAddr.Absolute(moduleAddr)),
+				))
+			}
+
+			if isV4.ProviderConfig == "" && rsV4.ProviderConfig == "" {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Provider field missing state",
+					fmt.Sprintf("Resource %s is missing a provider address, both on the resource and the resource instances.", rAddr.Absolute(moduleAddr)),
+				))
+			}
+
+			instanceProvider := providerAddr
+			instanceProviderKey := addrs.NoKey
+			if isV4.ProviderConfig != "" {
+				instanceProvider, instanceProviderKey, addrDiags = addrs.ParseAbsProviderConfigInstanceStr(isV4.ProviderConfig)
+				diags = diags.Append(addrDiags)
+				instanceProviders = append(instanceProviders, instanceProvider)
 			}
 
 			instAddr := rAddr.Instance(key)
@@ -262,7 +266,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceDeposed(instAddr, dk, obj, providerAddr, providerKey)
+				ms.SetResourceInstanceDeposed(instAddr, dk, obj, instanceProvider, instanceProviderKey)
 			default:
 				is := ms.ResourceInstance(instAddr)
 				if is.HasCurrent() {
@@ -274,16 +278,23 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					continue
 				}
 
-				ms.SetResourceInstanceCurrent(instAddr, obj, providerAddr, providerKey)
+				ms.SetResourceInstanceCurrent(instAddr, obj, instanceProvider, instanceProviderKey)
 			}
 		}
 
-		// We repeat this after creating the instances because
-		// SetResourceInstanceCurrent automatically resets this metadata based
-		// on the incoming objects. That behavior is useful when we're making
-		// piecemeal updates to the state during an apply, but when we're
-		// reading the state file we want to reflect its contents exactly.
-		ms.SetResourceProvider(rAddr, providerAddr)
+		// Validate instance providers
+		if len(instanceProviders) >= 2 {
+			for i := 1; i < len(instanceProviders); i++ {
+				if instanceProviders[i-1].String() != instanceProviders[i].String() {
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"Provider instance field conflict in state",
+						fmt.Sprintf("Resource %s has instances with different provider addresses: %q != %q.", rAddr.Absolute(moduleAddr), instanceProviders[i-1], instanceProviders[i]),
+					))
+					break
+				}
+			}
+		}
 	}
 
 	// The root module is special in that we persist its attributes and thus
@@ -416,12 +427,25 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				continue
 			}
 
+			hasProviderInstanceKeys := false
+			for _, is := range rs.Instances {
+				if is.ProviderKey != addrs.NoKey {
+					hasProviderInstanceKeys = true
+					break
+				}
+			}
+
+			var providerConfig string
+			if !hasProviderInstanceKeys {
+				providerConfig = rs.ProviderConfig.String()
+			}
+
 			sV4.Resources = append(sV4.Resources, resourceStateV4{
 				Module:         moduleAddr.String(),
 				Mode:           mode,
 				Type:           resourceAddr.Type,
 				Name:           resourceAddr.Name,
-				ProviderConfig: rs.ProviderConfig.String(),
+				ProviderConfig: providerConfig,
 				Instances:      []instanceObjectStateV4{},
 			})
 			rsV4 := &(sV4.Resources[len(sV4.Resources)-1])
@@ -431,7 +455,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 					var objDiags tfdiags.Diagnostics
 					rsV4.Instances, objDiags = appendInstanceObjectStateV4(
 						rs, is, key, is.Current, states.NotDeposed,
-						rsV4.Instances,
+						rsV4.Instances, hasProviderInstanceKeys,
 					)
 					diags = diags.Append(objDiags)
 				}
@@ -439,7 +463,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 					var objDiags tfdiags.Diagnostics
 					rsV4.Instances, objDiags = appendInstanceObjectStateV4(
 						rs, is, key, obj, dk,
-						rsV4.Instances,
+						rsV4.Instances, hasProviderInstanceKeys,
 					)
 					diags = diags.Append(objDiags)
 				}
@@ -479,7 +503,7 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 	return diags
 }
 
-func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstance, key addrs.InstanceKey, obj *states.ResourceInstanceObjectSrc, deposed states.DeposedKey, isV4s []instanceObjectStateV4) ([]instanceObjectStateV4, tfdiags.Diagnostics) {
+func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstance, key addrs.InstanceKey, obj *states.ResourceInstanceObjectSrc, deposed states.DeposedKey, isV4s []instanceObjectStateV4, hasProviderInstanceKeys bool) ([]instanceObjectStateV4, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	var status string
@@ -522,22 +546,9 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		}
 	}
 
-	// TODO bad copy pasta
-	providerKey := is.ProviderKey
-	var rawProviderKey interface{}
-	switch tk := providerKey.(type) {
-	case addrs.IntKey:
-		rawProviderKey = int(tk)
-	case addrs.StringKey:
-		rawProviderKey = string(tk)
-	default:
-		if providerKey != addrs.NoKey {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Failed to serialize resource instance in state",
-				fmt.Sprintf("Instance %s has an unsupported instance providerKey: %#v.", rs.Addr.Instance(providerKey), providerKey),
-			))
-		}
+	var providerConfig string
+	if hasProviderInstanceKeys {
+		providerConfig = rs.ProviderConfig.InstanceString(is.ProviderKey)
 	}
 
 	// Extract paths from path value marks
@@ -554,7 +565,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		IndexKey:                rawKey,
 		Deposed:                 string(deposed),
 		Status:                  status,
-		ProviderKey:             rawProviderKey,
+		ProviderConfig:          providerConfig,
 		SchemaVersion:           obj.SchemaVersion,
 		AttributesFlat:          obj.AttrsFlat,
 		AttributesRaw:           obj.AttrsJSON,
@@ -756,16 +767,15 @@ type resourceStateV4 struct {
 	Type           string                  `json:"type"`
 	Name           string                  `json:"name"`
 	EachMode       string                  `json:"each,omitempty"`
-	ProviderConfig string                  `json:"provider"`
+	ProviderConfig string                  `json:"provider,omitempty"`
 	Instances      []instanceObjectStateV4 `json:"instances"`
 }
 
 type instanceObjectStateV4 struct {
-	IndexKey interface{} `json:"index_key,omitempty"`
-	Status   string      `json:"status,omitempty"`
-	Deposed  string      `json:"deposed,omitempty"`
-
-	ProviderKey interface{} `json:"provider_key,omitempty"`
+	IndexKey       interface{} `json:"index_key,omitempty"`
+	Status         string      `json:"status,omitempty"`
+	Deposed        string      `json:"deposed,omitempty"`
+	ProviderConfig string      `json:"provider,omitempty"`
 
 	SchemaVersion           uint64            `json:"schema_version"`
 	AttributesRaw           json.RawMessage   `json:"attributes,omitempty"`
