@@ -12,7 +12,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/gocty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -20,6 +19,8 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -113,6 +114,8 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 
 	log.Printf("[TRACE] Resolving provider key for %s", n.Addr)
 
+	var keyScope *lang.Scope
+	var keyExpr hcl.Expression
 	if n.Config != nil && n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
 		if n.ResolvedProviderKeyExpr != nil {
 			// Module key and resource key are required. This is not allowed!
@@ -120,52 +123,63 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 			return diags
 		}
 
-		keyExpr := n.Config.ProviderConfigRef.KeyExpression
+		keyExpr = n.Config.ProviderConfigRef.KeyExpression
 		keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(n.Addr)
-		keyScope := ctx.EvaluationScope(nil, nil, keyData)
-
-		keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
-		diags = diags.Append(keyDiags)
-		if keyDiags.HasErrors() {
-			return diags
-		}
-
-		if keyVal.Type() == cty.String {
-			n.ResolvedProviderKey = addrs.StringKey(keyVal.AsString())
-			log.Printf("[TRACE] Resource %s used provider key %q", n.Addr, keyVal.AsString())
-		} else if keyVal.Type() == cty.Number {
-			var intVal int
-			gocty.FromCtyValue(keyVal, &intVal)
-			n.ResolvedProviderKey = addrs.IntKey(intVal)
-			log.Printf("[TRACE] Resource %s used provider key %v", n.Addr, intVal)
-		} else {
-			panic("Bad key type")
-		}
+		keyScope = ctx.EvaluationScope(nil, nil, keyData)
 	} else if n.ResolvedProviderKeyExpr != nil {
-		// This is a hack, but not as bad as what is comment out below
 		moduleInstanceForKey := n.Addr.Module[:len(n.ResolvedProviderKeyPath)]
+		if !moduleInstanceForKey.Module().Equal(n.ResolvedProviderKeyPath) {
+			panic(fmt.Sprintf("Invalid module key expression location %s in resource %s", n.ResolvedProviderKeyPath, n.Addr))
+		}
 
-		keyExpr := n.ResolvedProviderKeyExpr
+		keyExpr = n.ResolvedProviderKeyExpr
 		keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(moduleInstanceForKey)
-		keyScope := ctx.WithPath(moduleInstanceForKey).EvaluationScope(nil, nil, keyData)
+		keyScope = ctx.WithPath(moduleInstanceForKey).EvaluationScope(nil, nil, keyData)
+	}
 
+	if keyExpr != nil {
 		keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
 		diags = diags.Append(keyDiags)
 		if keyDiags.HasErrors() {
 			return diags
 		}
 
-		if keyVal.Type() == cty.String {
-			n.ResolvedProviderKey = addrs.StringKey(keyVal.AsString())
-			log.Printf("[TRACE] Resource %s used module provider key %q", n.Addr, keyVal.AsString())
-		} else if keyVal.Type() == cty.Number {
-			var intVal int
-			gocty.FromCtyValue(keyVal, &intVal)
-			n.ResolvedProviderKey = addrs.IntKey(intVal)
-			log.Printf("[TRACE] Resource %s used module provider key %v", n.Addr, intVal)
-		} else {
-			panic("Bad key type")
+		if keyVal.HasMark(marks.Sensitive) {
+			return diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider key",
+				Detail:   "Sensitive values are not allowed as provider keys",
+				Subject:  keyExpr.Range().Ptr(),
+			})
 		}
+		if keyVal.IsNull() {
+			return diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider key",
+				Detail:   "Provider keys must not be null",
+				Subject:  keyExpr.Range().Ptr(),
+			})
+		}
+		if !keyVal.IsKnown() {
+			return diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider key",
+				Detail:   "Provider keys must be known values",
+				Subject:  keyExpr.Range().Ptr(),
+			})
+		}
+
+		parsedKey, parsedErr := addrs.ParseInstanceKey(keyVal)
+		if parsedErr != nil {
+			return diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider key",
+				Detail:   parsedErr.Error(),
+				Subject:  keyExpr.Range().Ptr(),
+			})
+		}
+
+		n.ResolvedProviderKey = parsedKey
 	}
 
 	log.Printf("[TRACE] Resolved provider key for %s as %s", n.Addr, n.ResolvedProviderKey)
@@ -176,14 +190,29 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 func (n *NodeAbstractResourceInstance) EnsureProvider(ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	_, _, providerErr := getProvider(ctx, n.ResolvedProvider, n.ResolvedProviderKey)
-	if providerErr != nil {
-		// TODO improve error messages
-		diags = diags.Append(providerErr)
-		diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Provider with key not found", fmt.Sprintf("Resource %s requires a provider %s with key %s", n.Addr, n.ResolvedProvider, n.ResolvedProviderKey)))
+	// This duplicates a lot of getProvider() and should be refactored as the only place to resolve the provider eventually
+	// This is also quite similar to ProviderTransformer's handling of removed providers for orphaned nodes
+	if n.ResolvedProvider.Provider.Type == "" {
+		// Should never happen
+		panic("EnsureProvider used with uninitialized provider configuration address")
 	}
 
-	return diags
+	provider := ctx.Provider(n.ResolvedProvider, n.ResolvedProviderKey)
+	if provider != nil {
+		// All good
+		return nil
+	}
+
+	if n.ResolvedProviderKey == nil {
+		// Probably an OpenTofu bug
+		return diags.Append(fmt.Errorf("provider %s%s not initialized for resource %s", n.ResolvedProvider, n.ResolvedProviderKey, n.Addr))
+	}
+
+	return diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Provider Configuration Instance not present",
+		fmt.Sprintf("To work with %s its original provider configuration at %s%s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.\n\nThis is commonly caused by removing an entry in a provider's for_each expression before destroying all of the corresponding resources. It is best pracice to use a different set of data for provider iteration from resource/module iteration.", n.Addr, n.ResolvedProvider, n.ResolvedProviderKey, n.Addr),
+	))
 }
 
 // StateDependencies returns the dependencies which will be saved in the state
