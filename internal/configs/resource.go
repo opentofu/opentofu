@@ -660,7 +660,6 @@ type ProviderConfigRef struct {
 	// This same field is also added to the Provider struct.
 	providerType addrs.Provider
 
-	// TODO This is probably not the best location for this field, but it should work for now
 	KeyExpression hcl.Expression
 }
 
@@ -784,6 +783,39 @@ func (r *ProviderConfigRef) String() string {
 		return fmt.Sprintf("%s.%s", r.Name, r.Alias)
 	}
 	return r.Name
+}
+
+func (r *ProviderConfigRef) InstanceValidation(subject string, isInstanced bool) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	summary := fmt.Sprintf("Invalid %s provider configuration", subject)
+
+	if r.KeyExpression != nil {
+		if r.Alias == "" {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  summary,
+				Detail:   "Keys can only be used on providers with an alias",
+				Subject:  r.KeyExpression.Range().Ptr(),
+			})
+		}
+		if !isInstanced {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  summary,
+				Detail:   "Non-keyed provider used with keyed expression",
+				Subject:  r.KeyExpression.Range().Ptr(),
+			})
+		}
+	} else if isInstanced {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  summary,
+			Detail:   "Keyed provider used without key expression. Passing a collection of provider instances into a module is not allowed.",
+			Subject:  r.NameRange.Ptr(),
+		})
+	}
+	return diags
 }
 
 var commonResourceAttributes = []hcl.AttributeSchema{
