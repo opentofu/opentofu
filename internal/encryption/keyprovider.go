@@ -248,7 +248,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 			return append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Duplicate metadata key",
-				Detail:   fmt.Sprintf("The metadata key %s is duplicated across multiple key providers for the same method; use the encrypted_metadata_key option to specify unique metadata keys for each key provider in an encryption method", metaKey),
+				Detail:   fmt.Sprintf("The metadata key %s is duplicated across multiple key providers for the same method; use the encrypted_metadata_alias option to specify unique metadata keys for each key provider in an encryption method", metaKey),
 			})
 		}
 		e.outputKeyProviderMetadata[metaKey], err = json.Marshal(keyMetaOut)

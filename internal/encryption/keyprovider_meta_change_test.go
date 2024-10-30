@@ -20,8 +20,8 @@ import (
 
 func TestChangingKeyProviderAddr(t *testing.T) {
 	sourceConfig := `key_provider "pbkdf2" "basic" {
-			encrypted_metadata_key = "foo"
-			passphrase             = "Hello world! 123"
+			encrypted_metadata_alias = "foo"
+			passphrase               = "Hello world! 123"
 		}
 		method "aes_gcm" "example" {
 			keys = key_provider.pbkdf2.basic
@@ -30,8 +30,8 @@ func TestChangingKeyProviderAddr(t *testing.T) {
 			method = method.aes_gcm.example
 		}`
 	dstConfig := `key_provider "pbkdf2" "simple" {
-			encrypted_metadata_key = "foo"
-			passphrase             = "Hello world! 123"
+			encrypted_metadata_alias = "foo"
+			passphrase               = "Hello world! 123"
 		}
 		method "aes_gcm" "example" {
 			keys = key_provider.pbkdf2.simple
@@ -95,12 +95,12 @@ func TestDuplicateKeyProvider(t *testing.T) {
 	// Note: the XOR provider is not available in final OpenTofu builds because its security constraints have not
 	// been properly evaluated. The code below doesn't work in OpenTofu and is for tests only.
 	sourceConfig := `key_provider "pbkdf2" "base1" {
-			encrypted_metadata_key = "foo"
-			passphrase             = "Hello world! 123"
+			encrypted_metadata_alias = "foo"
+			passphrase               = "Hello world! 123"
 		}
 		key_provider "pbkdf2" "base2" {
-			encrypted_metadata_key = "foo"
-			passphrase             = "OpenTofu has Encryption"
+			encrypted_metadata_alias = "foo"
+			passphrase               = "OpenTofu has Encryption"
 		}
 		key_provider "xor" "dualcustody" {
 			a = key_provider.pbkdf2.base1
