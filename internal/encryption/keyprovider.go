@@ -92,8 +92,8 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		return diags
 	}
 	metaKey := keyprovider.MetaStorageKey(tmpMetaKey)
-	if cfg.EncryptedMetadataKey != "" {
-		metaKey = keyprovider.MetaStorageKey(cfg.EncryptedMetadataKey)
+	if cfg.EncryptedMetadataAlias != "" {
+		metaKey = keyprovider.MetaStorageKey(cfg.EncryptedMetadataAlias)
 	}
 
 	// Lookup the KeyProviderDescriptor from the registry
