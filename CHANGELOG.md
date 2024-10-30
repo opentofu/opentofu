@@ -7,7 +7,7 @@ UPGRADE NOTES:
 NEW FEATURES:
 
 ENHANCEMENTS:
-* State encryption key providers now support customizing the metadata key via `encrypted_metadata_key` ([#1605](https://github.com/opentofu/opentofu/issues/1605))
+* State encryption key providers now support customizing the metadata key via `encrypted_metadata_alias` ([#1605](https://github.com/opentofu/opentofu/issues/1605))
 * Added user input prompt for static variables. ([#1792](https://github.com/opentofu/opentofu/issues/1792))
 * Added `-show-sensitive` flag to tofu plan, apply, state-show and output commands to display sensitive data in output. ([#1554](https://github.com/opentofu/opentofu/pull/1554))
 * Improved performance for large graphs when debug logs are not enabled. ([#1810](https://github.com/opentofu/opentofu/pull/1810))
