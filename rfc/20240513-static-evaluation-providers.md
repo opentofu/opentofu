@@ -373,7 +373,7 @@ Each "provider configuration block" is turned into a "provider node" (NodeApplya
 3. Call the `ConfigureProvider` function from the provider protocol on the new provider interface, passing it the `cty.Value` representing its instance-specific configuration.
 4. Save the provider interface in the shared `tofu.EvalContext` for use by downstream resource nodes.
 
-A special case exists here for `tofu validate`. The validate codepath does not configure any providers or deal with "expansion" (for_each/count). A validate graph walk should only initialize and register one `providers.Interface`.  It can still however validate the configuration for each set of provider instance data.
+A special case exists here for `tofu validate`. The validate codepath does not configure any providers or deal with module/resource "expansion" (for_each/count). A validate graph walk should only initialize and register one `providers.Interface`.  It can still however validate provider configurations using the provider's schema and `providers.Interface.ValidateProviderConfiguration` call for each set of provider instance data on the single instance.
 
 
 ##### Selecting a provider instance for each resource instance
