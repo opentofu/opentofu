@@ -2,7 +2,7 @@ terraform {
   encryption {
     key_provider "pbkdf2" "mykey" {
       passphrase               = "OpenTofu has encryption"
-      # Note the fixed encryption_metadata_key here:
+      # Note the fixed encrypted_metadata_alias here:
       encrypted_metadata_alias = "certificates"
     }
     method "aes_gcm" "mymethod" {
