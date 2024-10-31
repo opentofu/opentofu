@@ -3,5 +3,5 @@
 
 module "acctest" {
   source = "hashicorp/module-installer-acctest/aws"
-  version = "=0.0.3-alpha.1"
+  version = "=v0.0.3-alpha.1"
 }

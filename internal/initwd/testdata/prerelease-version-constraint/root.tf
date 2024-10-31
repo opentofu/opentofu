@@ -2,7 +2,7 @@
 # specified version even with the equality because the specified version is a
 # prerelease.
 
-module "acctest_partial" {
+module "acctest" {
   source = "hashicorp/module-installer-acctest/aws"
   version = "<=0.0.3-alpha.1"
 }
