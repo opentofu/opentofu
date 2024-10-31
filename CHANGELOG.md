@@ -32,6 +32,7 @@ BUG FIXES:
 * Fixed function references in variable validation ([#2052](https://github.com/opentofu/opentofu/pull/2052))
 * Fixed potential leaking of secret variable with static evaluation ([#2045](https://github.com/opentofu/opentofu/pull/2045))
 * Fixed a providers mirror crash with bad lock file ([#1985](https://github.com/opentofu/opentofu/pull/1985))
+* Provider functions will now handle partially unknown arguments per the tfplugin spec ([#2127](https://github.com/opentofu/opentofu/pull/2127))
 
 
 ## Previous Releases
