@@ -101,9 +101,7 @@ func CopyDir(dst, src string) error {
 			return nil
 		}
 
-		if err := copyFile(dstPath, path, info.Mode()); err != nil {
-			return err
-		}
+		return copyFile(dstPath, path, info.Mode())
 
 		return nil
 	}
