@@ -16,7 +16,7 @@ import (
 // HTTP request body reader that deliberately causes a read error
 type errorReader struct{}
 
-func (e *errorReader) Read(p []byte) (n int, err error) {
+func (e *errorReader) Read(_ []byte) (int, error) {
 	return 0, fmt.Errorf("read error")
 }
 
@@ -24,7 +24,7 @@ func (e *errorReader) Close() error {
 	return nil
 }
 
-func TestParseResponseBody(t *testing.T) {
+func TestParseResponseBodyForLog(t *testing.T) {
 	testCases := []struct {
 		name           string
 		responseBody   string
@@ -52,7 +52,7 @@ func TestParseResponseBody(t *testing.T) {
 				Body: io.NopCloser(bytes.NewBufferString(tt.responseBody)),
 			}
 
-			output := parseResponseBody(resp)
+			output := parseResponseBodyForLog(resp)
 			if output != tt.expectedOutput {
 				t.Errorf("parseResponseBody() = %v; want %v", output, tt.expectedOutput)
 			}
@@ -64,14 +64,14 @@ func TestParseResponseBody(t *testing.T) {
 			Body: io.NopCloser(&errorReader{}),
 		}
 
-		output := parseResponseBody(resp)
+		output := parseResponseBodyForLog(resp)
 		if output != "" {
 			t.Errorf("parseResponseBody() = %v; want %v", output, "")
 		}
 	})
 }
 
-func TestParseHeaders(t *testing.T) {
+func TestParseHeadersForLog(t *testing.T) {
 	testCases := []struct {
 		name           string
 		headers        http.Header
@@ -86,6 +86,16 @@ func TestParseHeaders(t *testing.T) {
 				"Content-Type":  []string{"application/json"},
 			},
 			expectedOutput: `{"Authorization":"[MASKED]","Content-Type":"application/json","Cookie":"[MASKED]","Set-Cookie":"[MASKED]"}`,
+		},
+		{
+			name: "Case senstive test with sensitive information Headers",
+			headers: http.Header{
+				"authorization": []string{"token"},
+				"set-Cookie":    []string{"cookies"},
+				"cookie":        []string{"cookies"},
+				"content-type":  []string{"application/json"},
+			},
+			expectedOutput: `{"authorization":"[MASKED]","content-type":"","cookie":"[MASKED]","set-Cookie":"[MASKED]"}`,
 		},
 		{
 			name: "Headers without sensitive information",
@@ -111,7 +121,7 @@ func TestParseHeaders(t *testing.T) {
 				Header: tt.headers,
 			}
 
-			output := parseHeaders(resp)
+			output := parseHeadersForLog(resp)
 			if output != tt.expectedOutput {
 				t.Errorf("parseResponseHeaders() = %v; want %v", output, tt.expectedOutput)
 			}
