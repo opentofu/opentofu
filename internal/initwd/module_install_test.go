@@ -277,6 +277,11 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 			expectedVersion: "v0.0.2",
 		},
 		{
+			name:        "multiple constraints",
+			modulePath:  "testdata/prerelease-constraint-multiple",
+			shouldError: true,
+		},
+		{
 			name:        "err",
 			modulePath:  "testdata/prerelease-constraint-err",
 			shouldError: true,
