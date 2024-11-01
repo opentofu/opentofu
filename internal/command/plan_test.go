@@ -221,6 +221,44 @@ func TestPlan_noState(t *testing.T) {
 	}
 }
 
+func TestPlan_noTestVars(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan-no-test-vars"), td)
+	defer testChdir(t, td)()
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	outPath := filepath.Join(td, "test.plan")
+	args := []string{
+		"-out", outPath,
+	}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	plan := testReadPlan(t, outPath)
+	ctyTestVar := plan.VariableValues["testVar"]
+	psuedo, err := ctyTestVar.Decode(cty.DynamicPseudoType)
+	if err != nil {
+		t.Fatalf("Unable to decode plan variables, error: %v", err)
+	}
+
+	result := psuedo.GoString()
+	if !strings.Contains(result, "ValueFROMmain/tfvars") {
+		t.Fatalf("Expected testVar to equal 'ValueFROMmain/tfvars', got: %s", result)
+	}
+
+}
+
 func TestPlan_generatedConfigPath(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("plan-import-config-gen"), td)

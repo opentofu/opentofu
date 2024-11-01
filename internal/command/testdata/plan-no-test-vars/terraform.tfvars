@@ -1,0 +1,1 @@
+testVar = "ValueFROMmain/tfvars"
