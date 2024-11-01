@@ -103,7 +103,6 @@ func CopyDir(dst, src string) error {
 
 		return copyFile(dstPath, path, info.Mode())
 
-		return nil
 	}
 
 	return filepath.Walk(src, walkFn)
