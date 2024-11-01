@@ -244,26 +244,47 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 		name            string
 		modulePath      string
 		expectedVersion string
+		shouldError     bool
 	}{
 		{
 			name:            "exact match",
-			modulePath:      "testdata/prerelease-version-constraint-match",
+			modulePath:      "testdata/prerelease-constraint-match",
 			expectedVersion: "v0.0.3-alpha.1",
 		},
 		{
 			name:            "exact match v prefix",
-			modulePath:      "testdata/prerelease-version-constraint-match-prefix",
+			modulePath:      "testdata/prerelease-constraint-v-match",
+			expectedVersion: "v0.0.3-alpha.1",
+		},
+		{
+			name:            "exact match eq selector",
+			modulePath:      "testdata/prerelease-constraint-eq-match",
 			expectedVersion: "v0.0.3-alpha.1",
 		},
 		{
 			name:            "exact match v prefix eq selector",
-			modulePath:      "testdata/prerelease-version-constraint-match-prefix-eq",
+			modulePath:      "testdata/prerelease-constraint-v-eq-match",
 			expectedVersion: "v0.0.3-alpha.1",
 		},
 		{
 			name:            "partial match",
-			modulePath:      "testdata/prerelease-version-constraint",
+			modulePath:      "testdata/prerelease-constraint",
 			expectedVersion: "v0.0.2",
+		},
+		{
+			name:            "partial match v prefix",
+			modulePath:      "testdata/prerelease-constraint-v",
+			expectedVersion: "v0.0.2",
+		},
+		{
+			name:        "err",
+			modulePath:  "testdata/prerelease-constraint-err",
+			shouldError: true,
+		},
+		{
+			name:        "err v prefix",
+			modulePath:  "testdata/prerelease-constraint-v-err",
+			shouldError: true,
 		},
 	}
 
@@ -282,6 +303,13 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
 			cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
+			if tc.shouldError {
+				if !diags.HasErrors() {
+					t.Fatalf("an error was expected, but none was found")
+				}
+				return
+			}
+
 			if diags.HasErrors() {
 				t.Fatalf("found unexpected errors: %s", diags.Err())
 			}
@@ -289,6 +317,7 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 			if !cfg.Children["acctest"].Version.Equal(version.Must(version.NewVersion(tc.expectedVersion))) {
 				t.Fatalf("expected version %s but found version %s", tc.expectedVersion, cfg.Version.String())
 			}
+
 		})
 	}
 }
