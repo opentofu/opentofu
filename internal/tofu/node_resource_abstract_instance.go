@@ -19,9 +19,6 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/opentofu/opentofu/internal/lang"
-	"github.com/opentofu/opentofu/internal/lang/evalchecks"
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -115,8 +112,6 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 
 	log.Printf("[TRACE] Resolving provider key for %s", n.Addr)
 
-	var keyScope *lang.Scope
-	var keyExpr hcl.Expression
 	if n.Config != nil && n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
 		if n.ResolvedProviderKeyExpr != nil {
 			// Module key and resource key are required. This is not allowed!
@@ -124,65 +119,18 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 			return diags
 		}
 
-		keyExpr = n.Config.ProviderConfigRef.KeyExpression
-		keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(n.Addr)
-		keyScope = ctx.EvaluationScope(nil, nil, keyData)
+		n.ResolvedProviderKey, diags = resolveProviderResourceInstance(ctx, n.Config.ProviderConfigRef.KeyExpression, n.Addr)
 	} else if n.ResolvedProviderKeyExpr != nil {
 		moduleInstanceForKey := n.Addr.Module[:len(n.ResolvedProviderKeyPath)]
 		if !moduleInstanceForKey.Module().Equal(n.ResolvedProviderKeyPath) {
 			panic(fmt.Sprintf("Invalid module key expression location %s in resource %s", n.ResolvedProviderKeyPath, n.Addr))
 		}
 
-		keyExpr = n.ResolvedProviderKeyExpr
-		keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(moduleInstanceForKey)
-		keyScope = ctx.WithPath(moduleInstanceForKey).EvaluationScope(nil, nil, keyData)
+		n.ResolvedProviderKey, diags = resolveProviderModuleInstance(ctx, n.ResolvedProviderKeyExpr, moduleInstanceForKey, n.Addr.String())
 	}
 
-	if keyExpr != nil {
-		keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
-		diags = diags.Append(keyDiags)
-		if keyDiags.HasErrors() {
-			return diags
-		}
-
-		if keyVal.HasMark(marks.Sensitive) {
-			return diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider instance key",
-				Detail:   "A provider instance key must not be derived from a sensitive value.",
-				Subject:  keyExpr.Range().Ptr(),
-				Extra:    evalchecks.DiagnosticCausedBySensitive(true),
-			})
-		}
-		if keyVal.IsNull() {
-			return diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider instance key",
-				Detail:   "A provider instance key must not be null.",
-				Subject:  keyExpr.Range().Ptr(),
-			})
-		}
-		if !keyVal.IsKnown() {
-			return diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider instance key",
-				Detail:   fmt.Sprintf("The provider instance key for %s depends on values that cannot be determined until apply, and so OpenTofu cannot select a provider instance to create a plan for this resource instance.", n.Addr),
-				Subject:  keyExpr.Range().Ptr(),
-				Extra:    evalchecks.DiagnosticCausedByUnknown(true),
-			})
-		}
-
-		parsedKey, parsedErr := addrs.ParseInstanceKey(keyVal)
-		if parsedErr != nil {
-			return diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider instance key",
-				Detail:   fmt.Sprintf("The given instance key is unsuitable: %s.", tfdiags.FormatError(parsedErr)),
-				Subject:  keyExpr.Range().Ptr(),
-			})
-		}
-
-		n.ResolvedProviderKey = parsedKey
+	if diags.HasErrors() {
+		return diags
 	}
 
 	log.Printf("[TRACE] Resolved provider key for %s as %s", n.Addr, n.ResolvedProviderKey)
