@@ -46,8 +46,6 @@ type Provider struct {
 	IsMocked      bool
 	MockResources []*MockResource
 
-	// Count is currently disabled as it is unclear what supporting "count" on provider implies
-	Count     hcl.Expression
 	ForEach   hcl.Expression
 	Instances map[addrs.InstanceKey]instances.RepetitionData
 }
@@ -107,35 +105,12 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		provider.ForEach = attr.Expr
 	}
 
-	/* Disabled as we don't have a good understanding of how count should interact with providers
-	if attr, exists := content.Attributes["count"]; exists {
-		provider.Count = attr.Expr
-	}
-	*/
-
-	if provider.ForEach != nil && provider.Count != nil {
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  `Invalid combination of "count" and "for_each"`,
-			Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of providers.`,
-			Subject:  provider.ForEach.Range().Ptr(),
-		})
-	}
-
 	if len(provider.Alias) == 0 && provider.ForEach != nil {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  `Alias required when using "count" or "for_each"`,
+			Summary:  `Alias required when using "for_each"`,
 			Detail:   `The for_each argument is allowed only for provider configurations with an alias.`,
 			Subject:  provider.ForEach.Range().Ptr(),
-		})
-	}
-	if len(provider.Alias) == 0 && provider.Count != nil {
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  `Alias required when using "count" or "for_each"`,
-			Detail:   `TODO TODO TODO`,
-			Subject:  provider.Count.Range().Ptr(),
 		})
 	}
 
@@ -214,30 +189,6 @@ func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 			p.Instances[addrs.StringKey(k)] = instances.RepetitionData{
 				EachKey:   cty.StringVal(k),
 				EachValue: v,
-			}
-		}
-	}
-
-	if p.Count != nil {
-		countFunc := func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
-			v, evalDiags := eval.Evaluate(expr, StaticIdentifier{
-				Module:    eval.call.addr,
-				Subject:   fmt.Sprintf("provider.%s.%s.count", p.Name, p.Alias),
-				DeclRange: p.Count.Range(),
-			})
-			return v, tfdiags.Diagnostics{}.Append(evalDiags)
-		}
-
-		countVal, evalDiags := evalchecks.EvaluateCountExpression(p.Count, countFunc)
-		diags = append(diags, evalDiags.ToHCL()...)
-		if evalDiags.HasErrors() {
-			return diags
-		}
-
-		p.Instances = make(map[addrs.InstanceKey]instances.RepetitionData)
-		for i := 0; i < countVal; i++ {
-			p.Instances[addrs.IntKey(i)] = instances.RepetitionData{
-				CountIndex: cty.NumberIntVal(int64(i)),
 			}
 		}
 	}
@@ -347,11 +298,13 @@ var providerBlockSchema = &hcl.BodySchema{
 		{
 			Name: "version",
 		},
-		{Name: "for_each"},
+		{
+			Name: "for_each",
+		},
 
 		// Attribute names reserved for future expansion.
-		{Name: "depends_on"},
 		{Name: "count"},
+		{Name: "depends_on"},
 		{Name: "source"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
