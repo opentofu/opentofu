@@ -283,16 +283,14 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		}
 
 		// Validate instance providers
-		if len(instanceProviders) >= 2 {
-			for i := 1; i < len(instanceProviders); i++ {
-				if instanceProviders[i-1].String() != instanceProviders[i].String() {
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Provider instance field conflict in state",
-						fmt.Sprintf("Resource %s has instances with different provider addresses: %q != %q.", rAddr.Absolute(moduleAddr), instanceProviders[i-1], instanceProviders[i]),
-					))
-					break
-				}
+		for i := 1; i < len(instanceProviders); i++ {
+			if instanceProviders[i-1].String() != instanceProviders[i].String() {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Provider instance field conflict in state",
+					fmt.Sprintf("Resource %s has instances with different provider addresses: %q != %q.", rAddr.Absolute(moduleAddr), instanceProviders[i-1], instanceProviders[i]),
+				))
+				break
 			}
 		}
 	}
