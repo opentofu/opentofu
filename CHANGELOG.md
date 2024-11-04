@@ -1,9 +1,11 @@
 ## 1.8.5 (unreleased)
 
+BUG FIXES:
+* Provider functions will now handle partially unknown arguments per the tfplugin spec ([#2127](https://github.com/opentofu/opentofu/pull/2127))
+
 ## 1.8.4
 
 BUG FIXES:
-
 * `tofu init` will no longer return a supurious "Backend configuration changed" error when re-initializing a working directory with identical settings, backend configuration contains references to variables or local values, and when the `-backend-config` command line option is used. That combination previously caused OpenTofu to incorrectly treat the backend configuration as invalid. ([#2055](https://github.com/opentofu/opentofu/pull/2055))
 * configuration generation should no longer fail when generating sensitive properties
 * Provider defined functions are now supported better in child modules
