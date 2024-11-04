@@ -170,7 +170,12 @@ func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig, key addrs.
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
 
-	return ctx.ProviderCache[addr.String()][key]
+	pm, ok := ctx.ProviderCache[addr.String()]
+	if !ok {
+		return nil
+	}
+
+	return pm[key]
 }
 
 func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
