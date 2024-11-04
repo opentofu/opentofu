@@ -4,7 +4,7 @@ variable "state_filename" {
 }
 
 terraform {
-  backend "local" {
+  backend "_test_local" {
     path = var.state_filename
   }
 }
