@@ -40,27 +40,21 @@ func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation)
 	var diags tfdiags.Diagnostics
 
 	var initKeys []addrs.InstanceKey
-	if n.Config == nil || n.Config.Instances == nil || op == walkValidate {
+	// config -> init (different due to validate skipping most for_each logic)
+	instanceKeys := make(map[addrs.InstanceKey]addrs.InstanceKey)
+	if n.Config == nil || n.Config.Instances == nil {
 		initKeys = append(initKeys, addrs.NoKey)
+		instanceKeys[addrs.NoKey] = addrs.NoKey
+	} else if op == walkValidate {
+		// Instances are set AND we are validating
+		initKeys = append(initKeys, addrs.NoKey)
+		for key := range n.Config.Instances {
+			instanceKeys[key] = addrs.NoKey
+		}
 	} else {
 		// Instances are set AND we are not validating
 		for key := range n.Config.Instances {
 			initKeys = append(initKeys, key)
-		}
-	}
-
-	// init -> config (different due to validate skipping most for_each logic)
-	instanceKeys := make(map[addrs.InstanceKey]addrs.InstanceKey)
-	if n.Config == nil || n.Config.Instances == nil {
-		instanceKeys[addrs.NoKey] = addrs.NoKey
-	} else if op == walkValidate {
-		// Instances are set AND we are validating
-		for key := range n.Config.Instances {
-			instanceKeys[addrs.NoKey] = key
-		}
-	} else {
-		// Instances are set AND we are not validating
-		for key := range n.Config.Instances {
 			instanceKeys[key] = key
 		}
 	}
@@ -74,7 +68,7 @@ func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation)
 	}
 
 	instances := make(map[addrs.InstanceKey]providers.Interface)
-	for initKey, configKey := range instanceKeys {
+	for configKey, initKey := range instanceKeys {
 		provider, _, err := getProvider(ctx, n.Addr, initKey)
 		diags = diags.Append(err)
 		instances[configKey] = provider
@@ -89,18 +83,18 @@ func (n *NodeApplyableProvider) executeInstance(ctx EvalContext, op walkOperatio
 	switch op {
 	case walkValidate:
 		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
-		return diags.Append(n.ValidateProvider(ctx, provider, providerKey))
+		return diags.Append(n.ValidateProvider(ctx, providerKey, provider))
 	case walkPlan, walkPlanDestroy, walkApply, walkDestroy:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
-		return diags.Append(n.ConfigureProvider(ctx, provider, providerKey, false))
+		return diags.Append(n.ConfigureProvider(ctx, providerKey, provider, false))
 	case walkImport:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s (requiring that configuration is wholly known)", n.Addr)
-		return diags.Append(n.ConfigureProvider(ctx, provider, providerKey, true))
+		return diags.Append(n.ConfigureProvider(ctx, providerKey, provider, true))
 	}
 	return diags
 }
 
-func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider providers.Interface, providerKey addrs.InstanceKey) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface) (diags tfdiags.Diagnostics) {
 
 	configBody := buildProviderConfig(ctx, n.Addr, n.ProviderConfig())
 
@@ -154,7 +148,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, provider provi
 // ConfigureProvider configures a provider that is already initialized and retrieved.
 // If verifyConfigIsKnown is true, ConfigureProvider will return an error if the
 // provider configVal is not wholly known and is meant only for use during import.
-func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, provider providers.Interface, providerKey addrs.InstanceKey, verifyConfigIsKnown bool) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface, verifyConfigIsKnown bool) (diags tfdiags.Diagnostics) {
 	config := n.ProviderConfig()
 
 	configBody := buildProviderConfig(ctx, n.Addr, config)
