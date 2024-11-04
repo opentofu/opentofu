@@ -71,6 +71,9 @@ type ResourceInstance struct {
 	// lifecycle mode.
 	Deposed map[DeposedKey]*ResourceInstanceObjectSrc
 
+	// ProviderKey, in combination with Resource.ProviderConfig, represents
+	// the resource instance's provider configuration. This is only set
+	// when using provider iteration on resources or modules
 	ProviderKey addrs.InstanceKey
 }
 

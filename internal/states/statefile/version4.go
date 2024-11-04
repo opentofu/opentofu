@@ -761,6 +761,8 @@ type outputStateV4 struct {
 	Sensitive    bool            `json:"sensitive,omitempty"`
 }
 
+// Note: the ProviderConfig field is only set on either the resource or the resource instance object
+// It should never be set on both
 type resourceStateV4 struct {
 	Module         string                  `json:"module,omitempty"`
 	Mode           string                  `json:"mode"`
