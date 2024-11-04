@@ -757,7 +757,12 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 	}
 
 	if len(ret.Alias) == 0 && ret.KeyExpression != nil {
-		panic("Alias must be set when using a keyed expression! (todo better error message)")
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration reference",
+			Detail:   "Provider assignment requires an alias when specifying an instance key, in the form of provider.name[instance_key]",
+			Subject:  traversal.SourceRange().Ptr(),
+		})
 	}
 
 	return ret, diags
@@ -785,10 +790,10 @@ func (r *ProviderConfigRef) String() string {
 	return r.Name
 }
 
-func (r *ProviderConfigRef) InstanceValidation(subject string, isInstanced bool) hcl.Diagnostics {
+func (r *ProviderConfigRef) InstanceValidation(blockType string, isInstanced bool) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
-	summary := fmt.Sprintf("Invalid %s provider configuration", subject)
+	summary := fmt.Sprintf("Invalid %s provider configuration", blockType)
 
 	if r.KeyExpression != nil {
 		if r.Alias == "" {

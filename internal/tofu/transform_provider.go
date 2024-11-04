@@ -204,7 +204,7 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				target = p.Target()
-				targetExpr, targetPath, targetDiags = p.TargetExpr()
+				targetExpr, targetPath = p.TargetExpr()
 				diags = diags.Append(targetDiags)
 			}
 
@@ -625,25 +625,20 @@ func (n *graphNodeProxyProvider) Target() GraphNodeProvider {
 
 // Find the *single* keyExpression that is used in the provider
 // chain.  This is not ideal, but it works with current constraints on this feature
-func (n *graphNodeProxyProvider) TargetExpr() (hcl.Expression, addrs.Module, hcl.Diagnostics) {
+func (n *graphNodeProxyProvider) TargetExpr() (hcl.Expression, addrs.Module) {
 	switch t := n.target.(type) {
 	case *graphNodeProxyProvider:
-		targetExpr, targetPath, diags := t.TargetExpr()
+		targetExpr, targetPath := t.TargetExpr()
 		if targetExpr != nil && n.keyExpr != nil {
-			// Returning targetExpr allows additional nested diagnostics to be produced
-			return targetExpr, targetPath, diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Only one key expression allowed in module provider chain",
-				Detail:   "TODO better description",
-				Subject:  n.keyExpr.Range().Ptr(),
-			})
+			// This should have already been handled during provider validation
+			panic(fmt.Sprintf("BUG: Only one key expression allowed in module provider chain: %q", n.Name()))
 		}
 		if n.keyExpr != nil {
-			return n.keyExpr, n.ModulePath(), diags
+			return n.keyExpr, n.ModulePath()
 		}
-		return targetExpr, targetPath, diags
+		return targetExpr, targetPath
 	default:
-		return n.keyExpr, n.ModulePath(), nil
+		return n.keyExpr, n.ModulePath()
 	}
 }
 
