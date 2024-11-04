@@ -100,11 +100,8 @@ func CopyDir(dst, src string) error {
 			}
 			return nil
 		}
-
 		return copyFile(dstPath, path, info.Mode())
-
 	}
-
 	return filepath.Walk(src, walkFn)
 }
 
