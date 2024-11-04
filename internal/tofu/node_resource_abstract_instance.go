@@ -20,6 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
@@ -147,25 +148,27 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 		if keyVal.HasMark(marks.Sensitive) {
 			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid provider key",
-				Detail:   "Sensitive values are not allowed as provider keys",
+				Summary:  "Invalid provider instance key",
+				Detail:   "A provider instance key must not be derived from a sensitive value.",
 				Subject:  keyExpr.Range().Ptr(),
+				Extra:    evalchecks.DiagnosticCausedBySensitive(true),
 			})
 		}
 		if keyVal.IsNull() {
 			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid provider key",
-				Detail:   "Provider keys must not be null",
+				Summary:  "Invalid provider instance key",
+				Detail:   "A provider instance key must not be null.",
 				Subject:  keyExpr.Range().Ptr(),
 			})
 		}
 		if !keyVal.IsKnown() {
 			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid provider key",
-				Detail:   "Provider keys must be known values",
+				Summary:  "Invalid provider instance key",
+				Detail:   fmt.Sprintf("The provider instance key for %s depends on values that cannot be determined until apply, and so OpenTofu cannot select a provider instance to create a plan for this resource instance.", n.Addr),
 				Subject:  keyExpr.Range().Ptr(),
+				Extra:    evalchecks.DiagnosticCausedByUnknown(true),
 			})
 		}
 
@@ -173,8 +176,8 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 		if parsedErr != nil {
 			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid provider key",
-				Detail:   parsedErr.Error(),
+				Summary:  "Invalid provider instance key",
+				Detail:   fmt.Sprintf("The given instance key is unsuitable: %s.", tfdiags.FormatError(parsedErr)),
 				Subject:  keyExpr.Range().Ptr(),
 			})
 		}
@@ -205,13 +208,16 @@ func (n *NodeAbstractResourceInstance) EnsureProvider(ctx EvalContext) tfdiags.D
 
 	if n.ResolvedProviderKey == nil {
 		// Probably an OpenTofu bug
-		return diags.Append(fmt.Errorf("provider %s%s not initialized for resource %s", n.ResolvedProvider, n.ResolvedProviderKey, n.Addr))
+		return diags.Append(fmt.Errorf("provider %s not initialized for resource %s", n.ResolvedProvider.InstanceString(n.ResolvedProviderKey), n.Addr))
 	}
 
 	return diags.Append(tfdiags.Sourceless(
 		tfdiags.Error,
-		"Provider Configuration Instance not present",
-		fmt.Sprintf("To work with %s its original provider configuration at %s%s is required, but it has been removed. This occurs when a provider configuration is removed while objects created by that provider still exist in the state. Re-add the provider configuration to destroy %s, after which you can remove the provider configuration again.\n\nThis is commonly caused by removing an entry in a provider's for_each expression before destroying all of the corresponding resources. It is best pracice to use a different set of data for provider iteration from resource/module iteration.", n.Addr, n.ResolvedProvider, n.ResolvedProviderKey, n.Addr),
+		"Provider instance not present",
+		fmt.Sprintf(
+			"To work with %s its original provider instance at %s is required, but it has been removed. This occurs when an element is removed from the provider configuration's for_each collection while objects created by that the associated provider instance still exist in the state. Re-add the for_each element to destroy %s, after which you can remove the provider configuration again.\n\nThis is commonly caused by using the same for_each collection both for a resource (or its containing module) and its associated provider configuration. To successfully remove an instance of a resource it must be possible to remove the corresponding element from the resource's for_each collection while retaining the corresponding element in the provider's for_each collection.",
+			n.Addr, n.ResolvedProvider.InstanceString(n.ResolvedProviderKey), n.Addr,
+		),
 	))
 }
 

@@ -211,7 +211,7 @@ func (ctx *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, p
 
 	p := ctx.Provider(addr, providerKey)
 	if p == nil {
-		diags = diags.Append(fmt.Errorf("%s%s not initialized", addr, providerKey))
+		diags = diags.Append(fmt.Errorf("%s not initialized", addr.InstanceString(providerKey)))
 		return diags
 	}
 

@@ -126,7 +126,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Alias required when using "count" or "for_each"`,
-			Detail:   `TODO TODO TODO`,
+			Detail:   `The for_each argument is allowed only for provider configurations with an alias.`,
 			Subject:  provider.ForEach.Range().Ptr(),
 		})
 	}
@@ -140,7 +140,7 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	// Reserved attribute names
-	for _, name := range []string{"depends_on", "source", "count"} {
+	for _, name := range []string{"count", "depends_on", "source"} {
 		if attr, exists := content.Attributes[name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,

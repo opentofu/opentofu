@@ -118,7 +118,7 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration address",
-			Detail:   "Provider address can not include an instance key",
+			Detail:   "A provider address must not include an instance key.",
 			Subject:  traversal.SourceRange().Ptr(),
 		})
 	}
@@ -139,7 +139,7 @@ func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig,
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration address",
-				Detail:   "Provider address cannot contain module indexes",
+				Detail:   "A provider configuration must not appear in a module instance that uses count or for_each.",
 				Subject:  remain.SourceRange().Ptr(),
 			})
 			return ret, key, diags
@@ -160,7 +160,7 @@ func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig,
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration address",
-			Detail:   "Extraneous operators after provider configuration alias.",
+			Detail:   "Extraneous operators after provider configuration reference.",
 			Subject:  hcl.Traversal(remain[4:]).SourceRange().Ptr(),
 		})
 		return ret, key, diags
@@ -214,7 +214,7 @@ func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig,
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid provider configuration address",
-					Detail:   fmt.Sprintf("Invalid provider key: %s", keyErr.Error()),
+					Detail:   fmt.Sprintf("Invalid provider instance key: %s.", keyErr.Error()),
 					Subject:  remain[3].SourceRange().Ptr(),
 				})
 			}
@@ -222,7 +222,7 @@ func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig,
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration address",
-				Detail:   "Provider configuration alias can only be followed by a instance key.",
+				Detail:   "A provider configuration alias can be followed only by an instance key in brackets.",
 				Subject:  remain[3].SourceRange().Ptr(),
 			})
 			return ret, key, diags

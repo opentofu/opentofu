@@ -795,7 +795,7 @@ func (r *ProviderConfigRef) InstanceValidation(subject string, isInstanced bool)
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  summary,
-				Detail:   "Keys can only be used on providers with an alias",
+				Detail:   "An instance key can be specified only for a provider configuration which has an alias and uses for_each.",
 				Subject:  r.KeyExpression.Range().Ptr(),
 			})
 		}
@@ -803,7 +803,7 @@ func (r *ProviderConfigRef) InstanceValidation(subject string, isInstanced bool)
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  summary,
-				Detail:   "Non-keyed provider used with keyed expression",
+				Detail:   "An instance key can be specified only for a provider configuration that uses for_each.",
 				Subject:  r.KeyExpression.Range().Ptr(),
 			})
 		}
@@ -811,7 +811,7 @@ func (r *ProviderConfigRef) InstanceValidation(subject string, isInstanced bool)
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  summary,
-			Detail:   "Keyed provider used without key expression. Passing a collection of provider instances into a module is not allowed.",
+			Detail:   "A reference to a provider configuration which uses for_each requires an instance key. Passing a collection of provider instances into a child module is not allowed.",
 			Subject:  r.NameRange.Ptr(),
 		})
 	}

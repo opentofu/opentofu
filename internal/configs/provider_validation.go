@@ -474,14 +474,14 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 		}
 	}
 
-	// Validate provider expansion is propery configured
+	// Validate provider expansion is properly configured
 	for _, modCall := range mod.ModuleCalls {
 		for _, passed := range modCall.Providers {
 			if passed.InChild.KeyExpression != nil {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid module provider configuration",
-					Detail:   "Keys are not allowed on the left side of the provider assignment",
+					Detail:   "Instance keys are not allowed on the left side of a provider configuration assignment.",
 					Subject:  passed.InChild.KeyExpression.Range().Ptr(),
 				})
 			}

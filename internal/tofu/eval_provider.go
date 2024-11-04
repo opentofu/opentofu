@@ -55,7 +55,7 @@ func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig, providerKey addr
 	}
 	provider := ctx.Provider(addr, providerKey)
 	if provider == nil {
-		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s%s not initialized", addr, providerKey)
+		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s not initialized", addr.InstanceString(providerKey))
 	}
 	// Not all callers require a schema, so we will leave checking for a nil
 	// schema to the callers.
