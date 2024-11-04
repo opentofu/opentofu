@@ -452,7 +452,7 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 	}
 
 	scope := ctx.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
-		absPc, ok := ctx.ProviderFunctionTracker.Lookup(ctx.PathValue.Module(), pf)
+		providedBy, ok := ctx.ProviderFunctionTracker.Lookup(ctx.PathValue.Module(), pf)
 		if !ok {
 			// This should not be possible if references are tracked correctly
 			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
@@ -463,14 +463,28 @@ func (ctx *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source 
 			})
 		}
 
-		provider := ctx.Provider(absPc, addrs.NoKey) // TODO keys not supported!
+		var providerKey addrs.InstanceKey
+		if providedBy.KeyExpression != nil && ctx.Evaluator.Operation != walkValidate {
+			moduleInstanceForKey := ctx.PathValue[:len(providedBy.KeyModule)]
+			if !moduleInstanceForKey.Module().Equal(providedBy.KeyModule) {
+				panic(fmt.Sprintf("Invalid module key expression location %s in function %s", providedBy.KeyModule, pf.String()))
+			}
+
+			var keyDiags tfdiags.Diagnostics
+			providerKey, keyDiags = resolveProviderModuleInstance(ctx, providedBy.KeyExpression, moduleInstanceForKey, ctx.PathValue.String()+" "+pf.String())
+			if keyDiags.HasErrors() {
+				return nil, keyDiags
+			}
+		}
+
+		provider := ctx.Provider(providedBy.Provider, providerKey)
 
 		if provider == nil {
 			// This should not be possible if references are tracked correctly
 			return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "BUG: Uninitialized function provider",
-				Detail:   fmt.Sprintf("Provider %q has not yet been initialized", absPc.String()),
+				Summary:  "Uninitialized function provider",
+				Detail:   fmt.Sprintf("Provider %q has not yet been initialized", providedBy.Provider.String()),
 				Subject:  rng.ToHCL().Ptr(),
 			})
 		}

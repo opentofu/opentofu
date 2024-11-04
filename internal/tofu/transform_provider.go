@@ -199,13 +199,11 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 
 			var targetExpr hcl.Expression
 			var targetPath addrs.Module
-			var targetDiags hcl.Diagnostics
 
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				target = p.Target()
 				targetExpr, targetPath = p.TargetExpr()
-				diags = diags.Append(targetDiags)
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
@@ -228,20 +226,26 @@ type ProviderFunctionReference struct {
 	ProviderAlias string
 }
 
+type FunctionProvidedBy struct {
+	Provider      addrs.AbsProviderConfig
+	KeyModule     addrs.Module
+	KeyExpression hcl.Expression
+}
+
 // ProviderFunctionMapping maps a provider used by functions at a given location in the graph to the actual AbsProviderConfig
 // that's required. This is due to the provider inheritence logic and proxy logic in the below
 // transformer needing to be known in other parts of the application.
 // Ideally, this would not be needed and be built like the ProviderTransformer. Unfortunately, it's
 // a significant refactor to get to that point which adds a lot of complexity.
-type ProviderFunctionMapping map[ProviderFunctionReference]addrs.AbsProviderConfig
+type ProviderFunctionMapping map[ProviderFunctionReference]FunctionProvidedBy
 
-func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFunction) (addrs.AbsProviderConfig, bool) {
-	addr, ok := m[ProviderFunctionReference{
+func (m ProviderFunctionMapping) Lookup(module addrs.Module, pf addrs.ProviderFunction) (FunctionProvidedBy, bool) {
+	providedBy, ok := m[ProviderFunctionReference{
 		ModulePath:    module.String(),
 		ProviderName:  pf.ProviderName,
 		ProviderAlias: pf.ProviderAlias,
 	}]
-	return addr, ok
+	return providedBy, ok
 }
 
 // ProviderFunctionTransformer is a GraphTransformer that maps nodes which reference functions to providers
@@ -346,33 +350,13 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 						}
 					}
 
+					var targetExpr hcl.Expression
+					var targetPath addrs.Module
+
 					// see if this is a proxy provider pointing to another concrete config
 					if p, ok := provider.(*graphNodeProxyProvider); ok {
 						provider = p.Target()
-					}
-
-					if p, ok := provider.(*NodeApplyableProvider); ok && p.Config != nil && len(p.Config.Instances) != 0 {
-						// Try to find or create a suitable node that works for unconfigured providers (non aliased)
-						// Alternatively, we could make t.ProviderFunctionTracker smarter and add edges to the graph
-						// This works for unconfigured functions only, but that validation is elsewhere
-						stubAddr := addrs.AbsProviderConfig{
-							Module:   addrs.RootModule,
-							Provider: absPc.Provider,
-						}
-						// Try to look up an existing stub
-						provider, ok = providerVerts[stubAddr.String()]
-						// If it does not exist, create it
-						if !ok {
-							log.Printf("[TRACE] ProviderFunctionTransformer: creating init-only node for %s", stubAddr)
-
-							provider = &NodeEvalableProvider{
-								&NodeAbstractProvider{
-									Addr: stubAddr,
-								},
-							}
-							providerVerts[stubAddr.String()] = provider
-							g.Add(provider)
-						}
+						targetExpr, targetPath = p.TargetExpr()
 					}
 
 					log.Printf("[DEBUG] ProviderFunctionTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(provider))
@@ -380,7 +364,11 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 
 					// Save for future lookups
 					providerReferences[key] = provider
-					t.ProviderFunctionTracker[key] = provider.ProviderAddr()
+					t.ProviderFunctionTracker[key] = FunctionProvidedBy{
+						Provider:      provider.ProviderAddr(),
+						KeyModule:     targetPath,
+						KeyExpression: targetExpr,
+					}
 				}
 			}
 		}
