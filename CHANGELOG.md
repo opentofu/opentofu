@@ -1,4 +1,7 @@
-## 1.8.5 (unreleased)
+## 1.8.6 (unreleased)
+
+
+## 1.8.5
 
 BUG FIXES:
 * Provider functions will now handle partially unknown arguments per the tfplugin spec ([#2127](https://github.com/opentofu/opentofu/pull/2127))
