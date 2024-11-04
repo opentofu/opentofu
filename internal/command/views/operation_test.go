@@ -309,6 +309,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 								AttrsJSON: []byte(`{}`),
 							},
 							addrs.RootModuleInstance.ProviderConfigDefault(addrs.NewDefaultProvider("test")),
+							addrs.NoKey,
 						)
 					}),
 					PriorState: states.NewState(),

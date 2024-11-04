@@ -99,6 +99,7 @@ func TestStatePersist(t *testing.T) {
 					addrs.AbsProviderConfig{
 						Provider: tfaddr.Provider{Namespace: "local"},
 					},
+					addrs.NoKey,
 				)
 				return s, func() {}
 			},

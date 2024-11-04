@@ -65,7 +65,7 @@ run "test_case" {
 					addrs.AbsProviderConfig{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
-					})
+					}, addrs.NoKey)
 			}),
 			provider: &MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -123,7 +123,7 @@ run "test_case" {
 					addrs.AbsProviderConfig{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
-					})
+					}, addrs.NoKey)
 			}),
 			provider: &MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -183,7 +183,7 @@ run "test_case" {
 					addrs.AbsProviderConfig{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
-					})
+					}, addrs.NoKey)
 			}),
 			variables: InputValues{
 				"value": {
@@ -240,7 +240,7 @@ run "test_case" {
 					addrs.AbsProviderConfig{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
-					})
+					}, addrs.NoKey)
 			}),
 			provider: &MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -303,7 +303,7 @@ run "test_case" {
 					addrs.AbsProviderConfig{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
-					})
+					}, addrs.NoKey)
 			}),
 			provider: &MockProvider{
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
@@ -403,7 +403,7 @@ run "test_case" {
 					addrs.AbsProviderConfig{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
-					})
+					}, addrs.NoKey)
 			}),
 			plan: &plans.Plan{
 				Changes: &plans.Changes{
@@ -479,7 +479,7 @@ run "test_case" {
 					addrs.AbsProviderConfig{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
-					})
+					}, addrs.NoKey)
 			}),
 			plan: &plans.Plan{
 				Changes: &plans.Changes{
