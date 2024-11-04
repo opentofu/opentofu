@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -681,6 +682,53 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 	// change in future.
 
 	defer testChdir(t, testFixturePath("backend-unchanged-vars"))()
+
+	// We'll use a mock backend here because we need to control the schema to
+	// make sure that we always have a required field for the ConfigOverride
+	// argument to populate. This is covering the regression caused by the first
+	// fix to the original bug, discussed here:
+	//    https://github.com/opentofu/opentofu/issues/2118
+	t.Cleanup(
+		backendInit.RegisterTemp("_test_local", func(enc encryption.StateEncryption) backend.Backend {
+			return &backendInit.MockBackend{
+				ConfigSchemaFn: func() *configschema.Block {
+					// The following is based on a subset of the normal "local"
+					// backend at the time of writing this test, but subsetted
+					// to only what we need and with all of the arguments
+					// marked as required (even though the real backend doesn't)
+					// so we can make sure that we handle required arguments
+					// properly.
+					return &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"path": {
+								Type:     cty.String,
+								Required: true,
+								// We'll set this one in the root module, using early eval.
+							},
+							"workspace_dir": {
+								Type:     cty.String,
+								Required: true,
+								// We'll treat this one as if it were set with the -backend-config option to "tofu init"
+							},
+						},
+					}
+				},
+				WorkspacesFn: func() ([]string, error) {
+					return []string{"default"}, nil
+				},
+				StateMgrFn: func(workspace string) (statemgr.Full, error) {
+					// The migration-detection code actually fetches the state to
+					// decide if it's "empty" so it can avoid proposing to migrate
+					// an empty state, and so unfortunately we do need to have
+					// a relatively-realistic implementation of this. We'll
+					// just use the same filesystem-based implementation that
+					// the real local backend would use, but fixed to use our
+					// local-state.tfstate file from the test fixture.
+					return statemgr.NewFilesystem("local-state.tfstate", enc), nil
+				},
+			}
+		}),
+	)
 
 	// Setup the meta
 	m := testMetaBackend(t, nil)

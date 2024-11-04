@@ -54,6 +54,10 @@ func Init(services *disco.Disco) {
 	backendsLock.Lock()
 	defer backendsLock.Unlock()
 
+	// NOTE: Underscore-prefixed named are reserved for unit testing use via
+	// the RegisterTemp function. Do not add any underscore-prefixed names
+	// to the following table.
+
 	backends = map[string]backend.InitFn{
 		"local":  func(enc encryption.StateEncryption) backend.Backend { return backendLocal.New(enc) },
 		"remote": func(enc encryption.StateEncryption) backend.Backend { return backendRemote.New(services, enc) },
@@ -100,6 +104,10 @@ func Backend(name string) backend.InitFn {
 // This method sets this backend globally and care should be taken to do
 // this only before OpenTofu is executing to prevent odd behavior of backends
 // changing mid-execution.
+//
+// NOTE: Underscore-prefixed named are reserved for unit testing use via
+// the RegisterTemp function. Do not add any underscore-prefixed names
+// using this function.
 func Set(name string, f backend.InitFn) {
 	backendsLock.Lock()
 	defer backendsLock.Unlock()
