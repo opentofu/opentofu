@@ -668,7 +668,16 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 
 	var keyExpr hcl.Expression
 
+	// name.alias[const_key]
+	nameIndex := 0
+	aliasIndex := 1
+	keyIndex := 2
+	maxTraversalLength := keyIndex + 1
+
+	// name.alias[expr_key]
 	if iex, ok := expr.(*hclsyntax.IndexExpr); ok {
+		maxTraversalLength = aliasIndex + 1 // expr key found, no const key allowed
+
 		keyExpr = iex.Key
 		expr = iex.Collection
 	}
@@ -686,7 +695,7 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 		diags = append(diags, travDiags...)
 	}
 
-	if len(traversal) < 1 || len(traversal) > 3 {
+	if len(traversal) == 0 || len(traversal) > maxTraversalLength {
 		// A provider reference was given as a string literal in the legacy
 		// configuration language and there are lots of examples out there
 		// showing that usage, so we'll sniff for that situation here and
@@ -705,7 +714,7 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",
-			Detail:   fmt.Sprintf("The %s argument requires a provider type name, optionally followed by a period and then a configuration alias.", argName),
+			Detail:   fmt.Sprintf("The %s argument requires a provider type name, optionally followed by a period and then a configuration alias and optional instance key.", argName),
 			Subject:  expr.Range().Ptr(),
 		})
 		return nil, diags
@@ -713,7 +722,7 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 
 	// verify that the provider local name is normalized
 	name := traversal.RootName()
-	nameDiags := checkProviderNameNormalized(name, traversal[0].SourceRange())
+	nameDiags := checkProviderNameNormalized(name, traversal[nameIndex].SourceRange())
 	diags = append(diags, nameDiags...)
 	if diags.HasErrors() {
 		return nil, diags
@@ -721,18 +730,18 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 
 	ret := &ProviderConfigRef{
 		Name:          name,
-		NameRange:     traversal[0].SourceRange(),
+		NameRange:     traversal[nameIndex].SourceRange(),
 		KeyExpression: keyExpr,
 	}
 
-	if len(traversal) > 1 {
-		aliasStep, ok := traversal[1].(hcl.TraverseAttr)
+	if len(traversal) > aliasIndex {
+		aliasStep, ok := traversal[aliasIndex].(hcl.TraverseAttr)
 		if !ok {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration reference",
 				Detail:   "Provider name must either stand alone or be followed by a period and then a configuration alias.",
-				Subject:  traversal[1].SourceRange().Ptr(),
+				Subject:  traversal[aliasIndex].SourceRange().Ptr(),
 			})
 			return ret, diags
 		}
@@ -741,14 +750,14 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 		ret.AliasRange = aliasStep.SourceRange().Ptr()
 	}
 
-	if len(traversal) > 2 {
-		indexStep, ok := traversal[2].(hcl.TraverseIndex)
-		if !ok || ret.KeyExpression != nil {
+	if len(traversal) > keyIndex {
+		indexStep, ok := traversal[keyIndex].(hcl.TraverseIndex)
+		if !ok {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration reference",
 				Detail:   "Provider name must either stand alone or be followed by a period and then a configuration alias.",
-				Subject:  traversal[2].SourceRange().Ptr(),
+				Subject:  traversal[keyIndex].SourceRange().Ptr(),
 			})
 			return ret, diags
 		}
