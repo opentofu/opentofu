@@ -170,7 +170,10 @@ type FunctionParameterSpec struct {
 	// Null values allowed for the parameter
 	AllowNullValue bool
 	// Unknown Values allowed for the parameter
-	// Implies the Return type of the function is also Unknown
+	// Individual provider implementations may interpret this as a
+	// check using IsWhollyKnown instead cty's default of IsKnown.
+	// If the input is not wholly known, the result should be
+	// cty.UnknownVal(spec.returnType)
 	AllowUnknownValues bool
 	// Human-readable documentation for the parameter
 	Description string
