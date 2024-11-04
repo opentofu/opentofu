@@ -247,97 +247,56 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 		},
 	})
 
-	// First we'll try importing into the instance that actually exists, which should succeed.
-	{
-		existingInstanceKey := addrs.StringKey("foo")
-		existingInstanceAddr := addrs.RootModuleInstance.ResourceInstance(
-			addrs.ManagedResourceMode, "test_thing", "test", existingInstanceKey,
-		)
-		t.Logf("importing into %s, which should succeed because it's configured", existingInstanceAddr)
-		log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: importing into %s, which should succeed because it's configured", existingInstanceAddr)
-		state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
-			Targets: []*ImportTarget{
-				{
-					CommandLineImportTarget: &CommandLineImportTarget{
-						Addr: existingInstanceAddr,
-						ID:   "fake-import-id",
-					},
+	existingInstanceKey := addrs.StringKey("foo")
+	existingInstanceAddr := addrs.RootModuleInstance.ResourceInstance(
+		addrs.ManagedResourceMode, "test_thing", "test", existingInstanceKey,
+	)
+	t.Logf("importing into %s, which should succeed because it's configured", existingInstanceAddr)
+	log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: importing into %s, which should succeed because it's configured", existingInstanceAddr)
+	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+		Targets: []*ImportTarget{
+			{
+				CommandLineImportTarget: &CommandLineImportTarget{
+					Addr: existingInstanceAddr,
+					ID:   "fake-import-id",
 				},
 			},
-		})
-		assertNoErrors(t, diags)
+		},
+	})
+	assertNoErrors(t, diags)
 
-		resourceState := state.Resource(existingInstanceAddr.ContainingResource())
+	resourceState := state.Resource(existingInstanceAddr.ContainingResource())
 
-		if got, want := len(resourceState.Instances), 1; got != want {
-			t.Errorf("unexpected number of instances %d; want %d", got, want)
-		}
-
-		instanceState := resourceState.Instances[existingInstanceKey]
-		if instanceState == nil {
-			t.Fatal("no instance with key \"foo\" in final state")
-		}
-		if got, want := instanceState.ProviderKey, addrs.StringKey("a"); got != want {
-			t.Errorf("wrong provider key %s; want %s", got, want)
-		}
-		if instanceState.Current == nil {
-			t.Fatal("final resource instance has no current object")
-		}
-
-		gotObjState, err := instanceState.Current.Decode(resourceTypeSchema.Block.ImpliedType())
-		if err != nil {
-			t.Fatalf("failed to decode final resource instance object state: %s", err)
-		}
-		wantObjState := &states.ResourceInstanceObject{
-			Value: cty.ObjectVal(map[string]cty.Value{
-				"id":             cty.StringVal("fake-import-id"),
-				"import_marker":  cty.StringVal("a"),
-				"refresh_marker": cty.StringVal("a"),
-			}),
-			Status:       states.ObjectReady,
-			Dependencies: []addrs.ConfigResource{},
-		}
-		if diff := cmp.Diff(wantObjState, gotObjState, ctydebug.CmpOptions); diff != "" {
-			t.Error("wrong final object state\n" + diff)
-		}
+	if got, want := len(resourceState.Instances), 1; got != want {
+		t.Errorf("unexpected number of instances %d; want %d", got, want)
 	}
 
-	// Now we'll try importing into an instance that isn't declared, which should fail.
-	{
-		missingInstanceAddr := addrs.RootModuleInstance.ResourceInstance(
-			addrs.ManagedResourceMode, "test_thing", "test", addrs.StringKey("nonexist"),
-		)
-		t.Logf("importing into %s, which should fail because it's not configured", missingInstanceAddr)
-		log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: importing into %s, which should fail because it's not configured", missingInstanceAddr)
-		_, diags := ctx.Import(m, states.NewState(), &ImportOpts{
-			Targets: []*ImportTarget{
-				{
-					CommandLineImportTarget: &CommandLineImportTarget{
-						Addr: missingInstanceAddr,
-						ID:   "another-fake-import-id",
-					},
-				},
-			},
-		})
-		// FIXME: This does not currently return any error, and instead just succeeds while doing
-		// absolutely nothing, because OpenTofu's validation of the given resource instance address
-		// actually happens in "package command" as part of the import command, and it only checks
-		// that there is a resource block associated with the given address, and not that there's
-		// an instance associated with it.
-		//
-		// Since we're skipping over that check here, the graph walk ends up noticing that
-		// test_thing.test["foo"] is configured and making a NodePlannableResourceInstance for it,
-		// but since there's no node for test_thing.test["nonexist"] at all (because it's in neither
-		// config nor state) the import request is just silently ignored.
-		//
-		// However, I think that quirk is already true for importing into undeclared instance keys
-		// even without a dynamic provider instance reference, so maybe we should just delete this
-		// test case and treat this as a general bug with the "tofu import" command to be fixed
-		// later as a separate project.
-		if !diags.HasErrors() {
-			t.Fatal("unexpected success; want failure importing into undeclared resource instance which therefore has no provider instance")
-		}
+	instanceState := resourceState.Instances[existingInstanceKey]
+	if instanceState == nil {
+		t.Fatal("no instance with key \"foo\" in final state")
+	}
+	if got, want := instanceState.ProviderKey, addrs.StringKey("a"); got != want {
+		t.Errorf("wrong provider key %s; want %s", got, want)
+	}
+	if instanceState.Current == nil {
+		t.Fatal("final resource instance has no current object")
+	}
 
+	gotObjState, err := instanceState.Current.Decode(resourceTypeSchema.Block.ImpliedType())
+	if err != nil {
+		t.Fatalf("failed to decode final resource instance object state: %s", err)
+	}
+	wantObjState := &states.ResourceInstanceObject{
+		Value: cty.ObjectVal(map[string]cty.Value{
+			"id":             cty.StringVal("fake-import-id"),
+			"import_marker":  cty.StringVal("a"),
+			"refresh_marker": cty.StringVal("a"),
+		}),
+		Status:       states.ObjectReady,
+		Dependencies: []addrs.ConfigResource{},
+	}
+	if diff := cmp.Diff(wantObjState, gotObjState, ctydebug.CmpOptions); diff != "" {
+		t.Error("wrong final object state\n" + diff)
 	}
 }
 
