@@ -79,23 +79,22 @@ func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation)
 
 	return instances, diags
 }
-func (n *NodeApplyableProvider) executeInstance(ctx EvalContext, op walkOperation, providerKey addrs.InstanceKey, provider providers.Interface) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableProvider) executeInstance(ctx EvalContext, op walkOperation, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
 	switch op {
 	case walkValidate:
 		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
-		return diags.Append(n.ValidateProvider(ctx, providerKey, provider))
+		return n.ValidateProvider(ctx, providerKey, provider)
 	case walkPlan, walkPlanDestroy, walkApply, walkDestroy:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
-		return diags.Append(n.ConfigureProvider(ctx, providerKey, provider, false))
+		return n.ConfigureProvider(ctx, providerKey, provider, false)
 	case walkImport:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s (requiring that configuration is wholly known)", n.Addr)
-		return diags.Append(n.ConfigureProvider(ctx, providerKey, provider, true))
+		return n.ConfigureProvider(ctx, providerKey, provider, true)
 	}
-	return diags
+	return nil
 }
 
-func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface) (diags tfdiags.Diagnostics) {
-
+func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
 	configBody := buildProviderConfig(ctx, n.Addr, n.ProviderConfig())
 
 	// if a provider config is empty (only an alias), return early and don't continue
@@ -107,7 +106,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey ad
 	}
 
 	schemaResp := provider.GetProviderSchema()
-	diags = diags.Append(schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.String()))
+	diags := schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.String())
 	if diags.HasErrors() {
 		return diags
 	}
@@ -148,13 +147,13 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey ad
 // ConfigureProvider configures a provider that is already initialized and retrieved.
 // If verifyConfigIsKnown is true, ConfigureProvider will return an error if the
 // provider configVal is not wholly known and is meant only for use during import.
-func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface, verifyConfigIsKnown bool) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface, verifyConfigIsKnown bool) tfdiags.Diagnostics {
 	config := n.ProviderConfig()
 
 	configBody := buildProviderConfig(ctx, n.Addr, config)
 
 	resp := provider.GetProviderSchema()
-	diags = diags.Append(resp.Diagnostics.InConfigBody(configBody, n.Addr.String()))
+	diags := resp.Diagnostics.InConfigBody(configBody, n.Addr.String())
 	if diags.HasErrors() {
 		return diags
 	}

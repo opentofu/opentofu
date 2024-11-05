@@ -115,8 +115,7 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 	if n.Config != nil && n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
 		if n.ResolvedProviderKeyExpr != nil {
 			// Module key and resource key are required. This is not allowed!
-			diags = diags.Append(fmt.Errorf("BUG: Provider instance key provided for both resource and module at %q. This is a bug and should not be possible.", n.Addr))
-			return diags
+			return diags.Append(fmt.Errorf("provider instance key provided for both resource and module at %q, this is a bug and should be reported", n.Addr))
 		}
 
 		n.ResolvedProviderKey, diags = resolveProviderResourceInstance(ctx, n.Config.ProviderConfigRef.KeyExpression, n.Addr)

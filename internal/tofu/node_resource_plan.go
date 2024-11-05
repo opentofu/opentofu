@@ -385,7 +385,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ResolvedProvider = n.ResolvedProvider
-		//ResolvedProviderKey will be set during AttachResourceState
+		// ResolvedProviderKey will be set during AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas

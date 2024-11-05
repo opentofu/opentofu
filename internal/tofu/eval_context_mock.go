@@ -183,14 +183,14 @@ func (c *MockEvalContext) Input() UIInput {
 	return c.InputInput
 }
 
-func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, error) {
+func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderConfig, _ addrs.InstanceKey) (providers.Interface, error) {
 	c.InitProviderCalled = true
 	c.InitProviderType = addr.String()
 	c.InitProviderAddr = addr
 	return c.InitProviderProvider, c.InitProviderError
 }
 
-func (c *MockEvalContext) Provider(addr addrs.AbsProviderConfig, key addrs.InstanceKey) providers.Interface {
+func (c *MockEvalContext) Provider(addr addrs.AbsProviderConfig, _ addrs.InstanceKey) providers.Interface {
 	c.ProviderCalled = true
 	c.ProviderAddr = addr
 	return c.ProviderProvider
@@ -208,8 +208,7 @@ func (c *MockEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
 	return nil
 }
 
-func (c *MockEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
-
+func (c *MockEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, _ addrs.InstanceKey, cfg cty.Value) tfdiags.Diagnostics {
 	c.ConfigureProviderCalled = true
 	c.ConfigureProviderAddr = addr
 	c.ConfigureProviderConfig = cfg
