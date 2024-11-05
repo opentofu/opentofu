@@ -22,12 +22,10 @@ import (
 
 func TestNodeApplyableProviderExecute(t *testing.T) {
 	config := &configs.Provider{
-		ProviderCommon: configs.ProviderCommon{
-			Name: "foo",
-			Config: configs.SynthBody("", map[string]cty.Value{
-				"user": cty.StringVal("hello"),
-			}),
-		},
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"user": cty.StringVal("hello"),
+		}),
 	}
 
 	schema := &configschema.Block{
@@ -85,12 +83,10 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 
 func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 	config := &configs.Provider{
-		ProviderCommon: configs.ProviderCommon{
-			Name: "foo",
-			Config: configs.SynthBody("", map[string]cty.Value{
-				"test_string": cty.UnknownVal(cty.String),
-			}),
-		},
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"test_string": cty.UnknownVal(cty.String),
+		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
 	providerAddr := addrs.AbsProviderConfig{
@@ -122,12 +118,10 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 
 func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 	config := &configs.Provider{
-		ProviderCommon: configs.ProviderCommon{
-			Name: "foo",
-			Config: configs.SynthBody("", map[string]cty.Value{
-				"test_string": cty.UnknownVal(cty.String),
-			}),
-		},
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"test_string": cty.UnknownVal(cty.String),
+		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
 	providerAddr := addrs.AbsProviderConfig{
@@ -160,12 +154,10 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 
 func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 	config := &configs.Provider{
-		ProviderCommon: configs.ProviderCommon{
-			Name: "foo",
-			Config: configs.SynthBody("", map[string]cty.Value{
-				"test_string": cty.StringVal("hello").Mark(marks.Sensitive),
-			}),
-		},
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"test_string": cty.StringVal("hello").Mark(marks.Sensitive),
+		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
 	providerAddr := addrs.AbsProviderConfig{
@@ -199,12 +191,10 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 
 func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 	config := &configs.Provider{
-		ProviderCommon: configs.ProviderCommon{
-			Name: "foo",
-			Config: configs.SynthBody("", map[string]cty.Value{
-				"test_string": cty.StringVal("hello").Mark(marks.Sensitive),
-			}),
-		},
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"test_string": cty.StringVal("hello").Mark(marks.Sensitive),
+		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
 	providerAddr := addrs.AbsProviderConfig{
@@ -238,10 +228,8 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 
 func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 	config := &configs.Provider{
-		ProviderCommon: configs.ProviderCommon{
-			Name:   "foo",
-			Config: configs.SynthBody("", map[string]cty.Value{}),
-		},
+		Name:   "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{}),
 	}
 	provider := mockProviderWithConfigSchema(&configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -286,12 +274,10 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 	t.Run("valid", func(t *testing.T) {
 		config := &configs.Provider{
-			ProviderCommon: configs.ProviderCommon{
-				Name: "test",
-				Config: configs.SynthBody("", map[string]cty.Value{
-					"region": cty.StringVal("mars"),
-				}),
-			},
+			Name: "test",
+			Config: configs.SynthBody("", map[string]cty.Value{
+				"region": cty.StringVal("mars"),
+			}),
 		}
 
 		node := NodeApplyableProvider{
@@ -309,12 +295,10 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 	t.Run("invalid", func(t *testing.T) {
 		config := &configs.Provider{
-			ProviderCommon: configs.ProviderCommon{
-				Name: "test",
-				Config: configs.SynthBody("", map[string]cty.Value{
-					"region": cty.MapValEmpty(cty.String),
-				}),
-			},
+			Name: "test",
+			Config: configs.SynthBody("", map[string]cty.Value{
+				"region": cty.MapValEmpty(cty.String),
+			}),
 		}
 
 		node := NodeApplyableProvider{
@@ -372,12 +356,10 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 
 	t.Run("valid", func(t *testing.T) {
 		config := &configs.Provider{
-			ProviderCommon: configs.ProviderCommon{
-				Name: "test",
-				Config: configs.SynthBody("", map[string]cty.Value{
-					"region": cty.StringVal("mars"),
-				}),
-			},
+			Name: "test",
+			Config: configs.SynthBody("", map[string]cty.Value{
+				"region": cty.StringVal("mars"),
+			}),
 		}
 
 		node := NodeApplyableProvider{
@@ -411,10 +393,8 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 
 	t.Run("missing required config", func(t *testing.T) {
 		config := &configs.Provider{
-			ProviderCommon: configs.ProviderCommon{
-				Name:   "test",
-				Config: hcl.EmptyBody(),
-			},
+			Name:   "test",
+			Config: hcl.EmptyBody(),
 		}
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
@@ -465,12 +445,10 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 
 	t.Run("valid", func(t *testing.T) {
 		config := &configs.Provider{
-			ProviderCommon: configs.ProviderCommon{
-				Name: "test",
-				Config: configs.SynthBody("", map[string]cty.Value{
-					"region": cty.StringVal("mars"),
-				}),
-			},
+			Name: "test",
+			Config: configs.SynthBody("", map[string]cty.Value{
+				"region": cty.StringVal("mars"),
+			}),
 		}
 
 		node := NodeApplyableProvider{
@@ -504,10 +482,8 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 
 	t.Run("missing required config", func(t *testing.T) {
 		config := &configs.Provider{
-			ProviderCommon: configs.ProviderCommon{
-				Name:   "test",
-				Config: hcl.EmptyBody(),
-			},
+			Name:   "test",
+			Config: hcl.EmptyBody(),
 		}
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{

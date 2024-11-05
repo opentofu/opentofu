@@ -6,6 +6,7 @@
 package copy
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -40,12 +41,12 @@ import (
 func CopyDir(dst, src string) error {
 	src, err := filepath.EvalSymlinks(src)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to evaluate symlinks for source %q: %w", src, err)
 	}
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return err
+			return fmt.Errorf("error walking the path %q: %w", path, err)
 		}
 
 		if path == src {
@@ -56,9 +57,8 @@ func CopyDir(dst, src string) error {
 			// Skip any dot files
 			if info.IsDir() {
 				return filepath.SkipDir
-			} else {
-				return nil
 			}
+			return nil
 		}
 
 		// The "path" has the src prefixed to it. We need to join our
@@ -66,10 +66,10 @@ func CopyDir(dst, src string) error {
 		dstPath := filepath.Join(dst, path[len(src):])
 
 		// we don't want to try and copy the same file over itself.
-		if eq, err := SameFile(path, dstPath); eq {
+		if eq, err := SameFile(path, dstPath); err != nil {
+			return fmt.Errorf("failed to check if files are the same: %w", err)
+		} else if eq {
 			return nil
-		} else if err != nil {
-			return err
 		}
 
 		// If we have a directory, make that subdirectory, then continue
@@ -81,7 +81,7 @@ func CopyDir(dst, src string) error {
 			}
 
 			if err := os.MkdirAll(dstPath, 0755); err != nil {
-				return err
+				return fmt.Errorf("failed to create directory %q: %w", dstPath, err)
 			}
 
 			return nil
@@ -92,34 +92,46 @@ func CopyDir(dst, src string) error {
 		if info.Mode()&os.ModeSymlink == os.ModeSymlink {
 			target, err := os.Readlink(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to read symlink %q: %w", path, err)
 			}
 
-			return os.Symlink(target, dstPath)
+			if err := os.Symlink(target, dstPath); err != nil {
+				return fmt.Errorf("failed to create symlink %q: %w", dstPath, err)
+			}
+			return nil
 		}
+		return copyFile(dstPath, path, info.Mode())
+	}
+	return filepath.Walk(src, walkFn)
+}
 
-		// If we have a file, copy the contents.
-		srcF, err := os.Open(path)
-		if err != nil {
-			return err
-		}
-		defer srcF.Close()
+// copyFile copies the contents and mode of the file from src to dst.
+func copyFile(dst, src string, mode os.FileMode) error {
+	srcF, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("failed to open source file %q: %w", src, err)
+	}
+	defer srcF.Close()
 
-		dstF, err := os.Create(dstPath)
-		if err != nil {
-			return err
-		}
-		defer dstF.Close()
-
-		if _, err := io.Copy(dstF, srcF); err != nil {
-			return err
-		}
-
-		// Chmod it
-		return os.Chmod(dstPath, info.Mode())
+	dstF, err := os.Create(dst)
+	if err != nil {
+		return fmt.Errorf("failed to create destination file %q: %w", dst, err)
 	}
 
-	return filepath.Walk(src, walkFn)
+	if _, err := io.Copy(dstF, srcF); err != nil {
+		dstF.Close() // Ignore error from Close since io.Copy already failed
+		return fmt.Errorf("failed to copy contents from %q to %q: %w", src, dst, err)
+	}
+
+	if err := dstF.Close(); err != nil {
+		return fmt.Errorf("failed to close destination file %q: %w", dst, err)
+	}
+
+	if err := os.Chmod(dst, mode); err != nil {
+		return fmt.Errorf("failed to set file mode for %q: %w", dst, err)
+	}
+
+	return nil
 }
 
 // SameFile returns true if the two given paths refer to the same physical
