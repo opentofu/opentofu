@@ -153,6 +153,7 @@ func TestPlan_destroy(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	outPath := testTempFile(t)
@@ -316,6 +317,7 @@ func TestPlan_outPathNoChange(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -417,6 +419,7 @@ func TestPlan_outBackend(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
@@ -1507,6 +1510,7 @@ func TestPlan_replace(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, originalState)

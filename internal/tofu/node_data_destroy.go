@@ -24,6 +24,6 @@ var (
 // GraphNodeExecutable
 func (n *NodeDestroyableDataResourceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] NodeDestroyableDataResourceInstance: removing state object for %s", n.Addr)
-	ctx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider)
+	ctx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, nil)
 	return nil
 }

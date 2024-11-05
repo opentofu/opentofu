@@ -70,6 +70,11 @@ type ResourceInstance struct {
 	// replaced and are pending destruction due to the create_before_destroy
 	// lifecycle mode.
 	Deposed map[DeposedKey]*ResourceInstanceObjectSrc
+
+	// ProviderKey, in combination with Resource.ProviderConfig, represents
+	// the resource instance's provider configuration. This is only set
+	// when using provider iteration on resources or modules
+	ProviderKey addrs.InstanceKey
 }
 
 // NewResourceInstance constructs and returns a new ResourceInstance, ready to

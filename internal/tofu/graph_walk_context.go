@@ -60,7 +60,7 @@ type ContextGraphWalker struct {
 	variableValues     map[string]map[string]cty.Value
 
 	providerLock  sync.Mutex
-	providerCache map[string]providers.Interface
+	providerCache map[string]map[addrs.InstanceKey]providers.Interface
 
 	provisionerLock  sync.Mutex
 	provisionerCache map[string]provisioners.Interface
@@ -129,7 +129,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 
 func (w *ContextGraphWalker) init() {
 	w.contexts = make(map[string]*BuiltinEvalContext)
-	w.providerCache = make(map[string]providers.Interface)
+	w.providerCache = make(map[string]map[addrs.InstanceKey]providers.Interface)
 	w.provisionerCache = make(map[string]provisioners.Interface)
 	w.variableValues = make(map[string]map[string]cty.Value)
 

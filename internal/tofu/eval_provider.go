@@ -15,7 +15,11 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *configs.Provider) hcl.Body {
@@ -47,15 +51,75 @@ func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *
 	}
 }
 
+func resolveProviderResourceInstance(ctx EvalContext, keyExpr hcl.Expression, resourcePath addrs.AbsResourceInstance) (addrs.InstanceKey, tfdiags.Diagnostics) {
+	keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(resourcePath)
+	keyScope := ctx.EvaluationScope(nil, nil, keyData)
+	return resolveProviderInstance(keyExpr, keyScope, resourcePath.String())
+}
+
+func resolveProviderModuleInstance(ctx EvalContext, keyExpr hcl.Expression, modulePath addrs.ModuleInstance, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
+	keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(modulePath)
+	keyScope := ctx.WithPath(modulePath).EvaluationScope(nil, nil, keyData)
+	return resolveProviderInstance(keyExpr, keyScope, source)
+}
+
+func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
+	diags = diags.Append(keyDiags)
+	if keyDiags.HasErrors() {
+		return nil, diags
+	}
+
+	if keyVal.HasMark(marks.Sensitive) {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance key",
+			Detail:   "A provider instance key must not be derived from a sensitive value.",
+			Subject:  keyExpr.Range().Ptr(),
+			Extra:    evalchecks.DiagnosticCausedBySensitive(true),
+		})
+	}
+	if keyVal.IsNull() {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance key",
+			Detail:   "A provider instance key must not be null.",
+			Subject:  keyExpr.Range().Ptr(),
+		})
+	}
+	if !keyVal.IsKnown() {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance key",
+			Detail:   fmt.Sprintf("The provider instance key for %s depends on values that cannot be determined until apply, and so OpenTofu cannot select a provider instance to create a plan for this resource instance.", source),
+			Subject:  keyExpr.Range().Ptr(),
+			Extra:    evalchecks.DiagnosticCausedByUnknown(true),
+		})
+	}
+
+	parsedKey, parsedErr := addrs.ParseInstanceKey(keyVal)
+	if parsedErr != nil {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance key",
+			Detail:   fmt.Sprintf("The given instance key is unsuitable: %s.", tfdiags.FormatError(parsedErr)),
+			Subject:  keyExpr.Range().Ptr(),
+		})
+	}
+	return parsedKey, diags
+}
+
 // getProvider returns the providers.Interface and schema for a given provider.
-func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
+func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, providers.ProviderSchema, error) {
 	if addr.Provider.Type == "" {
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")
 	}
-	provider := ctx.Provider(addr)
+	provider := ctx.Provider(addr, providerKey)
 	if provider == nil {
-		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s not initialized", addr)
+		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s not initialized", addr.InstanceString(providerKey))
 	}
 	// Not all callers require a schema, so we will leave checking for a nil
 	// schema to the callers.

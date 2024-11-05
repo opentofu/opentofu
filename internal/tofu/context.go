@@ -294,13 +294,15 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 			// Copy the providers so that a misbehaved blocking Stop doesn't
 			// completely hang OpenTofu.
 			walker.providerLock.Lock()
-			ps := make([]providers.Interface, 0, len(walker.providerCache))
-			for _, p := range walker.providerCache {
-				ps = append(ps, p)
+			toStop := make([]providers.Interface, 0, len(walker.providerCache))
+			for _, providerMap := range walker.providerCache {
+				for _, provider := range providerMap {
+					toStop = append(toStop, provider)
+				}
 			}
 			defer walker.providerLock.Unlock()
 
-			for _, p := range ps {
+			for _, p := range toStop {
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
 				// advisory: OpenTofu will exit once the graph node completes.

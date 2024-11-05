@@ -77,11 +77,12 @@ type NodeAbstractResource struct {
 	forceDependsOn bool
 
 	// The address of the provider this resource will use
-	ResolvedProvider addrs.AbsProviderConfig
+	ResolvedProvider ResolvedProvider
+
 	// storedProviderConfig is the provider address retrieved from the
 	// state. This is defined here for access within the ProvidedBy method, but
 	// will be set from the embedding instance type when the state is attached.
-	storedProviderConfig addrs.AbsProviderConfig
+	storedProviderConfig ResolvedProvider
 
 	// This resource may expand into instances which need to be imported.
 	importTargets []*ImportTarget
@@ -293,28 +294,48 @@ func (n *NodeAbstractResource) DependsOn() []*addrs.Reference {
 	return result
 }
 
-func (n *NodeAbstractResource) SetProvider(p addrs.AbsProviderConfig) {
-	n.ResolvedProvider = p
+// GraphNodeProviderConsumer
+func (n *NodeAbstractResource) SetProvider(resolved ResolvedProvider) {
+	n.ResolvedProvider = resolved
 }
 
 // GraphNodeProviderConsumer
-func (n *NodeAbstractResource) ProvidedBy() addrs.ProviderConfig {
+func (n *NodeAbstractResource) ProvidedBy() RequestedProvider {
 	// Once the provider is fully resolved, we can return the known value.
-	if n.ResolvedProvider.Provider.Type != "" {
-		return n.ResolvedProvider
+	if n.ResolvedProvider.ProviderConfig.Provider.Type != "" {
+		return RequestedProvider{
+			ProviderConfig: n.ResolvedProvider.ProviderConfig,
+			KeyExpression:  n.ResolvedProvider.KeyExpression,
+			KeyModule:      n.ResolvedProvider.KeyModule,
+			KeyResource:    n.ResolvedProvider.KeyResource,
+			KeyExact:       n.ResolvedProvider.KeyExact,
+		}
 	}
 
 	// If we have a config we prefer that above all else
 	if n.Config != nil {
-		return n.Config.ProviderConfigAddr()
+		result := RequestedProvider{
+			ProviderConfig: n.Config.ProviderConfigAddr(),
+		}
+		if n.Config.ProviderConfigRef != nil && n.Config.ProviderConfigRef.KeyExpression != nil {
+			result.KeyResource = true
+			result.KeyExpression = n.Config.ProviderConfigRef.KeyExpression
+		}
+		return result
 	}
 
 	// See if we have a valid provider config from the state.
-	if n.storedProviderConfig.Provider.Type != "" {
+	if n.storedProviderConfig.ProviderConfig.Provider.Type != "" {
 		// An address from the state must match exactly, since we must ensure
 		// we refresh/destroy a resource with the same provider configuration
 		// that created it.
-		return n.storedProviderConfig
+		return RequestedProvider{
+			ProviderConfig: n.storedProviderConfig.ProviderConfig,
+			KeyExpression:  n.storedProviderConfig.KeyExpression,
+			KeyModule:      n.storedProviderConfig.KeyModule,
+			KeyResource:    n.storedProviderConfig.KeyResource,
+			KeyExact:       n.storedProviderConfig.KeyExact,
+		}
 	}
 
 	// We might have an import target that is providing a specific provider,
@@ -325,29 +346,34 @@ func (n *NodeAbstractResource) ProvidedBy() addrs.ProviderConfig {
 		// of them should be. They should also all have the same provider, so it
 		// shouldn't matter which we check here, as they'll all give the same.
 		if n.importTargets[0].Config != nil && n.importTargets[0].Config.ProviderConfigRef != nil {
-			return addrs.LocalProviderConfig{
-				LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
-				Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
+			return RequestedProvider{
+				ProviderConfig: addrs.LocalProviderConfig{
+					LocalName: n.importTargets[0].Config.ProviderConfigRef.Name,
+					Alias:     n.importTargets[0].Config.ProviderConfigRef.Alias,
+				},
+				// This is where we would specify a key expression if that was supported for import blocks
 			}
 		}
 	}
 
 	// No provider configuration found; return a default address
-	return addrs.LocalProviderConfig{
-		LocalName: n.Addr.Resource.ImpliedProvider(), // Unused, see ProviderTransformer
+	return RequestedProvider{
+		ProviderConfig: addrs.LocalProviderConfig{
+			LocalName: n.Addr.Resource.ImpliedProvider(), // Unused, see ProviderTransformer
+		},
 	}
 }
 
 // GraphNodeProviderConsumer
 func (n *NodeAbstractResource) Provider() addrs.Provider {
-	if n.ResolvedProvider.Provider.Type != "" {
-		return n.ResolvedProvider.Provider
+	if n.ResolvedProvider.ProviderConfig.Provider.Type != "" {
+		return n.ResolvedProvider.ProviderConfig.Provider
 	}
 	if n.Config != nil {
 		return n.Config.Provider
 	}
-	if n.storedProviderConfig.Provider.Type != "" {
-		return n.storedProviderConfig.Provider
+	if n.storedProviderConfig.ProviderConfig.Provider.Type != "" {
+		return n.storedProviderConfig.ProviderConfig.Provider
 	}
 
 	if len(n.importTargets) > 0 {
@@ -460,7 +486,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 			return diags
 		}
 
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.ForEach != nil:
@@ -472,11 +498,11 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 		// This method takes care of all of the business logic of updating this
 		// while ensuring that any existing instances are preserved, etc.
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceForEach(addr.Module, n.Addr.Resource, forEach)
 
 	default:
-		state.SetResourceProvider(addr, n.ResolvedProvider)
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceSingle(addr.Module, n.Addr.Resource)
 	}
 
@@ -485,9 +511,9 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -526,9 +552,9 @@ func (n *NodeAbstractResource) readResourceInstanceState(ctx EvalContext, addr a
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
 // instance in the state.
-func (n *NodeAbstractResource) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags

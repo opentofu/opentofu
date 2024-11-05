@@ -11,8 +11,11 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -42,6 +45,9 @@ type Provider struct {
 	// testing framework to instantiate test provider wrapper.
 	IsMocked      bool
 	MockResources []*MockResource
+
+	ForEach   hcl.Expression
+	Instances map[addrs.InstanceKey]instances.RepetitionData
 }
 
 func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
@@ -95,8 +101,21 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 		diags = append(diags, versionDiags...)
 	}
 
+	if attr, exists := content.Attributes["for_each"]; exists {
+		provider.ForEach = attr.Expr
+	}
+
+	if len(provider.Alias) == 0 && provider.ForEach != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Alias required when using "for_each"`,
+			Detail:   `The for_each argument is allowed only for provider configurations with an alias.`,
+			Subject:  provider.ForEach.Range().Ptr(),
+		})
+	}
+
 	// Reserved attribute names
-	for _, name := range []string{"count", "depends_on", "for_each", "source"} {
+	for _, name := range []string{"count", "depends_on", "source"} {
 		if attr, exists := content.Attributes[name]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -143,6 +162,38 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	return provider, diags
+}
+
+func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	if p.ForEach != nil {
+		forEachRefsFunc := func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+			var diags tfdiags.Diagnostics
+			evalContext, evalDiags := eval.EvalContext(StaticIdentifier{
+				Module:    eval.call.addr,
+				Subject:   fmt.Sprintf("provider.%s.%s.for_each", p.Name, p.Alias),
+				DeclRange: p.ForEach.Range(),
+			}, refs)
+			return evalContext, diags.Append(evalDiags)
+		}
+
+		forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc)
+		diags = append(diags, evalDiags.ToHCL()...)
+		if evalDiags.HasErrors() {
+			return diags
+		}
+
+		p.Instances = make(map[addrs.InstanceKey]instances.RepetitionData)
+		for k, v := range forVal {
+			p.Instances[addrs.StringKey(k)] = instances.RepetitionData{
+				EachKey:   cty.StringVal(k),
+				EachValue: v,
+			}
+		}
+	}
+
+	return diags
 }
 
 // Addr returns the address of the receiving provider configuration, relative
@@ -247,11 +298,13 @@ var providerBlockSchema = &hcl.BodySchema{
 		{
 			Name: "version",
 		},
+		{
+			Name: "for_each",
+		},
 
 		// Attribute names reserved for future expansion.
 		{Name: "count"},
 		{Name: "depends_on"},
-		{Name: "for_each"},
 		{Name: "source"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{

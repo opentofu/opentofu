@@ -128,6 +128,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ResolvedProvider = n.ResolvedProvider
+		// ResolvedProviderKey set in AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -380,6 +381,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ResolvedProvider = n.ResolvedProvider
+		// ResolvedProviderKey will be set during AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -427,6 +429,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		Steps: steps,
 		Name:  "nodeExpandPlannableResource",
 	}
-	graph, diags := b.Build(addr.Module)
-	return graph, diags.ErrWithWarnings()
+	graph, graphDiags := b.Build(addr.Module)
+	return graph, diags.Append(graphDiags).ErrWithWarnings()
 }

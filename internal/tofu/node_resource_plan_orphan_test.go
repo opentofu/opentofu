@@ -108,6 +108,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		schema := providers.ProviderSchema{
@@ -142,10 +143,10 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 		node := NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: addrs.AbsProviderConfig{
+					ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
-					},
+					}},
 				},
 				Addr: absResource,
 			},
@@ -188,6 +189,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	refreshState := state.DeepCopy()
 	prevRunState := state.DeepCopy()
@@ -217,10 +219,10 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: addrs.AbsProviderConfig{
+				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
-				},
+				}},
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},
@@ -270,6 +272,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	refreshState := state.DeepCopy()
 	prevRunState := state.DeepCopy()
@@ -299,10 +302,10 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: addrs.AbsProviderConfig{
+				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
-				},
+				}},
 			},
 			Addr: mustResourceInstanceAddr("test_object.foo"),
 		},

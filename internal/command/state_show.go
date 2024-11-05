@@ -172,6 +172,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		addr.Resource,
 		is.Current,
 		absPc,
+		addrs.NoKey,
 	)
 
 	root, outputs, err := jsonstate.MarshalForRenderer(statefile.New(singleInstance, "", 0), schemas)

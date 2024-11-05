@@ -659,10 +659,30 @@ type ProviderConfigRef struct {
 	// export this so providers don't need to be re-resolved.
 	// This same field is also added to the Provider struct.
 	providerType addrs.Provider
+
+	KeyExpression hcl.Expression
 }
 
 func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConfigRef, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
+	var keyExpr hcl.Expression
+
+	const (
+		// name.alias[const_key]
+		nameIndex  = 0
+		aliasIndex = 1
+		keyIndex   = 2
+	)
+	var maxTraversalLength = keyIndex + 1
+
+	// name.alias[expr_key]
+	if iex, ok := expr.(*hclsyntax.IndexExpr); ok {
+		maxTraversalLength = aliasIndex + 1 // expr key found, no const key allowed
+
+		keyExpr = iex.Key
+		expr = iex.Collection
+	}
 
 	var shimDiags hcl.Diagnostics
 	expr, shimDiags = shimTraversalInString(expr, false)
@@ -677,7 +697,7 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 		diags = append(diags, travDiags...)
 	}
 
-	if len(traversal) < 1 || len(traversal) > 2 {
+	if len(traversal) == 0 || len(traversal) > maxTraversalLength {
 		// A provider reference was given as a string literal in the legacy
 		// configuration language and there are lots of examples out there
 		// showing that usage, so we'll sniff for that situation here and
@@ -696,7 +716,7 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration reference",
-			Detail:   fmt.Sprintf("The %s argument requires a provider type name, optionally followed by a period and then a configuration alias.", argName),
+			Detail:   fmt.Sprintf("The %s argument requires a provider type name, optionally followed by a period and then a configuration alias and optional instance key.", argName),
 			Subject:  expr.Range().Ptr(),
 		})
 		return nil, diags
@@ -704,31 +724,56 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 
 	// verify that the provider local name is normalized
 	name := traversal.RootName()
-	nameDiags := checkProviderNameNormalized(name, traversal[0].SourceRange())
+	nameDiags := checkProviderNameNormalized(name, traversal[nameIndex].SourceRange())
 	diags = append(diags, nameDiags...)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
 	ret := &ProviderConfigRef{
-		Name:      name,
-		NameRange: traversal[0].SourceRange(),
+		Name:          name,
+		NameRange:     traversal[nameIndex].SourceRange(),
+		KeyExpression: keyExpr,
 	}
 
-	if len(traversal) > 1 {
-		aliasStep, ok := traversal[1].(hcl.TraverseAttr)
+	if len(traversal) > aliasIndex {
+		aliasStep, ok := traversal[aliasIndex].(hcl.TraverseAttr)
 		if !ok {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration reference",
 				Detail:   "Provider name must either stand alone or be followed by a period and then a configuration alias.",
-				Subject:  traversal[1].SourceRange().Ptr(),
+				Subject:  traversal[aliasIndex].SourceRange().Ptr(),
 			})
 			return ret, diags
 		}
 
 		ret.Alias = aliasStep.Name
 		ret.AliasRange = aliasStep.SourceRange().Ptr()
+	}
+
+	if len(traversal) > keyIndex {
+		indexStep, ok := traversal[keyIndex].(hcl.TraverseIndex)
+		if !ok {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration reference",
+				Detail:   "Provider name must either stand alone or be followed by a period and then a configuration alias.",
+				Subject:  traversal[keyIndex].SourceRange().Ptr(),
+			})
+			return ret, diags
+		}
+
+		ret.KeyExpression = hcl.StaticExpr(indexStep.Key, traversal.SourceRange())
+	}
+
+	if len(ret.Alias) == 0 && ret.KeyExpression != nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration reference",
+			Detail:   "Provider assignment requires an alias when specifying an instance key, in the form of provider.name[instance_key]",
+			Subject:  traversal.SourceRange().Ptr(),
+		})
 	}
 
 	return ret, diags
@@ -754,6 +799,39 @@ func (r *ProviderConfigRef) String() string {
 		return fmt.Sprintf("%s.%s", r.Name, r.Alias)
 	}
 	return r.Name
+}
+
+func (r *ProviderConfigRef) InstanceValidation(blockType string, isInstanced bool) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	summary := fmt.Sprintf("Invalid %s provider configuration", blockType)
+
+	if r.KeyExpression != nil {
+		if r.Alias == "" {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  summary,
+				Detail:   "An instance key can be specified only for a provider configuration which has an alias and uses for_each.",
+				Subject:  r.KeyExpression.Range().Ptr(),
+			})
+		}
+		if !isInstanced {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  summary,
+				Detail:   "An instance key can be specified only for a provider configuration that uses for_each.",
+				Subject:  r.KeyExpression.Range().Ptr(),
+			})
+		}
+	} else if isInstanced {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  summary,
+			Detail:   "A reference to a provider configuration which uses for_each requires an instance key. Passing a collection of provider instances into a child module is not allowed.",
+			Subject:  r.NameRange.Ptr(),
+		})
+	}
+	return diags
 }
 
 var commonResourceAttributes = []hcl.AttributeSchema{

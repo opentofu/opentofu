@@ -287,7 +287,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, provider)
+		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -308,7 +308,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, provider)
+		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
 		if !diags.HasErrors() {
 			t.Error("missing expected error with invalid config")
 		}
@@ -321,7 +321,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, provider)
+		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with empty config: %s", diags.Err())
 		}
@@ -369,7 +369,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -382,7 +382,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with nil config")
 		}
@@ -403,7 +403,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with invalid config")
 		}
@@ -458,7 +458,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -471,7 +471,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with nil config")
 		}
@@ -492,7 +492,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with invalid config")
 		}
@@ -518,7 +518,7 @@ func TestGetSchemaError(t *testing.T) {
 		},
 	}
 
-	diags := node.ConfigureProvider(ctx, provider, false)
+	diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
 	for _, d := range diags {
 		desc := d.Description()
 		if desc.Address != providerAddr.String() {

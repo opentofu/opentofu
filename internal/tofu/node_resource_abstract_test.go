@@ -145,7 +145,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	p := node.ProvidedBy()
 
 	// the implied non-exact provider should be "terraform"
-	lpc, ok := p.(addrs.LocalProviderConfig)
+	lpc, ok := p.ProviderConfig.(addrs.LocalProviderConfig)
 	if !ok {
 		t.Fatalf("expected LocalProviderConfig, got %#v\n", p)
 	}
@@ -165,10 +165,10 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		Alias:  "test",
 	}
 
-	node.SetProvider(resolved)
+	node.SetProvider(ResolvedProvider{ProviderConfig: resolved})
 	p = node.ProvidedBy()
 
-	apc, ok := p.(addrs.AbsProviderConfig)
+	apc, ok := p.ProviderConfig.(addrs.AbsProviderConfig)
 	if !ok {
 		t.Fatalf("expected AbsProviderConfig, got %#v\n", p)
 	}
@@ -193,7 +193,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 
 	tests := map[string]struct {
 		State              *states.State
-		Node               *NodeAbstractResource
+		Node               *NodeAbstractResourceInstance
 		ExpectedInstanceId string
 	}{
 		"ReadState gets primary instance state": {
@@ -211,12 +211,12 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 				s.SetResourceInstanceCurrent(oneAddr.Instance(addrs.NoKey), &states.ResourceInstanceObjectSrc{
 					Status:    states.ObjectReady,
 					AttrsJSON: []byte(`{"id":"i-abc123"}`),
-				}, providerAddr)
+				}, providerAddr, addrs.NoKey)
 			}),
-			Node: &NodeAbstractResource{
+			Node: &NodeAbstractResourceInstance{NodeAbstractResource: NodeAbstractResource{
 				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-			},
+				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			}},
 			ExpectedInstanceId: "i-abc123",
 		},
 	}
@@ -230,7 +230,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 
 			ctx.ProviderProvider = providers.Interface(mockProvider)
 
-			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance))
+			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.NodeAbstractResource.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance))
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
 			}
@@ -259,7 +259,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 
 	tests := map[string]struct {
 		State              *states.State
-		Node               *NodeAbstractResource
+		Node               *NodeAbstractResourceInstance
 		ExpectedInstanceId string
 	}{
 		"ReadStateDeposed gets deposed instance": {
@@ -277,12 +277,12 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 				s.SetResourceInstanceDeposed(oneAddr.Instance(addrs.NoKey), states.DeposedKey("00000001"), &states.ResourceInstanceObjectSrc{
 					Status:    states.ObjectReady,
 					AttrsJSON: []byte(`{"id":"i-abc123"}`),
-				}, providerAddr)
+				}, providerAddr, addrs.NoKey)
 			}),
-			Node: &NodeAbstractResource{
+			Node: &NodeAbstractResourceInstance{NodeAbstractResource: NodeAbstractResource{
 				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-			},
+				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			}},
 			ExpectedInstanceId: "i-abc123",
 		},
 	}
@@ -296,7 +296,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 
 			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
 
-			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance), key)
+			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.NodeAbstractResource.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance), key)
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
 			}

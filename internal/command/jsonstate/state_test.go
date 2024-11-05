@@ -631,6 +631,7 @@ func TestMarshalModules_basic(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -646,6 +647,7 @@ func TestMarshalModules_basic(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   childModule.Module(),
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -661,6 +663,7 @@ func TestMarshalModules_basic(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},
+			addrs.NoKey,
 		)
 	})
 	moduleMap := make(map[string][]addrs.ModuleInstance)
@@ -700,6 +703,7 @@ func TestMarshalModules_nested(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -715,6 +719,7 @@ func TestMarshalModules_nested(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   childModule.Module(),
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -730,6 +735,7 @@ func TestMarshalModules_nested(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},
+			addrs.NoKey,
 		)
 	})
 	moduleMap := make(map[string][]addrs.ModuleInstance)
@@ -772,6 +778,7 @@ func TestMarshalModules_parent_no_resources(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -787,6 +794,7 @@ func TestMarshalModules_parent_no_resources(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},
+			addrs.NoKey,
 		)
 	})
 	got, err := marshalRootModule(testState, testSchemas())

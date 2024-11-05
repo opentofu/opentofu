@@ -30,13 +30,21 @@ linters-settings:
     require-specific: true
 
   cyclop:
-    max-complexity: 15
+    max-complexity: 20
 
   gocognit:
     min-complexity: 50
 
   goconst:
     ignore-tests: true # Is documented to be the default behaviour, but that doesn't seem to be the case
+
+  gocritic:
+    settings:
+      ifElseChain:
+        minThreshold: 4
+
+  nestif:
+    min-complexity: 6
 
 issues:
   exclude-rules:

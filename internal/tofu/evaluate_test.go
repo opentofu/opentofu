@@ -246,6 +246,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	}).SyncWrapper()
 
@@ -420,6 +421,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	}).SyncWrapper()
 

@@ -273,12 +273,12 @@ func (s *SyncState) RemoveResourceIfEmpty(addr addrs.AbsResource) bool {
 //
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
-func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
+func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig, providerKey addrs.InstanceKey) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), provider)
+	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), provider, providerKey)
 	s.maybePruneModule(addr.Module)
 }
 
@@ -305,12 +305,12 @@ func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, o
 //
 // If the containing module for this resource or the resource itself are not
 // already tracked in state then they will be added as a side-effect.
-func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig) {
+func (s *SyncState) SetResourceInstanceDeposed(addr addrs.AbsResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig, providerKey addrs.InstanceKey) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), provider)
+	ms.SetResourceInstanceDeposed(addr.Resource, key, obj.DeepCopy(), provider, providerKey)
 	s.maybePruneModule(addr.Module)
 }
 
@@ -443,7 +443,7 @@ func (s *SyncState) RemovePlannedResourceInstanceObjects() {
 				if is.Current != nil && is.Current.Status == ObjectPlanned {
 					// Setting the current instance to nil removes it from the
 					// state altogether if there are not also deposed instances.
-					ms.SetResourceInstanceCurrent(instAddr, nil, rs.ProviderConfig)
+					ms.SetResourceInstanceCurrent(instAddr, nil, rs.ProviderConfig, addrs.NoKey)
 				}
 
 				for dk, obj := range is.Deposed {

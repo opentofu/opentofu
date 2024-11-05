@@ -635,18 +635,126 @@ variable "obfmod" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	_, diags := ctx.Plan(m, nil, nil)
 	if !diags.HasErrors() {
 		t.Fatal("Expected error!")
 	}
-	expected := `Unknown provider function: Provider "module.mod.provider[\"registry.opentofu.org/hashicorp/aws\"]" does not have a function "arn_parse_custom" or has not been configured`
+	expected := `Function not found in provider: Function "provider::aws::arn_parse_custom" was not registered by provider`
 	if expected != diags.Err().Error() {
 		t.Fatalf("Expected error %q, got %q", expected, diags.Err().Error())
+	}
+	if !p.GetFunctionsCalled {
+		t.Fatalf("Expected function call")
+	}
+	if p.CallFunctionCalled {
+		t.Fatalf("Unexpected function call")
+	}
+}
+
+// Defaulted stub provider
+func TestContext2Functions_providerFunctionsForEachCount(t *testing.T) {
+	p := testProvider("aws")
+	addr := addrs.ImpliedProviderForUnqualifiedType("aws")
+
+	// Explicitly non-parallel
+	t.Setenv("foo", "bar")
+	defer providers.SchemaCache.Remove(addr)
+
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Functions: map[string]providers.FunctionSpec{
+			"arn_parse": providers.FunctionSpec{
+				Parameters: []providers.FunctionParameterSpec{{
+					Name: "arn",
+					Type: cty.String,
+				}},
+				Return: cty.Bool,
+			},
+		},
+	}
+	p.CallFunctionResponse = &providers.CallFunctionResponse{
+		Result: cty.True,
+	}
+
+	// SchemaCache is initialzed earlier on in the command package
+	providers.SchemaCache.Set(addr, *p.GetProviderSchemaResponse)
+
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+provider "aws" {
+  for_each = {"a": 1, "b": 2}
+  alias = "iter"
+}
+module "mod" {
+  source = "./mod"
+  for_each = {"a": 1, "b": 2}
+  providers = {
+    aws = aws.iter[each.key]
+  }
+}
+ `,
+		"mod/mod.tf": `
+terraform {
+  required_providers {
+    aws = ">=5.70.0"
+  }
+}
+
+variable "obfmod" {
+  type = object({
+    arns = optional(list(string))
+  })
+  description = "Configuration for xxx."
+
+  validation {
+    condition = alltrue([
+      for arn in var.obfmod.arns: can(provider::aws::arn_parse(arn))
+    ])
+    error_message = "All arns MUST BE a valid AWS ARN format."
+  }
+
+  default = {
+    arns = [
+      "arn:partition:service:region:account-id:resource-id",
+    ]
+  }
+}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	diags := ctx.Validate(m)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	if !p.GetProviderSchemaCalled {
+		t.Fatalf("Unexpected function call")
 	}
 	if p.GetFunctionsCalled {
 		t.Fatalf("Unexpected function call")
 	}
-	if p.CallFunctionCalled {
+	if !p.CallFunctionCalled {
 		t.Fatalf("Unexpected function call")
+	}
+
+	p.GetProviderSchemaCalled = false
+	p.GetFunctionsCalled = false
+	p.CallFunctionCalled = false
+	_, diags = ctx.Plan(m, nil, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	if !p.GetProviderSchemaCalled {
+		t.Fatalf("Unexpected function call")
+	}
+	if p.GetFunctionsCalled {
+		t.Fatalf("Expected function call")
+	}
+	if !p.CallFunctionCalled {
+		t.Fatalf("Expected function call")
 	}
 }
