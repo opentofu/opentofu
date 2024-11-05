@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
@@ -412,6 +413,11 @@ func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key str
 	return mod, diags
 }
 
+// versionRegexp is used to handle edge cases around prerelease version constraints
+// when installing registry modules, its usage is discouraged in favor of the
+// public hashicorp/go-version API.
+var versionRegexp = regexp.MustCompile(version.VersionRegexpRaw)
+
 func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, addr addrs.ModuleSourceRegistry, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, *version.Version, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
@@ -517,10 +523,29 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			// prerelease metadata will be checked. Users may not have even
 			// requested this prerelease so don't print lots of unnecessary #
 			// warnings.
-			acceptableVersions, err := versions.MeetingConstraintsString(req.VersionConstraint.Required.String())
+			constraint := req.VersionConstraint.Required.String()
+			acceptableVersions, err := versions.MeetingConstraintsString(constraint)
 			if err != nil {
-				log.Printf("[WARN] ModuleInstaller: %s ignoring %s because the version constraints (%s) could not be parsed: %s", key, v, req.VersionConstraint.Required.String(), err.Error())
-				continue
+				log.Printf("[WARN] ModuleInstaller: Attempting to strip \"v\" prefixes, because version constraints %q was unable to be parsed: %s", constraint, err.Error())
+				// apparentlymart/go-versions purposely doesn't accept "v" prefixes.
+				// However, hashicorp/go-version does, which leads to inconsistent
+				// errors when specifying constraints that contain prerelease
+				// versions with "v" prefixes. This creates a semantically equivalent
+				// constraint with all prefixes stripped so it can be checked
+				// against apparentlymart/go-versions.
+				//
+				// strippedConstraint should not live beyond this scope.
+				strippedConstraint := string(versionRegexp.ReplaceAllFunc([]byte(constraint), func(match []byte) []byte {
+					if match[0] == 'v' {
+						return match[1:]
+					}
+					return match
+				}))
+				acceptableVersions, err = versions.MeetingConstraintsString(strippedConstraint)
+				if err != nil {
+					log.Printf("[WARN] ModuleInstaller: %s ignoring %s because the version constraints (%s) could not be parsed: %s", key, v, req.VersionConstraint.Required.String(), err.Error())
+					continue
+				}
 			}
 
 			// Validate the version is also readable by the other versions
