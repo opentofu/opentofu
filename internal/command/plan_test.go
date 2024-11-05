@@ -252,9 +252,10 @@ func TestPlan_noTestVars(t *testing.T) {
 		t.Fatalf("Unable to decode plan variables, error: %v", err)
 	}
 
+	expectedResult := "ValueFROMmain/tfvars"
 	result := decodedExpectedVar.AsString()
-	if !strings.Contains(result, "ValueFROMmain/tfvars") {
-		t.Fatalf("Expected testVar to equal 'ValueFROMmain/tfvars', got: %s", result)
+	if !strings.Contains(result, expectedResult) {
+		t.Fatalf("Expected testVar to equal '%s', got: %s", expectedResult, result)
 	}
 
 }
