@@ -94,19 +94,19 @@ func TestParseAbsProviderConfigInstances(t *testing.T) {
 			`module.baz["foo"].provider["registry.opentofu.org/hashicorp/aws"]`,
 			AbsProviderConfig{},
 			NoKey,
-			`Provider address cannot contain module indexes`,
+			`A provider configuration must not appear in a module instance that uses count or for_each.`,
 		},
 		{
 			`module.baz[1].provider["registry.opentofu.org/hashicorp/aws"]`,
 			AbsProviderConfig{},
 			NoKey,
-			`Provider address cannot contain module indexes`,
+			`A provider configuration must not appear in a module instance that uses count or for_each.`,
 		},
 		{
 			`module.baz[1].module.bar.provider["registry.opentofu.org/hashicorp/aws"]`,
 			AbsProviderConfig{},
 			NoKey,
-			`Provider address cannot contain module indexes`,
+			`A provider configuration must not appear in a module instance that uses count or for_each.`,
 		},
 		{
 			`aws`,
@@ -130,7 +130,7 @@ func TestParseAbsProviderConfigInstances(t *testing.T) {
 			`provider.aws.foo["bar"].baz`,
 			AbsProviderConfig{},
 			NoKey,
-			`Extraneous operators after provider configuration alias.`,
+			`Extraneous operators after provider configuration reference.`,
 		},
 		{
 			`provider["aws"]["foo"]`,

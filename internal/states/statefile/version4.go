@@ -94,7 +94,6 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		var addrDiags tfdiags.Diagnostics
 		if rsV4.ProviderConfig != "" {
 			providerAddr, addrDiags = addrs.ParseAbsProviderConfigStr(rsV4.ProviderConfig)
-			diags = diags.Append(addrDiags)
 			if addrDiags.HasErrors() {
 				// If ParseAbsProviderConfigStr returns an error, the state may have
 				// been written before Provider FQNs were introduced and the
@@ -104,8 +103,16 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 				var legacyAddrDiags tfdiags.Diagnostics
 				providerAddr, legacyAddrDiags = addrs.ParseLegacyAbsProviderConfigStr(rsV4.ProviderConfig)
 				if legacyAddrDiags.HasErrors() {
+					// Neither parse formats are valid, let's report the original error
+					diags = diags.Append(addrDiags)
 					continue
 				}
+
+				// Valid legacy address, but may contain warnings
+				diags = diags.Append(legacyAddrDiags)
+			} else {
+				// Valid address, but may contain warnings
+				diags = diags.Append(addrDiags)
 			}
 		}
 
