@@ -1407,10 +1407,10 @@ func TestTest_MockProviderValidation(t *testing.T) {
 	defer testChdir(t, td)()
 
 	provider := testing_command.NewProvider(nil)
-	providerSource, close := newMockProviderSource(t, map[string][]string{
+	providerSource, closePS := newMockProviderSource(t, map[string][]string{
 		"test": {"1.0.0"},
 	})
-	defer close()
+	defer closePS()
 
 	provider.Provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Provider: providers.Schema{
