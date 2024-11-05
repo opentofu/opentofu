@@ -43,6 +43,9 @@ linters-settings:
       ifElseChain:
         minThreshold: 4
 
+  nestif:
+    min-complexity: 6
+
 issues:
   exclude-rules:
     - path: (.+)_test.go
