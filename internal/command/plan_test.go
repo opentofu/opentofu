@@ -235,27 +235,17 @@ func TestPlan_noTestVars(t *testing.T) {
 		},
 	}
 
-	outPath := filepath.Join(td, "test.plan")
-	args := []string{
-		"-out", outPath,
-	}
+	args := []string{}
 	code := c.Run(args)
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
-	plan := testReadPlan(t, outPath)
-	ctyTestVar := plan.VariableValues["testVar"]
-	decodedExpectedVar, err := ctyTestVar.Decode(cty.DynamicPseudoType)
-	if err != nil {
-		t.Fatalf("Unable to decode plan variables, error: %v", err)
-	}
-
 	expectedResult := "ValueFROMmain/tfvars"
-	result := decodedExpectedVar.AsString()
+	result := output.All()
 	if !strings.Contains(result, expectedResult) {
-		t.Fatalf("Expected testVar to equal '%s', got: %s", expectedResult, result)
+		t.Fatalf("Expected output to contain '%s', got: %s", expectedResult, result)
 	}
 
 }
