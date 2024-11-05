@@ -123,6 +123,14 @@ In addition to alternate [planning modes](#planning-modes), there are several op
   Use `-target=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTofu limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
   :::
 
+- `-exclude=ADDRESS` - Instructs OpenTofu to focus its planning efforts only
+  on resource instances which do not match the given excluded address, and that
+  do not depend on any such resources or modules that were excluded.
+
+  :::note
+  Use `-exclude=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTofu limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
+  :::
+
 - `-var 'NAME=VALUE'` - Sets a value for a single
   [input variable](../../language/values/variables.mdx) declared in the
   root module of the configuration. Use this option multiple times to set
@@ -217,8 +225,18 @@ input variables, see
 
 ### Resource Targeting
 
-You can use the `-target` option to focus OpenTofu's attention on only a
-subset of resources.
+You can use the `-target` or the `-exclude` option to trigger resource targeting,
+focusing OpenTofu's attention on only a subset of resources.
+Using the `-target` option will focus OpenTofu's attention only on resources and
+module that are directly targeted, or are dependencies of the target.
+Using the `-exclude` option will focus OpenTofu's attention only on resources and
+modules that are not directly excluded, and are not dependent on an excluded resource
+or module.
+
+You can use multiple `-target` flags in order to target multiple resources and modules,
+and you can use multiple `-exclude` flags in order to exclude multiple resource and
+modules. You cannot use both `-target` and `-exclude` flags together.
+
 You can use [resource address syntax](../../cli/state/resource-addressing.mdx)
 to specify the constraint. OpenTofu interprets the resource address as follows:
 
@@ -238,18 +256,14 @@ to specify the constraint. OpenTofu interprets the resource address as follows:
   select all instances of all resources that belong to that module instance
   and all of its child module instances.
 
-Once OpenTofu has selected one or more resource instances that you've directly
-targeted, it will also then extend the selection to include all other objects
-that those selections depend on either directly or indirectly.
-
 This targeting capability is provided for exceptional circumstances, such
 as recovering from mistakes or working around OpenTofu limitations. It
-is _not recommended_ to use `-target` for routine operations, since this can
-lead to undetected configuration drift and confusion about how the true state
-of resources relates to configuration.
+is _not recommended_ to use `-target` or `-exclude` for routine operations, since
+this can lead to undetected configuration drift and confusion about how the true
+state of resources relates to configuration.
 
-Instead of using `-target` as a means to operate on isolated portions of very
-large configurations, prefer instead to break large configurations into
+Instead of using `-target` or `-exclude` as a means to operate on isolated portions
+of very large configurations, prefer instead to break large configurations into
 several smaller configurations that can each be independently applied.
 [Data sources](../../language/data-sources/index.mdx) can be used to access
 information about resources created in other configurations, allowing

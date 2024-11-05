@@ -67,6 +67,16 @@ type PlanOpts struct {
 	// warnings as part of the planning result.
 	Targets []addrs.Targetable
 
+	// If Excludes has a non-zero length then it activates targeted planning
+	// mode, where OpenTofu will take actions only for resource instances
+	// that are not mentioned in this set and are not dependent on targets
+	// mentioned in this set.
+	//
+	// Targeted planning mode is intended for exceptional use only,
+	// and so populating this field will cause OpenTofu to generate extra
+	// warnings as part of the planning result.
+	Excludes []addrs.Targetable
+
 	// ForceReplace is a set of resource instance addresses whose corresponding
 	// objects should be forced planned for replacement if the provider's
 	// plan would otherwise have been to either update the object in-place or
@@ -186,13 +196,13 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 	varDiags := checkInputVariables(config.Module.Variables, opts.SetVariables)
 	diags = diags.Append(varDiags)
 
-	if len(opts.Targets) > 0 {
+	if len(opts.Targets) > 0 || len(opts.Excludes) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
 			"Resource targeting is in effect",
-			`You are creating a plan with the -target option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
+			`You are creating a plan with either the -target option or the -exclude option, which means that the result of this plan may not represent all of the changes requested by the current configuration.
 
-The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+The -target and -exclude options are not for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 		))
 	}
 
@@ -241,6 +251,7 @@ The -target option is not for routine use, and is provided only for exceptional 
 	if plan != nil {
 		plan.VariableValues = varVals
 		plan.TargetAddrs = opts.Targets
+		plan.ExcludeAddrs = opts.Excludes
 	} else if !diags.HasErrors() {
 		panic("nil plan but no errors")
 	}
@@ -460,7 +471,7 @@ func (c *Context) destroyPlan(config *configs.Config, prevRunState *states.State
 	return destroyPlan, diags
 }
 
-func (c *Context) prePlanFindAndApplyMoves(config *configs.Config, prevRunState *states.State, targets []addrs.Targetable) ([]refactoring.MoveStatement, refactoring.MoveResults) {
+func (c *Context) prePlanFindAndApplyMoves(config *configs.Config, prevRunState *states.State) ([]refactoring.MoveStatement, refactoring.MoveResults) {
 	explicitMoveStmts := refactoring.FindMoveStatements(config)
 	implicitMoveStmts := refactoring.ImpliedMoveStatements(config, prevRunState, explicitMoveStmts)
 	var moveStmts []refactoring.MoveStatement
@@ -473,11 +484,17 @@ func (c *Context) prePlanFindAndApplyMoves(config *configs.Config, prevRunState 
 	return moveStmts, moveResults
 }
 
-func (c *Context) prePlanVerifyTargetedMoves(moveResults refactoring.MoveResults, targets []addrs.Targetable) tfdiags.Diagnostics {
-	if len(targets) < 1 {
-		return nil // the following only matters when targeting
+func (c *Context) prePlanVerifyTargetedMoves(moveResults refactoring.MoveResults, targets []addrs.Targetable, excludes []addrs.Targetable) tfdiags.Diagnostics {
+	if len(targets) > 0 {
+		return c.prePlanVerifyMovesWithTargetFlag(moveResults, targets)
 	}
+	if len(excludes) > 0 {
+		return c.prePlanVerifyMovesWithExcludeFlag(moveResults, excludes)
+	}
+	return nil
+}
 
+func (c *Context) prePlanVerifyMovesWithTargetFlag(moveResults refactoring.MoveResults, targets []addrs.Targetable) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	var excluded []addrs.AbsResourceInstance
@@ -533,6 +550,70 @@ func (c *Context) prePlanVerifyTargetedMoves(moveResults refactoring.MoveResults
 			"Moved resource instances excluded by targeting",
 			fmt.Sprintf(
 				"Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -target=... options do not fully cover all of those resource instances.\n\nTo create a valid plan, either remove your -target=... options altogether or add the following additional target options:%s\n\nNote that adding these options may include further additional resource instances in your plan, in order to respect object dependencies.",
+				listBuf.String(),
+			),
+		))
+	}
+
+	return diags
+}
+
+func (c *Context) prePlanVerifyMovesWithExcludeFlag(moveResults refactoring.MoveResults, excludes []addrs.Targetable) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	var excluded []addrs.AbsResourceInstance
+	for _, result := range moveResults.Changes.Values() {
+		fromExcluded := false
+		toExcluded := false
+		for _, excludeAddr := range excludes {
+			if excludeAddr.TargetContains(result.From) {
+				fromExcluded = true
+			}
+			if excludeAddr.TargetContains(result.To) {
+				toExcluded = true
+			}
+		}
+		if fromExcluded {
+			excluded = append(excluded, result.From)
+		}
+		if toExcluded {
+			excluded = append(excluded, result.To)
+		}
+	}
+	if len(excluded) > 0 {
+		sort.Slice(excluded, func(i, j int) bool {
+			return excluded[i].Less(excluded[j])
+		})
+
+		var listBuf strings.Builder
+		var prevResourceAddr addrs.AbsResource
+		for _, instAddr := range excluded {
+			// Targeting generally ends up selecting whole resources rather
+			// than individual instances, because we don't factor in
+			// individual instances until DynamicExpand, so we're going to
+			// always show whole resource addresses here, excluding any
+			// instance keys. (This also neatly avoids dealing with the
+			// different quoting styles required for string instance keys
+			// on different shells, which is handy.)
+			//
+			// To avoid showing duplicates when we have multiple instances
+			// of the same resource, we'll remember the most recent
+			// resource we rendered in prevResource, which is sufficient
+			// because we sorted the list of instance addresses above, and
+			// our sort order always groups together instances of the same
+			// resource.
+			resourceAddr := instAddr.ContainingResource()
+			if resourceAddr.Equal(prevResourceAddr) {
+				continue
+			}
+			fmt.Fprintf(&listBuf, "\n  -exclude=%q", resourceAddr.String())
+			prevResourceAddr = resourceAddr
+		}
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Moved resource instances excluded by targeting",
+			fmt.Sprintf(
+				"Resource instances in your current state have moved to new addresses in the latest configuration. OpenTofu must include those resource instances while planning in order to ensure a correct result, but your -exclude=... options exclude some of those resource instances.\n\nTo create a valid plan, either remove your -exclude=... options altogether or just specifically remove the following options:%s\n\nNote that removing these options may include further additional resource instances in your plan, in order to respect object dependencies.",
 				listBuf.String(),
 			),
 		))
@@ -662,11 +743,11 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 	log.Printf("[DEBUG] Building and walking plan graph for %s", opts.Mode)
 
 	prevRunState = prevRunState.DeepCopy() // don't modify the caller's object when we process the moves
-	moveStmts, moveResults := c.prePlanFindAndApplyMoves(config, prevRunState, opts.Targets)
+	moveStmts, moveResults := c.prePlanFindAndApplyMoves(config, prevRunState)
 
 	// If resource targeting is in effect then it might conflict with the
 	// move result.
-	diags = diags.Append(c.prePlanVerifyTargetedMoves(moveResults, opts.Targets))
+	diags = diags.Append(c.prePlanVerifyTargetedMoves(moveResults, opts.Targets, opts.Excludes))
 	if diags.HasErrors() {
 		// We'll return early here, because if we have any moved resource
 		// instances excluded by targeting then planning is likely to encounter
@@ -765,6 +846,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			RootVariableValues:      opts.SetVariables,
 			Plugins:                 c.plugins,
 			Targets:                 opts.Targets,
+			Excludes:                opts.Excludes,
 			ForceReplace:            opts.ForceReplace,
 			skipRefresh:             opts.SkipRefresh,
 			preDestroyRefresh:       opts.PreDestroyRefresh,
@@ -778,16 +860,16 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 		return graph, walkPlan, diags
 	case plans.RefreshOnlyMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:                  config,
-			State:                   prevRunState,
-			RootVariableValues:      opts.SetVariables,
-			Plugins:                 c.plugins,
-			Targets:                 opts.Targets,
-			skipRefresh:             opts.SkipRefresh,
-			skipPlanChanges:         true, // this activates "refresh only" mode.
-			Operation:               walkPlan,
-			ExternalReferences:      opts.ExternalReferences,
-			ProviderFunctionTracker: providerFunctionTracker,
+			Config:             config,
+			State:              prevRunState,
+			RootVariableValues: opts.SetVariables,
+			Plugins:            c.plugins,
+			Targets:            opts.Targets,
+			Excludes:           opts.Excludes,
+			skipRefresh:        opts.SkipRefresh,
+			skipPlanChanges:    true, // this activates "refresh only" mode.
+			Operation:          walkPlan,
+			ExternalReferences: opts.ExternalReferences,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.DestroyMode:
@@ -797,6 +879,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			RootVariableValues:      opts.SetVariables,
 			Plugins:                 c.plugins,
 			Targets:                 opts.Targets,
+			Excludes:                opts.Excludes,
 			skipRefresh:             opts.SkipRefresh,
 			Operation:               walkPlanDestroy,
 			ProviderFunctionTracker: providerFunctionTracker,

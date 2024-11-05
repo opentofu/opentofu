@@ -166,6 +166,7 @@ func (c *PlanCommand) OperationRequest(
 	opReq.PlanOutPath = planOutPath
 	opReq.GenerateConfigOut = generateConfigOut
 	opReq.Targets = args.Targets
+	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace
 	opReq.Type = backend.OperationTypePlan
 	opReq.View = view.Operation()
@@ -238,7 +239,14 @@ Plan Customization Options:
                       resource, or resource instance and all of its
                       dependencies. You can use this option multiple times to
                       include more than one object. This is for exceptional
-                      use only.
+                      use only. Cannot be used alongside the -exclude flag
+
+  -exclude=resource   Limit the planning operation to not operate on the given
+                      module, resource, or resource instance and all of the
+                      resources and modules that depend on it. You can use this
+                      option multiple times to exclude more than one object.
+                      This is for exceptional use only. Cannot be used alongside
+                      the -target flag
 
   -var 'foo=bar'      Set a value for one of the input variables in the root
                       module of the configuration. Use this option more than

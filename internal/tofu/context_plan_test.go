@@ -4068,6 +4068,57 @@ func TestContext2Plan_targeted(t *testing.T) {
 	}
 }
 
+// All exclude flag tests in this file are inspired by a counterpart target flag test
+// Usually that test exists right before the exclude flag test
+
+func TestContext2Plan_excluded(t *testing.T) {
+	m := testModule(t, "plan-targeted")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(addrs.ManagedResourceMode, "aws_instance", "foo"),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
+	ty := schema.ImpliedType()
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
+	}
+
+	for _, res := range plan.Changes.Resources {
+		ric, err := res.Decode(ty)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		switch i := ric.Addr.String(); i {
+		case "module.mod[0].aws_instance.foo":
+			if res.Action != plans.Create {
+				t.Fatalf("resource %s should be created", i)
+			}
+			checkVals(t, objectVal(t, schema, map[string]cty.Value{
+				"id":   cty.UnknownVal(cty.String),
+				"num":  cty.NumberIntVal(2),
+				"type": cty.UnknownVal(cty.String),
+			}), ric.After)
+		default:
+			t.Fatal("unknown instance:", i)
+		}
+	}
+}
+
 // Test that targeting a module properly plans any inputs that depend
 // on another module.
 func TestContext2Plan_targetedCrossModule(t *testing.T) {
@@ -4123,6 +4174,33 @@ func TestContext2Plan_targetedCrossModule(t *testing.T) {
 	}
 }
 
+// Test that excluding a module properly plans and excludes any
+// dependent modules.
+func TestContext2Plan_excludedCrossModule(t *testing.T) {
+	m := testModule(t, "plan-targeted-cross-module")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("A", addrs.NoKey),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	if len(plan.Changes.Resources) != 0 {
+		t.Fatal("expected 0 changes, got", len(plan.Changes.Resources))
+	}
+}
+
 func TestContext2Plan_targetedModuleWithProvider(t *testing.T) {
 	m := testModule(t, "plan-targeted-module-with-provider")
 	p := testProvider("null")
@@ -4173,6 +4251,56 @@ func TestContext2Plan_targetedModuleWithProvider(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_excludedModuleWithProvider(t *testing.T) {
+	m := testModule(t, "plan-targeted-module-with-provider")
+	p := testProvider("null")
+	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		Provider: &configschema.Block{
+			Attributes: map[string]*configschema.Attribute{
+				"key": {Type: cty.String, Optional: true},
+			},
+		},
+		ResourceTypes: map[string]*configschema.Block{
+			"null_resource": {
+				Attributes: map[string]*configschema.Attribute{},
+			},
+		},
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("null"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child1", addrs.NoKey),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	schema := p.GetProviderSchemaResponse.ResourceTypes["null_resource"].Block
+	ty := schema.ImpliedType()
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
+	}
+
+	res := plan.Changes.Resources[0]
+	ric, err := res.Decode(ty)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ric.Addr.String() != "module.child2.null_resource.foo" {
+		t.Fatalf("unexpected resource: %s", ric.Addr)
+	}
+}
+
 func TestContext2Plan_targetedOrphan(t *testing.T) {
 	m := testModule(t, "plan-targeted-orphan")
 	p := testProvider("aws")
@@ -4207,6 +4335,71 @@ func TestContext2Plan_targetedOrphan(t *testing.T) {
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
 				addrs.ManagedResourceMode, "aws_instance", "orphan",
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
+	ty := schema.ImpliedType()
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
+	}
+
+	for _, res := range plan.Changes.Resources {
+		ric, err := res.Decode(ty)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		switch i := ric.Addr.String(); i {
+		case "aws_instance.orphan":
+			if res.Action != plans.Delete {
+				t.Fatalf("resource %s should be destroyed", ric.Addr)
+			}
+		default:
+			t.Fatal("unknown instance:", i)
+		}
+	}
+}
+
+func TestContext2Plan_excludedOrphan(t *testing.T) {
+	m := testModule(t, "plan-targeted-orphan")
+	p := testProvider("aws")
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.orphan").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-789xyz"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.nottargeted").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.DestroyMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "nottargeted",
 			),
 		},
 	})
@@ -4301,6 +4494,68 @@ func TestContext2Plan_targetedModuleOrphan(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_excludedModuleOrphan(t *testing.T) {
+	m := testModule(t, "plan-targeted-module-orphan")
+	p := testProvider("aws")
+
+	state := states.NewState()
+	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
+	child.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.orphan").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-789xyz"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+	child.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("aws_instance.nottargeted").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Mode: plans.DestroyMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
+				addrs.ManagedResourceMode, "aws_instance", "nottargeted",
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
+	ty := schema.ImpliedType()
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
+	}
+
+	res := plan.Changes.Resources[0]
+	ric, err := res.Decode(ty)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ric.Addr.String() != "module.child.aws_instance.orphan" {
+		t.Fatalf("unexpected resource :%s", ric.Addr)
+	}
+	if res.Action != plans.Delete {
+		t.Fatalf("resource %s should be deleted", ric.Addr)
+	}
+}
+
 func TestContext2Plan_targetedModuleUntargetedVariable(t *testing.T) {
 	m := testModule(t, "plan-targeted-module-untargeted-variable")
 	p := testProvider("aws")
@@ -4356,9 +4611,64 @@ func TestContext2Plan_targetedModuleUntargetedVariable(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_excludedModuleUntargetedVariable(t *testing.T) {
+	m := testModule(t, "plan-targeted-module-untargeted-variable")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Excludes: []addrs.Targetable{
+			// Exclude green instance, which should also exclude the dependent green module
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "green",
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
+	ty := schema.ImpliedType()
+
+	if len(plan.Changes.Resources) != 2 {
+		t.Fatal("expected 2 changes, got", len(plan.Changes.Resources))
+	}
+
+	for _, res := range plan.Changes.Resources {
+		ric, err := res.Decode(ty)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Action != plans.Create {
+			t.Fatalf("resource %s should be created", ric.Addr)
+		}
+		switch i := ric.Addr.String(); i {
+		case "aws_instance.blue":
+			checkVals(t, objectVal(t, schema, map[string]cty.Value{
+				"id":   cty.UnknownVal(cty.String),
+				"type": cty.UnknownVal(cty.String),
+			}), ric.After)
+		case "module.blue_mod.aws_instance.mod":
+			checkVals(t, objectVal(t, schema, map[string]cty.Value{
+				"id":    cty.UnknownVal(cty.String),
+				"value": cty.UnknownVal(cty.String),
+				"type":  cty.UnknownVal(cty.String),
+			}), ric.After)
+		default:
+			t.Fatal("unknown instance:", i)
+		}
+	}
+}
+
 // ensure that outputs missing references due to targeting are removed from
 // the graph.
-func TestContext2Plan_outputContainsTargetedResource(t *testing.T) {
+func TestContext2Plan_outputContainsUntargetedResource(t *testing.T) {
 	m := testModule(t, "plan-untargeted-resource-output")
 	p := testProvider("aws")
 	ctx := testContext2(t, &ContextOpts{
@@ -4367,13 +4677,14 @@ func TestContext2Plan_outputContainsTargetedResource(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("mod", addrs.NoKey).Resource(
 				addrs.ManagedResourceMode, "aws_instance", "a",
 			),
 		},
 	})
+
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags)
 	}
@@ -4385,6 +4696,77 @@ func TestContext2Plan_outputContainsTargetedResource(t *testing.T) {
 	}
 	if got, want := diags[0].Description().Summary, "Resource targeting is in effect"; got != want {
 		t.Errorf("wrong diagnostic summary %#v; want %#v", got, want)
+	}
+
+	if len(plan.Changes.Outputs) != 0 {
+		t.Fatalf("expected 0 output changes, but got %d", len(plan.Changes.Outputs))
+	}
+
+	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
+	ty := schema.ImpliedType()
+
+	res := plan.Changes.Resources[0]
+	ric, err := res.Decode(ty)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ric.Addr.String() != "module.mod.aws_instance.a[0]" {
+		t.Fatalf("unexpected resource :%s", ric.Addr)
+	}
+	if res.Action != plans.Create {
+		t.Fatalf("resource %s should be deleted", ric.Addr)
+	}
+}
+
+func TestContext2Plan_outputContainsExcludedResource(t *testing.T) {
+	m := testModule(t, "plan-untargeted-resource-output")
+	p := testProvider("aws")
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("mod", addrs.NoKey).Resource(
+				addrs.ManagedResourceMode, "aws_instance", "b",
+			),
+		},
+	})
+
+	if diags.HasErrors() {
+		t.Fatalf("err: %s", diags)
+	}
+	if len(diags) != 1 {
+		t.Fatalf("got %d diagnostics; want 1", diags)
+	}
+	if got, want := diags[0].Severity(), tfdiags.Warning; got != want {
+		t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+	}
+	if got, want := diags[0].Description().Summary, "Resource targeting is in effect"; got != want {
+		t.Errorf("wrong diagnostic summary %#v; want %#v", got, want)
+	}
+
+	if len(plan.Changes.Outputs) != 0 {
+		t.Fatalf("expected 0 output changes, but got %d", len(plan.Changes.Outputs))
+	}
+
+	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
+	ty := schema.ImpliedType()
+
+	res := plan.Changes.Resources[0]
+	ric, err := res.Decode(ty)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if ric.Addr.String() != "module.mod.aws_instance.a[0]" {
+		t.Fatalf("unexpected resource :%s", ric.Addr)
+	}
+	if res.Action != plans.Create {
+		t.Fatalf("resource %s should be deleted", ric.Addr)
 	}
 }
 
@@ -4419,6 +4801,60 @@ func TestContext2Plan_targetedOverTen(t *testing.T) {
 
 	plan, diags := ctx.Plan(m, state, &PlanOpts{
 		Targets: []addrs.Targetable{
+			addrs.RootModuleInstance.ResourceInstance(
+				addrs.ManagedResourceMode, "aws_instance", "foo", addrs.IntKey(1),
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
+	ty := schema.ImpliedType()
+
+	for _, res := range plan.Changes.Resources {
+		ric, err := res.Decode(ty)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.Action != plans.NoOp {
+			t.Fatalf("unexpected action %s for %s", res.Action, ric.Addr)
+		}
+	}
+}
+
+// https://github.com/hashicorp/terraform/issues/4515 - Making sure it doesn't happen with exclude flag
+func TestContext2Plan_excludedOverTen(t *testing.T) {
+	m := testModule(t, "plan-targeted-over-ten")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	for i := 0; i < 13; i++ {
+		key := fmt.Sprintf("aws_instance.foo[%d]", i)
+		id := fmt.Sprintf("i-abc%d", i)
+		attrs := fmt.Sprintf(`{"id":"%s","type":"aws_instance"}`, id)
+
+		root.SetResourceInstanceCurrent(
+			mustResourceInstanceAddr(key).Resource,
+			&states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(attrs),
+			},
+			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		)
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, state, &PlanOpts{
+		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.ResourceInstance(
 				addrs.ManagedResourceMode, "aws_instance", "foo", addrs.IntKey(1),
 			),
@@ -5975,6 +6411,72 @@ resource "aws_instance" "foo" {
 	}
 }
 
+func TestContext2Plan_excludeExpandedAddress(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "mod" {
+  count = 3
+  source = "./mod"
+}
+`,
+		"mod/main.tf": `
+resource "aws_instance" "foo" {
+  count = 2
+}
+`,
+	})
+
+	p := testProvider("aws")
+
+	excludes := []addrs.Targetable{}
+	exclude, diags := addrs.ParseTargetStr("module.mod[1].aws_instance.foo[0]")
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+	excludes = append(excludes, exclude.Subject)
+
+	exclude, diags = addrs.ParseTargetStr("module.mod[2]")
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+	excludes = append(excludes, exclude.Subject)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode:     plans.NormalMode,
+		Excludes: excludes,
+	})
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+
+	expected := map[string]plans.Action{
+		// the whole mod[0], which was not excluded
+		`module.mod[0].aws_instance.foo[0]`: plans.Create,
+		`module.mod[0].aws_instance.foo[1]`: plans.Create,
+		// the unexcluded mod[1] instance
+		`module.mod[1].aws_instance.foo[1]`: plans.Create,
+		// the whole of mod[2] was excluded
+	}
+
+	for _, res := range plan.Changes.Resources {
+		want := expected[res.Addr.String()]
+		if res.Action != want {
+			t.Fatalf("expected %s action, got: %q %s", want, res.Addr, res.Action)
+		}
+		delete(expected, res.Addr.String())
+	}
+
+	for res, action := range expected {
+		t.Errorf("missing %s change for %s", action, res)
+	}
+}
+
 func TestContext2Plan_targetResourceInModuleInstance(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -6015,6 +6517,62 @@ resource "aws_instance" "foo" {
 	expected := map[string]plans.Action{
 		// the single targeted mod[1] instance
 		`module.mod[1].aws_instance.foo`: plans.Create,
+	}
+
+	for _, res := range plan.Changes.Resources {
+		want := expected[res.Addr.String()]
+		if res.Action != want {
+			t.Fatalf("expected %s action, got: %q %s", want, res.Addr, res.Action)
+		}
+		delete(expected, res.Addr.String())
+	}
+
+	for res, action := range expected {
+		t.Errorf("missing %s change for %s", action, res)
+	}
+}
+
+func TestContext2Plan_excludeResourceInModuleInstance(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "mod" {
+  count = 3
+  source = "./mod"
+}
+`,
+		"mod/main.tf": `
+resource "aws_instance" "foo" {
+}
+`,
+	})
+
+	p := testProvider("aws")
+
+	exclude, diags := addrs.ParseTargetStr("module.mod[1].aws_instance.foo")
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+
+	excludes := []addrs.Targetable{exclude.Subject}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode:     plans.NormalMode,
+		Excludes: excludes,
+	})
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+
+	expected := map[string]plans.Action{
+		// the unexcluded instances from mod[0] and mod[2]
+		`module.mod[0].aws_instance.foo`: plans.Create,
+		`module.mod[2].aws_instance.foo`: plans.Create,
 	}
 
 	for _, res := range plan.Changes.Resources {
@@ -6251,6 +6809,57 @@ func TestContext2Plan_targetedModuleInstance(t *testing.T) {
 
 		switch i := ric.Addr.String(); i {
 		case "module.mod[0].aws_instance.foo":
+			if res.Action != plans.Create {
+				t.Fatalf("resource %s should be created", i)
+			}
+			checkVals(t, objectVal(t, schema, map[string]cty.Value{
+				"id":   cty.UnknownVal(cty.String),
+				"num":  cty.NumberIntVal(2),
+				"type": cty.UnknownVal(cty.String),
+			}), ric.After)
+		default:
+			t.Fatal("unknown instance:", i)
+		}
+	}
+}
+
+func TestContext2Plan_excludedModuleInstance(t *testing.T) {
+	m := testModule(t, "plan-targeted")
+	p := testProvider("aws")
+	p.PlanResourceChangeFn = testDiffFn
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "bar",
+			),
+			addrs.RootModuleInstance.Child("mod", addrs.IntKey(0)),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+	schema := p.GetProviderSchemaResponse.ResourceTypes["aws_instance"].Block
+	ty := schema.ImpliedType()
+
+	if len(plan.Changes.Resources) != 1 {
+		t.Fatal("expected 1 changes, got", len(plan.Changes.Resources))
+	}
+
+	for _, res := range plan.Changes.Resources {
+		ric, err := res.Decode(ty)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		switch i := ric.Addr.String(); i {
+		case "aws_instance.foo":
 			if res.Action != plans.Create {
 				t.Fatalf("resource %s should be created", i)
 			}

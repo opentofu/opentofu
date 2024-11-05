@@ -93,14 +93,14 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 		newState.PruneResourceHusks()
 	}
 
-	if len(plan.TargetAddrs) > 0 {
+	if len(plan.TargetAddrs) > 0 || len(plan.ExcludeAddrs) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
 			"Applied changes may be incomplete",
-			`The plan was created with the -target option in effect, so some changes requested in the configuration may have been ignored and the output values may not be fully updated. Run the following command to verify that no other changes are pending:
+			`The plan was created with the -target or the -exclude option in effect, so some changes requested in the configuration may have been ignored and the output values may not be fully updated. Run the following command to verify that no other changes are pending:
     tofu plan
 	
-Note that the -target option is not suitable for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
+Note that the -target and -exclude options are not suitable for routine use, and are provided only for exceptional situations such as recovering from errors or mistakes, or when OpenTofu specifically suggests to use it as part of an error message.`,
 		))
 	}
 
@@ -181,6 +181,7 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, validate 
 		RootVariableValues:      variables,
 		Plugins:                 c.plugins,
 		Targets:                 plan.TargetAddrs,
+		Excludes:                plan.ExcludeAddrs,
 		ForceReplace:            plan.ForceReplaceAddrs,
 		Operation:               operation,
 		ExternalReferences:      plan.ExternalReferences,

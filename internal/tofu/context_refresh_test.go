@@ -291,6 +291,95 @@ func TestContext2Refresh_targeted(t *testing.T) {
 	}
 
 	expected := []string{"vpc-abc123", "i-abc123"}
+	sort.Strings(expected)
+	sort.Strings(refreshedResources)
+	if !reflect.DeepEqual(refreshedResources, expected) {
+		t.Fatalf("expected: %#v, got: %#v", expected, refreshedResources)
+	}
+}
+
+// All exclude flag tests in this file are inspired by a counterpart target flag test
+// Usually that test exists right before the exclude flag test
+
+func TestContext2Refresh_excluded(t *testing.T) {
+	p := testProvider("aws")
+	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		Provider: &configschema.Block{},
+		ResourceTypes: map[string]*configschema.Block{
+			"aws_elb": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"instances": {
+						Type:     cty.Set(cty.String),
+						Optional: true,
+					},
+				},
+			},
+			"aws_instance": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"vpc_id": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+			"aws_vpc": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+				},
+			},
+		},
+	})
+
+	// This test uses the same setup as TestContext2Refresh_targeted, but here the resources that should be refreshed
+	// are aws_vpc.metoo and aws_instance.notme. These are resources that are not aws_instance.me or dependent on it
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	testSetResourceInstanceCurrent(root, "aws_vpc.metoo", `{"id":"vpc-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.notme", `{"id":"i-bcd345"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.me", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+
+	m := testModule(t, "refresh-targeted")
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	refreshedResources := make([]string, 0, 2)
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+		refreshedResources = append(refreshedResources, req.PriorState.GetAttr("id").AsString())
+		return providers.ReadResourceResponse{
+			NewState: req.PriorState,
+		}
+	}
+
+	_, diags := ctx.Refresh(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "me",
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("refresh errors: %s", diags.Err())
+	}
+
+	expected := []string{"vpc-abc123", "i-bcd345"}
+	sort.Strings(expected)
+	sort.Strings(refreshedResources)
 	if !reflect.DeepEqual(refreshedResources, expected) {
 		t.Fatalf("expected: %#v, got: %#v", expected, refreshedResources)
 	}
@@ -386,6 +475,97 @@ func TestContext2Refresh_targetedCount(t *testing.T) {
 	}
 }
 
+func TestContext2Refresh_excludedCount(t *testing.T) {
+	p := testProvider("aws")
+	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		Provider: &configschema.Block{},
+		ResourceTypes: map[string]*configschema.Block{
+			"aws_elb": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"instances": {
+						Type:     cty.Set(cty.String),
+						Optional: true,
+					},
+				},
+			},
+			"aws_instance": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"vpc_id": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+			"aws_vpc": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+				},
+			},
+		},
+	})
+
+	// This test uses the same setup as TestContext2Refresh_targetedCount, but here the resources that should be
+	// refreshed are aws_vpc.metoo and aws_instance.notme. These are resources that are not aws_instance.me or
+	// dependent on it
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	testSetResourceInstanceCurrent(root, "aws_vpc.metoo", `{"id":"vpc-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.notme", `{"id":"i-bcd345"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.me[0]", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.me[1]", `{"id":"i-cde567"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.me[2]", `{"id":"i-cde789"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+
+	m := testModule(t, "refresh-targeted-count")
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	refreshedResources := make([]string, 0, 2)
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+		refreshedResources = append(refreshedResources, req.PriorState.GetAttr("id").AsString())
+		return providers.ReadResourceResponse{
+			NewState: req.PriorState,
+		}
+	}
+
+	_, diags := ctx.Refresh(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Resource(
+				addrs.ManagedResourceMode, "aws_instance", "me",
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("refresh errors: %s", diags.Err())
+	}
+
+	// Target didn't specify index, so we should exclude all instances of aws_instance.me
+	expected := []string{
+		"vpc-abc123",
+		"i-bcd345",
+	}
+	sort.Strings(expected)
+	sort.Strings(refreshedResources)
+	if !reflect.DeepEqual(refreshedResources, expected) {
+		t.Fatalf("wrong result\ngot:  %#v\nwant: %#v", refreshedResources, expected)
+	}
+}
+
 func TestContext2Refresh_targetedCountIndex(t *testing.T) {
 	p := testProvider("aws")
 	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
@@ -463,6 +643,95 @@ func TestContext2Refresh_targetedCountIndex(t *testing.T) {
 	}
 
 	expected := []string{"vpc-abc123", "i-abc123"}
+	sort.Strings(expected)
+	sort.Strings(refreshedResources)
+	if !reflect.DeepEqual(refreshedResources, expected) {
+		t.Fatalf("wrong result\ngot:  %#v\nwant: %#v", refreshedResources, expected)
+	}
+}
+
+func TestContext2Refresh_excludedCountIndex(t *testing.T) {
+	p := testProvider("aws")
+	p.GetProviderSchemaResponse = getProviderSchemaResponseFromProviderSchema(&ProviderSchema{
+		Provider: &configschema.Block{},
+		ResourceTypes: map[string]*configschema.Block{
+			"aws_elb": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"instances": {
+						Type:     cty.Set(cty.String),
+						Optional: true,
+					},
+				},
+			},
+			"aws_instance": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"vpc_id": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+			"aws_vpc": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+				},
+			},
+		},
+	})
+
+	// This test uses the same setup as TestContext2Refresh_targetedCountIndex, but here the resources that should be
+	// refreshed are aws_vpc.metoo, aws_instance.notme, aws_instance.me[1] and aws_instance.me[2]. These are resources
+	// that are not aws_instance.me[0] or dependent on it
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	testSetResourceInstanceCurrent(root, "aws_vpc.metoo", `{"id":"vpc-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.notme", `{"id":"i-bcd345"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.me[0]", `{"id":"i-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.me[1]", `{"id":"i-cde567"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_instance.me[2]", `{"id":"i-cde789"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+	testSetResourceInstanceCurrent(root, "aws_elb.meneither", `{"id":"lb-abc123"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
+
+	m := testModule(t, "refresh-targeted-count")
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	refreshedResources := make([]string, 0, 2)
+	p.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+		refreshedResources = append(refreshedResources, req.PriorState.GetAttr("id").AsString())
+		return providers.ReadResourceResponse{
+			NewState: req.PriorState,
+		}
+	}
+
+	_, diags := ctx.Refresh(m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.ResourceInstance(
+				addrs.ManagedResourceMode, "aws_instance", "me", addrs.IntKey(0),
+			),
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("refresh errors: %s", diags.Err())
+	}
+
+	expected := []string{"vpc-abc123", "i-bcd345", "i-cde567", "i-cde789"}
+	sort.Strings(expected)
+	sort.Strings(refreshedResources)
 	if !reflect.DeepEqual(refreshedResources, expected) {
 		t.Fatalf("wrong result\ngot:  %#v\nwant: %#v", refreshedResources, expected)
 	}

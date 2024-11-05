@@ -7,6 +7,7 @@ package command
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -386,290 +387,222 @@ func TestApply_destroyPath(t *testing.T) {
 	}
 }
 
-// Config with multiple resources with dependencies, targeting destroy of a
-// root node, expecting all other resources to be destroyed due to
-// dependencies.
-func TestApply_destroyTargetedDependencies(t *testing.T) {
-	// Create a temporary working directory that is empty
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath("apply-destroy-targeted"), td)
-	defer testChdir(t, td)()
-
-	originalState := states.BuildState(func(s *states.SyncState) {
-		s.SetResourceInstanceCurrent(
-			addrs.Resource{
-				Mode: addrs.ManagedResourceMode,
-				Type: "test_instance",
-				Name: "foo",
-			}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
-			&states.ResourceInstanceObjectSrc{
-				AttrsJSON: []byte(`{"id":"i-ab123"}`),
-				Status:    states.ObjectReady,
-			},
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
-		)
-		s.SetResourceInstanceCurrent(
-			addrs.Resource{
-				Mode: addrs.ManagedResourceMode,
-				Type: "test_load_balancer",
-				Name: "foo",
-			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-			&states.ResourceInstanceObjectSrc{
-				AttrsJSON:    []byte(`{"id":"i-abc123"}`),
-				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
-				Status:       states.ObjectReady,
-			},
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
-		)
-	})
-	statePath := testStateFile(t, originalState)
-
-	p := testProvider()
-	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
-		ResourceTypes: map[string]providers.Schema{
-			"test_instance": {
-				Block: &configschema.Block{
-					Attributes: map[string]*configschema.Attribute{
-						"id": {Type: cty.String, Computed: true},
+func TestApply_targetedDestroy(t *testing.T) {
+	testCases := []struct {
+		name         string
+		flagName     string
+		flagValue    string
+		wantStatFunc func(s *states.SyncState)
+	}{
+		{
+			// Config with multiple resources with dependencies, targeting destroy of a
+			// leaf node, expecting the other resources to remain.
+			name:      "Targeted Destroy",
+			flagName:  "-target",
+			flagValue: "test_load_balancer.foo",
+			wantStatFunc: func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test_instance",
+						Name: "foo",
+					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"i-ab123"}`),
+						Status:    states.ObjectReady,
 					},
-				},
-			},
-			"test_load_balancer": {
-				Block: &configschema.Block{
-					Attributes: map[string]*configschema.Attribute{
-						"id":        {Type: cty.String, Computed: true},
-						"instances": {Type: cty.List(cty.String), Optional: true},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
 					},
-				},
+				)
+			},
+		},
+		{
+			// Config with multiple resources with dependencies, targeting destroy of a
+			// root node, expecting all other resources to be destroyed due to
+			// dependencies.
+			name:      "Targeted Destroy of root",
+			flagName:  "-target",
+			flagValue: "test_instance.foo",
+			// No wantStatFunc, expecting empty state
+		},
+		{
+			// Config with multiple resources with dependencies, destroy excluding a
+			// non-existent node, expecting all other resources to be destroyed.
+			name:      "Targeted Destroy excluding non-existent resource",
+			flagName:  "-exclude",
+			flagValue: "test_load_balancer.foo-nonexistent",
+			// No wantStatFunc, expecting empty state
+		},
+		{
+			// Config with multiple resources with dependencies, destroy excluding the root node,
+			// expecting other resources to remain
+			name:      "Targeted Destroy with exclude of root",
+			flagName:  "-exclude",
+			flagValue: "test_instance.foo",
+			wantStatFunc: func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test_instance",
+						Name: "foo",
+					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"i-ab123"}`),
+						Status:    states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
+				)
 			},
 		},
 	}
-	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
-		return providers.PlanResourceChangeResponse{
-			PlannedState: req.ProposedNewState,
-		}
-	}
 
-	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
-	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Create a temporary working directory that is empty
+			td := filepath.Join(t.TempDir(), t.Name())
+			testCopyDir(t, testFixturePath("apply-destroy-targeted"), td)
+			defer testChdir(t, td)()
 
-	// Run the apply command pointing to our existing state
-	args := []string{
-		"-auto-approve",
-		"-target", "test_instance.foo",
-		"-state", statePath,
-	}
-	code := c.Run(args)
-	output := done(t)
-	if code != 0 {
-		t.Log(output.Stdout())
-		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
-	}
+			originalState := states.BuildState(func(s *states.SyncState) {
+				s.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test_instance",
+						Name: "foo",
+					}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON: []byte(`{"id":"i-ab123"}`),
+						Status:    states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
+				)
+				s.SetResourceInstanceCurrent(
+					addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test_load_balancer",
+						Name: "foo",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						AttrsJSON:    []byte(`{"id":"i-abc123"}`),
+						Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
+						Status:       states.ObjectReady,
+					},
+					addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
+				)
+			})
 
-	// Verify a new state exists
-	if _, err := os.Stat(statePath); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+			statePath := testStateFile(t, originalState)
 
-	f, err := os.Open(statePath)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer f.Close()
-
-	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if stateFile == nil || stateFile.State == nil {
-		t.Fatal("state should not be nil")
-	}
-
-	spew.Config.DisableMethods = true
-	if !stateFile.State.Empty() {
-		t.Fatalf("unexpected final state\ngot: %s\nwant: empty state", spew.Sdump(stateFile.State))
-	}
-
-	// Should have a backup file
-	f, err = os.Open(statePath + DefaultBackupExtension)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	backupStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	f.Close()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	actualStr := strings.TrimSpace(backupStateFile.State.String())
-	expectedStr := strings.TrimSpace(originalState.String())
-	if actualStr != expectedStr {
-		t.Fatalf("bad:\n\nactual:\n%s\n\nexpected:\nb%s", actualStr, expectedStr)
-	}
-}
-
-// Config with multiple resources with dependencies, targeting destroy of a
-// leaf node, expecting the other resources to remain.
-func TestApply_destroyTargeted(t *testing.T) {
-	// Create a temporary working directory that is empty
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath("apply-destroy-targeted"), td)
-	defer testChdir(t, td)()
-
-	originalState := states.BuildState(func(s *states.SyncState) {
-		s.SetResourceInstanceCurrent(
-			addrs.Resource{
-				Mode: addrs.ManagedResourceMode,
-				Type: "test_instance",
-				Name: "foo",
-			}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
-			&states.ResourceInstanceObjectSrc{
-				AttrsJSON: []byte(`{"id":"i-ab123"}`),
-				Status:    states.ObjectReady,
-			},
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
-		)
-		s.SetResourceInstanceCurrent(
-			addrs.Resource{
-				Mode: addrs.ManagedResourceMode,
-				Type: "test_load_balancer",
-				Name: "foo",
-			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-			&states.ResourceInstanceObjectSrc{
-				AttrsJSON:    []byte(`{"id":"i-abc123"}`),
-				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
-				Status:       states.ObjectReady,
-			},
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
-		)
-	})
-	wantState := states.BuildState(func(s *states.SyncState) {
-		s.SetResourceInstanceCurrent(
-			addrs.Resource{
-				Mode: addrs.ManagedResourceMode,
-				Type: "test_instance",
-				Name: "foo",
-			}.Instance(addrs.IntKey(0)).Absolute(addrs.RootModuleInstance),
-			&states.ResourceInstanceObjectSrc{
-				AttrsJSON: []byte(`{"id":"i-ab123"}`),
-				Status:    states.ObjectReady,
-			},
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
-		)
-	})
-	statePath := testStateFile(t, originalState)
-
-	p := testProvider()
-	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
-		ResourceTypes: map[string]providers.Schema{
-			"test_instance": {
-				Block: &configschema.Block{
-					Attributes: map[string]*configschema.Attribute{
-						"id": {Type: cty.String, Computed: true},
+			p := testProvider()
+			p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+				ResourceTypes: map[string]providers.Schema{
+					"test_instance": {
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"id": {Type: cty.String, Computed: true},
+							},
+						},
+					},
+					"test_load_balancer": {
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"id":        {Type: cty.String, Computed: true},
+								"instances": {Type: cty.List(cty.String), Optional: true},
+							},
+						},
 					},
 				},
-			},
-			"test_load_balancer": {
-				Block: &configschema.Block{
-					Attributes: map[string]*configschema.Attribute{
-						"id":        {Type: cty.String, Computed: true},
-						"instances": {Type: cty.List(cty.String), Optional: true},
-					},
+			}
+
+			p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+				return providers.PlanResourceChangeResponse{
+					PlannedState: req.ProposedNewState,
+				}
+			}
+
+			view, done := testView(t)
+			c := &ApplyCommand{
+				Destroy: true,
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(p),
+					View:             view,
 				},
-			},
-		},
-	}
-	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
-		return providers.PlanResourceChangeResponse{
-			PlannedState: req.ProposedNewState,
-		}
-	}
+			}
 
-	view, done := testView(t)
-	c := &ApplyCommand{
-		Destroy: true,
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(p),
-			View:             view,
-		},
-	}
+			// Run the apply command pointing to our existing state
+			args := []string{
+				"-auto-approve",
+				tc.flagName, tc.flagValue,
+				"-state", statePath,
+			}
 
-	// Run the apply command pointing to our existing state
-	args := []string{
-		"-auto-approve",
-		"-target", "test_load_balancer.foo",
-		"-state", statePath,
-	}
-	code := c.Run(args)
-	output := done(t)
-	if code != 0 {
-		t.Log(output.Stdout())
-		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
-	}
+			code := c.Run(args)
+			output := done(t)
+			if code != 0 {
+				t.Log(output.Stdout())
+				t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+			}
 
-	// Verify a new state exists
-	if _, err := os.Stat(statePath); err != nil {
-		t.Fatalf("err: %s", err)
-	}
+			// Verify a new state exists
+			if _, err := os.Stat(statePath); err != nil {
+				t.Fatalf("err: %s", err)
+			}
 
-	f, err := os.Open(statePath)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer f.Close()
+			f, err := os.Open(statePath)
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
+			defer f.Close()
 
-	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if stateFile == nil || stateFile.State == nil {
-		t.Fatal("state should not be nil")
-	}
+			stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
+			if stateFile == nil || stateFile.State == nil {
+				t.Fatal("state should not be nil")
+			}
 
-	actualStr := strings.TrimSpace(stateFile.State.String())
-	expectedStr := strings.TrimSpace(wantState.String())
-	if actualStr != expectedStr {
-		t.Fatalf("bad:\n\nactual:\n%s\n\nexpected:\nb%s", actualStr, expectedStr)
-	}
+			if tc.wantStatFunc != nil {
+				wantState := states.BuildState(tc.wantStatFunc)
+				actualStr := strings.TrimSpace(stateFile.State.String())
+				expectedStr := strings.TrimSpace(wantState.String())
+				if actualStr != expectedStr {
+					t.Fatalf("bad:\n\nactual:\n%s\n\nexpected:\nb%s", actualStr, expectedStr)
+				}
+			} else if !stateFile.State.Empty() {
+				// Missing wantStatFunc means expected empty state
+				t.Fatalf("unexpected final state\ngot: %s\nwant: empty state", spew.Sdump(stateFile.State))
+			}
 
-	// Should have a backup file
-	f, err = os.Open(statePath + DefaultBackupExtension)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+			// Should have a backup file
+			f, err = os.Open(statePath + DefaultBackupExtension)
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
 
-	backupStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	f.Close()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
+			backupStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
+			f.Close()
+			if err != nil {
+				t.Fatalf("err: %s", err)
+			}
 
-	backupActualStr := strings.TrimSpace(backupStateFile.State.String())
-	backupExpectedStr := strings.TrimSpace(originalState.String())
-	if backupActualStr != backupExpectedStr {
-		t.Fatalf("bad:\n\nactual:\n%s\n\nexpected:\nb%s", backupActualStr, backupExpectedStr)
+			backupActualStr := strings.TrimSpace(backupStateFile.State.String())
+			backupExpectedStr := strings.TrimSpace(originalState.String())
+			if backupActualStr != backupExpectedStr {
+				t.Fatalf("bad:\n\nactual:\n%s\n\nexpected:\nb%s", backupActualStr, backupExpectedStr)
+			}
+		})
 	}
 }
 

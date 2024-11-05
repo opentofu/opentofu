@@ -69,6 +69,9 @@ type NodeAbstractResource struct {
 	// Set from GraphNodeTargetable
 	Targets []addrs.Targetable
 
+	// Set from GraphNodeTargetable
+	Excludes []addrs.Targetable
+
 	// Set from AttachDataResourceDependsOn
 	dependsOn      []addrs.ConfigResource
 	forceDependsOn bool
@@ -392,6 +395,11 @@ func (n *NodeAbstractResource) ResourceAddr() addrs.ConfigResource {
 // GraphNodeTargetable
 func (n *NodeAbstractResource) SetTargets(targets []addrs.Targetable) {
 	n.Targets = targets
+}
+
+// GraphNodeTargetable
+func (n *NodeAbstractResource) SetExcludes(excludes []addrs.Targetable) {
+	n.Excludes = excludes
 }
 
 // graphNodeAttachDataResourceDependsOn
