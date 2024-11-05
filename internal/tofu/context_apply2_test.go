@@ -21,11 +21,14 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/version"
 )
 
 // Test that the PreApply hook is called with the correct deposed key
@@ -2372,6 +2375,372 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 	if hook.PostApplyCalled {
 		t.Fatalf("PostApply hook should not be called as part of forget")
 	}
+}
+
+func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
+	// This test is covering a potentially-tricky interaction between the
+	// logic that updates the provider instance references for resource
+	// instances in state snapshots, and the -target/-exclude features which
+	// cause OpenTofu to skip visiting certain objects.
+	//
+	// The main priority is that we never leave the final state snapshot
+	// in a form that would cause errors or incorrect behavior on a future
+	// plan/apply round. This test covers the current way we resolve the
+	// ambiguity at the time of writing -- by updating the provider
+	// instance addresses of all instances of any resource where at least
+	// one instance is included in the plan -- but if future changes make
+	// this test fail then it might be valid to introduce a different rule
+	// as long as it still guarantees to create a valid final state snapshot.
+
+	rsrcFirst := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "mock",
+		Name: "first",
+	}.Absolute(addrs.RootModuleInstance)
+	rsrcFirstInstA := rsrcFirst.Instance(addrs.StringKey("a"))
+	rsrcFirstInstB := rsrcFirst.Instance(addrs.StringKey("b"))
+	rsrcSecond := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "mock",
+		Name: "second",
+	}.Absolute(addrs.RootModuleInstance)
+	rsrcSecondInstA := rsrcSecond.Instance(addrs.StringKey("a"))
+	rsrcSecondInstB := rsrcSecond.Instance(addrs.StringKey("b"))
+
+	// We use the same test sequence for both -target and -exclude, with
+	// makeStep2PlanOpts providing whichever filter is appropriate for
+	// each test.
+	// For correct operation the plan options must cause OpenTofu to
+	// skip both instances of mock.second and visit at least one instance
+	// of mock.first.
+	runTest := func(t *testing.T, makeStep2PlanOpts func(plans.Mode) *PlanOpts) {
+		mockProviderAddr := addrs.NewBuiltInProvider("mock")
+		providerConfigBefore := addrs.AbsProviderConfig{
+			Module:   addrs.RootModule,
+			Provider: mockProviderAddr,
+			Alias:    "before",
+		}
+		providerConfigAfter := addrs.AbsProviderConfig{
+			Module:   addrs.RootModule,
+			Provider: mockProviderAddr,
+			Alias:    "after",
+		}
+		normalPlanOpts := &PlanOpts{
+			Mode: plans.NormalMode,
+		}
+		p := &MockProvider{
+			GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+				Provider: providers.Schema{
+					Block: &configschema.Block{},
+				},
+				ResourceTypes: map[string]providers.Schema{
+					"mock": {
+						Block: &configschema.Block{},
+					},
+				},
+			},
+		}
+
+		// For this particular test we'll also save state snapshots in JSON format,
+		// so that we're exercising the state snapshot writer and reader in similar way
+		// to how OpenTofu CLI would do it, in case its normalization rules and
+		// consistency checks cause any problems that we can't notice when we're just
+		// passing pointers to the live data structure.
+		var stateJSON []byte
+		readStateSnapshot := func(t *testing.T) *states.State {
+			t.Helper()
+			if len(stateJSON) == 0 {
+				return states.NewState()
+			}
+			ret, err := statefile.Read(bytes.NewReader(stateJSON), encryption.StateEncryptionDisabled())
+			if err != nil {
+				t.Fatalf("failed to read latest state snapshot: %s", err)
+			}
+			return ret.State
+		}
+		writeStateSnapshot := func(t *testing.T, state *states.State) {
+			t.Helper()
+			f := &statefile.File{
+				State:            state,
+				TerraformVersion: version.SemVer,
+			}
+			buf := bytes.NewBuffer(nil)
+			err := statefile.Write(f, buf, encryption.StateEncryptionDisabled())
+			if err != nil {
+				t.Fatalf("failed to write new state snapshot: %s", err)
+			}
+			stateJSON = buf.Bytes()
+		}
+		assertResourceInstanceProviderInstance := func(
+			t *testing.T,
+			state *states.State,
+			addr addrs.AbsResourceInstance,
+			wantConfigAddr addrs.AbsProviderConfig,
+			wantKey addrs.InstanceKey,
+		) {
+			t.Helper()
+			rsrcAddr := addr.ContainingResource()
+			r := state.Resource(rsrcAddr)
+			if r == nil {
+				t.Fatalf("state has no record of %s", rsrcAddr)
+			}
+			ri := r.Instance(addr.Resource.Key)
+			if ri == nil {
+				t.Fatalf("state has no record of %s", addr)
+			}
+			ok := true
+			if got, want := r.ProviderConfig, wantConfigAddr; got.String() != want.String() {
+				t.Errorf(
+					"%s has incorrect provider configuration address\ngot:  %s\nwant: %s",
+					rsrcAddr, got, want,
+				)
+				ok = false
+			}
+			if got, want := ri.ProviderKey, wantKey; got != want {
+				t.Errorf(
+					"%s has incorrect provider instance key\ngot:  %s\nwant: %s",
+					addr, got, want,
+				)
+				ok = false
+			}
+			if !ok {
+				t.FailNow()
+			}
+		}
+
+		t.Log("Step 1: Apply with a multi-instance provider config and two resources to create our initial state")
+		{
+			state := readStateSnapshot(t)
+			m := testModuleInline(t, map[string]string{
+				"main.tf": `
+				terraform {
+					required_providers {
+						mock = {
+							source = "terraform.io/builtin/mock"
+						}
+					}
+				}
+
+				locals {
+					instances = toset(["a", "b"])
+				}
+
+				provider "mock" {
+				    alias    = "before"
+					for_each = local.instances
+				}
+
+				resource "mock" "first" {
+					# NOTE: This is a bad example to follow in a real config,
+					# since it would not be possible to remove elements from
+					# local.instances without encountering an error. We don't
+					# intend to do that for this test, though.
+					for_each = local.instances
+					provider = mock.before[each.key]
+				}
+
+				resource "mock" "second" {
+					for_each = local.instances
+					provider = mock.before[each.key]
+				}
+			`,
+			})
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewBuiltInProvider("mock"): testProviderFuncFixed(p),
+				},
+			})
+			plan, diags := ctx.Plan(m, state, normalPlanOpts)
+			assertNoErrors(t, diags)
+
+			newState, diags := ctx.Apply(plan, m)
+			assertNoErrors(t, diags)
+
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcFirstInstA,
+				providerConfigBefore, addrs.StringKey("a"),
+			)
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcFirstInstB,
+				providerConfigBefore, addrs.StringKey("b"),
+			)
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcSecondInstA,
+				providerConfigBefore, addrs.StringKey("a"),
+			)
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcSecondInstB,
+				providerConfigBefore, addrs.StringKey("b"),
+			)
+
+			writeStateSnapshot(t, newState)
+		}
+
+		t.Log("Step 2: Change the provider configuration address in config but then apply with some graph nodes excluded")
+		{
+			state := readStateSnapshot(t)
+			m := testModuleInline(t, map[string]string{
+				"main.tf": `
+				terraform {
+					required_providers {
+						mock = {
+							source = "terraform.io/builtin/mock"
+						}
+					}
+				}
+
+				locals {
+					instances = toset(["a", "b"])
+				}
+
+				provider "mock" {
+				    alias    = "after"
+					for_each = local.instances
+				}
+
+				resource "mock" "first" {
+					for_each = local.instances
+					provider = mock.after[each.key]
+				}
+
+				resource "mock" "second" {
+					for_each = local.instances
+					provider = mock.after[each.key]
+				}
+			`,
+			})
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewBuiltInProvider("mock"): testProviderFuncFixed(p),
+				},
+			})
+			plan, diags := ctx.Plan(m, state, makeStep2PlanOpts(plans.NormalMode))
+			assertNoErrors(t, diags)
+
+			newState, diags := ctx.Apply(plan, m)
+			assertNoErrors(t, diags)
+
+			// Because makeStep2PlanOpts told us to retain at least one
+			// instance of mock.first, both instances should've been
+			// updated to refer to the new provider instance addresses.
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcFirstInstA,
+				providerConfigAfter, addrs.StringKey("a"),
+			)
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcFirstInstB,
+				providerConfigAfter, addrs.StringKey("b"),
+			)
+			// Because makeStep2PlanOpts told us to exclude both instances
+			// of mock.second, they continue to refer to the original
+			// provider instance addresses.
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcSecondInstA,
+				providerConfigBefore, addrs.StringKey("a"),
+			)
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcSecondInstB,
+				providerConfigBefore, addrs.StringKey("b"),
+			)
+
+			writeStateSnapshot(t, newState)
+		}
+
+		t.Log("Step 3: Remove the mock.first resource completely to destroy both instances using the updated provider config")
+		{
+			state := readStateSnapshot(t)
+			m := testModuleInline(t, map[string]string{
+				"main.tf": `
+				terraform {
+					required_providers {
+						mock = {
+							source = "terraform.io/builtin/mock"
+						}
+					}
+				}
+
+				locals {
+					instances = toset(["a", "b"])
+				}
+
+				provider "mock" {
+				    alias    = "after"
+					for_each = local.instances
+				}
+
+				# mock.first intentionally removed, which should succeed
+				# because the incoming state snapshot should remember that
+				# it was associated with mock.after .
+
+				resource "mock" "second" {
+					for_each = local.instances
+					provider = mock.after[each.key]
+				}
+			`,
+			})
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewBuiltInProvider("mock"): testProviderFuncFixed(p),
+				},
+			})
+			plan, diags := ctx.Plan(m, state, normalPlanOpts)
+			assertNoErrors(t, diags)
+
+			newState, diags := ctx.Apply(plan, m)
+			assertNoErrors(t, diags)
+
+			// The whole resource state for mock.first should've been removed now.
+			if rs := newState.Resource(rsrcFirst); rs != nil {
+				t.Errorf("final state still contains %s", rsrcFirst)
+			}
+
+			// We didn't target or exclude anything this time, so we
+			// should now have both instances of mock.second updated
+			// to refer to the new provider config.
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcSecondInstA,
+				providerConfigAfter, addrs.StringKey("a"),
+			)
+			assertResourceInstanceProviderInstance(
+				t, newState,
+				rsrcSecondInstB,
+				providerConfigAfter, addrs.StringKey("b"),
+			)
+
+			writeStateSnapshot(t, newState)
+		}
+	}
+
+	t.Run("with target", func(t *testing.T) {
+		runTest(t, func(planMode plans.Mode) *PlanOpts {
+			return &PlanOpts{
+				Mode: planMode,
+				Targets: []addrs.Targetable{
+					rsrcFirstInstA,
+				},
+			}
+		})
+	})
+	t.Run("with exclude", func(t *testing.T) {
+		runTest(t, func(planMode plans.Mode) *PlanOpts {
+			return &PlanOpts{
+				Mode: planMode,
+				Excludes: []addrs.Targetable{
+					rsrcSecondInstA,
+					rsrcSecondInstB,
+				},
+			}
+		})
+	})
 }
 
 // All exclude flag tests in this file, from here forward, are inspired by some counterpart target flag test
