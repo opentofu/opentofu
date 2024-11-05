@@ -107,7 +107,7 @@ func (n *NodeAbstractResourceInstance) References() []*addrs.Reference {
 	return nil
 }
 
-func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.Diagnostics {
+func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] Resolving provider key for %s", n.Addr)
@@ -134,10 +134,10 @@ func (n *NodeAbstractResourceInstance) ResolveProvider(ctx EvalContext) tfdiags.
 
 	log.Printf("[TRACE] Resolved provider key for %s as %s", n.Addr, n.ResolvedProviderKey)
 
-	return diags.Append(n.EnsureProvider(ctx))
+	return diags.Append(n.ensureProvider(ctx))
 }
 
-func (n *NodeAbstractResourceInstance) EnsureProvider(ctx EvalContext) tfdiags.Diagnostics {
+func (n *NodeAbstractResourceInstance) ensureProvider(ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// This duplicates a lot of getProvider() and should be refactored as the only place to resolve the provider eventually

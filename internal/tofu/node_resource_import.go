@@ -93,7 +93,7 @@ func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags
 			ResolvedProviderKeyPath: n.ResolvedProviderKeyPath,
 		},
 	}
-	diags = diags.Append(asAbsNode.ResolveProvider(ctx))
+	diags = diags.Append(asAbsNode.resolveProvider(ctx))
 	if diags.HasErrors() {
 		return diags
 	}

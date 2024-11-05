@@ -141,7 +141,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx EvalContext, op walkOperatio
 		return diags
 	}
 
-	diags = n.ResolveProvider(ctx)
+	diags = n.resolveProvider(ctx)
 	if diags.HasErrors() {
 		return diags
 	}

@@ -86,7 +86,7 @@ var (
 func (n *NodePlannableResourceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	addr := n.ResourceInstanceAddr()
 
-	diags := n.ResolveProvider(ctx)
+	diags := n.resolveProvider(ctx)
 	if diags.HasErrors() {
 		return diags
 	}
