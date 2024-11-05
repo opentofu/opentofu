@@ -628,7 +628,9 @@ func TestTransformForTest(t *testing.T) {
 			}
 
 			provider := &Provider{
-				Config: file.Body,
+				ProviderCommon: ProviderCommon{
+					Config: file.Body,
+				},
 			}
 
 			parts := strings.Split(key, ".")
