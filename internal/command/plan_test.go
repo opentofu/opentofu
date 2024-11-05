@@ -242,6 +242,7 @@ func TestPlan_noTestVars(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
 	}
 
+	// Verify values defined in the 'tests' folder are not used during a plan action
 	expectedResult := "ValueFROMmain/tfvars"
 	result := output.All()
 	if !strings.Contains(result, expectedResult) {
