@@ -61,6 +61,22 @@ type GraphNodeCloseProvider interface {
 	CloseProviderAddr() addrs.AbsProviderConfig
 }
 
+type RequestedProvider struct {
+	ProviderConfig addrs.ProviderConfig
+	KeyExpression  hcl.Expression
+	KeyModule      addrs.Module
+	KeyResource    bool
+	KeyExact       addrs.InstanceKey
+}
+
+type ResolvedProvider struct {
+	ProviderConfig addrs.AbsProviderConfig
+	KeyExpression  hcl.Expression
+	KeyModule      addrs.Module
+	KeyResource    bool
+	KeyExact       addrs.InstanceKey
+}
+
 // GraphNodeProviderConsumer is an interface that nodes that require
 // a provider must implement. ProvidedBy must return the address of the provider
 // to use, which will be resolved to a configuration either in the same module
@@ -79,13 +95,13 @@ type GraphNodeProviderConsumer interface {
 	//   resolved elsewhere and must be referenced directly. No inheritence
 	//   logic is allowed.
 	//   Examples: state, resource instance (resolved),
-	ProvidedBy() addrs.ProviderConfig
+	ProvidedBy() RequestedProvider
 
 	// Provider() returns the Provider FQN for the node.
 	Provider() (provider addrs.Provider)
 
 	// Set the resolved provider address for this resource.
-	SetProvider(addrs.AbsProviderConfig, hcl.Expression, addrs.Module)
+	SetProvider(ResolvedProvider)
 }
 
 // ProviderTransformer is a GraphTransformer that maps resources to providers
@@ -113,11 +129,11 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			continue
 		}
 		req := pv.ProvidedBy()
-		if req == nil {
+		if req.ProviderConfig == nil {
 			// no provider is required
 			continue
 		}
-		switch providerAddr := req.(type) {
+		switch providerAddr := req.ProviderConfig.(type) {
 		case addrs.AbsProviderConfig:
 			target := m[providerAddr.String()]
 			if target == nil {
@@ -151,7 +167,14 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 			}
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
-			pv.SetProvider(target.ProviderAddr(), nil, nil) // In this scenario, the keys are already known
+			pv.SetProvider(ResolvedProvider{
+				ProviderConfig: target.ProviderAddr(),
+				// Pass through key data
+				KeyExpression: req.KeyExpression,
+				KeyModule:     req.KeyModule,
+				KeyResource:   req.KeyResource,
+				KeyExact:      req.KeyExact,
+			})
 			g.Connect(dag.BasicEdge(v, target))
 		case addrs.LocalProviderConfig:
 			// We assume that the value returned from Provider() has already been
@@ -197,17 +220,30 @@ func (t *ProviderTransformer) Transform(g *Graph) error {
 				continue
 			}
 
-			var targetExpr hcl.Expression
-			var targetPath addrs.Module
+			resolved := ResolvedProvider{
+				KeyResource:   req.KeyResource,
+				KeyExpression: req.KeyExpression,
+			}
 
 			// see if this is a proxy provider pointing to another concrete config
 			if p, ok := target.(*graphNodeProxyProvider); ok {
 				target = p.Target()
-				targetExpr, targetPath = p.TargetExpr()
+
+				targetExpr, targetPath := p.TargetExpr()
+				if targetExpr != nil {
+					if resolved.KeyResource {
+						// Module key and resource key are both required. This is not allowed!
+						diags = diags.Append(fmt.Errorf("provider instance key provided for both resource and module at %q, this is a bug and should be reported", dag.VertexName(v)))
+						continue
+					}
+					resolved.KeyExpression = targetExpr
+					resolved.KeyModule = targetPath
+				}
 			}
+			resolved.ProviderConfig = target.ProviderAddr()
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
-			pv.SetProvider(target.ProviderAddr(), targetExpr, targetPath)
+			pv.SetProvider(resolved)
 			g.Connect(dag.BasicEdge(v, target))
 		default:
 			panic(fmt.Sprintf("BUG: Invalid provider address type %T for %#v", req, req))

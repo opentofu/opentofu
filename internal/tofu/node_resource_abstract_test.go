@@ -145,7 +145,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	p := node.ProvidedBy()
 
 	// the implied non-exact provider should be "terraform"
-	lpc, ok := p.(addrs.LocalProviderConfig)
+	lpc, ok := p.ProviderConfig.(addrs.LocalProviderConfig)
 	if !ok {
 		t.Fatalf("expected LocalProviderConfig, got %#v\n", p)
 	}
@@ -165,10 +165,10 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		Alias:  "test",
 	}
 
-	node.SetProvider(resolved, nil, nil)
+	node.SetProvider(ResolvedProvider{ProviderConfig: resolved})
 	p = node.ProvidedBy()
 
-	apc, ok := p.(addrs.AbsProviderConfig)
+	apc, ok := p.ProviderConfig.(addrs.AbsProviderConfig)
 	if !ok {
 		t.Fatalf("expected AbsProviderConfig, got %#v\n", p)
 	}
@@ -215,7 +215,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			}),
 			Node: &NodeAbstractResourceInstance{NodeAbstractResource: NodeAbstractResource{
 				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 			}},
 			ExpectedInstanceId: "i-abc123",
 		},
@@ -281,7 +281,7 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 			}),
 			Node: &NodeAbstractResourceInstance{NodeAbstractResource: NodeAbstractResource{
 				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 			}},
 			ExpectedInstanceId: "i-abc123",
 		},

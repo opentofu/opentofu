@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -19,12 +18,10 @@ import (
 )
 
 type graphNodeImportState struct {
-	Addr                    addrs.AbsResourceInstance // Addr is the resource address to import into
-	ID                      string                    // ID is the ID to import as
-	ResolvedProvider        addrs.AbsProviderConfig   // provider node address after resolution
-	ResolvedProviderKeyExpr hcl.Expression            // dynamic provider instance key expression
-	ResolvedProviderKeyPath addrs.Module              // module where dynamic provider instance key should be resolved
-	ResolvedProviderKey     addrs.InstanceKey         // resolved from ResolvedProviderKeyExpr+ResolvedProviderKeyPath in method Execute
+	Addr                addrs.AbsResourceInstance // Addr is the resource address to import into
+	ID                  string                    // ID is the ID to import as
+	ResolvedProvider    ResolvedProvider          // provider node address after resolution
+	ResolvedProviderKey addrs.InstanceKey         // resolved from ResolvedProviderKeyExpr+ResolvedProviderKeyPath in method Execute
 
 	Schema        *configschema.Block // Schema for processing the configuration body
 	SchemaVersion uint64              // Schema version of "Schema", as decided by the provider
@@ -45,22 +42,26 @@ func (n *graphNodeImportState) Name() string {
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) ProvidedBy() addrs.ProviderConfig {
+func (n *graphNodeImportState) ProvidedBy() RequestedProvider {
 	// This has already been resolved by nodeExpandPlannableResource
-	return n.ResolvedProvider
+	return RequestedProvider{
+		ProviderConfig: n.ResolvedProvider.ProviderConfig,
+		KeyExpression:  n.ResolvedProvider.KeyExpression,
+		KeyModule:      n.ResolvedProvider.KeyModule,
+		KeyResource:    n.ResolvedProvider.KeyResource,
+		KeyExact:       n.ResolvedProvider.KeyExact,
+	}
 }
 
 // GraphNodeProviderConsumer
 func (n *graphNodeImportState) Provider() addrs.Provider {
 	// This has already been resolved by nodeExpandPlannableResource
-	return n.ResolvedProvider.Provider
+	return n.ResolvedProvider.ProviderConfig.Provider
 }
 
 // GraphNodeProviderConsumer
-func (n *graphNodeImportState) SetProvider(addr addrs.AbsProviderConfig, keyExpr hcl.Expression, keyModule addrs.Module) {
-	n.ResolvedProvider = addr
-	n.ResolvedProviderKeyExpr = keyExpr
-	n.ResolvedProviderKeyPath = keyModule
+func (n *graphNodeImportState) SetProvider(resolved ResolvedProvider) {
+	n.ResolvedProvider = resolved
 }
 
 // GraphNodeModuleInstance
@@ -84,13 +85,11 @@ func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags
 	asAbsNode := &NodeAbstractResourceInstance{
 		Addr: n.Addr,
 		NodeAbstractResource: NodeAbstractResource{
-			Addr:                    n.Addr.ConfigResource(),
-			Config:                  n.Config,
-			Schema:                  n.Schema,
-			SchemaVersion:           n.SchemaVersion,
-			ResolvedProvider:        n.ResolvedProvider,
-			ResolvedProviderKeyExpr: n.ResolvedProviderKeyExpr,
-			ResolvedProviderKeyPath: n.ResolvedProviderKeyPath,
+			Addr:             n.Addr.ConfigResource(),
+			Config:           n.Config,
+			Schema:           n.Schema,
+			SchemaVersion:    n.SchemaVersion,
+			ResolvedProvider: n.ResolvedProvider,
 		},
 	}
 	diags = diags.Append(asAbsNode.resolveProvider(ctx))
@@ -98,9 +97,9 @@ func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags
 		return diags
 	}
 	n.ResolvedProviderKey = asAbsNode.ResolvedProviderKey
-	log.Printf("[TRACE] graphNodeImportState: importing using %s instance %s", n.ResolvedProvider, n.ResolvedProviderKey)
+	log.Printf("[TRACE] graphNodeImportState: importing using %s instance %s", n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 
-	provider, _, err := getProvider(ctx, n.ResolvedProvider, n.ResolvedProviderKey)
+	provider, _, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -222,7 +221,7 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 type graphNodeImportStateSub struct {
 	TargetAddr          addrs.AbsResourceInstance
 	State               providers.ImportedResource
-	ResolvedProvider    addrs.AbsProviderConfig
+	ResolvedProvider    ResolvedProvider
 	ResolvedProviderKey addrs.InstanceKey // the dynamic instance ResolvedProvider
 
 	Schema        *configschema.Block // Schema for processing the configuration body

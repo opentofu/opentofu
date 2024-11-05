@@ -57,7 +57,7 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx EvalContext, op walkOp
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		diags := n.ensureProvider(ctx)
+		diags := n.resolveProvider(ctx)
 		if diags.HasErrors() {
 			return diags
 		}
@@ -69,10 +69,10 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx EvalContext, op walkOp
 	}
 }
 
-func (n *NodePlannableResourceInstanceOrphan) ProvidedBy() addrs.ProviderConfig {
+func (n *NodePlannableResourceInstanceOrphan) ProvidedBy() RequestedProvider {
 	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		// indicate that this node does not require a configured provider
-		return nil
+		return RequestedProvider{}
 	}
 	return n.NodeAbstractResourceInstance.ProvidedBy()
 }
@@ -84,10 +84,10 @@ func (n *NodePlannableResourceInstanceOrphan) dataResourceExecute(ctx EvalContex
 	// we need to update both the refresh state to refresh the current data
 	// source, and the working state for plan-time evaluations.
 	refreshState := ctx.RefreshState()
-	refreshState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider, n.ResolvedProviderKey)
+	refreshState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 
 	workingState := ctx.State()
-	workingState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider, n.ResolvedProviderKey)
+	workingState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	return nil
 }
 
