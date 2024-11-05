@@ -153,9 +153,9 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 
 			if isV4.ProviderConfig != "" && rsV4.ProviderConfig != "" {
 				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
+					tfdiags.Warning,
 					"Provider field conflict in state",
-					fmt.Sprintf("Resource %s has a provider address, as well as an instance with a provider address.", rAddr.Absolute(moduleAddr)),
+					fmt.Sprintf("Resource %s has a provider address %s, as well as instance %s with provider address %s.", rAddr.Absolute(moduleAddr), rsV4.ProviderConfig, key, isV4.ProviderConfig),
 				))
 			}
 
