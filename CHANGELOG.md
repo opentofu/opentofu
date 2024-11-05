@@ -5,6 +5,7 @@ UPGRADE NOTES:
 * Using the `ghcr.io/opentofu/opentofu` image as a base image for custom images is deprecated and this will be removed in OpenTofu 1.10. Please see https://opentofu.org/docs/intro/install/docker/ for instructions on building your own image.
 
 NEW FEATURES:
+* Add support for `-exclude` flag, to allow excluding specific resources and modules with resource targeting ([#426](https://github.com/opentofu/opentofu/issues/426))
 
 ENHANCEMENTS:
 * State encryption key providers now support customizing the metadata key via `encrypted_metadata_alias` ([#1605](https://github.com/opentofu/opentofu/issues/1605))
