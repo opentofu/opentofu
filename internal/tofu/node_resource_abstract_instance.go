@@ -2645,7 +2645,7 @@ func resourceInstancePrevRunAddr(ctx EvalContext, currentAddr addrs.AbsResourceI
 }
 
 func (n *NodeAbstractResourceInstance) getProvider(ctx EvalContext, addr addrs.AbsProviderConfig) (providers.Interface, providers.ProviderSchema, error) {
-	underlyingProvider, schema, err := getProvider(ctx, addr, n.ResolvedProviderKey) // TODO remove parameter addr
+	underlyingProvider, schema, err := getProvider(ctx, addr, n.ResolvedProviderKey)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, err
 	}

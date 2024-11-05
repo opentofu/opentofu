@@ -338,10 +338,12 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 					Addr:             c.Addr,
 					ID:               c.ID,
 					ResolvedProvider: n.ResolvedProvider,
-					Schema:           n.Schema,
-					SchemaVersion:    n.SchemaVersion,
-					Config:           n.Config,
-					// TODO ResolvedProviderKey?
+					// Copy in the data requried for the key expressions
+					ResolvedProviderKeyExpr: n.ResolvedProviderKeyExpr,
+					ResolvedProviderKeyPath: n.ResolvedProviderKeyPath,
+					Schema:                  n.Schema,
+					SchemaVersion:           n.SchemaVersion,
+					Config:                  n.Config,
 				}
 			}
 		}

@@ -639,7 +639,6 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 			Config:   remain,
 			Managed:  &configs.ManagedResource{},
 			Provider: n.ResolvedProvider.Provider,
-			// TODO provider key?
 		}
 	}
 
