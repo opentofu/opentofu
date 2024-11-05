@@ -247,12 +247,12 @@ func TestPlan_noTestVars(t *testing.T) {
 
 	plan := testReadPlan(t, outPath)
 	ctyTestVar := plan.VariableValues["testVar"]
-	psuedo, err := ctyTestVar.Decode(cty.DynamicPseudoType)
+	decodedExpectedVar, err := ctyTestVar.Decode(cty.DynamicPseudoType)
 	if err != nil {
 		t.Fatalf("Unable to decode plan variables, error: %v", err)
 	}
 
-	result := psuedo.GoString()
+	result := decodedExpectedVar.AsString()
 	if !strings.Contains(result, "ValueFROMmain/tfvars") {
 		t.Fatalf("Expected testVar to equal 'ValueFROMmain/tfvars', got: %s", result)
 	}
