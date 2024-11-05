@@ -103,17 +103,24 @@ func (p *providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) prov
 	return resp
 }
 
+// ValidateProviderConfig is irrelevant when provider is mocked or overridden.
+func (p *providerForTest) ValidateProviderConfig(r providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
+	return providers.ValidateProviderConfigResponse{}
+}
+
+// GetProviderSchema is also used to perform additional validation outside of the provider
+// implementation. We are excluding parts of the schema related to provider since it is
+// irrelevant in the scope of mocking / overriding.
+func (p *providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
+	providerSchema := p.internal.GetProviderSchema()
+	providerSchema.Provider = providers.Schema{}
+	providerSchema.ProviderMeta = providers.Schema{}
+	return providerSchema
+}
+
 // Calling the internal provider ensures providerForTest has the same behaviour as if
 // it wasn't overridden or mocked. The only exception is ImportResourceState, which panics
 // if called via providerForTest because importing is not supported in testing framework.
-
-func (p *providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
-	return p.internal.GetProviderSchema()
-}
-
-func (p *providerForTest) ValidateProviderConfig(r providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
-	return p.internal.ValidateProviderConfig(r)
-}
 
 func (p *providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 	return p.internal.ValidateResourceConfig(r)
