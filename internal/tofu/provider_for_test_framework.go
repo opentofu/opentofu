@@ -104,7 +104,7 @@ func (p *providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) prov
 }
 
 // ValidateProviderConfig is irrelevant when provider is mocked or overridden.
-func (p *providerForTest) ValidateProviderConfig(r providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
+func (p *providerForTest) ValidateProviderConfig(_ providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
 	return providers.ValidateProviderConfigResponse{}
 }
 
