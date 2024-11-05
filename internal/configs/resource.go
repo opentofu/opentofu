@@ -668,11 +668,13 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 
 	var keyExpr hcl.Expression
 
-	// name.alias[const_key]
-	nameIndex := 0
-	aliasIndex := 1
-	keyIndex := 2
-	maxTraversalLength := keyIndex + 1
+	const (
+		// name.alias[const_key]
+		nameIndex  = 0
+		aliasIndex = 1
+		keyIndex   = 2
+	)
+	var maxTraversalLength = keyIndex + 1
 
 	// name.alias[expr_key]
 	if iex, ok := expr.(*hclsyntax.IndexExpr); ok {
