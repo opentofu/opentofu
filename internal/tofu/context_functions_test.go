@@ -681,14 +681,14 @@ func TestContext2Functions_providerFunctionsForEachCount(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
 provider "aws" {
-  count = 5
+  for_each = {"a": 1, "b": 2}
   alias = "iter"
 }
 module "mod" {
   source = "./mod"
-  count = 5
+  for_each = {"a": 1, "b": 2}
   providers = {
-    aws = aws.iter[count.index]
+    aws = aws.iter[each.key]
   }
 }
  `,
