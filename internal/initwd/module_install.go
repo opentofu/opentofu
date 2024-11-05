@@ -526,7 +526,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			constraint := req.VersionConstraint.Required.String()
 			acceptableVersions, err := versions.MeetingConstraintsString(constraint)
 			if err != nil {
-				log.Printf("[WARN] ModuleInstaller: Attempting to strip \"v\" prefixes, because version constraints %q was unable to be parsed: %s", constraint, err.Error())
+				log.Printf("[WARN] ModuleInstaller: %s (while evaluating %s) attempting to strip \"v\" prefixes from constraint (%s) because it was unable to be parsed: %s", key, v, constraint, err.Error())
 				// apparentlymart/go-versions purposely doesn't accept "v" prefixes.
 				// However, hashicorp/go-version does, which leads to inconsistent
 				// errors when specifying constraints that contain prerelease
@@ -543,7 +543,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				}))
 				acceptableVersions, err = versions.MeetingConstraintsString(strippedConstraint)
 				if err != nil {
-					log.Printf("[WARN] ModuleInstaller: %s ignoring %s because the version constraints (%s) could not be parsed: %s", key, v, req.VersionConstraint.Required.String(), err.Error())
+					log.Printf("[WARN] ModuleInstaller: %s ignoring %s because the version constraints (%s) could not be parsed: %s", key, v, strippedConstraint, err.Error())
 					continue
 				}
 			}
