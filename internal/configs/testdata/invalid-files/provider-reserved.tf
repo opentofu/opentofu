@@ -7,6 +7,7 @@ provider "test" {
   arbitrary = true
 
   # These are all reserved and should generate errors.
+  count = 3
   depends_on = ["foo.bar"]
   source     = "foo.example.com/baz/bar"
   lifecycle {}
