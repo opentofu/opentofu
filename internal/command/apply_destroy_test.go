@@ -419,6 +419,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
+					addrs.NoKey,
 				)
 			},
 		},
@@ -460,6 +461,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
+					addrs.NoKey,
 				)
 			},
 		},
@@ -487,6 +489,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					addrs.Resource{
@@ -503,6 +506,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
+					addrs.NoKey,
 				)
 			})
 
