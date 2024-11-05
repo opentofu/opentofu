@@ -950,6 +950,7 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		// for by this run block.
 
 		for _, ref := range run.Providers {
+
 			testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
 			if !ok {
 				// Then this reference was invalid as we didn't have the
@@ -965,16 +966,15 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 			}
 
 			next[ref.InChild.String()] = &Provider{
-				ProviderCommon: ProviderCommon{
-					Name:          ref.InChild.Name,
-					NameRange:     ref.InChild.NameRange,
-					Version:       testProvider.Version,
-					Config:        testProvider.Config,
-					DeclRange:     testProvider.DeclRange,
-					IsMocked:      testProvider.IsMocked,
-					MockResources: testProvider.MockResources,
-				},
-				Alias: ref.InChild.Alias,
+				Name:          ref.InChild.Name,
+				NameRange:     ref.InChild.NameRange,
+				Alias:         ref.InChild.Alias,
+				AliasRange:    ref.InChild.AliasRange,
+				Version:       testProvider.Version,
+				Config:        testProvider.Config,
+				DeclRange:     testProvider.DeclRange,
+				IsMocked:      testProvider.IsMocked,
+				MockResources: testProvider.MockResources,
 			}
 
 		}
@@ -986,14 +986,13 @@ func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (
 		}
 		for _, mp := range file.MockProviders {
 			next[mp.moduleUniqueKey()] = &Provider{
-				ProviderCommon: ProviderCommon{
-					Name:          mp.Name,
-					NameRange:     mp.NameRange,
-					DeclRange:     mp.DeclRange,
-					IsMocked:      true,
-					MockResources: mp.MockResources,
-				},
-				Alias: mp.Alias,
+				Name:          mp.Name,
+				NameRange:     mp.NameRange,
+				Alias:         mp.Alias,
+				AliasRange:    mp.AliasRange,
+				DeclRange:     mp.DeclRange,
+				IsMocked:      true,
+				MockResources: mp.MockResources,
 			}
 		}
 	}

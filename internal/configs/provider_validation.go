@@ -94,7 +94,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-									provider.Addr().StringCompact(), name, providerType, requirement.Name, requirement.Type, provider.Addr().StringCompact(), name),
+									provider.moduleUniqueKey(), name, providerType, requirement.Name, requirement.Type, provider.moduleUniqueKey(), name),
 								Subject: provider.DeclRange.Ptr(),
 							})
 						}
@@ -114,7 +114,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Summary:  "Provider type mismatch",
 									Detail: fmt.Sprintf(
 										"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-										provider.Addr().StringCompact(), name, providerType, alias.StringCompact(), requirement.Type, provider.Addr().StringCompact(), name),
+										provider.moduleUniqueKey(), name, providerType, alias.StringCompact(), requirement.Type, provider.moduleUniqueKey(), name),
 									Subject: provider.DeclRange.Ptr(),
 								})
 							}
@@ -129,7 +129,8 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 						providerType = addrs.NewDefaultProvider(provider.Name)
 					}
 
-					if testProvider, exists := test.Providers[provider.Addr().StringCompact()]; exists {
+					if testProvider, exists := test.Providers[provider.moduleUniqueKey()]; exists {
+
 						testProviderType := testProvider.providerType
 						if testProviderType.IsZero() {
 							testProviderType = addrs.NewDefaultProvider(testProvider.Name)
@@ -141,7 +142,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s has been referenced by multiple run blocks and assigned to different provider types.",
-									testProvider.Addr().StringCompact(), name, testProviderType, provider.Addr().StringCompact(), providerType, testProvider.Addr().StringCompact(), name),
+									testProvider.moduleUniqueKey(), name, testProviderType, provider.moduleUniqueKey(), providerType, testProvider.moduleUniqueKey(), name),
 								Subject: testProvider.DeclRange.Ptr(),
 							})
 						}
@@ -177,6 +178,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Name:         provider.Name,
 									NameRange:    provider.NameRange,
 									Alias:        provider.Alias,
+									AliasRange:   provider.AliasRange,
 									providerType: provider.providerType,
 								},
 							}
@@ -201,6 +203,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 										Name:         provider.Name,
 										NameRange:    provider.NameRange,
 										Alias:        provider.Alias,
+										AliasRange:   provider.AliasRange,
 										providerType: provider.providerType,
 									},
 								}
@@ -220,7 +223,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 					// better error messages to use these.
 
 					for _, provider := range cfg.Module.ProviderConfigs {
-						key := provider.Addr().StringCompact()
+						key := provider.moduleUniqueKey()
 
 						if testProvider, exists := test.Providers[key]; exists {
 							matchedProviders[key] = PassedProviderConfig{
@@ -235,6 +238,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Name:         testProvider.Name,
 									NameRange:    testProvider.NameRange,
 									Alias:        testProvider.Alias,
+									AliasRange:   testProvider.AliasRange,
 									providerType: testProvider.providerType,
 								},
 							}
