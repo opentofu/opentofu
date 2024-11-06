@@ -55,6 +55,7 @@ BUG FIXES:
 * `tofu plan` change description now includes information about configuration blocks generated using a `dynamic` block with an unknown `for_each` value. ([#1948](https://github.com/opentofu/opentofu/pull/1948))
 * Error message about a provider type mismatch now correctly identifies which module contains the problem. ([#1991](https://github.com/opentofu/opentofu/pull/1991))
 * The `yamldecode` function's interpretation of scalars as numbers now conforms to the YAML 1.2 specification. In particular, the scalar value `+` is now interpreted as the string `"+"` rather than returning a parse error trying to interpret it as an integer. ([#2044](https://github.com/opentofu/opentofu/pull/2044))
+* A `module` block's `version` argument now accepts prerelease version selections using a "v" prefix before the version number. Previously this was accepted only for non-prerelease selections. ([#2124])(https://github.com/opentofu/opentofu/issues/2124)
 
 INTERNAL CHANGES:
 
