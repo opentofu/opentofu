@@ -4,7 +4,7 @@ UPGRADE NOTES:
 
 * Using the `ghcr.io/opentofu/opentofu` image as a base image for custom images is deprecated and this will be removed in OpenTofu 1.10.
 
-    Please refer to https://opentofu.org/docs/intro/install/docker/ for instructions on building your own image.
+    Please refer to https://opentofu.org/docs/main/intro/install/docker/ for instructions on building your own image.
 
 NEW FEATURES:
 
