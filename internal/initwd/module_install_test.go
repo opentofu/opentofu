@@ -280,6 +280,14 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 			name:        "multiple constraints",
 			modulePath:  "testdata/prerelease-constraint-multiple",
 			shouldError: true,
+			// NOTE: This one fails because we don't support mixing a prerelease version
+			// selection with other constraints in a single constraint string. This is
+			// unfortunate but accepted for now as a concession to backward compatibility
+			// until we have a more complete plan on how to deal with the various legacy
+			// quirks of our version constraint matching.
+			//
+			// For more information:
+			//     https://github.com/opentofu/opentofu/issues/2117
 		},
 		{
 			name:        "err",
@@ -303,8 +311,8 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 
 			modulesDir := filepath.Join(dir, ".terraform/modules")
 
-			loader, close := configload.NewLoaderForTests(t)
-			defer close()
+			loader, closeLoader := configload.NewLoaderForTests(t)
+			defer closeLoader()
 			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
 			cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
@@ -322,7 +330,6 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 			if !cfg.Children["acctest"].Version.Equal(version.Must(version.NewVersion(tc.expectedVersion))) {
 				t.Fatalf("expected version %s but found version %s", tc.expectedVersion, cfg.Version.String())
 			}
-
 		})
 	}
 }
