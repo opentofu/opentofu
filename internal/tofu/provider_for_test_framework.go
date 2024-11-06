@@ -118,41 +118,9 @@ func (p *providerForTest) GetProviderSchema() providers.GetProviderSchemaRespons
 	return providerSchema
 }
 
-// Calling the internal provider ensures providerForTest has the same behaviour as if
-// it wasn't overridden or mocked. The only exception is ImportResourceState, which panics
-// if called via providerForTest because importing is not supported in testing framework.
-
-func (p *providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
-	return p.internal.ValidateResourceConfig(r)
-}
-
-func (p *providerForTest) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
-	return p.internal.ValidateDataResourceConfig(r)
-}
-
-func (p *providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
-	return p.internal.UpgradeResourceState(r)
-}
-
 // providerForTest doesn't configure its internal provider because it is mocked.
 func (p *providerForTest) ConfigureProvider(_ providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	return providers.ConfigureProviderResponse{}
-}
-
-func (p *providerForTest) Stop() error {
-	return p.internal.Stop()
-}
-
-func (p *providerForTest) GetFunctions() providers.GetFunctionsResponse {
-	return p.internal.GetFunctions()
-}
-
-func (p *providerForTest) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	return p.internal.CallFunction(r)
-}
-
-func (p *providerForTest) Close() error {
-	return p.internal.Close()
 }
 
 func (p *providerForTest) ImportResourceState(providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
@@ -195,6 +163,38 @@ func (p *providerForTest) addMockResources(mockResources []*configs.MockResource
 			overrideValues: mockRes.Defaults,
 		}
 	}
+}
+
+// Calling the internal provider ensures providerForTest has the same behaviour as if
+// it wasn't overridden or mocked. The only exception is ImportResourceState, which panics
+// if called via providerForTest because importing is not supported in testing framework.
+
+func (p *providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	return p.internal.ValidateResourceConfig(r)
+}
+
+func (p *providerForTest) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
+	return p.internal.ValidateDataResourceConfig(r)
+}
+
+func (p *providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
+	return p.internal.UpgradeResourceState(r)
+}
+
+func (p *providerForTest) Stop() error {
+	return p.internal.Stop()
+}
+
+func (p *providerForTest) GetFunctions() providers.GetFunctionsResponse {
+	return p.internal.GetFunctions()
+}
+
+func (p *providerForTest) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+	return p.internal.CallFunction(r)
+}
+
+func (p *providerForTest) Close() error {
+	return p.internal.Close()
 }
 
 type resourceForTest struct {
