@@ -57,6 +57,7 @@ BUG FIXES:
 * The `yamldecode` function's interpretation of scalars as numbers now conforms to the YAML 1.2 specification. In particular, the scalar value `+` is now interpreted as the string `"+"` rather than returning a parse error trying to interpret it as an integer. ([#2044](https://github.com/opentofu/opentofu/pull/2044))
 * A `module` block's `version` argument now accepts prerelease version selections using a "v" prefix before the version number. Previously this was accepted only for non-prerelease selections. ([#2124])(https://github.com/opentofu/opentofu/issues/2124)
 * The `tofu test` command doesn't try to validate mock provider definition by its underlying provider schema now. ([#2140](https://github.com/opentofu/opentofu/pull/2140))
+* Type validation for mocks and overrides are now less strict in `tofu test`. ([#2144](https://github.com/opentofu/opentofu/pull/2144))
 
 INTERNAL CHANGES:
 
