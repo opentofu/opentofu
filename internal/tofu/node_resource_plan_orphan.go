@@ -57,7 +57,7 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx EvalContext, op walkOp
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		diags := n.resolveProvider(ctx)
+		diags := n.resolveProvider(ctx, true)
 		if diags.HasErrors() {
 			return diags
 		}

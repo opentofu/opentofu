@@ -107,7 +107,7 @@ func (n *NodeAbstractResourceInstance) References() []*addrs.Reference {
 	return nil
 }
 
-func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext) tfdiags.Diagnostics {
+func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext, hasExpansionData bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] Resolving provider key for %s", n.Addr)
@@ -116,26 +116,77 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext) tfdiags.
 		return diags.Append(fmt.Errorf("attempting to resolve an unset provider at %s", n.Addr))
 	}
 
+	useStateFallback := false
+
 	if n.ResolvedProvider.KeyExact != nil {
 		// Pass through from state
 		n.ResolvedProviderKey = n.ResolvedProvider.KeyExact
 	} else if n.ResolvedProvider.KeyExpression != nil {
+		// This path get's a bit convoluted when considering scenarios in which the configuration has been
+		// significantly altered from the state when considering fallback logic
+
 		if n.ResolvedProvider.KeyResource {
 			// Resolved from resource instance
-			n.ResolvedProviderKey, diags = resolveProviderResourceInstance(ctx, n.Config.ProviderConfigRef.KeyExpression, n.Addr)
+			validExpansion := false
+			if hasExpansionData {
+				existingExpansion := ctx.InstanceExpander().ExpandResource(n.Addr.ContainingResource())
+				for _, expanded := range existingExpansion {
+					if n.Addr.Equal(expanded) {
+						validExpansion = true
+						break
+					}
+				}
+			}
+			if validExpansion {
+				n.ResolvedProviderKey, diags = resolveProviderResourceInstance(ctx, n.Config.ProviderConfigRef.KeyExpression, n.Addr)
+			} else {
+				useStateFallback = true
+			}
 		} else {
-			// Resolved fro module instance
+			// Resolved from module instance
 			moduleInstanceForKey := n.Addr.Module[:len(n.ResolvedProvider.KeyModule)]
 			if !moduleInstanceForKey.Module().Equal(n.ResolvedProvider.KeyModule) {
 				panic(fmt.Sprintf("Invalid module key expression location %s in resource %s", n.ResolvedProvider.KeyModule, n.Addr))
 			}
 
-			n.ResolvedProviderKey, diags = resolveProviderModuleInstance(ctx, n.ResolvedProvider.KeyExpression, moduleInstanceForKey, n.Addr.String())
+			// Make sure that the configured expansion is valid for this instance
+			validExpansion := false
+			if hasExpansionData {
+				existingExpansion := ctx.InstanceExpander().ExpandModule(n.ResolvedProvider.KeyModule)
+				for _, expanded := range existingExpansion {
+					if moduleInstanceForKey.Equal(expanded) {
+						validExpansion = true
+						break
+					}
+				}
+			}
+			if validExpansion {
+				// We can use the standard resolver
+				n.ResolvedProviderKey, diags = resolveProviderModuleInstance(ctx, n.ResolvedProvider.KeyExpression, moduleInstanceForKey, n.Addr.String())
+			} else {
+				useStateFallback = true
+			}
 		}
 	}
 
 	if diags.HasErrors() {
 		return diags
+	}
+
+	if useStateFallback {
+		// We are in a orphan or destroy code path where the existing configuration / transformations have not built up the required expansion.
+		// In practice, this only happens for orphaned resource instances.  Destroy has already re-planned and overwritten state
+		if n.ResolvedProvider.ProviderConfig.String() != n.storedProviderConfig.ProviderConfig.String() {
+			// Config has been altered too severely!
+			// In this scenario, we could consider modifying the provider transformer to add optional
+			// dependencies on providers from the state to keep that provider from being pruned.
+			return diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Unable to use fallback provider from state",
+				fmt.Sprintf("Provider from configuration %s does not match provider from state %s for resource %s", n.ResolvedProvider.ProviderConfig, n.storedProviderConfig.ProviderConfig, n.Addr),
+			))
+		}
+		n.ResolvedProviderKey = n.storedProviderConfig.KeyExact
 	}
 
 	log.Printf("[TRACE] Resolved provider key for %s as %s", n.Addr, n.ResolvedProviderKey)

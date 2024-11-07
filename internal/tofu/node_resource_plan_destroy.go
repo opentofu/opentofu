@@ -60,6 +60,11 @@ func (n *NodePlanDestroyableResourceInstance) Execute(ctx EvalContext, op walkOp
 func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
+	diags = diags.Append(n.resolveProvider(ctx, false))
+	if diags.HasErrors() {
+		return diags
+	}
+
 	// Declare a bunch of variables that are used for state during
 	// evaluation. These are written to by address in the EvalNodes we
 	// declare below.
