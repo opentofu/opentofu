@@ -20,6 +20,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -4149,4 +4150,302 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 	checkStateString(t, state, `
 <no state>
 	`)
+}
+
+func TestContext2Apply_providerResourceIteration(t *testing.T) {
+	localComplete := `
+locals {
+	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
+	resources = ["primary", "secondary"]
+}
+`
+	localPartial := `
+locals {
+	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
+	resources = ["primary"]
+}
+`
+	providerConfig := `
+provider "test" {
+  alias = "al"
+  for_each = local.providers
+  region = each.value
+}
+`
+	resourceConfig := `
+resource "test_instance" "a" {
+  for_each = toset(local.resources)
+  provider = test.al[each.key]
+}
+`
+	complete := testModuleInline(t, map[string]string{
+		"locals.tofu":    localComplete,
+		"providers.tofu": providerConfig,
+		"resources.tofu": resourceConfig,
+	})
+	partial := testModuleInline(t, map[string]string{
+		"locals.tofu":    localPartial,
+		"providers.tofu": providerConfig,
+		"resources.tofu": resourceConfig,
+	})
+	removed := testModuleInline(t, map[string]string{
+		"locals.tofu":    localPartial,
+		"providers.tofu": providerConfig,
+	})
+
+	provider := testProvider("test")
+	provider.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
+		State: cty.ObjectVal(map[string]cty.Value{
+			"id": cty.StringVal("data_source"),
+		}),
+	}
+	provider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+		var resp providers.ConfigureProviderResponse
+
+		region := req.Config.GetAttr("region")
+		if region.AsString() != "eu-west-1" && region.AsString() != "eu-west-2" {
+			resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("incorrect config val: %#v\n", region))
+		}
+		return resp
+	}
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) *states.State {
+		t.Helper()
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(m, prevState, DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		newState, diags := ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+		return newState
+	}
+
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) *states.State {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(m, prevState, &PlanOpts{
+			Mode: plans.DestroyMode,
+		})
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		newState, diags := ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+		return newState
+	}
+
+	primaryResource := mustResourceInstanceAddr(`test_instance.a["primary"]`)
+	secondaryResource := mustResourceInstanceAddr(`test_instance.a["secondary"]`)
+
+	t.Run("apply_destroy", func(t *testing.T) {
+		state := apply(t, complete, states.NewState())
+
+		if state.ResourceInstance(primaryResource).ProviderKey != addrs.StringKey("primary") {
+			t.Fatal("Wrong provider key")
+		}
+		if state.ResourceInstance(secondaryResource).ProviderKey != addrs.StringKey("secondary") {
+			t.Fatal("Wrong provider key")
+		}
+
+		destroy(t, complete, state)
+	})
+
+	t.Run("apply_removed", func(t *testing.T) {
+		state := apply(t, complete, states.NewState())
+
+		state = apply(t, removed, state)
+
+		// Expect destroyed
+		if state.ResourceInstance(primaryResource) != nil {
+			t.Fatal(primaryResource.String())
+		}
+		if state.ResourceInstance(secondaryResource) != nil {
+			t.Fatal(secondaryResource.String())
+		}
+	})
+
+	t.Run("apply_orphan_destroy", func(t *testing.T) {
+		state := apply(t, complete, states.NewState())
+
+		state = apply(t, partial, state)
+
+		// Expect primary
+		if state.ResourceInstance(primaryResource) == nil {
+			t.Fatal(primaryResource.String())
+		}
+		// Missing secondary
+		if state.ResourceInstance(secondaryResource) != nil {
+			t.Fatal(secondaryResource.String())
+		}
+
+		destroy(t, partial, state)
+	})
+}
+
+func TestContext2Apply_providerModuleIteration(t *testing.T) {
+	localComplete := `
+locals {
+	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
+	mods = ["primary", "secondary"]
+}
+`
+	localPartial := `
+locals {
+	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
+	mods = ["primary"]
+}
+`
+	providerConfig := `
+provider "test" {
+  alias = "al"
+  for_each = local.providers
+  region = each.value
+}
+`
+	moduleCall := `
+module "mod" {
+  source = "./mod"
+  for_each = toset(local.mods)
+  providers = {
+    test = test.al[each.key]
+  }
+}
+`
+	resourceConfig := `
+resource "test_instance" "a" {
+}
+`
+	complete := testModuleInline(t, map[string]string{
+		"locals.tofu":        localComplete,
+		"providers.tofu":     providerConfig,
+		"modules.tofu":       moduleCall,
+		"mod/resources.tofu": resourceConfig,
+	})
+	partial := testModuleInline(t, map[string]string{
+		"locals.tofu":        localPartial,
+		"providers.tofu":     providerConfig,
+		"modules.tofu":       moduleCall,
+		"mod/resources.tofu": resourceConfig,
+	})
+	removed := testModuleInline(t, map[string]string{
+		"locals.tofu":    localPartial,
+		"providers.tofu": providerConfig,
+	})
+
+	provider := testProvider("test")
+	provider.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
+		State: cty.ObjectVal(map[string]cty.Value{
+			"id": cty.StringVal("data_source"),
+		}),
+	}
+	provider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+		var resp providers.ConfigureProviderResponse
+		region := req.Config.GetAttr("region")
+		if region.AsString() != "eu-west-1" && region.AsString() != "eu-west-2" {
+			resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("incorrect config val: %#v\n", region))
+		}
+		return resp
+	}
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) *states.State {
+		t.Helper()
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(m, prevState, DefaultPlanOpts)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		newState, diags := ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+		return newState
+	}
+
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) *states.State {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(m, prevState, &PlanOpts{
+			Mode: plans.DestroyMode,
+		})
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		newState, diags := ctx.Apply(plan, m)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+		return newState
+	}
+
+	primaryResource := mustResourceInstanceAddr(`module.mod["primary"].test_instance.a`)
+	secondaryResource := mustResourceInstanceAddr(`module.mod["secondary"].test_instance.a`)
+
+	t.Run("apply_destroy", func(t *testing.T) {
+		state := apply(t, complete, states.NewState())
+
+		if state.ResourceInstance(primaryResource).ProviderKey != addrs.StringKey("primary") {
+			t.Fatal("Wrong provider key")
+		}
+		if state.ResourceInstance(secondaryResource).ProviderKey != addrs.StringKey("secondary") {
+			t.Fatal("Wrong provider key")
+		}
+
+		destroy(t, complete, state)
+	})
+
+	t.Run("apply_removed", func(t *testing.T) {
+		state := apply(t, complete, states.NewState())
+
+		state = apply(t, removed, state)
+
+		// Expect destroyed
+		if state.ResourceInstance(primaryResource) != nil {
+			t.Fatal(primaryResource.String())
+		}
+		if state.ResourceInstance(secondaryResource) != nil {
+			t.Fatal(secondaryResource.String())
+		}
+	})
+
+	t.Run("apply_orphan_destroy", func(t *testing.T) {
+		state := apply(t, complete, states.NewState())
+
+		state = apply(t, partial, state)
+
+		// Expect primary
+		if state.ResourceInstance(primaryResource) == nil {
+			t.Fatal(primaryResource.String())
+		}
+		// Missing secondary
+		if state.ResourceInstance(secondaryResource) != nil {
+			t.Fatal(secondaryResource.String())
+		}
+
+		destroy(t, partial, state)
+	})
 }
