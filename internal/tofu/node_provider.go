@@ -106,7 +106,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey ad
 	}
 
 	schemaResp := provider.GetProviderSchema()
-	diags := schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.String())
+	diags := schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -139,7 +139,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey ad
 	}
 
 	validateResp := provider.ValidateProviderConfig(req)
-	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.String()))
+	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 
 	return diags
 }
@@ -153,7 +153,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey a
 	configBody := buildProviderConfig(ctx, n.Addr, config)
 
 	resp := provider.GetProviderSchema()
-	diags := resp.Diagnostics.InConfigBody(configBody, n.Addr.String())
+	diags := resp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -193,7 +193,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey a
 	// ValidateProviderConfig is only used for validation. We are intentionally
 	// ignoring the PreparedConfig field to maintain existing behavior.
 	validateResp := provider.ValidateProviderConfig(req)
-	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.String()))
+	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 	if diags.HasErrors() && config == nil {
 		// If there isn't an explicit "provider" block in the configuration,
 		// this error message won't be very clear. Add some detail to the error
@@ -217,7 +217,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey a
 	}
 
 	configDiags := ctx.ConfigureProvider(n.Addr, providerKey, unmarkedConfigVal)
-	diags = diags.Append(configDiags.InConfigBody(configBody, n.Addr.String()))
+	diags = diags.Append(configDiags.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 	if diags.HasErrors() && config == nil {
 		// If there isn't an explicit "provider" block in the configuration,
 		// this error message won't be very clear. Add some detail to the error
