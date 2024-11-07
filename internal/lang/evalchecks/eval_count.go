@@ -6,8 +6,10 @@ package evalchecks
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
@@ -23,7 +25,11 @@ type EvaluateFunc func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics)
 // EvaluateCountExpression differs from EvaluateCountExpressionValue by
 // returning an error if the count value is not known, and converting the
 // cty.Value to an integer.
-func EvaluateCountExpression(expr hcl.Expression, ctx EvaluateFunc) (int, tfdiags.Diagnostics) {
+//
+// If excludableAddr is non-nil then the unknown value error will include
+// an additional idea to exclude that address using the -exclude
+// planning option to converge over multiple plan/apply rounds.
+func EvaluateCountExpression(expr hcl.Expression, ctx EvaluateFunc, excludableAddr addrs.Targetable) (int, tfdiags.Diagnostics) {
 	countVal, diags := EvaluateCountExpressionValue(expr, ctx)
 	if !countVal.IsKnown() {
 		// Currently this is a rather bad outcome from a UX standpoint, since we have
@@ -32,10 +38,12 @@ func EvaluateCountExpression(expr hcl.Expression, ctx EvaluateFunc) (int, tfdiag
 		// FIXME: In future, implement a built-in mechanism for deferring changes that
 		// can't yet be predicted, and use it to guide the user through several
 		// plan/apply steps until the desired configuration is eventually reached.
+
+		suggestion := countCommandLineExcludeSuggestion(excludableAddr)
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid count argument",
-			Detail:   `The "count" value depends on resource attributes that cannot be determined until apply, so OpenTofu cannot predict how many instances will be created. To work around this, use the -target argument to first apply only the resources that the count depends on.`,
+			Detail:   "The \"count\" value depends on resource attributes that cannot be determined until apply, so OpenTofu cannot predict how many instances will be created.\n\n" + suggestion,
 			Subject:  expr.Range().Ptr(),
 
 			// TODO: Also populate Expression and EvalContext in here, but
@@ -110,4 +118,35 @@ func EvaluateCountExpressionValue(expr hcl.Expression, ctx EvaluateFunc) (cty.Va
 	}
 
 	return countVal, diags
+}
+
+// Returns some English-language text describing a workaround using the -exclude
+// planning option to converge over two plan/apply rounds when count has an
+// unknown value.
+//
+// This is intended only for when a count value is too unknown for
+// planning to proceed, in [EvaluateCountExpression].
+//
+// If excludableAddr is non-nil then the message will refer to it directly, giving
+// a full copy-pastable command line argument. Otherwise, the message is a generic
+// one without any specific address indicated.
+func countCommandLineExcludeSuggestion(excludableAddr addrs.Targetable) string {
+	// We use an extra indirection here so that we can write tests that make
+	// the same assertions on all development platforms.
+	return countCommandLineExcludeSuggestionImpl(excludableAddr, runtime.GOOS)
+}
+
+func countCommandLineExcludeSuggestionImpl(excludableAddr addrs.Targetable, goos string) string {
+	if excludableAddr == nil {
+		// We use -target for this case because we can't be sure that the
+		// object we're complaining about even has its own addrs.Targetable
+		// address, and so the user might need to target only what it depends
+		// on instead.
+		return `To work around this, use the -target option to first apply only the resources that the count depends on, and then apply normally to converge.`
+	}
+
+	return fmt.Sprintf(
+		"To work around this, use the planning option -exclude=%s to first apply without this object, and then apply normally to converge.",
+		commandLineArgumentsSuggestion([]string{excludableAddr.String()}, goos),
+	)
 }
