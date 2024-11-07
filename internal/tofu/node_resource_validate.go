@@ -568,7 +568,7 @@ func validateForEach(ctx EvalContext, expr hcl.Expression) (diags tfdiags.Diagno
 	const unknownsAllowed = true
 	const tupleNotAllowed = false
 
-	val, forEachDiags := evaluateForEachExpressionValue(expr, ctx, unknownsAllowed, tupleNotAllowed)
+	val, forEachDiags := evaluateForEachExpressionValue(expr, ctx, unknownsAllowed, tupleNotAllowed, nil)
 	// If the value isn't known then that's the best we can do for now, but
 	// we'll check more thoroughly during the plan walk
 	if !val.IsKnown() {

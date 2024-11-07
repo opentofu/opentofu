@@ -32,16 +32,16 @@ func evalContextEvaluate(ctx EvalContext) evalchecks.EvaluateFunc {
 	}
 }
 
-func evaluateForEachExpression(expr hcl.Expression, ctx EvalContext) (map[string]cty.Value, tfdiags.Diagnostics) {
-	return evalchecks.EvaluateForEachExpression(expr, evalContextScope(ctx))
+func evaluateForEachExpression(expr hcl.Expression, ctx EvalContext, excludeableAddr addrs.Targetable) (map[string]cty.Value, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateForEachExpression(expr, evalContextScope(ctx), excludeableAddr)
 }
 
-func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowUnknown bool, allowTuple bool) (cty.Value, tfdiags.Diagnostics) {
-	return evalchecks.EvaluateForEachExpressionValue(expr, evalContextScope(ctx), allowUnknown, allowTuple)
+func evaluateForEachExpressionValue(expr hcl.Expression, ctx EvalContext, allowUnknown bool, allowTuple bool, excludeableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateForEachExpressionValue(expr, evalContextScope(ctx), allowUnknown, allowTuple, excludeableAddr)
 }
 
-func evaluateCountExpression(expr hcl.Expression, ctx EvalContext) (int, tfdiags.Diagnostics) {
-	return evalchecks.EvaluateCountExpression(expr, evalContextEvaluate(ctx))
+func evaluateCountExpression(expr hcl.Expression, ctx EvalContext, excludeableAddr addrs.Targetable) (int, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateCountExpression(expr, evalContextEvaluate(ctx), excludeableAddr)
 }
 
 func evaluateCountExpressionValue(expr hcl.Expression, ctx EvalContext) (cty.Value, tfdiags.Diagnostics) {
