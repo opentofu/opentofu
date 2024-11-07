@@ -4188,6 +4188,10 @@ resource "test_instance" "a" {
 		"providers.tofu": providerConfig,
 		"resources.tofu": resourceConfig,
 	})
+	removed := testModuleInline(t, map[string]string{
+		"locals.tofu":    localPartial,
+		"providers.tofu": providerConfig,
+	})
 
 	provider := testProvider("test")
 	provider.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
@@ -4261,6 +4265,20 @@ resource "test_instance" "a" {
 		destroy(t, complete, state)
 	})
 
+	t.Run("apply_removed", func(t *testing.T) {
+		state := apply(t, complete, states.NewState())
+
+		state = apply(t, removed, state)
+
+		// Expect destroyed
+		if state.ResourceInstance(primaryResource) != nil {
+			t.Fatal(primaryResource.String())
+		}
+		if state.ResourceInstance(secondaryResource) != nil {
+			t.Fatal(secondaryResource.String())
+		}
+	})
+
 	t.Run("apply_orphan_destroy", func(t *testing.T) {
 		state := apply(t, complete, states.NewState())
 
@@ -4323,6 +4341,10 @@ resource "test_instance" "a" {
 		"providers.tofu":     providerConfig,
 		"modules.tofu":       moduleCall,
 		"mod/resources.tofu": resourceConfig,
+	})
+	removed := testModuleInline(t, map[string]string{
+		"locals.tofu":    localPartial,
+		"providers.tofu": providerConfig,
 	})
 
 	provider := testProvider("test")
@@ -4394,6 +4416,20 @@ resource "test_instance" "a" {
 		}
 
 		destroy(t, complete, state)
+	})
+
+	t.Run("apply_removed", func(t *testing.T) {
+		state := apply(t, complete, states.NewState())
+
+		state = apply(t, removed, state)
+
+		// Expect destroyed
+		if state.ResourceInstance(primaryResource) != nil {
+			t.Fatal(primaryResource.String())
+		}
+		if state.ResourceInstance(secondaryResource) != nil {
+			t.Fatal(secondaryResource.String())
+		}
 	})
 
 	t.Run("apply_orphan_destroy", func(t *testing.T) {
