@@ -4152,7 +4152,7 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 	`)
 }
 
-func TestContext2_providerResourceIteration(t *testing.T) {
+func TestContext2Apply_providerResourceIteration(t *testing.T) {
 	localComplete := `
 locals {
 	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
@@ -4297,7 +4297,7 @@ resource "test_instance" "a" {
 	})
 }
 
-func TestContext2_providerModuleIteration(t *testing.T) {
+func TestContext2Apply_providerModuleIteration(t *testing.T) {
 	localComplete := `
 locals {
 	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
