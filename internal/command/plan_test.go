@@ -235,8 +235,7 @@ func TestPlan_noTestVars(t *testing.T) {
 		},
 	}
 
-	args := []string{}
-	code := c.Run(args)
+	code := c.Run([]string{})
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
