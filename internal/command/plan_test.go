@@ -242,8 +242,7 @@ func TestPlan_noTestVars(t *testing.T) {
 	}
 
 	// Verify values defined in the 'tests' folder are not used during a plan action
-	expectedValue := "ValueFROMmain/tfvars"
-	expectedResult := fmt.Sprintf("ami = \"%s\"", expectedValue)
+	expectedResult := `ami = "ValueFROMmain/tfvars"`
 	result := output.All()
 	if !strings.Contains(result, expectedResult) {
 		t.Fatalf("Expected output to contain '%s', got: %s", expectedValue, result)
