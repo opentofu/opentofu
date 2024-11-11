@@ -245,7 +245,7 @@ func TestPlan_noTestVars(t *testing.T) {
 	expectedResult := `ami = "ValueFROMmain/tfvars"`
 	result := output.All()
 	if !strings.Contains(result, expectedResult) {
-		t.Fatalf("Expected output to contain '%s', got: %s", expectedValue, result)
+		t.Fatalf("Expected output to contain '%s', got: %s", expectedResult, result)
 	}
 
 	expectedToNotExist := "ValueFROMtests/tfvars"
