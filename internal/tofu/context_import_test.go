@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -43,7 +44,7 @@ func TestContextImport_basic(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -96,7 +97,7 @@ resource "aws_instance" "foo" {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -253,7 +254,7 @@ func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
 	)
 	t.Logf("importing into %s, which should succeed because it's configured", existingInstanceAddr)
 	log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: importing into %s, which should succeed because it's configured", existingInstanceAddr)
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -349,7 +350,7 @@ resource "aws_instance" "foo" {
 		}),
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -418,7 +419,7 @@ func TestContextImport_collision(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, state, &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, state, &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -464,7 +465,7 @@ func TestContextImport_missingType(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -517,7 +518,7 @@ func TestContextImport_moduleProvider(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -574,7 +575,7 @@ func TestContextImport_providerModule(t *testing.T) {
 		return
 	}
 
-	_, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	_, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -632,7 +633,7 @@ func TestContextImport_providerConfig(t *testing.T) {
 				},
 			}
 
-			state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+			state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 				Targets: []*ImportTarget{
 					{
 						CommandLineImportTarget: &CommandLineImportTarget{
@@ -694,7 +695,7 @@ func TestContextImport_providerConfigResources(t *testing.T) {
 		},
 	}
 
-	_, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	_, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -767,7 +768,7 @@ data "aws_data_source" "bar" {
 		}),
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -820,7 +821,7 @@ func TestContextImport_refreshNil(t *testing.T) {
 		}
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -863,7 +864,7 @@ func TestContextImport_module(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -906,7 +907,7 @@ func TestContextImport_moduleDepth2(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -949,7 +950,7 @@ func TestContextImport_moduleDiff(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -1019,7 +1020,7 @@ func TestContextImport_multiState(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -1095,7 +1096,7 @@ func TestContextImport_multiStateSame(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -1191,7 +1192,7 @@ resource "test_resource" "unused" {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -1263,7 +1264,7 @@ resource "test_resource" "test" {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -1310,7 +1311,7 @@ func TestContextImport_33572(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{

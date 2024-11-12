@@ -30,6 +30,8 @@ type ImportCommand struct {
 }
 
 func (c *ImportCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	// Get the pwd since its our default -config flag value
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -243,7 +245,7 @@ func (c *ImportCommand) Run(args []string) int {
 	// Perform the import. Note that as you can see it is possible for this
 	// API to import more than one resource at once. For now, we only allow
 	// one while we stabilize this feature.
-	newState, importDiags := lr.Core.Import(lr.Config, lr.InputState, &tofu.ImportOpts{
+	newState, importDiags := lr.Core.Import(ctx, lr.Config, lr.InputState, &tofu.ImportOpts{
 		Targets: []*tofu.ImportTarget{
 			{
 				CommandLineImportTarget: &tofu.CommandLineImportTarget{
