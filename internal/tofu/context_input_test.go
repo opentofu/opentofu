@@ -467,7 +467,7 @@ func TestContext2Input_dataSourceRequiresRefresh(t *testing.T) {
 	// a wrapper around plan anyway, but we're keeping it until we get a
 	// chance to review and check whether it's giving us any additional
 	// test coverage aside from what it's specifically intending to test.
-	if _, diags := ctx.Refresh(m, state, DefaultPlanOpts); diags.HasErrors() {
+	if _, diags := ctx.Refresh(context.Background(), m, state, DefaultPlanOpts); diags.HasErrors() {
 		t.Fatalf("refresh errors: %s", diags.Err())
 	}
 	if _, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts); diags.HasErrors() {
