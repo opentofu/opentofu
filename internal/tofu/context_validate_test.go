@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -108,7 +109,7 @@ func TestContext2Validate_varNoDefaultExplicitType(t *testing.T) {
 	// grown into a plan test rather than a validate test, but it lives on
 	// here in order to make it easier to navigate through that history in
 	// version control.
-	_, diags = c.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags = c.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		// Error should be: The input variable "maybe_a_map" has not been assigned a value.
 		t.Fatalf("succeeded; want error")
@@ -319,7 +320,7 @@ func TestContext2Validate_countVariableNoDefault(t *testing.T) {
 	})
 	assertNoDiagnostics(t, diags)
 
-	_, diags = c.Plan(m, nil, &PlanOpts{})
+	_, diags = c.Plan(context.Background(), m, nil, &PlanOpts{})
 	if !diags.HasErrors() {
 		// Error should be: The input variable "foo" has not been assigned a value.
 		t.Fatalf("succeeded; want error")
@@ -876,7 +877,7 @@ func TestContext2Validate_requiredVar(t *testing.T) {
 	// grown into a plan test rather than a validate test, but it lives on
 	// here in order to make it easier to navigate through that history in
 	// version control.
-	_, diags = c.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags = c.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		// Error should be: The input variable "foo" has not been assigned a value.
 		t.Fatalf("succeeded; want error")

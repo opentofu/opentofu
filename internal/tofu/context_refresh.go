@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -33,7 +34,7 @@ func (c *Context) Refresh(config *configs.Config, prevRunState *states.State, op
 	}
 
 	log.Printf("[DEBUG] Refresh is really just plan now, so creating a %s plan", opts.Mode)
-	p, diags := c.Plan(config, prevRunState, opts)
+	p, diags := c.Plan(context.Background(), config, prevRunState, opts)
 	if diags.HasErrors() {
 		return nil, diags
 	}

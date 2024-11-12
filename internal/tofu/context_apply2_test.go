@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -71,7 +72,7 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
@@ -165,7 +166,7 @@ output "data" {
 		Providers: ps,
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -180,7 +181,7 @@ output "data" {
 		Providers: ps,
 	})
 
-	plan, diags = ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
@@ -252,7 +253,7 @@ resource "test_instance" "a" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	_, diags = ctx.Apply(plan, m)
@@ -344,7 +345,7 @@ resource "aws_instance" "bin" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	bar := plan.PriorState.ResourceInstance(barAddr)
@@ -448,7 +449,7 @@ resource "test_resource" "b" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
 	_, diags = ctx.Apply(plan, m)
@@ -489,7 +490,7 @@ output "out" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	state, diags := ctx.Apply(plan, m)
@@ -502,7 +503,7 @@ output "out" {
 		t.Fatalf("Expected 1 sensitive mark for test_object.a, got %#v\n", obj.Current.AttrSensitivePaths)
 	}
 
-	plan, diags = ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	// make sure the same marks are compared in the next plan as well
@@ -552,14 +553,14 @@ resource "test_object" "y" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
 	state, diags := ctx.Apply(plan, m)
 	assertNoErrors(t, diags)
 
 	// FINAL PLAN:
-	plan, diags = ctx.Plan(m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags = ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
 	// make sure the same marks are compared in the next plan as well
@@ -606,7 +607,7 @@ resource "test_object" "x" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
@@ -624,7 +625,7 @@ func TestContext2Apply_nullableVariables(t *testing.T) {
 	m := testModule(t, "apply-nullable-variables")
 	state := states.NewState()
 	ctx := testContext2(t, &ContextOpts{})
-	plan, diags := ctx.Plan(m, state, &PlanOpts{})
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{})
 	if diags.HasErrors() {
 		t.Fatalf("plan: %s", diags.Err())
 	}
@@ -688,14 +689,14 @@ resource "test_object" "s" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	state, diags := ctx.Apply(plan, m)
 	assertNoErrors(t, diags)
 
 	// destroy only a single instance not included in the moved statements
-	_, diags = ctx.Plan(m, state, &PlanOpts{
+	_, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode:    plans.DestroyMode,
 		Targets: []addrs.Targetable{mustResourceInstanceAddr(`module.modb["a"].test_object.a`)},
 	})
@@ -738,14 +739,14 @@ resource "test_object" "s" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	state, diags := ctx.Apply(plan, m)
 	assertNoErrors(t, diags)
 
 	// destroy excluding the module in the moved statements
-	_, diags = ctx.Plan(m, state, &PlanOpts{
+	_, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode:     plans.DestroyMode,
 		Excludes: []addrs.Targetable{addrs.Module{"sub"}},
 	})
@@ -794,7 +795,7 @@ resource "test_object" "b" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
@@ -871,7 +872,7 @@ resource "test_resource" "c" {
 	})
 
 	t.Run("condition pass", func(t *testing.T) {
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -920,7 +921,7 @@ resource "test_resource" "c" {
 		}
 	})
 	t.Run("condition fail", func(t *testing.T) {
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"boop": &InputValue{
@@ -1032,7 +1033,7 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 
 	t.Run("pass", func(t *testing.T) {
 		ctx := testContext2(t, &ContextOpts{})
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"input": &InputValue{
@@ -1072,7 +1073,7 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 		// than an apply test but better to keep all of these
 		// thematically-related test cases together.
 		ctx := testContext2(t, &ContextOpts{})
-		_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"input": &InputValue{
@@ -1187,7 +1188,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 	// subsequent plan and apply that we'll expect to fail.
 	var prevRunState *states.State
 	{
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"input": &InputValue{
@@ -1224,7 +1225,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 	// var.input that should cause the test_resource.b condition to be unknown
 	// during planning and then fail during apply.
 	{
-		plan, diags := ctx.Plan(m, prevRunState, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, prevRunState, &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"input": &InputValue{
@@ -1378,7 +1379,7 @@ output "out" {
 	})
 
 	opts := SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables))
-	plan, diags := ctx.Plan(m, states.NewState(), opts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
 
 	state, diags := ctx.Apply(plan, m)
@@ -1399,7 +1400,7 @@ output "out" {
 	testObjA := state.ResourceInstance(testObjAddr)
 	testObjA.Current.AttrsJSON = []byte(`{"test_bool":null,"test_list":null,"test_map":null,"test_number":null,"test_string":"changed"}`)
 
-	_, diags = ctx.Plan(m, state, opts)
+	_, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 	return
 	// TODO: unreachable code
@@ -1431,7 +1432,7 @@ got:      %#v`,
 	opts.SkipRefresh = true
 
 	// destroy only a single instance not included in the moved statements
-	_, diags = ctx.Plan(m, state, opts)
+	_, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
 	if !otherProvider.ConfigureProviderCalled {
@@ -1497,7 +1498,7 @@ resource "test_object" "x" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 		// we don't want to refresh, because that actually runs a normal plan
 		SkipRefresh: true,
@@ -1549,7 +1550,7 @@ resource "test_object" "y" {
 	})
 
 	opts := SimplePlanOpts(plans.NormalMode, nil)
-	plan, diags := ctx.Plan(m, state, opts)
+	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
 	_, diags = ctx.Apply(plan, m)
@@ -1631,7 +1632,7 @@ output "data" {
 
 	// apply the state
 	opts := SimplePlanOpts(plans.NormalMode, nil)
-	plan, diags := ctx.Plan(m, states.NewState(), opts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
 
 	state, diags := ctx.Apply(plan, m)
@@ -1639,7 +1640,7 @@ output "data" {
 
 	// and destroy
 	opts = SimplePlanOpts(plans.DestroyMode, nil)
-	plan, diags = ctx.Plan(m, state, opts)
+	plan, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
 	state, diags = ctx.Apply(plan, m)
@@ -1651,7 +1652,7 @@ output "data" {
 	}
 
 	opts = SimplePlanOpts(plans.DestroyMode, nil)
-	plan, diags = ctx.Plan(m, state, opts)
+	plan, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
 	_, diags = ctx.Apply(plan, m)
@@ -1706,7 +1707,7 @@ output "from_resource" {
 	})
 
 	opts := SimplePlanOpts(plans.DestroyMode, nil)
-	plan, diags := ctx.Plan(m, state, opts)
+	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
 	_, diags = ctx.Apply(plan, m)
@@ -1763,7 +1764,7 @@ output "from_resource" {
 	})
 
 	opts := SimplePlanOpts(plans.RefreshOnlyMode, nil)
-	plan, diags := ctx.Plan(m, state, opts)
+	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
 	state, diags = ctx.Apply(plan, m)
@@ -1833,7 +1834,7 @@ resource "test_object" "y" {
 	})
 
 	opts := SimplePlanOpts(plans.NormalMode, nil)
-	plan, diags := ctx.Plan(m, state, opts)
+	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
 	for _, c := range plan.Changes.Resources {
@@ -1898,7 +1899,7 @@ output "a" {
 `,
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
@@ -1945,7 +1946,7 @@ output "null_module_test" {
 	})
 
 	// verify plan and apply
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
@@ -1953,7 +1954,7 @@ output "null_module_test" {
 	assertNoErrors(t, diags)
 
 	// now destroy
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
@@ -2020,7 +2021,7 @@ output "resources" {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
@@ -2107,7 +2108,7 @@ resource "test_resource" "b" {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
@@ -2151,7 +2152,7 @@ resource "unused_resource" "test" {
 `,
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
@@ -2210,7 +2211,7 @@ import {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
@@ -2253,7 +2254,7 @@ locals {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), nil)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), nil)
 	if diags.HasErrors() {
 		t.Errorf("expected no errors, but got %s", diags)
 	}
@@ -2291,7 +2292,7 @@ locals {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		ExternalReferences: []*addrs.Reference{
 			mustReference("local.local_value"),
@@ -2357,7 +2358,7 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 
 	p.PlanResourceChangeFn = testDiffFn
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	s, diags := ctx.Apply(plan, m)
@@ -2551,7 +2552,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 					addrs.NewBuiltInProvider("mock"): testProviderFuncFixed(p),
 				},
 			})
-			plan, diags := ctx.Plan(m, state, normalPlanOpts)
+			plan, diags := ctx.Plan(context.Background(), m, state, normalPlanOpts)
 			assertNoErrors(t, diags)
 
 			newState, diags := ctx.Apply(plan, m)
@@ -2619,7 +2620,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 					addrs.NewBuiltInProvider("mock"): testProviderFuncFixed(p),
 				},
 			})
-			plan, diags := ctx.Plan(m, state, makeStep2PlanOpts(plans.NormalMode))
+			plan, diags := ctx.Plan(context.Background(), m, state, makeStep2PlanOpts(plans.NormalMode))
 			assertNoErrors(t, diags)
 
 			newState, diags := ctx.Apply(plan, m)
@@ -2692,7 +2693,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 					addrs.NewBuiltInProvider("mock"): testProviderFuncFixed(p),
 				},
 			})
-			plan, diags := ctx.Plan(m, state, normalPlanOpts)
+			plan, diags := ctx.Plan(context.Background(), m, state, normalPlanOpts)
 			assertNoErrors(t, diags)
 
 			newState, diags := ctx.Apply(plan, m)
@@ -2757,7 +2758,7 @@ func TestContext2Apply_moduleProviderAliasExcludes(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.ConfigResource{
@@ -2797,7 +2798,7 @@ func TestContext2Apply_moduleProviderAliasExcludesNonExistent(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.ConfigResource{
@@ -2837,7 +2838,7 @@ func TestContext2Apply_moduleExclude(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("B", addrs.NoKey),
@@ -2873,7 +2874,7 @@ func TestContext2Apply_moduleExcludeDependent(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("A", addrs.NoKey),
@@ -2904,7 +2905,7 @@ func TestContext2Apply_moduleExcludeNonExistent(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("C", addrs.NoKey),
@@ -2956,7 +2957,7 @@ func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *t
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
 		state, diags = ctx.Apply(plan, m)
@@ -2972,7 +2973,7 @@ func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *t
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 			Excludes: []addrs.Targetable{
 				addrs.RootModuleInstance.Child("child", addrs.NoKey),
@@ -3045,7 +3046,7 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
 		state, diags = ctx.Apply(plan, m)
@@ -3061,7 +3062,7 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 			Excludes: []addrs.Targetable{
 				addrs.RootModuleInstance.Child("non-existent-child", addrs.NoKey),
@@ -3116,7 +3117,7 @@ func TestContext2Apply_excluded(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -3156,7 +3157,7 @@ func TestContext2Apply_excludedCount(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -3198,7 +3199,7 @@ func TestContext2Apply_excludedCountIndex(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.ResourceInstance(
@@ -3255,7 +3256,7 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 			t.Fatalf("validate errors: %s", diags.Err())
 		}
 
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
 		state, diags = ctx.Apply(plan, m)
@@ -3271,7 +3272,7 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 			Excludes: []addrs.Targetable{
 				addrs.RootModuleInstance.Resource(
@@ -3319,7 +3320,7 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 			t.Fatalf("validate errors: %s", diags.Err())
 		}
 
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
 		state, diags = ctx.Apply(plan, m)
@@ -3335,7 +3336,7 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 			Excludes: []addrs.Targetable{
 				addrs.RootModuleInstance.Child("child", addrs.NoKey),
@@ -3423,7 +3424,7 @@ func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -3501,7 +3502,7 @@ func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -3585,7 +3586,7 @@ func TestContext2Apply_excludedDestroyModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
@@ -3667,7 +3668,7 @@ func TestContext2Apply_excludedDestroyCountIndex(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.ResourceInstance(
@@ -3706,7 +3707,7 @@ func TestContext2Apply_excludedModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey),
@@ -3749,7 +3750,7 @@ func TestContext2Apply_excludedModuleResourceDep(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
@@ -3784,7 +3785,7 @@ func TestContext2Apply_excludedResourceDependentOnModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(addrs.ManagedResourceMode, "aws_instance", "foo"),
@@ -3822,7 +3823,7 @@ func TestContext2Apply_excludedModuleDep(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey),
@@ -3858,7 +3859,7 @@ func TestContext2Apply_excludedModuleUnrelatedOutputs(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			// Excluding aws_instance.foo should also exclude module.child1, which is dependent on it
@@ -3905,7 +3906,7 @@ func TestContext2Apply_excludedModuleResource(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
@@ -3965,7 +3966,7 @@ func TestContext2Apply_excludedResourceOrphanModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("parent", addrs.NoKey).Resource(
@@ -4018,7 +4019,7 @@ func TestContext2Apply_excludedOrphanModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("parent", addrs.NoKey),
@@ -4069,7 +4070,7 @@ func TestContext2Apply_excludedWithTaintedInState(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -4127,7 +4128,7 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey),
@@ -4218,7 +4219,7 @@ resource "test_instance" "a" {
 			Providers: ps,
 		})
 
-		plan, diags := ctx.Plan(m, prevState, DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, prevState, DefaultPlanOpts)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
@@ -4235,7 +4236,7 @@ resource "test_instance" "a" {
 			Providers: ps,
 		})
 
-		plan, diags := ctx.Plan(m, prevState, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		if diags.HasErrors() {
@@ -4371,7 +4372,7 @@ resource "test_instance" "a" {
 			Providers: ps,
 		})
 
-		plan, diags := ctx.Plan(m, prevState, DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, prevState, DefaultPlanOpts)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
@@ -4388,7 +4389,7 @@ resource "test_instance" "a" {
 			Providers: ps,
 		})
 
-		plan, diags := ctx.Plan(m, prevState, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		if diags.HasErrors() {

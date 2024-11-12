@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"reflect"
 	"strings"
 	"sync"
@@ -75,7 +76,7 @@ func TestContext2Input_provider(t *testing.T) {
 		t.Errorf("wrong description\ngot:  %q\nwant: %q", got, want)
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
@@ -146,7 +147,7 @@ func TestContext2Input_providerMulti(t *testing.T) {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	providerFactory = func() (providers.Interface, error) {
@@ -234,7 +235,7 @@ func TestContext2Input_providerId(t *testing.T) {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
@@ -300,7 +301,7 @@ func TestContext2Input_providerOnly(t *testing.T) {
 	// normal Input test, but we're preserving it until we have time to review
 	// and make sure this isn't inadvertently providing unique test coverage
 	// other than what it set out to test.
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"foo": &InputValue{
@@ -351,7 +352,7 @@ func TestContext2Input_providerVars(t *testing.T) {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"foo": &InputValue{
@@ -469,7 +470,7 @@ func TestContext2Input_dataSourceRequiresRefresh(t *testing.T) {
 	if _, diags := ctx.Refresh(m, state, DefaultPlanOpts); diags.HasErrors() {
 		t.Fatalf("refresh errors: %s", diags.Err())
 	}
-	if _, diags := ctx.Plan(m, state, DefaultPlanOpts); diags.HasErrors() {
+	if _, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts); diags.HasErrors() {
 		t.Fatalf("plan errors: %s", diags.Err())
 	}
 }

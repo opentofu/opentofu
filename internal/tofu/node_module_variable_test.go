@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"testing"
@@ -220,7 +221,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 
 	t.Run("pass", func(t *testing.T) {
 		ctx := testContext2(t, ctxOpts)
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"input": &InputValue{
@@ -253,7 +254,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 			}
 		}
 
-		plan, diags = ctx.Plan(m, state, &PlanOpts{
+		plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 			SetVariables: InputValues{
 				"input": &InputValue{
@@ -279,7 +280,7 @@ func TestNodeModuleVariableConstraints(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		ctx := testContext2(t, ctxOpts)
-		_, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		_, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"input": &InputValue{

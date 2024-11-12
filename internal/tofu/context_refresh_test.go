@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"reflect"
 	"sort"
 	"strings"
@@ -208,7 +209,7 @@ func TestContext2Refresh_dataComputedModuleVar(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{Mode: plans.RefreshOnlyMode})
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{Mode: plans.RefreshOnlyMode})
 	if diags.HasErrors() {
 		t.Fatalf("refresh errors: %s", diags.Err())
 	}
@@ -1953,7 +1954,7 @@ resource "test_resource" "foo" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{Mode: plans.RefreshOnlyMode})
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{Mode: plans.RefreshOnlyMode})
 	if diags.HasErrors() {
 		t.Fatalf("refresh errors: %s", diags.Err())
 	}

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"testing"
 
 	"github.com/zclconf/go-cty/cty"
@@ -723,7 +724,7 @@ check "error" {
 				initialState = test.state
 			}
 
-			plan, diags := ctx.Plan(configs, initialState, &PlanOpts{
+			plan, diags := ctx.Plan(context.Background(), configs, initialState, &PlanOpts{
 				Mode: plans.NormalMode,
 			})
 			if validateCheckDiagnostics(t, "planning", test.planWarning, test.planError, diags) {
