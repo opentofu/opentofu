@@ -10532,7 +10532,7 @@ func TestContext2Apply_ProviderMeta_refresh_set(t *testing.T) {
 	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Refresh(m, state, DefaultPlanOpts)
+	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if !p.ReadResourceCalled {
@@ -10610,7 +10610,7 @@ func TestContext2Apply_ProviderMeta_refresh_setNoSchema(t *testing.T) {
 		},
 	})
 
-	_, diags = ctx.Refresh(m, state, DefaultPlanOpts)
+	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("refresh supposed to error, has no errors")
 	}
@@ -10682,7 +10682,7 @@ func TestContext2Apply_ProviderMeta_refresh_setInvalid(t *testing.T) {
 		},
 	})
 
-	_, diags = ctx.Refresh(m, state, DefaultPlanOpts)
+	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("refresh supposed to error, has no errors")
 	}
@@ -10767,7 +10767,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_set(t *testing.T) {
 	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Refresh(m, state, DefaultPlanOpts)
+	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if !p.ReadDataSourceCalled {
@@ -10891,7 +10891,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_setNoSchema(t *testing.T) {
 		}),
 	}
 
-	_, diags := ctx.Refresh(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Refresh(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("refresh supposed to error, has no errors")
 	}
@@ -10945,7 +10945,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
 		}),
 	}
 
-	_, diags := ctx.Refresh(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Refresh(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("refresh supposed to error, has no errors")
 	}
