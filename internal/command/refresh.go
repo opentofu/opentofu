@@ -24,6 +24,7 @@ type RefreshCommand struct {
 
 func (c *RefreshCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
 
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
@@ -103,7 +104,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Perform the operation
-	op, diags := c.RunOperation(be, opReq)
+	op, diags := c.RunOperation(ctx, be, opReq)
 	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1

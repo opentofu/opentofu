@@ -23,6 +23,8 @@ type PlanCommand struct {
 }
 
 func (c *PlanCommand) Run(rawArgs []string) int {
+	ctx := c.CommandContext()
+
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -105,7 +107,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Perform the operation
-	op, diags := c.RunOperation(be, opReq)
+	op, diags := c.RunOperation(ctx, be, opReq)
 	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
