@@ -264,6 +264,13 @@ func TestHttpClient_lock(t *testing.T) {
 		Created:   time.Date(2023, time.August, 16, 15, 9, 26, 0, time.UTC),
 	}
 
+	stateLockInfoRemoteB := statemgr.LockInfo{
+		ID:        "linus-torvalds-http-remote-state-lock-id",
+		Who:       "LinusTorvalds",
+		Operation: "TestTypePlan",
+		Created:   time.Date(2024, time.August, 15, 9, 0, 26, 0, time.UTC),
+	}
+
 	testCases := []struct {
 		name                string
 		lockInfo            *statemgr.LockInfo
@@ -286,16 +293,11 @@ func TestHttpClient_lock(t *testing.T) {
 			name:                "Locked remote state",
 			lockInfo:            &stateLockInfoA,
 			lockResponseStatus:  http.StatusLocked,
-			lockResponseBody:    []byte(`{"ID":"linus-torvalds-http-remote-state-lock-id", "Path": "", "Operation": "TestTypePlan", "Who": "LinusTorvalds", "Created": "2024-08-15T09:00:26.00Z" }`),
+			lockResponseBody:    stateLockInfoRemoteB.Marshal(),
 			expectedStateLockID: "",
 			expectedErrorMsg: &statemgr.LockError{
-				Info: &statemgr.LockInfo{
-					ID:        "linus-torvalds-http-remote-state-lock-id",
-					Who:       "LinusTorvalds",
-					Operation: "TestTypePlan",
-					Created:   time.Date(2024, time.August, 15, 9, 0, 26, 0, time.UTC),
-				},
-				Err: fmt.Errorf("HTTP remote state already locked: ID=%s", "linus-torvalds-http-remote-state-lock-id"),
+				Info: &stateLockInfoRemoteB,
+				Err:  fmt.Errorf("HTTP remote state already locked: ID=%s", stateLockInfoRemoteB.ID),
 			},
 		},
 		{
