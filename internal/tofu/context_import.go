@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -238,7 +239,7 @@ func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *Evaluate
 // Further, this operation also gracefully handles partial state. If during
 // an import there is a failure, all previously imported resources remain
 // imported.
-func (c *Context) Import(config *configs.Config, prevRunState *states.State, opts *ImportOpts) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *ImportOpts) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Hold a lock since we can modify our own state here
