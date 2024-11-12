@@ -221,6 +221,39 @@ func TestPlan_noState(t *testing.T) {
 	}
 }
 
+func TestPlan_noTestVars(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan-no-test-vars"), td)
+	defer testChdir(t, td)()
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	code := c.Run([]string{})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+
+	// Verify values defined in the 'tests' folder are not used during a plan action
+	expectedResult := `ami = "ValueFROMmain/tfvars"`
+	result := output.All()
+	if !strings.Contains(result, expectedResult) {
+		t.Fatalf("Expected output to contain '%s', got: %s", expectedResult, result)
+	}
+
+	expectedToNotExist := "ValueFROMtests/tfvars"
+	if strings.Contains(result, expectedToNotExist) {
+		t.Fatalf("Expected output to not contain '%s', got: %s", expectedToNotExist, result)
+	}
+}
+
 func TestPlan_generatedConfigPath(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("plan-import-config-gen"), td)
