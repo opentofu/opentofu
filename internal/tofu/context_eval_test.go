@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -59,7 +60,7 @@ func TestContextEval(t *testing.T) {
 		},
 	})
 
-	scope, diags := ctx.Eval(m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
+	scope, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
 		SetVariables: testInputValuesUnset(m.Module.Variables),
 	})
 	if diags.HasErrors() {
@@ -128,7 +129,7 @@ output "out" {
 		},
 	})
 
-	_, diags := ctx.Eval(m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
+	_, diags := ctx.Eval(context.Background(), m, states.NewState(), addrs.RootModuleInstance, &EvalOpts{
 		SetVariables: testInputValuesUnset(m.Module.Variables),
 	})
 	assertNoErrors(t, diags)
