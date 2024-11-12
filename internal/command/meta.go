@@ -488,7 +488,7 @@ func (m *Meta) CommandContext() context.Context {
 // If the operation runs to completion then no error is returned even if the
 // operation itself is unsuccessful. Use the "Result" field of the
 // returned operation object to recognize operation-level failure.
-func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*backend.RunningOperation, tfdiags.Diagnostics) {
+func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *backend.Operation) (*backend.RunningOperation, tfdiags.Diagnostics) {
 	if opReq.View == nil {
 		panic("RunOperation called with nil View")
 	}
@@ -505,7 +505,7 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 		return nil, diags
 	}
 
-	op, err := b.Operation(context.Background(), opReq)
+	op, err := b.Operation(ctx, opReq)
 	if err != nil {
 		return nil, diags.Append(fmt.Errorf("error starting operation: %w", err))
 	}
