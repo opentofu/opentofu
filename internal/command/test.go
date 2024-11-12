@@ -605,7 +605,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	}
 	run.Diagnostics = filteredDiags
 
-	applyCtx, updated, applyDiags := runner.apply(plan, state, config, run, file)
+	applyCtx, updated, applyDiags := runner.apply(ctx, plan, state, config, run, file)
 
 	// Remove expected diagnostics, and add diagnostics in case anything that should have failed didn't.
 	applyDiags = run.ValidateExpectedFailures(expectedFailures, sourceRanges, applyDiags)
@@ -748,7 +748,7 @@ func (runner *TestFileRunner) destroy(ctx context.Context, config *configs.Confi
 		return state, diags
 	}
 
-	_, updated, applyDiags := runner.apply(plan, state, config, run, file)
+	_, updated, applyDiags := runner.apply(ctx, plan, state, config, run, file)
 	diags = diags.Append(applyDiags)
 	return updated, diags
 }
@@ -824,7 +824,7 @@ func (runner *TestFileRunner) plan(ctx context.Context, config *configs.Config, 
 	return tfCtx, plan, diags
 }
 
-func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, config *configs.Config, run *moduletest.Run, file *moduletest.File) (*tofu.Context, *states.State, tfdiags.Diagnostics) {
+func (runner *TestFileRunner) apply(ctx context.Context, plan *plans.Plan, state *states.State, config *configs.Config, run *moduletest.Run, file *moduletest.File) (*tofu.Context, *states.State, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] TestFileRunner: called apply for %s/%s", file.Name, run.Name)
 
 	var diags tfdiags.Diagnostics
@@ -854,7 +854,7 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 		return nil, state, diags
 	}
 
-	runningCtx, done := context.WithCancel(context.Background())
+	runningCtx, done := context.WithCancel(context.WithoutCancel(ctx))
 
 	var updated *states.State
 	var applyDiags tfdiags.Diagnostics
@@ -864,7 +864,7 @@ func (runner *TestFileRunner) apply(plan *plans.Plan, state *states.State, confi
 		defer panicHandler()
 		defer done()
 		log.Printf("[DEBUG] TestFileRunner: starting apply for %s/%s", file.Name, run.Name)
-		updated, applyDiags = tfCtx.Apply(plan, config)
+		updated, applyDiags = tfCtx.Apply(ctx, plan, config)
 		log.Printf("[DEBUG] TestFileRunner: completed apply for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, created)

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -26,7 +27,7 @@ import (
 //
 // Even if the returned diagnostics contains errors, Apply always returns the
 // resulting state which is likely to have been partially-updated.
-func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
 	defer c.acquireRun("apply")()
 
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
