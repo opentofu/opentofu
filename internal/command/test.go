@@ -113,6 +113,7 @@ func (c *TestCommand) Synopsis() string {
 
 func (c *TestCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
 
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -250,9 +251,9 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	// if we're halfway through a test. We'll print details explaining what was
 	// stopped so the user can do their best to recover from it.
 
-	runningCtx, done := context.WithCancel(context.Background())
+	runningCtx, done := context.WithCancel(context.WithoutCancel(ctx))
 	stopCtx, stop := context.WithCancel(runningCtx)
-	cancelCtx, cancel := context.WithCancel(context.Background())
+	cancelCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 
 	runner := &TestSuiteRunner{
 		command: c,
@@ -284,7 +285,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		defer stop()
 		defer cancel()
 
-		runner.Start()
+		runner.Start(ctx)
 	}()
 
 	// Wait for the operation to complete, or for an interrupt to occur.
@@ -365,7 +366,7 @@ type TestSuiteRunner struct {
 	Verbose bool
 }
 
-func (runner *TestSuiteRunner) Start() {
+func (runner *TestSuiteRunner) Start(ctx context.Context) {
 	var files []string
 	for name := range runner.Suite.Files {
 		files = append(files, name)
@@ -390,8 +391,8 @@ func (runner *TestSuiteRunner) Start() {
 			},
 		}
 
-		fileRunner.ExecuteTestFile(file)
-		fileRunner.Cleanup(file)
+		fileRunner.ExecuteTestFile(ctx, file)
+		fileRunner.Cleanup(ctx, file)
 		runner.Suite.Status = runner.Suite.Status.Merge(file.Status)
 	}
 }
@@ -407,7 +408,7 @@ type TestFileState struct {
 	State *states.State
 }
 
-func (runner *TestFileRunner) ExecuteTestFile(file *moduletest.File) {
+func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *moduletest.File) {
 	log.Printf("[TRACE] TestFileRunner: executing test file %s", file.Name)
 
 	file.Status = file.Status.Merge(moduletest.Pass)
@@ -465,7 +466,7 @@ func (runner *TestFileRunner) ExecuteTestFile(file *moduletest.File) {
 			}
 		}
 
-		state, updatedState := runner.ExecuteTestRun(run, file, runner.States[key].State, config)
+		state, updatedState := runner.ExecuteTestRun(ctx, run, file, runner.States[key].State, config)
 		if updatedState {
 			// Only update the most recent run and state if the state was
 			// actually updated by this change. We want to use the run that
@@ -484,7 +485,8 @@ func (runner *TestFileRunner) ExecuteTestFile(file *moduletest.File) {
 	}
 }
 
-func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *moduletest.File, state *states.State, config *configs.Config) (*states.State, bool) {
+//nolint:funlen // Historical function predates our complexity rules
+func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletest.Run, file *moduletest.File, state *states.State, config *configs.Config) (*states.State, bool) {
 	log.Printf("[TRACE] TestFileRunner: executing run block %s/%s", file.Name, run.Name)
 
 	if runner.Suite.Cancelled {
@@ -528,7 +530,7 @@ func (runner *TestFileRunner) ExecuteTestRun(run *moduletest.Run, file *modulete
 		return state, false
 	}
 
-	planCtx, plan, planDiags := runner.plan(config, state, run, file)
+	planCtx, plan, planDiags := runner.plan(ctx, config, state, run, file)
 	if run.Config.Command == configs.PlanTestCommand {
 		expectedFailures, sourceRanges := run.BuildExpectedFailuresAndSourceMaps()
 		// Then we want to assess our conditions and diagnostics differently.
@@ -689,8 +691,7 @@ func (runner *TestFileRunner) validate(config *configs.Config, run *moduletest.R
 	return diags
 }
 
-func (runner *TestFileRunner) destroy(config *configs.Config, state *states.State, run *moduletest.Run, file *moduletest.File) (*states.State, tfdiags.Diagnostics) {
-
+func (runner *TestFileRunner) destroy(ctx context.Context, config *configs.Config, state *states.State, run *moduletest.Run, file *moduletest.File) (*states.State, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] TestFileRunner: called destroy for %s/%s", file.Name, run.Name)
 
 	if state.Empty() {
@@ -721,7 +722,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 		return state, diags
 	}
 
-	runningCtx, done := context.WithCancel(context.Background())
+	runningCtx, done := context.WithCancel(context.WithoutCancel(ctx))
 
 	var plan *plans.Plan
 	var planDiags tfdiags.Diagnostics
@@ -731,7 +732,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting destroy plan for %s/%s", file.Name, run.Name)
-		plan, planDiags = tfCtx.Plan(config, state, planOpts)
+		plan, planDiags = tfCtx.Plan(ctx, config, state, planOpts)
 		log.Printf("[DEBUG] TestFileRunner: completed destroy plan for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
@@ -752,7 +753,7 @@ func (runner *TestFileRunner) destroy(config *configs.Config, state *states.Stat
 	return updated, diags
 }
 
-func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, run *moduletest.Run, file *moduletest.File) (*tofu.Context, *plans.Plan, tfdiags.Diagnostics) {
+func (runner *TestFileRunner) plan(ctx context.Context, config *configs.Config, state *states.State, run *moduletest.Run, file *moduletest.File) (*tofu.Context, *plans.Plan, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] TestFileRunner: called plan for %s/%s", file.Name, run.Name)
 
 	var diags tfdiags.Diagnostics
@@ -798,7 +799,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		return nil, nil, diags
 	}
 
-	runningCtx, done := context.WithCancel(context.Background())
+	runningCtx, done := context.WithCancel(context.WithoutCancel(ctx))
 
 	var plan *plans.Plan
 	var planDiags tfdiags.Diagnostics
@@ -808,7 +809,7 @@ func (runner *TestFileRunner) plan(config *configs.Config, state *states.State, 
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting plan for %s/%s", file.Name, run.Name)
-		plan, planDiags = tfCtx.Plan(config, state, planOpts)
+		plan, planDiags = tfCtx.Plan(ctx, config, state, planOpts)
 		log.Printf("[DEBUG] TestFileRunner: completed plan for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
@@ -946,7 +947,7 @@ func (runner *TestFileRunner) wait(ctx *tofu.Context, runningCtx context.Context
 	return diags, cancelled
 }
 
-func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
+func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File) {
 	log.Printf("[TRACE] TestStateManager: cleaning up state for %s", file.Name)
 
 	if runner.Suite.Cancelled {
@@ -1018,7 +1019,7 @@ func (runner *TestFileRunner) Cleanup(file *moduletest.File) {
 		updated := state.State
 		if !diags.HasErrors() {
 			var destroyDiags tfdiags.Diagnostics
-			updated, destroyDiags = runner.destroy(runConfig, state.State, state.Run, file)
+			updated, destroyDiags = runner.destroy(ctx, runConfig, state.State, state.Run, file)
 			diags = diags.Append(destroyDiags)
 		}
 		runner.Suite.View.DestroySummary(diags, state.Run, file, updated)

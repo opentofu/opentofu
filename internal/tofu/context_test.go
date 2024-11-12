@@ -8,6 +8,7 @@ package tofu
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -211,7 +212,7 @@ resource "implicit_thing" "b" {
 	// be worth the complexity to check for them.
 
 	validateDiags := ctx.Validate(cfg)
-	_, planDiags := ctx.Plan(cfg, nil, DefaultPlanOpts)
+	_, planDiags := ctx.Plan(context.Background(), cfg, nil, DefaultPlanOpts)
 
 	tests := map[string]tfdiags.Diagnostics{
 		"validate": validateDiags,

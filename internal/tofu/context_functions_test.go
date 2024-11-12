@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -455,7 +456,7 @@ variable "obfmod" {
 
 	p.GetFunctionsCalled = false
 	p.CallFunctionCalled = false
-	_, diags = ctx.Plan(m, nil, nil)
+	_, diags = ctx.Plan(context.Background(), m, nil, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -552,7 +553,7 @@ variable "obfmod" {
 	p.GetProviderSchemaCalled = false
 	p.GetFunctionsCalled = false
 	p.CallFunctionCalled = false
-	_, diags = ctx.Plan(m, nil, nil)
+	_, diags = ctx.Plan(context.Background(), m, nil, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -635,7 +636,7 @@ variable "obfmod" {
 		},
 	})
 
-	_, diags := ctx.Plan(m, nil, nil)
+	_, diags := ctx.Plan(context.Background(), m, nil, nil)
 	if !diags.HasErrors() {
 		t.Fatal("Expected error!")
 	}
@@ -744,7 +745,7 @@ variable "obfmod" {
 	p.GetProviderSchemaCalled = false
 	p.GetFunctionsCalled = false
 	p.CallFunctionCalled = false
-	_, diags = ctx.Plan(m, nil, nil)
+	_, diags = ctx.Plan(context.Background(), m, nil, nil)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
