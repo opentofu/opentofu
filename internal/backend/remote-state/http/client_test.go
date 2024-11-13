@@ -336,7 +336,8 @@ func TestHttpClient_lock(t *testing.T) {
 			}
 
 			lockID, err := client.Lock(tt.lockInfo)
-			if tt.expectedErrorMsg != nil && err.Error() != tt.expectedErrorMsg.Error() {
+			if (err != nil) != (tt.expectedErrorMsg != nil) || (err != nil && err.Error() != tt.expectedErrorMsg.Error()) {
+				// One of errors is nil and the other is not OR if both are not nil but their messages differ
 				t.Errorf("Lock() error = %v, want %v", err, tt.expectedErrorMsg)
 			}
 			if lockID != tt.expectedStateLockID {
