@@ -125,7 +125,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 			mode := tofu.InputModeProvider
 
 			log.Printf("[TRACE] backend/local: requesting interactive input, if necessary")
-			inputDiags := ret.Core.Input(ret.Config, mode)
+			inputDiags := ret.Core.Input(ctx, ret.Config, mode)
 			diags = diags.Append(inputDiags)
 			if inputDiags.HasErrors() {
 				return nil, nil, nil, diags
