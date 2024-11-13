@@ -63,7 +63,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 	}
 
 	workingState := plan.PriorState.DeepCopy()
-	walker, walkDiags := c.walk(graph, operation, &graphWalkOpts{
+	walker, walkDiags := c.walk(ctx, graph, operation, &graphWalkOpts{
 		Config:     config,
 		InputState: workingState,
 		Changes:    plan.Changes,

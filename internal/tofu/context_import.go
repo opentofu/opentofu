@@ -273,7 +273,7 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 	}
 
 	// Walk it
-	walker, walkDiags := c.walk(graph, walkImport, &graphWalkOpts{
+	walker, walkDiags := c.walk(ctx, graph, walkImport, &graphWalkOpts{
 		Config:                  config,
 		InputState:              state,
 		ProviderFunctionTracker: providerFunctionTracker,
