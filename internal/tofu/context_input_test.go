@@ -65,7 +65,7 @@ func TestContext2Input_provider(t *testing.T) {
 		return
 	}
 
-	if diags := ctx.Input(m, InputModeStd); diags.HasErrors() {
+	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 
@@ -143,7 +143,7 @@ func TestContext2Input_providerMulti(t *testing.T) {
 	var actual []interface{}
 	var lock sync.Mutex
 
-	if diags := ctx.Input(m, InputModeStd); diags.HasErrors() {
+	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 
@@ -181,7 +181,7 @@ func TestContext2Input_providerOnce(t *testing.T) {
 		},
 	})
 
-	if diags := ctx.Input(m, InputModeStd); diags.HasErrors() {
+	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 }
@@ -231,7 +231,7 @@ func TestContext2Input_providerId(t *testing.T) {
 		"provider.aws.foo": "bar",
 	}
 
-	if diags := ctx.Input(m, InputModeStd); diags.HasErrors() {
+	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 
@@ -289,7 +289,7 @@ func TestContext2Input_providerOnly(t *testing.T) {
 		return
 	}
 
-	if err := ctx.Input(m, InputModeProvider); err != nil {
+	if err := ctx.Input(context.Background(), m, InputModeProvider); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -348,7 +348,7 @@ func TestContext2Input_providerVars(t *testing.T) {
 		actual = req.Config.GetAttr("foo").AsString()
 		return
 	}
-	if diags := ctx.Input(m, InputModeStd); diags.HasErrors() {
+	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 
@@ -383,7 +383,7 @@ func TestContext2Input_providerVarsModuleInherit(t *testing.T) {
 		UIInput: input,
 	})
 
-	if diags := ctx.Input(m, InputModeStd); diags.HasErrors() {
+	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 }
@@ -400,7 +400,7 @@ func TestContext2Input_submoduleTriggersInvalidCount(t *testing.T) {
 		UIInput: input,
 	})
 
-	if diags := ctx.Input(m, InputModeStd); diags.HasErrors() {
+	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 }
@@ -458,7 +458,7 @@ func TestContext2Input_dataSourceRequiresRefresh(t *testing.T) {
 		UIInput: input,
 	})
 
-	if diags := ctx.Input(m, InputModeStd); diags.HasErrors() {
+	if diags := ctx.Input(context.Background(), m, InputModeStd); diags.HasErrors() {
 		t.Fatalf("input errors: %s", diags.Err())
 	}
 
