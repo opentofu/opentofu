@@ -76,7 +76,7 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		return diags
 	}
 
-	walker, walkDiags := c.walk(graph, walkValidate, &graphWalkOpts{
+	walker, walkDiags := c.walk(ctx, graph, walkValidate, &graphWalkOpts{
 		Config:                  config,
 		ProviderFunctionTracker: providerFunctionTracker,
 	})
