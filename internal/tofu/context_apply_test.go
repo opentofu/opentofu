@@ -7227,7 +7227,7 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		if diags := ctx.Validate(m); diags.HasErrors() {
+		if diags := ctx.Validate(context.Background(), m); diags.HasErrors() {
 			t.Fatalf("validate errors: %s", diags.Err())
 		}
 
@@ -7839,7 +7839,7 @@ func TestContext2Apply_vars(t *testing.T) {
 	ctx := testContext2(t, opts)
 	m := fixture.Config
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if len(diags) != 0 {
 		t.Fatalf("bad: %s", diags.ErrWithWarnings())
 	}
@@ -7902,7 +7902,7 @@ func TestContext2Apply_varsEnv(t *testing.T) {
 	ctx := testContext2(t, opts)
 	m := fixture.Config
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if len(diags) != 0 {
 		t.Fatalf("bad: %s", diags.ErrWithWarnings())
 	}
@@ -9511,7 +9511,7 @@ func TestContext2Apply_invalidIndexRef(t *testing.T) {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected validation failure: %s", diags.Err())
 	}

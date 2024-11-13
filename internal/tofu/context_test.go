@@ -107,7 +107,7 @@ func TestNewContextRequiredVersion(t *testing.T) {
 				t.Fatalf("unexpected NewContext errors: %s", diags.Err())
 			}
 
-			diags = c.Validate(mod)
+			diags = c.Validate(context.Background(), mod)
 			if diags.HasErrors() != tc.Err {
 				t.Fatalf("err: %s", diags.Err())
 			}
@@ -166,7 +166,7 @@ terraform {}
 				t.Fatalf("unexpected NewContext errors: %s", diags.Err())
 			}
 
-			diags = c.Validate(mod)
+			diags = c.Validate(context.Background(), mod)
 			if diags.HasErrors() != tc.Err {
 				t.Fatalf("err: %s", diags.Err())
 			}
@@ -211,7 +211,7 @@ resource "implicit_thing" "b" {
 	// require doing some pretty weird things that aren't common enough to
 	// be worth the complexity to check for them.
 
-	validateDiags := ctx.Validate(cfg)
+	validateDiags := ctx.Validate(context.Background(), cfg)
 	_, planDiags := ctx.Plan(context.Background(), cfg, nil, DefaultPlanOpts)
 
 	tests := map[string]tfdiags.Diagnostics{

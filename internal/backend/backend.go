@@ -169,7 +169,7 @@ type Local interface {
 	// backend's implementations of this to understand what this actually
 	// does, because this operation has no well-defined contract aside from
 	// "whatever it already does".
-	LocalRun(*Operation) (*LocalRun, statemgr.Full, tfdiags.Diagnostics)
+	LocalRun(context.Context, *Operation) (*LocalRun, statemgr.Full, tfdiags.Diagnostics)
 }
 
 // LocalRun represents the assortment of objects that we can collect or

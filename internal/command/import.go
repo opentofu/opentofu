@@ -227,7 +227,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, state, ctxDiags := local.LocalRun(opReq)
+	lr, state, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)

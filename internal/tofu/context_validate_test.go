@@ -39,7 +39,7 @@ func TestContext2Validate_badCount(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -62,7 +62,7 @@ func TestContext2Validate_badResource_reference(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -88,7 +88,7 @@ func TestContext2Validate_badVar(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -165,7 +165,7 @@ func TestContext2Validate_computedVar(t *testing.T) {
 		return
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -205,7 +205,7 @@ func TestContext2Validate_computedInFunction(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -243,7 +243,7 @@ func TestContext2Validate_countComputed(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -267,7 +267,7 @@ func TestContext2Validate_countNegative(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -293,7 +293,7 @@ func TestContext2Validate_countVariable(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -347,7 +347,7 @@ func TestContext2Validate_moduleBadOutput(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -373,7 +373,7 @@ func TestContext2Validate_moduleGood(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -402,7 +402,7 @@ func TestContext2Validate_moduleBadResource(t *testing.T) {
 		Diagnostics: tfdiags.Diagnostics{}.Append(fmt.Errorf("bad")),
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -429,7 +429,7 @@ func TestContext2Validate_moduleDepsShouldNotCycle(t *testing.T) {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -470,7 +470,7 @@ func TestContext2Validate_moduleProviderVar(t *testing.T) {
 		return
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -511,7 +511,7 @@ func TestContext2Validate_moduleProviderInheritUnused(t *testing.T) {
 		return
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -550,7 +550,7 @@ func TestContext2Validate_orphans(t *testing.T) {
 		}
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -586,7 +586,7 @@ func TestContext2Validate_providerConfig_bad(t *testing.T) {
 		Diagnostics: tfdiags.Diagnostics{}.Append(fmt.Errorf("bad")),
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if len(diags) != 1 {
 		t.Fatalf("wrong number of diagnostics %d; want %d", len(diags), 1)
 	}
@@ -625,7 +625,7 @@ func TestContext2Validate_providerConfig_skippedEmpty(t *testing.T) {
 		Diagnostics: tfdiags.Diagnostics{}.Append(fmt.Errorf("should not be called")),
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -657,7 +657,7 @@ func TestContext2Validate_providerConfig_good(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -692,7 +692,7 @@ func TestContext2Validate_requiredProviderConfig(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -728,7 +728,7 @@ func TestContext2Validate_provisionerConfig_bad(t *testing.T) {
 		Diagnostics: tfdiags.Diagnostics{}.Append(fmt.Errorf("bad")),
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -760,7 +760,7 @@ func TestContext2Validate_badResourceConnection(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	t.Log(diags.Err())
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
@@ -793,7 +793,7 @@ func TestContext2Validate_badProvisionerConnection(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	t.Log(diags.Err())
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
@@ -842,7 +842,7 @@ func TestContext2Validate_provisionerConfig_good(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -908,7 +908,7 @@ func TestContext2Validate_resourceConfig_bad(t *testing.T) {
 		Diagnostics: tfdiags.Diagnostics{}.Append(fmt.Errorf("bad")),
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -934,7 +934,7 @@ func TestContext2Validate_resourceConfig_good(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -972,7 +972,7 @@ func TestContext2Validate_tainted(t *testing.T) {
 		}
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -1009,7 +1009,7 @@ func TestContext2Validate_targetedDestroy(t *testing.T) {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -1041,7 +1041,7 @@ func TestContext2Validate_varRefUnknown(t *testing.T) {
 		return providers.ValidateResourceConfigResponse{}
 	}
 
-	c.Validate(m)
+	c.Validate(context.Background(), m)
 
 	// Input variables are always unknown during the validate walk, because
 	// we're checking for validity of all possible input values. Validity
@@ -1077,7 +1077,7 @@ func TestContext2Validate_interpolateVar(t *testing.T) {
 		UIInput: input,
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -1109,7 +1109,7 @@ func TestContext2Validate_interpolateComputedModuleVarDef(t *testing.T) {
 		UIInput: input,
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -1129,7 +1129,7 @@ func TestContext2Validate_interpolateMap(t *testing.T) {
 		UIInput: input,
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -1179,7 +1179,7 @@ resource "aws_instance" "foo" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1210,7 +1210,7 @@ output "out" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1246,7 +1246,7 @@ resource "aws_instance" "foo" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1281,7 +1281,7 @@ output "root" {
 
 	ctx := testContext2(t, &ContextOpts{})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1304,7 +1304,7 @@ output "out" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1334,7 +1334,7 @@ output "out" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1364,7 +1364,7 @@ output "out" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1393,7 +1393,7 @@ resource "test_instance" "bar" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1425,7 +1425,7 @@ resource "test_instance" "bar" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1449,7 +1449,7 @@ func TestContext2Validate_variableCustomValidationsFail(t *testing.T) {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1483,7 +1483,7 @@ variable "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error\ngot: %s", diags.Err().Error())
 	}
@@ -1544,7 +1544,7 @@ resource "aws_instance" "foo" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -1571,7 +1571,7 @@ resource "aws_instance" "foo" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1601,7 +1601,7 @@ resource "aws_instance" "foo" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1682,7 +1682,7 @@ output "out" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -1709,7 +1709,7 @@ output "out" {
 `,
 	})
 
-	diags := testContext2(t, &ContextOpts{}).Validate(m)
+	diags := testContext2(t, &ContextOpts{}).Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1747,7 +1747,7 @@ output "out" {
 `,
 	})
 
-	diags := testContext2(t, &ContextOpts{}).Validate(m)
+	diags := testContext2(t, &ContextOpts{}).Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
@@ -1795,7 +1795,7 @@ resource "test_instance" "a" {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1845,7 +1845,7 @@ func TestContext2Validate_sensitiveProvisionerConfig(t *testing.T) {
 		return pr.ValidateProvisionerConfigResponse
 	}
 
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
@@ -1939,7 +1939,7 @@ resource "test_instance" "c" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -2006,7 +2006,7 @@ resource "test_object" "t" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -2063,7 +2063,7 @@ output "out" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -2096,7 +2096,7 @@ func TestContext2Validate_nonNullableVariableDefaultValidation(t *testing.T) {
 
 	ctx := testContext2(t, &ContextOpts{})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -2139,7 +2139,7 @@ resource "aws_instance" "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -2182,7 +2182,7 @@ resource "aws_instance" "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -2228,7 +2228,7 @@ resource "aws_instance" "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -2269,7 +2269,7 @@ resource "aws_instance" "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -2318,7 +2318,7 @@ resource "aws_instance" "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -2359,7 +2359,7 @@ resource "aws_instance" "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if !diags.HasErrors() {
 		t.Fatalf("succeeded; want error")
 	}
@@ -2405,7 +2405,7 @@ resource "aws_instance" "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -2448,7 +2448,7 @@ resource "aws_instance" "test" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -2482,7 +2482,7 @@ locals {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	warn := diags.ErrWithWarnings().Error()
 	if !strings.Contains(warn, `The attribute "foo" is deprecated`) {
 		t.Fatalf("expected deprecated warning, got: %q\n", warn)
