@@ -182,8 +182,19 @@ func (i *Installer) SetUnmanagedProviderTypes(types map[addrs.Provider]struct{})
 // in the final returned error value so callers should show either one or the
 // other, and not both.
 func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.Locks, reqs getproviders.Requirements, mode InstallMode) (*depsfile.Locks, error) {
-	errs := map[addrs.Provider]error{}
 	evts := installerEventsForContext(ctx)
+
+	// Whenever possible we prefer to collect separate errors for each
+	// problematic provider and then report them all together at the end,
+	// because that can allow an operator to notice a systematic problem
+	// across multiple providers, such as a particular registry failing
+	// in the same way regardless of which provider is requested.
+	//
+	// The other functions we call below will gradually add errors here
+	// as appropriate. Those functions only return an err directly
+	// themselves in situations that are not related to any particular
+	// provider and so prevent us from continuing further at all.
+	errs := map[addrs.Provider]error{}
 
 	// We'll work with a copy of the given locks, so we can modify it and
 	// return the updated locks without affecting the caller's object.
@@ -201,8 +212,65 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 	// just ask the source to confirm the continued existence of what
 	// was locked, or otherwise we'll find the newest version matching the
 	// configured version constraint.
+	mightNeed, locked := i.ensureProviderVersionsMightNeed(ctx, locks, reqs, mode, errs)
+
+	// Step 2: Query the provider source for each of the providers we selected
+	// in the first step and select the latest available version that is
+	// in the set of acceptable versions.
+	//
+	// This produces a set of packages to install to our cache in the next step.
+	need, err := i.ensureProviderVersionsNeed(ctx, locks, reqs, mightNeed, locked, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 3: For each provider version we've decided we need to install,
+	// install its package into our target cache (possibly via the global cache).
+	targetPlatform := i.targetDir.targetPlatform // we inherit this to behave correctly in unit tests
+	authResults, err := i.ensureProviderVersionsInstall(ctx, locks, reqs, mode, need, targetPlatform, errs)
+	if err != nil {
+		return nil, err
+	}
+
+	// Emit final event for fetching if any were successfully fetched
+	if cb := evts.ProvidersFetched; cb != nil && len(authResults) > 0 {
+		cb(authResults)
+	}
+
+	// Finally, if the lock structure contains locks for any providers that
+	// are no longer needed by this configuration, we'll remove them. This
+	// is important because we will not have installed those providers
+	// above and so a lock file still containing them would make the working
+	// directory invalid: not every provider in the lock file is available
+	// for use.
+	for providerAddr := range locks.AllProviders() {
+		if _, ok := reqs[providerAddr]; !ok {
+			locks.RemoveProvider(providerAddr)
+		}
+	}
+
+	if len(errs) > 0 {
+		return locks, InstallerError{
+			ProviderErrors: errs,
+		}
+	}
+	return locks, nil
+}
+
+func (i *Installer) ensureProviderVersionsMightNeed(
+	ctx context.Context,
+	locks *depsfile.Locks,
+	reqs getproviders.Requirements,
+	mode InstallMode,
+	errs map[addrs.Provider]error,
+) (
+	map[addrs.Provider]getproviders.VersionSet,
+	map[addrs.Provider]bool,
+) {
+	evts := installerEventsForContext(ctx)
 	mightNeed := map[addrs.Provider]getproviders.VersionSet{}
 	locked := map[addrs.Provider]bool{}
+
 	for provider, versionConstraints := range reqs {
 		if provider.IsBuiltIn() {
 			// Built in providers do not require installation but we'll still
@@ -277,13 +345,21 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 		mightNeed[provider] = acceptableVersions
 	}
 
-	// Step 2: Query the provider source for each of the providers we selected
-	// in the first step and select the latest available version that is
-	// in the set of acceptable versions.
-	//
-	// This produces a set of packages to install to our cache in the next step.
+	return mightNeed, locked
+}
+
+func (i *Installer) ensureProviderVersionsNeed(
+	ctx context.Context,
+	locks *depsfile.Locks,
+	reqs getproviders.Requirements,
+	mightNeed map[addrs.Provider]getproviders.VersionSet,
+	locked map[addrs.Provider]bool,
+	errs map[addrs.Provider]error,
+) (map[addrs.Provider]getproviders.Version, error) {
+	evts := installerEventsForContext(ctx)
 	need := map[addrs.Provider]getproviders.Version{}
 NeedProvider:
+
 	for provider, acceptableVersions := range mightNeed {
 		if err := ctx.Err(); err != nil {
 			// If our context has been cancelled or reached a timeout then
@@ -346,10 +422,21 @@ NeedProvider:
 		}
 	}
 
-	// Step 3: For each provider version we've decided we need to install,
-	// install its package into our target cache (possibly via the global cache).
+	return need, nil
+}
+
+func (i *Installer) ensureProviderVersionsInstall(
+	ctx context.Context,
+	locks *depsfile.Locks,
+	reqs getproviders.Requirements,
+	mode InstallMode,
+	need map[addrs.Provider]getproviders.Version,
+	targetPlatform getproviders.Platform,
+	errs map[addrs.Provider]error,
+) (map[addrs.Provider]*getproviders.PackageAuthenticationResult, error) {
+	evts := installerEventsForContext(ctx)
 	authResults := map[addrs.Provider]*getproviders.PackageAuthenticationResult{} // record auth results for all successfully fetched providers
-	targetPlatform := i.targetDir.targetPlatform                                  // we inherit this to behave correctly in unit tests
+
 	for provider, version := range need {
 		if err := ctx.Err(); err != nil {
 			// If our context has been cancelled or reached a timeout then
@@ -719,29 +806,7 @@ NeedProvider:
 		}
 	}
 
-	// Emit final event for fetching if any were successfully fetched
-	if cb := evts.ProvidersFetched; cb != nil && len(authResults) > 0 {
-		cb(authResults)
-	}
-
-	// Finally, if the lock structure contains locks for any providers that
-	// are no longer needed by this configuration, we'll remove them. This
-	// is important because we will not have installed those providers
-	// above and so a lock file still containing them would make the working
-	// directory invalid: not every provider in the lock file is available
-	// for use.
-	for providerAddr := range locks.AllProviders() {
-		if _, ok := reqs[providerAddr]; !ok {
-			locks.RemoveProvider(providerAddr)
-		}
-	}
-
-	if len(errs) > 0 {
-		return locks, InstallerError{
-			ProviderErrors: errs,
-		}
-	}
-	return locks, nil
+	return authResults, nil
 }
 
 // checkUnspecifiedVersion Check the presence of version 0.0.0 and return an error with a tip
