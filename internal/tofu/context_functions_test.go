@@ -362,7 +362,7 @@ variable "obfmod" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -443,7 +443,7 @@ variable "obfmod" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -536,7 +536,7 @@ variable "obfmod" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -728,7 +728,7 @@ variable "obfmod" {
 		},
 	})
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}

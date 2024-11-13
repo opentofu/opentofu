@@ -33,6 +33,8 @@ func (c *GraphCommand) Run(args []string) int {
 	var verbose bool
 	var planPath string
 
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("graph")
 	c.Meta.varFlagSet(cmdFlags)
@@ -160,7 +162,7 @@ func (c *GraphCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)

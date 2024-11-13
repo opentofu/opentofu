@@ -3252,7 +3252,7 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		if diags := ctx.Validate(m); diags.HasErrors() {
+		if diags := ctx.Validate(context.Background(), m); diags.HasErrors() {
 			t.Fatalf("validate errors: %s", diags.Err())
 		}
 
@@ -3316,7 +3316,7 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		if diags := ctx.Validate(m); diags.HasErrors() {
+		if diags := ctx.Validate(context.Background(), m); diags.HasErrors() {
 			t.Fatalf("validate errors: %s", diags.Err())
 		}
 
