@@ -223,16 +223,10 @@ run "check_for_each_n_count_overridden" {
 }
 
 # ensures non-aliased provider is mocked by default
-mock_provider "aws" {
-  mock_resource "aws_s3_bucket" {
+mock_provider "http" {
+  mock_data "http" {
     defaults = {
-      arn = "arn:aws:s3:::mocked"
-    }
-  }
-
-  mock_data "aws_s3_bucket" {
-    defaults = {
-      bucket_domain_name = "mocked.com"
+      response_body = "I am mocked!"
     }
   }
 }
@@ -267,13 +261,8 @@ mock_provider "random" {
 
 run "check_mock_providers" {
   assert {
-    condition     = resource.aws_s3_bucket.test.arn == "arn:aws:s3:::mocked"
-    error_message = "aws s3 bucket resource doesn't have mocked values"
-  }
-
-  assert {
-    condition     = data.aws_s3_bucket.test.bucket_domain_name == "mocked.com"
-    error_message = "aws s3 bucket data doesn't have mocked values"
+    condition     = data.http.test.response_body == "I am mocked!"
+    error_message = "http data doesn't have mocked values"
   }
 
   assert {
@@ -294,7 +283,7 @@ run "check_mock_providers" {
 
 run "check_providers_block" {
   providers = {
-    aws           = aws
+    http          = http
     local.aliased = local.aliased
     random        = random.for_pets
   }

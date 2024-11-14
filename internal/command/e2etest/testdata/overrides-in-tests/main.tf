@@ -58,12 +58,8 @@ module "rand_count" {
     source = "./rand"
 }
 
-resource "aws_s3_bucket" "test" {
-  bucket = "must not be used anyway"
-}
-
-data "aws_s3_bucket" "test" {
-  bucket = "must not be used anyway"
+data "http" "test" {
+  url = "must not be used anyway"
 }
 
 provider "local" {
