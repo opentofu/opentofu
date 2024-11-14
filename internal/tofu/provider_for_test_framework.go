@@ -267,7 +267,10 @@ func (res overrideResourcesForTest) copy() overrideResourcesForTest {
 
 func (p providerForTest) getMockValuesForManagedResource(typeName string) map[string]cty.Value {
 	if p.currentResourceAddress != "" {
-		return p.overrideResources.managed[p.currentResourceAddress].values
+		res, ok := p.overrideResources.managed[p.currentResourceAddress]
+		if ok {
+			return res.values
+		}
 	}
 
 	return p.mockResources.managed[typeName].values
@@ -275,7 +278,10 @@ func (p providerForTest) getMockValuesForManagedResource(typeName string) map[st
 
 func (p providerForTest) getMockValuesForDataResource(typeName string) map[string]cty.Value {
 	if p.currentResourceAddress != "" {
-		return p.overrideResources.data[p.currentResourceAddress].values
+		res, ok := p.overrideResources.data[p.currentResourceAddress]
+		if ok {
+			return res.values
+		}
 	}
 
 	return p.mockResources.data[typeName].values
