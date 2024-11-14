@@ -66,8 +66,8 @@ func TestLoadConfig_non_existing_file(t *testing.T) {
 
 	t.Setenv("TF_CLI_CONFIG_FILE", cliTmpFile)
 
-	c, errs := LoadConfig()
-	if errs.HasErrors() || c.Validate().HasErrors() {
+	c, errs := LoadConfig(false)
+	if errs.HasErrors() || c.Validate(false).HasErrors() {
 		t.Fatalf("err: %s", errs)
 	}
 
@@ -367,7 +367,7 @@ func TestConfigValidate(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			diags := test.Config.Validate()
+			diags := test.Config.Validate(false)
 			if len(diags) != test.DiagCount {
 				t.Errorf("wrong number of diagnostics %d; want %d", len(diags), test.DiagCount)
 				for _, diag := range diags {
