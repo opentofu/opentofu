@@ -249,20 +249,20 @@ type overrideResourcesForTest struct {
 }
 
 func (res overrideResourcesForTest) copy() overrideResourcesForTest {
-	copy := overrideResourcesForTest{
+	resCopy := overrideResourcesForTest{
 		managed: make(map[overrideResourceAddress]resourceForTest, len(res.managed)),
 		data:    make(map[overrideResourceAddress]resourceForTest, len(res.data)),
 	}
 
 	for k, v := range res.managed {
-		copy.managed[k] = v
+		resCopy.managed[k] = v
 	}
 
 	for k, v := range res.data {
-		copy.data[k] = v
+		resCopy.data[k] = v
 	}
 
-	return copy
+	return resCopy
 }
 
 func (p providerForTest) getMockValuesForManagedResource(typeName string) map[string]cty.Value {
