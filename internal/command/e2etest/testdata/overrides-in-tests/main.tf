@@ -58,7 +58,16 @@ module "rand_count" {
     source = "./rand"
 }
 
-data "http" "test" {
+data "http" "first" {
+  url = "must not be used anyway"
+}
+
+provider http {
+  alias = "aliased"
+}
+
+data "http" "second" {
+  provider = http.aliased
   url = "must not be used anyway"
 }
 

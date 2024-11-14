@@ -261,7 +261,7 @@ mock_provider "random" {
 
 run "check_mock_providers" {
   assert {
-    condition     = data.http.test.response_body == "I am mocked!"
+    condition     = data.http.first.response_body == "I am mocked!"
     error_message = "http data doesn't have mocked values"
   }
 
@@ -284,6 +284,7 @@ run "check_mock_providers" {
 run "check_providers_block" {
   providers = {
     http          = http
+    http.aliased  = http.aliased
     local.aliased = local.aliased
     random        = random.for_pets
   }
@@ -297,4 +298,75 @@ run "check_providers_block" {
     condition     = resource.random_integer.aliased.id != "11"
     error_message = "random integer should not be mocked if providers block present"
   }
+}
+
+# http.aliased provider is not used directly,
+# but we don't want http provider to make any
+# requests.
+mock_provider "http" {
+    alias = "aliased"
+}
+
+mock_provider "http" {
+    alias = "with_mock_and_override"
+
+    mock_data "http" {
+        defaults = {
+            response_body = "mocked"
+        }
+    }
+
+        override_data {
+        target = data.http.first
+        values = {
+            response_body = "overridden [first]"
+        }
+    }
+
+    override_data {
+        target = data.http.second
+        values = {
+            response_body = "overridden [second]"
+        }
+    }
+}
+
+# This test ensures override_data works
+# inside a provider block and priority 
+# between mocks and overrides is correct.
+run "check_mock_provider_override" {
+    providers = {
+        http = http.with_mock_and_override
+        http.aliased = http.with_mock_and_override
+    }
+
+    assert {
+      condition = data.http.first.response_body == "overridden [first]"
+      error_message = "HTTP response body is not mocked"
+    }
+
+    assert {
+      condition = data.http.second.response_body == "overridden [second]"
+      error_message = "HTTP response body is not overridden"
+    }
+}
+
+# This test ensures override inside a mock_provider
+# doesn't apply for resources created via a different
+# provider.
+run "check_multiple_mock_provider_override" {
+    providers = {
+        http = http.with_mock_and_override
+        http.aliased = http
+    }
+
+    assert {
+      condition = data.http.first.response_body == "overridden [first]"
+      error_message = "HTTP response body is not mocked"
+    }
+
+    assert {
+      condition = data.http.second.response_body == "I am mocked!"
+      error_message = "HTTP response body is not overridden"
+    }
 }
