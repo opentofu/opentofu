@@ -4,10 +4,16 @@ override_module {
 
 override_resource {
     target = local_file.dont_create_me
+    values = {
+        file_permission = "000"
+    }
 }
 
 override_resource {
     target = module.first.local_file.dont_create_me
+    values = {
+        file_permission = "000"
+    }
 }
 
 run "check_root_overridden_res" {
@@ -43,6 +49,7 @@ run "check_root_overridden_data" {
         target = data.local_file.second_mod_file
         values = {
             content = "101"
+            file_permission = "000"
         }
     }
 
@@ -235,6 +242,12 @@ mock_provider "http" {
 # and aliased one is mocked
 mock_provider "local" {
   alias = "aliased"
+
+  mock_resource "local_file" {
+    defaults = {
+        file_permission = "000"
+    }
+  }
 }
 
 # ensures we can use this provider in run's providers block
@@ -338,6 +351,7 @@ run "check_mock_provider_override" {
     providers = {
         http = http.with_mock_and_override
         http.aliased = http.with_mock_and_override
+        local.aliased = local.aliased
     }
 
     assert {
@@ -358,6 +372,7 @@ run "check_multiple_mock_provider_override" {
     providers = {
         http = http.with_mock_and_override
         http.aliased = http
+        local.aliased = local.aliased
     }
 
     assert {
