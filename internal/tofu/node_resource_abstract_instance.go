@@ -2704,12 +2704,21 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx EvalContext) (providers.I
 	}
 
 	if n.Config == nil || !n.Config.IsOverridden {
+		if p, ok := underlyingProvider.(providerForTest); ok {
+			underlyingProvider = p.linkWithCurrentResource(n.Addr.ConfigResource())
+		}
+
 		return underlyingProvider, schema, nil
 	}
 
-	providerForTest := newProviderForTestWithSchema(underlyingProvider, schema)
+	provider, err := newProviderForTestWithSchema(underlyingProvider, schema)
+	if err != nil {
+		return nil, providers.ProviderSchema{}, err
+	}
 
-	providerForTest.setSingleResource(n.Addr.Resource.Resource, n.Config.OverrideValues)
+	provider = provider.
+		withOverrideResource(n.Addr.ConfigResource(), n.Config.OverrideValues).
+		linkWithCurrentResource(n.Addr.ConfigResource())
 
-	return providerForTest, schema, nil
+	return provider, schema, nil
 }

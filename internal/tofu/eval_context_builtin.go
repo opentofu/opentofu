@@ -153,10 +153,14 @@ func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig, provid
 		// We cannot wrap providers.Factory itself, because factories don't support aliases.
 		pc, ok := ctx.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
 		if ok && pc.IsMocked {
-			p, err = newProviderForTest(p, pc.MockResources)
+			testP, err := newProviderForTestWithSchema(p, p.GetProviderSchema())
 			if err != nil {
 				return nil, err
 			}
+
+			p = testP.
+				withMockResources(pc.MockResources).
+				withOverrideResources(pc.OverrideResources)
 		}
 	}
 
