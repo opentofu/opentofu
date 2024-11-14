@@ -106,7 +106,7 @@ func DataDirs() ([]string, error) {
 // LoadConfig reads the CLI configuration from the various filesystem locations
 // and from the environment, returning a merged configuration along with any
 // diagnostics (errors and warnings) encountered along the way.
-func LoadConfig() (*Config, tfdiags.Diagnostics) {
+func LoadConfig(experimentsAllowed bool) (*Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	configVal := BuiltinConfig // copy
 	config := &configVal
@@ -145,7 +145,7 @@ func LoadConfig() (*Config, tfdiags.Diagnostics) {
 		config = envConfig.Merge(config)
 	}
 
-	diags = diags.Append(config.Validate())
+	diags = diags.Append(config.Validate(experimentsAllowed))
 
 	return config, diags
 }
@@ -282,7 +282,9 @@ func makeEnvMap(environ []string) map[string]string {
 // On success, the returned diagnostics will return false from the HasErrors
 // method. A non-nil diagnostics is not necessarily an error, since it may
 // contain just warnings.
-func (c *Config) Validate() tfdiags.Diagnostics {
+//
+//nolint:revive // experimentsAllowed is used only temporarily while we have experimental features
+func (c *Config) Validate(experimentsAllowed bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	if c == nil {
