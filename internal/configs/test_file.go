@@ -1182,12 +1182,10 @@ var mockProviderBlockSchema = &hcl.BodySchema{
 			LabelNames: []string{"type"},
 		},
 		{
-			Type:       blockNameOverrideResource,
-			LabelNames: []string{"type"},
+			Type: blockNameOverrideResource,
 		},
 		{
-			Type:       blockNameOverrideData,
-			LabelNames: []string{"type"},
+			Type: blockNameOverrideData,
 		},
 	},
 }
