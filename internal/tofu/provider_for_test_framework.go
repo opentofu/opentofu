@@ -34,7 +34,10 @@ type providerForTest struct {
 
 func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema) (providerForTest, error) {
 	if p, ok := internal.(providerForTest); ok {
-		return p, nil
+		// We can create a proper deep copy here, however currently
+		// it is only relevant for override resources, since we extend
+		// the override resource map in NodeAbstractResourceInstance.
+		return p.withCopiedOverrideResources(), nil
 	}
 
 	if schema.Diagnostics.HasErrors() {
@@ -188,6 +191,11 @@ func (p providerForTest) withMockResources(mockResources []*configs.MockResource
 	return p
 }
 
+func (p providerForTest) withCopiedOverrideResources() providerForTest {
+	p.overrideResources = p.overrideResources.copy()
+	return p
+}
+
 func (p providerForTest) withOverrideResources(overrideResources []*configs.OverrideResource) providerForTest {
 	for _, res := range overrideResources {
 		p = p.withOverrideResource(*res.TargetParsed, res.Values)
@@ -238,6 +246,23 @@ type overrideResourceAddress = string
 type overrideResourcesForTest struct {
 	managed map[overrideResourceAddress]resourceForTest
 	data    map[overrideResourceAddress]resourceForTest
+}
+
+func (res overrideResourcesForTest) copy() overrideResourcesForTest {
+	copy := overrideResourcesForTest{
+		managed: make(map[overrideResourceAddress]resourceForTest, len(res.managed)),
+		data:    make(map[overrideResourceAddress]resourceForTest, len(res.data)),
+	}
+
+	for k, v := range res.managed {
+		copy.managed[k] = v
+	}
+
+	for k, v := range res.data {
+		copy.data[k] = v
+	}
+
+	return copy
 }
 
 func (p providerForTest) getMockValuesForManagedResource(typeName string) map[string]cty.Value {
