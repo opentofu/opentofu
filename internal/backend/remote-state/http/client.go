@@ -134,7 +134,25 @@ func (c *httpClient) Unlock(id string) error {
 		return nil
 	}
 
-	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, c.jsonLockInfo, "unlock")
+	var lockInfo statemgr.LockInfo
+
+	// force unlock command does not instantiate statemgr.LockInfo
+	// which means that c.jsonLockInfo will be empty or nil
+	if c.jsonLockInfo != nil || len(c.jsonLockInfo) != 0 {
+		if err := json.Unmarshal(c.jsonLockInfo, &lockInfo); err != nil {
+			return fmt.Errorf("failed to unmarshal jsonLockInfo")
+		}
+		if lockInfo.ID != id {
+			return &statemgr.LockError{
+				Info: &lockInfo,
+				Err:  fmt.Errorf("lock id %q does not match existing lock", id),
+			}
+		}
+	}
+
+	lockInfo.ID = id
+
+	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, lockInfo.Marshal(), "unlock")
 	if err != nil {
 		return err
 	}

@@ -254,6 +254,117 @@ func TestHttpClient_IsLockingEnabled(t *testing.T) {
 	}
 }
 
+// Tests the UnLock method for the HTTP client.
+func TestHttpClient_Unlock(t *testing.T) {
+	stateLockInfoA := statemgr.LockInfo{
+		ID:        "bjarne-stroustrup-state-lock-id",
+		Who:       "BjarneStroustrup",
+		Operation: "TestTypePlan",
+		Created:   time.Date(2023, time.August, 21, 15, 9, 26, 0, time.UTC),
+	}
+
+	stateLockInfoB := statemgr.LockInfo{
+		ID: "edsger-dijkstra-state-lock-id",
+	}
+
+	testCases := []struct {
+		name               string
+		lockID             string
+		jsonLockInfo       []byte
+		lockResponseStatus int
+		lockResponseBody   []byte
+		expectedErrorMsg   error
+		expectedPayload    []byte
+	}{
+		{
+			// Successful unlocking HTTP remote state
+			name:               "Successfully unlocked",
+			lockID:             stateLockInfoA.ID,
+			jsonLockInfo:       stateLockInfoA.Marshal(),
+			lockResponseStatus: http.StatusOK,
+			lockResponseBody:   nil,
+			expectedErrorMsg:   nil,
+			expectedPayload:    stateLockInfoA.Marshal(),
+		},
+		{
+			// Lock ID parameter does not match with LockInfo object Lock ID
+			name:               "Lock ID's don't match",
+			lockID:             stateLockInfoB.ID,
+			jsonLockInfo:       stateLockInfoA.Marshal(),
+			lockResponseStatus: 0,
+			lockResponseBody:   nil,
+			expectedErrorMsg: &statemgr.LockError{
+				Info: &stateLockInfoA,
+				Err:  fmt.Errorf("lock id %q does not match existing lock", stateLockInfoB.ID),
+			},
+			expectedPayload: nil,
+		},
+		{
+			// Failed unmarshal jsonLockInfo into LockInfo object
+			name:               "Failed to unmarshal jsonLockInfo",
+			lockID:             stateLockInfoA.ID,
+			jsonLockInfo:       []byte("Simplicity is prerequisite for reliability."),
+			lockResponseStatus: 0,
+			lockResponseBody:   nil,
+			expectedErrorMsg:   fmt.Errorf("failed to unmarshal jsonLockInfo"),
+			expectedPayload:    nil,
+		},
+		{
+			// Force unlock command being executed
+			name:               "Successful forced unlock",
+			lockID:             stateLockInfoB.ID,
+			jsonLockInfo:       nil,
+			lockResponseStatus: http.StatusOK,
+			lockResponseBody:   nil,
+			expectedErrorMsg:   nil,
+			expectedPayload:    stateLockInfoB.Marshal(),
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			var receivedPayload []byte
+			handler := func(w http.ResponseWriter, r *http.Request) {
+				receivedPayload, _ = io.ReadAll(r.Body)
+				w.WriteHeader(tt.lockResponseStatus)
+				w.Write(tt.lockResponseBody)
+			}
+
+			ts := httptest.NewServer(http.HandlerFunc(handler))
+			defer ts.Close()
+
+			unlockURL, err := url.Parse(ts.URL)
+			if err != nil {
+				t.Fatalf("Failed to parse lockURL: %v", err)
+			}
+
+			client := &httpClient{
+				UnlockURL:    unlockURL,
+				LockMethod:   "UNLOCK",
+				Client:       retryablehttp.NewClient(),
+				jsonLockInfo: tt.jsonLockInfo,
+			}
+
+			err = client.Unlock(tt.lockID)
+			if tt.expectedErrorMsg != nil && err == nil {
+				// no expected error
+				t.Errorf("UnLock() no expected error = %v", tt.expectedErrorMsg)
+			}
+			if tt.expectedErrorMsg == nil && err != nil {
+				// unexpected error
+				t.Errorf("UnLock() unexpected error = %v", err)
+			}
+			if tt.expectedErrorMsg != nil && err.Error() != tt.expectedErrorMsg.Error() {
+				// mismatched errors
+				t.Errorf("UnLock() error = %v, want %v", err, tt.expectedErrorMsg)
+			}
+			if !bytes.Equal(receivedPayload, tt.expectedPayload) {
+				t.Errorf("UnLock() payload = %v, want %v", receivedPayload, tt.expectedPayload)
+			}
+		})
+	}
+}
+
 // Tests the Lock method for the HTTP client.
 // Test to see correct lock info is returned
 func TestHttpClient_lock(t *testing.T) {
