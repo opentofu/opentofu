@@ -8,6 +8,7 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"regexp"
 
 	"github.com/apparentlymart/go-versions/versions"
 
@@ -81,5 +82,39 @@ func (o *OCIMirrorSource) repositoryAddress(providerAddr addrs.Provider) (string
 		return "", diags.Err()
 	}
 
+	// The result must be a valid name as defined in the OCI distribution specification.
+	if !ociDistributionRepoPattern.MatchString(ret) {
+		// OpenTofu's provider address syntax permits a wider repertiore of
+		// Unicode characters than the OCI distribution name pattern allows,
+		// so a likely way to get here is to try to install a provider
+		// whose namespace or name includes non-ASCII characters. We'll
+		// return a special error message for that case.
+		//
+		// Aside from the character repertiore the OpenTofu provider address
+		// syntax is compatible enough with the OCI repository address syntax
+		// that we can use a string representation of the provider address
+		// with the same regular expression pattern.
+		if !ociDistributionRepoPattern.MatchString(providerAddr.String()) {
+			// (TODO: Should the CLI configuration template for this offer some
+			// functions to help users transform a non-ASCII provider address
+			// segment into a reasonable ASCII equivalent? Non-ASCII provider
+			// namespaces and types are pretty rare, so we'll wait to see if
+			// that's needed.)
+			return ret, fmt.Errorf("requested provider address %q contains characters that are not valid in an OCI distribution repository name, so this provider cannot be installed from an OCI repository as %q", providerAddr, ret)
+		}
+		// We'd get here if the invalidity was caused by a literal part
+		// of the template, regardless of the given provider address
+		// components.
+		return ret, fmt.Errorf("an OCI mirror's translation template transformed provider address %q into OCI distribution registry address %q, which is not valid OCI address syntax", providerAddr, ret)
+	}
+
 	return ret, nil
 }
+
+// ociDistributionRepoPattern is a compiled regular expression pattern corresponding to the
+// "name" pattern as defined in the OCI distribution specification, following a hostname
+// with an optional port number.
+//
+// The hostname is not constrained to the rules defined in RFC 1123 because we intend to allow
+// IDNs that are not yet translated into Punycode.
+var ociDistributionRepoPattern = regexp.MustCompile(`^[^\:/]+(\:[0-9]+)?/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*$`)

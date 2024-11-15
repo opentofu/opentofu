@@ -44,3 +44,34 @@ func TestOCIMirrorSource(t *testing.T) {
 		t.Errorf("wrong error from PackageMeta\ngot:  %s\nwant: %s", got, want)
 	}
 }
+
+func TestOCIMirrorSource_unmappableProvider(t *testing.T) {
+	// The OpenTofu provider source address syntax permits a wider repertiore
+	// of unicode characters than the OCI distribution spec allows in its
+	// names, so some provider addresses cannot currently be mirrored
+	// in an OCI registry unless they are matched exactly and translated
+	// to a name that's not mechanically derived from the source address.
+
+	source := NewOCIMirrorSource(func(providerAddr addrs.Provider) (string, tfdiags.Diagnostics) {
+		return fmt.Sprintf("example.net/%s/terraform-provider-%s", providerAddr.Namespace, providerAddr.Type), nil
+	})
+
+	ctx := context.Background()
+	providerAddr := addrs.Provider{
+		Hostname:  svchost.Hostname("example.com"),
+		Namespace: "ほげ",
+		Type:      "ふが",
+	}
+	platform := Platform{
+		OS:   "human68k",
+		Arch: "68000",
+	}
+	_, _, err := source.AvailableVersions(ctx, providerAddr)
+	if got, want := err.Error(), `requested provider address "example.com/ほげ/ふが" contains characters that are not valid in an OCI distribution repository name, so this provider cannot be installed from an OCI repository as "example.net/ほげ/terraform-provider-ふが"`; got != want {
+		t.Errorf("wrong error from AvailableVersions\ngot:  %s\nwant: %s", got, want)
+	}
+	_, err = source.PackageMeta(ctx, providerAddr, versions.MustParseVersion("1.0.0"), platform)
+	if got, want := err.Error(), `requested provider address "example.com/ほげ/ふが" contains characters that are not valid in an OCI distribution repository name, so this provider cannot be installed from an OCI repository as "example.net/ほげ/terraform-provider-ふが"`; got != want {
+		t.Errorf("wrong error from PackageMeta\ngot:  %s\nwant: %s", got, want)
+	}
+}
