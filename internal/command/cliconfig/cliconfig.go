@@ -282,8 +282,6 @@ func makeEnvMap(environ []string) map[string]string {
 // On success, the returned diagnostics will return false from the HasErrors
 // method. A non-nil diagnostics is not necessarily an error, since it may
 // contain just warnings.
-//
-//nolint:revive // experimentsAllowed is used only temporarily while we have experimental features
 func (c *Config) Validate(experimentsAllowed bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -335,6 +333,38 @@ func (c *Config) Validate(experimentsAllowed bool) tfdiags.Diagnostics {
 			diags = diags.Append(
 				fmt.Errorf("The specified plugin cache dir %s cannot be opened: %w", c.PluginCacheDir, err),
 			)
+		}
+	}
+
+	if !experimentsAllowed {
+		// The oci_mirror provider installation method is currently experimental, so
+		// isn't allowed in release builds.
+		haveExperimentalMethods := false
+		for _, inst := range c.ProviderInstallation {
+			for _, method := range inst.Methods {
+				if _, ok := method.Location.(ProviderInstallationOCIMirror); ok {
+					haveExperimentalMethods = true
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"The oci_mirror provider installation method is experimental",
+						"Installation of providers from OCI repositories is currently available only in experimental builds of OpenTofu.",
+					))
+				}
+			}
+		}
+		if haveExperimentalMethods {
+			// Errors from the CLI configuration are treated as only advisory,
+			// so for the above checks to actually prevent use of these features
+			// we'll create the effect of the provider_installation blocks
+			// having been entirely ignored.
+			c.ProviderInstallation = nil
+
+			// NOTE: In most other cases we generate a warning if an experimental
+			// feature is used in a build that allows them, but we intentionally
+			// make an exception here because that would cause every single
+			// OpenTofu command to emit a warning when this feature is in use,
+			// and that would cause invalid results from commands that generate
+			// machine-readable output, such as JSON output.
 		}
 	}
 

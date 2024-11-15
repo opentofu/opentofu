@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
@@ -59,6 +60,45 @@ func TestLoadConfig_providerInstallation(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_providerInstallationOCIMirror(t *testing.T) {
+	config, diags := loadConfigFile(filepath.Join(fixtureDir, "provider-installation-oci-mirror"))
+	if diags.HasErrors() {
+		t.Fatalf("unexpected diagnostics: %s", diags.Err().Error())
+	}
+
+	if got, want := len(config.ProviderInstallation), 1; got != want {
+		t.Fatalf("wrong number of provider_installation blocks %d; want %d", got, want)
+	}
+	methods := config.ProviderInstallation[0].Methods
+	if got, want := len(methods), 4; got != want {
+		t.Fatalf("wrong number of provider installation methods %d; want %d", got, want)
+	}
+
+	// We expect all of the configured methods to be oci_mirror and
+	// to produce the same repository address from their templates.
+	providerAddr := addrs.Provider{
+		Hostname:  svchost.Hostname("example.net"),
+		Namespace: "foo",
+		Type:      "bar",
+	}
+	wantRepositoryAddr := "example.com/example.net__foo__bar"
+
+	for _, method := range methods {
+		location, ok := method.Location.(ProviderInstallationOCIMirror)
+		if !ok {
+			t.Fatalf("wrong installation method type %T; want %T", method.Location, location)
+		}
+
+		gotAddr, diags := location.RepositoryAddrFunc(providerAddr)
+		if diags.HasErrors() {
+			t.Fatalf("unexpected diagnostics: %s", diags.Err().Error())
+		}
+		if gotAddr != wantRepositoryAddr {
+			t.Fatalf("wrong result from RepositoryAddrFunc\ngot:  %s\nwant: %s", gotAddr, wantRepositoryAddr)
+		}
+	}
+}
+
 func TestLoadConfig_providerInstallationErrors(t *testing.T) {
 	_, diags := loadConfigFile(filepath.Join(fixtureDir, "provider-installation-errors"))
 	want := `7 problems:
@@ -79,4 +119,35 @@ func TestLoadConfig_providerInstallationErrors(t *testing.T) {
 	if got := diags.Err().Error(); got != want {
 		t.Errorf("wrong diagnostics\ngot:\n%s\nwant:\n%s", got, want)
 	}
+}
+
+func TestLoadConfig_providerInstallationErrorsOCIMirror(t *testing.T) {
+	// We have this particular installation method separated into its own test because
+	// it has a variety of different errors of its own.
+	_, diags := loadConfigFile(filepath.Join(fixtureDir, "provider-installation-oci-mirror-errors"))
+	want := `9 problems:
+
+- Invalid provider_installation method block: Invalid oci_mirror block at 2:14: "repository_template" argument is required.
+- Invalid expression: Expected the start of an expression, but found an invalid expression token.
+- Invalid oci_mirror repository template: Invalid oci_mirror block at 6:14: template must refer to the "hostname" symbol unless the "include" argument selects exactly one registry hostname.
+- Invalid oci_mirror repository template: Invalid oci_mirror block at 6:14: template must refer to the "namespace" symbol unless the "include" argument selects exactly one provider namespace.
+- Invalid oci_mirror repository template: Invalid oci_mirror block at 6:14: template must refer to the "type" symbol unless the "include" argument selects exactly one provider.
+- Invalid oci_mirror repository template: Invalid oci_mirror block at 9:14: template must refer to the "namespace" symbol unless the "include" argument selects exactly one provider namespace.
+- Invalid oci_mirror repository template: Invalid oci_mirror block at 9:14: template must refer to the "type" symbol unless the "include" argument selects exactly one provider.
+- Invalid oci_mirror repository template: Invalid oci_mirror block at 17:14: template must refer to the "type" symbol unless the "include" argument selects exactly one provider.
+- Invalid oci_mirror repository template: Invalid oci_mirror block at 25:14: template must refer to the "hostname" symbol unless the "include" argument selects exactly one registry hostname.`
+
+	// The above error messages include only line/column location information
+	// and not file location information because HCL 1 does not store
+	// information about the filename a location belongs to. (There is a field
+	// for it in token.Pos but it's always an empty string in practice.)
+
+	if diff := cmp.Diff(want, diags.Err().Error()); diff != "" {
+		t.Error("wrong diagnostics\n" + diff)
+	}
+
+	// FIXME: This test doesn't cover cases where the repository_template is
+	// syntactically valid but fails evaluation when given a specific
+	// provider address. We probably need another test function for that,
+	// since this one is set up to completely fail loading its fixture.
 }

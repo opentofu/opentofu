@@ -1,0 +1,34 @@
+provider_installation {
+  oci_mirror {} # missing repository_template argument
+  oci_mirror {
+    repository_template = "${invalid(}"
+  }
+  oci_mirror {
+    repository_template = "missing all the required symbol references"
+  }
+  oci_mirror {
+    repository_template = "missing all the required symbol references"
+    include = [
+      # For this one only the namespace and type are required to appear
+      # in the template, because the hostname is constrained.
+      "example.com/*/*"
+    ]
+  }
+  oci_mirror {
+    repository_template = "missing all the required symbol references"
+    include = [
+      # For this one only the type is required to appear the template,
+      # because the hostname and namespace are constrained.
+      "example.com/foo/*"
+    ]
+  }
+  oci_mirror {
+    repository_template = "missing the hostname but do have ${namespace} ${type}"
+    include = [
+      # For this one the hostname is still required to appear in the
+      # template because two different hostnames are possible.
+      "example.com/*/*",
+      "example.net/*/*",
+    ]
+  }
+}

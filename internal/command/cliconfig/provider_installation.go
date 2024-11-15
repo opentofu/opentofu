@@ -11,6 +11,11 @@ import (
 
 	"github.com/hashicorp/hcl"
 	hclast "github.com/hashicorp/hcl/hcl/ast"
+	hcl2 "github.com/hashicorp/hcl/v2"
+	hcl2syntax "github.com/hashicorp/hcl/v2/hclsyntax"
+	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -215,6 +220,13 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				location = ProviderInstallationNetworkMirror(bodyContent.URL)
 				include = bodyContent.Include
 				exclude = bodyContent.Exclude
+			case "oci_mirror":
+				var moreDiags tfdiags.Diagnostics
+				location, include, exclude, moreDiags = decodeProviderInstallationOCIMirrorBlock(methodBody)
+				diags = diags.Append(moreDiags)
+				if moreDiags.HasErrors() {
+					continue
+				}
 			case "dev_overrides":
 				if len(pi.Methods) > 0 {
 					// We require dev_overrides to appear first if it's present,
@@ -340,4 +352,202 @@ func (i ProviderInstallationNetworkMirror) providerInstallationLocation() {}
 
 func (i ProviderInstallationNetworkMirror) GoString() string {
 	return fmt.Sprintf("cliconfig.ProviderInstallationNetworkMirror(%q)", i)
+}
+
+// ProviderInstallationOCIMirror is a ProviderInstallationSourceLocation
+// representing installation from an OCI registry that is being used in
+// a similar way as a "network mirror" but using a non-OpenTofu-specific
+// protocol.
+type ProviderInstallationOCIMirror struct {
+	// RepositoryAddrFunc represents the rule for translating a
+	// provider source address into an OCI registry repository address.
+	//
+	// When loaded from a CLI configuration file, this wraps the evaluation
+	// of an HCL template defined in the oci_mirror configuration block.
+	// The HCL template expression is intentionally encapsulated here
+	// so that the provider installation codepaths won't need to depend
+	// on HCL directly to evaluate this.
+	RepositoryAddrFunc func(addrs.Provider) (string, tfdiags.Diagnostics)
+}
+
+func (i ProviderInstallationOCIMirror) providerInstallationLocation() {}
+
+func (i ProviderInstallationOCIMirror) GoString() string {
+	return "cliconfig.ProviderInstallationOCIMirror(...)"
+}
+
+func decodeProviderInstallationOCIMirrorBlock(methodBody *hclast.ObjectType) (ProviderInstallationLocation, []string, []string, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	type BodyContent struct {
+		RepositoryTemplate string   `hcl:"repository_template"`
+		Include            []string `hcl:"include"`
+		Exclude            []string `hcl:"exclude"`
+	}
+	var bodyContent BodyContent
+	err := hcl.DecodeObject(&bodyContent, methodBody)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid provider_installation method block",
+			fmt.Sprintf("Invalid oci_mirror block at %s: %s.", methodBody.Pos(), err),
+		))
+		return nil, nil, nil, diags
+	}
+	if bodyContent.RepositoryTemplate == "" {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid provider_installation method block",
+			fmt.Sprintf("Invalid oci_mirror block at %s: \"repository_template\" argument is required.", methodBody.Pos()),
+		))
+		return nil, nil, nil, diags
+	}
+	templateExpr, hclDiags := hcl2syntax.ParseTemplate([]byte(bodyContent.RepositoryTemplate), "<oci_mirror repository_template>", hcl2.InitialPos)
+	diags = diags.Append(hclDiags)
+	if hclDiags.HasErrors() {
+		return nil, nil, nil, diags
+	}
+	location := ProviderInstallationOCIMirror{
+		RepositoryAddrFunc: repositoryAddrFuncForHCLTemplate(templateExpr, methodBody),
+	}
+	include := bodyContent.Include
+	exclude := bodyContent.Exclude
+
+	diags = diags.Append(
+		validateOCIMirrorTemplateExpr(templateExpr, include, methodBody),
+	)
+
+	return location, include, exclude, diags
+}
+
+func repositoryAddrFuncForHCLTemplate(templateExpr hcl2.Expression, methodBody *hclast.ObjectType) func(addrs.Provider) (string, tfdiags.Diagnostics) {
+	pos := methodBody.Pos() // So that our closure won't prevent garbage collection of the whole methodBody
+
+	// FIXME: Unfortunately HCLv1 doesn't retain source filename information as
+	// part of its source positions and so our diagnostics in the function
+	// below will only refer to the line and column. Since these errors
+	// will ultimately be returned by the provider installer rather than the
+	// CLI config loader we do at least mention in the messages that they
+	// came from the CLI configuration, though if the user has multiple
+	// CLI config files they'll need to figure out for themselves which
+	// one we're talking about.
+	return func(provider addrs.Provider) (string, tfdiags.Diagnostics) {
+		var diags tfdiags.Diagnostics
+		evalCtx := &hcl2.EvalContext{
+			Variables: map[string]cty.Value{
+				"hostname":  cty.StringVal(provider.Hostname.ForDisplay()),
+				"namespace": cty.StringVal(provider.Namespace),
+				"type":      cty.StringVal(provider.Type),
+			},
+		}
+		v, hclDiags := templateExpr.Value(evalCtx)
+		diags = diags.Append(hclDiags)
+		if hclDiags.HasErrors() {
+			// Since these diagnostics are coming from HCLv2 itself, they will
+			// describe the source location as "<oci_mirror repository_template>"
+			// rather than an actual file location. This is just another
+			// unfortunate consequence of continuing to use legacy HCL
+			// for the CLI configuration. :(
+			return "", diags
+		}
+
+		v, err := convert.Convert(v, cty.String)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid oci_mirror repository template",
+				fmt.Sprintf("Invalid oci_mirror repository template in CLI configuration at %s: %s.", pos, tfdiags.FormatError(err)),
+			))
+			return "", diags
+		}
+		if v.IsNull() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid oci_mirror repository template",
+				fmt.Sprintf("Invalid oci_mirror repository template in CLI configuration at %s: template result must not be null.", pos),
+			))
+			return "", diags
+		}
+
+		// We can assume that v is definitely known because the EvalContext didn't
+		// include anything that could produce an unknown value, and HCL promises
+		// not to invent its own unknown values if evaluation was successful.
+		return v.AsString(), diags
+	}
+}
+
+func validateOCIMirrorTemplateExpr(templateExpr hcl2.Expression, include []string, methodBody *hclast.ObjectType) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	var templateHasHostname, templateHasNamespace, templateHasType bool
+	for _, traversal := range templateExpr.Variables() {
+		switch name := traversal.RootName(); name {
+		case "hostname":
+			templateHasHostname = true
+		case "namespace":
+			templateHasNamespace = true
+		case "type":
+			templateHasType = true
+		default:
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid oci_mirror repository template",
+				fmt.Sprintf(
+					"Invalid oci_mirror block at %s: the symbol %q is not available for an OCI mirror repository address template. Only \"hostname\", \"namespace\", and \"type\" are available.",
+					methodBody.Pos(), name,
+				),
+			))
+			// We continue anyway, because we might be able to collect other errors
+			// if the template is invalid in multiple ways.
+		}
+	}
+
+	// The template must include at least one reference to any source address
+	// component that isn't isn't exactly matched by all of the "include" patterns.
+	// It's okay to ignore any component that is exactly constrained by the
+	// "include" patterns since they'd always have the same value anyway.
+	includePatterns, err := getproviders.ParseMultiSourceMatchingPatterns(include)
+	if err != nil {
+		// Invalid patterns get caught later when we finally assemble the provider
+		// sources, so we intentionally don't produce an error here to avoid
+		// reporting the same problem twice. Instead, we just skip the
+		// template checking altogether by returning early.
+		return diags
+	}
+
+	hostnames := map[svchost.Hostname]struct{}{}
+	namespaces := map[string]struct{}{}
+	types := map[string]struct{}{}
+	for _, pattern := range includePatterns {
+		if pattern.Hostname != svchost.Hostname(getproviders.Wildcard) {
+			hostnames[pattern.Hostname] = struct{}{}
+		}
+		if pattern.Namespace != getproviders.Wildcard {
+			namespaces[pattern.Namespace] = struct{}{}
+		}
+		if pattern.Type != getproviders.Wildcard {
+			types[pattern.Type] = struct{}{}
+		}
+	}
+	if len(hostnames) != 1 && !templateHasHostname {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid oci_mirror repository template",
+			fmt.Sprintf("Invalid oci_mirror block at %s: template must refer to the \"hostname\" symbol unless the \"include\" argument selects exactly one registry hostname.", methodBody.Pos()),
+		))
+	}
+	if len(namespaces) != 1 && !templateHasNamespace {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid oci_mirror repository template",
+			fmt.Sprintf("Invalid oci_mirror block at %s: template must refer to the \"namespace\" symbol unless the \"include\" argument selects exactly one provider namespace.", methodBody.Pos()),
+		))
+	}
+	if len(types) != 1 && !templateHasType {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Invalid oci_mirror repository template",
+			fmt.Sprintf("Invalid oci_mirror block at %s: template must refer to the \"type\" symbol unless the \"include\" argument selects exactly one provider.", methodBody.Pos()),
+		))
+	}
+
+	return diags
 }
