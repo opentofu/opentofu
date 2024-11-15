@@ -71,6 +71,7 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/nishanths/exhaustive v0.7.11
 	github.com/openbao/openbao/api v0.0.0-20240326035453-c075f0ef2c7e
+	github.com/opencontainers/go-digest v1.0.0
 	github.com/opentofu/registry-address v0.0.0-20230920144404-f1e51167f633
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
 	github.com/pkg/errors v0.9.1
