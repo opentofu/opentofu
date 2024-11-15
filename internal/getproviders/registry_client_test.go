@@ -25,20 +25,20 @@ import (
 
 func TestConfigureDiscoveryRetry(t *testing.T) {
 	t.Run("default retry", func(t *testing.T) {
-		if discoveryRetry != defaultRetry {
-			t.Fatalf("expected retry %q, got %q", defaultRetry, discoveryRetry)
+		if discoveryRetry != registryClientDefaultRetry {
+			t.Fatalf("expected retry %q, got %q", registryClientDefaultRetry, discoveryRetry)
 		}
 
 		rc := newRegistryClient(nil, nil)
-		if rc.httpClient.RetryMax != defaultRetry {
+		if rc.httpClient.RetryMax != registryClientDefaultRetry {
 			t.Fatalf("expected client retry %q, got %q",
-				defaultRetry, rc.httpClient.RetryMax)
+				registryClientDefaultRetry, rc.httpClient.RetryMax)
 		}
 	})
 
 	t.Run("configured retry", func(t *testing.T) {
 		defer func() {
-			discoveryRetry = defaultRetry
+			discoveryRetry = registryClientDefaultRetry
 		}()
 		t.Setenv(registryDiscoveryRetryEnvName, "2")
 
