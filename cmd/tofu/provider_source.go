@@ -227,14 +227,7 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		return getproviders.NewHTTPMirrorSource(url, services.CredentialsSource()), nil
 
 	case cliconfig.ProviderInstallationOCIMirror:
-		// TODO: Implement this
-		var diags tfdiags.Diagnostics
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Installation method oci_mirror not yet implemented",
-			"The experimental oci_mirror installation method is still under development and not yet available for use.",
-		))
-		return nil, diags
+		return getproviders.NewOCIMirrorSource(loc.RepositoryAddrFunc), nil
 
 	default:
 		// We should not get here because the set of cases above should
