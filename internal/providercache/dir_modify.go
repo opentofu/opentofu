@@ -34,18 +34,7 @@ func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta,
 	d.metaCache = nil
 
 	log.Printf("[TRACE] providercache.Dir.InstallPackage: installing %s v%s from %s", meta.Provider, meta.Version, meta.Location)
-	switch meta.Location.(type) {
-	case getproviders.PackageHTTPURL:
-		return installFromHTTPURL(ctx, meta, newPath, allowedHashes)
-	case getproviders.PackageLocalArchive:
-		return installFromLocalArchive(ctx, meta, newPath, allowedHashes)
-	case getproviders.PackageLocalDir:
-		return installFromLocalDir(ctx, meta, newPath, allowedHashes)
-	default:
-		// Should not get here, because the above should be exhaustive for
-		// all implementations of getproviders.Location.
-		return nil, fmt.Errorf("don't know how to install from a %T location", meta.Location)
-	}
+	return meta.Location.InstallProviderPackage(ctx, meta, newPath, allowedHashes)
 }
 
 // LinkFromOtherCache takes a CachedProvider value produced from another Dir
@@ -107,6 +96,6 @@ func (d *Dir) LinkFromOtherCache(entry *CachedProvider, allowedHashes []getprovi
 	}
 	// No further hash check here because we already checked the hash
 	// of the source directory above.
-	_, err := installFromLocalDir(context.TODO(), meta, newPath, nil)
+	_, err := meta.Location.InstallProviderPackage(context.TODO(), meta, newPath, nil)
 	return err
 }
