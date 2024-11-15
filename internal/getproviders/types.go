@@ -6,6 +6,7 @@
 package getproviders
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"sort"
@@ -325,37 +326,20 @@ func (m PackageMeta) AcceptableHashes() []Hash {
 }
 
 // PackageLocation represents a location where a provider distribution package
-// can be obtained. A value of this type contains one of the following
-// concrete types: PackageLocalArchive, PackageLocalDir, or PackageHTTPURL.
+// can be obtained.
 type PackageLocation interface {
-	packageLocation()
+	// InstallProviderPackage installs the provider package at the location
+	// represented by the implementer into a new directory at targetDir,
+	// and then verifies both that the newly-created package directory
+	// matches at least one of allowedHashes (if any) and that the
+	// authentication strategy represented by meta.Authentication succeeds.
+	InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error)
+
+	// String returns a concise string representation of the package location
+	// that is suitable to include in the UI to explain where a package
+	// is being installed from.
 	String() string
 }
-
-// PackageLocalArchive is the location of a provider distribution archive file
-// in the local filesystem. Its value is a local filesystem path using the
-// syntax understood by Go's standard path/filepath package on the operating
-// system where OpenTofu is running.
-type PackageLocalArchive string
-
-func (p PackageLocalArchive) packageLocation() {}
-func (p PackageLocalArchive) String() string   { return string(p) }
-
-// PackageLocalDir is the location of a directory containing an unpacked
-// provider distribution archive in the local filesystem. Its value is a local
-// filesystem path using the syntax understood by Go's standard path/filepath
-// package on the operating system where OpenTofu is running.
-type PackageLocalDir string
-
-func (p PackageLocalDir) packageLocation() {}
-func (p PackageLocalDir) String() string   { return string(p) }
-
-// PackageHTTPURL is a provider package location accessible via HTTP.
-// Its value is a URL string using either the http: scheme or the https: scheme.
-type PackageHTTPURL string
-
-func (p PackageHTTPURL) packageLocation() {}
-func (p PackageHTTPURL) String() string   { return string(p) }
 
 // PackageMetaList is a list of PackageMeta. It's just []PackageMeta with
 // some methods for convenient sorting and filtering.
