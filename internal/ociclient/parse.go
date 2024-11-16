@@ -5,20 +5,20 @@ import (
 	"regexp"
 )
 
-type OciReference struct {
+type Reference struct {
 	Host      string
 	Name      string
 	Namespace string
 	Version   string
 }
 
-func ParseRef(tag string) (OciReference, error) {
+func ParseRef(ref string) (Reference, error) {
 	pattern := `^(?:(?P<host>[a-zA-Z0-9.-]+(?::[0-9]+)?)\/)?(?:(?P<namespace>[a-zA-Z0-9-._]+)\/)?(?P<name>[a-zA-Z0-9-._]+)(?::(?P<tag>[a-zA-Z0-9-._]+))?$`
 	re := regexp.MustCompile(pattern)
 
-	matches := re.FindStringSubmatch(tag)
+	matches := re.FindStringSubmatch(ref)
 	if matches == nil {
-		return OciReference{}, fmt.Errorf("invalid Docker image URL")
+		return Reference{}, fmt.Errorf("invalid Docker image URL")
 	}
 
 	groupNames := re.SubexpNames()
@@ -28,7 +28,7 @@ func ParseRef(tag string) (OciReference, error) {
 			result[name] = matches[i]
 		}
 	}
-	image := OciReference{
+	image := Reference{
 		Host:      result["host"],
 		Namespace: result["namespace"],
 		Name:      result["name"],

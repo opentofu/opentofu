@@ -2,6 +2,7 @@ package ociclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 
 	spec "github.com/opencontainers/image-spec/specs-go/v1"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
 type PullBlobOptions struct {
@@ -55,6 +57,30 @@ func (c *Client) SetBasicAuth(username, password string) {
 		Password: password,
 		encoded:  authHeader,
 	}
+}
+
+func (c *Client) GetCredentials(ref string) error {
+	ctx := context.Background()
+	reference, err := ParseRef(ref)
+	if err != nil {
+		return err
+	}
+
+	credOpts := credentials.StoreOptions{}
+	store, err := credentials.NewStoreFromDocker(credOpts)
+	if err != nil {
+		return err
+	}
+
+	creds, err := store.Get(ctx, reference.Host)
+	if err != nil {
+		return err
+	}
+	if creds.Password != "" {
+		c.SetBasicAuth(creds.Username, creds.Password)
+	}
+
+	return nil
 }
 
 func (c *Client) PullBlob(opts PullBlobOptions) ([]byte, error) {
@@ -261,7 +287,7 @@ func (c *Client) PushManifest(opts PushManifestOptions) error {
 	return nil
 }
 
-func getBlobEndpont(ref OciReference, digest string) string {
+func getBlobEndpont(ref Reference, digest string) string {
 	if ref.Namespace != "" {
 		return fmt.Sprintf("https://%s/v2/%s/%s/blobs/%s", ref.Host, ref.Namespace, ref.Name, digest)
 	} else {
@@ -270,7 +296,7 @@ func getBlobEndpont(ref OciReference, digest string) string {
 	}
 }
 
-func getManifestEndpont(ref OciReference, insecure bool) string {
+func getManifestEndpont(ref Reference, insecure bool) string {
 	protocol := getHTTPProtocol(insecure)
 	if ref.Namespace != "" {
 		return fmt.Sprintf("%s://%s/v2/%s/%s/manifests/%s", protocol, ref.Host, ref.Namespace, ref.Name, ref.Version)
