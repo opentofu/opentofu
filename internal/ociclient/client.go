@@ -44,6 +44,11 @@ type Credentials struct {
 	encoded  string
 }
 
+const (
+	TOFU_LAYER_TYPE = "application/vnd.tofu.module.v1.tar+gzip"
+	ARTIFACT_TYPE   = "application/vnd.tofu.module.manifest.v1+json"
+)
+
 func New() *Client {
 	return &Client{}
 }
@@ -182,7 +187,7 @@ func (c *Client) PushBlob(opts PushBlobOptions) error {
 		endpoint = fmt.Sprintf("%s://%s/v2/%s/blobs/uploads/", protocol, ref.Host, ref.Name)
 	}
 
-	req, err := http.NewRequest("GET", endpoint, nil)
+	req, err := http.NewRequest("POST", endpoint, nil)
 	if err != nil {
 		return fmt.Errorf("error creating request: %s", err.Error())
 	}
@@ -198,7 +203,7 @@ func (c *Client) PushBlob(opts PushBlobOptions) error {
 	}
 
 	if resp.StatusCode != 202 {
-		return fmt.Errorf("failed to push blob: %s", resp.Status)
+		return fmt.Errorf("failed to get upload session: %s", resp.Status)
 	}
 
 	location := resp.Header.Get("Location")
@@ -209,8 +214,9 @@ func (c *Client) PushBlob(opts PushBlobOptions) error {
 
 	req.Header.Add("Content-Type", "application/octet-stream")
 	req.Header.Add("Content-Length", fmt.Sprintf("%d", len(opts.Blob)))
+	digest := GetBlobDescriptor(spec.MediaTypeImageManifest, opts.Blob)
 	query := req.URL.Query()
-	query.Add("digest", "")
+	query.Add("digest", digest.Digest.String())
 	req.URL.RawQuery = query.Encode()
 
 	if c.Credentials != nil {
@@ -226,7 +232,7 @@ func (c *Client) PushBlob(opts PushBlobOptions) error {
 		if resp.StatusCode == http.StatusUnauthorized {
 			return fmt.Errorf("unauthorized, please use docker login to authenticate")
 		}
-		return fmt.Errorf("failed to push blob: %s", resp.Status)
+		return fmt.Errorf("failed to PUT blob: %s", resp.Status)
 	}
 
 	return nil
@@ -285,6 +291,31 @@ func (c *Client) PushManifest(opts PushManifestOptions) error {
 	}
 
 	return nil
+}
+
+/*
+Pulls down the first layer of given manifest, Good for single layer objects used for modules
+*/
+func (c *Client) PullManifestContent(ref string) ([]byte, error) {
+	manifest, err := c.PullManifest(PullManifestOptions{Ref: ref})
+	if err != nil {
+		return nil, err
+	}
+
+	if manifest != nil {
+		if manifest.ArtifactType != ARTIFACT_TYPE {
+			return nil, fmt.Errorf("oci module not supported")
+		}
+
+		opts := PullBlobOptions{
+			Ref:        ref,
+			Descriptor: manifest.Layers[0],
+		}
+
+		return c.PullBlob(opts)
+	}
+
+	return nil, fmt.Errorf("oci: manifest not found")
 }
 
 func getBlobEndpont(ref Reference, digest string) string {

@@ -2,16 +2,12 @@ package oci
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/opencontainers/image-spec/specs-go"
 	spec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opentofu/opentofu/internal/ociclient"
 	"oras.land/oras-go/v2/content"
-)
-
-const (
-	TOFU_LAYER_TYPE = "application/vnd.tofu.module.v1.tar+gzip"
-	ARTIFACT_TYPE   = "application/vnd.tofu.module.manifest.v1+json"
 )
 
 func PushPackagedModule(ref string, src string) error {
@@ -25,25 +21,25 @@ func PushPackagedModule(ref string, src string) error {
 	if err != nil {
 		return err
 	}
-	dd, data_opts := createBlobOptions(TOFU_LAYER_TYPE, ref, data)
+	dd, data_opts := createBlobPushOptions(ociclient.TOFU_LAYER_TYPE, ref, data)
 	if dd.Size <= 0 {
 		return fmt.Errorf("invalid digest")
 	}
 
 	// empty config, we can populate metadata if needed in the future.
-	cd, config_opts := createBlobOptions(spec.MediaTypeEmptyJSON, ref, []byte("{}"))
+	cd, config_opts := createBlobPushOptions(spec.MediaTypeEmptyJSON, ref, []byte("{}"))
 
 	manifest := spec.Manifest{
 		Versioned: specs.Versioned{
 			SchemaVersion: 2,
 		},
 		MediaType:    spec.MediaTypeImageManifest,
-		ArtifactType: ARTIFACT_TYPE,
+		ArtifactType: ociclient.ARTIFACT_TYPE,
 		Config:       cd,
 		Layers:       []spec.Descriptor{dd},
 	}
 
-	manifest_opts := createManifestOptions(manifest, ref)
+	manifest_opts := createManifestPushOptions(manifest, ref)
 
 	err = client.PushBlob(config_opts)
 	if err != nil {
@@ -63,7 +59,7 @@ func PushPackagedModule(ref string, src string) error {
 	return nil
 }
 
-func createBlobOptions(mediaType string, ref string, blob []byte) (digest spec.Descriptor, opts ociclient.PushBlobOptions) {
+func createBlobPushOptions(mediaType string, ref string, blob []byte) (digest spec.Descriptor, opts ociclient.PushBlobOptions) {
 	digest = content.NewDescriptorFromBytes(mediaType, blob)
 	opts = ociclient.PushBlobOptions{
 		Ref:      ref,
@@ -74,10 +70,30 @@ func createBlobOptions(mediaType string, ref string, blob []byte) (digest spec.D
 	return digest, opts
 }
 
-func createManifestOptions(manifest spec.Manifest, ref string) ociclient.PushManifestOptions {
+func createManifestPushOptions(manifest spec.Manifest, ref string) ociclient.PushManifestOptions {
 	return ociclient.PushManifestOptions{
 		Manifest: manifest,
 		Ref:      ref,
 		Insecure: false,
 	}
+}
+
+func PullModule(ref string) error {
+	tag, err := ociclient.ParseRef(ref)
+	if err != nil {
+		return err
+	}
+	client := ociclient.New()
+	if err := client.GetCredentials(ref); err != nil {
+		return err
+	}
+
+	data, err := client.PullManifestContent(ref)
+	if err != nil {
+		return err
+	}
+	filename := fmt.Sprintf("%s_%s.tar.gz", tag.Name, tag.Version)
+	os.WriteFile(filename, data, os.FileMode(0777))
+
+	return nil
 }

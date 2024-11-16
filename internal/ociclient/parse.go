@@ -3,6 +3,9 @@ package ociclient
 import (
 	"fmt"
 	"regexp"
+
+	"github.com/opencontainers/go-digest"
+	spec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type Reference struct {
@@ -40,4 +43,12 @@ func ParseRef(ref string) (Reference, error) {
 	}
 
 	return image, nil
+}
+
+func GetBlobDescriptor(mediaType string, data []byte) spec.Descriptor {
+	return spec.Descriptor{
+		MediaType: mediaType,
+		Digest:    digest.FromBytes(data),
+		Size:      int64(len(data)),
+	}
 }

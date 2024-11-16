@@ -353,7 +353,7 @@ func initCommands(
 		},
 
 		//-----------------------------------------------------------
-		// OCI Related
+		// OCI
 		//-----------------------------------------------------------
 
 		// "oci package": func() (cli.Command, error) {
@@ -366,6 +366,12 @@ func initCommands(
 
 		"oci push": func() (cli.Command, error) {
 			return &command.OciPushCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		"oci pull": func() (cli.Command, error) {
+			return &command.OciPullCommand{
 				Meta: meta,
 			}, nil
 		},
