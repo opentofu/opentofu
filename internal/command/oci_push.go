@@ -2,6 +2,7 @@ package command
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/opentofu/opentofu/internal/oci"
 )
@@ -19,7 +20,7 @@ func (c *OciPushCommand) Run(args []string) int {
 	ref := args[0]
 	path := args[1]
 
-	if err := oci.PushPackagedModule(ref, path); err != nil {
+	if err := oci.PushPackagedModule(ref, path, isInsecure(args)); err != nil {
 		c.Ui.Error(err.Error())
 		return 1
 	}
@@ -42,4 +43,8 @@ func validateArgs(args []string) error {
 	}
 
 	return nil
+}
+
+func isInsecure(args []string) bool {
+	return slices.Contains(args, "--insecure")
 }

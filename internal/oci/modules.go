@@ -6,10 +6,9 @@ import (
 	"github.com/opencontainers/image-spec/specs-go"
 	spec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opentofu/opentofu/internal/ociclient"
-	"oras.land/oras-go/v2/content"
 )
 
-func PushPackagedModule(ref string, src string) error {
+func PushPackagedModule(ref string, src string, insecure bool) error {
 	client := ociclient.New()
 	err := client.GetCredentials(ref)
 	if err != nil {
@@ -20,13 +19,13 @@ func PushPackagedModule(ref string, src string) error {
 	if err != nil {
 		return err
 	}
-	dd, data_opts := createBlobPushOptions(ociclient.TOFU_LAYER_TYPE, ref, data)
+	dd, data_opts := createBlobPushOptions(ociclient.TOFU_LAYER_TYPE, ref, data, insecure)
 	if dd.Size <= 0 {
 		return fmt.Errorf("invalid digest")
 	}
 
 	// empty config, we can populate metadata if needed in the future.
-	cd, config_opts := createBlobPushOptions(spec.MediaTypeEmptyJSON, ref, []byte("{}"))
+	cd, config_opts := createBlobPushOptions(spec.MediaTypeEmptyJSON, ref, []byte("{}"), insecure)
 
 	manifest := spec.Manifest{
 		Versioned: specs.Versioned{
@@ -38,7 +37,7 @@ func PushPackagedModule(ref string, src string) error {
 		Layers:       []spec.Descriptor{dd},
 	}
 
-	manifest_opts := createManifestPushOptions(manifest, ref)
+	manifest_opts := createManifestPushOptions(manifest, ref, insecure)
 
 	err = client.PushBlob(config_opts)
 	if err != nil {
@@ -58,22 +57,22 @@ func PushPackagedModule(ref string, src string) error {
 	return nil
 }
 
-func createBlobPushOptions(mediaType string, ref string, blob []byte) (digest spec.Descriptor, opts ociclient.PushBlobOptions) {
-	digest = content.NewDescriptorFromBytes(mediaType, blob)
+func createBlobPushOptions(mediaType string, ref string, blob []byte, insecure bool) (digest spec.Descriptor, opts ociclient.PushBlobOptions) {
+	digest = ociclient.GetBlobDescriptor(mediaType, blob)
 	opts = ociclient.PushBlobOptions{
 		Ref:      ref,
 		Blob:     blob,
-		Insecure: false,
+		Insecure: insecure,
 	}
 
 	return digest, opts
 }
 
-func createManifestPushOptions(manifest spec.Manifest, ref string) ociclient.PushManifestOptions {
+func createManifestPushOptions(manifest spec.Manifest, ref string, insecure bool) ociclient.PushManifestOptions {
 	return ociclient.PushManifestOptions{
 		Manifest: manifest,
 		Ref:      ref,
-		Insecure: false,
+		Insecure: insecure,
 	}
 }
 

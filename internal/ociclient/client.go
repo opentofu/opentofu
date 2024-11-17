@@ -13,6 +13,11 @@ import (
 	"oras.land/oras-go/v2/registry/remote/credentials"
 )
 
+// This is the oci client that will be used to interact with the OCI/Docker registries.
+// fairly simple client implementation with auth support and basic blob and manifest operations.
+type Client struct {
+	Credentials *Credentials
+}
 type PullBlobOptions struct {
 	Ref        string
 	Descriptor spec.Descriptor
@@ -34,16 +39,13 @@ type PushManifestOptions struct {
 	Insecure bool
 }
 
-type Client struct {
-	Credentials *Credentials
-}
-
 type Credentials struct {
 	Username string
 	Password string
 	encoded  string
 }
 
+// Custom layer types helps us to identify tofu modules from other artifacts
 const (
 	TOFU_LAYER_TYPE = "application/vnd.tofu.module.v1.tar+gzip"
 	ARTIFACT_TYPE   = "application/vnd.tofu.module.manifest.v1+json"
@@ -53,6 +55,7 @@ func New() *Client {
 	return &Client{}
 }
 
+// All OCI Registry API requests should support basic auth as part of the spec
 func (c *Client) SetBasicAuth(username, password string) {
 	userpass := fmt.Sprintf("%s:%s", username, password)
 	encoded := base64.StdEncoding.EncodeToString([]byte(userpass))
@@ -64,6 +67,9 @@ func (c *Client) SetBasicAuth(username, password string) {
 	}
 }
 
+// GetCredentials retrieves the credentials for the given registry from the docker config
+// and sets the basic auth header for the client. This should make integration into existing CI/CD workflows easier.
+// We may need support for allowing the user to set the credentials manually in the future.
 func (c *Client) GetCredentials(ref string) error {
 	ctx := context.Background()
 	reference, err := ParseRef(ref)
@@ -88,6 +94,7 @@ func (c *Client) GetCredentials(ref string) error {
 	return nil
 }
 
+// PullBlob retrieves the blob content from the given ref and descriptor.
 func (c *Client) PullBlob(opts PullBlobOptions) ([]byte, error) {
 	ref, err := ParseRef(opts.Ref)
 	if err != nil {
@@ -126,6 +133,7 @@ func (c *Client) PullBlob(opts PullBlobOptions) ([]byte, error) {
 	return data, nil
 }
 
+// PullManifest retrieves the manifest for the given ref. This would need to be modified to support index manifests in the future.
 func (c *Client) PullManifest(opts PullManifestOptions) (*spec.Manifest, error) {
 	ref, err := ParseRef(opts.Ref)
 	if err != nil {
@@ -154,7 +162,7 @@ func (c *Client) PullManifest(opts PullManifestOptions) (*spec.Manifest, error) 
 
 	if resp.StatusCode != 200 {
 		if resp.StatusCode == http.StatusUnauthorized {
-			return nil, fmt.Errorf("unauthorized, please use nori login to authenticate")
+			return nil, fmt.Errorf("unauthorized, please use docker login to authenticate")
 		}
 
 		return nil, fmt.Errorf("cannot to pull manifest: %s", resp.Status)
@@ -174,6 +182,7 @@ func (c *Client) PullManifest(opts PullManifestOptions) (*spec.Manifest, error) 
 	return manifest, nil
 }
 
+// PushBlob uploads the given blob to the registry.
 func (c *Client) PushBlob(opts PushBlobOptions) error {
 	ref, err := ParseRef(opts.Ref)
 	if err != nil {
@@ -238,6 +247,8 @@ func (c *Client) PushBlob(opts PushBlobOptions) error {
 	return nil
 }
 
+// Uploads the manifest to the registry. This normally acts as the final action in the upload process. Depending on the registry
+// they may validate that all the layers are uploaded before allowing the manifest to be uploaded.
 func (c *Client) PushManifest(opts PushManifestOptions) error {
 	ref, err := ParseRef(opts.Ref)
 	if err != nil {
@@ -284,7 +295,7 @@ func (c *Client) PushManifest(opts PushManifestOptions) error {
 
 		if resp.StatusCode != 201 {
 			if resp.StatusCode == http.StatusUnauthorized {
-				return fmt.Errorf("unauthorized, please use nori login to authenticate")
+				return fmt.Errorf("unauthorized, please use docker login to authenticate")
 			}
 			return fmt.Errorf("failed to push manifest: %s", resp.Status)
 		}
