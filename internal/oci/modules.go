@@ -2,7 +2,6 @@ package oci
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/opencontainers/image-spec/specs-go"
 	spec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -78,11 +77,7 @@ func createManifestPushOptions(manifest spec.Manifest, ref string) ociclient.Pus
 	}
 }
 
-func PullModule(ref string) error {
-	tag, err := ociclient.ParseRef(ref)
-	if err != nil {
-		return err
-	}
+func PullModule(ref string, dst string) error {
 	client := ociclient.New()
 	if err := client.GetCredentials(ref); err != nil {
 		return err
@@ -92,8 +87,6 @@ func PullModule(ref string) error {
 	if err != nil {
 		return err
 	}
-	filename := fmt.Sprintf("%s_%s.tar.gz", tag.Name, tag.Version)
-	os.WriteFile(filename, data, os.FileMode(0777))
 
-	return nil
+	return decompressToDir(data, dst)
 }

@@ -68,7 +68,6 @@ func NormalizePackageAddress(given string) (packageAddr, subDir string, err erro
 		// now.
 		return "", "", err
 	}
-
 	packageAddr, subDir = SplitPackageSubdir(result)
 	return packageAddr, subDir, nil
 }

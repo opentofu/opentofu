@@ -66,3 +66,47 @@ func compressDir(src string) ([]byte, error) {
 
 	return buf.Bytes(), nil
 }
+
+func decompressToDir(tarBytes []byte, dst string) error {
+	byteReader := bytes.NewReader(tarBytes)
+	gzipReader, err := gzip.NewReader(byteReader)
+	if err != nil {
+		return fmt.Errorf("error creating gzip reader: %w", err)
+	}
+	defer gzipReader.Close()
+	tarReader := tar.NewReader(gzipReader)
+
+	for {
+		header, err := tarReader.Next()
+		if err == io.EOF {
+			break // End of tar archive
+		}
+		if err != nil {
+			return fmt.Errorf("error reading tar archive: %w", err)
+		}
+
+		target := filepath.Join(dst, header.Name)
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			if err := os.MkdirAll(target, os.FileMode(header.Mode)); err != nil {
+				return fmt.Errorf("error creating directory: %w", err)
+			}
+		case tar.TypeReg:
+			file, err := os.OpenFile(target, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(header.Mode))
+			if err != nil {
+				return fmt.Errorf("error creating file: %w", err)
+			}
+
+			if _, err := io.Copy(file, tarReader); err != nil {
+				file.Close()
+				return fmt.Errorf("error writing file content: %w", err)
+			}
+			file.Close()
+		default:
+			return fmt.Errorf("unsupported file type: %v", header.Typeflag)
+		}
+	}
+
+	return nil
+}

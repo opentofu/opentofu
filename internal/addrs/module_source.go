@@ -285,7 +285,6 @@ func parseModuleSourceRemote(raw string) (ModuleSourceRemote, error) {
 	// that's a legacy thing that is only for some specific, less-commonly-used
 	// address types. Most just do local string manipulation. We should
 	// aim to remove the network requests over time, if possible.
-	fmt.Println("-- DEBUG: " + raw)
 	norm, moreSubDir, err := getmodules.NormalizePackageAddress(raw)
 	if err != nil {
 		// We must pass through the returned error directly here because
