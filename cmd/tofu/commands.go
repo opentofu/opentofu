@@ -356,7 +356,7 @@ func initCommands(
 		// OCI
 		//-----------------------------------------------------------
 
-		// Push a module direcotry to an OCI registry
+		// Push a module directory to an OCI registry
 		"oci push": func() (cli.Command, error) {
 			return &command.OciPushCommand{
 				Meta: meta,
