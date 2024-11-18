@@ -201,7 +201,7 @@ func (m resourceForTestByType) getOverrideValues(typeName string) map[string]cty
 }
 
 func newMockValueComposer(typeName string) hcl2shim.MockValueComposer {
-	hash := fnv.New64()
+	hash := fnv.New32()
 	hash.Write([]byte(typeName))
-	return hcl2shim.NewMockValueComposer(int64(hash.Sum64()))
+	return hcl2shim.NewMockValueComposer(int64(hash.Sum32()))
 }

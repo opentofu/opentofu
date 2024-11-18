@@ -137,7 +137,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 			continue
 		}
 
-		// This will always be a TraverseRoot, panic is OK if that's not the case
+		//nolint:errcheck // This will always be a TraverseRoot, panic is OK if that's not the case
 		depRoot := (dep[0].(hcl.TraverseRoot)).Name
 		if depRoot != "key_provider" {
 			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
