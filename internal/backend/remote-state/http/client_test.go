@@ -318,7 +318,10 @@ func TestHttpClient_lock(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			handler := func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(tt.lockResponseStatus)
-				w.Write(tt.lockResponseBody)
+				_, err := w.Write(tt.lockResponseBody)
+				if err != nil {
+					t.Fatalf("Failed to write response body: %v", err)
+				}
 			}
 
 			ts := httptest.NewServer(http.HandlerFunc(handler))
