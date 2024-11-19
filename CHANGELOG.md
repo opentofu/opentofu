@@ -3,7 +3,7 @@
 BUG FIXES:
 * Error messages related to validation of sensitive input variables will no longer disclose the sensitive value in the UI. ([#2219](https://github.com/opentofu/opentofu/pull/2219))
 * Changes to encryption configuration now auto-apply the migration ([#2232](https://github.com/opentofu/opentofu/pull/2232))
-
+* Updated github.com/golang-jwt/jwt/v4 from 4.4.2 to 4.5.1 to make security scanners happy (no vulnerability, see [#2179](https://github.com/opentofu/opentofu/pull/2179))
 
 ## 1.8.6
 
