@@ -6,11 +6,14 @@
 package configs
 
 import (
+	"bytes"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -322,7 +325,9 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 	// of the configuration block declaration.
 	configured := map[string]hcl.Range{}
 
-	instanced := map[string]bool{}
+	// the set of providers with a for_each expression. Used to detect
+	// foot-guns
+	instanced := map[string]hcl.Expression{}
 
 	// the set of configuration_aliases defined in the required_providers
 	// block, with the fully qualified provider type.
@@ -342,7 +347,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			emptyConfigs[name] = pc.DeclRange
 		}
 
-		instanced[name] = len(pc.Instances) != 0
+		instanced[name] = pc.ForEach
 	}
 
 	if mod.ProviderRequirements != nil {
@@ -486,8 +491,11 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 				})
 			}
 
-			isInstanced := instanced[providerName(passed.InParent.Name, passed.InParent.Alias)]
-			diags = diags.Extend(passed.InParent.InstanceValidation("module", isInstanced))
+			instanceExpr := instanced[providerName(passed.InParent.Name, passed.InParent.Alias)]
+			diags = diags.Extend(passed.InParent.InstanceValidation("module", instanceExpr != nil))
+			if passed.InParent.KeyExpression != nil {
+				diags = diags.Extend(providerIterationIdenticalWarning("module", modCall.ForEach, instanceExpr))
+			}
 		}
 	}
 	// Validate that resources using provider keys are properly configured
@@ -498,8 +506,11 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 				continue
 			}
 
-			isInstanced := instanced[providerName(r.ProviderConfigRef.Name, r.ProviderConfigRef.Alias)]
-			diags = diags.Extend(r.ProviderConfigRef.InstanceValidation("resource", isInstanced))
+			instanceExpr := instanced[providerName(r.ProviderConfigRef.Name, r.ProviderConfigRef.Alias)]
+			diags = diags.Extend(r.ProviderConfigRef.InstanceValidation("resource", instanceExpr != nil))
+			if r.ProviderConfigRef.KeyExpression != nil {
+				diags = diags.Extend(providerIterationIdenticalWarning("resource", r.ForEach, instanceExpr))
+			}
 		}
 	}
 	checkProviderKeys(mod.ManagedResources)
@@ -830,4 +841,166 @@ func providerName(name, alias string) string {
 		name = name + "." + alias
 	}
 	return name
+}
+
+func providerIterationIdenticalWarning(blockType string, sourceExpr, instanceExpr hcl.Expression) hcl.Diagnostics {
+	var diags hcl.Diagnostics
+	if providerIterationIdentical(sourceExpr, instanceExpr) {
+		// foot, meet gun
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Likely misconfiguration of provider iteration",
+			Detail:   fmt.Sprintf("Provider and %s both share identical iteration expressions, this is not recommended. When a key is removed, the corresponding resources will no longer have a provider that is able to destroy them.\nInstead, it is recommended to have %s's iteration be a subset of the provider's iteration expression. See the OpenTofu documentation for more details.\n\nTo disable this warning, wrap one of the expressions in a function like coalesce() to disable the check.", blockType, blockType),
+			Subject:  sourceExpr.Range().Ptr(),
+		})
+	}
+	return diags
+}
+
+// Might have gone a bit overboard on this...
+//
+//nolint:funlen,gocognit,gocyclo,cyclop // just a lot of branches
+func providerIterationIdentical(a, b hcl.Expression) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	// Remove parenthesis
+	if ae, ok := a.(*hclsyntax.ParenthesesExpr); ok {
+		return providerIterationIdentical(ae.Expression, b)
+	}
+	if be, ok := b.(*hclsyntax.ParenthesesExpr); ok {
+		return providerIterationIdentical(a, be.Expression)
+	}
+
+	if ae, ok := a.(*hclsyntax.ObjectConsKeyExpr); ok {
+		return providerIterationIdentical(ae.Wrapped, b)
+	}
+	if be, ok := b.(*hclsyntax.ObjectConsKeyExpr); ok {
+		return providerIterationIdentical(a, be.Wrapped)
+	}
+
+	switch as := a.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		if bs, bok := b.(*hclsyntax.ScopeTraversalExpr); bok {
+			return TraversalStr(as.Traversal) == TraversalStr(bs.Traversal)
+		}
+	case *hclsyntax.LiteralValueExpr:
+		if bs, bok := b.(*hclsyntax.LiteralValueExpr); bok {
+			return as.Val.Equals(bs.Val).True()
+		}
+	case *hclsyntax.RelativeTraversalExpr:
+		if bs, bok := b.(*hclsyntax.RelativeTraversalExpr); bok {
+			return TraversalStr(as.Traversal) == TraversalStr(bs.Traversal) &&
+				providerIterationIdentical(as.Source, bs.Source)
+		}
+	case *hclsyntax.FunctionCallExpr:
+		if bs, bok := b.(*hclsyntax.FunctionCallExpr); bok {
+			if as.Name == bs.Name && len(as.Args) == len(bs.Args) {
+				for i := range as.Args {
+					if !providerIterationIdentical(as.Args[i], bs.Args[i]) {
+						return false
+					}
+				}
+				return true
+			}
+		}
+	case *hclsyntax.ConditionalExpr:
+		if bs, bok := b.(*hclsyntax.ConditionalExpr); bok {
+			return providerIterationIdentical(as.Condition, bs.Condition) &&
+				providerIterationIdentical(as.TrueResult, bs.TrueResult) &&
+				providerIterationIdentical(as.FalseResult, bs.FalseResult)
+		}
+	case *hclsyntax.IndexExpr:
+		if bs, bok := b.(*hclsyntax.IndexExpr); bok {
+			return providerIterationIdentical(as.Collection, bs.Collection) &&
+				providerIterationIdentical(as.Key, bs.Key)
+		}
+	case *hclsyntax.TupleConsExpr:
+		if bs, bok := b.(*hclsyntax.TupleConsExpr); bok && len(as.Exprs) == len(bs.Exprs) {
+			for i := range as.Exprs {
+				if !providerIterationIdentical(as.Exprs[i], bs.Exprs[i]) {
+					return false
+				}
+			}
+			return true
+		}
+	case *hclsyntax.ObjectConsExpr:
+		if bs, bok := b.(*hclsyntax.ObjectConsExpr); bok && len(as.Items) == len(bs.Items) {
+			for i := range as.Items {
+				if !providerIterationIdentical(as.Items[i].KeyExpr, bs.Items[i].KeyExpr) ||
+					!providerIterationIdentical(as.Items[i].ValueExpr, bs.Items[i].ValueExpr) {
+					return false
+				}
+			}
+			return true
+		}
+	case *hclsyntax.ForExpr:
+		if bs, bok := b.(*hclsyntax.ForExpr); bok {
+			return as.KeyVar == bs.KeyVar &&
+				as.ValVar == bs.ValVar &&
+				providerIterationIdentical(as.CollExpr, bs.CollExpr) &&
+				providerIterationIdentical(as.KeyExpr, bs.KeyExpr) &&
+				providerIterationIdentical(as.ValExpr, bs.ValExpr) &&
+				providerIterationIdentical(as.CondExpr, bs.CondExpr) &&
+				as.Group == bs.Group
+		}
+	case *hclsyntax.BinaryOpExpr:
+		if bs, bok := b.(*hclsyntax.BinaryOpExpr); bok {
+			return providerIterationIdentical(as.LHS, bs.LHS) &&
+				as.Op == bs.Op &&
+				providerIterationIdentical(as.RHS, bs.RHS)
+		}
+	case *hclsyntax.UnaryOpExpr:
+		if bs, bok := b.(*hclsyntax.UnaryOpExpr); bok {
+			return as.Op == bs.Op &&
+				providerIterationIdentical(as.Val, bs.Val)
+		}
+	case *hclsyntax.TemplateExpr:
+		if bs, bok := b.(*hclsyntax.TemplateExpr); bok && len(as.Parts) == len(bs.Parts) {
+			for i := range as.Parts {
+				if !providerIterationIdentical(as.Parts[i], bs.Parts[i]) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+	// Ignored:
+	// case *hclsyntax.SplatExpr:
+	// case *hclsyntax.AnonSymbolExpr:
+	// case *hclsyntax.ExprSyntaxError
+	// case *hclsyntax.TemplateJoinExpr:
+	// case *hclsyntax.TemplateWrapExpr:
+	return false
+}
+
+// TraversalStr produces a representation of an HCL traversal that is compact,
+// resembles HCL native syntax, and is suitable for display in the UI.
+//
+// This was copied (and simplified) from internal/command/views/json/diagnostic.go.
+func TraversalStr(traversal hcl.Traversal) string {
+	var buf bytes.Buffer
+	for _, step := range traversal {
+		switch tStep := step.(type) {
+		case hcl.TraverseRoot:
+			buf.WriteString(tStep.Name)
+		case hcl.TraverseAttr:
+			buf.WriteByte('.')
+			buf.WriteString(tStep.Name)
+		case hcl.TraverseIndex:
+			buf.WriteByte('[')
+			switch tStep.Key.Type() {
+			case cty.String:
+				buf.WriteString(fmt.Sprintf("%q", tStep.Key.AsString()))
+			case cty.Number:
+				bf := tStep.Key.AsBigFloat()
+				//nolint:mnd // numerical precision
+				buf.WriteString(bf.Text('g', 10))
+			default:
+				buf.WriteString("...")
+			}
+			buf.WriteByte(']')
+		}
+	}
+	return buf.String()
 }
