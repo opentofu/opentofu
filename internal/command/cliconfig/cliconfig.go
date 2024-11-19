@@ -350,6 +350,14 @@ func (c *Config) Validate(experimentsAllowed bool) tfdiags.Diagnostics {
 						"Installation of providers from OCI repositories is currently available only in experimental builds of OpenTofu.",
 					))
 				}
+				if method.Location == ProviderInstallationDirectWithOCIExperiment {
+					haveExperimentalMethods = true
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"The oci_registry_experiment argument for direct installation is experimental",
+						"Installation of providers from OCI repositories is currently available only in experimental builds of OpenTofu.",
+					))
+				}
 			}
 		}
 		if haveExperimentalMethods {

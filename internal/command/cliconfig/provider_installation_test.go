@@ -151,3 +151,31 @@ func TestLoadConfig_providerInstallationErrorsOCIMirror(t *testing.T) {
 	// provider address. We probably need another test function for that,
 	// since this one is set up to completely fail loading its fixture.
 }
+
+func TestLoadConfig_providerInstallationDirectWithOCIExperiment(t *testing.T) {
+	// This test covers the temporary opt-in for the OCI-registry-as-provider-registry experiment.
+	// If this experiment succeeds and we decide to implement it for real then this
+	// test can be completely removed because the OCI registry functionality will be
+	// incorporated into the main ProviderInstallationDirect selection instead.
+
+	got, diags := loadConfigFile(filepath.Join(fixtureDir, "provider-installation-direct-with-oci"))
+	if diags.HasErrors() {
+		t.Errorf("unexpected diagnostics: %s", diags.Err().Error())
+	}
+
+	want := &Config{
+		ProviderInstallation: []*ProviderInstallation{
+			{
+				Methods: []*ProviderInstallationMethod{
+					{
+						Location: ProviderInstallationDirectWithOCIExperiment,
+					},
+				},
+			},
+		},
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("wrong result\n%s", diff)
+	}
+}

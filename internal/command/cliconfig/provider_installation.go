@@ -152,6 +152,13 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 				type BodyContent struct {
 					Include []string `hcl:"include"`
 					Exclude []string `hcl:"exclude"`
+
+					// A temporary extra setting available only for experimental builds (checked
+					// in the validate step) which opts in to the not-yet-finalized alternative
+					// provider registry service "oci-providers.v1", which allows installing
+					// providers on a particular hostname directly from OCI distribution
+					// repositories.
+					OCIRegistryExperiment bool `hcl:"oci_registry_experiment"`
 				}
 				var bodyContent BodyContent
 				err := hcl.DecodeObject(&bodyContent, methodBody)
@@ -164,6 +171,9 @@ func decodeProviderInstallationFromConfig(hclFile *hclast.File) ([]*ProviderInst
 					continue
 				}
 				location = ProviderInstallationDirect
+				if bodyContent.OCIRegistryExperiment {
+					location = ProviderInstallationDirectWithOCIExperiment
+				}
 				include = bodyContent.Include
 				exclude = bodyContent.Exclude
 			case "filesystem_mirror":
@@ -330,6 +340,21 @@ var ProviderInstallationDirect ProviderInstallationLocation = providerInstallati
 func (i providerInstallationDirect) GoString() string {
 	return "cliconfig.ProviderInstallationDirect"
 }
+
+type providerInstallationDirectWithOCIExperiment [0]byte
+
+func (i providerInstallationDirectWithOCIExperiment) providerInstallationLocation() {}
+
+// ProviderInstallationDirectWithOCIExperiment is a temporary variant
+// of [ProviderInstallationDirect] which also supports the experimental
+// "oci-providers.v1" service as an alternative to "providers.v1".
+//
+// If this experiment is successful and implemented as a non-experiment
+// then this should be removed and its functionality incorporated into
+// [ProviderInstallationDirect] directoy instead.
+//
+//nolint:gochecknoglobals // This part of the system was using global variables long before we had this linter
+var ProviderInstallationDirectWithOCIExperiment ProviderInstallationLocation = providerInstallationDirectWithOCIExperiment{}
 
 // ProviderInstallationFilesystemMirror is a ProviderInstallationSourceLocation
 // representing installation from a particular local filesystem mirror. The
