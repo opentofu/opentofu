@@ -197,15 +197,14 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		return getproviders.NewMemoizeSource(
 			getproviders.NewRegistrySource(services),
 		), nil
-	}
-	if loc == cliconfig.ProviderInstallationDirectWithOCIExperiment {
-		var diags tfdiags.Diagnostics
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Direct installation with OCI registry support is not yet implemented",
-			"This version of OpenTofu does not yet support the oci_registry_experiment argument for direct provider installation.",
-		))
-		return nil, diags
+	} else if loc == cliconfig.ProviderInstallationDirectWithOCIExperiment {
+		// This is an experimental new mode which uses service discovery
+		// to decide between using our main provider registry protocol
+		// or using a translation to an OCI registry address to install
+		// directly from an OCI repository.
+		return getproviders.NewMemoizeSource(
+			getproviders.NewDirectSource(services),
+		), nil
 	}
 
 	switch loc := loc.(type) {
