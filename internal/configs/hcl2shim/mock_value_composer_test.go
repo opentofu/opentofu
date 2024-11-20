@@ -494,6 +494,26 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			}),
 			wantWarning: true, // ignored value in defaults
 		},
+		"type-conversion": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"computed-list": {
+						Type:     cty.List(cty.String),
+						Computed: true,
+					},
+				},
+			},
+			defaults: map[string]cty.Value{
+				"computed-list": cty.TupleVal([]cty.Value{
+					cty.StringVal("str"),
+				}),
+			},
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"computed-list": cty.ListVal([]cty.Value{
+					cty.StringVal("str"),
+				}),
+			}),
+		},
 	}
 
 	for name, test := range tests {
