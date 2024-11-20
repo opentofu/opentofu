@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	testing_command "github.com/opentofu/opentofu/internal/command/testing"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/terminal"
 )
@@ -1394,5 +1395,68 @@ digits, underscores, and dashes.
 				t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
 			}
 		})
+	}
+}
+
+// TestTest_MockProviderValidation checks if tofu test runs proper validation for
+// mock_provider. Even if provider schema has required fields, tofu test should
+// ignore it completely, because the provider is mocked.
+func TestTest_MockProviderValidation(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("test/mock_provider_validation"), td)
+	defer testChdir(t, td)()
+
+	provider := testing_command.NewProvider(nil)
+	providerSource, closePS := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer closePS()
+
+	provider.Provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{
+			Block: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"required_field": {
+						Type:     cty.String,
+						Required: true,
+					},
+				},
+			},
+		},
+		ResourceTypes: map[string]providers.Schema{
+			"test_resource": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"value": {
+							Type:     cty.String,
+							Optional: true,
+						},
+						"computed_value": {
+							Type:     cty.String,
+							Computed: true,
+						},
+					},
+				},
+			},
+		},
+	}
+
+	streams, _ := terminal.StreamsForTesting(t)
+	view := views.NewView(streams)
+	ui := new(cli.MockUi)
+	meta := Meta{
+		testingOverrides: metaOverridesForProvider(provider.Provider),
+		Ui:               ui,
+		View:             view,
+		Streams:          streams,
+		ProviderSource:   providerSource,
+	}
+
+	testCmd := &TestCommand{
+		Meta: meta,
+	}
+
+	if code := testCmd.Run(nil); code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
 	}
 }
