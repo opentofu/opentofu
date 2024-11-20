@@ -110,7 +110,10 @@ func (p *providerForTest) ValidateProviderConfig(_ providers.ValidateProviderCon
 
 // GetProviderSchema is also used to perform additional validation outside of the provider
 // implementation. We are excluding parts of the schema related to provider since it is
-// irrelevant in the scope of mocking / overriding.
+// irrelevant in the scope of mocking / overriding. When running `tofu test` configuration
+// is being transformed for testing framework and original provider configuration is not
+// accessible so it is safe to wipe metadata as well. See Config.transformProviderConfigsForTest
+// for more details.
 func (p *providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
 	providerSchema := p.internal.GetProviderSchema()
 	providerSchema.Provider = providers.Schema{}
