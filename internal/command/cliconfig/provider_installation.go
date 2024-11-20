@@ -8,6 +8,7 @@ package cliconfig
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/hashicorp/hcl"
 	hclast "github.com/hashicorp/hcl/hcl/ast"
@@ -392,7 +393,7 @@ type ProviderInstallationOCIMirror struct {
 	// The HCL template expression is intentionally encapsulated here
 	// so that the provider installation codepaths won't need to depend
 	// on HCL directly to evaluate this.
-	RepositoryAddrFunc func(addrs.Provider) (string, tfdiags.Diagnostics)
+	RepositoryAddrFunc func(addrs.Provider) (getproviders.OCIRepository, tfdiags.Diagnostics)
 }
 
 func (i ProviderInstallationOCIMirror) providerInstallationLocation() {}
@@ -444,7 +445,7 @@ func decodeProviderInstallationOCIMirrorBlock(methodBody *hclast.ObjectType) (Pr
 	return location, include, exclude, diags
 }
 
-func repositoryAddrFuncForHCLTemplate(templateExpr hcl2.Expression, methodBody *hclast.ObjectType) func(addrs.Provider) (string, tfdiags.Diagnostics) {
+func repositoryAddrFuncForHCLTemplate(templateExpr hcl2.Expression, methodBody *hclast.ObjectType) func(addrs.Provider) (getproviders.OCIRepository, tfdiags.Diagnostics) {
 	pos := methodBody.Pos() // So that our closure won't prevent garbage collection of the whole methodBody
 
 	// FIXME: Unfortunately HCLv1 doesn't retain source filename information as
@@ -455,7 +456,7 @@ func repositoryAddrFuncForHCLTemplate(templateExpr hcl2.Expression, methodBody *
 	// came from the CLI configuration, though if the user has multiple
 	// CLI config files they'll need to figure out for themselves which
 	// one we're talking about.
-	return func(provider addrs.Provider) (string, tfdiags.Diagnostics) {
+	return func(provider addrs.Provider) (getproviders.OCIRepository, tfdiags.Diagnostics) {
 		var diags tfdiags.Diagnostics
 		evalCtx := &hcl2.EvalContext{
 			Variables: map[string]cty.Value{
@@ -472,7 +473,7 @@ func repositoryAddrFuncForHCLTemplate(templateExpr hcl2.Expression, methodBody *
 			// rather than an actual file location. This is just another
 			// unfortunate consequence of continuing to use legacy HCL
 			// for the CLI configuration. :(
-			return "", diags
+			return getproviders.OCIRepository{}, diags
 		}
 
 		v, err := convert.Convert(v, cty.String)
@@ -482,7 +483,7 @@ func repositoryAddrFuncForHCLTemplate(templateExpr hcl2.Expression, methodBody *
 				"Invalid oci_mirror repository template",
 				fmt.Sprintf("Invalid oci_mirror repository template in CLI configuration at %s: %s.", pos, tfdiags.FormatError(err)),
 			))
-			return "", diags
+			return getproviders.OCIRepository{}, diags
 		}
 		if v.IsNull() {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -490,13 +491,26 @@ func repositoryAddrFuncForHCLTemplate(templateExpr hcl2.Expression, methodBody *
 				"Invalid oci_mirror repository template",
 				fmt.Sprintf("Invalid oci_mirror repository template in CLI configuration at %s: template result must not be null.", pos),
 			))
-			return "", diags
+			return getproviders.OCIRepository{}, diags
 		}
 
 		// We can assume that v is definitely known because the EvalContext didn't
 		// include anything that could produce an unknown value, and HCL promises
 		// not to invent its own unknown values if evaluation was successful.
-		return v.AsString(), diags
+		addrStr := v.AsString()
+		slash := strings.IndexByte(addrStr, '/')
+		if slash == -1 {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid oci_mirror repository template",
+				fmt.Sprintf("Invalid oci_mirror repository template in CLI configuration at %s: template result does not include an OCI registry hostname.", pos),
+			))
+			return getproviders.OCIRepository{}, diags
+		}
+		return getproviders.OCIRepository{
+			Hostname: addrStr[:slash],
+			Name:     addrStr[slash+1:],
+		}, diags
 	}
 }
 

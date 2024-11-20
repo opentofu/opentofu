@@ -135,8 +135,11 @@ func (s *DirectSource) ociMirrorSource(_ context.Context, provider tfaddr.Provid
 	//nolint:errorlint // this is intentionally following the structure from RegistrySource, for now
 	switch err := err.(type) {
 	case nil:
-		return NewOCIMirrorSource(func(_ tfaddr.Provider) (string, tfdiags.Diagnostics) {
-			return hostname + "/" + name, nil
+		return NewOCIMirrorSource(func(_ tfaddr.Provider) (OCIRepository, tfdiags.Diagnostics) {
+			return OCIRepository{
+				Hostname: hostname,
+				Name:     name,
+			}, nil
 		}), nil
 	case *disco.ErrServiceNotProvided:
 		return nil, ErrHostNoProviders{

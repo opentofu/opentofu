@@ -81,7 +81,10 @@ func TestLoadConfig_providerInstallationOCIMirror(t *testing.T) {
 		Namespace: "foo",
 		Type:      "bar",
 	}
-	wantRepositoryAddr := "example.com/example.net__foo__bar"
+	wantRepositoryAddr := getproviders.OCIRepository{
+		Hostname: "example.com",
+		Name:     "example.net__foo__bar",
+	}
 
 	for _, method := range methods {
 		location, ok := method.Location.(ProviderInstallationOCIMirror)
@@ -94,7 +97,7 @@ func TestLoadConfig_providerInstallationOCIMirror(t *testing.T) {
 			t.Fatalf("unexpected diagnostics: %s", diags.Err().Error())
 		}
 		if gotAddr != wantRepositoryAddr {
-			t.Fatalf("wrong result from RepositoryAddrFunc\ngot:  %s\nwant: %s", gotAddr, wantRepositoryAddr)
+			t.Fatalf("wrong result from RepositoryAddrFunc\ngot:  %#v\nwant: %#v", gotAddr, wantRepositoryAddr)
 		}
 	}
 }

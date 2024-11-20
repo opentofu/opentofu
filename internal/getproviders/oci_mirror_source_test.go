@@ -21,8 +21,11 @@ func TestOCIMirrorSource(t *testing.T) {
 	// This is just a stub test for now, since the source itself is just a stub.
 	// We'll replace this with a more complete test once we have a more complete implementation!
 
-	source := NewOCIMirrorSource(func(providerAddr addrs.Provider) (string, tfdiags.Diagnostics) {
-		return fmt.Sprintf("example.net/%s/%s/%s", providerAddr.Hostname, providerAddr.Namespace, providerAddr.Type), nil
+	source := NewOCIMirrorSource(func(providerAddr addrs.Provider) (OCIRepository, tfdiags.Diagnostics) {
+		return OCIRepository{
+			Hostname: "example.net",
+			Name:     fmt.Sprintf("%s/%s/%s", providerAddr.Hostname, providerAddr.Namespace, providerAddr.Type),
+		}, nil
 	})
 
 	ctx := context.Background()
@@ -52,8 +55,11 @@ func TestOCIMirrorSource_unmappableProvider(t *testing.T) {
 	// in an OCI registry unless they are matched exactly and translated
 	// to a name that's not mechanically derived from the source address.
 
-	source := NewOCIMirrorSource(func(providerAddr addrs.Provider) (string, tfdiags.Diagnostics) {
-		return fmt.Sprintf("example.net/%s/terraform-provider-%s", providerAddr.Namespace, providerAddr.Type), nil
+	source := NewOCIMirrorSource(func(providerAddr addrs.Provider) (OCIRepository, tfdiags.Diagnostics) {
+		return OCIRepository{
+			Hostname: "example.net",
+			Name:     fmt.Sprintf("%s/terraform-provider-%s", providerAddr.Namespace, providerAddr.Type),
+		}, nil
 	})
 
 	ctx := context.Background()
@@ -67,11 +73,11 @@ func TestOCIMirrorSource_unmappableProvider(t *testing.T) {
 		Arch: "68000",
 	}
 	_, _, err := source.AvailableVersions(ctx, providerAddr)
-	if got, want := err.Error(), `requested provider address "example.com/ほげ/ふが" contains characters that are not valid in an OCI distribution repository name, so this provider cannot be installed from an OCI repository as "example.net/ほげ/terraform-provider-ふが"`; got != want {
+	if got, want := err.Error(), `requested provider address "example.com/ほげ/ふが" contains characters that are not valid in an OCI distribution repository name, so this provider cannot be installed from an OCI repository as "ほげ/terraform-provider-ふが"`; got != want {
 		t.Errorf("wrong error from AvailableVersions\ngot:  %s\nwant: %s", got, want)
 	}
 	_, err = source.PackageMeta(ctx, providerAddr, versions.MustParseVersion("1.0.0"), platform)
-	if got, want := err.Error(), `requested provider address "example.com/ほげ/ふが" contains characters that are not valid in an OCI distribution repository name, so this provider cannot be installed from an OCI repository as "example.net/ほげ/terraform-provider-ふが"`; got != want {
+	if got, want := err.Error(), `requested provider address "example.com/ほげ/ふが" contains characters that are not valid in an OCI distribution repository name, so this provider cannot be installed from an OCI repository as "ほげ/terraform-provider-ふが"`; got != want {
 		t.Errorf("wrong error from PackageMeta\ngot:  %s\nwant: %s", got, want)
 	}
 }
