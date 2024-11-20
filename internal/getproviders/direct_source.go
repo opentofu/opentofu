@@ -8,8 +8,10 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
+	svchost "github.com/hashicorp/terraform-svchost"
 	disco "github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfaddr "github.com/opentofu/registry-address"
@@ -59,6 +61,10 @@ func (s *DirectSource) ForDisplay(provider tfaddr.Provider) string {
 // for the given provider based on network service discovery, or returns
 // an error if no suitable service is available.
 func (s *DirectSource) discoverRealSource(ctx context.Context, provider tfaddr.Provider) (Source, error) {
+	if isMagicOCIMirrorHost(provider.Hostname) {
+		return s.magicOCIMirrorSource(ctx, provider)
+	}
+
 	host, err := s.services.Discover(provider.Hostname)
 	if err != nil {
 		return nil, ErrHostUnreachable{
@@ -156,4 +162,34 @@ func (s *DirectSource) ociMirrorSource(_ context.Context, provider tfaddr.Provid
 			Wrapped:  err,
 		}
 	}
+}
+
+// magicOCIRegistryHostnameSuffix is a special hostname suffix that causes OpenTofu
+// to skip network service discovery and instead just behave as if "oci-providers.v1"
+// were implemented for the prefix that remains after removing this suffix.
+//
+// FIXME: This is currently just a placeholder for experimentation. If we decide to
+// actually follow this strategy then we should replace this with a domain we
+// actually own.
+const magicOCIRegistryHostnameSuffix = ".opentofu-oci.example.com"
+
+func isMagicOCIMirrorHost(hostname svchost.Hostname) bool {
+	return strings.HasSuffix(hostname.String(), magicOCIRegistryHostnameSuffix)
+}
+
+// magicOCIMirrorSource handles the special case where hostnames ending
+// in [magicOCIRegistryHostnameSuffix] are forced to behave as if they
+// declared the "oci-providers.v1" service with a fixed template.
+func (s *DirectSource) magicOCIMirrorSource(_ context.Context, provider tfaddr.Provider) (Source, error) {
+	// The following is a little hacky in the same ways as DirectSource.ociMirrorSource.
+	fullHostname := provider.Hostname.String()
+	ociRegistryHost := fullHostname[:len(fullHostname)-len(magicOCIRegistryHostnameSuffix)]
+	ociRepositoryName := provider.Namespace + "/opentofu-provider-" + provider.Type
+
+	return NewOCIMirrorSource(func(_ tfaddr.Provider) (OCIRepository, tfdiags.Diagnostics) {
+		return OCIRepository{
+			Hostname: ociRegistryHost,
+			Name:     ociRepositoryName,
+		}, nil
+	}), nil
 }
