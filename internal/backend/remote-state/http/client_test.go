@@ -311,12 +311,22 @@ func TestHttpClient_Unlock(t *testing.T) {
 		},
 		{
 			// Force unlock command being executed
-			name:               "Successful forced unlock",
+			name:               "Successful force unlock",
 			lockID:             stateLockInfoB.ID,
 			jsonLockInfo:       nil,
 			lockResponseStatus: http.StatusOK,
 			lockResponseBody:   nil,
 			expectedErrorMsg:   nil,
+			expectedPayload:    stateLockInfoB.Marshal(),
+		},
+		{
+			// Force unlock command being executed
+			name:               "Unsuccessful force unlock",
+			lockID:             stateLockInfoB.ID,
+			jsonLockInfo:       nil,
+			lockResponseStatus: http.StatusNotFound,
+			lockResponseBody:   nil,
+			expectedErrorMsg:   fmt.Errorf("Unexpected HTTP response code %d", http.StatusNotFound),
 			expectedPayload:    stateLockInfoB.Marshal(),
 		},
 	}
