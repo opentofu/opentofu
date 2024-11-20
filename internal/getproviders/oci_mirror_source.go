@@ -8,6 +8,10 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/libregistry/logger"
+	"github.com/opentofu/libregistry/registryprotocols/ociclient"
+	"log"
 	"regexp"
 
 	"github.com/apparentlymart/go-versions/versions"
@@ -36,32 +40,87 @@ func NewOCIMirrorSource(repositoryAddressFunc func(providerAddr addrs.Provider) 
 }
 
 // AvailableVersions implements Source.
-func (o *OCIMirrorSource) AvailableVersions(_ context.Context, provider tfaddr.Provider) (versions.List, []string, error) {
+func (o *OCIMirrorSource) AvailableVersions(ctx context.Context, provider tfaddr.Provider) (versions.List, []string, error) {
 	repoAddr, err := o.repositoryAddress(provider)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// TODO: Implement this, once we have an OCI distribution client to implement it with.
-	return nil, nil, fmt.Errorf(
-		"would have listed available provider versions from %s, but this provider installation method is not yet implemented",
-		repoAddr,
+	// TODO properly configure
+	ociLogger := logger.NewGoLogLogger(log.Default())
+	client, err := ociclient.New(
+		ociclient.WithLogger(ociLogger),
 	)
+	if err != nil {
+		return nil, nil, err
+	}
+	references, warnings, err := client.ListReferences(ctx, repoAddr.toClient())
+	if err != nil {
+		return nil, warnings, err
+	}
+	var result versions.List
+	for _, reference := range references {
+		// We ignore malformed versions because OCI registries typically contain a large number of tags that
+		// don't conform to our version understanding, like "latest" and "sha-something".
+		ver, err := versions.ParseVersion(string(reference))
+		if err == nil {
+			result = append(result, ver)
+		}
+	}
+
+	return result, warnings, nil
 }
 
 // PackageMeta implements Source.
-func (o *OCIMirrorSource) PackageMeta(_ context.Context, provider tfaddr.Provider, version versions.Version, target Platform) (PackageMeta, error) {
+func (o *OCIMirrorSource) PackageMeta(ctx context.Context, provider tfaddr.Provider, version versions.Version, target Platform) (PackageMeta, error) {
 	repoAddr, err := o.repositoryAddress(provider)
 	if err != nil {
 		return PackageMeta{}, err
 	}
 	tagName := "v" + version.String()
 
-	// TODO: Implement this, once we have an OCI distribution client to implement it with.
-	return PackageMeta{}, fmt.Errorf(
-		"would have fetched metadata from %s:%s for %s, but this provider installation method is not yet implemented",
-		repoAddr, tagName, target,
+	// TODO properly configure
+	ociLogger := logger.NewGoLogLogger(log.Default())
+	client, err := ociclient.New(
+		ociclient.WithLogger(ociLogger),
 	)
+	if err != nil {
+		return PackageMeta{}, err
+	}
+
+	// TODO what to do with warnings?
+	metadata, warnings, err := client.GetImageMetadata(ctx, ociclient.OCIAddrWithReference{
+		OCIAddr:   repoAddr.toClient(),
+		Reference: ociclient.OCIReference(tagName),
+	}, ociclient.WithGOOS(target.OS), ociclient.WithGOARCH(target.Arch))
+	diags := hcl.Diagnostics{}
+	for _, warning := range warnings {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  warning,
+		})
+	}
+	if err != nil {
+		// TODO the original error is lost here
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  err.Error(),
+		})
+		return PackageMeta{}, diags
+	}
+
+	return PackageMeta{
+		Provider:         provider,
+		Version:          version,
+		ProtocolVersions: nil,
+		TargetPlatform:   target,
+		Filename:         fmt.Sprintf("terraform-provider-%s_%s_%s_%s.zip", provider.Type, version, target.OS, target.Arch),
+		Location: &ociImagePackageLocation{
+			metadata,
+			client,
+		},
+		Authentication: nil,
+	}, nil
 }
 
 // ForDisplay implements Source.
@@ -128,4 +187,11 @@ var ociDistributionNamePattern = regexp.MustCompile(`^[a-z0-9]+((\.|_|__|-+)[a-z
 
 func (r OCIRepository) String() string {
 	return r.Hostname + "/" + r.Name
+}
+
+func (r OCIRepository) toClient() ociclient.OCIAddr {
+	return ociclient.OCIAddr{
+		Registry: ociclient.OCIRegistry(r.Hostname),
+		Name:     ociclient.OCIName(r.Name),
+	}
 }
