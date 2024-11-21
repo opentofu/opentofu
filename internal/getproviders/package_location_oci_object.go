@@ -9,7 +9,7 @@ import (
 	"context"
 	"fmt"
 
-	ociDigest "github.com/opencontainers/go-digest"
+	"github.com/opentofu/libregistry/registryprotocols/ociclient"
 )
 
 // PackageOCIObject refers to an object in an OCI repository that is to be
@@ -20,31 +20,20 @@ import (
 // manifest, because the decision about which platform to select should
 // have already been made by whatever generates an object of this type.
 type PackageOCIObject struct {
-	// RegistryHostname is the hostname of the registry that hosts the
-	// repository, including an optional port number appended after
-	// a colon.
-	RegistryHostname string
+	// imageMetadata describes both the address of the specific object that's
+	// being installed and the digests of all of the blobs the serve as its
+	// layers.
+	imageMetadata ociclient.OCIImageMetadata
 
-	// RepositoryName is the name of the repository hosted on RegistryHostname,
-	// which is assumed to conform to the following pattern defined in the
-	// OCI distribution specification:
-	//    [a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*
-	RepositoryName string
-
-	// ManifestDigest is the digest of the manifest describing the blobs
-	// required to retrieve and reconstitute the single object that is to
-	// be used as a provider package.
-	ManifestDigest ociDigest.Digest
+	// client is the OCI client that should be used to retrieve the
+	// object's layers.
+	client ociclient.OCIClient
 }
 
 var _ PackageLocation = PackageOCIObject{}
 
 func (p PackageOCIObject) String() string {
-	// The following is intended to mimic the typical shorthand syntax for
-	// referring to a specific image from an OCI repository, yielding
-	// something like this:
-	//     example.com/foo/bar@sha256:2e863c44b718727c850746562e1d54afd13b2fa71b160f5cd9058fc436217c30
-	return fmt.Sprintf("%s/%s@%s", p.RegistryHostname, p.RepositoryName, p.ManifestDigest)
+	return p.imageMetadata.Addr.String()
 }
 
 func (p PackageOCIObject) InstallProviderPackage(_ context.Context, _ PackageMeta, _ string, _ []Hash) (*PackageAuthenticationResult, error) {

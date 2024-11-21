@@ -8,29 +8,34 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
 	svchost "github.com/hashicorp/terraform-svchost"
 	disco "github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/libregistry/registryprotocols/ociclient"
 	tfaddr "github.com/opentofu/registry-address"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // DirectSource is a Source that handles the "direct" installation method by
 // performing service discovery on a provider's origin registry hostname and
 // then using the declared services to decide how to handle the request.
 type DirectSource struct {
-	services *disco.Disco
+	services      *disco.Disco
+	ociDistClient ociclient.OCIClient
 }
 
 var _ Source = (*DirectSource)(nil)
 
 // NewRegistrySource creates and returns a new source that will install
 // providers from their originating provider registries.
-func NewDirectSource(services *disco.Disco) *DirectSource {
+func NewDirectSource(services *disco.Disco, ociDistClient ociclient.OCIClient) *DirectSource {
 	return &DirectSource{
-		services: services,
+		services:      services,
+		ociDistClient: ociDistClient,
 	}
 }
 
@@ -62,6 +67,7 @@ func (s *DirectSource) ForDisplay(provider tfaddr.Provider) string {
 // an error if no suitable service is available.
 func (s *DirectSource) discoverRealSource(ctx context.Context, provider tfaddr.Provider) (Source, error) {
 	if isMagicOCIMirrorHost(provider.Hostname) {
+		log.Printf("[TRACE] DirectSource: using magic OCI distribution registry mapping for %s", provider.Hostname.ForDisplay())
 		return s.magicOCIMirrorSource(ctx, provider)
 	}
 
@@ -141,7 +147,7 @@ func (s *DirectSource) ociMirrorSource(_ context.Context, provider tfaddr.Provid
 	//nolint:errorlint // this is intentionally following the structure from RegistrySource, for now
 	switch err := err.(type) {
 	case nil:
-		return NewOCIMirrorSource(func(_ tfaddr.Provider) (OCIRepository, tfdiags.Diagnostics) {
+		return NewOCIMirrorSource(s.ociDistClient, func(_ tfaddr.Provider) (OCIRepository, tfdiags.Diagnostics) {
 			return OCIRepository{
 				Hostname: hostname,
 				Name:     name,
@@ -186,7 +192,7 @@ func (s *DirectSource) magicOCIMirrorSource(_ context.Context, provider tfaddr.P
 	ociRegistryHost := fullHostname[:len(fullHostname)-len(magicOCIRegistryHostnameSuffix)]
 	ociRepositoryName := provider.Namespace + "/opentofu-provider-" + provider.Type
 
-	return NewOCIMirrorSource(func(_ tfaddr.Provider) (OCIRepository, tfdiags.Diagnostics) {
+	return NewOCIMirrorSource(s.ociDistClient, func(_ tfaddr.Provider) (OCIRepository, tfdiags.Diagnostics) {
 		return OCIRepository{
 			Hostname: ociRegistryHost,
 			Name:     ociRepositoryName,

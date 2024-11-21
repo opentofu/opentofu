@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-sdk-for-go v59.2.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.24
 	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
-	github.com/ProtonMail/go-crypto v0.0.0-20230619160724-3fbb1f12458c
+	github.com/ProtonMail/go-crypto v0.0.0-20230717121422-5aa5874ade95
 	github.com/agext/levenshtein v1.2.3
 	github.com/aliyun/alibaba-cloud-sdk-go v1.61.1501
 	github.com/aliyun/aliyun-oss-go-sdk v2.2.9+incompatible
@@ -71,8 +71,8 @@ require (
 	github.com/mitchellh/reflectwalk v1.0.2
 	github.com/nishanths/exhaustive v0.7.11
 	github.com/openbao/openbao/api v0.0.0-20240326035453-c075f0ef2c7e
-	github.com/opencontainers/go-digest v1.0.0
-	github.com/opentofu/registry-address v0.0.0-20230920144404-f1e51167f633
+	github.com/opentofu/libregistry v0.0.0-20241121180619-d0f80eb9b3d0
+	github.com/opentofu/registry-address v0.0.0-20230922120653-901b9ae4061a
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3

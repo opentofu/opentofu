@@ -14,6 +14,8 @@ import (
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
 	"github.com/hashicorp/terraform-svchost/disco"
+	libregistryLogger "github.com/opentofu/libregistry/logger"
+	"github.com/opentofu/libregistry/registryprotocols/ociclient"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
@@ -198,12 +200,23 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 			getproviders.NewRegistrySource(services),
 		), nil
 	} else if loc == cliconfig.ProviderInstallationDirectWithOCIExperiment {
+		ociClient, err := newOCIDistributionClient()
+		if err != nil {
+			var diags tfdiags.Diagnostics
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to create OCI distribution client",
+				"Failed to configure an OCI distribution client to install providers from a direct source with the OCI registry experiment enabled.",
+			))
+			return nil, diags
+		}
+
 		// This is an experimental new mode which uses service discovery
 		// to decide between using our main provider registry protocol
 		// or using a translation to an OCI registry address to install
 		// directly from an OCI repository.
 		return getproviders.NewMemoizeSource(
-			getproviders.NewDirectSource(services),
+			getproviders.NewDirectSource(services, ociClient),
 		), nil
 	}
 
@@ -235,7 +248,18 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		return getproviders.NewHTTPMirrorSource(url, services.CredentialsSource()), nil
 
 	case cliconfig.ProviderInstallationOCIMirror:
-		return getproviders.NewOCIMirrorSource(loc.RepositoryAddrFunc), nil
+		ociClient, err := newOCIDistributionClient()
+		if err != nil {
+			var diags tfdiags.Diagnostics
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to create OCI distribution client",
+				"Failed to configure an OCI distribution client to install providers from an oci_mirror source.",
+			))
+			return nil, diags
+		}
+
+		return getproviders.NewOCIMirrorSource(ociClient, loc.RepositoryAddrFunc), nil
 
 	default:
 		// We should not get here because the set of cases above should
@@ -243,6 +267,11 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		// cliconfig.ProviderInstallationLocation implementations.
 		panic(fmt.Sprintf("unexpected provider source location type %T", loc))
 	}
+}
+
+func newOCIDistributionClient() (ociclient.OCIClient, error) {
+	ociLogger := libregistryLogger.NewGoLogLogger(log.Default())
+	return ociclient.New(ociclient.WithLogger(ociLogger))
 }
 
 func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.Provider]getproviders.PackageLocalDir {

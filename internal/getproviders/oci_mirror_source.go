@@ -8,20 +8,21 @@ package getproviders
 import (
 	"context"
 	"fmt"
-	"regexp"
 
 	"github.com/apparentlymart/go-versions/versions"
 	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/libregistry/registryprotocols/ociclient"
+	tfaddr "github.com/opentofu/registry-address"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	tfaddr "github.com/opentofu/registry-address"
 )
 
 // OCIMirrorSource is a source that reads provider metadata and packages
 // from OCI Distribution registries, selected by transforming the
 // requested provider source address to an OCI repository address.
 type OCIMirrorSource struct {
+	client               ociclient.OCIClient
 	getRepositoryAddress func(providerAddr addrs.Provider) (OCIRepository, tfdiags.Diagnostics)
 }
 
@@ -29,39 +30,91 @@ var _ Source = (*OCIMirrorSource)(nil)
 
 // NewOCIMirrorSource constructs and returns a new OCI mirror source with
 // the given repository address generation callback.
-func NewOCIMirrorSource(repositoryAddressFunc func(providerAddr addrs.Provider) (OCIRepository, tfdiags.Diagnostics)) *OCIMirrorSource {
+func NewOCIMirrorSource(client ociclient.OCIClient, repositoryAddressFunc func(providerAddr addrs.Provider) (OCIRepository, tfdiags.Diagnostics)) *OCIMirrorSource {
 	return &OCIMirrorSource{
+		client:               client,
 		getRepositoryAddress: repositoryAddressFunc,
 	}
 }
 
 // AvailableVersions implements Source.
-func (o *OCIMirrorSource) AvailableVersions(_ context.Context, provider tfaddr.Provider) (versions.List, []string, error) {
+func (o *OCIMirrorSource) AvailableVersions(ctx context.Context, provider tfaddr.Provider) (versions.List, []string, error) {
 	repoAddr, err := o.repositoryAddress(provider)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// TODO: Implement this, once we have an OCI distribution client to implement it with.
-	return nil, nil, fmt.Errorf(
-		"would have listed available provider versions from %s, but this provider installation method is not yet implemented",
-		repoAddr,
-	)
+	refs, warnings, err := o.client.ListReferences(ctx, repoAddr.toClient())
+	if err != nil {
+		return nil, warnings, fmt.Errorf("failed to list references from OCI repository %s: %w", repoAddr, err)
+	}
+
+	var ret versions.List
+	for _, ref := range refs {
+		// We're only interested in tags whose names are semver-styled version
+		// numbers. We'll ignore any other tag, or any reference that isn't a tag.
+		tag, isTag := ref.AsTag()
+		if !isTag {
+			continue
+		}
+		v, err := versions.ParseVersion(string(tag))
+		if err != nil {
+			continue
+		}
+		ret = append(ret, v)
+	}
+
+	return ret, warnings, nil
 }
 
 // PackageMeta implements Source.
-func (o *OCIMirrorSource) PackageMeta(_ context.Context, provider tfaddr.Provider, version versions.Version, target Platform) (PackageMeta, error) {
+func (o *OCIMirrorSource) PackageMeta(ctx context.Context, provider tfaddr.Provider, version versions.Version, target Platform) (PackageMeta, error) {
 	repoAddr, err := o.repositoryAddress(provider)
 	if err != nil {
 		return PackageMeta{}, err
 	}
-	tagName := "v" + version.String()
+	tagName := version.String()
+	ociAddr := ociclient.OCIAddrWithReference{
+		OCIAddr:   repoAddr.toClient(),
+		Reference: ociclient.OCIReference(tagName),
+	}
 
-	// TODO: Implement this, once we have an OCI distribution client to implement it with.
-	return PackageMeta{}, fmt.Errorf(
-		"would have fetched metadata from %s:%s for %s, but this provider installation method is not yet implemented",
-		repoAddr, tagName, target,
+	// FIXME: This API was not designed to support warnings from this step, because
+	// the main OpenTofu registry protocol only supports whole-provider-level warnings.
+	// For now we'll just discard the warnings, but we should alter this API to allow
+	// returning them.
+	platformSpecificManifestDigest, _, err := o.client.ResolvePlatformImageDigest(
+		ctx, ociAddr,
+
+		// OCI and OpenTofu both follow the Go ecosystem's names for operating
+		// systems and architectures, so we can just pass these through directly.
+		ociclient.WithGOOS(target.OS), ociclient.WithGOARCH(target.Arch),
 	)
+	if err != nil {
+		return PackageMeta{}, fmt.Errorf("failed to get metadata for tag %q in OCI repository %s: %w", tagName, repoAddr, err)
+	}
+
+	return PackageMeta{
+		Provider:       provider,
+		Version:        version,
+		TargetPlatform: target,
+
+		// TODO: Define an image metadata label that can populate this, so we can give better feedback
+		// about unsupported versions in future.
+		ProtocolVersions: nil,
+
+		// Filename is synthetic based on the typical naming scheme for provider mirrors, since
+		// an OCI image is never manifest as a single file on disk.
+		Filename: fmt.Sprintf("terraform-provider-%s_%s_%s_%s.zip", provider.Type, version, target.OS, target.Arch),
+
+		Location: PackageOCIObject{
+			repositoryAddr:      repoAddr,
+			imageManifestDigest: platformSpecificManifestDigest,
+			client:              o.client,
+		},
+
+		// TODO: Authentication
+	}, nil
 }
 
 // ForDisplay implements Source.
@@ -88,7 +141,7 @@ func (o *OCIMirrorSource) repositoryAddress(providerAddr addrs.Provider) (OCIRep
 	}
 
 	// The result must be a valid name as defined in the OCI distribution specification.
-	if !ociDistributionNamePattern.MatchString(ret.Name) {
+	if !validOCIName(ret.Name) {
 		// OpenTofu's provider address syntax permits a wider repertiore of
 		// Unicode characters than the OCI distribution name pattern allows,
 		// so a likely way to get here is to try to install a provider
@@ -99,7 +152,7 @@ func (o *OCIMirrorSource) repositoryAddress(providerAddr addrs.Provider) (OCIRep
 		// syntax is compatible enough with the OCI repository address syntax
 		// that we can use a string representation of the provider address
 		// with the same regular expression pattern.
-		if !ociDistributionNamePattern.MatchString(providerAddr.Namespace + "/" + providerAddr.Type) {
+		if !validOCIName(providerAddr.Namespace + "/" + providerAddr.Type) {
 			// (TODO: Should the CLI configuration template for this offer some
 			// functions to help users transform a non-ASCII provider address
 			// segment into a reasonable ASCII equivalent? Non-ASCII provider
@@ -122,10 +175,20 @@ type OCIRepository struct {
 	Name     string
 }
 
-// ociDistributionNamePattern is a compiled regular expression pattern corresponding to the
-// "name" pattern as defined in the OCI distribution specification.
-var ociDistributionNamePattern = regexp.MustCompile(`^[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*(\/[a-z0-9]+((\.|_|__|-+)[a-z0-9]+)*)*$`)
-
 func (r OCIRepository) String() string {
 	return r.Hostname + "/" + r.Name
+}
+
+// toClient returns the same repository address expressed as [ociclient.OCIAddr],
+// ready to use with the OCI distribution client.
+func (r OCIRepository) toClient() ociclient.OCIAddr {
+	return ociclient.OCIAddr{
+		Registry: ociclient.OCIRegistry(r.Hostname),
+		Name:     ociclient.OCIName(r.Name),
+	}
+}
+
+func validOCIName(given string) bool {
+	candidate := ociclient.OCIName(given)
+	return candidate.Validate() == nil
 }
