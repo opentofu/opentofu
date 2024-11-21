@@ -49,7 +49,7 @@ output "this_is_my_output" {
 
 #### Deprecated module variable warning
 
-If module caller specify non-null value for a deprecated variable, OpenTofu shoould produce a deprecation warning as 
+If module caller specify non-null value for a deprecated variable, OpenTofu should produce a deprecation warning as 
 specified by module author:
 
 ```hcl
@@ -68,15 +68,45 @@ specified by module author:
 
 #### Deprecated module output warning
 
-TBD
+If module caller has references to deprecated module outputs in their configuration, OpenTofu should produce a
+deprecation warning as specified by module author:
+
+```hcl
+│ Warning: The output "this_is_my_output" is marked as deprecated by module author.
+│ 
+│   on main.tf line 9, in resource "some_resource" "some_name":
+│    9:     some_field = module.mod.this_is_my_output
+│ 
+│ This output will be removed on 2024-12-31. Use that_is_my_output instead.
+```
+
+> [!NOTE]
+> Module users may rely on [output precondition check](https://opentofu.org/docs/language/values/outputs/#custom-condition-checks),
+> however it doesn't require implicit references, so this type of usage will not be counted when generating deprecation warnings. We
+> might want to forbid deprecation of outputs with precondition checks so module authors would be required to migrate them beforehand.
 
 ### Technical Approach
 
-TBD
+Technical approach should be different for input variables and outputs. For input variables, we can follow existing approach, where
+variables are being validated.
+
+As for module outputs, it is slightly harder to determine if it's is actually referenced in the user configuration, since
+`nodeExpandOutput` is included in the graph regardless of its actual usage. On graph walk, this node expands to one or more
+`NodeApplyableOutput` nodes, which also validates precondition checks on execution.
+
+In the case we decide to forbid deprecating outputs with precondition checks, we can extend `nodeExpandOutput` with the
+deprecation check and then extend `ModuleExpansionTransformer` to not link `nodeExpandOutput` with `nodeCloseModule`. This
+way we are getting rid of unused output nodes from the graph. Deprecation check is just ignored if there is an output is unused.
+
+Otherwise, we can extend existing `ReferenceTransformer` (or create a new one) to check if there are any connections to
+`nodeExpandOutput` from the outside of its module. We should keep in mind potential performance downgrades since for large
+graphs it may be slow to go through all the connections. This approach would also require us to slightly refactor `GraphTransformer`
+interface to being able to produce non-critical errors (warnings).
 
 ### Open Questions
 
 * Do we want to support silencing of deprecation warnings?
+* Should we forbid deprecating module outputs with precondition checks?
 
 ### Future Considerations
 
