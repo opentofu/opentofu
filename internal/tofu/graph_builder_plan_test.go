@@ -250,7 +250,7 @@ func TestPlanGraphBuilder_forEach(t *testing.T) {
 const testPlanGraphBuilderStr = `
 aws_instance.web (expand)
   aws_security_group.firewall (expand)
-  var.foo
+  var.foo (expand, reference)
 aws_load_balancer.weblb (expand)
   aws_instance.web (expand)
 aws_security_group.firewall (expand)
@@ -273,6 +273,8 @@ root
   provider["registry.opentofu.org/hashicorp/aws"] (close)
   provider["registry.opentofu.org/hashicorp/openstack"] (close)
 var.foo
+var.foo (expand, reference)
+  var.foo
 `
 const testPlanGraphBuilderForEachStr = `
 aws_instance.bar (expand)

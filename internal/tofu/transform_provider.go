@@ -310,8 +310,14 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 		if nr, ok := v.(GraphNodeReferencer); ok && t.Config != nil {
 			for _, ref := range nr.References() {
 				if pf, ok := ref.Subject.(addrs.ProviderFunction); ok {
+					refPath := nr.ModulePath()
+
+					if outside, isOutside := v.(GraphNodeReferenceOutside); isOutside {
+						_, refPath = outside.ReferenceOutside()
+					}
+
 					key := ProviderFunctionReference{
-						ModulePath:    nr.ModulePath().String(),
+						ModulePath:    refPath.String(),
 						ProviderName:  pf.ProviderName,
 						ProviderAlias: pf.ProviderAlias,
 					}
@@ -324,13 +330,13 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					}
 
 					// Find the config that this node belongs to
-					mc := t.Config.Descendent(nr.ModulePath())
+					mc := t.Config.Descendent(refPath)
 					if mc == nil {
 						// I don't think this is possible
 						diags = diags.Append(&hcl.Diagnostic{
 							Severity: hcl.DiagError,
 							Summary:  "Unknown Descendent Module",
-							Detail:   nr.ModulePath().String(),
+							Detail:   refPath.String(),
 							Subject:  ref.SourceRange.ToHCL().Ptr(),
 						})
 						continue
@@ -351,7 +357,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 					// Build fully qualified provider address
 					absPc := addrs.AbsProviderConfig{
 						Provider: pr.Type,
-						Module:   nr.ModulePath(),
+						Module:   refPath,
 						Alias:    pf.ProviderAlias,
 					}
 

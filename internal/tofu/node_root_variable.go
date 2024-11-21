@@ -13,7 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
-	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -54,23 +53,6 @@ func (n *NodeRootVariable) ReferenceableAddrs() []addrs.Referenceable {
 	return []addrs.Referenceable{n.Addr}
 }
 
-// GraphNodeReferencer
-func (n *NodeRootVariable) References() []*addrs.Reference {
-	// This is identical to nodeModuleVariable.References
-	var refs []*addrs.Reference
-
-	if n.Config != nil {
-		for _, validation := range n.Config.Validations {
-			condFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
-			refs = append(refs, condFuncs...)
-			errFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
-			refs = append(refs, errFuncs...)
-		}
-	}
-
-	return refs
-}
-
 // GraphNodeExecutable
 func (n *NodeRootVariable) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	// Root module variables are special in that they are provided directly
@@ -104,12 +86,6 @@ func (n *NodeRootVariable) Execute(ctx EvalContext, op walkOperation) tfdiags.Di
 		}
 	}
 
-	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(addrs.RootModule)) {
-		ctx.Checks().ReportCheckableObjects(
-			n.Addr.InModule(addrs.RootModule),
-			addrs.MakeSet[addrs.Checkable](n.Addr.Absolute(addrs.RootModuleInstance)))
-	}
-
 	finalVal, moreDiags := prepareFinalInputVariableValue(
 		addr,
 		givenVal,
@@ -124,13 +100,6 @@ func (n *NodeRootVariable) Execute(ctx EvalContext, op walkOperation) tfdiags.Di
 
 	ctx.SetRootModuleArgument(addr.Variable, finalVal)
 
-	moreDiags = evalVariableValidations(
-		addrs.RootModuleInstance.InputVariable(n.Addr.Name),
-		n.Config,
-		nil, // not set for root module variables
-		ctx,
-	)
-	diags = diags.Append(moreDiags)
 	return diags
 }
 

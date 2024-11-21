@@ -47,22 +47,9 @@ func (n *nodeExpandModuleVariable) temporaryValue() bool {
 func (n *nodeExpandModuleVariable) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	var g Graph
 
-	// If this variable has preconditions, we need to report these checks now.
-	//
-	// We should only do this during planning as the apply phase starts with
-	// all the same checkable objects that were registered during the plan.
-	var checkableAddrs addrs.Set[addrs.Checkable]
-	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
-		checkableAddrs = addrs.MakeSet[addrs.Checkable]()
-	}
-
 	expander := ctx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
 		addr := n.Addr.Absolute(module)
-		if checkableAddrs != nil {
-			checkableAddrs.Add(addr)
-		}
-
 		o := &nodeModuleVariable{
 			Addr:           addr,
 			Config:         n.Config,
@@ -73,15 +60,11 @@ func (n *nodeExpandModuleVariable) DynamicExpand(ctx EvalContext) (*Graph, error
 	}
 	addRootNodeToGraph(&g)
 
-	if checkableAddrs != nil {
-		ctx.Checks().ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
-	}
-
 	return &g, nil
 }
 
 func (n *nodeExpandModuleVariable) Name() string {
-	return fmt.Sprintf("%s.%s (expand)", n.Module, n.Addr.String())
+	return fmt.Sprintf("%s.%s (expand, input)", n.Module, n.Addr.String())
 }
 
 // GraphNodeModulePath
@@ -91,27 +74,15 @@ func (n *nodeExpandModuleVariable) ModulePath() addrs.Module {
 
 // GraphNodeReferencer
 func (n *nodeExpandModuleVariable) References() []*addrs.Reference {
-	var refs []*addrs.Reference
-	if n.Config != nil {
-		// These references will ignore GraphNodeReferenceOutside and are used by the ProviderFunctionTransformer and lang.Scope.evalContext
-		// It's an odd pattern, but it works
-		for _, validation := range n.Config.Validations {
-			condFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
-			refs = append(refs, condFuncs...)
-			errFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
-			refs = append(refs, errFuncs...)
-		}
-	}
-
 	// If we have no value expression, we cannot depend on anything.
 	if n.Expr == nil {
-		return refs
+		return nil
 	}
 
 	// Variables in the root don't depend on anything, because their values
 	// are gathered prior to the graph walk and recorded in the context.
 	if len(n.Module) == 0 {
-		return refs
+		return nil
 	}
 
 	// Otherwise, we depend on anything referenced by our value expression.
@@ -124,9 +95,7 @@ func (n *nodeExpandModuleVariable) References() []*addrs.Reference {
 	// where our associated variable was declared, which is correct because
 	// our value expression is assigned within a "module" block in the parent
 	// module.
-	outerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.Expr)
-	refs = append(refs, outerRefs...)
-
+	refs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.Expr)
 	return refs
 }
 
@@ -165,7 +134,7 @@ func (n *nodeModuleVariable) temporaryValue() bool {
 }
 
 func (n *nodeModuleVariable) Name() string {
-	return n.Addr.String()
+	return n.Addr.String() + "(input)"
 }
 
 // GraphNodeModuleInstance
@@ -184,17 +153,8 @@ func (n *nodeModuleVariable) ModulePath() addrs.Module {
 func (n *nodeModuleVariable) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] nodeModuleVariable: evaluating %s", n.Addr)
 
-	var val cty.Value
-	var err error
-
-	switch op {
-	case walkValidate:
-		val, err = n.evalModuleVariable(ctx, true)
-		diags = diags.Append(err)
-	default:
-		val, err = n.evalModuleVariable(ctx, false)
-		diags = diags.Append(err)
-	}
+	val, err := n.evalModuleVariable(ctx, op == walkValidate)
+	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -203,8 +163,7 @@ func (n *nodeModuleVariable) Execute(ctx EvalContext, op walkOperation) (diags t
 	// during expression evaluation.
 	_, call := n.Addr.Module.CallInstance()
 	ctx.SetModuleCallArgument(call, n.Addr.Variable, val)
-
-	return evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
+	return diags
 }
 
 // dag.GraphNodeDotter impl.
