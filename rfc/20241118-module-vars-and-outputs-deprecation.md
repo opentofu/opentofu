@@ -81,8 +81,8 @@ deprecation warning as specified by module author:
 ```
 
 > [!NOTE]
-> Module users may rely on [output precondition check](https://opentofu.org/docs/language/values/outputs/#custom-condition-checks),
-> however it doesn't require implicit references, so this type of usage will not be counted when generating deprecation warnings. We
+> Module users may rely on [output precondition check](https://opentofu.org/docs/language/values/outputs/#custom-condition-checks).
+> However it doesn't require implicit references, so this type of usage will not be counted when generating deprecation warnings. We
 > might want to forbid deprecation of outputs with precondition checks so module authors would be required to migrate them beforehand.
 
 ### Technical Approach
@@ -90,13 +90,13 @@ deprecation warning as specified by module author:
 Technical approach should be different for input variables and outputs. For input variables, we can follow existing approach, where
 variables are being validated.
 
-As for module outputs, it is slightly harder to determine if it's is actually referenced in the user configuration, since
+As for module outputs, it is slightly harder to determine if it's is actually referenced in the user configuration, because
 `nodeExpandOutput` is included in the graph regardless of its actual usage. On graph walk, this node expands to one or more
-`NodeApplyableOutput` nodes, which also validates precondition checks on execution.
+`NodeApplyableOutput` nodes. `NodeApplyableOutput` also run validation of precondition checks on its execution.
 
 In the case we decide to forbid deprecating outputs with precondition checks, we can extend `nodeExpandOutput` with the
 deprecation check and then extend `ModuleExpansionTransformer` to not link `nodeExpandOutput` with `nodeCloseModule`. This
-way we are getting rid of unused output nodes from the graph. Deprecation check is just ignored if there is an output is unused.
+way we are getting rid of unused output nodes from the graph. Deprecation check is just ignored if the output is unused.
 
 Otherwise, we can extend existing `ReferenceTransformer` (or create a new one) to check if there are any connections to
 `nodeExpandOutput` from the outside of its module. We should keep in mind potential performance downgrades since for large
