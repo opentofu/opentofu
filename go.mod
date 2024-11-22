@@ -266,6 +266,6 @@ require (
 	sigs.k8s.io/yaml v1.2.0 // indirect
 )
 
-go 1.21
+go 1.22
 
 replace github.com/hashicorp/hcl/v2 v2.20.1 => github.com/opentofu/hcl/v2 v2.0.0-20240416130056-03228b26f391
