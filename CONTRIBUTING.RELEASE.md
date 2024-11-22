@@ -106,8 +106,7 @@ Now that you have the files up to date, do the following:
 2. Make sure the branch is up-to-date by running `git pull`
 3. Create the correct tag: `git tag -m "X.Y.Z" vX.Y.Z` (assuming you are releasing version `X.Y.Z`) 
    * If you have a GPG key, consider adding the `-s` option to create a GPG-signed tag
-4. Make sure there are no locally-created unnecessary tags by running `git tag`
-5. Push the tag: `git push --tags`
+4. Push the tag: `git push vX.Y.Z`
 
 ---
 
