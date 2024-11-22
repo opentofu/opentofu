@@ -1,5 +1,8 @@
 ## 1.7.6 (unreleased)
 
+BUG FIXES:
+* Extended trace logging for HTTP backend, including request and response bodies. ([#2120](https://github.com/opentofu/opentofu/pull/2120))
+
 ## 1.7.5
 
 BUG FIXES:
