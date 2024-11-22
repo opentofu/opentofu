@@ -1,4 +1,8 @@
-## 1.8.6 (unreleased)
+## 1.8.7 (unreleased)
+
+
+
+## 1.8.6
 
 ENHANCEMENTS:
 * OpenTofu builds now use Go version 1.22 ([#2050](https://github.com/opentofu/opentofu/issues/2050))
