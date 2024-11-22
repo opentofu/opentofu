@@ -40,6 +40,7 @@ ENHANCEMENTS:
 * `tofu console` now accepts expressions split over multiple lines, when the newline characters appear inside bracketing pairs or when they are escaped using a backslash. ([#1875](https://github.com/opentofu/opentofu/pull/1875))
 * Improved performance for large graphs when debug logs are not enabled. ([#1810](https://github.com/opentofu/opentofu/pull/1810))
 * Improved performance for large graphs with many submodules. ([#1809](https://github.com/opentofu/opentofu/pull/1809))
+* Extended trace logging for HTTP backend, including request and response bodies. ([#2120](https://github.com/opentofu/opentofu/pull/2120))
 
 BUG FIXES:
 * `templatefile` no longer crashes if the given filename is derived from a sensitive value. ([#1801](https://github.com/opentofu/opentofu/issues/1801))
