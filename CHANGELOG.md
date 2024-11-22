@@ -1,5 +1,9 @@
 ## 1.7.6 (unreleased)
 
+ENHANCEMENTS:
+
+* OpenTofu builds now use Go version 1.22 ([#2050](https://github.com/opentofu/opentofu/issues/2050))
+
 BUG FIXES:
 * Extended trace logging for HTTP backend, including request and response bodies. ([#2120](https://github.com/opentofu/opentofu/pull/2120))
 
