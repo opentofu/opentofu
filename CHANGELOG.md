@@ -1,4 +1,8 @@
-## 1.7.6 (unreleased)
+## 1.7.7 (unreleased)
+
+
+
+## 1.7.6
 
 ENHANCEMENTS:
 
