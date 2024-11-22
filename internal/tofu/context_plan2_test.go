@@ -1046,6 +1046,80 @@ resource "test_object" "a" {
 	}
 }
 
+func TestContext2Plan_destroyWithRefresh_skipImport(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+resource "test_object" "a" {
+}
+
+resource "test_object" "imported" {
+}
+
+import {
+  to   = test_object.imported
+  id   = "123"
+}
+`,
+	})
+
+	p := simpleMockProvider()
+
+	p.ReadResourceResponse = &providers.ReadResourceResponse{
+		NewState: cty.ObjectVal(map[string]cty.Value{
+			"test_string": cty.StringVal("foo"),
+		}),
+	}
+
+	p.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
+		ImportedResources: []providers.ImportedResource{
+			{
+				TypeName: "test_object",
+				State: cty.ObjectVal(map[string]cty.Value{
+					"test_string": cty.StringVal("foo"),
+				}),
+			},
+		},
+	}
+
+	expectedDestroyedAddr := mustResourceInstanceAddr("test_object.a")
+	state := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(expectedDestroyedAddr, &states.ResourceInstanceObjectSrc{
+			AttrsJSON: []byte(`{"arg":"before"}`),
+			Status:    states.ObjectReady,
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode:        plans.DestroyMode,
+		SkipRefresh: false, // the default
+	})
+	assertNoErrors(t, diags)
+
+	if plan.PriorState == nil {
+		t.Fatal("missing plan state")
+	}
+
+	if len(plan.Changes.Resources) > 1 {
+		t.Fatal("only a single resource should be changed in the plan")
+	}
+
+	changedResource := plan.Changes.Resources[0]
+
+	if changedResource.Action != plans.Delete {
+		t.Errorf("unexpected %s change for %s", changedResource.Action, changedResource.Addr)
+	}
+
+	if !changedResource.Addr.Equal(expectedDestroyedAddr) {
+		t.Errorf("unexpected change for resource %s instead of %s", changedResource.Addr, expectedDestroyedAddr)
+	}
+}
+
 func TestContext2Plan_destroySkipRefresh(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
