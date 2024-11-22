@@ -30,6 +30,7 @@ NEW FEATURES:
     While `-target` specifies the objects to _include_ and skips everything not needed for the selected objects, `-exclude` instead specifies objects to skip. OpenTofu will exclude the selected objects and everything that depends on them.
 
 ENHANCEMENTS:
+* OpenTofu builds now use Go version 1.22 ([#2050](https://github.com/opentofu/opentofu/issues/2050))
 * `provider` blocks now support `for_each`. ([#2123](https://github.com/opentofu/opentofu/issues/2123))
 * The new `-exclude` planning option complements `-target`, specifying what to exclude rather than what to include. ([#1900](https://github.com/opentofu/opentofu/pull/1900))
 * State encryption key providers now support customizing the metadata key via `encrypted_metadata_alias`. ([#2080](https://github.com/opentofu/opentofu/pull/2080))
