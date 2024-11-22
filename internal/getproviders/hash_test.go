@@ -24,6 +24,10 @@ func TestParseHash(t *testing.T) {
 			Want:  HashSchemeZip.New("bar"),
 		},
 		{
+			Input: "ch:sha256:bc66513901b81f6cf8b2cf66d7414daa874f8f717626febe8591775232fedd0f",
+			Want:  HashSchemeOCIObject.New("sha256:bc66513901b81f6cf8b2cf66d7414daa874f8f717626febe8591775232fedd0f"),
+		},
+		{
 			// A scheme we don't know is considered valid syntax, it just won't match anything.
 			Input: "unknown:baz",
 			Want:  HashScheme("unknown:").New("baz"),

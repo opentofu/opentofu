@@ -94,6 +94,20 @@ func (o *OCIMirrorSource) PackageMeta(ctx context.Context, provider tfaddr.Provi
 		return PackageMeta{}, fmt.Errorf("failed to get metadata for tag %q in OCI repository %s: %w", tagName, repoAddr, err)
 	}
 
+	location := PackageOCIObject{
+		repositoryAddr:      repoAddr,
+		imageManifestDigest: platformSpecificManifestDigest,
+		client:              o.client,
+	}
+	authentication := NewPackageHashAuthentication(target, []Hash{
+		// The content-addressable nature of an OCI repository means that
+		// this has should always match by definition; we include this
+		// primarily to cause the checksum to be recorded in the dependency
+		// lock file for use when we're installing the same image again
+		// in future.
+		PackageHashOCIObject(location),
+	})
+
 	return PackageMeta{
 		Provider:       provider,
 		Version:        version,
@@ -107,13 +121,8 @@ func (o *OCIMirrorSource) PackageMeta(ctx context.Context, provider tfaddr.Provi
 		// an OCI image is never manifest as a single file on disk.
 		Filename: fmt.Sprintf("terraform-provider-%s_%s_%s_%s.zip", provider.Type, version, target.OS, target.Arch),
 
-		Location: PackageOCIObject{
-			repositoryAddr:      repoAddr,
-			imageManifestDigest: platformSpecificManifestDigest,
-			client:              o.client,
-		},
-
-		// TODO: Authentication
+		Location:       location,
+		Authentication: authentication,
 	}, nil
 }
 

@@ -65,6 +65,11 @@ func (p PackageOCIObject) InstallProviderPackage(ctx context.Context, meta Packa
 		return nil, fmt.Errorf("failed to create provider package cache directory %s: %w", targetDir, err)
 	}
 
+	// Installing this OCI object will cause the package to become available in a
+	// local directory too, and we'll be using that for verifying checksums and
+	// any package authentication.
+	localLoc := PackageLocalDir(targetDir)
+
 	for {
 		var haveNext bool
 		haveNext, err = files.Next()
@@ -121,7 +126,6 @@ func (p PackageOCIObject) InstallProviderPackage(ctx context.Context, meta Packa
 		}
 	}
 	if suitableHashCount > 0 {
-		localLoc := PackageLocalDir(targetDir)
 		var matches bool
 		if matches, err = PackageMatchesAnyHash(localLoc, allowedHashes); err != nil {
 			return nil, fmt.Errorf(
@@ -137,7 +141,7 @@ func (p PackageOCIObject) InstallProviderPackage(ctx context.Context, meta Packa
 	}
 
 	if meta.Authentication != nil {
-		return meta.Authentication.AuthenticatePackage(p)
+		return meta.Authentication.AuthenticatePackage(localLoc)
 	}
 	//nolint:nilnil // this API predates our use of this linter and callers rely on this behavior
 	return nil, nil
