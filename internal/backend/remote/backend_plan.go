@@ -128,6 +128,14 @@ func (b *Remote) opPlan(stopCtx, cancelCtx context.Context, op *backend.Operatio
 		}
 	}
 
+	if len(op.Excludes) != 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"-exclude option is not supported",
+			"The -exclude option is not currently supported for remote plans.",
+		))
+	}
+
 	if !op.PlanRefresh {
 		desiredAPIVersion, _ := version.NewVersion("2.4")
 

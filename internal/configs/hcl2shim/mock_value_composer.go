@@ -10,6 +10,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 )
 
 // MockValueComposer provides different ways to generate mock values based on
@@ -111,19 +112,18 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// If the attribute is computed and not configured,
 		// we use provided value from defaults.
 		if ov, ok := defaults[k]; ok {
-			typeConformanceErrs := ov.Type().TestConformance(attr.Type)
-			if len(typeConformanceErrs) == 0 {
-				mockAttrs[k] = ov
-				continue
-			}
-
-			for _, err := range typeConformanceErrs {
+			converted, err := convert.Convert(ov, attr.Type)
+			if err != nil {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Warning,
 					fmt.Sprintf("Ignored mock/override field `%v`", k),
-					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", err),
+					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", tfdiags.FormatError(err)),
 				))
+				continue
 			}
+
+			mockAttrs[k] = converted
+			continue
 		}
 
 		// If there's no value in defaults, we generate our own.

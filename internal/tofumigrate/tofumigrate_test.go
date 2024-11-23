@@ -57,6 +57,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/random"),
+						addrs.NoKey,
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -65,6 +66,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
+						addrs.NoKey,
 					)
 				}),
 			},
@@ -76,6 +78,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -84,6 +87,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
+					addrs.NoKey,
 				)
 			}),
 		},
@@ -99,6 +103,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/random"),
+						addrs.NoKey,
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -107,6 +112,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
+						addrs.NoKey,
 					)
 				}),
 			},
@@ -118,6 +124,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -126,6 +133,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
+					addrs.NoKey,
 				)
 			}),
 		},
@@ -141,6 +149,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
+						addrs.NoKey,
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -149,6 +158,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
+						addrs.NoKey,
 					)
 				}),
 			},
@@ -160,6 +170,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -168,6 +179,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
+					addrs.NoKey,
 				)
 			}),
 		},
@@ -183,6 +195,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/random"),
+						addrs.NoKey,
 					)
 					s.SetResourceInstanceCurrent(
 						mustParseInstAddr("aws_instance.example"),
@@ -191,6 +204,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 							AttrsJSON: []byte(`{}`),
 						},
 						makeRootProviderAddr("registry.terraform.io/hashicorp/aws"),
+						addrs.NoKey,
 					)
 				}),
 			},
@@ -202,6 +216,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/random"),
+					addrs.NoKey,
 				)
 				s.SetResourceInstanceCurrent(
 					mustParseInstAddr("aws_instance.example"),
@@ -210,6 +225,7 @@ func TestMigrateStateProviderAddresses(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 					},
 					makeRootProviderAddr("registry.opentofu.org/hashicorp/aws"),
+					addrs.NoKey,
 				)
 			}),
 		},

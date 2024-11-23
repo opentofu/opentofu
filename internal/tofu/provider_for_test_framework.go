@@ -103,49 +103,27 @@ func (p *providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) prov
 	return resp
 }
 
-// Calling the internal provider ensures providerForTest has the same behaviour as if
-// it wasn't overridden or mocked. The only exception is ImportResourceState, which panics
-// if called via providerForTest because importing is not supported in testing framework.
+// ValidateProviderConfig is irrelevant when provider is mocked or overridden.
+func (p *providerForTest) ValidateProviderConfig(_ providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
+	return providers.ValidateProviderConfigResponse{}
+}
 
+// GetProviderSchema is also used to perform additional validation outside of the provider
+// implementation. We are excluding parts of the schema related to provider since it is
+// irrelevant in the scope of mocking / overriding. When running `tofu test` configuration
+// is being transformed for testing framework and original provider configuration is not
+// accessible so it is safe to wipe metadata as well. See Config.transformProviderConfigsForTest
+// for more details.
 func (p *providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
-	return p.internal.GetProviderSchema()
-}
-
-func (p *providerForTest) ValidateProviderConfig(r providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
-	return p.internal.ValidateProviderConfig(r)
-}
-
-func (p *providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
-	return p.internal.ValidateResourceConfig(r)
-}
-
-func (p *providerForTest) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
-	return p.internal.ValidateDataResourceConfig(r)
-}
-
-func (p *providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
-	return p.internal.UpgradeResourceState(r)
+	providerSchema := p.internal.GetProviderSchema()
+	providerSchema.Provider = providers.Schema{}
+	providerSchema.ProviderMeta = providers.Schema{}
+	return providerSchema
 }
 
 // providerForTest doesn't configure its internal provider because it is mocked.
 func (p *providerForTest) ConfigureProvider(_ providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	return providers.ConfigureProviderResponse{}
-}
-
-func (p *providerForTest) Stop() error {
-	return p.internal.Stop()
-}
-
-func (p *providerForTest) GetFunctions() providers.GetFunctionsResponse {
-	return p.internal.GetFunctions()
-}
-
-func (p *providerForTest) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	return p.internal.CallFunction(r)
-}
-
-func (p *providerForTest) Close() error {
-	return p.internal.Close()
 }
 
 func (p *providerForTest) ImportResourceState(providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
@@ -190,6 +168,38 @@ func (p *providerForTest) addMockResources(mockResources []*configs.MockResource
 	}
 }
 
+// Calling the internal provider ensures providerForTest has the same behaviour as if
+// it wasn't overridden or mocked. The only exception is ImportResourceState, which panics
+// if called via providerForTest because importing is not supported in testing framework.
+
+func (p *providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	return p.internal.ValidateResourceConfig(r)
+}
+
+func (p *providerForTest) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
+	return p.internal.ValidateDataResourceConfig(r)
+}
+
+func (p *providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
+	return p.internal.UpgradeResourceState(r)
+}
+
+func (p *providerForTest) Stop() error {
+	return p.internal.Stop()
+}
+
+func (p *providerForTest) GetFunctions() providers.GetFunctionsResponse {
+	return p.internal.GetFunctions()
+}
+
+func (p *providerForTest) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+	return p.internal.CallFunction(r)
+}
+
+func (p *providerForTest) Close() error {
+	return p.internal.Close()
+}
+
 type resourceForTest struct {
 	overrideValues map[string]cty.Value
 }
@@ -201,7 +211,7 @@ func (m resourceForTestByType) getOverrideValues(typeName string) map[string]cty
 }
 
 func newMockValueComposer(typeName string) hcl2shim.MockValueComposer {
-	hash := fnv.New64()
+	hash := fnv.New32()
 	hash.Write([]byte(typeName))
-	return hcl2shim.NewMockValueComposer(int64(hash.Sum64()))
+	return hcl2shim.NewMockValueComposer(int64(hash.Sum32()))
 }

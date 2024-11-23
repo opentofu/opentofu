@@ -195,6 +195,27 @@ func TestPlanGraphBuilder_targetModule(t *testing.T) {
 	testGraphNotContains(t, g, "module.child1.test_object.foo")
 }
 
+func TestPlanGraphBuilder_excludeModule(t *testing.T) {
+	b := &PlanGraphBuilder{
+		Config:  testModule(t, "graph-builder-plan-target-module-provider"),
+		Plugins: simpleMockPluginLibrary(),
+		Excludes: []addrs.Targetable{
+			addrs.RootModuleInstance.Child("child1", addrs.NoKey),
+		},
+		Operation: walkPlan,
+	}
+
+	g, err := b.Build(addrs.RootModuleInstance)
+	if err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	t.Logf("Graph: %s", g.String())
+
+	testGraphNotContains(t, g, `module.child1.provider["registry.opentofu.org/hashicorp/test"]`)
+	testGraphNotContains(t, g, "module.child1.test_object.foo")
+}
+
 func TestPlanGraphBuilder_forEach(t *testing.T) {
 	awsProvider := mockProviderWithResourceTypeSchema("aws_instance", simpleTestSchema())
 

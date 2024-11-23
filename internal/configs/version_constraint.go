@@ -10,6 +10,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 )
@@ -35,6 +36,15 @@ func decodeVersionConstraintValue(attr *hcl.Attribute, val cty.Value) (VersionCo
 
 	ret := VersionConstraint{
 		DeclRange: attr.Range,
+	}
+
+	if val.HasMark(marks.Sensitive) {
+		return ret, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid version constraint",
+			Detail:   fmt.Sprintf("Sensitive values, or values derived from sensitive values, cannot be used as %s arguments.", attr.Name),
+			Subject:  attr.Expr.Range().Ptr(),
+		})
 	}
 
 	var err error

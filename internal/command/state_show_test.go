@@ -35,6 +35,7 @@ func TestStateShow(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -98,6 +99,7 @@ func TestStateShow_multi(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		s.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -113,6 +115,7 @@ func TestStateShow_multi(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   submod.Module(),
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -227,6 +230,7 @@ func TestStateShow_configured_provider(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test-beta"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 	statePath := testStateFile(t, state)
@@ -372,6 +376,7 @@ func stateWithSensitiveValueForStateShow() *states.State {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 

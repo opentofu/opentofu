@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 
@@ -48,6 +49,8 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what 
 		body = data
 	}
 
+	log.Printf("[DEBUG] Executing HTTP remote state request for: %q", what)
+
 	// Create the request
 	req, err := retryablehttp.NewRequest(method, url.String(), body)
 	if err != nil {
@@ -75,9 +78,13 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what 
 
 	// Make the request
 	resp, err := c.Client.Do(req)
+
 	if err != nil {
 		return nil, fmt.Errorf("Failed to %s: %w", what, err)
 	}
+
+	log.Printf("[DEBUG] HTTP remote state request for %q returned status code: %d", what, resp.StatusCode)
+	log.Printf("[DEBUG] HTTP response headers: %s", parseHeadersForLog(resp))
 
 	return resp, nil
 }
@@ -101,8 +108,10 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 		c.jsonLockInfo = jsonLockInfo
 		return info.ID, nil
 	case http.StatusUnauthorized:
+		log.Printf("[DEBUG] LOCK, Unauthorized: %s", parseResponseBodyForLog(resp))
 		return "", fmt.Errorf("HTTP remote state endpoint requires auth")
 	case http.StatusForbidden:
+		log.Printf("[DEBUG] LOCK, Forbidden: %s", parseResponseBodyForLog(resp))
 		return "", fmt.Errorf("HTTP remote state endpoint invalid auth")
 	case http.StatusConflict, http.StatusLocked:
 		body, err := io.ReadAll(resp.Body)
@@ -121,10 +130,11 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 			}
 		}
 		return "", &statemgr.LockError{
-			Info: info,
+			Info: &existing,
 			Err:  fmt.Errorf("HTTP remote state already locked: ID=%s", existing.ID),
 		}
 	default:
+		log.Printf("[DEBUG] LOCK, %d: %s", resp.StatusCode, parseResponseBodyForLog(resp))
 		return "", fmt.Errorf("Unexpected HTTP response code %d", resp.StatusCode)
 	}
 }
@@ -144,6 +154,7 @@ func (c *httpClient) Unlock(id string) error {
 	case http.StatusOK:
 		return nil
 	default:
+		log.Printf("[DEBUG] UNLOCK, %d: %s", resp.StatusCode, parseResponseBodyForLog(resp))
 		return fmt.Errorf("Unexpected HTTP response code %d", resp.StatusCode)
 	}
 }
@@ -164,12 +175,16 @@ func (c *httpClient) Get() (*remote.Payload, error) {
 	case http.StatusNotFound:
 		return nil, nil
 	case http.StatusUnauthorized:
+		log.Printf("[DEBUG] GET STATE, Unauthorized: %s", parseResponseBodyForLog(resp))
 		return nil, fmt.Errorf("HTTP remote state endpoint requires auth")
 	case http.StatusForbidden:
+		log.Printf("[DEBUG] GET STATE, Forbidden: %s", parseResponseBodyForLog(resp))
 		return nil, fmt.Errorf("HTTP remote state endpoint invalid auth")
 	case http.StatusInternalServerError:
+		log.Printf("[DEBUG] GET STATE, Internal Server Error: %s", parseResponseBodyForLog(resp))
 		return nil, fmt.Errorf("HTTP remote state internal server error")
 	default:
+		log.Printf("[DEBUG] GET STATE, %d: %s", resp.StatusCode, parseResponseBodyForLog(resp))
 		return nil, fmt.Errorf("Unexpected HTTP response code %d", resp.StatusCode)
 	}
 
@@ -241,6 +256,7 @@ func (c *httpClient) Put(data []byte) error {
 	case http.StatusOK, http.StatusCreated, http.StatusNoContent:
 		return nil
 	default:
+		log.Printf("[DEBUG] UPLOAD STATE, %d: %s", resp.StatusCode, parseResponseBodyForLog(resp))
 		return fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 }
@@ -258,6 +274,7 @@ func (c *httpClient) Delete() error {
 	case http.StatusOK:
 		return nil
 	default:
+		log.Printf("[DEBUG] DELETE STATE, %d: %s", resp.StatusCode, parseResponseBodyForLog(resp))
 		return fmt.Errorf("HTTP error: %d", resp.StatusCode)
 	}
 }

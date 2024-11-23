@@ -148,6 +148,7 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 				Dependencies: []addrs.ConfigResource{},
 			},
 			addrs.RootModuleInstance.ProviderConfigAliased(addrs.NewDefaultProvider("test"), "alias"),
+			addrs.NoKey,
 		)
 	})
 

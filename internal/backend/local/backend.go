@@ -309,19 +309,24 @@ func (b *Local) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	b.opLock.Lock()
 
 	// Build our running operation
-	// the runningCtx is only used to block until the operation returns.
-	runningCtx, done := context.WithCancel(context.Background())
+	// the runningCtx is only used to block until the operation returns. We
+	// intentionally detach it from any upstream cancellation because we
+	// need this to cancel only once our goroutine below is finished.
+	runningCtx, done := context.WithCancel(context.WithoutCancel(ctx))
 	runningOp := &backend.RunningOperation{
 		Context: runningCtx,
 	}
 
 	// stopCtx wraps the context passed in, and is used to signal a graceful Stop.
+	// This one _does_ inherit cancellations from the caller.
 	stopCtx, stop := context.WithCancel(ctx)
 	runningOp.Stop = stop
 
 	// cancelCtx is used to cancel the operation immediately, usually
-	// indicating that the process is exiting.
-	cancelCtx, cancel := context.WithCancel(context.Background())
+	// indicating that the process is exiting. This is intentionally
+	// detached from any upstream cancellation so that it will be
+	// cancelled only once our goroutine below is finished.
+	cancelCtx, cancel := context.WithCancel(context.WithoutCancel(ctx))
 	runningOp.Cancel = cancel
 
 	op.StateLocker = op.StateLocker.WithContext(stopCtx)

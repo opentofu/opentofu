@@ -73,6 +73,14 @@ func (n *nodeExpandModule) References() []*addrs.Reference {
 		forEachRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.ModuleCall.ForEach)
 		refs = append(refs, forEachRefs...)
 	}
+
+	for _, passed := range n.ModuleCall.Providers {
+		if passed.InParent.KeyExpression != nil {
+			providerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, passed.InParent.KeyExpression)
+			refs = append(refs, providerRefs...)
+		}
+	}
+
 	return refs
 }
 

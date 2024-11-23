@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"testing"
 
 	"github.com/zclconf/go-cty/cty"
@@ -472,7 +473,7 @@ check "error" {
 					addrs.AbsProviderConfig{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
-					})
+					}, addrs.NoKey)
 			}),
 			plan: map[string]checksTestingStatus{
 				"error": {
@@ -572,7 +573,7 @@ check "passing" {
 					addrs.AbsProviderConfig{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
-					})
+					}, addrs.NoKey)
 			}),
 			plan: map[string]checksTestingStatus{
 				"passing": {
@@ -723,7 +724,7 @@ check "error" {
 				initialState = test.state
 			}
 
-			plan, diags := ctx.Plan(configs, initialState, &PlanOpts{
+			plan, diags := ctx.Plan(context.Background(), configs, initialState, &PlanOpts{
 				Mode: plans.NormalMode,
 			})
 			if validateCheckDiagnostics(t, "planning", test.planWarning, test.planError, diags) {
@@ -737,7 +738,7 @@ check "error" {
 				test.providerHook(test.provider)
 			}
 
-			state, diags := ctx.Apply(plan, configs)
+			state, diags := ctx.Apply(context.Background(), plan, configs)
 			if validateCheckDiagnostics(t, "apply", test.applyWarning, test.applyError, diags) {
 				return
 			}

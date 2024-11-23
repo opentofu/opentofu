@@ -113,8 +113,26 @@ var _ ProviderConfig = AbsProviderConfig{}
 // This type of address is typically not used prominently in the UI, except in
 // error messages that refer to provider configurations.
 func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags.Diagnostics) {
+	pc, key, diags := ParseAbsProviderConfigInstance(traversal)
+	if key != NoKey {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider configuration address",
+			Detail:   "A provider address must not include an instance key.",
+			Subject:  traversal.SourceRange().Ptr(),
+		})
+	}
+	return pc, diags
+}
+
+// ParseAbsProviderConfigInstance behaves identically to ParseAbsProviderConfig, but additionally
+// allows an instance key after the alias.
+//
+//nolint:mnd // traversals with specific indices
+func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig, InstanceKey, tfdiags.Diagnostics) {
 	modInst, remain, diags := parseModuleInstancePrefix(traversal)
 	var ret AbsProviderConfig
+	var key InstanceKey
 
 	// Providers cannot resolve within module instances, so verify that there
 	// are no instance keys in the module path before converting to a Module.
@@ -123,10 +141,10 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid provider configuration address",
-				Detail:   "Provider address cannot contain module indexes",
+				Detail:   "A provider configuration must not appear in a module instance that uses count or for_each.",
 				Subject:  remain.SourceRange().Ptr(),
 			})
-			return ret, diags
+			return ret, key, diags
 		}
 	}
 	ret.Module = modInst.Module()
@@ -138,16 +156,16 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 			Detail:   "Provider address must begin with \"provider.\", followed by a provider type name.",
 			Subject:  remain.SourceRange().Ptr(),
 		})
-		return ret, diags
+		return ret, key, diags
 	}
-	if len(remain) > 3 {
+	if len(remain) > 4 {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid provider configuration address",
-			Detail:   "Extraneous operators after provider configuration alias.",
-			Subject:  hcl.Traversal(remain[3:]).SourceRange().Ptr(),
+			Detail:   "Extraneous operators after provider configuration reference.",
+			Subject:  remain[4:].SourceRange().Ptr(),
 		})
-		return ret, diags
+		return ret, key, diags
 	}
 
 	if tt, ok := remain[1].(hcl.TraverseIndex); ok {
@@ -158,13 +176,13 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 				Detail:   "The prefix \"provider.\" must be followed by a provider type name.",
 				Subject:  remain[1].SourceRange().Ptr(),
 			})
-			return ret, diags
+			return ret, key, diags
 		}
 		p, sourceDiags := ParseProviderSourceString(tt.Key.AsString())
 		ret.Provider = p
 		if sourceDiags.HasErrors() {
 			diags = diags.Append(sourceDiags)
-			return ret, diags
+			return ret, key, diags
 		}
 	} else {
 		diags = diags.Append(&hcl.Diagnostic{
@@ -173,10 +191,10 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 			Detail:   "The prefix \"provider.\" must be followed by a provider type name.",
 			Subject:  remain[1].SourceRange().Ptr(),
 		})
-		return ret, diags
+		return ret, key, diags
 	}
 
-	if len(remain) == 3 {
+	if len(remain) > 2 {
 		if tt, ok := remain[2].(hcl.TraverseAttr); ok {
 			ret.Alias = tt.Name
 		} else {
@@ -186,11 +204,34 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 				Detail:   "Provider type name must be followed by a configuration alias name.",
 				Subject:  remain[2].SourceRange().Ptr(),
 			})
-			return ret, diags
+			return ret, key, diags
 		}
 	}
 
-	return ret, diags
+	if len(remain) > 3 {
+		if tt, ok := remain[3].(hcl.TraverseIndex); ok {
+			var keyErr error
+			key, keyErr = ParseInstanceKey(tt.Key)
+			if keyErr != nil {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid provider configuration address",
+					Detail:   fmt.Sprintf("Invalid provider instance key: %s.", keyErr.Error()),
+					Subject:  remain[3].SourceRange().Ptr(),
+				})
+			}
+		} else {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider configuration address",
+				Detail:   "A provider configuration alias can be followed only by an instance key in brackets.",
+				Subject:  remain[3].SourceRange().Ptr(),
+			})
+			return ret, key, diags
+		}
+	}
+
+	return ret, key, diags
 }
 
 // ParseAbsProviderConfigStr is a helper wrapper around ParseAbsProviderConfig
@@ -218,6 +259,17 @@ func ParseAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Diagnosti
 	addr, addrDiags := ParseAbsProviderConfig(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags
+}
+func ParseAbsProviderConfigInstanceStr(str string) (AbsProviderConfig, InstanceKey, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return AbsProviderConfig{}, nil, diags
+	}
+	addr, key, addrDiags := ParseAbsProviderConfigInstance(traversal)
+	diags = diags.Append(addrDiags)
+	return addr, key, diags
 }
 
 func ParseLegacyAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Diagnostics) {
@@ -412,4 +464,11 @@ func (pc AbsProviderConfig) String() string {
 	}
 
 	return strings.Join(parts, ".")
+}
+
+func (pc AbsProviderConfig) InstanceString(key InstanceKey) string {
+	if key == NoKey {
+		return pc.String()
+	}
+	return pc.String() + key.String()
 }

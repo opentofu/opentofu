@@ -94,7 +94,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-									provider.Addr().StringCompact(), name, providerType, requirement.Name, requirement.Type, provider.Addr().StringCompact(), name),
+									provider.moduleUniqueKey(), name, providerType, requirement.Name, requirement.Type, provider.moduleUniqueKey(), name),
 								Subject: provider.DeclRange.Ptr(),
 							})
 						}
@@ -114,7 +114,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Summary:  "Provider type mismatch",
 									Detail: fmt.Sprintf(
 										"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s, or other provider definitions with the same name, have been referenced by multiple run blocks and assigned to different provider types.",
-										provider.Addr().StringCompact(), name, providerType, alias.StringCompact(), requirement.Type, provider.Addr().StringCompact(), name),
+										provider.moduleUniqueKey(), name, providerType, alias.StringCompact(), requirement.Type, provider.moduleUniqueKey(), name),
 									Subject: provider.DeclRange.Ptr(),
 								})
 							}
@@ -129,7 +129,8 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 						providerType = addrs.NewDefaultProvider(provider.Name)
 					}
 
-					if testProvider, exists := test.Providers[provider.Addr().StringCompact()]; exists {
+					if testProvider, exists := test.Providers[provider.moduleUniqueKey()]; exists {
+
 						testProviderType := testProvider.providerType
 						if testProviderType.IsZero() {
 							testProviderType = addrs.NewDefaultProvider(testProvider.Name)
@@ -141,7 +142,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 								Summary:  "Provider type mismatch",
 								Detail: fmt.Sprintf(
 									"The provider %q in %s represents provider %q, but %q in the root module represents %q.\n\nThis means the provider definition for %q within %s has been referenced by multiple run blocks and assigned to different provider types.",
-									testProvider.Addr().StringCompact(), name, testProviderType, provider.Addr().StringCompact(), providerType, testProvider.Addr().StringCompact(), name),
+									testProvider.moduleUniqueKey(), name, testProviderType, provider.moduleUniqueKey(), providerType, testProvider.moduleUniqueKey(), name),
 								Subject: testProvider.DeclRange.Ptr(),
 							})
 						}
@@ -177,6 +178,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Name:         provider.Name,
 									NameRange:    provider.NameRange,
 									Alias:        provider.Alias,
+									AliasRange:   provider.AliasRange,
 									providerType: provider.providerType,
 								},
 							}
@@ -201,6 +203,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 										Name:         provider.Name,
 										NameRange:    provider.NameRange,
 										Alias:        provider.Alias,
+										AliasRange:   provider.AliasRange,
 										providerType: provider.providerType,
 									},
 								}
@@ -220,7 +223,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 					// better error messages to use these.
 
 					for _, provider := range cfg.Module.ProviderConfigs {
-						key := provider.Addr().StringCompact()
+						key := provider.moduleUniqueKey()
 
 						if testProvider, exists := test.Providers[key]; exists {
 							matchedProviders[key] = PassedProviderConfig{
@@ -235,6 +238,7 @@ func validateProviderConfigsForTests(cfg *Config) (diags hcl.Diagnostics) {
 									Name:         testProvider.Name,
 									NameRange:    testProvider.NameRange,
 									Alias:        testProvider.Alias,
+									AliasRange:   testProvider.AliasRange,
 									providerType: testProvider.providerType,
 								},
 							}
@@ -318,6 +322,8 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 	// of the configuration block declaration.
 	configured := map[string]hcl.Range{}
 
+	instanced := map[string]bool{}
+
 	// the set of configuration_aliases defined in the required_providers
 	// block, with the fully qualified provider type.
 	configAliases := map[string]addrs.AbsProviderConfig{}
@@ -335,6 +341,8 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 		} else {
 			emptyConfigs[name] = pc.DeclRange
 		}
+
+		instanced[name] = len(pc.Instances) != 0
 	}
 
 	if mod.ProviderRequirements != nil {
@@ -465,6 +473,37 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			parentModuleText = parent.String()
 		}
 	}
+
+	// Validate provider expansion is properly configured
+	for _, modCall := range mod.ModuleCalls {
+		for _, passed := range modCall.Providers {
+			if passed.InChild.KeyExpression != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid module provider configuration",
+					Detail:   "Instance keys are not allowed on the left side of a provider configuration assignment.",
+					Subject:  passed.InChild.KeyExpression.Range().Ptr(),
+				})
+			}
+
+			isInstanced := instanced[providerName(passed.InParent.Name, passed.InParent.Alias)]
+			diags = diags.Extend(passed.InParent.InstanceValidation("module", isInstanced))
+		}
+	}
+	// Validate that resources using provider keys are properly configured
+	checkProviderKeys := func(resourceConfigs map[string]*Resource) {
+		for _, r := range resourceConfigs {
+			// We're looking for resources with a specific provider reference
+			if r.ProviderConfigRef == nil {
+				continue
+			}
+
+			isInstanced := instanced[providerName(r.ProviderConfigRef.Name, r.ProviderConfigRef.Alias)]
+			diags = diags.Extend(r.ProviderConfigRef.InstanceValidation("resource", isInstanced))
+		}
+	}
+	checkProviderKeys(mod.ManagedResources)
+	checkProviderKeys(mod.DataResources)
 
 	// Verify that any module calls only refer to named providers, and that
 	// those providers will have a configuration at runtime. This way we can

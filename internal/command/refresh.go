@@ -24,6 +24,7 @@ type RefreshCommand struct {
 
 func (c *RefreshCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
 
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
@@ -103,7 +104,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Perform the operation
-	op, diags := c.RunOperation(be, opReq)
+	op, diags := c.RunOperation(ctx, be, opReq)
 	view.Diagnostics(diags)
 	if view.HasErrors(diags) {
 		return 1
@@ -150,6 +151,7 @@ func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refres
 	opReq.ConfigDir = "."
 	opReq.Hooks = view.Hooks()
 	opReq.Targets = args.Targets
+	opReq.Excludes = args.Excludes
 	opReq.Type = backend.OperationTypeRefresh
 	opReq.View = view.Operation()
 
@@ -205,6 +207,11 @@ Options:
                          will be performed. All locations, for all errors
                          will be listed. Disabled by default
 
+  -exclude=resource      Resource to exclude. Operation will be limited to all
+                         resources that are not excluded or dependent on excluded
+                         resources. This flag can be used multiple times. Cannot
+                         be used alongside the -target flag.
+
   -input=true            Ask for input for variables if not directly set.
 
   -lock=false            Don't hold a state lock during the operation. This is
@@ -219,7 +226,8 @@ Options:
 
   -target=resource       Resource to target. Operation will be limited to this
                          resource and its dependencies. This flag can be used
-                         multiple times.
+                         multiple times.  Cannot be used alongside the -exclude
+                         flag.
 
   -var 'foo=bar'         Set a variable in the OpenTofu configuration. This
                          flag can be set multiple times.

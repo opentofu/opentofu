@@ -98,7 +98,7 @@ This object has two attributes:
 
 The keys of the map (or all the values in the case of a set of strings) must
 be _known values_, or you will get an error message that `for_each` has dependencies
-that cannot be determined before apply, and a `-target` may be needed.
+that cannot be determined before apply, and a `-target`/`-exclude` may be needed.
 
 `for_each` keys cannot be the result (or rely on the result of) of impure functions,
 including `uuid`, `bcrypt`, or `timestamp`, as their evaluation is deferred during the

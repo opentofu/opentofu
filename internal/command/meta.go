@@ -213,6 +213,10 @@ type Meta struct {
 	targets     []addrs.Targetable
 	targetFlags []string
 
+	// Excludes for this context (private)
+	excludes     []addrs.Targetable
+	excludeFlags []string
+
 	// Internal fields
 	color bool
 	oldUi cli.Ui
@@ -484,7 +488,7 @@ func (m *Meta) CommandContext() context.Context {
 // If the operation runs to completion then no error is returned even if the
 // operation itself is unsuccessful. Use the "Result" field of the
 // returned operation object to recognize operation-level failure.
-func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*backend.RunningOperation, tfdiags.Diagnostics) {
+func (m *Meta) RunOperation(ctx context.Context, b backend.Enhanced, opReq *backend.Operation) (*backend.RunningOperation, tfdiags.Diagnostics) {
 	if opReq.View == nil {
 		panic("RunOperation called with nil View")
 	}
@@ -501,7 +505,7 @@ func (m *Meta) RunOperation(b backend.Enhanced, opReq *backend.Operation) (*back
 		return nil, diags
 	}
 
-	op, err := b.Operation(context.Background(), opReq)
+	op, err := b.Operation(ctx, opReq)
 	if err != nil {
 		return nil, diags.Append(fmt.Errorf("error starting operation: %w", err))
 	}
@@ -618,6 +622,7 @@ func (m *Meta) extendedFlagSet(n string) *flag.FlagSet {
 
 	f.BoolVar(&m.input, "input", true, "input")
 	f.Var((*FlagStringSlice)(&m.targetFlags), "target", "resource to target")
+	f.Var((*FlagStringSlice)(&m.excludeFlags), "exclude", "resource to exclude")
 	f.BoolVar(&m.compactWarnings, "compact-warnings", false, "use compact warnings")
 	f.BoolVar(&m.consolidateWarnings, "consolidate-warnings", true, "consolidate warnings")
 	f.BoolVar(&m.consolidateErrors, "consolidate-errors", false, "consolidate errors")

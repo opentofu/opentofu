@@ -271,6 +271,7 @@ func basicState(t *testing.T) *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -287,6 +288,7 @@ func basicState(t *testing.T) *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	return state
 }
@@ -323,6 +325,7 @@ func stateWithMoreOutputs(t *testing.T) *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	return state
 }
@@ -350,6 +353,7 @@ func nestedState(t *testing.T) *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	return state
 }
@@ -373,6 +377,7 @@ func deposedState(t *testing.T) *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	return state
 }
@@ -402,6 +407,7 @@ func onlyDeposedState(t *testing.T) *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	rootModule.SetResourceInstanceDeposed(
 		addrs.Resource{
@@ -419,6 +425,7 @@ func onlyDeposedState(t *testing.T) *states.State {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	return state
 }

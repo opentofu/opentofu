@@ -47,6 +47,7 @@ func TestState(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	childModule := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
@@ -254,6 +255,7 @@ func TestStateDeepCopy(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -288,6 +290,7 @@ func TestStateDeepCopy(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	childModule := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
@@ -326,6 +329,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						Status:    ObjectReady,
 					},
 					providerConfig,
+					addrs.NoKey,
 				)
 			},
 			true,
@@ -339,6 +343,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						Status:    ObjectReady,
 					},
 					childModuleProviderConfig,
+					addrs.NoKey,
 				)
 			},
 			true,
@@ -352,6 +357,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						Status:    ObjectTainted,
 					},
 					providerConfig,
+					addrs.NoKey,
 				)
 			},
 			true,
@@ -366,6 +372,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						Status:    ObjectTainted,
 					},
 					providerConfig,
+					addrs.NoKey,
 				)
 			},
 			true,
@@ -384,6 +391,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						Status:    ObjectTainted,
 					},
 					providerConfig,
+					addrs.NoKey,
 				)
 				s := ss.Lock()
 				delete(s.Modules[""].Resources["test.foo"].Instances, addrs.NoKey)
@@ -400,6 +408,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						Status:    ObjectReady,
 					},
 					providerConfig,
+					addrs.NoKey,
 				)
 			},
 			false, // data resources aren't managed resources, so they don't count
@@ -437,6 +446,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	src := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_thing", Name: "foo"}.Absolute(addrs.RootModuleInstance)
 
@@ -504,6 +514,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		cm.SetResourceInstanceCurrent(
 			addrs.Resource{
@@ -520,6 +531,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		src := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_thing", Name: "child"}.Absolute(srcModule)
@@ -569,6 +581,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		src := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_thing", Name: "child"}.Absolute(srcModule)
@@ -615,6 +628,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		src := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_thing", Name: "child"}.Absolute(srcModule)
@@ -660,6 +674,7 @@ func TestState_MaybeMoveAbsResource(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	src := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_thing", Name: "foo"}.Absolute(addrs.RootModuleInstance)
@@ -700,6 +715,7 @@ func TestState_MoveAbsResourceInstance(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	// src resource from the state above
 	src := addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_thing", Name: "foo"}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
@@ -770,6 +786,7 @@ func TestState_MaybeMoveAbsResourceInstance(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	// For a little extra fun, let's go from a resource to a resource instance: test_thing.foo to test_thing.bar[1]
@@ -816,6 +833,7 @@ func TestState_MoveModuleInstance(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	dstModule := addrs.RootModuleInstance.Child("child", addrs.IntKey(3))
@@ -863,6 +881,7 @@ func TestState_MaybeMoveModuleInstance(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	dst := addrs.RootModuleInstance.Child("kinder", addrs.StringKey("b"))
@@ -905,6 +924,7 @@ func TestState_MoveModule(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	moduleInstance := addrs.RootModuleInstance.Child("kinder", addrs.StringKey("a"))
@@ -924,6 +944,7 @@ func TestState_MoveModule(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	_, mc := srcModule.Call()
@@ -977,6 +998,7 @@ func TestState_MoveModule(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		_, dstMC := addrs.RootModule.Child("child").Call()

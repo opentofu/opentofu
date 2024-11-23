@@ -66,6 +66,11 @@ message Plan {
     // configuration.
     repeated string target_addrs = 5;
 
+    // An unordered set of exclude addresses to exclude when applying. If no
+    // target addresses are present, the plan applies to the whole
+    // configuration.
+    repeated string exclude_addrs = 6;
+
     // An unordered set of force-replace addresses to include when applying.
     // This must match the set of addresses that was used when creating the
     // plan, or else applying the plan will fail when it reaches a different

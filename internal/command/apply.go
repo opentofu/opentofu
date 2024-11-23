@@ -29,6 +29,7 @@ type ApplyCommand struct {
 
 func (c *ApplyCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
 
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
@@ -134,7 +135,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Run the operation
-	op, diags := c.RunOperation(be, opReq)
+	op, diags := c.RunOperation(ctx, be, opReq)
 	view.Diagnostics(diags)
 	if view.HasErrors(diags) {
 		return 1
@@ -283,6 +284,7 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.PlanFile = planFile
 	opReq.PlanRefresh = args.Refresh
 	opReq.Targets = args.Targets
+	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace
 	opReq.Type = backend.OperationTypeApply
 	opReq.View = view.Operation()
