@@ -243,23 +243,33 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		val = val.Mark(marks.Sensitive)
 	}
 	for ix, validation := range config.Validations {
-		condFuncs, condDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
+		condRefs, condDiags := lang.ReferencesInExpr(addrs.ParseRef, validation.Condition)
 		diags = diags.Append(condDiags)
-		errFuncs, errDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
+		errRefs, errDiags := lang.ReferencesInExpr(addrs.ParseRef, validation.ErrorMessage)
 		diags = diags.Append(errDiags)
 
 		if diags.HasErrors() {
 			continue
 		}
 
-		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condFuncs, errFuncs...))
+		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condRefs, errRefs...))
 		diags = diags.Append(ctxDiags)
 		if diags.HasErrors() {
 			continue
 		}
-		hclCtx.Variables["var"] = cty.ObjectVal(map[string]cty.Value{
-			config.Name: val,
-		})
+
+		// Inject known value into hclCtx as it's not technically available until the check status has been reported
+		if vars, ok := hclCtx.Variables["var"]; ok {
+			// Clone map
+			varMap := vars.AsValueMap() // explicit copy
+			varMap[config.Name] = val
+			hclCtx.Variables["var"] = cty.ObjectVal(varMap)
+		} else {
+			// new map
+			hclCtx.Variables["var"] = cty.ObjectVal(map[string]cty.Value{
+				config.Name: val,
+			})
+		}
 
 		result, ruleDiags := evalVariableValidation(validation, hclCtx, addr, config, expr, ix)
 		diags = diags.Append(ruleDiags)
