@@ -156,7 +156,12 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	importResolver := ctx.ImportResolver()
 	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
-		if importTarget.IsFromImportBlock() {
+		// If the import target originates from the import command (instead of the import block), we don't need to
+		// resolve the import as it's already in the resolved form
+		// In addition, if PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
+		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
+		skipImports := importTarget.IsFromImportBlock() && !n.preDestroyRefresh
+		if skipImports {
 			err := importResolver.ExpandAndResolveImport(importTarget, ctx)
 			diags = diags.Append(err)
 		}
