@@ -848,9 +848,12 @@ func providerIterationIdenticalWarning(blockType string, sourceExpr, instanceExp
 		// foot, meet gun
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
-			Summary:  "Likely misconfiguration of provider iteration",
-			Detail:   fmt.Sprintf("Provider and %s both share identical iteration expressions, this is not recommended. When a key is removed, the corresponding resources will no longer have a provider that is able to destroy them.\nInstead, it is recommended to have %s's iteration be a subset of the provider's iteration expression. See the OpenTofu documentation for more details.\n\nTo disable this warning, wrap one of the expressions in a function like coalesce() to disable the check.", blockType, blockType),
-			Subject:  sourceExpr.Range().Ptr(),
+			Summary:  "Provider configuration for_each matches " + blockType,
+			Detail: fmt.Sprintf(
+				"This provider configuration uses the same for_each expression as a %s, which means that subsequent removal of elements from this collection would cause a planning error.\n\nOpenTofu relies on a provider instance to destroy resource instances that are associated with it, and so the provider instance must outlive all of its resource instances by at least one plan/apply round. For removal of instances to succeed in future you must structure the configuration so that the provider block's for_each expression can produce a superset of the instances of the resources associated with the provider configuration. Refer to the OpenTofu documentation for specific suggestions.",
+				blockType,
+			),
+			Subject: sourceExpr.Range().Ptr(),
 		})
 	}
 	return diags
