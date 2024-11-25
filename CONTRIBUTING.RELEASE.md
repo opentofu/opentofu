@@ -100,7 +100,7 @@ Ideally, make sure these changes go in as the last PR before the release.
 
 Now that you have the files up to date, do the following:
 
-1. On your computer, make sure you have checked the correct branch:
+1. On your computer, make sure you have checked out the correct branch:
    * `main` for `alpha` releases
    * `vX.Y` for any other releases (assuming you are releasing version `X.Y.Z`)
 2. Make sure the branch is up-to-date by running `git pull`
