@@ -843,7 +843,8 @@ func providerName(name, alias string) string {
 
 func providerIterationIdenticalWarning(blockType string, sourceExpr, instanceExpr hcl.Expression) hcl.Diagnostics {
 	var diags hcl.Diagnostics
-	if providerIterationIdentical(sourceExpr, instanceExpr) {
+	if sourceExpr != nil && instanceExpr != nil &&
+		providerIterationIdentical(sourceExpr, instanceExpr) {
 		// foot, meet gun
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
@@ -855,7 +856,7 @@ func providerIterationIdenticalWarning(blockType string, sourceExpr, instanceExp
 	return diags
 }
 
-// Might have gone a bit overboard on this...
+// Compares two for_each statements to see if they are "identical".  This is on a best-effort basis to help prevent foot-guns.
 //
 //nolint:funlen,gocognit,gocyclo,cyclop // just a lot of branches
 func providerIterationIdentical(a, b hcl.Expression) bool {
@@ -963,11 +964,8 @@ func providerIterationIdentical(a, b hcl.Expression) bool {
 			return true
 		}
 	}
-	// Ignored:
-	// case *hclsyntax.SplatExpr:
-	// case *hclsyntax.AnonSymbolExpr:
-	// case *hclsyntax.ExprSyntaxError
-	// case *hclsyntax.TemplateJoinExpr:
-	// case *hclsyntax.TemplateWrapExpr:
+
+	// As this is best effort, all other cases are ignored
+
 	return false
 }

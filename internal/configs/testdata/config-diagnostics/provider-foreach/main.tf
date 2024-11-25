@@ -49,11 +49,11 @@ resource "null_resource" "cond" {
 }
 
 provider "null" {
-        for_each = {"foo": 1 + 2}
+        for_each = {"foo": 1 + -2}
         alias = "op"
 }
 resource "null_resource" "op" {
-        for_each = {"foo": 1 + 2}
+        for_each = {"foo": 1 + -2}
         provider = null.op[each.key]
 }
 
