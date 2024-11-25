@@ -6,14 +6,12 @@
 package configs
 
 import (
-	"bytes"
 	"fmt"
 	"sort"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -882,7 +880,7 @@ func providerIterationIdentical(a, b hcl.Expression) bool {
 	switch as := a.(type) {
 	case *hclsyntax.ScopeTraversalExpr:
 		if bs, bok := b.(*hclsyntax.ScopeTraversalExpr); bok {
-			return TraversalStr(as.Traversal) == TraversalStr(bs.Traversal)
+			return addrs.TraversalStr(as.Traversal) == addrs.TraversalStr(bs.Traversal)
 		}
 	case *hclsyntax.LiteralValueExpr:
 		if bs, bok := b.(*hclsyntax.LiteralValueExpr); bok {
@@ -890,7 +888,7 @@ func providerIterationIdentical(a, b hcl.Expression) bool {
 		}
 	case *hclsyntax.RelativeTraversalExpr:
 		if bs, bok := b.(*hclsyntax.RelativeTraversalExpr); bok {
-			return TraversalStr(as.Traversal) == TraversalStr(bs.Traversal) &&
+			return addrs.TraversalStr(as.Traversal) == addrs.TraversalStr(bs.Traversal) &&
 				providerIterationIdentical(as.Source, bs.Source)
 		}
 	case *hclsyntax.FunctionCallExpr:
@@ -972,35 +970,4 @@ func providerIterationIdentical(a, b hcl.Expression) bool {
 	// case *hclsyntax.TemplateJoinExpr:
 	// case *hclsyntax.TemplateWrapExpr:
 	return false
-}
-
-// TraversalStr produces a representation of an HCL traversal that is compact,
-// resembles HCL native syntax, and is suitable for display in the UI.
-//
-// This was copied (and simplified) from internal/command/views/json/diagnostic.go.
-func TraversalStr(traversal hcl.Traversal) string {
-	var buf bytes.Buffer
-	for _, step := range traversal {
-		switch tStep := step.(type) {
-		case hcl.TraverseRoot:
-			buf.WriteString(tStep.Name)
-		case hcl.TraverseAttr:
-			buf.WriteByte('.')
-			buf.WriteString(tStep.Name)
-		case hcl.TraverseIndex:
-			buf.WriteByte('[')
-			switch tStep.Key.Type() {
-			case cty.String:
-				buf.WriteString(fmt.Sprintf("%q", tStep.Key.AsString()))
-			case cty.Number:
-				bf := tStep.Key.AsBigFloat()
-				//nolint:mnd // numerical precision
-				buf.WriteString(bf.Text('g', 10))
-			default:
-				buf.WriteString("...")
-			}
-			buf.WriteByte(']')
-		}
-	}
-	return buf.String()
 }

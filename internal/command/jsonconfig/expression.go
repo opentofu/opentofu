@@ -15,7 +15,6 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
@@ -59,7 +58,7 @@ func marshalExpression(ex hcl.Expression) expression {
 			// into parts until we end up at the smallest referenceable address.
 			remains := ref.Remaining
 			for len(remains) > 0 {
-				varString = append(varString, fmt.Sprintf("%s%s", ref.Subject, configs.TraversalStr(remains)))
+				varString = append(varString, fmt.Sprintf("%s%s", ref.Subject, addrs.TraversalStr(remains)))
 				remains = remains[:(len(remains) - 1)]
 			}
 			varString = append(varString, ref.Subject.String())
