@@ -33,10 +33,22 @@ var (
 	_ GraphNodeReferenceable     = (*nodeVariableReference)(nil)
 	_ GraphNodeReferencer        = (*nodeVariableReference)(nil)
 	_ graphNodeExpandsInstances  = (*nodeVariableReference)(nil)
+	_ graphNodeTemporaryValue    = (*nodeVariableReference)(nil)
 )
 
 // graphNodeExpandsInstances
 func (n *nodeVariableReference) expandsInstances() {}
+
+// Abuse graphNodeTemporaryValue to keep the validation rule around
+func (n *nodeVariableReference) temporaryValue() bool {
+	for _, ref := range n.References() {
+		if v, ok := ref.Subject.(addrs.InputVariable); !ok || v.Name != n.Addr.Name {
+			// It's actually checking something other than "self"
+			return false
+		}
+	}
+	return true
+}
 
 // GraphNodeDynamicExpandable
 func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
