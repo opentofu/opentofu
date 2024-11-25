@@ -64,7 +64,7 @@ func (c *GraphCommand) Run(args []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -106,14 +106,14 @@ func (c *GraphCommand) Run(args []string) int {
 		var backendDiags tfdiags.Diagnostics
 		b, backendDiags = c.BackendForLocalPlan(plan.Backend, enc.State())
 		diags = diags.Append(backendDiags)
-		if backendDiags.HasErrors() {
+		if c.View.HasErrors(backendDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
 	} else {
 		backendConfig, backendDiags := c.loadBackendConfig(configPath)
 		diags = diags.Append(backendDiags)
-		if diags.HasErrors() {
+		if c.View.HasErrors(diags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -122,7 +122,7 @@ func (c *GraphCommand) Run(args []string) int {
 			Config: backendConfig,
 		}, enc.State())
 		diags = diags.Append(backendDiags)
-		if backendDiags.HasErrors() {
+		if c.View.HasErrors(backendDiags) {
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -150,7 +150,7 @@ func (c *GraphCommand) Run(args []string) int {
 	var callDiags tfdiags.Diagnostics
 	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
 	diags = diags.Append(callDiags)
-	if callDiags.HasErrors() {
+	if c.View.HasErrors(callDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -164,7 +164,7 @@ func (c *GraphCommand) Run(args []string) int {
 	// Get the context
 	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
-	if ctxDiags.HasErrors() {
+	if c.View.HasErrors(ctxDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -221,7 +221,7 @@ func (c *GraphCommand) Run(args []string) int {
 		))
 	}
 	diags = diags.Append(graphDiags)
-	if graphDiags.HasErrors() {
+	if c.View.HasErrors(graphDiags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -236,7 +236,7 @@ func (c *GraphCommand) Run(args []string) int {
 		return 1
 	}
 
-	if diags.HasErrors() {
+	if c.View.HasErrors(diags) {
 		// For this command we only show diagnostics if there are errors,
 		// because printing out naked warnings could upset a naive program
 		// consuming our dot output.

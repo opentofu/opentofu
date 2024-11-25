@@ -75,6 +75,15 @@ func (v *JSONView) StateDump(state string) {
 
 func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{}) {
 	sources := v.view.configSources()
+
+	if v.view.PedanticMode {
+		// Convert warnings to errors
+		var isOverridden bool
+		if diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); isOverridden {
+			v.view.PedanticWarningFlagged = true
+		}
+	}
+
 	for _, diag := range diags {
 		diagnostic := json.NewDiagnostic(diag, sources)
 
@@ -88,6 +97,11 @@ func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{
 			v.log.Error(fmt.Sprintf("Error: %s", diag.Description().Summary), args...)
 		}
 	}
+}
+
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *JSONView) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 func (v *JSONView) PlannedChange(c *json.ResourceInstanceChange) {

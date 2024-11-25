@@ -77,7 +77,7 @@ func (b *Local) opPlan(
 		}
 
 		diags = diags.Append(genconfig.ValidateTargetFile(op.GenerateConfigOut))
-		if diags.HasErrors() {
+		if op.View.HasErrors(diags) {
 			op.ReportResult(runningOp, diags)
 			return
 		}
@@ -90,7 +90,7 @@ func (b *Local) opPlan(
 	// Get our context
 	lr, configSnap, opState, ctxDiags := b.localRun(ctx, op)
 	diags = diags.Append(ctxDiags)
-	if ctxDiags.HasErrors() {
+	if op.View.HasErrors(ctxDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}
@@ -98,7 +98,7 @@ func (b *Local) opPlan(
 	// when the operation completes
 	defer func() {
 		diags := op.StateLocker.Unlock()
-		if diags.HasErrors() {
+		if op.View.HasErrors(diags) {
 			op.View.Diagnostics(diags)
 			runningOp.Result = backend.OperationFailure
 		}
@@ -198,7 +198,7 @@ func (b *Local) opPlan(
 	// (This might potentially be a partial plan with Errored set to true)
 	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	if op.View.HasErrors(moreDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}
@@ -206,7 +206,7 @@ func (b *Local) opPlan(
 	// Write out any generated config, before we render the plan.
 	wroteConfig, moreDiags := maybeWriteGeneratedConfig(plan, op.GenerateConfigOut)
 	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
+	if op.View.HasErrors(moreDiags) {
 		op.ReportResult(runningOp, diags)
 		return
 	}

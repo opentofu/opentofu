@@ -43,7 +43,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// diagnostics according to the desired view
 	view := views.NewRefresh(args.ViewType, c.View)
 
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		view.HelpPrompt()
 		return 1
@@ -76,15 +76,15 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// Load the encryption configuration
 	enc, encDiags := c.Encryption()
 	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
+	if view.HasErrors(encDiags) {
+		view.Diagnostics(diags)
 		return 1
 	}
 
 	// Prepare the backend with the backend-specific arguments
 	be, beDiags := c.PrepareBackend(args.State, args.ViewType, enc)
 	diags = diags.Append(beDiags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -92,7 +92,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// Build the operation request
 	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, enc)
 	diags = diags.Append(opDiags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		view.Diagnostics(diags)
 		return 1
 	}
@@ -106,7 +106,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	// Perform the operation
 	op, diags := c.RunOperation(ctx, be, opReq)
 	view.Diagnostics(diags)
-	if diags.HasErrors() {
+	if view.HasErrors(diags) {
 		return 1
 	}
 

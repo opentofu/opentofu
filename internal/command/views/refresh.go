@@ -22,6 +22,7 @@ type Refresh interface {
 	Operation() Operation
 	Hooks() []tofu.Hook
 
+	HasErrors(diags tfdiags.Diagnostics) bool
 	Diagnostics(diags tfdiags.Diagnostics)
 	HelpPrompt()
 }
@@ -74,6 +75,11 @@ func (v *RefreshHuman) Hooks() []tofu.Hook {
 	}
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *RefreshHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
+
 func (v *RefreshHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
@@ -92,7 +98,7 @@ var _ Refresh = (*RefreshJSON)(nil)
 
 func (v *RefreshJSON) Outputs(outputValues map[string]*states.OutputValue) {
 	outputs, diags := json.OutputsFromMap(outputValues)
-	if diags.HasErrors() {
+	if v.HasErrors(diags) {
 		v.Diagnostics(diags)
 	} else {
 		v.view.Outputs(outputs)
@@ -107,6 +113,11 @@ func (v *RefreshJSON) Hooks() []tofu.Hook {
 	return []tofu.Hook{
 		newJSONHook(v.view),
 	}
+}
+
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *RefreshJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 func (v *RefreshJSON) Diagnostics(diags tfdiags.Diagnostics) {

@@ -29,12 +29,15 @@ func TestProvidersLock(t *testing.T) {
 		defer testChdir(t, td)()
 
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 		code := c.Run([]string{})
+		done(t)
 		if code != 0 {
 			t.Fatalf("wrong exit code; expected 0, got %d", code)
 		}
@@ -91,15 +94,18 @@ func runProviderLockGenericTest(t *testing.T, testDirectory, expected string) {
 
 	p := testProvider()
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &ProvidersLockCommand{
 		Meta: Meta{
 			Ui:               ui,
 			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
 		},
 	}
 
 	args := []string{"-fs-mirror=fs-mirror"}
 	code := c.Run(args)
+	done(t)
 	if code != 0 {
 		t.Fatalf("wrong exit code; expected 0, got %d", code)
 	}
@@ -118,9 +124,11 @@ func TestProvidersLock_args(t *testing.T) {
 
 	t.Run("mirror collision", func(t *testing.T) {
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 
@@ -130,6 +138,7 @@ func TestProvidersLock_args(t *testing.T) {
 			"-net-mirror=www.foo.com",
 		}
 		code := c.Run(args)
+		done(t)
 
 		if code != 1 {
 			t.Fatalf("wrong exit code; expected 1, got %d", code)
@@ -142,15 +151,18 @@ func TestProvidersLock_args(t *testing.T) {
 
 	t.Run("invalid platform", func(t *testing.T) {
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 
 		// not a valid platform
 		args := []string{"-platform=arbitrary_nonsense_that_isnt_valid"}
 		code := c.Run(args)
+		done(t)
 
 		if code != 1 {
 			t.Fatalf("wrong exit code; expected 1, got %d", code)
@@ -163,15 +175,18 @@ func TestProvidersLock_args(t *testing.T) {
 
 	t.Run("invalid provider argument", func(t *testing.T) {
 		ui := new(cli.MockUi)
+		view, done := testView(t)
 		c := &ProvidersLockCommand{
 			Meta: Meta{
-				Ui: ui,
+				Ui:   ui,
+				View: view,
 			},
 		}
 
 		// There is no configuration, so it's not valid to use any provider argument
 		args := []string{"hashicorp/random"}
 		code := c.Run(args)
+		done(t)
 
 		if code != 1 {
 			t.Fatalf("wrong exit code; expected 1, got %d", code)

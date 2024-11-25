@@ -24,10 +24,12 @@ func TestGraph(t *testing.T) {
 	defer testChdir(t, td)()
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &GraphCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -35,6 +37,7 @@ func TestGraph(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	output := ui.OutputWriter.String()
 	if !strings.Contains(output, `provider[\"registry.opentofu.org/hashicorp/test\"]`) {
@@ -44,10 +47,12 @@ func TestGraph(t *testing.T) {
 
 func TestGraph_multipleArgs(t *testing.T) {
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &GraphCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -58,6 +63,7 @@ func TestGraph_multipleArgs(t *testing.T) {
 	if code := c.Run(args); code != 1 {
 		t.Fatalf("bad: \n%s", ui.OutputWriter.String())
 	}
+	done(t)
 }
 
 func TestGraph_noArgs(t *testing.T) {
@@ -66,10 +72,12 @@ func TestGraph_noArgs(t *testing.T) {
 	defer testChdir(t, td)()
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &GraphCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -77,6 +85,7 @@ func TestGraph_noArgs(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	output := ui.OutputWriter.String()
 	if !strings.Contains(output, `provider[\"registry.opentofu.org/hashicorp/test\"]`) {
@@ -90,10 +99,12 @@ func TestGraph_noConfig(t *testing.T) {
 	defer testChdir(t, td)()
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &GraphCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -103,6 +114,7 @@ func TestGraph_noConfig(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 }
 
 func TestGraph_plan(t *testing.T) {
@@ -144,10 +156,12 @@ func TestGraph_plan(t *testing.T) {
 	planPath := testPlanFile(t, configSnap, states.NewState(), plan)
 
 	ui := new(cli.MockUi)
+	view, done := testView(t)
 	c := &GraphCommand{
 		Meta: Meta{
 			testingOverrides: metaOverridesForProvider(applyFixtureProvider()),
 			Ui:               ui,
+			View:             view,
 		},
 	}
 
@@ -157,6 +171,7 @@ func TestGraph_plan(t *testing.T) {
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}
+	done(t)
 
 	output := ui.OutputWriter.String()
 	if !strings.Contains(output, `provider[\"registry.opentofu.org/hashicorp/test\"]`) {

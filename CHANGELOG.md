@@ -41,6 +41,7 @@ ENHANCEMENTS:
 * Improved performance for large graphs when debug logs are not enabled. ([#1810](https://github.com/opentofu/opentofu/pull/1810))
 * Improved performance for large graphs with many submodules. ([#1809](https://github.com/opentofu/opentofu/pull/1809))
 * Extended trace logging for HTTP backend, including request and response bodies. ([#2120](https://github.com/opentofu/opentofu/pull/2120))
+* Added `-pedantic` global option to enable treating warnings as errors. ([#1726](https://github.com/opentofu/opentofu/pull/1726))
 
 BUG FIXES:
 * `templatefile` no longer crashes if the given filename is derived from a sensitive value. ([#1801](https://github.com/opentofu/opentofu/issues/1801))

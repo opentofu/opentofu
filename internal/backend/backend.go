@@ -12,7 +12,6 @@ package backend
 import (
 	"context"
 	"errors"
-	"log"
 	"os"
 
 	svchost "github.com/hashicorp/terraform-svchost"
@@ -343,23 +342,13 @@ func (o *Operation) HasConfig() bool {
 // output, but terminating immediately after reporting error diagnostics is
 // common and can be expressed concisely via this method.
 func (o *Operation) ReportResult(op *RunningOperation, diags tfdiags.Diagnostics) {
-	if diags.HasErrors() {
+	if o.View.HasErrors(diags) {
 		op.Result = OperationFailure
 	} else {
 		op.Result = OperationSuccess
 	}
-	if o.View != nil {
-		o.View.Diagnostics(diags)
-	} else {
-		// Shouldn't generally happen, but if it does then we'll at least
-		// make some noise in the logs to help us spot it.
-		if len(diags) != 0 {
-			log.Printf(
-				"[ERROR] Backend needs to report diagnostics but View is not set:\n%s",
-				diags.ErrWithWarnings(),
-			)
-		}
-	}
+
+	o.View.Diagnostics(diags)
 }
 
 // RunningOperation is the result of starting an operation.

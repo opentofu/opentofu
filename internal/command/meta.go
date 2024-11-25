@@ -646,14 +646,19 @@ func (m *Meta) process(args []string) []string {
 		m.Ui = m.oldUi
 	}
 
+	var pedanticMode bool
+
 	// Set colorization
 	m.color = m.Color
 	i := 0 // output index
 	for _, v := range args {
-		if v == "-no-color" {
+		switch v {
+		case "-no-color":
 			m.color = false
 			m.Color = false
-		} else {
+		case "-pedantic":
+			pedanticMode = true
+		default:
 			// copy and increment index
 			args[i] = v
 			i++
@@ -663,14 +668,24 @@ func (m *Meta) process(args []string) []string {
 
 	// Set the UI
 	m.oldUi = m.Ui
-	m.Ui = &cli.ConcurrentUi{
-		Ui: &ColorizeUi{
-			Colorize:   m.Colorize(),
-			ErrorColor: "[red]",
-			WarnColor:  "[yellow]",
-			Ui:         m.oldUi,
-		},
+
+	var newUI cli.Ui = &ColorizeUi{
+		Colorize:   m.Colorize(),
+		ErrorColor: "[red]",
+		WarnColor:  "[yellow]",
+		Ui:         m.oldUi,
 	}
+
+	if pedanticMode {
+		newUI = &pedanticUI{
+			Ui: newUI,
+			notifyWarning: func() {
+				m.View.PedanticWarningFlagged = true
+			},
+		}
+	}
+
+	m.Ui = &cli.ConcurrentUi{Ui: newUI}
 
 	// Reconfigure the view. This is necessary for commands which use both
 	// views.View and cli.Ui during the migration phase.
@@ -680,6 +695,7 @@ func (m *Meta) process(args []string) []string {
 			ConsolidateWarnings: m.consolidateWarnings,
 			ConsolidateErrors:   m.consolidateErrors,
 			NoColor:             !m.Color,
+			PedanticMode:        pedanticMode,
 		})
 	}
 
@@ -724,7 +740,6 @@ func (m *Meta) confirm(opts *tofu.InputOpts) (bool, error) {
 // Internally this function uses Diagnostics.Append, and so it will panic
 // if given unsupported value types, just as Append does.
 func (m *Meta) showDiagnostics(vals ...interface{}) {
-
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(vals...)
 	diags.Sort()
@@ -746,6 +761,15 @@ func (m *Meta) showDiagnostics(vals ...interface{}) {
 	}
 	if m.consolidateErrors {
 		diags = diags.Consolidate(1, tfdiags.Error)
+	}
+
+	if m.View.PedanticMode {
+		// Convert warnings to errors
+		// We do this after consolidation of warnings to reduce the verbosity of the output
+		var isOverridden bool
+		if diags, isOverridden = tfdiags.OverrideAllFromTo(diags, tfdiags.Warning, tfdiags.Error, nil); isOverridden {
+			m.View.PedanticWarningFlagged = true
+		}
 	}
 
 	// Since warning messages are generally competing
@@ -906,7 +930,7 @@ func (m *Meta) checkRequiredVersion() tfdiags.Diagnostics {
 // it could potentially return nil without errors. It is the
 // responsibility of the caller to handle the lack of schema
 // information accordingly
-func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+func (m *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	path, err := os.Getwd()
@@ -916,7 +940,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 
 	if config == nil {
-		config, diags = c.loadConfig(path)
+		config, diags = m.loadConfig(path)
 		if diags.HasErrors() {
 			diags.Append(tfdiags.SimpleWarning(failedToLoadSchemasMessage))
 			return nil, diags
@@ -924,7 +948,7 @@ func (c *Meta) MaybeGetSchemas(state *states.State, config *configs.Config) (*to
 	}
 
 	if config != nil || state != nil {
-		opts, err := c.contextOpts()
+		opts, err := m.contextOpts()
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags

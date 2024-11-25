@@ -24,6 +24,9 @@ type View struct {
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
+
+	// PedanticMode is used to treat warnings as errors
+	PedanticMode bool
 }
 
 // ParseView processes CLI arguments, returning a View value and a
@@ -57,6 +60,8 @@ func ParseView(args []string) (*View, []string) {
 			common.ConsolidateErrors = false
 		case "-concise":
 			common.Concise = true
+		case "-pedantic":
+			common.PedanticMode = true
 		default:
 			// Unsupported argument: move left to the current position, and
 			// increment the index.

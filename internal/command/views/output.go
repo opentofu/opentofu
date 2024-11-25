@@ -27,6 +27,7 @@ import (
 type Output interface {
 	Output(name string, outputs map[string]*states.OutputValue) tfdiags.Diagnostics
 	Diagnostics(diags tfdiags.Diagnostics)
+	HasErrors(diags tfdiags.Diagnostics) bool
 }
 
 // NewOutput returns an initialized Output implementation for the given ViewType.
@@ -102,6 +103,11 @@ func (v *OutputHuman) Output(name string, outputs map[string]*states.OutputValue
 
 func (v *OutputHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
+}
+
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *OutputHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 // The OutputRaw implementation renders single string, number, or boolean
@@ -181,6 +187,11 @@ func (v *OutputRaw) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *OutputRaw) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
+
 // The OutputJSON implementation renders outputs as JSON values. When rendering
 // a single output, only the value is displayed. When rendering all outputs,
 // the result is a JSON object with keys matching the output names and object
@@ -257,6 +268,11 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 
 func (v *OutputJSON) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
+}
+
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *OutputJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 // For text and raw output modes, an empty map of outputs is considered a

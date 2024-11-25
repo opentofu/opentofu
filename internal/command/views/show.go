@@ -27,6 +27,9 @@ type Show interface {
 	// Display renders the plan, if it is available. If plan is nil, it renders the statefile.
 	Display(config *configs.Config, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, stateFile *statefile.File, schemas *tofu.Schemas) int
 
+	// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+	HasErrors(diags tfdiags.Diagnostics) bool
+
 	// Diagnostics renders early diagnostics, resulting from argument parsing.
 	Diagnostics(diags tfdiags.Diagnostics)
 }
@@ -124,6 +127,11 @@ func (v *ShowHuman) Display(config *configs.Config, plan *plans.Plan, planJSON *
 	return 0
 }
 
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *ShowHuman) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
+}
+
 func (v *ShowHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
@@ -162,6 +170,11 @@ func (v *ShowJSON) Display(config *configs.Config, plan *plans.Plan, planJSON *c
 		v.view.streams.Println(string(jsonState))
 	}
 	return 0
+}
+
+// HasErrors accepts a set of Diagnostics and determines whether an error has occurred.
+func (v *ShowJSON) HasErrors(diags tfdiags.Diagnostics) bool {
+	return v.view.HasErrors(diags)
 }
 
 // Diagnostics should only be called if show cannot be executed.

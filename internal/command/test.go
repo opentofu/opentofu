@@ -119,7 +119,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	c.View.Configure(common)
 
 	args, diags := arguments.ParseTest(rawArgs)
-	if diags.HasErrors() {
+	if c.View.HasErrors(diags) {
 		c.View.Diagnostics(diags)
 		c.View.HelpPrompt("test")
 		return 1
@@ -140,14 +140,14 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	variables, variableDiags := c.collectVariableValuesWithTests(args.TestDirectory)
 	diags = diags.Append(variableDiags)
-	if variableDiags.HasErrors() {
+	if view.HasErrors(variableDiags) {
 		view.Diagnostics(nil, nil, diags)
 		return 1
 	}
 
 	config, configDiags := c.loadConfigWithTests(".", args.TestDirectory)
 	diags = diags.Append(configDiags)
-	if configDiags.HasErrors() {
+	if view.HasErrors(configDiags) {
 		view.Diagnostics(nil, nil, diags)
 		return 1
 	}
@@ -223,7 +223,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	log.Printf("[DEBUG] TestCommand: found %d files with %d run blocks", fileCount, runCount)
 
 	diags = diags.Append(fileDiags)
-	if fileDiags.HasErrors() {
+	if view.HasErrors(fileDiags) {
 		view.Diagnostics(nil, nil, diags)
 		return 1
 	}

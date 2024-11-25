@@ -10,9 +10,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/posener/complete"
-
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/posener/complete"
 )
 
 type WorkspaceListCommand struct {
@@ -22,7 +21,16 @@ type WorkspaceListCommand struct {
 
 func (c *WorkspaceListCommand) Run(args []string) int {
 	args = c.Meta.process(args)
-	envCommandShowWarning(c.Ui, c.LegacyName)
+
+	var diags tfdiags.Diagnostics
+
+	invokeDiags := envCommandInvoked(c.LegacyName)
+	diags = diags.Append(invokeDiags)
+
+	c.showDiagnostics(diags)
+	if c.View.HasErrors(invokeDiags) {
+		return 1
+	}
 
 	cmdFlags := c.Meta.defaultFlagSet("workspace list")
 	c.Meta.varFlagSet(cmdFlags)
@@ -41,16 +49,15 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
-	if encDiags.HasErrors() {
+	diags = diags.Append(encDiags)
+	if c.View.HasErrors(encDiags) {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
-	var diags tfdiags.Diagnostics
-
 	backendConfig, backendDiags := c.loadBackendConfig(configPath)
 	diags = diags.Append(backendDiags)
-	if diags.HasErrors() {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -60,7 +67,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
-	if backendDiags.HasErrors() {
+	if c.View.HasErrors(diags) {
 		c.showDiagnostics(diags)
 		return 1
 	}
