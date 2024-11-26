@@ -38,8 +38,17 @@ func (p PackageOCIObject) String() string {
 }
 
 func (p PackageOCIObject) InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
+	// If a previous run was able to capture a set of signed manifest digests
+	// in allowedHashes then we can potentially reject a not-previously-known
+	// manifest immediately before we fetch anything.
+	err := p.checkHashesPreinstall(meta, allowedHashes)
+	if err != nil {
+		return nil, err
+	}
+
 	// FIXME: This API cannot currently return warnings, so we just discard them.
-	files, _, err := p.client.PullImageWithImageDigest(ctx, ociclient.OCIAddrWithDigest{
+	var files ociclient.PulledOCIImage
+	files, _, err = p.client.PullImageWithImageDigest(ctx, ociclient.OCIAddrWithDigest{
 		OCIAddr: p.repositoryAddr.toClient(),
 		Digest:  p.imageManifestDigest,
 	})
@@ -119,13 +128,7 @@ func (p PackageOCIObject) InstallProviderPackage(ctx context.Context, meta Packa
 		// but maybe something else will.
 	}
 
-	suitableHashCount := 0
-	for _, hash := range allowedHashes {
-		if !hash.HasScheme(HashSchemeZip) {
-			suitableHashCount++
-		}
-	}
-	if suitableHashCount > 0 {
+	if len(allowedHashes) > 0 {
 		var matches bool
 		if matches, err = PackageMatchesAnyHash(localLoc, allowedHashes); err != nil {
 			return nil, fmt.Errorf(
@@ -145,4 +148,41 @@ func (p PackageOCIObject) InstallProviderPackage(ctx context.Context, meta Packa
 	}
 	//nolint:nilnil // this API predates our use of this linter and callers rely on this behavior
 	return nil, nil
+}
+
+func (p PackageOCIObject) checkHashesPreinstall(meta PackageMeta, allowedHashes []Hash) error {
+	// If any of the allowedHashes are of schemes that we can apply to a
+	// not-yet-fetched OCI object manifest then we'll pre-verify them here.
+	// We permit installation in the absense of any relevant hashes because
+	// in practice we can only save OCI object manifest hashes in the
+	// dependency lock file when the previous run installed from a signed
+	// multi-platform manifest, and so this is only some extra assurance
+	// for that case to catch when a previously-signed image got modified.
+	suitableHashCount := 0
+	for _, hash := range allowedHashes {
+		if hash.Scheme().SupportsLocation(p) {
+			suitableHashCount++
+		}
+	}
+	if suitableHashCount == 0 {
+		// The previous run presumably didn't involve a signed manifest
+		// and so we'll rely on the post-install verification of h1:
+		// hashes against the local cache directory later in
+		// [PackageOCIObject.InstallProviderPackage] instead.
+		return nil
+	}
+
+	if matches, err := PackageMatchesAnyHash(p, allowedHashes); err != nil {
+		return fmt.Errorf(
+			"failed to calculate checksum for %s %s package at %s: %w",
+			meta.Provider, meta.Version, p, err,
+		)
+	} else if !matches {
+		return fmt.Errorf(
+			"the package for %s %s at %s doesn't match any of the checksums previously recorded in the dependency lock file (this might be because the available checksums are for packages targeting different platforms); for more information: https://opentofu.org/docs/language/files/dependency-lock/#checksum-verification",
+			meta.Provider, meta.Version, p,
+		)
+	}
+
+	return nil
 }

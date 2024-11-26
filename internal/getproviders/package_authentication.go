@@ -529,6 +529,57 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 	return nil, "", ErrUnknownIssuer
 }
 
+type precheckedAuthentication struct {
+	authResult       *PackageAuthenticationResult
+	acceptableHashes []Hash
+}
+
+// NewPrecheckedAuthentication returns a stub [PackageAuthentication] that
+// just returns exactly the given authentication result and acceptable
+// hashes when asked.
+//
+// This is for situations where the package authentication can be performed
+// entirely in a [Source.PackageMeta] implementation before retrieving the
+// remote package.
+//
+// For example, this can be true if installing from a content-addressed storage
+// system: the item to retrieve is identified by a secure checksum of itself
+// and thus the package's location alone is enough to verify that the intended
+// object was retrieved, and so PackageMeta can authenticate that object
+// ahead of time and promise a particular authentication result as long as the
+// retrieved object actually matches the checksum embedded in the location.
+//
+// A [PackageAuthentication] of this type can never fail authentication, so
+// a [Source.PackageMeta] implementation should return an error itself if
+// it determines that the object it wanted to return does not pass all required
+// authentication checks, reserving the use of this type only for the cases where
+// authentication was sufficient to allow installation.
+//
+// Populate acceptableHashes with any hashes which are also covered by whatever
+// authentication the PackageMeta implementation performed. For example, if
+// the authentication was to verify a signature over an exhaustive set of valid
+// checksums then those checksums can be reported as "acceptable hashes", to also
+// be considered trustworthy if the directly-returned package is considered
+// trustworthy.
+func NewPrecheckedAuthentication(authResult *PackageAuthenticationResult, acceptableHashes []Hash) PackageAuthentication {
+	return &precheckedAuthentication{
+		authResult:       authResult,
+		acceptableHashes: acceptableHashes,
+	}
+}
+
+// AuthenticatePackage implements PackageAuthentication by just returning
+// exactly the result previously passed to [NewPrecheckedAuthentication].
+func (p *precheckedAuthentication) AuthenticatePackage(_ PackageLocation) (*PackageAuthenticationResult, error) {
+	return p.authResult, nil
+}
+
+// AcceptableHashes implements PackageAuthenticationHashes by just returning
+// exactly the result previously passed to [NewPrecheckedAuthentication].
+func (p *precheckedAuthentication) AcceptableHashes() []Hash {
+	return p.acceptableHashes
+}
+
 // entityString extracts the key ID and identity name(s) from an openpgp.Entity
 // for logging.
 func entityString(entity *openpgp.Entity) string {

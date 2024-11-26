@@ -16,8 +16,6 @@ import (
 	disco "github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/libregistry/registryprotocols/ociclient"
 	tfaddr "github.com/opentofu/registry-address"
-
-	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // DirectSource is a Source that handles the "direct" installation method by
@@ -130,16 +128,6 @@ func (s *DirectSource) providerRegistrySource(_ context.Context, provider tfaddr
 }
 
 func (s *DirectSource) ociMirrorSource(_ context.Context, provider tfaddr.Provider, services *disco.Host) (Source, error) {
-	// The following is a little hacky: we're instantiating the source that
-	// was really written to handle the oci_mirror installation method, but
-	// we're instantiating it with a repository address callback that just
-	// always returns a fixed address and therefore can only answer questions
-	// about the specific provider we've been given.
-	// That's okay because the caller will only use the result to serve this
-	// provider, but nonetheless it's still a bit of an abstraction inversion
-	// to use the mirror source to implement the direct source.
-	// If we decide to move forward with this (currently-experimental) capability
-	// then hopefully we can refactor this to be a more sensible shape.
 	hostname, name, err := services.ServiceOCIRepositoryFromURITemplateLevel1("oci-providers.v1", map[string]string{
 		"namespace": provider.Namespace,
 		"type":      provider.Type,
@@ -147,11 +135,11 @@ func (s *DirectSource) ociMirrorSource(_ context.Context, provider tfaddr.Provid
 	//nolint:errorlint // this is intentionally following the structure from RegistrySource, for now
 	switch err := err.(type) {
 	case nil:
-		return NewOCIMirrorSource(s.ociDistClient, func(_ tfaddr.Provider) (OCIRepository, tfdiags.Diagnostics) {
-			return OCIRepository{
-				Hostname: hostname,
-				Name:     name,
-			}, nil
+		// As an implementation detail we use a specially-configured OCIMirrorSource that
+		// always installs from the specific OCI repository address we've just discovered.
+		return newOCIMirrorSourceForDirectInstall(s.ociDistClient, OCIRepository{
+			Hostname: hostname,
+			Name:     name,
 		}), nil
 	case *disco.ErrServiceNotProvided:
 		return nil, ErrHostNoProviders{
@@ -187,15 +175,15 @@ func isMagicOCIMirrorHost(hostname svchost.Hostname) bool {
 // in [magicOCIRegistryHostnameSuffix] are forced to behave as if they
 // declared the "oci-providers.v1" service with a fixed template.
 func (s *DirectSource) magicOCIMirrorSource(_ context.Context, provider tfaddr.Provider) (Source, error) {
-	// The following is a little hacky in the same ways as DirectSource.ociMirrorSource.
 	fullHostname := provider.Hostname.String()
 	ociRegistryHost := fullHostname[:len(fullHostname)-len(magicOCIRegistryHostnameSuffix)]
 	ociRepositoryName := provider.Namespace + "/opentofu-provider-" + provider.Type
 
-	return NewOCIMirrorSource(s.ociDistClient, func(_ tfaddr.Provider) (OCIRepository, tfdiags.Diagnostics) {
-		return OCIRepository{
-			Hostname: ociRegistryHost,
-			Name:     ociRepositoryName,
-		}, nil
+	// As an implementation detail we use a specially-configured OCIMirrorSource that
+	// always installs from the specific OCI repository address we've just inferred
+	// "magically" based on the provider address.
+	return newOCIMirrorSourceForDirectInstall(s.ociDistClient, OCIRepository{
+		Hostname: ociRegistryHost,
+		Name:     ociRepositoryName,
 	}), nil
 }

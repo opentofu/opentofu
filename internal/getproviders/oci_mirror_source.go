@@ -37,6 +37,23 @@ func NewOCIMirrorSource(client ociclient.OCIClient, repositoryAddressFunc func(p
 	}
 }
 
+// newOCIMirrorSourceForDirectInstall is used as an implementation detail
+// of [DirectSource] when it decides to handle direct installation by
+// mapping to an OCI registry.
+//
+// In this case what we're creating isn't really a "mirror", but shares
+// enough behavior with the OCI mirror installation method that we can
+// share the implementation but as an internal detail only (subject to
+// change in future, if these diverge enough to be worth it).
+func newOCIMirrorSourceForDirectInstall(client ociclient.OCIClient, repositoryAddr OCIRepository) *OCIMirrorSource {
+	return &OCIMirrorSource{
+		client: client,
+		getRepositoryAddress: func(_ addrs.Provider) (OCIRepository, tfdiags.Diagnostics) {
+			return repositoryAddr, nil
+		},
+	}
+}
+
 // AvailableVersions implements Source.
 func (o *OCIMirrorSource) AvailableVersions(ctx context.Context, provider tfaddr.Provider) (versions.List, []string, error) {
 	repoAddr, err := o.repositoryAddress(provider)
@@ -99,14 +116,32 @@ func (o *OCIMirrorSource) PackageMeta(ctx context.Context, provider tfaddr.Provi
 		imageManifestDigest: platformSpecificManifestDigest,
 		client:              o.client,
 	}
-	authentication := NewPackageHashAuthentication(target, []Hash{
-		// The content-addressable nature of an OCI repository means that
-		// this has should always match by definition; we include this
-		// primarily to cause the checksum to be recorded in the dependency
-		// lock file for use when we're installing the same image again
-		// in future.
-		PackageHashOCIObject(location),
-	})
+
+	// FIXME: We should try to find and verify a cosign signature for the selected
+	// multi-platform manifest. If that verification fails then we should return
+	// an error immediately here and thus not install anything at all. Otherwise
+	// we can return a fixed PackageAuthenticationResult describing the outcome.
+	//
+	// We should also include a set of HashSchemeOCIObject hashes covering each of
+	// the platform-specific manifest digests in the multi-platform manifest that
+	// we authenticated, since the provider installer can then record them all in
+	// the dependency lock file if we indicated that the signature check was
+	// successful.
+	authentication := NewPrecheckedAuthentication(
+		&PackageAuthenticationResult{
+			// The location we're returning is itself a manifest digest and so
+			// it self-verifies during installation.
+			result: verifiedChecksum,
+		},
+		[]Hash{
+			// We'll return the one digest we're selecting as acceptable, but
+			// note that this won't actually do anything interesting until we're
+			// able to indicate that we verified a signature in the authentication
+			// result above, because the installer only trusts the authenticator's
+			// additional hashes if it actually authenticated something.
+			HashSchemeOCIObject.New(string(platformSpecificManifestDigest)),
+		},
+	)
 
 	return PackageMeta{
 		Provider:       provider,
