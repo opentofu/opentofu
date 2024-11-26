@@ -137,8 +137,8 @@ func (c *httpClient) Unlock(id string) error {
 	var lockInfo statemgr.LockInfo
 
 	// force unlock command does not instantiate statemgr.LockInfo
-	// which means that c.jsonLockInfo will be empty or nil
-	if c.jsonLockInfo != nil || len(c.jsonLockInfo) != 0 {
+	// which means that c.jsonLockInfo will be nil
+	if c.jsonLockInfo != nil {
 		if err := json.Unmarshal(c.jsonLockInfo, &lockInfo); err != nil {
 			return fmt.Errorf("failed to unmarshal jsonLockInfo")
 		}
