@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -389,6 +390,22 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 	}
 
 	var errorMessage string
+	if !errorDiags.HasErrors() && !errorValue.IsKnown() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid error message",
+			Detail:      "Value used in error message is not known and can not be used in error_message until after apply.",
+			Subject:     validation.ErrorMessage.Range().Ptr(),
+			Expression:  validation.ErrorMessage,
+			EvalContext: hclCtx,
+			Extra:       evalchecks.DiagnosticCausedByUnknown(true),
+		})
+		// Return early
+		return checkResult{
+			Status:         status,
+			FailureMessage: errorMessage,
+		}, diags
+	}
 	if !errorDiags.HasErrors() && errorValue.IsKnown() && !errorValue.IsNull() {
 		var err error
 		errorValue, err = convert.Convert(errorValue, cty.String)
@@ -414,6 +431,7 @@ You can correct this by removing references to sensitive values, or by carefully
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Expression:  validation.ErrorMessage,
 					EvalContext: hclCtx,
+					Extra:       evalchecks.DiagnosticCausedBySensitive(true),
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
 			} else {

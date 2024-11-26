@@ -149,9 +149,22 @@ func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable
-func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, _ walkOperation) tfdiags.Diagnostics {
+func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
-	return evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
+	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
+
+	if op == walkValidate {
+		var filtered tfdiags.Diagnostics
+		// Validate may contain unknown values, we can ignore that until plan/apply
+		for _, diag := range diags {
+			if !tfdiags.DiagnosticCausedByUnknown(diag) {
+				filtered = append(filtered, diag)
+			}
+		}
+		return filtered
+	}
+
+	return diags
 }
 
 // dag.GraphNodeDotter impl.
