@@ -262,6 +262,118 @@ run "remove_b" {
 
 There are scenarios that module authors might think could work, but that we don't intend to support initially so that we can release an initial increment and then react to feedback.
 
+##### The same expression for `for_each` in both a provider configuration and its associated resources
+
+Someone encountering this feature for the first time is highly likely to try to write something like the following:
+
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
+variable "aws_regions" {
+  type = map(object({
+    vpc_cidr_block = string
+  }))
+}
+
+provider "aws" {
+  alias    = "by_region"
+  for_each = var.aws_regions
+
+  region = each.key
+}
+
+resource "aws_vpc" "example" {
+  for_each = var.aws_regions
+  provider = aws.by_region[each.key]
+
+  cidr_block = each.value.vpc_cidr_block
+}
+```
+
+That example declares that each region represented by an element of `var.aws_regions` should have both an instance of the `hashicorp/aws` provider and an `aws_vpc.example` resource instance belonging to that provider.
+
+This example would work during initial creation, and would support adding new elements to `var.aws_regions` later. However, this example is problematic if the operator would ever want to remove an element from `var.aws_regions`, because that would effectively remove both the resource instance and the provider instance that manages it at the same time. OpenTofu needs to use a provider instance to plan and apply the destruction of a resource instance, so the provider instance must always live for at least one more plan/apply round than the resource instances it is managing.
+
+To draw attention to this trap, OpenTofu will detect when the `for_each` expression in the `provider` block seems too similar to the `for_each` expression in one of the `module` or `resource` blocks that refers to it and will produce a warning explaining this risk.
+
+"Too similar" will initially be defined as follows:
+
+- An expression that contains no references can never be "too similar" to any other expression, because the problem we're drawing attention to arises only when the two `for_each` arguments are based on the same source of data.
+- The rest of the comparison rules depend on specific HCL expression nodes, evaluated recursively:
+  - An expression in parentheses is "too similar" to another expression without parentheses if the two expressions match another one of these rules.
+  - Two reference expressions (e.g. `var.foo["bar"]`), attribute accesses from another value, or indexes of another value with a constant expression, (all of which are "traversals" in HCL's model) are "too similar" if all of the traversal steps are equivalent.
+
+      "Equivalent" means that, for all steps of each traversal:
+      - The steps at a particular position in each traversal are of the same type.
+      - "Root" names (i.e. `var` in the example above) are character-for-character equal.
+      - Attribute steps (i.e. `.foo` in the example above) have names that are character-for-character equal.
+      - Index steps (i.e. `["bar"]` in the example above) have an index value that is equal by the same rules as for the `==` operator.
+  - Two literal value expressions are "too similar" if their results are equal by the same rules as for the `==` operator. (But note that this applies only when a literal value appears as part of a larger expression that also involves a reference.)
+  - Two function call expressions are "too similar" if the called function names are identical, if both calls have the same number of arguments, and the expressions given for the arguments are each also "too similar" after recursively applying these rules.
+  - Two conditional expressions are "too similar" if the predicate expression and the two result expressions are each "too similar" after recursively applying these rules.
+  - Two index expressions with dynamic key expressions are "too similar" if the expressions they are applied to are "too similar" and their key expressions are "too similar" after recursively applying these rules to both.
+  - Two tuple constructor or object constructor expressions are "too similar" if they are both of the same type, they have the same number of constituent element expressions, and each of those constituent expressions are "too similar" after recursively applying these rules.
+  - Two `for` expressions are "too similar" if their temporary key/value symbol names are the same, and the source collection expressions, result key expressions, result value expressions, and filter predicate expressions are each "too similar" after recursively applying these rules.
+  - Two binary operation expressions (e.g. `1 + 1`) are "too similar" if they both have the same operation and the left and right operand expressions of each operation are each "too similar" after recursively applying these rules.
+  - Two unary operation expressions (e.g. `-var.foo`) are "too similar" if they both have the same operation and the operand expressions of each operation are "too similar" after recursively applying these rules.
+  - Two template expressions are "too similar" if they have the same number of template parts and each of the template parts are "too similar" after recursively applying these rules.
+- No other combinations are considered to be "too similar". This is a best-effort heuristic that does not intend to achieve full coverage of all possible expression types.
+
+Although the problem only really affects managed resources, since they are the only object that needs provider envolvement to destroy, the warning _would_ appear for a call to a `module` block that does not contain any `resource` blocks because the warning is generated only based on syntax in the configuration layer, rather than at runtime, and so it cannot "see into" the child module.
+
+Authors are expected to respond to this warning by somehow changing the expressions on the `module` and `resource` blocks to filter out a subset of the elements used with the `provider` block's `for_each` based on something in the source value. For example, an author might choose to use a null map element to represent that the provider instance should be declared but the resource instances must not, or might add an `enabled` attribute to the element object type which defaults to `true` and disables the resource instances if overridden to `false`. For example:
+
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source = "hashicorp/aws"
+    }
+  }
+}
+
+variable "aws_regions" {
+  type = map(object({
+    vpc_cidr_block = string
+    enabled        = optional(bool, true)
+  }))
+}
+
+locals {
+  # enabled_regions includes only the elements of var.aws_regions
+  # where enabled = true, and thus resource instances should be
+  # declared.
+  enabled_regions = tomap({
+    for region, config in var.aws_regions : region => config
+    if config.enabled
+  })
+}
+
+provider "aws" {
+  alias    = "by_region"
+  for_each = var.aws_regions
+
+  region = each.key
+}
+
+resource "aws_vpc" "example" {
+  for_each = local.enabled_regions
+  provider = aws.by_region[each.key]
+
+  cidr_block = each.value.vpc_cidr_block
+}
+```
+
+In practice _any_ change to either of the expressions that causes them to no longer be considered "too similar" is sufficient to quiet the warning, regardless of whether the difference actually solves the problem the warning is describing. It's the module author's responsibility to ensure that their solution actually solves the problem.
+
+(For some alternatives we considered and why we ultimately chose this path, refer to [Alternatives to the warning about `for_each` expressions being "too similar"](#alternatives-to-the-warning-about-for_each-expressions-being-too-similar).)
+
 ##### Provider references as normal values
 
 ```hcl
@@ -705,3 +817,17 @@ Go the route of expanded modules/resources as detailed in [Static Module Expansi
 - Not yet explored for resources
 - Massive development and testing effort!
 
+### Alternatives to the warning about `for_each` expressions being "too similar"
+
+The behavior described in [The same expression for `for_each` in both a provider configuration and its associated resources](#the-same-expression-for-for_each-in-both-a-provider-configuration-and-its-associated-resources) is a compromise intended to allow module authors maximum flexibility, which comes at the expense of us therefore being unable to give strong guidance as to exactly how an author might solve the problem the warning describes.
+
+We also considered various options that would involve being more opinionated about exactly how a module author should filter their input collection in `resource`/`module` block `for_each`, including but not limited to:
+
+- Forcing the use of `null` element values to represent "disabled", providing a built-in function that automatically removes such elements from a given map, and then _requiring_ that function to be used in the `for_each` of any `resource`/`module` block associated with a multi-instance provider configuration.
+- Introducing a function that takes a map and a set whose elements are a subset of the keys from the map, which returns a new map with those keys removed, and then _requiring_ that function to be used in the `for_each` of any `resource`/`module` block associated with a multi-instance provider configuration.
+
+Both of these would both have a higher likelihood of a configuration meeting the requirements actually being correct, and would allow our error messages to be considerably more specific about what is required to solve the problem, but they also both force a particular module design strategy that is unlikely to match all module authors' tastes.
+
+Ultimately we prefer to let module authors freely decide how to solve this problem, even at the risk of them accidentally writing something that is sufficient to quiet the warning but not actually sufficient to solve the problem the warning describes.
+
+Anyone who addresses this problem incorrectly and thus ends up in the "trap" despite their efforts will be able to move forward by using `tofu destroy` with the `-target=...` option to force destroying the managed resource instances before removing the provider instance that manages them.
