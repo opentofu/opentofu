@@ -90,7 +90,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Invalid mock/override field `%v`", k),
-					fmt.Sprintf(k, "The field is ignored since overriding configuration values is not allowed."),
+					"The field is ignored since overriding configuration values is not allowed.",
 				))
 				continue
 			}
@@ -101,6 +101,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// Non-computed attributes can't be generated
 		// so we set them from configuration only.
 		if !attr.Computed {
+			mockAttrs[k] = cty.NullVal(attr.Type)
 			if _, ok := defaults[k]; ok {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,

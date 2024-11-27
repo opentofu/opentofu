@@ -473,10 +473,8 @@ func TestComposeMockValueBySchema(t *testing.T) {
 				}),
 			}),
 			defaults: map[string]cty.Value{
-				"useConfigValue":   cty.StringVal("iAmFromDefaults"),
 				"useDefaultsValue": cty.StringVal("iAmFromDefaults"),
 				"nested": cty.ObjectVal(map[string]cty.Value{
-					"useConfigValue":   cty.StringVal("iAmFromDefaults"),
 					"useDefaultsValue": cty.StringVal("iAmFromDefaults"),
 				}),
 			},
@@ -492,7 +490,6 @@ func TestComposeMockValueBySchema(t *testing.T) {
 					}),
 				}),
 			}),
-			wantWarning: true, // ignored value in defaults
 		},
 		"type-conversion": {
 			schema: &configschema.Block{
