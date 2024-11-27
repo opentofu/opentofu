@@ -14,12 +14,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
-		schema      *configschema.Block
-		config      cty.Value
-		defaults    map[string]cty.Value
-		wantVal     cty.Value
-		wantWarning bool
-		wantError   bool
+		schema    *configschema.Block
+		config    cty.Value
+		defaults  map[string]cty.Value
+		wantVal   cty.Value
+		wantError bool
 	}{
 		"diff-props-in-root-attributes": {
 			schema: &configschema.Block{
@@ -511,6 +510,24 @@ func TestComposeMockValueBySchema(t *testing.T) {
 				}),
 			}),
 		},
+		"config-override": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"config-field": {
+						Type:     cty.String,
+						Optional: true,
+						Computed: true,
+					},
+				},
+			},
+			config: cty.ObjectVal(map[string]cty.Value{
+				"config-field": cty.StringVal("iAmFromConfig"),
+			}),
+			defaults: map[string]cty.Value{
+				"config-field": cty.StringVal("str"),
+			},
+			wantError: true,
+		},
 	}
 
 	for name, test := range tests {
@@ -526,12 +543,6 @@ func TestComposeMockValueBySchema(t *testing.T) {
 
 			case !test.wantError && gotDiags.HasErrors():
 				t.Fatalf("Got unexpected error diags: %v", gotDiags.ErrWithWarnings())
-
-			case test.wantWarning && len(gotDiags) == 0:
-				t.Fatalf("Expected warning in diags, but none returned")
-
-			case !test.wantWarning && len(gotDiags) != 0:
-				t.Fatalf("Got unexpected diags: %v", gotDiags.ErrWithWarnings())
 
 			case !test.wantVal.RawEquals(gotVal):
 				t.Fatalf("Got unexpected value: %v", gotVal.GoString())
