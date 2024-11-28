@@ -256,7 +256,7 @@ After you have done this, open the [`docusaurus.config.ts`](https://github.com/o
 
 Here, locate the previous latest version:
 
-```json
+```
 "vX.Y-1": {
   label: "X.Y-1.x",
   path: "",
@@ -265,7 +265,7 @@ Here, locate the previous latest version:
 
 Change it to:
 
-```json
+```
 "vX.Y-1": {
   label: "X.Y-1.x",
   path: "vX.Y-1",
@@ -275,7 +275,7 @@ Change it to:
 
 Now add the new version you are releasing:
 
-```json
+```
 "vX.Y": {
   label: "X.Y.x",
   path: "",
@@ -292,7 +292,7 @@ Now locate any version that is no longer supported and remove the following line
 
 Finally, locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
 
-```json
+```
 items: [
    {
      label: "vX.Y.x (current)",
