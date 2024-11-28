@@ -319,8 +319,7 @@ done
 
 Now you can commit your changes and open a pull request.
 
-> [!TIP]
-> You can safely run the script above anytime you need to update the documentation independently of a release. It's ok for the website to have minor doc fixes that are not in line with OpenTofu releases.
+> **Note:** You can safely run the script above anytime you need to update the documentation independently of a release. It's ok for the website to have minor doc fixes that are not in line with OpenTofu releases.
 
 </details>
 
