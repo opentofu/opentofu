@@ -321,8 +321,6 @@ Now you can commit your changes and open a pull request.
 
 </details>
 
-
-
 ---
 
 ## Testing the release
