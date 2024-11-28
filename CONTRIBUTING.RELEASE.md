@@ -246,69 +246,56 @@ We do not release documentation for non-stable releases. There is no action need
 
 </summary>
 
-Add a submodule for the new release to the website repository:
-
-```
-git submodule add -b vX.Y https://github.com/opentofu/opentofu opentofu-repo/vX.Y
-```
-
-After you have done this, open the [`docusaurus.config.ts`](https://github.com/opentofu/opentofu.org/blob/main/docusaurus.config.ts) file and `presets` section.
-
-Here, locate the previous latest version:
-
-```
-"vX.Y-1": {
-  label: "X.Y-1.x",
-  path: "",
-},
-```
-
-Change it to:
-
-```
-"vX.Y-1": {
-  label: "X.Y-1.x",
-  path: "vX.Y-1",
-  banner: "none",
-},
-```
-
-Now add the new version you are releasing:
-
-```
-"vX.Y": {
-  label: "X.Y.x",
-  path: "",
-},
-```
-
-After this is set, change the `lastVersion` option to point to your version.
-
-Now locate any version that is no longer supported and remove the following line to add a deprecation warning:
-
-```
-  banner: "none",
-```
-
-Finally, locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
-
-```
-items: [
-   {
-     label: "vX.Y.x (current)",
-     href: "/docs/"
+1. Add a submodule for the new release to the website repository:
+   ```
+   git submodule add -b vX.Y https://github.com/opentofu/opentofu opentofu-repo/vX.Y
+   ```
+2. After you have done this, open the [`docusaurus.config.ts`](https://github.com/opentofu/opentofu.org/blob/main/docusaurus.config.ts) file and `presets` section.
+3. Here, locate the previous latest version:
+   ```
+   "vX.Y-1": {
+     label: "X.Y-1.x",
+     path: "",
    },
-   {
-     label: "vX.Y-1.x",
-     href: "/docs/vX.Y-1/"
+   ```
+   Change it to:
+   ```
+   "vX.Y-1": {
+     label: "X.Y-1.x",
+     path: "vX.Y-1",
+     banner: "none",
    },
-   // ...
-   {
-     label: "Development",
-     href: "/docs/main/"
+   ```
+4. Now add the new version you are releasing:
+   ```
+   "vX.Y": {
+     label: "X.Y.x",
+     path: "",
    },
- ],
-```
+   ```
+5. After this is set, change the `lastVersion` option to point to your version.
+6. Now locate any version that is no longer supported and remove the following line to add a deprecation warning:
+   ```
+     banner: "none",
+   ```
+7. Finally, locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
+   ```
+   items: [
+      {
+        label: "vX.Y.x (current)",
+        href: "/docs/"
+      },
+      {
+        label: "vX.Y-1.x",
+        href: "/docs/vX.Y-1/"
+      },
+      // ...
+      {
+        label: "Development",
+        href: "/docs/main/"
+      },
+    ],
+   ```
 
 </details>
 
