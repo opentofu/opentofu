@@ -63,8 +63,8 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 	for k := range defaults {
 		if _, ok := impliedTypes[k]; !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
-				fmt.Sprintf("Ignored mock/override field `%v`", k),
+				tfdiags.Error,
+				fmt.Sprintf("Invalid override for block field `%v`", k),
 				"The field is unknown. Please, ensure it is a part of resource definition.",
 			))
 		}
@@ -76,16 +76,6 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	addPotentialDefaultsWarning := func(key, description string) {
-		if _, ok := defaults[key]; ok {
-			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
-				fmt.Sprintf("Ignored mock/override field `%v`", key),
-				description,
-			))
-		}
-	}
-
 	mockAttrs := make(map[string]cty.Value)
 
 	impliedTypes := schema.ImpliedType().AttributeTypes()
@@ -96,8 +86,15 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 
 		// If the value present in configuration - just use it.
 		if cv, ok := configMap[k]; ok && !cv.IsNull() {
+			if _, ok := defaults[k]; ok {
+				diags = diags.Append(tfdiags.WholeContainingBody(
+					tfdiags.Error,
+					fmt.Sprintf("Invalid mock/override field `%v`", k),
+					"The field is ignored since overriding configuration values is not allowed.",
+				))
+				continue
+			}
 			mockAttrs[k] = cv
-			addPotentialDefaultsWarning(k, "The field is ignored since overriding configuration values is not allowed.")
 			continue
 		}
 
@@ -105,7 +102,13 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// so we set them from configuration only.
 		if !attr.Computed {
 			mockAttrs[k] = cty.NullVal(attr.Type)
-			addPotentialDefaultsWarning(k, "The field is ignored since overriding non-computed fields is not allowed.")
+			if _, ok := defaults[k]; ok {
+				diags = diags.Append(tfdiags.WholeContainingBody(
+					tfdiags.Error,
+					fmt.Sprintf("Non-computed field `%v` is not allowed to be overridden", k),
+					"Overriding non-computed fields is not allowed, so this field cannot be processed.",
+				))
+			}
 			continue
 		}
 
@@ -115,8 +118,8 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 			converted, err := convert.Convert(ov, attr.Type)
 			if err != nil {
 				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Warning,
-					fmt.Sprintf("Ignored mock/override field `%v`", k),
+					tfdiags.Error,
+					fmt.Sprintf("Invalid mock/override field `%v`", k),
 					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", tfdiags.FormatError(err)),
 				))
 				continue
@@ -172,12 +175,12 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 
 		defaultVal, hasDefaultVal := defaults[k]
 		if hasDefaultVal && !defaultVal.Type().IsObjectType() {
-			hasDefaultVal = false
 			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Warning,
-				fmt.Sprintf("Ignored mock/override field `%v`", k),
+				tfdiags.Error,
+				fmt.Sprintf("Invalid override for block field `%v`", k),
 				fmt.Sprintf("Blocks can be overridden only by objects, got `%s`", defaultVal.Type().FriendlyName()),
 			))
+			continue
 		}
 
 		// We must keep blocks the same as it defined in configuration,
@@ -187,10 +190,11 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 
 			if hasDefaultVal {
 				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Warning,
-					fmt.Sprintf("Ignored mock/override field `%v`", k),
-					"Cannot override block value, because it's not present in configuration.",
+					tfdiags.Error,
+					fmt.Sprintf("Invalid override for block field `%v`", k),
+					"Cannot overridde block value, because it's not present in configuration.",
 				))
+				continue
 			}
 
 			continue
