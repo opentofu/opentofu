@@ -1,30 +1,29 @@
 ---
-sidebar_position: 4
-sidebar_label: Migrating from Terraform 1.7.x
+sidebar_position: 3
+sidebar_label: Migrating from Terraform 1.9.x
 description: |-
     Learn how to migrate to OpenTofu from Terraform.
 ---
 
-# Migrating to OpenTofu from Terraform 1.7.x
+# Migrating to OpenTofu from Terraform 1.9.x
 
-When migrating from Terraform 1.7.x, please migrate to OpenTofu 1.7.1 first, then
+When migrating from Terraform 1.9.x, please migrate to OpenTofu 1.9.0 first, then
 [upgrade your OpenTofu installation](/docs/intro/upgrading/) to the latest version.
 
-OpenTofu 1.7.1 is largely compatible with Terraform 1.7.x with a few minor changes needed. This migration guide will
+OpenTofu 1.9.0 is largely compatible with Terraform 1.9.x with a few minor changes needed. This migration guide will
 take you through the process of switching from Terraform to OpenTofu.
 
 ## Step 0: Prepare a disaster recovery plan
 
-Although OpenTofu 1.7.1 is very similar to Terraform 1.7.5, make sure you have an up to date and *tested* disaster
+Although OpenTofu 1.9.0 is very similar to Terraform 1.9.8, make sure you have an up to date and *tested* disaster
 recovery plan.
 
 ## Step 1: Upgrading Terraform
 
-This migration guide is only valid for Terraform 1.7.5. If you are on a Terraform version below 1.7.5, please upgrade
-to at least Terraform version 1.7.5 before proceeding with the migration by following the
-[Terraform upgrade guide](https://developer.hashicorp.com/terraform/language/v1.7.x/upgrade-guides). If you are on a
-higher Terraform version, please upgrade to the next minor version of Terraform and use the appropriate migration
-guide.
+This migration guide is only valid for Terraform 1.9.8. If you are on a Terraform version below 1.9.8, please upgrade
+to at least Terraform version 1.9.8 before proceeding with the migration by following the
+[Terraform upgrade guide](https://developer.hashicorp.com/terraform/language/v1.9.x/upgrade-guides). If you are on a
+higher Terraform version, please wait until an appropriate migration guide becomes available.
 
 ## Step 2: Apply all changes with Terraform
 
@@ -42,14 +41,14 @@ Terraform has compared your real infrastructure against your
 configuration and found no differences, so no changes are needed.
 ```
 
-## Step 3: Install OpenTofu 1.7.1
+## Step 3: Install OpenTofu 1.9.0
 
 As a first step, please [follow the installation instructions for the OpenTofu CLI tool](intro/install/index.mdx). Please test
 if you can successfully execute the `tofu` command:
 
 ```
 $ tofu --version
-OpenTofu v1.7.1
+OpenTofu v1.9.0
 on linux_amd64
 ```
 
@@ -67,6 +66,16 @@ Additionally, make sure you back up or version your code as the migration will r
 
 For a successful migration, you will need to perform the following code changes
 
+### Functions
+
+The following functions are not supported in OpenTofu:
+
+- `encode_tfvars`
+- `decode_tfvars`
+- `encode_expr`
+
+If you rely on these functions, please refactor your code to work without them.
+
 ### S3 backend
 
 If you are using the S3 backend, please change your code as follows:
@@ -79,6 +88,12 @@ If you are using the S3 backend, please change your code as follows:
 The OpenTofu `removed` block works differently from the Terraform variant. Please [review the documentation](../../language/resources/syntax.mdx#removing-resources) and make the following changes:
 
 1. Remove the `lifecycle` block. If you used the `lifecycle` &rarr; `destroy = true` setting, remove the entire `removed` block. Verify that the code still works as intended after the migration.
+2. If you are using destroy-time provisioners with `removed` blocks, please restructure your code to work without them.
+
+### Input variable validation
+
+If your input variable validation refers to other variables or objects, restructure your code
+to work around the necessity for these. (See issue [#1336](https://github.com/opentofu/opentofu/issues/1336).)
 
 ### Testing changes
 
