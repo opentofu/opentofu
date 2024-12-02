@@ -43,6 +43,7 @@ ENHANCEMENTS:
 * Extended trace logging for HTTP backend, including request and response bodies. ([#2120](https://github.com/opentofu/opentofu/pull/2120))
 * `tofu test` now throws errors instead of warnings for invalid override and mock fields. ([#2220](https://github.com/opentofu/opentofu/pull/2220))
 * `tofu test` now supports `override_resource` and `override_data` blocks in the scope of a single `mock_provider`. ([#2168](https://github.com/opentofu/opentofu/pull/2168))
+* Changes to encryption configuration now auto-apply the migration ([#2232](https://github.com/opentofu/opentofu/pull/2232))
 
 BUG FIXES:
 * `templatefile` no longer crashes if the given filename is derived from a sensitive value. ([#1801](https://github.com/opentofu/opentofu/issues/1801))
