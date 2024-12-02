@@ -759,3 +759,88 @@ variable "obfmod" {
 		t.Fatalf("Expected function call")
 	}
 }
+
+// Functions used as variable values are evaluated correctly
+func TestContext2Functions_providerFunctionsVariableCustom(t *testing.T) {
+	p := testProvider("aws")
+	p.GetFunctionsResponse = &providers.GetFunctionsResponse{
+		Functions: map[string]providers.FunctionSpec{
+			"arn_parse_custom": providers.FunctionSpec{
+				Parameters: []providers.FunctionParameterSpec{{
+					Name: "arn",
+					Type: cty.String,
+				}},
+				Return: cty.Bool,
+			},
+		},
+	}
+	p.CallFunctionResponse = &providers.CallFunctionResponse{
+		Result: cty.True,
+	}
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+  required_providers {
+    aws = ">=5.70.0"
+  }
+}
+
+provider "aws" {
+  region="us-east-1"
+  alias = "primary"
+}
+
+module "mod" {
+  source = "./mod"
+  providers = {
+    aws = aws.primary
+  }
+}
+ `,
+		"mod/mod.tf": `
+terraform {
+  required_providers {
+    aws = ">=5.70.0"
+  }
+}
+
+module "mod2" {
+       source = "./mod2"
+       value = provider::aws::arn_parse_custom("foo")
+}
+`,
+		"mod/mod2/mod.tf": `
+variable "value" { }
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	diags := ctx.Validate(context.Background(), m)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	if p.GetFunctionsCalled {
+		t.Fatalf("Unexpected function call")
+	}
+	if p.CallFunctionCalled {
+		t.Fatalf("Unexpected function call")
+	}
+
+	p.GetFunctionsCalled = false
+	p.CallFunctionCalled = false
+	_, diags = ctx.Plan(context.Background(), m, nil, nil)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	if !p.GetFunctionsCalled {
+		t.Fatalf("Expected function call")
+	}
+	if !p.CallFunctionCalled {
+		t.Fatalf("Expected function call")
+	}
+}

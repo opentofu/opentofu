@@ -63,10 +63,16 @@ func TestModuleVariableTransformer_nested(t *testing.T) {
 }
 
 const testTransformModuleVarBasicStr = `
-module.child.var.value (expand)
+module.child.var.value (expand, input)
+module.child.var.value (expand, reference)
+  module.child.var.value (expand, input)
 `
 
 const testTransformModuleVarNestedStr = `
-module.child.module.child.var.value (expand)
-module.child.var.value (expand)
+module.child.module.child.var.value (expand, input)
+module.child.module.child.var.value (expand, reference)
+  module.child.module.child.var.value (expand, input)
+module.child.var.value (expand, input)
+module.child.var.value (expand, reference)
+  module.child.var.value (expand, input)
 `
