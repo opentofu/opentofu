@@ -1,5 +1,7 @@
 ## 1.8.7 (unreleased)
 
+BUG FIXES:
+* Error messages related to validation of sensitive input variables will no longer disclose the sensitive value in the UI. ([#2219](https://github.com/opentofu/opentofu/pull/2219))
 
 
 ## 1.8.6
