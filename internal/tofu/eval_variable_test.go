@@ -1332,11 +1332,11 @@ variable "bar" {
 				if got, want := addr.String(), varAddr.String(); got != want {
 					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
 				}
-				if varCfg.Sensitive {
-					return test.given.Mark(marks.Sensitive)
-				} else {
-					return test.given
-				}
+				// NOTE: This intentionally doesn't mark the result as sensitive,
+				// because BuiltinEvalContext.GetVariableValue doesn't either.
+				// It's the responsibility of downstream code to detect and handle
+				// configured sensitivity.
+				return test.given
 			}
 			ctx.ChecksState = checks.NewState(cfg)
 			ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
@@ -1369,5 +1369,78 @@ variable "bar" {
 				}
 			}
 		})
+	}
+}
+
+func TestEvalVariableValidations_sensitiveValueDiagnostics(t *testing.T) {
+	// This test verifies that values for sensitive variables get captured
+	// into diagnostic messages with the sensitive mark intact, so that
+	// the values won't be disclosed in the UI.
+	// Earlier versions handled this incorrectly:
+	//    https://github.com/opentofu/opentofu/issues/2219
+
+	cfgSrc := `
+		variable "foo" {
+			type      = string
+			sensitive = true
+
+			validation {
+				condition     = length(var.foo) == 8 # intentionally fails
+				error_message = "Foo must have 8 characters."
+			}
+		}
+	`
+	cfg := testModuleInline(t, map[string]string{
+		"main.tf": cfgSrc,
+	})
+	varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance)
+
+	ctx := &MockEvalContext{}
+	ctx.EvaluationScopeScope = &lang.Scope{}
+	ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+		if got, want := addr.String(), varAddr.String(); got != want {
+			t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
+		}
+		// NOTE: This intentionally doesn't mark the result as sensitive,
+		// because BuiltinEvalContext.GetVariableValueFunc doesn't either.
+		// It's the responsibility of downstream code to detect and handle
+		// configured sensitivity.
+		return cty.StringVal("boop")
+	}
+	ctx.ChecksState = checks.NewState(cfg)
+	ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+
+	gotDiags := evalVariableValidations(
+		varAddr, cfg.Module.Variables["foo"], nil, ctx,
+	)
+	if !gotDiags.HasErrors() {
+		t.Fatalf("unexpected success; want validation error")
+	}
+
+	// The generated diagnostic(s) should all capture the evaluation context
+	// that was used to evaluate the condition, where the variable's value
+	// should be marked as sensitive so it won't get displayed in clear
+	// in the UI output.
+	// (The HasErrors check above guarantees that there's at least one
+	// diagnostic here for us to iterate over.)
+	for _, diag := range gotDiags {
+		if diag.Severity() != tfdiags.Error {
+			continue
+		}
+		fromExpr := diag.FromExpr()
+		if fromExpr == nil {
+			t.Fatalf("diagnostic does not have source expression information at all")
+		}
+		allVarVals := fromExpr.EvalContext.Variables["var"]
+		if allVarVals == cty.NilVal || !allVarVals.Type().IsObjectType() {
+			t.Fatalf("diagnostic did not capture an object value for the top-level symbol 'var'")
+		}
+		gotVal := allVarVals.GetAttr("foo")
+		if gotVal == cty.NilVal {
+			t.Fatalf("diagnostic did not capture a value for var.foo")
+		}
+		if !gotVal.HasMark(marks.Sensitive) {
+			t.Errorf("var.foo value is not marked as sensitive in diagnostic")
+		}
 	}
 }
