@@ -847,22 +847,28 @@ func providerName(name, alias string) string {
 	return name
 }
 
+// See rfc/20240513-static-evaluation-providers.md for explicit logic and reasoning behind these comparisons
 func providerIterationIdenticalWarning(blockType, target string, sourceExpr, instanceExpr hcl.Expression) hcl.Diagnostics {
-	var diags hcl.Diagnostics
-	if sourceExpr != nil && instanceExpr != nil &&
-		providerIterationIdentical(sourceExpr, instanceExpr) {
-		// foot, meet gun
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagWarning,
-			Summary:  "Provider configuration for_each matches " + blockType,
-			Detail: fmt.Sprintf(
-				"This provider configuration uses the same for_each expression as a %s, which means that subsequent removal of elements from this collection would cause a planning error.\n\nOpenTofu relies on a provider instance to destroy resource instances that are associated with it, and so the provider instance must outlive all of its resource instances by at least one plan/apply round. For removal of instances to succeed in future you must structure the configuration so that the provider block's for_each expression can produce a superset of the instances of the resources associated with the provider configuration. Refer to the OpenTofu documentation for specific suggestions.\n\nIf you are stuck trying to remove a configured provider instance, targeting may be used: tofu apply -destroy %s",
-				blockType, target,
-			),
-			Subject: sourceExpr.Range().Ptr(),
-		})
+	if sourceExpr == nil || instanceExpr == nil {
+		return nil
 	}
-	return diags
+	if len(sourceExpr.Variables()) == 0 || len(instanceExpr.Variables()) == 0 {
+		return nil
+	}
+
+	if !providerIterationIdentical(sourceExpr, instanceExpr) {
+		return nil
+	}
+	// foot, meet gun
+	return hcl.Diagnostics{&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Provider configuration for_each matches " + blockType,
+		Detail: fmt.Sprintf(
+			"This provider configuration uses the same for_each expression as a %s, which means that subsequent removal of elements from this collection would cause a planning error.\n\nOpenTofu relies on a provider instance to destroy resource instances that are associated with it, and so the provider instance must outlive all of its resource instances by at least one plan/apply round. For removal of instances to succeed in future you must structure the configuration so that the provider block's for_each expression can produce a superset of the instances of the resources associated with the provider configuration. Refer to the OpenTofu documentation for specific suggestions.\n\nIf you are stuck trying to remove a configured provider instance, targeting may be used: tofu apply -destroy %s",
+			blockType, target,
+		),
+		Subject: sourceExpr.Range().Ptr(),
+	}}
 }
 
 // Compares two for_each statements to see if they are "identical".  This is on a best-effort basis to help prevent foot-guns.

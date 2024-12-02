@@ -1,9 +1,10 @@
 locals {
         stuff = toset([])
 	bval = true
+	i = 1
 }
 
-provider "null" {
+provider "null" { # Constant, no warning
         for_each = {"foo": "bar"}
         alias = "plain"
 }
@@ -12,7 +13,7 @@ resource "null_resource" "plain" {
         provider = null.plain[each.key]
 }
 
-provider "null" {
+provider "null" { # Constant, no warning
         for_each = toset(["foo", "bar"])
         alias = "toset"
 }
@@ -31,11 +32,11 @@ resource "null_resource" "value" {
 }
 
 provider "null" {
-        for_each = toset((["foo", "bar"]))
+        for_each = local.stuff 
         alias = "parens"
 }
 resource "null_resource" "parens" {
-        for_each = (toset(["foo", "bar"]))
+        for_each = (local.stuff)
         provider = null.parens[each.key]
 }
 
@@ -49,11 +50,11 @@ resource "null_resource" "cond" {
 }
 
 provider "null" {
-        for_each = {"foo": 1 + -2}
+        for_each = {"foo": local.i + -2}
         alias = "op"
 }
 resource "null_resource" "op" {
-        for_each = {"foo": 1 + -2}
+        for_each = {"foo": local.i + -2}
         provider = null.op[each.key]
 }
 
