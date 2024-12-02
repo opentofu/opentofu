@@ -494,7 +494,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			// We could theoretically check here if there are resources (ignoring data blocks) within this submodule graph.
 			// The foot-gun only exists in that scenario, but the complexity of differentiating at the moment is not worth it
 			if passed.InParent.KeyExpression != nil {
-				diags = diags.Extend(providerIterationIdenticalWarning("module", modCall.ForEach, instanceExpr))
+				diags = diags.Extend(providerIterationIdenticalWarning("module", fmt.Sprintf("-target=%s", cfg.Path.Child(modCall.Name)), modCall.ForEach, instanceExpr))
 			}
 		}
 	}
@@ -509,7 +509,11 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			instanceExpr := instanced[providerName(r.ProviderConfigRef.Name, r.ProviderConfigRef.Alias)]
 			diags = diags.Extend(r.ProviderConfigRef.InstanceValidation("resource", instanceExpr != nil))
 			if r.ProviderConfigRef.KeyExpression != nil && r.Mode == addrs.ManagedResourceMode {
-				diags = diags.Extend(providerIterationIdenticalWarning("resource", r.ForEach, instanceExpr))
+				addr := fmt.Sprintf("%s.%s", r.Type, r.Name)
+				if !cfg.Path.IsRoot() {
+					addr = fmt.Sprintf("%s.%s", cfg.Path, addr)
+				}
+				diags = diags.Extend(providerIterationIdenticalWarning("resource", fmt.Sprintf("-target=%s", addr), r.ForEach, instanceExpr))
 			}
 		}
 	}
@@ -843,7 +847,7 @@ func providerName(name, alias string) string {
 	return name
 }
 
-func providerIterationIdenticalWarning(blockType string, sourceExpr, instanceExpr hcl.Expression) hcl.Diagnostics {
+func providerIterationIdenticalWarning(blockType, target string, sourceExpr, instanceExpr hcl.Expression) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 	if sourceExpr != nil && instanceExpr != nil &&
 		providerIterationIdentical(sourceExpr, instanceExpr) {
@@ -852,8 +856,8 @@ func providerIterationIdenticalWarning(blockType string, sourceExpr, instanceExp
 			Severity: hcl.DiagWarning,
 			Summary:  "Provider configuration for_each matches " + blockType,
 			Detail: fmt.Sprintf(
-				"This provider configuration uses the same for_each expression as a %s, which means that subsequent removal of elements from this collection would cause a planning error.\n\nOpenTofu relies on a provider instance to destroy resource instances that are associated with it, and so the provider instance must outlive all of its resource instances by at least one plan/apply round. For removal of instances to succeed in future you must structure the configuration so that the provider block's for_each expression can produce a superset of the instances of the resources associated with the provider configuration. Refer to the OpenTofu documentation for specific suggestions.",
-				blockType,
+				"This provider configuration uses the same for_each expression as a %s, which means that subsequent removal of elements from this collection would cause a planning error.\n\nOpenTofu relies on a provider instance to destroy resource instances that are associated with it, and so the provider instance must outlive all of its resource instances by at least one plan/apply round. For removal of instances to succeed in future you must structure the configuration so that the provider block's for_each expression can produce a superset of the instances of the resources associated with the provider configuration. Refer to the OpenTofu documentation for specific suggestions.\n\nIf you are stuck trying to remove a configured provider instance, targeting may be used: tofu apply -destroy %s",
+				blockType, target,
 			),
 			Subject: sourceExpr.Range().Ptr(),
 		})
