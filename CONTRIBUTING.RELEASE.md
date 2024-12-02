@@ -215,6 +215,116 @@ In order for the installer script to work, you will need to update the https://g
 
 ---
 
+## Updating the website/documentation
+
+Depending on the release type, you will need to update the [opentofu.org](https://github.com/opentofu/opentofu.org) repository.
+
+Before you begin, make sure that all submodules are up to date by running:
+
+```
+git submodule init
+git submodule update
+```
+
+> [!WARNING]
+> If you are using Windows, make sure your system supports symlinks by enabling developer mode and enabling symlinks in git. 
+
+<details>
+<summary>
+
+### Alpha (`X.Y.Z-alphaW`), Beta (`X.Y.Z-betaW`) and Release Candidate (`X.Y.Z-rcW`)
+
+</summary>
+
+We do not release documentation for non-stable releases. There is no action needed beyond publishing the blog post.
+
+</details>
+
+<details><summary>
+
+### Stable (`X.Y.0`)
+
+</summary>
+
+1. Add a submodule for the new release to the website repository:
+   ```
+   git submodule add -b vX.Y https://github.com/opentofu/opentofu opentofu-repo/vX.Y
+   ```
+2. After you have done this, open the [`docusaurus.config.ts`](https://github.com/opentofu/opentofu.org/blob/main/docusaurus.config.ts) file and `presets` section.
+3. Here, locate the previous latest version:
+   ```
+   "vX.Y-1": {
+     label: "X.Y-1.x",
+     path: "",
+   },
+   ```
+   Change it to:
+   ```
+   "vX.Y-1": {
+     label: "X.Y-1.x",
+     path: "vX.Y-1",
+     banner: "none",
+   },
+   ```
+4. Now add the new version you are releasing:
+   ```
+   "vX.Y": {
+     label: "X.Y.x",
+     path: "",
+   },
+   ```
+5. After this is set, change the `lastVersion` option to point to your version.
+6. Now locate any version that is no longer supported and remove the following line to add a deprecation warning:
+   ```
+     banner: "none",
+   ```
+7. Finally, locate the `navbar` option and `Docs` dropdown to reflect the new version list. It should look something like this:
+   ```
+   items: [
+      {
+        label: "vX.Y.x (current)",
+        href: "/docs/"
+      },
+      {
+        label: "vX.Y-1.x",
+        href: "/docs/vX.Y-1/"
+      },
+      // ...
+      {
+        label: "Development",
+        href: "/docs/main/"
+      },
+    ],
+   ```
+
+</details>
+
+<details><summary>
+
+### Point release (`X.Y.Z`)
+
+</summary>
+
+For a point release, you merely need to make sure that the submodules for the supported versions are up to date. You can do this by running the following script:
+
+```bash
+cd opentofu-repo
+for ver in $(ls); do
+  cd "${ver}"
+  git pull origin "${ver}" 
+  cd ..
+  git add "${ver}"
+done
+```
+
+Now you can commit your changes and open a pull request.
+
+> **Note:** You can safely run the script above anytime you need to update the documentation independently of a release. It's ok for the website to have minor doc fixes that are not in line with OpenTofu releases.
+
+</details>
+
+---
+
 ## Testing the release
 
 Make sure you have a Linux box with Snapcraft installed and download the installer shell script from `https://get.opentofu.org/install-opentofu.sh`.
