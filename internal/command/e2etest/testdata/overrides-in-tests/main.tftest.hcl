@@ -49,7 +49,6 @@ run "check_root_overridden_data" {
         target = data.local_file.second_mod_file
         values = {
             content = "101"
-            file_permission = "000"
         }
     }
 
