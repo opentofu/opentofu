@@ -26,46 +26,52 @@ type providerForTest struct {
 	internal providers.Interface
 	schema   providers.ProviderSchema
 
-	managedResources resourceForTestByType
-	dataResources    resourceForTestByType
+	mockResources     mockResourcesForTest
+	overrideResources overrideResourcesForTest
+
+	currentResourceAddress string
 }
 
-func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema) *providerForTest {
-	return &providerForTest{
-		internal:         internal,
-		schema:           schema,
-		managedResources: make(resourceForTestByType),
-		dataResources:    make(resourceForTestByType),
+func newProviderForTestWithSchema(internal providers.Interface, schema providers.ProviderSchema) (providerForTest, error) {
+	if p, ok := internal.(providerForTest); ok {
+		// We can create a proper deep copy here, however currently
+		// it is only relevant for override resources, since we extend
+		// the override resource map in NodeAbstractResourceInstance.
+		return p.withCopiedOverrideResources(), nil
 	}
-}
 
-func newProviderForTest(internal providers.Interface, res []*configs.MockResource) (providers.Interface, error) {
-	schema := internal.GetProviderSchema()
 	if schema.Diagnostics.HasErrors() {
-		return nil, fmt.Errorf("getting provider schema for test wrapper: %w", schema.Diagnostics.Err())
+		return providerForTest{}, fmt.Errorf("invalid provider schema for test wrapper: %w", schema.Diagnostics.Err())
 	}
 
-	p := newProviderForTestWithSchema(internal, schema)
-
-	p.addMockResources(res)
-
-	return p, nil
+	return providerForTest{
+		internal: internal,
+		schema:   schema,
+		mockResources: mockResourcesForTest{
+			managed: make(map[string]resourceForTest),
+			data:    make(map[string]resourceForTest),
+		},
+		overrideResources: overrideResourcesForTest{
+			managed: make(map[string]resourceForTest),
+			data:    make(map[string]resourceForTest),
+		},
+	}, nil
 }
 
-func (p *providerForTest) ReadResource(r providers.ReadResourceRequest) providers.ReadResourceResponse {
-	var resp providers.ReadResourceResponse
-
+func (p providerForTest) ReadResource(r providers.ReadResourceRequest) providers.ReadResourceResponse {
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.ManagedResourceMode, r.TypeName)
 
-	overrideValues := p.managedResources.getOverrideValues(r.TypeName)
+	mockValues := p.getMockValuesForManagedResource(r.TypeName)
+
+	var resp providers.ReadResourceResponse
 
 	resp.NewState, resp.Diagnostics = newMockValueComposer(r.TypeName).
-		ComposeBySchema(resSchema, r.ProviderMeta, overrideValues)
+		ComposeBySchema(resSchema, r.ProviderMeta, mockValues)
 
 	return resp
 }
 
-func (p *providerForTest) PlanResourceChange(r providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+func (p providerForTest) PlanResourceChange(r providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
 	if r.Config.IsNull() {
 		return providers.PlanResourceChangeResponse{
 			PlannedState: r.ProposedNewState, // null
@@ -74,37 +80,37 @@ func (p *providerForTest) PlanResourceChange(r providers.PlanResourceChangeReque
 
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.ManagedResourceMode, r.TypeName)
 
-	overrideValues := p.managedResources.getOverrideValues(r.TypeName)
+	mockValues := p.getMockValuesForManagedResource(r.TypeName)
 
 	var resp providers.PlanResourceChangeResponse
 
 	resp.PlannedState, resp.Diagnostics = newMockValueComposer(r.TypeName).
-		ComposeBySchema(resSchema, r.Config, overrideValues)
+		ComposeBySchema(resSchema, r.Config, mockValues)
 
 	return resp
 }
 
-func (p *providerForTest) ApplyResourceChange(r providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+func (p providerForTest) ApplyResourceChange(r providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
 	return providers.ApplyResourceChangeResponse{
 		NewState: r.PlannedState,
 	}
 }
 
-func (p *providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+func (p providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.DataResourceMode, r.TypeName)
 
 	var resp providers.ReadDataSourceResponse
 
-	overrideValues := p.dataResources.getOverrideValues(r.TypeName)
+	mockValues := p.getMockValuesForDataResource(r.TypeName)
 
 	resp.State, resp.Diagnostics = newMockValueComposer(r.TypeName).
-		ComposeBySchema(resSchema, r.Config, overrideValues)
+		ComposeBySchema(resSchema, r.Config, mockValues)
 
 	return resp
 }
 
 // ValidateProviderConfig is irrelevant when provider is mocked or overridden.
-func (p *providerForTest) ValidateProviderConfig(_ providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
+func (p providerForTest) ValidateProviderConfig(_ providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
 	return providers.ValidateProviderConfigResponse{}
 }
 
@@ -114,7 +120,7 @@ func (p *providerForTest) ValidateProviderConfig(_ providers.ValidateProviderCon
 // is being transformed for testing framework and original provider configuration is not
 // accessible so it is safe to wipe metadata as well. See Config.transformProviderConfigsForTest
 // for more details.
-func (p *providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
+func (p providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
 	providerSchema := p.internal.GetProviderSchema()
 	providerSchema.Provider = providers.Schema{}
 	providerSchema.ProviderMeta = providers.Schema{}
@@ -122,92 +128,163 @@ func (p *providerForTest) GetProviderSchema() providers.GetProviderSchemaRespons
 }
 
 // providerForTest doesn't configure its internal provider because it is mocked.
-func (p *providerForTest) ConfigureProvider(_ providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+func (p providerForTest) ConfigureProvider(_ providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	return providers.ConfigureProviderResponse{}
 }
 
-func (p *providerForTest) ImportResourceState(providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+func (p providerForTest) ImportResourceState(providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
 	panic("Importing is not supported in testing context. providerForTest must not be used to call ImportResourceState")
-}
-
-func (p *providerForTest) setSingleResource(addr addrs.Resource, overrides map[string]cty.Value) {
-	res := resourceForTest{
-		overrideValues: overrides,
-	}
-
-	switch addr.Mode {
-	case addrs.ManagedResourceMode:
-		p.managedResources[addr.Type] = res
-	case addrs.DataResourceMode:
-		p.dataResources[addr.Type] = res
-	case addrs.InvalidResourceMode:
-		panic("BUG: invalid mock resource mode")
-	default:
-		panic("BUG: unsupported resource mode: " + addr.Mode.String())
-	}
-}
-
-func (p *providerForTest) addMockResources(mockResources []*configs.MockResource) {
-	for _, mockRes := range mockResources {
-		var resources resourceForTestByType
-
-		switch mockRes.Mode {
-		case addrs.ManagedResourceMode:
-			resources = p.managedResources
-		case addrs.DataResourceMode:
-			resources = p.dataResources
-		case addrs.InvalidResourceMode:
-			panic("BUG: invalid mock resource mode")
-		default:
-			panic("BUG: unsupported mock resource mode: " + mockRes.Mode.String())
-		}
-
-		resources[mockRes.Type] = resourceForTest{
-			overrideValues: mockRes.Defaults,
-		}
-	}
 }
 
 // Calling the internal provider ensures providerForTest has the same behaviour as if
 // it wasn't overridden or mocked. The only exception is ImportResourceState, which panics
 // if called via providerForTest because importing is not supported in testing framework.
 
-func (p *providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+func (p providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 	return p.internal.ValidateResourceConfig(r)
 }
 
-func (p *providerForTest) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
+func (p providerForTest) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
 	return p.internal.ValidateDataResourceConfig(r)
 }
 
-func (p *providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
+func (p providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	return p.internal.UpgradeResourceState(r)
 }
 
-func (p *providerForTest) Stop() error {
+func (p providerForTest) Stop() error {
 	return p.internal.Stop()
 }
 
-func (p *providerForTest) GetFunctions() providers.GetFunctionsResponse {
+func (p providerForTest) GetFunctions() providers.GetFunctionsResponse {
 	return p.internal.GetFunctions()
 }
 
-func (p *providerForTest) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
+func (p providerForTest) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
 	return p.internal.CallFunction(r)
 }
 
-func (p *providerForTest) Close() error {
+func (p providerForTest) Close() error {
 	return p.internal.Close()
 }
 
-type resourceForTest struct {
-	overrideValues map[string]cty.Value
+func (p providerForTest) withMockResources(mockResources []*configs.MockResource) providerForTest {
+	for _, res := range mockResources {
+		var resources map[mockResourceType]resourceForTest
+
+		switch res.Mode {
+		case addrs.ManagedResourceMode:
+			resources = p.mockResources.managed
+		case addrs.DataResourceMode:
+			resources = p.mockResources.data
+		case addrs.InvalidResourceMode:
+			panic("BUG: invalid mock resource mode")
+		default:
+			panic("BUG: unsupported mock resource mode: " + res.Mode.String())
+		}
+
+		resources[res.Type] = resourceForTest{
+			values: res.Defaults,
+		}
+	}
+
+	return p
 }
 
-type resourceForTestByType map[string]resourceForTest
+func (p providerForTest) withCopiedOverrideResources() providerForTest {
+	p.overrideResources = p.overrideResources.copy()
+	return p
+}
 
-func (m resourceForTestByType) getOverrideValues(typeName string) map[string]cty.Value {
-	return m[typeName].overrideValues
+func (p providerForTest) withOverrideResources(overrideResources []*configs.OverrideResource) providerForTest {
+	for _, res := range overrideResources {
+		p = p.withOverrideResource(*res.TargetParsed, res.Values)
+	}
+
+	return p
+}
+
+func (p providerForTest) withOverrideResource(addr addrs.ConfigResource, overrides map[string]cty.Value) providerForTest {
+	var resources map[string]resourceForTest
+
+	switch addr.Resource.Mode {
+	case addrs.ManagedResourceMode:
+		resources = p.overrideResources.managed
+	case addrs.DataResourceMode:
+		resources = p.overrideResources.data
+	case addrs.InvalidResourceMode:
+		panic("BUG: invalid override resource mode")
+	default:
+		panic("BUG: unsupported override resource mode: " + addr.Resource.Mode.String())
+	}
+
+	resources[addr.String()] = resourceForTest{
+		values: overrides,
+	}
+
+	return p
+}
+
+func (p providerForTest) linkWithCurrentResource(addr addrs.ConfigResource) providerForTest {
+	p.currentResourceAddress = addr.String()
+	return p
+}
+
+type resourceForTest struct {
+	values map[string]cty.Value
+}
+
+type mockResourceType = string
+
+type mockResourcesForTest struct {
+	managed map[mockResourceType]resourceForTest
+	data    map[mockResourceType]resourceForTest
+}
+
+type overrideResourceAddress = string
+
+type overrideResourcesForTest struct {
+	managed map[overrideResourceAddress]resourceForTest
+	data    map[overrideResourceAddress]resourceForTest
+}
+
+func (res overrideResourcesForTest) copy() overrideResourcesForTest {
+	resCopy := overrideResourcesForTest{
+		managed: make(map[overrideResourceAddress]resourceForTest, len(res.managed)),
+		data:    make(map[overrideResourceAddress]resourceForTest, len(res.data)),
+	}
+
+	for k, v := range res.managed {
+		resCopy.managed[k] = v
+	}
+
+	for k, v := range res.data {
+		resCopy.data[k] = v
+	}
+
+	return resCopy
+}
+
+func (p providerForTest) getMockValuesForManagedResource(typeName string) map[string]cty.Value {
+	if p.currentResourceAddress != "" {
+		res, ok := p.overrideResources.managed[p.currentResourceAddress]
+		if ok {
+			return res.values
+		}
+	}
+
+	return p.mockResources.managed[typeName].values
+}
+
+func (p providerForTest) getMockValuesForDataResource(typeName string) map[string]cty.Value {
+	if p.currentResourceAddress != "" {
+		res, ok := p.overrideResources.data[p.currentResourceAddress]
+		if ok {
+			return res.values
+		}
+	}
+
+	return p.mockResources.data[typeName].values
 }
 
 func newMockValueComposer(typeName string) hcl2shim.MockValueComposer {

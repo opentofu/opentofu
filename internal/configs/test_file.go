@@ -100,13 +100,14 @@ func (file *TestFile) getTestProviderOrMock(addr string) (*Provider, bool) {
 	mockProvider, ok := file.MockProviders[addr]
 	if ok {
 		p := &Provider{
-			Name:          mockProvider.Name,
-			NameRange:     mockProvider.NameRange,
-			Alias:         mockProvider.Alias,
-			AliasRange:    mockProvider.AliasRange,
-			DeclRange:     mockProvider.DeclRange,
-			IsMocked:      true,
-			MockResources: mockProvider.MockResources,
+			Name:              mockProvider.Name,
+			NameRange:         mockProvider.NameRange,
+			Alias:             mockProvider.Alias,
+			AliasRange:        mockProvider.AliasRange,
+			DeclRange:         mockProvider.DeclRange,
+			IsMocked:          true,
+			MockResources:     mockProvider.MockResources,
+			OverrideResources: mockProvider.OverrideResources,
 		}
 
 		return p, true
@@ -318,7 +319,8 @@ type MockProvider struct {
 
 	// Fields below are specific to configs.MockProvider:
 
-	MockResources []*MockResource
+	MockResources     []*MockResource
+	OverrideResources []*OverrideResource
 }
 
 // moduleUniqueKey is copied from Provider.moduleUniqueKey
@@ -327,6 +329,58 @@ func (p *MockProvider) moduleUniqueKey() string {
 		return fmt.Sprintf("%s.%s", p.Name, p.Alias)
 	}
 	return p.Name
+}
+
+func (p *MockProvider) validateMockResources() hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	managedResources := make(map[string]struct{})
+	dataResources := make(map[string]struct{})
+
+	for _, res := range p.MockResources {
+		resources := managedResources
+		if res.Mode == addrs.DataResourceMode {
+			resources = dataResources
+		}
+
+		if _, ok := resources[res.Type]; ok {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
+				Detail:   fmt.Sprintf("`%v.%v` is already defined in `mock_provider` block.", res.getBlockName(), res.Type),
+				Subject:  p.DeclRange.Ptr(),
+			})
+			continue
+		}
+
+		resources[res.Type] = struct{}{}
+	}
+
+	return diags
+}
+
+func (p *MockProvider) validateOverrideResources() hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	resources := make(map[string]struct{})
+
+	for _, res := range p.OverrideResources {
+		k := res.TargetParsed.String()
+
+		if _, ok := resources[k]; ok {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
+				Detail:   fmt.Sprintf("`%v` with target `%v` is already defined in `mock_provider` block.", res.getBlockName(), k),
+				Subject:  p.DeclRange.Ptr(),
+			})
+			continue
+		}
+
+		resources[k] = struct{}{}
+	}
+
+	return diags
 }
 
 const (
@@ -402,18 +456,11 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 				tf.Providers[provider.moduleUniqueKey()] = provider
 			}
 
-		case blockNameOverrideResource:
-			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+		case blockNameOverrideResource, blockNameOverrideData:
+			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block)
 			diags = append(diags, overrideResDiags...)
 			if !overrideResDiags.HasErrors() {
 				tf.OverrideResources = append(tf.OverrideResources, overrideRes)
-			}
-
-		case blockNameOverrideData:
-			overrideData, overrideDataDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
-			diags = append(diags, overrideDataDiags...)
-			if !overrideDataDiags.HasErrors() {
-				tf.OverrideResources = append(tf.OverrideResources, overrideData)
 			}
 
 		case blockNameOverrideModule:
@@ -527,18 +574,11 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 				r.Module = module
 			}
 
-		case blockNameOverrideResource:
-			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+		case blockNameOverrideResource, blockNameOverrideData:
+			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block)
 			diags = append(diags, overrideResDiags...)
 			if !overrideResDiags.HasErrors() {
 				r.OverrideResources = append(r.OverrideResources, overrideRes)
-			}
-
-		case blockNameOverrideData:
-			overrideData, overrideDataDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
-			diags = append(diags, overrideDataDiags...)
-			if !overrideDataDiags.HasErrors() {
-				r.OverrideResources = append(r.OverrideResources, overrideData)
 			}
 
 		case blockNameOverrideModule:
@@ -763,7 +803,7 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 	return &opts, diags
 }
 
-func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*OverrideResource, hcl.Diagnostics) {
+func decodeOverrideResourceBlock(block *hcl.Block) (*OverrideResource, hcl.Diagnostics) {
 	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, *addrs.ConfigResource, hcl.Diagnostics) {
 		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
 		diags := traversalDiags
@@ -780,8 +820,15 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 		return traversal, &configRes, diags
 	}
 
-	res := &OverrideResource{
-		Mode: mode,
+	res := &OverrideResource{}
+
+	switch block.Type {
+	case blockNameOverrideResource:
+		res.Mode = addrs.ManagedResourceMode
+	case blockNameOverrideData:
+		res.Mode = addrs.DataResourceMode
+	default:
+		panic("BUG: unsupported block type for override resource: " + block.Type)
 	}
 
 	content, diags := block.Body.Content(overrideResourceBlockSchema)
@@ -875,37 +922,25 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 		}
 	}
 
-	var (
-		managedResources = make(map[string]struct{})
-		dataResources    = make(map[string]struct{})
-	)
-
 	for _, block := range content.Blocks {
-		res, resDiags := decodeMockResourceBlock(block)
-		diags = append(diags, resDiags...)
-		if resDiags.HasErrors() {
-			continue
+		switch block.Type {
+		case blockNameMockData, blockNameMockResource:
+			res, resDiags := decodeMockResourceBlock(block)
+			diags = append(diags, resDiags...)
+			if !resDiags.HasErrors() {
+				provider.MockResources = append(provider.MockResources, res)
+			}
+		case blockNameOverrideData, blockNameOverrideResource:
+			res, resDiags := decodeOverrideResourceBlock(block)
+			diags = append(diags, resDiags...)
+			if !resDiags.HasErrors() {
+				provider.OverrideResources = append(provider.OverrideResources, res)
+			}
 		}
-
-		resources := managedResources
-		if res.Mode == addrs.DataResourceMode {
-			resources = dataResources
-		}
-
-		if _, ok := resources[res.Type]; ok {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
-				Detail:   fmt.Sprintf("`%v.%v` is already defined in `mock_provider` block.", res.getBlockName(), res.Type),
-				Subject:  provider.DeclRange.Ptr(),
-			})
-			continue
-		}
-
-		resources[res.Type] = struct{}{}
-
-		provider.MockResources = append(provider.MockResources, res)
 	}
+
+	diags = append(diags, provider.validateMockResources()...)
+	diags = append(diags, provider.validateOverrideResources()...)
 
 	return provider, diags
 }
@@ -1145,6 +1180,12 @@ var mockProviderBlockSchema = &hcl.BodySchema{
 		{
 			Type:       blockNameMockData,
 			LabelNames: []string{"type"},
+		},
+		{
+			Type: blockNameOverrideResource,
+		},
+		{
+			Type: blockNameOverrideData,
 		},
 	},
 }
