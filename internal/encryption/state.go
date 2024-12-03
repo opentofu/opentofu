@@ -32,7 +32,7 @@ type StateEncryption interface {
 	// function. Do not attempt to determine if the state file is encrypted as this function will take care of any
 	// and all encryption-related matters. After the function returns, use the returned byte array as a normal state
 	// file.
-	DecryptState([]byte) ([]byte, error)
+	DecryptState([]byte) ([]byte, EncryptionStatus, error)
 
 	// EncryptState encrypts a state file and returns the encrypted form.
 	//
@@ -87,8 +87,8 @@ func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, error) {
 	})
 }
 
-func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
-	decryptedState, err := s.base.decrypt(encryptedState, func(data []byte) error {
+func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, EncryptionStatus, error) {
+	decryptedState, status, err := s.base.decrypt(encryptedState, func(data []byte) error {
 		tmp := struct {
 			FormatVersion string `json:"terraform_version"`
 		}{}
@@ -105,32 +105,32 @@ func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, error) {
 	})
 
 	if err != nil {
-		return nil, err
+		return nil, status, err
 	}
 
 	// Make sure that the state passthrough fields match
 	var encrypted statedata
 	err = json.Unmarshal(encryptedState, &encrypted)
 	if err != nil {
-		return nil, err
+		return nil, status, err
 	}
 	var state statedata
 	err = json.Unmarshal(decryptedState, &state)
 	if err != nil {
-		return nil, err
+		return nil, status, err
 	}
 
 	// TODO make encrypted.Serial non-optional.  This is only for supporting alpha1 states!
 	if encrypted.Serial != nil && state.Serial != nil && *state.Serial != *encrypted.Serial {
-		return nil, fmt.Errorf("invalid state metadata, serial field mismatch %v vs %v", *encrypted.Serial, *state.Serial)
+		return nil, status, fmt.Errorf("invalid state metadata, serial field mismatch %v vs %v", *encrypted.Serial, *state.Serial)
 	}
 
 	// TODO make encrypted.Lineage non-optional.  This is only for supporting alpha1 states!
 	if encrypted.Lineage != "" && state.Lineage != encrypted.Lineage {
-		return nil, fmt.Errorf("invalid state metadata, linage field mismatch %v vs %v", encrypted.Lineage, state.Lineage)
+		return nil, status, fmt.Errorf("invalid state metadata, linage field mismatch %v vs %v", encrypted.Lineage, state.Lineage)
 	}
 
-	return decryptedState, nil
+	return decryptedState, status, nil
 }
 
 func StateEncryptionDisabled() StateEncryption {
@@ -142,6 +142,6 @@ type stateDisabled struct{}
 func (s *stateDisabled) EncryptState(plainState []byte) ([]byte, error) {
 	return plainState, nil
 }
-func (s *stateDisabled) DecryptState(encryptedState []byte) ([]byte, error) {
-	return encryptedState, nil
+func (s *stateDisabled) DecryptState(encryptedState []byte) ([]byte, EncryptionStatus, error) {
+	return encryptedState, StatusSatisfied, nil
 }

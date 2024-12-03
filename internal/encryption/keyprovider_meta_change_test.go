@@ -82,7 +82,7 @@ func TestChangingKeyProviderAddr(t *testing.T) {
 	if string(encryptedState) == string(testData) {
 		t.Fatalf("The state has not been encrypted.")
 	}
-	decryptedState, err := sfe2.DecryptState(encryptedState)
+	decryptedState, _, err := sfe2.DecryptState(encryptedState)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

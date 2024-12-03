@@ -71,7 +71,7 @@ func TestDualCustody(t *testing.T) {
 	if string(encryptedState) == string(testData) {
 		t.Fatalf("The state has not been encrypted.")
 	}
-	decryptedState, err := sfe.DecryptState(encryptedState)
+	decryptedState, _, err := sfe.DecryptState(encryptedState)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}

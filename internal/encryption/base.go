@@ -7,6 +7,7 @@ package encryption
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -121,11 +122,21 @@ func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interfac
 	return jsond, nil
 }
 
+//nolint:revive // this name is fine
+type EncryptionStatus int
+
+const (
+	StatusUnknown   EncryptionStatus = 0
+	StatusSatisfied EncryptionStatus = 1
+	StatusMigration EncryptionStatus = 2
+)
+
 // TODO Find a way to make these errors actionable / clear
-func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, error) {
+func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) ([]byte, EncryptionStatus, error) {
 	inputData := basedata{}
 	err := json.Unmarshal(data, &inputData)
 
+	//nolint:nestif // bugger off
 	if len(inputData.Version) == 0 || err != nil {
 		// Not a valid payload, might be already decrypted
 		verr := validator(data)
@@ -134,20 +145,30 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 
 			// Return the outer json error if we have one
 			if err != nil {
-				return nil, fmt.Errorf("invalid data format for decryption: %w, %w", err, verr)
+				return nil, StatusUnknown, fmt.Errorf("invalid data format for decryption: %w, %w", err, verr)
 			}
 
 			// Must have been invalid json payload
-			return nil, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
+			return nil, StatusUnknown, fmt.Errorf("unable to determine data structure during decryption: %w", verr)
 		}
 
 		// Yep, it's already decrypted
+		unencryptedSupported := false
 		for _, method := range base.encMethods {
 			if unencrypted.Is(method) {
-				return data, nil
+				unencryptedSupported = true
+				break
 			}
 		}
-		return nil, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
+		if !unencryptedSupported {
+			return nil, StatusUnknown, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
+		}
+		if unencrypted.Is(base.encMethods[0]) {
+			// Decrypted and no pending migration
+			return data, StatusSatisfied, nil
+		}
+		// Decrypted and pending migration
+		return data, StatusMigration, nil
 	}
 	// This is not actually used, only the map inside the Meta parameter is. This is because we are passing the map
 	// around.
@@ -156,7 +177,7 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 	}
 
 	if inputData.Version != encryptionVersion {
-		return nil, fmt.Errorf("invalid encrypted payload version: %s != %s", inputData.Version, encryptionVersion)
+		return nil, StatusUnknown, fmt.Errorf("invalid encrypted payload version: %s != %s", inputData.Version, encryptionVersion)
 	}
 
 	// TODO Discuss if we should potentially cache this based on a json-encoded version of inputData.Meta and reduce overhead dramatically
@@ -164,11 +185,11 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 	if diags.HasErrors() {
 		// This cast to error here is safe as we know that at least one error exists
 		// This is also quite unlikely to happen as the constructor already has checked this code path
-		return nil, diags
+		return nil, StatusUnknown, diags
 	}
 
 	errs := make([]error, 0)
-	for _, method := range methods {
+	for i, method := range methods {
 		if unencrypted.Is(method) {
 			// Not applicable
 			continue
@@ -176,7 +197,12 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		uncd, err := method.Decrypt(inputData.Data)
 		if err == nil {
 			// Success
-			return uncd, nil
+			if i == 0 {
+				// Decrypted with first method (encryption method)
+				return uncd, StatusSatisfied, nil
+			}
+			// Used a fallback
+			return uncd, StatusMigration, nil
 		}
 		// Record the failure
 		errs = append(errs, fmt.Errorf("attempted decryption failed for %s: %w", base.name, err))
@@ -189,5 +215,5 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		errMessage += err.Error() + sep
 		sep = "\n"
 	}
-	return nil, fmt.Errorf(errMessage)
+	return nil, StatusUnknown, errors.New(errMessage)
 }
