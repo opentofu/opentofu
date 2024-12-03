@@ -2,6 +2,7 @@
 
 BUG FIXES:
 * Error messages related to validation of sensitive input variables will no longer disclose the sensitive value in the UI. ([#2219](https://github.com/opentofu/opentofu/pull/2219))
+* Changes to encryption configuration now auto-apply the migration ([#2232](https://github.com/opentofu/opentofu/pull/2232))
 
 
 ## 1.8.6
