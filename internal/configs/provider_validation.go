@@ -896,7 +896,7 @@ func providerIterationIdentical(a, b hcl.Expression) bool {
 	switch as := a.(type) {
 	case *hclsyntax.ScopeTraversalExpr:
 		if bs, bok := b.(*hclsyntax.ScopeTraversalExpr); bok {
-			return addrs.TraversalStr(as.Traversal) == addrs.TraversalStr(bs.Traversal)
+			return addrs.TraversalsEquivalent(as.Traversal, bs.Traversal)
 		}
 	case *hclsyntax.LiteralValueExpr:
 		if bs, bok := b.(*hclsyntax.LiteralValueExpr); bok {
@@ -904,7 +904,7 @@ func providerIterationIdentical(a, b hcl.Expression) bool {
 		}
 	case *hclsyntax.RelativeTraversalExpr:
 		if bs, bok := b.(*hclsyntax.RelativeTraversalExpr); bok {
-			return addrs.TraversalStr(as.Traversal) == addrs.TraversalStr(bs.Traversal) &&
+			return addrs.TraversalsEquivalent(as.Traversal, bs.Traversal) &&
 				providerIterationIdentical(as.Source, bs.Source)
 		}
 	case *hclsyntax.FunctionCallExpr:
