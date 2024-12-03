@@ -235,6 +235,13 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		})
 		return diags
 	}
+	if config.Sensitive {
+		// Normally this marking is handled automatically during construction
+		// of the HCL eval context the evaluation scope, but this codepath
+		// augments that scope with the not-yet-finalized input variable
+		// value, so we need to apply this mark separately.
+		val = val.Mark(marks.Sensitive)
+	}
 	for ix, validation := range config.Validations {
 		condFuncs, condDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
 		diags = diags.Append(condDiags)
