@@ -1180,7 +1180,7 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 					Config:             cfg,
 					VariableValuesLock: &sync.Mutex{},
 					VariableValues: map[string]map[string]cty.Value{"": {
-						test.varName: test.given,
+						test.varName: cty.UnknownVal(cty.String),
 					}},
 				}},
 			}
@@ -1341,7 +1341,7 @@ variable "bar" {
 					Config:             cfg,
 					VariableValuesLock: &sync.Mutex{},
 					VariableValues: map[string]map[string]cty.Value{"": {
-						test.varName: test.given,
+						test.varName: cty.UnknownVal(cty.String),
 					}},
 				}},
 			}
@@ -1413,7 +1413,15 @@ func TestEvalVariableValidations_sensitiveValueDiagnostics(t *testing.T) {
 	varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance)
 
 	ctx := &MockEvalContext{}
-	ctx.EvaluationScopeScope = &lang.Scope{}
+	ctx.EvaluationScopeScope = &lang.Scope{
+		Data: &evaluationStateData{Evaluator: &Evaluator{
+			Config:             cfg,
+			VariableValuesLock: &sync.Mutex{},
+			VariableValues: map[string]map[string]cty.Value{"": {
+				varAddr.Variable.Name: cty.UnknownVal(cty.String),
+			}},
+		}},
+	}
 	ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 		if got, want := addr.String(), varAddr.String(); got != want {
 			t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
