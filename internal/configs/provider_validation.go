@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -322,7 +323,9 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 	// of the configuration block declaration.
 	configured := map[string]hcl.Range{}
 
-	instanced := map[string]bool{}
+	// the set of providers with a for_each expression. Used to detect
+	// foot-guns
+	instanced := map[string]hcl.Expression{}
 
 	// the set of configuration_aliases defined in the required_providers
 	// block, with the fully qualified provider type.
@@ -342,7 +345,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			emptyConfigs[name] = pc.DeclRange
 		}
 
-		instanced[name] = len(pc.Instances) != 0
+		instanced[name] = pc.ForEach
 	}
 
 	if mod.ProviderRequirements != nil {
@@ -486,8 +489,13 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 				})
 			}
 
-			isInstanced := instanced[providerName(passed.InParent.Name, passed.InParent.Alias)]
-			diags = diags.Extend(passed.InParent.InstanceValidation("module", isInstanced))
+			instanceExpr := instanced[providerName(passed.InParent.Name, passed.InParent.Alias)]
+			diags = diags.Extend(passed.InParent.InstanceValidation("module", instanceExpr != nil))
+			// We could theoretically check here if there are resources (ignoring data blocks) within this submodule graph.
+			// The foot-gun only exists in that scenario, but the complexity of differentiating at the moment is not worth it
+			if passed.InParent.KeyExpression != nil {
+				diags = diags.Extend(providerIterationIdenticalWarning("module", fmt.Sprintf("-target=%s", cfg.Path.Child(modCall.Name)), modCall.ForEach, instanceExpr))
+			}
 		}
 	}
 	// Validate that resources using provider keys are properly configured
@@ -498,8 +506,15 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 				continue
 			}
 
-			isInstanced := instanced[providerName(r.ProviderConfigRef.Name, r.ProviderConfigRef.Alias)]
-			diags = diags.Extend(r.ProviderConfigRef.InstanceValidation("resource", isInstanced))
+			instanceExpr := instanced[providerName(r.ProviderConfigRef.Name, r.ProviderConfigRef.Alias)]
+			diags = diags.Extend(r.ProviderConfigRef.InstanceValidation("resource", instanceExpr != nil))
+			if r.ProviderConfigRef.KeyExpression != nil && r.Mode == addrs.ManagedResourceMode {
+				addr := fmt.Sprintf("%s.%s", r.Type, r.Name)
+				if !cfg.Path.IsRoot() {
+					addr = fmt.Sprintf("%s.%s", cfg.Path, addr)
+				}
+				diags = diags.Extend(providerIterationIdenticalWarning("resource", fmt.Sprintf("-target=%s", addr), r.ForEach, instanceExpr))
+			}
 		}
 	}
 	checkProviderKeys(mod.ManagedResources)
@@ -830,4 +845,142 @@ func providerName(name, alias string) string {
 		name = name + "." + alias
 	}
 	return name
+}
+
+// See rfc/20240513-static-evaluation-providers.md for explicit logic and reasoning behind these comparisons
+func providerIterationIdenticalWarning(blockType, target string, sourceExpr, instanceExpr hcl.Expression) hcl.Diagnostics {
+	if sourceExpr == nil || instanceExpr == nil {
+		return nil
+	}
+	if len(sourceExpr.Variables()) == 0 || len(instanceExpr.Variables()) == 0 {
+		return nil
+	}
+
+	if !providerIterationIdentical(sourceExpr, instanceExpr) {
+		return nil
+	}
+	// foot, meet gun
+	return hcl.Diagnostics{&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Provider configuration for_each matches " + blockType,
+		Detail: fmt.Sprintf(
+			"This provider configuration uses the same for_each expression as a %s, which means that subsequent removal of elements from this collection would cause a planning error.\n\nOpenTofu relies on a provider instance to destroy resource instances that are associated with it, and so the provider instance must outlive all of its resource instances by at least one plan/apply round. For removal of instances to succeed in future you must structure the configuration so that the provider block's for_each expression can produce a superset of the instances of the resources associated with the provider configuration. Refer to the OpenTofu documentation for specific suggestions.\n\nTo destroy this object before removing the provider configuration, consider first performing a targeted destroy:\n    tofu apply -destroy %s",
+			blockType, target,
+		),
+		Subject: sourceExpr.Range().Ptr(),
+	}}
+}
+
+// Compares two for_each statements to see if they are "identical".  This is on a best-effort basis to help prevent foot-guns.
+//
+//nolint:funlen,gocognit,gocyclo,cyclop // just a lot of branches
+func providerIterationIdentical(a, b hcl.Expression) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	// Remove parenthesis
+	if ae, ok := a.(*hclsyntax.ParenthesesExpr); ok {
+		return providerIterationIdentical(ae.Expression, b)
+	}
+	if be, ok := b.(*hclsyntax.ParenthesesExpr); ok {
+		return providerIterationIdentical(a, be.Expression)
+	}
+
+	if ae, ok := a.(*hclsyntax.ObjectConsKeyExpr); ok {
+		return providerIterationIdentical(ae.Wrapped, b)
+	}
+	if be, ok := b.(*hclsyntax.ObjectConsKeyExpr); ok {
+		return providerIterationIdentical(a, be.Wrapped)
+	}
+
+	switch as := a.(type) {
+	case *hclsyntax.ScopeTraversalExpr:
+		if bs, bok := b.(*hclsyntax.ScopeTraversalExpr); bok {
+			return addrs.TraversalsEquivalent(as.Traversal, bs.Traversal)
+		}
+	case *hclsyntax.LiteralValueExpr:
+		if bs, bok := b.(*hclsyntax.LiteralValueExpr); bok {
+			return as.Val.Equals(bs.Val).True()
+		}
+	case *hclsyntax.RelativeTraversalExpr:
+		if bs, bok := b.(*hclsyntax.RelativeTraversalExpr); bok {
+			return addrs.TraversalsEquivalent(as.Traversal, bs.Traversal) &&
+				providerIterationIdentical(as.Source, bs.Source)
+		}
+	case *hclsyntax.FunctionCallExpr:
+		if bs, bok := b.(*hclsyntax.FunctionCallExpr); bok {
+			if as.Name == bs.Name && len(as.Args) == len(bs.Args) {
+				for i := range as.Args {
+					if !providerIterationIdentical(as.Args[i], bs.Args[i]) {
+						return false
+					}
+				}
+				return true
+			}
+		}
+	case *hclsyntax.ConditionalExpr:
+		if bs, bok := b.(*hclsyntax.ConditionalExpr); bok {
+			return providerIterationIdentical(as.Condition, bs.Condition) &&
+				providerIterationIdentical(as.TrueResult, bs.TrueResult) &&
+				providerIterationIdentical(as.FalseResult, bs.FalseResult)
+		}
+	case *hclsyntax.IndexExpr:
+		if bs, bok := b.(*hclsyntax.IndexExpr); bok {
+			return providerIterationIdentical(as.Collection, bs.Collection) &&
+				providerIterationIdentical(as.Key, bs.Key)
+		}
+	case *hclsyntax.TupleConsExpr:
+		if bs, bok := b.(*hclsyntax.TupleConsExpr); bok && len(as.Exprs) == len(bs.Exprs) {
+			for i := range as.Exprs {
+				if !providerIterationIdentical(as.Exprs[i], bs.Exprs[i]) {
+					return false
+				}
+			}
+			return true
+		}
+	case *hclsyntax.ObjectConsExpr:
+		if bs, bok := b.(*hclsyntax.ObjectConsExpr); bok && len(as.Items) == len(bs.Items) {
+			for i := range as.Items {
+				if !providerIterationIdentical(as.Items[i].KeyExpr, bs.Items[i].KeyExpr) ||
+					!providerIterationIdentical(as.Items[i].ValueExpr, bs.Items[i].ValueExpr) {
+					return false
+				}
+			}
+			return true
+		}
+	case *hclsyntax.ForExpr:
+		if bs, bok := b.(*hclsyntax.ForExpr); bok {
+			return as.KeyVar == bs.KeyVar &&
+				as.ValVar == bs.ValVar &&
+				providerIterationIdentical(as.CollExpr, bs.CollExpr) &&
+				providerIterationIdentical(as.KeyExpr, bs.KeyExpr) &&
+				providerIterationIdentical(as.ValExpr, bs.ValExpr) &&
+				providerIterationIdentical(as.CondExpr, bs.CondExpr) &&
+				as.Group == bs.Group
+		}
+	case *hclsyntax.BinaryOpExpr:
+		if bs, bok := b.(*hclsyntax.BinaryOpExpr); bok {
+			return providerIterationIdentical(as.LHS, bs.LHS) &&
+				as.Op == bs.Op &&
+				providerIterationIdentical(as.RHS, bs.RHS)
+		}
+	case *hclsyntax.UnaryOpExpr:
+		if bs, bok := b.(*hclsyntax.UnaryOpExpr); bok {
+			return as.Op == bs.Op &&
+				providerIterationIdentical(as.Val, bs.Val)
+		}
+	case *hclsyntax.TemplateExpr:
+		if bs, bok := b.(*hclsyntax.TemplateExpr); bok && len(as.Parts) == len(bs.Parts) {
+			for i := range as.Parts {
+				if !providerIterationIdentical(as.Parts[i], bs.Parts[i]) {
+					return false
+				}
+			}
+			return true
+		}
+	}
+
+	// As this is best effort, all other cases are ignored
+
+	return false
 }
