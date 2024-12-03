@@ -7,6 +7,7 @@ package encryption
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -121,6 +122,7 @@ func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interfac
 	return jsond, nil
 }
 
+//nolint:revive // this name is fine
 type EncryptionStatus int
 
 const (
@@ -134,6 +136,7 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 	inputData := basedata{}
 	err := json.Unmarshal(data, &inputData)
 
+	//nolint:nestif // bugger off
 	if len(inputData.Version) == 0 || err != nil {
 		// Not a valid payload, might be already decrypted
 		verr := validator(data)
@@ -150,18 +153,22 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		}
 
 		// Yep, it's already decrypted
+		unencryptedSupported := false
 		for _, method := range base.encMethods {
 			if unencrypted.Is(method) {
-				if unencrypted.Is(base.encMethods[0]) {
-					// Decrypted and no pending migration
-					return data, StatusSatisfied, nil
-				} else {
-					// Decrypted and pending migration
-					return data, StatusMigration, nil
-				}
+				unencryptedSupported = true
+				break
 			}
 		}
-		return nil, StatusUnknown, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
+		if !unencryptedSupported {
+			return nil, StatusUnknown, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
+		}
+		if unencrypted.Is(base.encMethods[0]) {
+			// Decrypted and no pending migration
+			return data, StatusSatisfied, nil
+		}
+		// Decrypted and pending migration
+		return data, StatusMigration, nil
 	}
 	// This is not actually used, only the map inside the Meta parameter is. This is because we are passing the map
 	// around.
@@ -193,10 +200,9 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 			if i == 0 {
 				// Decrypted with first method (encryption method)
 				return uncd, StatusSatisfied, nil
-			} else {
-				// Used a fallback
-				return uncd, StatusMigration, nil
 			}
+			// Used a fallback
+			return uncd, StatusMigration, nil
 		}
 		// Record the failure
 		errs = append(errs, fmt.Errorf("attempted decryption failed for %s: %w", base.name, err))
@@ -209,5 +215,5 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		errMessage += err.Error() + sep
 		sep = "\n"
 	}
-	return nil, StatusUnknown, fmt.Errorf(errMessage)
+	return nil, StatusUnknown, errors.New(errMessage)
 }
