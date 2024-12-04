@@ -22,17 +22,19 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/libregistry/registryprotocols/ociclient"
+	"github.com/opentofu/opentofu/version"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/addrs"
+	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/didyoumean"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/terminal"
-	"github.com/opentofu/opentofu/version"
-	"go.opentelemetry.io/otel/trace"
-
-	backendInit "github.com/opentofu/opentofu/internal/backend/init"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 const (
@@ -185,17 +187,19 @@ func realMain() int {
 	}
 	services.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
-	providerSrc, diags := providerSource(config.ProviderInstallation, services)
+	var ociDistClient ociclient.OCIClient
+	ociDistClient, err = newOCIDistributionClient(config.OCIRegistries)
+	if err != nil {
+		Ui.Error("There are some problems with the oci_registries configuration:")
+		reportEarlyDiagnostics(tfdiags.Diagnostics{}.Append(err))
+		Ui.Error("As a result of the above problems, OpenTofu's OCI distribution clients may not behave as intended.\n\n")
+		// We continue to run anyway, because most operations don't interact with OCI distribution.
+	}
+
+	providerSrc, diags := providerSource(config.ProviderInstallation, services, ociDistClient)
 	if len(diags) > 0 {
 		Ui.Error("There are some problems with the provider_installation configuration:")
-		for _, diag := range diags {
-			earlyColor := &colorstring.Colorize{
-				Colors:  colorstring.DefaultColors,
-				Disable: true, // Disable color to be conservative until we know better
-				Reset:   true,
-			}
-			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
-		}
+		reportEarlyDiagnostics(diags)
 		if diags.HasErrors() {
 			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
 			// We continue to run anyway, because most commands don't do provider installation.
@@ -520,4 +524,16 @@ func mkConfigDir(configDir string) error {
 	}
 
 	return err
+}
+
+func reportEarlyDiagnostics(diags tfdiags.Diagnostics) {
+	const defaultOutputWidth = 78
+	earlyColor := &colorstring.Colorize{
+		Colors:  colorstring.DefaultColors,
+		Disable: true, // Disable color to be conservative until we know better
+		Reset:   true,
+	}
+	for _, diag := range diags {
+		Ui.Error(format.Diagnostic(diag, nil, earlyColor, defaultOutputWidth))
+	}
 }

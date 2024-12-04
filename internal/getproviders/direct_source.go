@@ -65,6 +65,13 @@ func (s *DirectSource) ForDisplay(provider tfaddr.Provider) string {
 // an error if no suitable service is available.
 func (s *DirectSource) discoverRealSource(ctx context.Context, provider tfaddr.Provider) (Source, error) {
 	if isMagicOCIMirrorHost(provider.Hostname) {
+		if s.ociDistClient == nil {
+			// If the OCI distribution client is not available then we can't support this case.
+			// (This should happen only if the CLI configuration's OCI registry configuration
+			// is so invalid that we couldn't even instantiate the client, and package main
+			// should already have complained about that earlier.)
+			return nil, fmt.Errorf("no OCI distribution client is available")
+		}
 		log.Printf("[TRACE] DirectSource: using magic OCI distribution registry mapping for %s", provider.Hostname.ForDisplay())
 		return s.magicOCIMirrorSource(ctx, provider)
 	}
@@ -135,6 +142,14 @@ func (s *DirectSource) ociMirrorSource(_ context.Context, provider tfaddr.Provid
 	//nolint:errorlint // this is intentionally following the structure from RegistrySource, for now
 	switch err := err.(type) {
 	case nil:
+		if s.ociDistClient == nil {
+			// If the OCI distribution client is not available then we can't support this case.
+			// (This should happen only if the CLI configuration's OCI registry configuration
+			// is so invalid that we couldn't even instantiate the client, and package main
+			// should already have complained about that earlier.)
+			return nil, fmt.Errorf("no OCI distribution client is available")
+		}
+
 		// As an implementation detail we use a specially-configured OCIMirrorSource that
 		// always installs from the specific OCI repository address we've just discovered.
 		return newOCIMirrorSourceForDirectInstall(s.ociDistClient, OCIRepository{

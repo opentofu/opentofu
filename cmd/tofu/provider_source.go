@@ -14,9 +14,8 @@ import (
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
 	"github.com/hashicorp/terraform-svchost/disco"
-	libregistryLogger "github.com/opentofu/libregistry/logger"
-	"github.com/opentofu/libregistry/registryprotocols/ociclient"
 
+	"github.com/opentofu/libregistry/registryprotocols/ociclient"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -27,7 +26,7 @@ import (
 // CLI configuration and some default search locations. This will be the
 // provider source used for provider installation in the "tofu init"
 // command, unless overridden by the special -plugin-dir option.
-func providerSource(configs []*cliconfig.ProviderInstallation, services *disco.Disco) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSource(configs []*cliconfig.ProviderInstallation, services *disco.Disco, ociDistClient ociclient.OCIClient) (getproviders.Source, tfdiags.Diagnostics) {
 	if len(configs) == 0 {
 		// If there's no explicit installation configuration then we'll build
 		// up an implicit one with direct registry installation along with
@@ -39,16 +38,16 @@ func providerSource(configs []*cliconfig.ProviderInstallation, services *disco.D
 	// the validation logic in the cliconfig package. Therefore we'll just
 	// ignore any additional configurations in here.
 	config := configs[0]
-	return explicitProviderSource(config, services)
+	return explicitProviderSource(config, services, ociDistClient)
 }
 
-func explicitProviderSource(config *cliconfig.ProviderInstallation, services *disco.Disco) (getproviders.Source, tfdiags.Diagnostics) {
+func explicitProviderSource(config *cliconfig.ProviderInstallation, services *disco.Disco, ociDistClient ociclient.OCIClient) (getproviders.Source, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var searchRules []getproviders.MultiSourceSelector
 
 	log.Printf("[DEBUG] Explicit provider installation configuration is set")
 	for _, methodConfig := range config.Methods {
-		source, moreDiags := providerSourceForCLIConfigLocation(methodConfig.Location, services)
+		source, moreDiags := providerSourceForCLIConfigLocation(methodConfig.Location, services, ociDistClient)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			continue
@@ -194,29 +193,18 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	return getproviders.MultiSource(searchRules)
 }
 
-func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocation, services *disco.Disco) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocation, services *disco.Disco, ociDistClient ociclient.OCIClient) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
 			getproviders.NewRegistrySource(services),
 		), nil
 	} else if loc == cliconfig.ProviderInstallationDirectWithOCIExperiment {
-		ociClient, err := newOCIDistributionClient()
-		if err != nil {
-			var diags tfdiags.Diagnostics
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Failed to create OCI distribution client",
-				"Failed to configure an OCI distribution client to install providers from a direct source with the OCI registry experiment enabled.",
-			))
-			return nil, diags
-		}
-
 		// This is an experimental new mode which uses service discovery
 		// to decide between using our main provider registry protocol
 		// or using a translation to an OCI registry address to install
 		// directly from an OCI repository.
 		return getproviders.NewMemoizeSource(
-			getproviders.NewDirectSource(services, ociClient),
+			getproviders.NewDirectSource(services, ociDistClient),
 		), nil
 	}
 
@@ -248,8 +236,9 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		return getproviders.NewHTTPMirrorSource(url, services.CredentialsSource()), nil
 
 	case cliconfig.ProviderInstallationOCIMirror:
-		ociClient, err := newOCIDistributionClient()
-		if err != nil {
+		if ociDistClient == nil {
+			// We can't configure an oci_mirror source if the oci_registries config
+			// (or inferred equivalent) isn't sufficient to instantiate a client.
 			var diags tfdiags.Diagnostics
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -259,7 +248,7 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 			return nil, diags
 		}
 
-		return getproviders.NewOCIMirrorSource(ociClient, loc.RepositoryAddrFunc), nil
+		return getproviders.NewOCIMirrorSource(ociDistClient, loc.RepositoryAddrFunc), nil
 
 	default:
 		// We should not get here because the set of cases above should
@@ -267,11 +256,6 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		// cliconfig.ProviderInstallationLocation implementations.
 		panic(fmt.Sprintf("unexpected provider source location type %T", loc))
 	}
-}
-
-func newOCIDistributionClient() (ociclient.OCIClient, error) {
-	ociLogger := libregistryLogger.NewGoLogLogger(log.Default())
-	return ociclient.New(ociclient.WithLogger(ociLogger))
 }
 
 func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.Provider]getproviders.PackageLocalDir {

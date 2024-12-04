@@ -65,6 +65,11 @@ type Config struct {
 	// configuration, but we decode into a slice here so that we can handle
 	// that validation at validation time rather than initial decode time.
 	ProviderInstallation []*ProviderInstallation
+
+	// OCIRegistries represents global configuration for interacting with
+	// OCI registries, across all OpenTofu features that act as clients
+	// for the OCI Distribution specification.
+	OCIRegistries *OCIRegistries
 }
 
 // ConfigHost is the structure of the "host" nested block within the CLI
@@ -136,6 +141,18 @@ func LoadConfig(experimentsAllowed bool) (*Config, tfdiags.Diagnostics) {
 				config = config.Merge(dirConfig)
 			}
 		}
+
+		// If we're not being forced to read only a single config file then
+		// we can also potentially use the Docker CLI config as a fallback
+		// for the "oci_registries" configuration block, as long as none
+		// of the files we loaded already explicitly specified it.
+		// (We don't do this if there's at least one oci_registries block
+		// because in that case we assume the user was intending to configure
+		// OpenTofu's interactions with OCI registries separately from any
+		// Docker CLI also installed on the system.)
+		if config.OCIRegistries == nil {
+			config.OCIRegistries = impliedOCIRegistrySettingsFromDockerConfig()
+		}
 	} else {
 		log.Printf("[DEBUG] Not reading CLI config directory because config location is overridden by environment variable")
 	}
@@ -183,6 +200,13 @@ func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	providerInstBlocks, moreDiags := decodeProviderInstallationFromConfig(obj)
 	diags = diags.Append(moreDiags)
 	result.ProviderInstallation = providerInstBlocks
+
+	// decodeOCIRegistrySettingsFromConfig returns nil if there aren't any
+	// oci_registry blocks, and callers rely on that to fall back to trying
+	// to use the Docker CLI configuration in some cases.
+	ociRegistryConfig, moreDiags := decodeOCIRegistrySettingsFromConfig(obj)
+	diags = diags.Append(moreDiags)
+	result.OCIRegistries = ociRegistryConfig
 
 	// Replace all env vars
 	for k, v := range result.Providers {
@@ -452,6 +476,8 @@ func (c *Config) Merge(c2 *Config) *Config {
 		result.ProviderInstallation = append(result.ProviderInstallation, c.ProviderInstallation...)
 		result.ProviderInstallation = append(result.ProviderInstallation, c2.ProviderInstallation...)
 	}
+
+	result.OCIRegistries = c.OCIRegistries.merge(c2.OCIRegistries)
 
 	return &result
 }
