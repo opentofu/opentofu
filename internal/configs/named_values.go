@@ -346,13 +346,6 @@ func decodeVariableValidationBlock(varName string, block *hcl.Block, override bo
 					}
 				}
 			}
-			// If we fall out here then the reference is invalid.
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid reference in variable validation",
-				Detail:   fmt.Sprintf("The condition for variable %q can only refer to the variable itself, using var.%s.", varName, varName),
-				Subject:  traversal.SourceRange().Ptr(),
-			})
 		}
 		if goodRefs < 1 {
 			diags = diags.Append(&hcl.Diagnostic{
@@ -379,13 +372,6 @@ func decodeVariableValidationBlock(varName string, block *hcl.Block, override bo
 					}
 				}
 			}
-			// If we fall out here then the reference is invalid.
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid reference in variable validation",
-				Detail:   fmt.Sprintf("The error message for variable %q can only refer to the variable itself, using var.%s.", varName, varName),
-				Subject:  traversal.SourceRange().Ptr(),
-			})
 		}
 	}
 

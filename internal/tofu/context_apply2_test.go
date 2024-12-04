@@ -4450,3 +4450,249 @@ resource "test_instance" "a" {
 		destroy(t, partial, state)
 	})
 }
+
+// Test variable references to other variables
+func TestContext2Apply_variableValidateReferences(t *testing.T) {
+	valid := testModuleInline(t, map[string]string{
+		"main.tofu": `
+locals {
+  value = 10
+  err = "error"
+}
+variable "root_var" {
+  type = number
+  validation {
+    condition = var.root_var == local.value
+    error_message = "${local.err} root"
+  }
+}
+module "mod" {
+  source = "./mod"
+  mod_var = local.value
+}
+`,
+		"mod/mod.tofu": `
+locals {
+  expected = 10
+  err = "error"
+}
+variable "mod_var" {
+  type = number
+  validation {
+    condition = var.mod_var == local.expected
+    error_message = "${local.err} mod"
+  }
+}
+`,
+	})
+	circular := testModuleInline(t, map[string]string{
+		"main.tofu": `
+variable "root_var" {
+  type = number
+  validation {
+    condition = var.root_var == var.other_var
+    error_message = "root"
+  }
+}
+variable "other_var" {
+  type = number
+  default = 10
+  validation {
+    condition = var.root_var == var.other_var
+    error_message = "root"
+  }
+}
+module "mod" {
+  source = "./mod"
+  mod_var = 10
+}
+`,
+		"mod/mod.tofu": `
+variable "mod_var" {
+  type = number
+  validation {
+    condition = var.mod_var == var.other_var
+    error_message = "mod"
+  }
+}
+variable "other_var" {
+  type = number
+  default = 10
+  validation {
+    condition = var.mod_var == var.other_var
+    error_message = "mod"
+  }
+}
+`,
+	})
+
+	t.Run("valid", func(t *testing.T) {
+		input := InputValuesFromCaller(map[string]cty.Value{"root_var": cty.NumberIntVal(10)})
+
+		ctx := testContext2(t, &ContextOpts{})
+
+		plan, diags := ctx.Plan(context.Background(), valid, nil, &PlanOpts{
+			SetVariables: input,
+		})
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		state, diags := ctx.Apply(context.Background(), plan, valid)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		plan, diags = ctx.Plan(context.Background(), valid, state, &PlanOpts{
+			Mode:         plans.DestroyMode,
+			SetVariables: input,
+		})
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		_, diags = ctx.Apply(context.Background(), plan, valid)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+	})
+
+	t.Run("circular", func(t *testing.T) {
+		input := InputValuesFromCaller(map[string]cty.Value{
+			"root_var":  cty.NumberIntVal(10),
+			"other_var": cty.NumberIntVal(10),
+		})
+
+		ctx := testContext2(t, &ContextOpts{})
+
+		_, diags := ctx.Plan(context.Background(), circular, nil, &PlanOpts{
+			SetVariables: input,
+		})
+		if !diags.HasErrors() || len(diags) != 2 {
+			t.Fatal("expected cycle failure")
+		}
+		for _, diag := range diags {
+			if !strings.HasPrefix(diag.Description().Summary, "Cycle: ") {
+				t.Fatalf("Expected cycle error, got %#v", diag.Description())
+			}
+		}
+	})
+}
+
+// Test unknown variable (timefn?)
+// Test variable references to resource that's not/is available
+func TestContext2Apply_variableValidateDataSource(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tofu": `
+variable "expected" {}
+resource "test_instance" "a" { }
+module "mod" {
+  source = "./mod"
+  res_data = test_instance.a.id
+  expected = var.expected
+}
+`,
+		"mod/mod.tofu": `
+variable "expected" {}
+variable "res_data" {
+  type = string
+  validation {
+    condition = var.res_data == var.expected
+    error_message = "does not match"
+  }
+}
+`,
+	})
+
+	provider := testProvider("test")
+	provider.PlanResourceChangeFn = testDiffFn
+	provider.ApplyResourceChangeFn = testApplyFn
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+	}
+
+	var input InputValues
+
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode:         plans.NormalMode,
+			SetVariables: input,
+		})
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		return ctx.Apply(context.Background(), plan, m)
+	}
+
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode:         plans.DestroyMode,
+			SetVariables: input,
+		})
+		if diags.HasErrors() {
+			return diags
+		}
+
+		_, diags = ctx.Apply(context.Background(), plan, m)
+		return diags
+	}
+
+	resAddr := mustResourceInstanceAddr(`test_instance.a`)
+
+	// Invalid validation condition
+	input = InputValuesFromCaller(map[string]cty.Value{
+		"expected": cty.StringVal("bar"),
+	})
+	_, diags := apply(t, m, states.NewState())
+	if !diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	if got, want := diags[0].Description().Summary, "Invalid value for variable"; got != want {
+		t.Fatalf("Expected: %q, got %q", want, got)
+	}
+
+	// Valid validation condition
+	input = InputValuesFromCaller(map[string]cty.Value{
+		"expected": cty.StringVal("foo"),
+	})
+	state, diags := apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	if !strings.Contains(string(state.ResourceInstance(resAddr).Current.AttrsJSON), `"id":"foo"`) {
+		t.Fatalf("Wrong resource data: %s", string(state.ResourceInstance(resAddr).Current.AttrsJSON))
+	}
+
+	// Make sure subsequent applies are happy
+	state, diags = apply(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Succesful Destroy
+	diags = destroy(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Invalid Destroy
+	input = InputValuesFromCaller(map[string]cty.Value{
+		"expected": cty.StringVal("bar"),
+	})
+	diags = destroy(t, m, state)
+	if !diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+	if got, want := diags[0].Description().Summary, "Invalid value for variable"; got != want {
+		t.Fatalf("Expected: %q, got %q", want, got)
+	}
+}

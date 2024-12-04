@@ -8,6 +8,7 @@ package tofu
 import (
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
@@ -1174,7 +1175,15 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 
 			// We need a minimal scope to allow basic functions to be passed to
 			// the HCL scope
-			ctx.EvaluationScopeScope = &lang.Scope{}
+			ctx.EvaluationScopeScope = &lang.Scope{
+				Data: &evaluationStateData{Evaluator: &Evaluator{
+					Config:             cfg,
+					VariableValuesLock: &sync.Mutex{},
+					VariableValues: map[string]map[string]cty.Value{"": {
+						test.varName: cty.UnknownVal(cty.String),
+					}},
+				}},
+			}
 			ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 				if got, want := addr.String(), varAddr.String(); got != want {
 					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
@@ -1327,7 +1336,15 @@ variable "bar" {
 
 			// We need a minimal scope to allow basic functions to be passed to
 			// the HCL scope
-			ctx.EvaluationScopeScope = &lang.Scope{}
+			ctx.EvaluationScopeScope = &lang.Scope{
+				Data: &evaluationStateData{Evaluator: &Evaluator{
+					Config:             cfg,
+					VariableValuesLock: &sync.Mutex{},
+					VariableValues: map[string]map[string]cty.Value{"": {
+						test.varName: cty.UnknownVal(cty.String),
+					}},
+				}},
+			}
 			ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 				if got, want := addr.String(), varAddr.String(); got != want {
 					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
@@ -1396,7 +1413,15 @@ func TestEvalVariableValidations_sensitiveValueDiagnostics(t *testing.T) {
 	varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance)
 
 	ctx := &MockEvalContext{}
-	ctx.EvaluationScopeScope = &lang.Scope{}
+	ctx.EvaluationScopeScope = &lang.Scope{
+		Data: &evaluationStateData{Evaluator: &Evaluator{
+			Config:             cfg,
+			VariableValuesLock: &sync.Mutex{},
+			VariableValues: map[string]map[string]cty.Value{"": {
+				varAddr.Variable.Name: cty.UnknownVal(cty.String),
+			}},
+		}},
+	}
 	ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 		if got, want := addr.String(), varAddr.String(); got != want {
 			t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)

@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -243,23 +244,33 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 		val = val.Mark(marks.Sensitive)
 	}
 	for ix, validation := range config.Validations {
-		condFuncs, condDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
+		condRefs, condDiags := lang.ReferencesInExpr(addrs.ParseRef, validation.Condition)
 		diags = diags.Append(condDiags)
-		errFuncs, errDiags := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
+		errRefs, errDiags := lang.ReferencesInExpr(addrs.ParseRef, validation.ErrorMessage)
 		diags = diags.Append(errDiags)
 
 		if diags.HasErrors() {
 			continue
 		}
 
-		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condFuncs, errFuncs...))
+		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condRefs, errRefs...))
 		diags = diags.Append(ctxDiags)
 		if diags.HasErrors() {
 			continue
 		}
-		hclCtx.Variables["var"] = cty.ObjectVal(map[string]cty.Value{
-			config.Name: val,
-		})
+
+		// Inject known value into hclCtx as it's not technically available until the check status has been reported
+		if vars, ok := hclCtx.Variables["var"]; ok {
+			// Clone map
+			varMap := vars.AsValueMap() // explicit copy
+			varMap[config.Name] = val
+			hclCtx.Variables["var"] = cty.ObjectVal(varMap)
+		} else {
+			// new map
+			hclCtx.Variables["var"] = cty.ObjectVal(map[string]cty.Value{
+				config.Name: val,
+			})
+		}
 
 		result, ruleDiags := evalVariableValidation(validation, hclCtx, addr, config, expr, ix)
 		diags = diags.Append(ruleDiags)
@@ -379,6 +390,22 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 	}
 
 	var errorMessage string
+	if !errorDiags.HasErrors() && !errorValue.IsKnown() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid error message",
+			Detail:      "Value used in error message is not known and can not be used in error_message until after apply.",
+			Subject:     validation.ErrorMessage.Range().Ptr(),
+			Expression:  validation.ErrorMessage,
+			EvalContext: hclCtx,
+			Extra:       evalchecks.DiagnosticCausedByUnknown(true),
+		})
+		// Return early
+		return checkResult{
+			Status:         status,
+			FailureMessage: errorMessage,
+		}, diags
+	}
 	if !errorDiags.HasErrors() && errorValue.IsKnown() && !errorValue.IsNull() {
 		var err error
 		errorValue, err = convert.Convert(errorValue, cty.String)
@@ -404,6 +431,7 @@ You can correct this by removing references to sensitive values, or by carefully
 					Subject:     validation.ErrorMessage.Range().Ptr(),
 					Expression:  validation.ErrorMessage,
 					EvalContext: hclCtx,
+					Extra:       evalchecks.DiagnosticCausedBySensitive(true),
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
 			} else {

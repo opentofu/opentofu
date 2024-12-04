@@ -33,10 +33,16 @@ var (
 	_ GraphNodeReferenceable     = (*nodeVariableReference)(nil)
 	_ GraphNodeReferencer        = (*nodeVariableReference)(nil)
 	_ graphNodeExpandsInstances  = (*nodeVariableReference)(nil)
+	_ graphNodeTemporaryValue    = (*nodeVariableReference)(nil)
 )
 
 // graphNodeExpandsInstances
 func (n *nodeVariableReference) expandsInstances() {}
+
+// Abuse graphNodeTemporaryValue to keep the validation rule around
+func (n *nodeVariableReference) temporaryValue() bool {
+	return len(n.Config.Validations) == 0
+}
 
 // GraphNodeDynamicExpandable
 func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
@@ -92,9 +98,9 @@ func (n *nodeVariableReference) References() []*addrs.Reference {
 	var refs []*addrs.Reference
 	if n.Config != nil {
 		for _, validation := range n.Config.Validations {
-			condFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.Condition)
+			condFuncs, _ := lang.ReferencesInExpr(addrs.ParseRef, validation.Condition)
 			refs = append(refs, condFuncs...)
-			errFuncs, _ := lang.ProviderFunctionsInExpr(addrs.ParseRef, validation.ErrorMessage)
+			errFuncs, _ := lang.ReferencesInExpr(addrs.ParseRef, validation.ErrorMessage)
 			refs = append(refs, errFuncs...)
 		}
 	}
@@ -137,9 +143,22 @@ func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable
-func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, _ walkOperation) tfdiags.Diagnostics {
+func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
-	return evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
+	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
+
+	if op == walkValidate {
+		var filtered tfdiags.Diagnostics
+		// Validate may contain unknown values, we can ignore that until plan/apply
+		for _, diag := range diags {
+			if !tfdiags.DiagnosticCausedByUnknown(diag) {
+				filtered = append(filtered, diag)
+			}
+		}
+		return filtered
+	}
+
+	return diags
 }
 
 // dag.GraphNodeDotter impl.
