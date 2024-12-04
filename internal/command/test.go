@@ -1148,6 +1148,13 @@ func parseAndApplyDefaultValues(unparsedVariables map[string]backend.UnparsedVar
 	for name, variable := range unparsedVariables {
 		value, valueDiags := variable.ParseVariableValue(configs.VariableParseLiteral)
 		diags = diags.Append(valueDiags)
+
+		// Even so the variable is declared, some of the fields could
+		// be empty and filled in via type default values.
+		if confVariable, ok := configVariables[name]; ok && confVariable.TypeDefaults != nil {
+			value.Value = confVariable.TypeDefaults.Apply(value.Value)
+		}
+
 		inputs[name] = value
 	}
 
