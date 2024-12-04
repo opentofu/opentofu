@@ -4629,7 +4629,7 @@ variable "res_data" {
 		return ctx.Apply(context.Background(), plan, m)
 	}
 
-	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
 		ctx := testContext2(t, &ContextOpts{
 			Providers: ps,
 		})
@@ -4639,10 +4639,11 @@ variable "res_data" {
 			SetVariables: input,
 		})
 		if diags.HasErrors() {
-			return nil, diags
+			return diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m)
+		return diags
 	}
 
 	resAddr := mustResourceInstanceAddr(`test_instance.a`)
@@ -4678,7 +4679,7 @@ variable "res_data" {
 	}
 
 	// Succesful Destroy
-	_, diags = destroy(t, m, state)
+	diags = destroy(t, m, state)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -4687,7 +4688,7 @@ variable "res_data" {
 	input = InputValuesFromCaller(map[string]cty.Value{
 		"expected": cty.StringVal("bar"),
 	})
-	_, diags = destroy(t, m, state)
+	diags = destroy(t, m, state)
 	if !diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
