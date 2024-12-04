@@ -5,6 +5,7 @@ BUG FIXES:
 * Changes to encryption configuration now auto-apply the migration ([#2232](https://github.com/opentofu/opentofu/pull/2232))
 * Updated github.com/golang-jwt/jwt/v4 from 4.4.2 to 4.5.1 to make security scanners happy (no vulnerability, see [#2179](https://github.com/opentofu/opentofu/pull/2179))
 * `tofu test` is now setting `null`s for dynamic type when generating mock values. ([#2245](https://github.com/opentofu/opentofu/pull/2245))
+* Variables declared in test files are now taking into account type default values. ([#2244](https://github.com/opentofu/opentofu/pull/2244))
 
 ## 1.8.6
 
