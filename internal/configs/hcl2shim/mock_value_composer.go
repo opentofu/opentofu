@@ -129,18 +129,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 			continue
 		}
 
-		// If there's no value in defaults, we generate our own.
-		v, ok := mvc.getMockValueByType(impliedTypes[k])
-		if !ok {
-			diags = diags.Append(tfdiags.WholeContainingBody(
-				tfdiags.Error,
-				"Failed to generate mock value",
-				fmt.Sprintf("Mock value cannot be generated for dynamic type. Please specify the `%v` field explicitly in the configuration.", k),
-			))
-			continue
-		}
-
-		mockAttrs[k] = v
+		mockAttrs[k] = mvc.getMockValueByType(impliedTypes[k])
 	}
 
 	return mockAttrs, diags
@@ -289,15 +278,9 @@ func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 	}
 }
 
-// getMockValueByType tries to generate mock cty.Value based on provided cty.Type.
-// It will return non-ok response if it encounters dynamic type.
-func (mvc MockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
+// getMockValueByType generates mock cty.Value based on provided cty.Type.
+func (mvc MockValueComposer) getMockValueByType(t cty.Type) cty.Value {
 	var v cty.Value
-
-	// just to be sure for cases when the logic below misses something
-	if t.HasDynamicTypes() {
-		return cty.Value{}, false
-	}
 
 	switch {
 	// primitives
@@ -329,24 +312,19 @@ func (mvc MockValueComposer) getMockValueByType(t cty.Type) (cty.Value, bool) {
 				continue
 			}
 
-			objV, ok := mvc.getMockValueByType(at)
-			if !ok {
-				return cty.Value{}, false
-			}
-
-			objVals[k] = objV
+			objVals[k] = mvc.getMockValueByType(at)
 		}
 
 		v = cty.ObjectVal(objVals)
 	case t.IsTupleType():
 		v = cty.EmptyTupleVal
 
-	// dynamically typed values are not supported
+	// dynamically typed values
 	default:
-		return cty.Value{}, false
+		v = cty.NullVal(cty.DynamicPseudoType)
 	}
 
-	return v, true
+	return v
 }
 
 func (mvc MockValueComposer) getMockString() string {

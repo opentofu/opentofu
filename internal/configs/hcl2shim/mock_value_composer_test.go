@@ -528,6 +528,19 @@ func TestComposeMockValueBySchema(t *testing.T) {
 			},
 			wantError: true,
 		},
+		"dynamically-typed-values": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"dynamic-field": {
+						Type:     cty.DynamicPseudoType,
+						Optional: true,
+					},
+				},
+			},
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"dynamic-field": cty.NullVal(cty.DynamicPseudoType),
+			}),
+		},
 	}
 
 	for name, test := range tests {
