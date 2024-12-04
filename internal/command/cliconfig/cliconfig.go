@@ -151,7 +151,7 @@ func LoadConfig(experimentsAllowed bool) (*Config, tfdiags.Diagnostics) {
 		// OpenTofu's interactions with OCI registries separately from any
 		// Docker CLI also installed on the system.)
 		if config.OCIRegistries == nil {
-			config.OCIRegistries = impliedOCIRegistrySettingsFromDockerConfig()
+			config.OCIRegistries = impliedOCIRegistrySettingsFromDockerLikeConfig()
 		}
 	} else {
 		log.Printf("[DEBUG] Not reading CLI config directory because config location is overridden by environment variable")
