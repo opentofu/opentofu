@@ -64,6 +64,7 @@ BUG FIXES:
 * The `tofu test` command doesn't try to validate mock provider definition by its underlying provider schema now. ([#2140](https://github.com/opentofu/opentofu/pull/2140))
 * Type validation for mocks and overrides are now less strict in `tofu test`. ([#2144](https://github.com/opentofu/opentofu/pull/2144))
 * Skip imports blocks logic on `tofu destroy` ([#2214](https://github.com/opentofu/opentofu/pull/2214))
+* Updated github.com/golang-jwt/jwt/v4 from 4.4.2 to 4.5.1 to make security scanners happy (no vulnerability, see [#2179](https://github.com/opentofu/opentofu/pull/2179))
 
 INTERNAL CHANGES:
 
