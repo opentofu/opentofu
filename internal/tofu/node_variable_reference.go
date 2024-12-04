@@ -41,13 +41,7 @@ func (n *nodeVariableReference) expandsInstances() {}
 
 // Abuse graphNodeTemporaryValue to keep the validation rule around
 func (n *nodeVariableReference) temporaryValue() bool {
-	for _, ref := range n.References() {
-		if v, ok := ref.Subject.(addrs.InputVariable); !ok || v.Name != n.Addr.Name {
-			// It's actually checking something other than "self"
-			return false
-		}
-	}
-	return true
+	return len(n.Config.Validations) == 0
 }
 
 // GraphNodeDynamicExpandable
