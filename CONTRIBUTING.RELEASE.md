@@ -3,9 +3,19 @@
 > [!WARNING]
 > This manual is intended for OpenTofu core and fork maintainers. If you are looking for the normal contribution guide, see [this file](CONTRIBUTING.md).
 
-This manual describes how to create an OpenTofu release. OpenTofu has two kinds of releases. Alpha releases are created
-from the `main` branch, while we split off a version (e.g. `v1.8`) branch before creating a `beta`, `rc` or `stable`
+This manual describes how to create an OpenTofu release. OpenTofu has two kinds of releases. Alpha and Beta releases are created
+from the `main` branch, while we split off a version (e.g. `v1.8`) branch before creating an `rc` or `stable`
 release.
+
+--- 
+
+## Naming in this document
+
+- **Alpha** is an early preview release. This is versioned `X.Y.0-alphaW`, where `X`,`Y` and `W` are numbers, such as `1.2.0-alpha1`.
+- **Beta** is a semi-stable preview release. This is versioned `X.Y.0-betaW`, where `X`,`Y` and `W` are numbers, such as `1.2.0-beta1`.
+- **RC** is a release candidate which does not have new features over a beta. This is versioned `X.Y.0-rcW`, where `X`,`Y` and `W` are numbers, such as `1.2.0-rc1`.
+- **Stable** is a release that has no new features and bug fixes over an RC. This is versioned `X.Y.0`, where `X` and `Y` are numbers, such as `1.2.0`.
+- **Point release** is a release that contains bugfixes only on top of a stable release. This is versioned `X.Y.Z` where `X`, `Y` and `Z` are numbers, such as `1.2.3`.
 
 ---
 
@@ -101,12 +111,12 @@ Ideally, make sure these changes go in as the last PR before the release.
 Now that you have the files up to date, do the following:
 
 1. On your computer, make sure you have checked out the correct branch:
-   * `main` for `alpha` releases
+   * `main` for `alpha` and `beta` releases
    * `vX.Y` for any other releases (assuming you are releasing version `X.Y.Z`)
 2. Make sure the branch is up-to-date by running `git pull`
-3. Create the correct tag: `git tag -m "X.Y.Z" vX.Y.Z` (assuming you are releasing version `X.Y.Z`) 
+3. Create the correct tag: `git tag -m "X.Y.Z" vX.Y.Z` (assuming you are releasing version `X.Y.Z`)
    * If you have a GPG key, consider adding the `-s` option to create a GPG-signed tag
-4. Push the tag: `git push vX.Y.Z`
+4. Push the tag: `git push origin vX.Y.Z`
 
 ---
 
@@ -227,7 +237,7 @@ git submodule update
 ```
 
 > [!WARNING]
-> If you are using Windows, make sure your system supports symlinks by enabling developer mode and enabling symlinks in git. 
+> If you are using Windows, make sure your system supports symlinks by enabling developer mode and enabling symlinks in git.
 
 <details>
 <summary>
