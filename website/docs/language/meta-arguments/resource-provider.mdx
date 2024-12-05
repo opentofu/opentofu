@@ -4,26 +4,29 @@ description: >-
   should use for a resource, overriding OpenTofu's default behavior.
 ---
 
+import CodeBlock from '@theme/CodeBlock';
+import ExampleDynamicInstances from '!!raw-loader!./examples/resource-provider-dynamic-instances.tf'
+
 # The Resource `provider` Meta-Argument
 
-The `provider` meta-argument specifies which provider configuration to use for a resource,
-overriding OpenTofu's default behavior of selecting one based on the resource
-type name. Its value should be an unquoted `<PROVIDER>.<ALIAS>` reference.
+The `provider` meta-argument specifies which provider instance is responsible for managing
+each instance of a resource, overriding OpenTofu's default behavior of
+[automatically selecting a default provider configuration](../../language/providers/configuration.mdx#default-provider-configurations).
 
-As described in [Provider Configuration](../../language/providers/configuration.mdx), you can optionally
-create multiple configurations for a single provider (usually to manage
-resources in different regions of multi-region services). Each provider can have
-one default configuration, and any number of alternate configurations that
-include an extra name segment (or "alias").
+As described in [Provider Configuration](../../language/providers/configuration.mdx), you
+can optionally declare multiple configurations for a single provider, or multiple dynamic
+instances of a single provider configuration, such as when managing resources across
+different regions when using a provider which forces only a single region per provider
+instance.
 
-By default, OpenTofu interprets the initial word in the resource type name
-(separated by underscores) as the local name of a provider, and uses that
-provider's default configuration. For example, the resource type
-`google_compute_instance` is associated automatically with the default
-configuration for the provider named `google`.
+By default, OpenTofu interprets the initial word in the resource type name (separated by
+underscores) as the local name of a provider, and uses that provider's default
+configuration. For example, the resource type `google_compute_instance` is associated
+automatically with the default configuration for the provider whose local name
+in the current module is `google`.
 
-By using the `provider` meta-argument, you can select an alternate provider
-configuration for a resource:
+Using the `provider` meta-argument you can select an alternate provider configuration
+for a resource:
 
 ```hcl
 # default configuration
@@ -47,12 +50,31 @@ resource "google_compute_instance" "example" {
 }
 ```
 
-A resource always has an implicit dependency on its associated provider, to
-ensure that the provider is fully configured before any resource actions
-are taken.
+If you select a provider configuration that uses `for_each` then you
+must also dynamically select a different instance of the provider configuration for
+each instance of the resource by including an instance key expression in brackets:
 
-The `provider` meta-argument expects
-[a `<PROVIDER>.<ALIAS>` reference](../../language/providers/configuration.mdx#referring-to-alternate-provider-configurations),
-which does not need to be quoted. Arbitrary expressions are not permitted for
-`provider` because it must be resolved while OpenTofu is constructing the
-dependency graph, before it is safe to evaluate expressions.
+<CodeBlock language="hcl">{ExampleDynamicInstances}</CodeBlock>
+
+{/* NOTE: The above example is shared with ../providers/configuration.mdx
+    and its text refers to specific declarations in the example. */}
+
+You can find more detail on the syntax used with the `provider` argument in
+[Referring to Provider Instances](../../language/providers/configuration.mdx#referring-to-provider-instances).
+
+:::warning
+**The `for_each` expression for a resource must not exactly match the
+`for_each` expression for its associated provider configuration.**
+
+OpenTofu uses a provider instance to plan and apply _all_ actions related
+to a resource instance, including destroying a resource instance that
+has been removed from the configuration.
+
+Therefore the provider instance associated with any resource instance must
+always remain in the configuration for at least one more plan/apply round
+after the resource instance has been removed, or OpenTofu will fail to
+plan to destroy the resource instance.
+
+You can find more information on this constraint in
+[Referring to Provider Instances](../../language/providers/configuration.mdx#referring-to-provider-instances).
+:::
