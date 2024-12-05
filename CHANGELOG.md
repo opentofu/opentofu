@@ -1,4 +1,8 @@
-## 1.7.7 (unreleased)
+## 1.7.8 (unreleased)
+
+
+
+## 1.7.7
 
 BUG FIXES:
 * Changes to encryption configuration now auto-apply the migration ([#2232](https://github.com/opentofu/opentofu/pull/2232))
