@@ -31,7 +31,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: Login to Github Container Registry
         uses: docker/login-action@v2
         if: startsWith(inputs.tag, 'v')
         with:
@@ -69,18 +69,6 @@ jobs:
             echo "ERROR: Creating stable release from a tag on main is not allowed."
             exit 1
           fi
-
-      - name: Check eligibility for archive push
-        id: archive
-        run: |
-          PUSH_ARCHIVE=$(
-            [[ 
-              "${{ inputs.prerelease }}" == "true" && 
-              ("${{ steps.validate_tag.outputs.IS_TAG_ON_MAIN }}" == "true" || 
-              "${{ steps.validate_tag.outputs.IS_TAG_ON_VERSION }}" == "true") 
-            ]] && echo false || echo true
-          )
-          echo "PUSH_ARCHIVE=${PUSH_ARCHIVE}" >> $GITHUB_OUTPUT
 
       - name: Determine Go version
         id: go
@@ -151,7 +139,7 @@ jobs:
           path: dist
 
       - name: Upload Debian packages to PackageCloud
-        if: startsWith(inputs.tag, 'v') && steps.archive.outputs.PUSH_ARCHIVE
+        if: startsWith(inputs.tag, 'v') && "${{ inputs.prerelease }}" != "true"
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.deb
@@ -160,7 +148,7 @@ jobs:
                 PACKAGECLOUD-DISTRO: any/any
                 PACKAGECLOUD-TOKEN: ${{ secrets.PACKAGECLOUD_TOKEN }}
       - name: Upload RPM packages to PackageCloud
-        if: startsWith(inputs.tag, 'v') && steps.archive.outputs.PUSH_ARCHIVE
+        if: startsWith(inputs.tag, 'v') && "${{ inputs.prerelease }}" != "true"
         uses: computology/packagecloud-github-action@v0.6
         with:
                 PACKAGE-NAME: dist/*.rpm
