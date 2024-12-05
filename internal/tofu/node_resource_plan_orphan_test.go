@@ -92,7 +92,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 		state := states.NewState()
 		absResource := mustResourceInstanceAddr(test.nodeAddress)
 
-		if !absResource.Module.Module().Equal(addrs.RootModule) {
+		if !absResource.Module.IsRoot() {
 			state.EnsureModule(addrs.RootModuleInstance.Child(absResource.Module[0].Name, absResource.Module[0].InstanceKey))
 		}
 

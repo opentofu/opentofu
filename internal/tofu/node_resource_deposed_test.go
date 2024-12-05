@@ -249,7 +249,7 @@ func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*M
 	state := states.NewState()
 	absResource := mustResourceInstanceAddr(resourceAddrs)
 
-	if !absResource.Module.Module().Equal(addrs.RootModule) {
+	if !absResource.Module.IsRoot() {
 		state.EnsureModule(addrs.RootModuleInstance.Child(absResource.Module[0].Name, absResource.Module[0].InstanceKey))
 	}
 
