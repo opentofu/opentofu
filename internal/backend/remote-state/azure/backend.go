@@ -98,6 +98,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				Description: "The timeout in seconds for retrieving a Blob or a Metadata from Azure.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_TIMEOUT_SECONDS", defaultTimeout),
+				ValidateFunc: func(v interface{}, _ string) ([]string, []error) {
+					value, ok := v.(int)
+					if !ok || value < 0 {
+						return nil, []error{fmt.Errorf("timeout_seconds expected to be a non-negative integer")}
+					}
+					return nil, nil
+				},
 			},
 
 			"subscription_id": {
