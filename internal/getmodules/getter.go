@@ -54,7 +54,9 @@ var goGetterDetectors = []getter.Detector{
 
 	new(getter.GCSDetector),
 	new(getter.S3Detector),
+	new(OciDetector),
 	new(fileDetector),
+	new(OciDetector),
 }
 
 var goGetterNoDetectors = []getter.Detector{}
@@ -83,6 +85,7 @@ var goGetterGetters = map[string]getter.Getter{
 	"s3":    new(getter.S3Getter),
 	"http":  getterHTTPGetter,
 	"https": getterHTTPGetter,
+	"oci":   new(OciGetter),
 }
 
 var getterHTTPClient = cleanhttp.DefaultClient()
