@@ -244,6 +244,7 @@ type BackendConfig struct {
 	UseAzureADAuthentication      bool
 }
 
+//nolint:errcheck //at this stage type conversion is safe
 func (b *Backend) configure(ctx context.Context) error {
 	if b.containerName != "" {
 		return nil

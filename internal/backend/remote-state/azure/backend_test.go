@@ -92,7 +92,10 @@ func TestBackendConfig_Timeout(t *testing.T) {
 			if !tc.expectError && len(errors) > 0 {
 				t.Fatalf("Expected no errors, got: %v", errors)
 			}
-			be := b.(*Backend)
+			be, ok := b.(*Backend)
+			if !ok || be == nil {
+				t.Fatalf("Expected initialized Backend, got %T", b)
+			}
 			if be.armClient.timeoutSeconds != tc.timeoutSeconds {
 				t.Fatalf("Expected timeoutSeconds to be %d, got %d", tc.timeoutSeconds, be.armClient.timeoutSeconds)
 			}
