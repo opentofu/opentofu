@@ -6,6 +6,7 @@ package evalchecks
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -16,8 +17,8 @@ import (
 )
 
 const (
-	errInvalidUnknownDetailMap = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\nAlternatively, you could use the -target planning option to first apply only the resources that the for_each value depends on, and then apply a second time to fully converge."
-	errInvalidUnknownDetailSet = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\nAlternatively, you could use the -target planning option to first apply only the resources that the for_each value depends on, and then apply a second time to fully converge."
+	errInvalidUnknownDetailMap = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
+	errInvalidUnknownDetailSet = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
 )
 
 type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics)
@@ -30,10 +31,14 @@ type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagno
 // EvaluateForEachExpression differs from EvaluateForEachExpressionValue by
 // returning an error if the count value is not known, and converting the
 // cty.Value to a map[string]cty.Value for compatibility with other calls.
-func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc) (map[string]cty.Value, tfdiags.Diagnostics) {
+//
+// If excludableAddr is non-nil then the unknown value error will include
+// an additional idea to exclude that address using the -exclude
+// planning option to converge over multiple plan/apply rounds.
+func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc, excludableAddr addrs.Targetable) (map[string]cty.Value, tfdiags.Diagnostics) {
 	const unknownsNotAllowed = false
 	const tupleNotAllowed = false
-	forEachVal, diags := EvaluateForEachExpressionValue(expr, ctx, unknownsNotAllowed, tupleNotAllowed)
+	forEachVal, diags := EvaluateForEachExpressionValue(expr, ctx, unknownsNotAllowed, tupleNotAllowed, excludableAddr)
 	// forEachVal might be unknown, but if it is then there should already
 	// be an error about it in diags, which we'll return below.
 
@@ -49,7 +54,11 @@ func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc) (map[string
 // except that it returns a cty.Value map or set which can be unknown.
 // The 'allowTuple' argument is used to support evaluating for_each from tuple
 // values, and is currently supported when using for_each in import blocks.
-func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowUnknown bool, allowTuple bool) (cty.Value, tfdiags.Diagnostics) {
+//
+// If excludableAddr is non-nil then any unknown-value-related error will
+// include an additional idea to exclude that address using the -exclude
+// planning option to converge over multiple plan/apply rounds.
+func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowUnknown bool, allowTuple bool, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
 
@@ -112,7 +121,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		return nullMap, diags
 	}
 
-	forEachVal, diags = performForEachValueChecks(expr, hclCtx, allowUnknown, forEachVal, allowedTypesMessage)
+	forEachVal, diags = performForEachValueChecks(expr, hclCtx, allowUnknown, forEachVal, allowedTypesMessage, excludableAddr)
 	if diags.HasErrors() {
 		return forEachVal, diags
 	}
@@ -121,7 +130,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 }
 
 // performForEachValueChecks ensures the for_each argument is valid
-func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, allowedTypesMessage string) (cty.Value, tfdiags.Diagnostics) {
+func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, allowedTypesMessage string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
 	ty := forEachVal.Type()
@@ -146,6 +155,7 @@ func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 			default:
 				detailMsg = errInvalidUnknownDetailMap
 			}
+			detailMsg += forEachCommandLineExcludeSuggestion(excludableAddr)
 
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
@@ -167,7 +177,7 @@ func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 	}
 
 	if ty.IsSetType() {
-		setVal, setTypeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal)
+		setVal, setTypeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 		diags = diags.Append(setTypeDiags)
 		if diags.HasErrors() {
 			return setVal, diags
@@ -178,7 +188,7 @@ func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 }
 
 // performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
-func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
 
@@ -189,7 +199,7 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
 				Summary:     "Invalid for_each argument",
-				Detail:      errInvalidUnknownDetailSet,
+				Detail:      errInvalidUnknownDetailSet + forEachCommandLineExcludeSuggestion(excludableAddr),
 				Subject:     expr.Range().Ptr(),
 				Expression:  expr,
 				EvalContext: hclCtx,
@@ -235,4 +245,37 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 func markSafeLengthInt(val cty.Value) int {
 	v, _ := val.UnmarkDeep()
 	return v.LengthInt()
+}
+
+// Returns some English-language text describing a workaround using the -exclude
+// planning option to converge over two plan/apply rounds when for_each has an
+// unknown value.
+//
+// This is intended only for when a for_each value is too unknown for
+// planning to proceed, in [EvaluateForEachExpression] or [EvaluateForEachExpressionValue].
+// The message always begins with "Alternatively, " because it's intended to be
+// appended to one of either [errInvalidUnknownDetailMap] or [errInvalidUnknownDetailSet].
+//
+// If excludableAddr is non-nil then the message will refer to it directly, giving
+// a full copy-pastable command line argument. Otherwise, the message is a generic
+// one without any specific address indicated.
+func forEachCommandLineExcludeSuggestion(excludableAddr addrs.Targetable) string {
+	// We use an extra indirection here so that we can write tests that make
+	// the same assertions on all development platforms.
+	return forEachCommandLineExcludeSuggestionImpl(excludableAddr, runtime.GOOS)
+}
+
+func forEachCommandLineExcludeSuggestionImpl(excludableAddr addrs.Targetable, goos string) string {
+	if excludableAddr == nil {
+		// We use -target for this case because we can't be sure that the
+		// object we're complaining about even has its own addrs.Targetable
+		// address, and so the user might need to target only what it depends
+		// on instead.
+		return `Alternatively, you could use the -target option to first apply only the resources that for_each depends on, and then apply normally to converge.`
+	}
+
+	return fmt.Sprintf(
+		`Alternatively, you could use the planning option -exclude=%s to first apply without this object, and then apply normally to converge.`,
+		commandLineArgumentsSuggestion([]string{excludableAddr.String()}, goos),
+	)
 }
