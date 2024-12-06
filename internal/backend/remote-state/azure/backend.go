@@ -14,6 +14,8 @@ import (
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )
 
+const defaultTimeout = 300 // 5 minutes
+
 // New creates a new backend for Azure remote state.
 func New(enc encryption.StateEncryption) backend.Backend {
 	s := &schema.Backend{
@@ -95,7 +97,7 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Type:        schema.TypeInt,
 				Optional:    true,
 				Description: "The timeout in seconds for retrieving a Blob or a Metadata from Azure.",
-				DefaultFunc: schema.EnvDefaultFunc("ARM_TIMEOUT_SECONDS", 60),
+				DefaultFunc: schema.EnvDefaultFunc("ARM_TIMEOUT_SECONDS", defaultTimeout),
 			},
 
 			"subscription_id": {

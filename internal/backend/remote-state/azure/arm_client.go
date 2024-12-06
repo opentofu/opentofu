@@ -165,9 +165,9 @@ func (c ArmClient) getBlobClient(ctx context.Context) (*blobs.Client, error) {
 	accessKey := c.accessKey
 	if accessKey == "" {
 		log.Printf("[DEBUG] Building the Blob Client from an Access Token (using user credentials)")
-		ctx, cancel := context.WithTimeout(ctx, time.Duration(c.timeoutSeconds)*time.Second)
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(c.timeoutSeconds)*time.Second)
 		defer cancel()
-		keys, err := c.storageAccountsClient.ListKeys(ctx, c.resourceGroupName, c.storageAccountName, "")
+		keys, err := c.storageAccountsClient.ListKeys(timeoutCtx, c.resourceGroupName, c.storageAccountName, "")
 		if err != nil {
 			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %w", c.storageAccountName, err)
 		}
@@ -212,9 +212,9 @@ func (c ArmClient) getContainersClient(ctx context.Context) (*containers.Client,
 	accessKey := c.accessKey
 	if accessKey == "" {
 		log.Printf("[DEBUG] Building the Container Client from an Access Token (using user credentials)")
-		ctx, cancel := context.WithTimeout(ctx, time.Duration(c.timeoutSeconds)*time.Second)
+		timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(c.timeoutSeconds)*time.Second)
 		defer cancel()
-		keys, err := c.storageAccountsClient.ListKeys(ctx, c.resourceGroupName, c.storageAccountName, "")
+		keys, err := c.storageAccountsClient.ListKeys(timeoutCtx, c.resourceGroupName, c.storageAccountName, "")
 		if err != nil {
 			return nil, fmt.Errorf("Error retrieving keys for Storage Account %q: %w", c.storageAccountName, err)
 		}

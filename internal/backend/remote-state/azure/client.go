@@ -75,7 +75,7 @@ func (c *RemoteClient) Put(data []byte) error {
 
 	properties, err := c.getBlobProperties()
 	if err != nil {
-		if properties.StatusCode != 404 {
+		if properties.StatusCode != http.StatusNotFound {
 			return err
 		}
 	}
