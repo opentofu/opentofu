@@ -146,7 +146,7 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext, hasExpan
 		} else {
 			// Resolved from module instance
 			moduleInstanceForKey := n.Addr.Module[:len(n.ResolvedProvider.KeyModule)]
-			if !moduleInstanceForKey.Module().Equal(n.ResolvedProvider.KeyModule) {
+			if !moduleInstanceForKey.IsForModule(n.ResolvedProvider.KeyModule) {
 				panic(fmt.Sprintf("Invalid module key expression location %s in resource %s", n.ResolvedProvider.KeyModule, n.Addr))
 			}
 
@@ -1974,9 +1974,8 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(ctx EvalCo
 
 		for _, change := range changes.GetChangesForConfigResource(d) {
 			changeModInst := change.Addr.Module
-			changeMod := changeModInst.Module()
 
-			if changeMod.Equal(nMod) && !changeModInst.Equal(nModInst) {
+			if changeModInst.IsForModule(nMod) && !changeModInst.Equal(nModInst) {
 				// Dependencies are tracked by configuration address, which
 				// means we may have changes from other instances of parent
 				// modules. The actual reference can only take effect within

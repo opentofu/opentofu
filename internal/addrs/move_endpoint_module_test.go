@@ -1375,7 +1375,7 @@ func TestSelectsModule(t *testing.T) {
 		},
 		{
 			Endpoint: &MoveEndpointInModule{
-				module: mustParseModuleInstanceStr("module.foo").Module(),
+				module: mustParseModuleStr("module.foo"),
 				relSubject: AbsModuleCall{
 					Module: mustParseModuleInstanceStr("module.bar[2]"),
 					Call:   ModuleCall{Name: "baz"},
@@ -1386,7 +1386,7 @@ func TestSelectsModule(t *testing.T) {
 		},
 		{
 			Endpoint: &MoveEndpointInModule{
-				module: mustParseModuleInstanceStr("module.foo").Module(),
+				module: mustParseModuleStr("module.foo"),
 				relSubject: AbsModuleCall{
 					Module: mustParseModuleInstanceStr("module.bar[2]"),
 					Call:   ModuleCall{Name: "baz"},
@@ -1407,7 +1407,7 @@ func TestSelectsModule(t *testing.T) {
 		},
 		{
 			Endpoint: &MoveEndpointInModule{
-				module:     mustParseModuleInstanceStr("module.foo").Module(),
+				module:     mustParseModuleStr("module.foo"),
 				relSubject: mustParseAbsResourceInstanceStr(`module.bar.resource.name["key"]`),
 			},
 			Addr:    mustParseModuleInstanceStr(`module.foo[1].module.bar`),
@@ -1429,7 +1429,7 @@ func TestSelectsModule(t *testing.T) {
 		},
 		{
 			Endpoint: &MoveEndpointInModule{
-				module:     mustParseModuleInstanceStr("module.nope").Module(),
+				module:     mustParseModuleStr("module.nope"),
 				relSubject: mustParseAbsResourceInstanceStr(`module.bar.resource.name["key"]`),
 			},
 			Addr:    mustParseModuleInstanceStr(`module.foo[1].module.bar`),

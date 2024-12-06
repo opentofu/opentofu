@@ -94,7 +94,7 @@ func (s *State) Module(addr addrs.ModuleInstance) *Module {
 func (s *State) ModuleInstances(addr addrs.Module) []*Module {
 	var ms []*Module
 	for _, m := range s.Modules {
-		if m.Addr.Module().Equal(addr) {
+		if m.Addr.IsForModule(addr) {
 			ms = append(ms, m)
 		}
 	}
