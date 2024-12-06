@@ -91,6 +91,13 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: schema.EnvDefaultFunc("ARM_ENDPOINT", ""),
 			},
 
+			"timeout_seconds": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: "The timeout in seconds for retrieving a Blob or a Metadata from Azure.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_TIMEOUT_SECONDS", 60),
+			},
+
 			"subscription_id": {
 				Type:        schema.TypeString,
 				Optional:    true,
@@ -211,6 +218,7 @@ type BackendConfig struct {
 	ClientCertificatePath         string
 	ClientSecret                  string
 	CustomResourceManagerEndpoint string
+	TimeoutSeconds                int
 	MetadataHost                  string
 	Environment                   string
 	MsiEndpoint                   string
@@ -246,6 +254,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		ClientCertificatePath:         data.Get("client_certificate_path").(string),
 		ClientSecret:                  data.Get("client_secret").(string),
 		CustomResourceManagerEndpoint: data.Get("endpoint").(string),
+		TimeoutSeconds:                data.Get("timeout_seconds").(int),
 		MetadataHost:                  data.Get("metadata_host").(string),
 		Environment:                   data.Get("environment").(string),
 		MsiEndpoint:                   data.Get("msi_endpoint").(string),
