@@ -65,6 +65,11 @@ type Config struct {
 	// configuration, but we decode into a slice here so that we can handle
 	// that validation at validation time rather than initial decode time.
 	ProviderInstallation []*ProviderInstallation
+
+	// OCIRegistries represents global configuration for interacting with
+	// OCI registries, across all OpenTofu features that act as clients
+	// for the OCI Distribution specification.
+	OCIRegistries *OCIRegistries
 }
 
 // ConfigHost is the structure of the "host" nested block within the CLI
@@ -106,7 +111,7 @@ func DataDirs() ([]string, error) {
 // LoadConfig reads the CLI configuration from the various filesystem locations
 // and from the environment, returning a merged configuration along with any
 // diagnostics (errors and warnings) encountered along the way.
-func LoadConfig() (*Config, tfdiags.Diagnostics) {
+func LoadConfig(experimentsAllowed bool) (*Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	configVal := BuiltinConfig // copy
 	config := &configVal
@@ -136,6 +141,18 @@ func LoadConfig() (*Config, tfdiags.Diagnostics) {
 				config = config.Merge(dirConfig)
 			}
 		}
+
+		// If we're not being forced to read only a single config file then
+		// we can also potentially use the Docker CLI config as a fallback
+		// for the "oci_registries" configuration block, as long as none
+		// of the files we loaded already explicitly specified it.
+		// (We don't do this if there's at least one oci_registries block
+		// because in that case we assume the user was intending to configure
+		// OpenTofu's interactions with OCI registries separately from any
+		// Docker CLI also installed on the system.)
+		if config.OCIRegistries == nil {
+			config.OCIRegistries = impliedOCIRegistrySettingsFromDockerLikeConfig()
+		}
 	} else {
 		log.Printf("[DEBUG] Not reading CLI config directory because config location is overridden by environment variable")
 	}
@@ -145,7 +162,7 @@ func LoadConfig() (*Config, tfdiags.Diagnostics) {
 		config = envConfig.Merge(config)
 	}
 
-	diags = diags.Append(config.Validate())
+	diags = diags.Append(config.Validate(experimentsAllowed))
 
 	return config, diags
 }
@@ -183,6 +200,13 @@ func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 	providerInstBlocks, moreDiags := decodeProviderInstallationFromConfig(obj)
 	diags = diags.Append(moreDiags)
 	result.ProviderInstallation = providerInstBlocks
+
+	// decodeOCIRegistrySettingsFromConfig returns nil if there aren't any
+	// oci_registry blocks, and callers rely on that to fall back to trying
+	// to use the Docker CLI configuration in some cases.
+	ociRegistryConfig, moreDiags := decodeOCIRegistrySettingsFromConfig(obj)
+	diags = diags.Append(moreDiags)
+	result.OCIRegistries = ociRegistryConfig
 
 	// Replace all env vars
 	for k, v := range result.Providers {
@@ -282,7 +306,7 @@ func makeEnvMap(environ []string) map[string]string {
 // On success, the returned diagnostics will return false from the HasErrors
 // method. A non-nil diagnostics is not necessarily an error, since it may
 // contain just warnings.
-func (c *Config) Validate() tfdiags.Diagnostics {
+func (c *Config) Validate(experimentsAllowed bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	if c == nil {
@@ -333,6 +357,46 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 			diags = diags.Append(
 				fmt.Errorf("The specified plugin cache dir %s cannot be opened: %w", c.PluginCacheDir, err),
 			)
+		}
+	}
+
+	if !experimentsAllowed {
+		// The oci_mirror provider installation method is currently experimental, so
+		// isn't allowed in release builds.
+		haveExperimentalMethods := false
+		for _, inst := range c.ProviderInstallation {
+			for _, method := range inst.Methods {
+				if _, ok := method.Location.(ProviderInstallationOCIMirror); ok {
+					haveExperimentalMethods = true
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"The oci_mirror provider installation method is experimental",
+						"Installation of providers from OCI repositories is currently available only in experimental builds of OpenTofu.",
+					))
+				}
+				if method.Location == ProviderInstallationDirectWithOCIExperiment {
+					haveExperimentalMethods = true
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Error,
+						"The oci_registry_experiment argument for direct installation is experimental",
+						"Installation of providers from OCI repositories is currently available only in experimental builds of OpenTofu.",
+					))
+				}
+			}
+		}
+		if haveExperimentalMethods {
+			// Errors from the CLI configuration are treated as only advisory,
+			// so for the above checks to actually prevent use of these features
+			// we'll create the effect of the provider_installation blocks
+			// having been entirely ignored.
+			c.ProviderInstallation = nil
+
+			// NOTE: In most other cases we generate a warning if an experimental
+			// feature is used in a build that allows them, but we intentionally
+			// make an exception here because that would cause every single
+			// OpenTofu command to emit a warning when this feature is in use,
+			// and that would cause invalid results from commands that generate
+			// machine-readable output, such as JSON output.
 		}
 	}
 
@@ -412,6 +476,8 @@ func (c *Config) Merge(c2 *Config) *Config {
 		result.ProviderInstallation = append(result.ProviderInstallation, c.ProviderInstallation...)
 		result.ProviderInstallation = append(result.ProviderInstallation, c2.ProviderInstallation...)
 	}
+
+	result.OCIRegistries = c.OCIRegistries.merge(c2.OCIRegistries)
 
 	return &result
 }
