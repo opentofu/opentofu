@@ -23,12 +23,14 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func separateWarningsAndErrors(diags tfdiags.Diagnostics) (warnings []string, errors []error) {
+func separateWarningsAndErrors(diags tfdiags.Diagnostics) ([]string, []error) {
+	warnings := make([]string, 0)
+	errors := make([]error, 0)
 	for _, diag := range diags {
 		if diag.Severity() == tfdiags.Warning {
 			warnings = append(warnings, diag.Description().Summary)
 		} else if diag.Severity() == tfdiags.Error {
-			errors = append(errors, fmt.Errorf(diag.Description().Summary))
+			errors = append(errors, fmt.Errorf("%s", diag.Description().Summary))
 		}
 	}
 	return warnings, errors
