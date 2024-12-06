@@ -45,6 +45,7 @@ ENHANCEMENTS:
 * `tofu test` now supports `override_resource` and `override_data` blocks in the scope of a single `mock_provider`. ([#2168](https://github.com/opentofu/opentofu/pull/2168))
 * Changes to encryption configuration now auto-apply the migration ([#2232](https://github.com/opentofu/opentofu/pull/2232))
 * References to vars, data, etc. are now usable in variable validation ([#2216](https://github.com/opentofu/opentofu/pull/2216))
+* `AzureRM` backend now support `timeout_seconds` with default timeout of 300 seconds ([#2263](https://github.com/opentofu/opentofu/pull/2263))
 
 BUG FIXES:
 * `templatefile` no longer crashes if the given filename is derived from a sensitive value. ([#1801](https://github.com/opentofu/opentofu/issues/1801))

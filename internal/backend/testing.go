@@ -6,6 +6,7 @@
 package backend
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"testing"
@@ -21,6 +22,62 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+func separateWarningsAndErrors(diags tfdiags.Diagnostics) ([]string, []error) {
+	warnings := make([]string, 0)
+	errors := make([]error, 0)
+	for _, diag := range diags {
+		if diag.Severity() == tfdiags.Warning {
+			warnings = append(warnings, diag.Description().Summary)
+		} else if diag.Severity() == tfdiags.Error {
+			errors = append(errors, fmt.Errorf("%s", diag.Description().Summary))
+		}
+	}
+	return warnings, errors
+}
+
+// TestBackendConfigWarningsAndErrors validates and configures the backend with the
+// given configuration and returns backend and any warnings and errors encountered.
+// used to test validations
+func TestBackendConfigWarningsAndErrors(t *testing.T, b Backend, c hcl.Body) (Backend, []string, []error) {
+	t.Helper()
+
+	t.Logf("TestBackendConfig on %T with %#v", b, c)
+
+	var diags tfdiags.Diagnostics
+
+	// To make things easier for test authors, we'll allow a nil body here
+	// (even though that's not normally valid) and just treat it as an empty
+	// body.
+	if c == nil {
+		c = hcl.EmptyBody()
+	}
+
+	schema := b.ConfigSchema()
+	spec := schema.DecoderSpec()
+	obj, decDiags := hcldec.Decode(c, spec, nil)
+	diags = diags.Append(decDiags)
+
+	newObj, valDiags := b.PrepareConfig(obj)
+	diags = diags.Append(valDiags.InConfigBody(c, ""))
+
+	// it's valid for a Backend to have warnings (e.g. a Deprecation) as such we should only raise on errors
+	if len(diags) != 0 {
+		warnings, errors := separateWarningsAndErrors(diags)
+		return nil, warnings, errors
+	}
+
+	obj = newObj
+
+	confDiags := b.Configure(obj)
+	if len(confDiags) != 0 {
+		confDiags = confDiags.InConfigBody(c, "")
+		warnings, errors := separateWarningsAndErrors(confDiags)
+		return nil, warnings, errors
+	}
+
+	return b, nil, nil
+}
 
 // TestBackendConfig validates and configures the backend with the
 // given configuration.
