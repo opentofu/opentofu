@@ -1,0 +1,27 @@
+# For the associated test to pass, all of the oci_mirror blocks must be
+# valid and their repository_template arguments must produce the
+# address "example.com/example.net__foo__bar" .
+
+provider_installation {
+  oci_mirror {
+    repository_template = "example.com/${hostname}__${namespace}__${type}"
+  }
+  oci_mirror {
+    # Can omit the hostname reference if "include" constrains it
+    repository_template = "example.com/example.net__${namespace}__${type}"
+    include = ["example.net/*/*"]
+  }
+  oci_mirror {
+    # Can omit the hostname and namespace references if "include" constrains both
+    repository_template = "example.com/example.net__foo__${type}"
+    include = ["example.net/foo/*"]
+  }
+  oci_mirror {
+    # Can omit all the references if include constrains all of them. This is
+    # a weird case but a plausible last resort for a single provider placed in
+    # a repository whose name is not systematically derived from the provider
+    # source address _at all_.
+    repository_template = "example.com/example.net__foo__bar"
+    include = ["example.net/foo/bar"]
+  }
+}

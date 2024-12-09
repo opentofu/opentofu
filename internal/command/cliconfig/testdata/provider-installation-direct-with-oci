@@ -1,0 +1,5 @@
+provider_installation {
+  direct {
+    oci_registry_experiment = true
+  }
+}

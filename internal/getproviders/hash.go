@@ -116,6 +116,8 @@ func (h Hash) GoString() string {
 		return fmt.Sprintf("getproviders.HashScheme1.New(%q)", h.Value())
 	case HashSchemeZip:
 		return fmt.Sprintf("getproviders.HashSchemeZip.New(%q)", h.Value())
+	case HashSchemeOCIObject:
+		return fmt.Sprintf("getproviders.HashSchemeOCIObject.New(%q)", h.Value())
 	default:
 		// This fallback is for when we encounter lock files or API responses
 		// with hash schemes that the current version of OpenTofu isn't
@@ -142,6 +144,24 @@ const (
 	//
 	// Use PackageHashLegacyZipSHA to calculate hashes with this scheme.
 	HashSchemeZip HashScheme = HashScheme("zh:")
+
+	// HashSchemeOCIObject is the scheme identifier for an OCI-registry-specific
+	// hash scheme that directly captures the digest of a platform-specific
+	// OCI distribution object manifest.
+	//
+	// The value associated with this scheme is in the usual "algorithm:hash"
+	// format used in the OCI ecosystem, and so a hash string of this scheme
+	// has two colons, like "ch:sha256:5244ddbe3d30bbc791a175dc370d8345e264f7dabca78f0f0e21e9a8e5593bde".
+	//
+	// The digest is of one platform-specific manifest. In particular, it's _not_
+	// the digest of the surrounding multi-platform manifest, or of any of the
+	// layer blobs representing image contents.
+	//
+	// Unlike other hash schemes, this scheme cannot be used to verify a package
+	// that's already present on local disk. Instead, it must be checked during
+	// the [Source.PackageMeta] step when choosing a manifest to use, thereby
+	// preventing any attempt to install a mismatching image in the first place.
+	HashSchemeOCIObject HashScheme = HashScheme("ch:")
 )
 
 // New creates a new Hash value with the receiver as its scheme and the given
@@ -151,6 +171,44 @@ const (
 // sense for the selected scheme.
 func (hs HashScheme) New(value string) Hash {
 	return Hash(string(hs) + value)
+}
+
+// SupportsLocation returns true if it would be possible to generate a hash
+// of the reciving scheme for the package at the given location.
+//
+// Each hash scheme has some requirements about what the location it's
+// calculated from must support, and so this method allows filtering
+// out non-applicable hash schemes.
+func (hs HashScheme) SupportsLocation(loc PackageLocation) bool {
+	switch hs {
+	case HashScheme1:
+		switch loc.(type) {
+		case PackageLocalDir, PackageLocalArchive:
+			return true
+		default:
+			return false
+		}
+	case HashSchemeZip:
+		switch loc.(type) {
+		case PackageLocalArchive:
+			return true
+		default:
+			return false
+		}
+	case HashSchemeOCIObject:
+		switch loc.(type) {
+		case PackageOCIObject:
+			return true
+		default:
+			return false
+		}
+	default:
+		// We shouldn't get here because the above cases should cover all
+		// of our supported hash schemes, but we do allow unsupported
+		// hash schemes when parsing hashes and so we'll just assume
+		// that they don't support anything.
+		return false
+	}
 }
 
 // PackageHash computes a hash of the contents of the package at the given
@@ -201,6 +259,13 @@ func PackageMatchesHash(loc PackageLocation, want Hash) (bool, error) {
 			return false, err
 		}
 		return got == want, nil
+	case HashSchemeOCIObject:
+		ociObjectLoc, ok := loc.(PackageOCIObject)
+		if !ok {
+			return false, fmt.Errorf(`the OCI object hash scheme ("ch:" prefix) is supported only for OCI repository package locations`)
+		}
+		got := PackageHashOCIObject(ociObjectLoc)
+		return got == want, nil
 	default:
 		return false, fmt.Errorf("unsupported hash format (this may require a newer version of OpenTofu)")
 	}
@@ -224,7 +289,7 @@ func PackageMatchesAnyHash(loc PackageLocation, allowed []Hash) (bool, error) {
 	// given package by caching its result for each of the two
 	// currently-supported hash formats. These will be NilHash until we
 	// encounter the first hash of the corresponding scheme.
-	var v1Hash, zipHash Hash
+	var v1Hash, zipHash, ociObjHash Hash
 	for _, want := range allowed {
 		switch want.Scheme() {
 		case HashScheme1:
@@ -254,6 +319,18 @@ func PackageMatchesAnyHash(loc PackageLocation, allowed []Hash) (bool, error) {
 			if zipHash == want {
 				return true, nil
 			}
+		case HashSchemeOCIObject:
+			ociObjectLoc, ok := loc.(PackageOCIObject)
+			if !ok {
+				// An OCI object hash can only match an OCI object location.
+				continue
+			}
+			if ociObjHash == NilHash {
+				ociObjHash = PackageHashOCIObject(ociObjectLoc)
+			}
+			if ociObjHash == want {
+				return true, nil
+			}
 		default:
 			// If it's not a supported format then it can't match.
 			continue
@@ -271,8 +348,8 @@ func PackageMatchesAnyHash(loc PackageLocation, allowed []Hash) (bool, error) {
 // of the hash strings in "given", and that hash is the one that must pass
 // verification in order for a package to be considered valid.
 func PreferredHashes(given []Hash) []Hash {
-	// For now this is just filtering for the two hash formats we support,
-	// both of which are considered equally "preferred". If we introduce
+	// For now this is just filtering for the three hash formats we support,
+	// all of which are considered equally "preferred". If we introduce
 	// a new scheme like "h2:" in future then, depending on the characteristics
 	// of that new version, it might make sense to rework this function so
 	// that it only returns "h1:" hashes if the input has no "h2:" hashes,
@@ -283,7 +360,7 @@ func PreferredHashes(given []Hash) []Hash {
 	var ret []Hash
 	for _, hash := range given {
 		switch hash.Scheme() {
-		case HashScheme1, HashSchemeZip:
+		case HashScheme1, HashSchemeZip, HashSchemeOCIObject:
 			ret = append(ret, hash)
 		}
 	}
@@ -395,9 +472,22 @@ func PackageHashV1(loc PackageLocation) (Hash, error) {
 		s, err := dirhash.HashZip(archivePath, dirhash.Hash1)
 		return Hash(s), err
 
+	case PackageOCIObject:
+		return "", fmt.Errorf("cannot produce h1: hash for an OCI object until it's been installed to a local directory")
+
 	default:
 		return "", fmt.Errorf("cannot hash package at %s", loc.String())
 	}
+}
+
+// PackageHashOCIObject returns the [HashSchemeOCIObject] hash for the
+// given OCI object package location.
+//
+// This particular hash scheme is only suitable for OCI object locations,
+// because it uses a manifest digest that's relevant only when interacting
+// with an OCI distribution repository.
+func PackageHashOCIObject(loc PackageOCIObject) Hash {
+	return HashSchemeOCIObject.New(string(loc.imageManifestDigest))
 }
 
 // Hash computes a hash of the contents of the package at the location
