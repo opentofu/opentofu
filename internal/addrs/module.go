@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -194,6 +196,22 @@ func ParseModule(traversal hcl.Traversal) (Module, tfdiags.Diagnostics) {
 	}
 
 	return mod, diags
+}
+
+// ParseModuleStr is a helper wrapper around [ParseModule] that first tries
+// to parse the given string as HCL traversal syntax.
+func ParseModuleStr(str string) (Module, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
+	diags = diags.Append(parseDiags)
+	if parseDiags.HasErrors() {
+		return nil, diags
+	}
+
+	addr, addrDiags := ParseModule(traversal)
+	diags = diags.Append(addrDiags)
+	return addr, diags
 }
 
 // parseModulePrefix parses a module address from the given traversal,

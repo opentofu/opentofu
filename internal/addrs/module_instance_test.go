@@ -83,6 +83,126 @@ func TestModuleInstanceEqual_false(t *testing.T) {
 	}
 }
 
+func TestHasSameModule(t *testing.T) {
+	tests := []struct {
+		a string
+		b string
+
+		wantSame bool
+	}{
+		{
+			"module.foo",
+			"module.bar",
+			false,
+		},
+		{
+			"module.foo",
+			"module.foo.module.bar",
+			false,
+		},
+		{
+			"module.foo[1]",
+			"module.bar[1]",
+			false,
+		},
+		{
+			`module.foo[1]`,
+			`module.foo["1"]`,
+			true,
+		},
+		{
+			"module.foo.module.bar",
+			"module.foo[1].module.bar",
+			true,
+		},
+		{
+			`module.foo.module.bar`,
+			`module.foo["a"].module.bar`,
+			true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%#v.HasSameModule(%#v)", test.a, test.b), func(t *testing.T) {
+			a, diags := ParseModuleInstanceStr(test.a)
+			if len(diags) > 0 {
+				t.Fatalf("invalid module instance address %s: %s", test.a, diags.Err())
+			}
+			b, diags := ParseModuleInstanceStr(test.b)
+			if len(diags) > 0 {
+				t.Fatalf("invalid module instance address %s: %s", test.b, diags.Err())
+			}
+
+			// "HasSameModule" is commutative, so we'll test it both ways at once
+			gotAB := a.HasSameModule(b)
+			gotBA := b.HasSameModule(a)
+
+			if gotAB != test.wantSame {
+				t.Errorf("wrong result\n1st: %s\n2nd: %s\ngot:  %t\nwant: %t", a, b, gotAB, test.wantSame)
+			}
+			if gotBA != test.wantSame {
+				t.Errorf("wrong result\n1st: %s\n2nd: %s\ngot:  %t\nwant: %t", b, a, gotBA, test.wantSame)
+			}
+		})
+	}
+}
+
+func TestIsForModule(t *testing.T) {
+	tests := []struct {
+		inst string
+		mod  string
+
+		want bool
+	}{
+		{
+			"module.foo",
+			"module.bar",
+			false,
+		},
+		{
+			"module.foo",
+			"module.foo.module.bar",
+			false,
+		},
+		{
+			"module.foo[1]",
+			"module.bar",
+			false,
+		},
+		{
+			`module.foo[1]`,
+			`module.foo`,
+			true,
+		},
+		{
+			"module.foo[1].module.bar",
+			"module.foo.module.bar",
+			true,
+		},
+		{
+			`module.foo["a"].module.bar`,
+			`module.foo.module.bar`,
+			true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("%#v.IsForModule(%#v)", test.inst, test.mod), func(t *testing.T) {
+			inst, diags := ParseModuleInstanceStr(test.inst)
+			if len(diags) > 0 {
+				t.Fatalf("invalid module instance address %s: %s", test.inst, diags.Err())
+			}
+			mod, diags := ParseModuleStr(test.mod)
+			if len(diags) > 0 {
+				t.Fatalf("invalid module address %s: %s", test.mod, diags.Err())
+			}
+
+			got := inst.IsForModule(mod)
+			if got != test.want {
+				t.Errorf("wrong result\ninstance: %s\nmodule:   %s\ngot:  %t\nwant: %t", inst, mod, got, test.want)
+			}
+		})
+	}
+}
+
 func BenchmarkStringShort(b *testing.B) {
 	addr, _ := ParseModuleInstanceStr(`module.foo`)
 	for n := 0; n < b.N; n++ {

@@ -471,6 +471,42 @@ func (m ModuleInstance) Module() Module {
 	return ret
 }
 
+// HasSameModule returns true if calling [ModuleInstance.Module] on both
+// the receiver and the other given address would produce equal [Module]
+// addresses.
+//
+// This is here only as an optimization to avoid the overhead of constructing
+// two [Module] values just to compare them and then throw them away.
+func (m ModuleInstance) HasSameModule(other ModuleInstance) bool {
+	if len(m) != len(other) {
+		return false
+	}
+	for i := range m {
+		if m[i].Name != other[i].Name {
+			return false
+		}
+	}
+	return true
+}
+
+// HasSameModule returns true if calling [ModuleInstance.Module] on the
+// receiver would return a [Module] address equal to the one given as
+// an argument.
+//
+// This is here only as an optimization to avoid the overhead of constructing
+// a [Module] value from the reciever just to compare it and then throw it away.
+func (m ModuleInstance) IsForModule(module Module) bool {
+	if len(m) != len(module) {
+		return false
+	}
+	for i := range m {
+		if m[i].Name != module[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (m ModuleInstance) AddrType() TargetableAddrType {
 	return ModuleInstanceAddrType
 }

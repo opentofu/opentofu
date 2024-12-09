@@ -176,3 +176,11 @@ func TestParseModule(t *testing.T) {
 		})
 	}
 }
+
+func mustParseModuleStr(str string) Module {
+	m, diags := ParseModuleStr(str)
+	if diags.HasErrors() {
+		panic(diags.ErrWithWarnings())
+	}
+	return m
+}
