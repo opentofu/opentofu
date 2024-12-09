@@ -51,7 +51,7 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 	ctx.ProviderInputValues = map[string]cty.Value{
 		"pw": cty.StringVal("so secret"),
@@ -98,7 +98,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 
 	diags := n.Execute(ctx, walkImport)
@@ -132,7 +132,7 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 		Addr:   providerAddr,
 		Config: config,
 	}}
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 
 	if err := n.Execute(ctx, walkApply); err != nil {
@@ -170,7 +170,7 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 	if err := n.Execute(ctx, walkApply); err != nil {
 		t.Fatalf("err: %s", err)
@@ -207,7 +207,7 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 	if err := n.Execute(ctx, walkValidate); err != nil {
 		t.Fatalf("err: %s", err)
@@ -249,7 +249,7 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 	if err := n.Execute(ctx, walkValidate); err != nil {
 		t.Fatalf("err: %s", err)
@@ -269,7 +269,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		},
 	})
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 
 	t.Run("valid", func(t *testing.T) {
@@ -287,7 +287,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
+		diags := node.ValidateProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -308,7 +308,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
+		diags := node.ValidateProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider)
 		if !diags.HasErrors() {
 			t.Error("missing expected error with invalid config")
 		}
@@ -321,7 +321,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
+		diags := node.ValidateProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with empty config: %s", diags.Err())
 		}
@@ -351,7 +351,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 		}
 		return
 	}
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 
 	t.Run("valid", func(t *testing.T) {
@@ -369,7 +369,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider, false)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -382,7 +382,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with nil config")
 		}
@@ -403,7 +403,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with invalid config")
 		}
@@ -424,7 +424,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		},
 	})
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 	// For this test, provider.PrepareConfigFn will succeed every time but the
 	// ctx.ConfigureProviderFn will return an error if a value is not found.
@@ -458,7 +458,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider, false)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -471,7 +471,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with nil config")
 		}
@@ -492,7 +492,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with invalid config")
 		}
@@ -510,7 +510,7 @@ func TestGetSchemaError(t *testing.T) {
 	}
 
 	providerAddr := mustProviderConfig(`provider["terraform.io/some/provider"]`)
-	ctx := &MockEvalContext{ProviderProvider: provider}
+	ctx := &MockEvalContext{InitProviderProvider: provider}
 	ctx.installSimpleEval()
 	node := NodeApplyableProvider{
 		NodeAbstractProvider: &NodeAbstractProvider{
@@ -518,7 +518,7 @@ func TestGetSchemaError(t *testing.T) {
 		},
 	}
 
-	diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+	diags := node.ConfigureProvider(ctx, addrs.NoKey, EvalDataForNoInstanceKey, provider, false)
 	for _, d := range diags {
 		desc := d.Description()
 		if desc.Address != providerAddr.String() {

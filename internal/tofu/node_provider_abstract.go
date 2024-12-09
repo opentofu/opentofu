@@ -9,6 +9,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/lang"
 
 	"github.com/opentofu/opentofu/internal/dag"
 )
@@ -61,7 +62,12 @@ func (n *NodeAbstractProvider) References() []*addrs.Reference {
 		return nil
 	}
 
-	return ReferencesFromConfig(n.Config.Config, n.Schema)
+	refs := ReferencesFromConfig(n.Config.Config, n.Schema)
+	if n.Config.ForEach != nil {
+		forEachRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.Config.ForEach)
+		refs = append(refs, forEachRefs...)
+	}
+	return refs
 }
 
 // GraphNodeProvider
