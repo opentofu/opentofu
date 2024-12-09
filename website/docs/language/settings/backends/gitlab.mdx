@@ -1,0 +1,49 @@
+---
+sidebar_label: gitlab
+description: OpenTofu can store state remotely in a Gitlab project with locking.
+---
+
+# Backend Type: gitlab
+
+Stores the state in [Gitlab-managed Terraform State](https://docs.gitlab.com/ee/user/infrastructure/iac/terraform_state.html).
+
+This backend supports [state locking](../../../language/state/locking.mdx).
+
+## Example Usage
+
+```hcl
+terraform {
+  backend "gitlab" {
+    address = "https://gitlab.com"
+    project = "group/project"
+  }
+}
+```
+
+## Data Source Configuration
+
+```hcl
+data "terraform_remote_state" "foo" {
+  backend = "gitlab"
+  config = {
+    address = "https://gitlab.com"
+    project = "group/project"
+  }
+}
+```
+
+## Configuration Variables
+
+:::danger Warning
+We recommend using environment variables to supply credentials and other sensitive data. If you use `-backend-config` or hardcode these values directly in your configuration, OpenTofu will include these values in both the `.terraform` subdirectory and in plan files. Refer to [Credentials and Sensitive Data](../../../language/settings/backends/configuration.mdx#credentials-and-sensitive-data) for details.
+:::
+
+The following configuration options / environment variables are supported:
+
+- `address` / `TF_GITLAB_ADDRESS` / `CI_SERVER_URL` - (Required) The address of the Gitlab server.
+- `project` / `TF_GITLAB_PROJECT` / `CI_PROJECT_ID` - (Required) The address of the Gitlab project.
+- `token`  / `TF_GITLAB_TOKEN` / `CI_JOB_TOKEN` - (Optional) The authorization token to access Gitlab.
+- `skip_cert_verification` - (Optional) Whether to skip TLS verification. Defaults to `false`.
+- `retry_max` / `TF_GITLAB_RETRY_MAX` – (Optional) The number of HTTP request retries. Defaults to `2`.
+- `retry_wait_min` / `TF_GITLAB_RETRY_WAIT_MIN` – (Optional) The minimum time in seconds to wait between HTTP request attempts. Defaults to `1`.
+- `retry_wait_max` / `TF_GITLAB_RETRY_WAIT_MAX` – (Optional) The maximum time in seconds to wait between HTTP request attempts. Defaults to `30`.
