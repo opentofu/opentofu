@@ -4166,6 +4166,12 @@ locals {
 	resources = ["primary"]
 }
 `
+	localMissing := `
+locals {
+	providers = { "primary": "eu-west-1"}
+	resources = ["primary", "secondary"]
+}
+`
 	providerConfig := `
 provider "test" {
   alias = "al"
@@ -4175,6 +4181,10 @@ provider "test" {
 `
 	resourceConfig := `
 resource "test_instance" "a" {
+  for_each = toset(local.resources)
+  provider = test.al[each.key]
+}
+data "test_data_source" "b" {
   for_each = toset(local.resources)
   provider = test.al[each.key]
 }
@@ -4193,11 +4203,18 @@ resource "test_instance" "a" {
 		"locals.tofu":    localPartial,
 		"providers.tofu": providerConfig,
 	})
+	missingKey := testModuleInline(t, map[string]string{
+		"locals.tofu":    localMissing,
+		"providers.tofu": providerConfig,
+		"resources.tofu": resourceConfig,
+	})
+	empty := testModuleInline(t, nil)
 
 	provider := testProvider("test")
 	provider.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
 		State: cty.ObjectVal(map[string]cty.Value{
-			"id": cty.StringVal("data_source"),
+			"id":  cty.StringVal("data_source"),
+			"foo": cty.StringVal("ok"),
 		}),
 	}
 	provider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
@@ -4213,7 +4230,7 @@ resource "test_instance" "a" {
 		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
 	}
 
-	apply := func(t *testing.T, m *configs.Config, prevState *states.State) *states.State {
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
 		t.Helper()
 		ctx := testContext2(t, &ContextOpts{
 			Providers: ps,
@@ -4221,17 +4238,13 @@ resource "test_instance" "a" {
 
 		plan, diags := ctx.Plan(context.Background(), m, prevState, DefaultPlanOpts)
 		if diags.HasErrors() {
-			t.Fatal(diags.Err())
+			return nil, diags
 		}
 
-		newState, diags := ctx.Apply(context.Background(), plan, m)
-		if diags.HasErrors() {
-			t.Fatal(diags.Err())
-		}
-		return newState
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
-	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) *states.State {
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
 		ctx := testContext2(t, &ContextOpts{
 			Providers: ps,
 		})
@@ -4240,21 +4253,20 @@ resource "test_instance" "a" {
 			Mode: plans.DestroyMode,
 		})
 		if diags.HasErrors() {
-			t.Fatal(diags.Err())
+			return nil, diags
 		}
 
-		newState, diags := ctx.Apply(context.Background(), plan, m)
-		if diags.HasErrors() {
-			t.Fatal(diags.Err())
-		}
-		return newState
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
 	primaryResource := mustResourceInstanceAddr(`test_instance.a["primary"]`)
 	secondaryResource := mustResourceInstanceAddr(`test_instance.a["secondary"]`)
 
 	t.Run("apply_destroy", func(t *testing.T) {
-		state := apply(t, complete, states.NewState())
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
 		if state.ResourceInstance(primaryResource).ProviderKey != addrs.StringKey("primary") {
 			t.Fatal("Wrong provider key")
@@ -4263,13 +4275,22 @@ resource "test_instance" "a" {
 			t.Fatal("Wrong provider key")
 		}
 
-		destroy(t, complete, state)
+		_, diags = destroy(t, complete, state)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 	})
 
 	t.Run("apply_removed", func(t *testing.T) {
-		state := apply(t, complete, states.NewState())
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
-		state = apply(t, removed, state)
+		state, diags = apply(t, removed, state)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
 		// Expect destroyed
 		if state.ResourceInstance(primaryResource) != nil {
@@ -4281,9 +4302,15 @@ resource "test_instance" "a" {
 	})
 
 	t.Run("apply_orphan_destroy", func(t *testing.T) {
-		state := apply(t, complete, states.NewState())
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
-		state = apply(t, partial, state)
+		state, diags = apply(t, partial, state)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
 		// Expect primary
 		if state.ResourceInstance(primaryResource) == nil {
@@ -4294,7 +4321,46 @@ resource "test_instance" "a" {
 			t.Fatal(secondaryResource.String())
 		}
 
-		destroy(t, partial, state)
+		_, diags = destroy(t, partial, state)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+	})
+
+	t.Run("provider_key_removed_apply", func(t *testing.T) {
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		_, diags = apply(t, missingKey, state)
+		if !diags.HasErrors() {
+			t.Fatal("expected diags")
+		}
+		for _, diag := range diags {
+			if diag.Description().Summary == "Provider instance not present" {
+				return
+			}
+		}
+		t.Fatal(diags.Err())
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		_, diags = apply(t, empty, state)
+		if !diags.HasErrors() {
+			t.Fatal("expected diags")
+		}
+		for _, diag := range diags {
+			if diag.Description().Summary == "Provider configuration not present" {
+				return
+			}
+		}
+		t.Fatal(diags.Err())
 	})
 }
 
@@ -4309,6 +4375,12 @@ locals {
 locals {
 	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
 	mods = ["primary"]
+}
+`
+	localMissing := `
+locals {
+	providers = { "primary": "eu-west-1"}
+	mods = ["primary", "secondary"]
 }
 `
 	providerConfig := `
@@ -4330,6 +4402,8 @@ module "mod" {
 	resourceConfig := `
 resource "test_instance" "a" {
 }
+data "test_data_source" "b" {
+}
 `
 	complete := testModuleInline(t, map[string]string{
 		"locals.tofu":        localComplete,
@@ -4347,11 +4421,19 @@ resource "test_instance" "a" {
 		"locals.tofu":    localPartial,
 		"providers.tofu": providerConfig,
 	})
+	missingKey := testModuleInline(t, map[string]string{
+		"locals.tofu":        localMissing,
+		"providers.tofu":     providerConfig,
+		"modules.tofu":       moduleCall,
+		"mod/resources.tofu": resourceConfig,
+	})
+	empty := testModuleInline(t, nil)
 
 	provider := testProvider("test")
 	provider.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
 		State: cty.ObjectVal(map[string]cty.Value{
-			"id": cty.StringVal("data_source"),
+			"id":  cty.StringVal("data_source"),
+			"foo": cty.StringVal("ok"),
 		}),
 	}
 	provider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
@@ -4366,7 +4448,7 @@ resource "test_instance" "a" {
 		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
 	}
 
-	apply := func(t *testing.T, m *configs.Config, prevState *states.State) *states.State {
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
 		t.Helper()
 		ctx := testContext2(t, &ContextOpts{
 			Providers: ps,
@@ -4374,17 +4456,13 @@ resource "test_instance" "a" {
 
 		plan, diags := ctx.Plan(context.Background(), m, prevState, DefaultPlanOpts)
 		if diags.HasErrors() {
-			t.Fatal(diags.Err())
+			return nil, diags
 		}
 
-		newState, diags := ctx.Apply(context.Background(), plan, m)
-		if diags.HasErrors() {
-			t.Fatal(diags.Err())
-		}
-		return newState
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
-	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) *states.State {
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
 		ctx := testContext2(t, &ContextOpts{
 			Providers: ps,
 		})
@@ -4393,21 +4471,20 @@ resource "test_instance" "a" {
 			Mode: plans.DestroyMode,
 		})
 		if diags.HasErrors() {
-			t.Fatal(diags.Err())
+			return nil, diags
 		}
 
-		newState, diags := ctx.Apply(context.Background(), plan, m)
-		if diags.HasErrors() {
-			t.Fatal(diags.Err())
-		}
-		return newState
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
 	primaryResource := mustResourceInstanceAddr(`module.mod["primary"].test_instance.a`)
 	secondaryResource := mustResourceInstanceAddr(`module.mod["secondary"].test_instance.a`)
 
 	t.Run("apply_destroy", func(t *testing.T) {
-		state := apply(t, complete, states.NewState())
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
 		if state.ResourceInstance(primaryResource).ProviderKey != addrs.StringKey("primary") {
 			t.Fatal("Wrong provider key")
@@ -4416,13 +4493,22 @@ resource "test_instance" "a" {
 			t.Fatal("Wrong provider key")
 		}
 
-		destroy(t, complete, state)
+		_, diags = destroy(t, complete, state)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 	})
 
 	t.Run("apply_removed", func(t *testing.T) {
-		state := apply(t, complete, states.NewState())
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
-		state = apply(t, removed, state)
+		state, diags = apply(t, removed, state)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
 		// Expect destroyed
 		if state.ResourceInstance(primaryResource) != nil {
@@ -4434,9 +4520,15 @@ resource "test_instance" "a" {
 	})
 
 	t.Run("apply_orphan_destroy", func(t *testing.T) {
-		state := apply(t, complete, states.NewState())
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
-		state = apply(t, partial, state)
+		state, diags = apply(t, partial, state)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
 
 		// Expect primary
 		if state.ResourceInstance(primaryResource) == nil {
@@ -4447,7 +4539,46 @@ resource "test_instance" "a" {
 			t.Fatal(secondaryResource.String())
 		}
 
-		destroy(t, partial, state)
+		_, diags = destroy(t, partial, state)
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+	})
+
+	t.Run("provider_key_removed_apply", func(t *testing.T) {
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		_, diags = apply(t, missingKey, state)
+		if !diags.HasErrors() {
+			t.Fatal("expected diags")
+		}
+		for _, diag := range diags {
+			if diag.Description().Summary == "Provider instance not present" {
+				return
+			}
+		}
+		t.Fatal(diags.Err())
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		state, diags := apply(t, complete, states.NewState())
+		if diags.HasErrors() {
+			t.Fatal(diags.Err())
+		}
+
+		_, diags = apply(t, empty, state)
+		if !diags.HasErrors() {
+			t.Fatal("expected diags")
+		}
+		for _, diag := range diags {
+			if diag.Description().Summary == "Provider configuration not present" {
+				return
+			}
+		}
+		t.Fatal(diags)
 	})
 }
 

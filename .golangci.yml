@@ -53,6 +53,8 @@ issues:
         - funlen
         - dupl
         - revive
+        - gocognit
+        - cyclop
     - path: (.+)_test.go
       text: "ST1003"
     - path: (.+)_test.go
