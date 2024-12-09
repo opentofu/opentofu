@@ -74,6 +74,8 @@ type Interface interface {
 	// ImportResourceState requests that the given resource be imported.
 	ImportResourceState(ImportResourceStateRequest) ImportResourceStateResponse
 
+	MoveResourceState(MoveResourceStateRequest) MoveResourceStateResponse
+
 	// ReadDataSource returns the data source's current state.
 	ReadDataSource(ReadDataSourceRequest) ReadDataSourceResponse
 
@@ -454,6 +456,37 @@ func (ir ImportedResource) AsInstanceObject() *states.ResourceInstanceObject {
 		Value:   ir.State,
 		Private: ir.Private,
 	}
+}
+
+type MoveResourceStateRequest struct {
+	// The address of the provider the resource is being moved from.
+	SourceProviderAddress string
+	// The resource type that the resource is being moved from.
+	SourceTypeName string
+	// The schema version of the resource type that the resource is being
+	// moved from.
+	SourceSchemaVersion uint64
+	// The raw state of the resource being moved. Only the json field is
+	// populated, as there should be no legacy providers using the flatmap
+	// format that support newly introduced RPCs.
+	SourceStateJSON    []byte
+	SourceStateFlatmap map[string]string // Unused
+
+	// The private state of the resource being moved.
+	SourcePrivate []byte
+
+	// The resource type that the resource is being moved to.
+	TargetTypeName string
+}
+
+type MoveResourceStateResponse struct {
+	// The state of the resource after it has been moved.
+	TargetState cty.Value
+	// The private state of the resource after it has been moved.
+	TargetPrivate []byte
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
 }
 
 type ReadDataSourceRequest struct {

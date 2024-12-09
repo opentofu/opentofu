@@ -161,7 +161,7 @@ func ValidateMoves(stmts []MoveStatement, rootCfg *configs.Config, declaredInsts
 				})
 			}
 
-			// Resource types must match.
+			/*Resource types must match.
 			if resourceTypesDiffer(absFrom, absTo) {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -170,7 +170,7 @@ func ValidateMoves(stmts []MoveStatement, rootCfg *configs.Config, declaredInsts
 						"This statement declares a move from %s to %s, which is a %s of a different type.", absFrom, absTo, noun,
 					),
 				})
-			}
+			}*/
 
 		}
 	}

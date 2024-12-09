@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -30,7 +31,7 @@ import (
 //
 // ApplyMoves expects exclusive access to the given state while it's running.
 // Don't read or write any part of the state structure until ApplyMoves returns.
-func ApplyMoves(stmts []MoveStatement, state *states.State) MoveResults {
+func ApplyMoves(stmts []MoveStatement, state *states.State, newProviderInstance func(addr addrs.Resource) (providers.Interface, error)) MoveResults {
 	ret := makeMoveResults()
 
 	if len(stmts) == 0 {
@@ -159,7 +160,53 @@ func ApplyMoves(stmts []MoveStatement, state *states.State) MoveResults {
 							newInst := newAddr.Instance(key)
 							recordOldAddr(oldInst, newInst)
 						}
+
 						state.MoveAbsResource(rAddr, newAddr)
+
+						if resourceTypesDiffer(rAddr, newAddr) {
+							provider, err := newProviderInstance(newAddr.Resource)
+							if err != nil {
+								// TODO proper error returns!
+								panic(err)
+							}
+
+							rs := state.Resource(newAddr)
+
+							for key := range rs.Instances {
+								is := rs.Instance(key)
+
+								// TODO wtf to do with deposed??
+								// TODO what happens if current  == nil, is that possible?
+
+								// TODO enabled.MoveResourceState
+								resp := provider.MoveResourceState(providers.MoveResourceStateRequest{
+									SourceProviderAddress: rAddr.Resource.ImpliedProvider(),
+									SourceTypeName:        rAddr.Resource.Type,
+									SourceSchemaVersion:   is.Current.SchemaVersion,
+									SourceStateJSON:       is.Current.AttrsJSON,
+									SourceStateFlatmap:    is.Current.AttrsFlat,
+									SourcePrivate:         is.Current.Private,
+									TargetTypeName:        newAddr.Resource.Type,
+								})
+								if resp.Diagnostics.HasErrors() {
+									panic(resp.Diagnostics.Err())
+								}
+
+								schema := provider.GetProviderSchema()
+								rschema, ok := schema.ResourceTypes[newAddr.Resource.Type]
+								if !ok {
+									panic("Missing expected resource")
+								}
+								rt := rschema.Block.ImpliedType()
+
+								is.Current, err = is.Current.CompleteUpgrade(resp.TargetState, rt, uint64(rschema.Version))
+								if err != nil {
+									panic(err)
+								}
+								is.Current.Private = resp.TargetPrivate
+							}
+						}
+
 						continue
 					}
 					for key := range rs.Instances {
