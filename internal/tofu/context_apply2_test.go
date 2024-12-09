@@ -4178,6 +4178,10 @@ resource "test_instance" "a" {
   for_each = toset(local.resources)
   provider = test.al[each.key]
 }
+data "test_data_source" "b" {
+  for_each = toset(local.resources)
+  provider = test.al[each.key]
+}
 `
 	complete := testModuleInline(t, map[string]string{
 		"locals.tofu":    localComplete,
@@ -4197,7 +4201,8 @@ resource "test_instance" "a" {
 	provider := testProvider("test")
 	provider.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
 		State: cty.ObjectVal(map[string]cty.Value{
-			"id": cty.StringVal("data_source"),
+			"id":  cty.StringVal("data_source"),
+			"foo": cty.StringVal("ok"),
 		}),
 	}
 	provider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
@@ -4330,6 +4335,8 @@ module "mod" {
 	resourceConfig := `
 resource "test_instance" "a" {
 }
+data "test_data_source" "b" {
+}
 `
 	complete := testModuleInline(t, map[string]string{
 		"locals.tofu":        localComplete,
@@ -4351,7 +4358,8 @@ resource "test_instance" "a" {
 	provider := testProvider("test")
 	provider.ReadDataSourceResponse = &providers.ReadDataSourceResponse{
 		State: cty.ObjectVal(map[string]cty.Value{
-			"id": cty.StringVal("data_source"),
+			"id":  cty.StringVal("data_source"),
+			"foo": cty.StringVal("ok"),
 		}),
 	}
 	provider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
