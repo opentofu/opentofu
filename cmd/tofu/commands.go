@@ -353,6 +353,24 @@ func initCommands(
 		},
 
 		//-----------------------------------------------------------
+		// OCI
+		//-----------------------------------------------------------
+
+		// Push a module directory to an OCI registry
+		"oci push": func() (cli.Command, error) {
+			return &command.OciPushCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		// Pull a module from an OCI registry manually
+		"oci pull": func() (cli.Command, error) {
+			return &command.OciPullCommand{
+				Meta: meta,
+			}, nil
+		},
+
+		//-----------------------------------------------------------
 		// Plumbing
 		//-----------------------------------------------------------
 
