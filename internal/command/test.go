@@ -470,13 +470,15 @@ func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *modulet
 
 		state, updatedState := runner.ExecuteTestRun(ctx, run, file, runner.States[key].State, config)
 		if updatedState {
+			var err error
+
 			// We need to simulate state serialization between multiple runs
 			// due to its side effects. One of such side effects is removal
 			// of destroyed non-root module outputs. This is not handled
 			// during graph walk since those values are not stored in the
 			// state file. This is more of a weird workaround instead of a
 			// proper fix, unfortunately.
-			state, err := simulateStateSerialization(state)
+			state, err = simulateStateSerialization(state)
 			if err != nil {
 				run.Diagnostics = run.Diagnostics.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
