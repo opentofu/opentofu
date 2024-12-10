@@ -6,6 +6,7 @@
 package command
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log"
@@ -28,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/moduletest"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
@@ -468,6 +470,26 @@ func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *modulet
 
 		state, updatedState := runner.ExecuteTestRun(ctx, run, file, runner.States[key].State, config)
 		if updatedState {
+			var err error
+
+			// We need to simulate state serialization between multiple runs
+			// due to its side effects. One of such side effects is removal
+			// of destroyed non-root module outputs. This is not handled
+			// during graph walk since those values are not stored in the
+			// state file. This is more of a weird workaround instead of a
+			// proper fix, unfortunately.
+			state, err = simulateStateSerialization(state)
+			if err != nil {
+				run.Diagnostics = run.Diagnostics.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Failure during state serialization",
+					Detail:   err.Error(),
+				})
+
+				// We cannot reuse state later so that's a hard stop.
+				return
+			}
+
 			// Only update the most recent run and state if the state was
 			// actually updated by this change. We want to use the run that
 			// most recently updated the tracked state as the cleanup
@@ -1301,4 +1323,25 @@ func checkProblematicPlanErrors(expectedFailures addrs.Map[addrs.Referenceable, 
 		}
 	}
 	return planDiags
+}
+
+// simulateStateSerialization takes a state, serializes it, deserializes it
+// and then returns. This is useful for state writing side effects without
+// actually writing a state file.
+func simulateStateSerialization(state *states.State) (*states.State, error) {
+	buff := &bytes.Buffer{}
+
+	f := statefile.New(state, "", 0)
+
+	err := statefile.Write(f, buff, encryption.StateEncryptionDisabled())
+	if err != nil {
+		return nil, fmt.Errorf("writing state to buffer: %w", err)
+	}
+
+	f, err = statefile.Read(buff, encryption.StateEncryptionDisabled())
+	if err != nil {
+		return nil, fmt.Errorf("reading state from buffer: %w", err)
+	}
+
+	return f.State, nil
 }
