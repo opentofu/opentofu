@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -273,6 +274,75 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		}
 		diagsStr := moreDiags.Err().Error()
 		if want := "required variable may not be set to null"; !strings.Contains(diagsStr, want) {
+			t.Errorf("wrong error\ngot: %s\nwant message containing: %s", diagsStr, want)
+		}
+	})
+}
+
+func TestStaticScope_GetLocalValue(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		p := testParser(map[string]string{
+			"test.tf": `
+				locals {
+					foo = "bar"
+				}
+			`,
+		})
+
+		call := NewStaticModuleCall(
+			addrs.RootModule,
+			func(v *Variable) (cty.Value, hcl.Diagnostics) {
+				var diags tfdiags.Diagnostics
+				diags = diags.Append(fmt.Errorf("no variables here"))
+				return cty.DynamicVal, diags.ToHCL()
+			},
+			".",
+			"irrelevant",
+		)
+		mod, diags := p.LoadConfigDir(".", call)
+		assertNoDiagnostics(t, diags)
+
+		eval := NewStaticEvaluator(mod, call)
+		scope := newStaticScope(eval)
+
+		addr := addrs.LocalValue{Name: "foo"}
+		got, moreDiags := scope.Data.GetLocalValue(addr, tfdiags.SourceRange{Filename: "test.tf"})
+		want := cty.StringVal("bar")
+		assertNoDiagnostics(t, moreDiags.ToHCL())
+		if !got.RawEquals(want) {
+			t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, want)
+		}
+	})
+	t.Run("undeclared", func(t *testing.T) {
+		p := testParser(map[string]string{
+			"test.tf": `
+				# This module intentionally left blank
+			`,
+		})
+
+		call := NewStaticModuleCall(
+			addrs.RootModule,
+			func(v *Variable) (cty.Value, hcl.Diagnostics) {
+				var diags tfdiags.Diagnostics
+				diags = diags.Append(fmt.Errorf("no variables here"))
+				return cty.DynamicVal, diags.ToHCL()
+			},
+			".",
+			"irrelevant",
+		)
+		mod, diags := p.LoadConfigDir(".", call)
+		assertNoDiagnostics(t, diags)
+
+		eval := NewStaticEvaluator(mod, call)
+		scope := newStaticScope(eval)
+
+		addr := addrs.LocalValue{Name: "nonexist"}
+		_, moreDiags := scope.Data.GetLocalValue(addr, tfdiags.SourceRange{Filename: "test.tf"})
+		if !moreDiags.HasErrors() {
+			t.Fatal("unexpected success; want error")
+		}
+		diagsStr := moreDiags.Err().Error()
+		if want := "Undefined local local.nonexist"; !strings.Contains(diagsStr, want) {
 			t.Errorf("wrong error\ngot: %s\nwant message containing: %s", diagsStr, want)
 		}
 	})
