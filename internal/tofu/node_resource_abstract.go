@@ -165,6 +165,11 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, c.ForEach)
 		result = append(result, refs...)
 
+		if c.ProviderConfigRef != nil && c.ProviderConfigRef.KeyExpression != nil {
+			providerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.ProviderConfigRef.KeyExpression)
+			result = append(result, providerRefs...)
+		}
+
 		for _, expr := range c.TriggersReplacement {
 			refs, _ = lang.ReferencesInExpr(addrs.ParseRef, expr)
 			result = append(result, refs...)
