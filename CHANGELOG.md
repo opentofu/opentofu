@@ -1,5 +1,7 @@
 ## 1.8.8 (unreleased)
 
+BUG FIXES:
+* `tofu test` now removes outputs of destroyed modules between different test runs. ([#2274](https://github.com/opentofu/opentofu/pull/2274))
 
 
 ## 1.8.7
