@@ -46,6 +46,7 @@ ENHANCEMENTS:
 * Changes to encryption configuration now auto-apply the migration ([#2232](https://github.com/opentofu/opentofu/pull/2232))
 * References to vars, data, etc. are now usable in variable validation ([#2216](https://github.com/opentofu/opentofu/pull/2216))
 * `AzureRM` backend now support `timeout_seconds` with default timeout of 300 seconds ([#2263](https://github.com/opentofu/opentofu/pull/2263))
+* Adds warning about provider version `0.0.0` ([#2281](https://github.com/opentofu/opentofu/pull/2281))
 
 BUG FIXES:
 * `templatefile` no longer crashes if the given filename is derived from a sensitive value. ([#1801](https://github.com/opentofu/opentofu/issues/1801))

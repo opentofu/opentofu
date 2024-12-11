@@ -7,7 +7,9 @@ package getproviders
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/apparentlymart/go-versions/versions"
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
@@ -54,7 +56,16 @@ func (s *FilesystemMirrorSource) AvailableVersions(ctx context.Context, provider
 		ret = append(ret, v)
 	}
 	ret.Sort()
-	return ret, nil, nil
+	// Check the existence of provider version 0.0.0 in the filesystem and warn the user about it
+	// If it exists, it will be the first element in the sorted list
+	var warnings Warnings
+	if len(ret) > 0 && ret[0] == versions.Unspecified {
+		warning := fmt.Sprintf("Provider %s has an unspecified (0.0.0) version available in the filesystem mirror, source at %s. It will not be used. \n"+
+			"If the version 0.0.0 is intended to represent a non-published provider, consider using dev_overrides - https://opentofu.org/docs/cli/config/config-file/#development-overrides-for-provider-developers",
+			provider, s.baseDir)
+		warnings = append(warnings, warning)
+	}
+	return ret, warnings, nil
 }
 
 // PackageMeta checks to see if the source's base directory contains a
