@@ -294,7 +294,7 @@ NeedProvider:
 		if cb := evts.QueryPackagesBegin; cb != nil {
 			cb(provider, reqs[provider], locked[provider])
 		}
-		//Version 0.0.0 not supported, warn about it if it is present and if it is the only acceptable version return an error
+		// Version 0.0.0 not supported, warn about it if it is present and if it is the only acceptable version return an error
 		warnings, err := checkUnspecifiedVersion(acceptableVersions)
 		if err != nil {
 			errs[provider] = err
