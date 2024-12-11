@@ -59,7 +59,9 @@ func resolveProviderResourceInstance(ctx EvalContext, keyExpr hcl.Expression, re
 
 func resolveProviderModuleInstance(ctx EvalContext, keyExpr hcl.Expression, modulePath addrs.ModuleInstance, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
 	keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(modulePath)
-	keyScope := ctx.WithPath(modulePath).EvaluationScope(nil, nil, keyData)
+	// module providers block is evaluated in the parent module scope, similar to GraphNodeReferenceOutside
+	evalPath := modulePath.Parent()
+	keyScope := ctx.WithPath(evalPath).EvaluationScope(nil, nil, keyData)
 	return resolveProviderInstance(keyExpr, keyScope, source)
 }
 

@@ -4156,18 +4156,21 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 func TestContext2Apply_providerResourceIteration(t *testing.T) {
 	localComplete := `
 locals {
+	direct = "primary"
 	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
 	resources = ["primary", "secondary"]
 }
 `
 	localPartial := `
 locals {
+	direct = "primary"
 	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
 	resources = ["primary"]
 }
 `
 	localMissing := `
 locals {
+	direct = "primary"
 	providers = { "primary": "eu-west-1"}
 	resources = ["primary", "secondary"]
 }
@@ -4187,6 +4190,15 @@ resource "test_instance" "a" {
 data "test_data_source" "b" {
   for_each = toset(local.resources)
   provider = test.al[each.key]
+}
+
+resource "test_instance" "a_direct" {
+  for_each = toset(local.resources)
+  provider = test.al[local.direct]
+}
+data "test_data_source" "b_direct" {
+  for_each = toset(local.resources)
+  provider = test.al[local.direct]
 }
 `
 	complete := testModuleInline(t, map[string]string{
@@ -4367,18 +4379,21 @@ data "test_data_source" "b" {
 func TestContext2Apply_providerModuleIteration(t *testing.T) {
 	localComplete := `
 locals {
+	direct = "primary"
 	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
 	mods = ["primary", "secondary"]
 }
 `
 	localPartial := `
 locals {
+	direct = "primary"
 	providers = { "primary": "eu-west-1", "secondary": "eu-west-2" }
 	mods = ["primary"]
 }
 `
 	localMissing := `
 locals {
+	direct = "primary"
 	providers = { "primary": "eu-west-1"}
 	mods = ["primary", "secondary"]
 }
@@ -4396,6 +4411,14 @@ module "mod" {
   for_each = toset(local.mods)
   providers = {
     test = test.al[each.key]
+  }
+}
+
+module "mod_direct" {
+  source = "./mod"
+  for_each = toset(local.mods)
+  providers = {
+    test = test.al[local.direct]
   }
 }
 `
