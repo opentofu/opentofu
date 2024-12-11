@@ -56,7 +56,8 @@ func (s *FilesystemMirrorSource) AvailableVersions(ctx context.Context, provider
 		ret = append(ret, v)
 	}
 	ret.Sort()
-	// check if we get unspecified available version (0.0.0) and log a warning about it
+	// Check the existence of provider version 0.0.0 in the filesystem and warn the user about it
+	// If it exists, it will be the first element in the sorted list
 	var warnings Warnings
 	if len(ret) > 0 && ret[0] == versions.Unspecified {
 		warning := fmt.Sprintf("Provider %s has an unspecified (0.0.0) version available in the filesystem mirror, source at %s. It will not be used. \n"+

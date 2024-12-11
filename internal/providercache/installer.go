@@ -294,7 +294,7 @@ NeedProvider:
 		if cb := evts.QueryPackagesBegin; cb != nil {
 			cb(provider, reqs[provider], locked[provider])
 		}
-		// Version 0.0.0 not supported, warn about it if it is present and if it is the only acceptable version return an error
+		// Version 0.0.0 not supported
 		if err := checkUnspecifiedVersion(acceptableVersions); err != nil {
 			errs[provider] = err
 			if cb := evts.QueryPackagesFailure; cb != nil {
@@ -744,20 +744,9 @@ NeedProvider:
 	return locks, nil
 }
 
+// checkUnspecifiedVersion Check the presence of version 0.0.0 and return an error with a tip
 func checkUnspecifiedVersion(acceptableVersions versions.Set) error {
-	// If the version set is infinite, no need to warn
-	if !acceptableVersions.IsFinite() {
-		return nil
-	}
-	l := acceptableVersions.List()
-	hasUnspecified := false
-	for _, v := range l {
-		if v == versions.Unspecified {
-			hasUnspecified = true
-			break
-		}
-	}
-	if !hasUnspecified {
+	if !acceptableVersions.Exactly(versions.Unspecified) {
 		return nil
 	}
 	tip := "If the version 0.0.0 is intended to represent a non-published provider, consider using dev_overrides - https://opentofu.org/docs/cli/config/config-file/#development-overrides-for-provider-developers"
