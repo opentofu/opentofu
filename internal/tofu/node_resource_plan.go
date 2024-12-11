@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"iter"
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -51,7 +52,7 @@ type nodeExpandPlannableResource struct {
 
 var (
 	_ GraphNodeDestroyerCBD         = (*nodeExpandPlannableResource)(nil)
-	_ GraphNodeDynamicExpandable    = (*nodeExpandPlannableResource)(nil)
+	_ GraphNodeExecutable           = (*nodeExpandPlannableResource)(nil)
 	_ GraphNodeReferenceable        = (*nodeExpandPlannableResource)(nil)
 	_ GraphNodeReferencer           = (*nodeExpandPlannableResource)(nil)
 	_ GraphNodeConfigResource       = (*nodeExpandPlannableResource)(nil)
@@ -93,7 +94,18 @@ func (n *nodeExpandPlannableResource) ModifyCreateBeforeDestroy(v bool) error {
 	return nil
 }
 
-func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandPlannableResource) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	// This was originally an implementation of GraphNodeDynamicExpandable, which we're
+	// moving away from in favor of more normal-looking code that just deals with the
+	// nested resource instances inline.
+	// However, this particular one was building its "subgraph" across multiple different
+	// functions and so is too risky to migrate all in one go, and so as an interim step
+	// we're still constructing a "Graph" but then just pulling the vertices out of it
+	// to execute directly. This lets us adopt the new style without significantly rewriting
+	// this code at first, so we can clean this up gradually over several smaller changes.
+	// FIXME: Remove all of the Graph machinery from this and just directly iterate over
+	// the instances and take the necessary actions directly, instead of this confusing
+	// inversion-of-control style.
 	var g Graph
 
 	expander := ctx.InstanceExpander()
@@ -181,7 +193,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		diags = diags.Append(err)
 	}
 	if diags.HasErrors() {
-		return nil, diags.ErrWithWarnings()
+		return diags
 	}
 
 	// If this is a resource that participates in custom condition checks
@@ -193,9 +205,40 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		checkState.ReportCheckableObjects(n.NodeAbstractResource.Addr, instAddrs)
 	}
 
-	addRootNodeToGraph(&g)
-
-	return &g, diags.ErrWithWarnings()
+	// By the time we get here we should have a graph that has a node for
+	// each resource instance, including both some added directly above
+	// for the whole-module "orphans" and some added by the
+	// n.expandResourceInstances method that still thinks it's building
+	// real graphs.
+	//
+	// Because nodeExpandPlannableResource.expandResourceInstances is still
+	// using the "graph builder" infrastructure to do its work, there will
+	// unfortunately be some needless dependency edges in this graph between
+	// each real node and the inert root node that is required for a graph
+	// to be considered valid, and so we'll just ignore all the edges and
+	// ignore any non-executable nodes so that we will effectively skip the
+	// "root" node.
+	//
+	// FIXME: Tear all of the graph-building bureaucracy out of this and
+	// iterate over the instances using a normal loop, without
+	// inversion-of-control techiques.
+	seq := iter.Seq[GraphNodeExecutable](func(yield func(GraphNodeExecutable) bool) {
+		for _, v := range g.Vertices() {
+			node, ok := v.(GraphNodeExecutable)
+			if !ok {
+				// We'll get in here for the unnecessary extra "root" node that the
+				// graph builder inserts to make the graph valid. It has no actual
+				// behavior, so we can safely skip it.
+				continue
+			}
+			if !yield(node) {
+				break
+			}
+		}
+	})
+	moreDiags := executeGraphNodes(seq, ctx, op)
+	diags = diags.Append(moreDiags)
+	return diags
 }
 
 // expandResourceInstances calculates the dynamic expansion for the resource

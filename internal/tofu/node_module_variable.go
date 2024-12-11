@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"iter"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
@@ -30,12 +31,12 @@ type nodeExpandModuleVariable struct {
 }
 
 var (
-	_ GraphNodeDynamicExpandable = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferenceOutside  = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferenceable     = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandModuleVariable)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandModuleVariable)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeExecutable       = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferenceOutside = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferenceable    = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeReferencer       = (*nodeExpandModuleVariable)(nil)
+	_ graphNodeTemporaryValue   = (*nodeExpandModuleVariable)(nil)
+	_ graphNodeExpandsInstances = (*nodeExpandModuleVariable)(nil)
 )
 
 func (n *nodeExpandModuleVariable) expandsInstances() {}
@@ -44,23 +45,24 @@ func (n *nodeExpandModuleVariable) temporaryValue() bool {
 	return true
 }
 
-func (n *nodeExpandModuleVariable) DynamicExpand(ctx EvalContext) (*Graph, error) {
-	var g Graph
-
-	expander := ctx.InstanceExpander()
-	for _, module := range expander.ExpandModule(n.Module) {
-		addr := n.Addr.Absolute(module)
-		o := &nodeModuleVariable{
-			Addr:           addr,
-			Config:         n.Config,
-			Expr:           n.Expr,
-			ModuleInstance: module,
+func (n *nodeExpandModuleVariable) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	seq := iter.Seq[GraphNodeExecutable](func(yield func(GraphNodeExecutable) bool) {
+		expander := ctx.InstanceExpander()
+		for _, module := range expander.ExpandModule(n.Module) {
+			addr := n.Addr.Absolute(module)
+			o := &nodeModuleVariable{
+				Addr:           addr,
+				Config:         n.Config,
+				Expr:           n.Expr,
+				ModuleInstance: module,
+			}
+			if !yield(o) {
+				break
+			}
 		}
-		g.Add(o)
-	}
-	addRootNodeToGraph(&g)
+	})
+	return executeGraphNodes(seq, ctx, op)
 
-	return &g, nil
 }
 
 func (n *nodeExpandModuleVariable) Name() string {

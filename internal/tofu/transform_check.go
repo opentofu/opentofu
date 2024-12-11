@@ -53,7 +53,7 @@ func (t *checkTransformer) transform(g *Graph, cfg *configs.Config, allNodes []d
 		expand := &nodeExpandCheck{
 			addr:   configAddr,
 			config: check,
-			makeInstance: func(addr addrs.AbsCheck, cfg *configs.Check) dag.Vertex {
+			makeInstance: func(addr addrs.AbsCheck, cfg *configs.Check) GraphNodeExecutable {
 				return &nodeCheckAssert{
 					addr:          addr,
 					config:        cfg,

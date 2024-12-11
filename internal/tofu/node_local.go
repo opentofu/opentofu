@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"iter"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
@@ -28,11 +29,11 @@ type nodeExpandLocal struct {
 }
 
 var (
-	_ GraphNodeReferenceable     = (*nodeExpandLocal)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandLocal)(nil)
-	_ GraphNodeDynamicExpandable = (*nodeExpandLocal)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandLocal)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandLocal)(nil)
+	_ GraphNodeReferenceable    = (*nodeExpandLocal)(nil)
+	_ GraphNodeReferencer       = (*nodeExpandLocal)(nil)
+	_ GraphNodeExecutable       = (*nodeExpandLocal)(nil)
+	_ graphNodeTemporaryValue   = (*nodeExpandLocal)(nil)
+	_ graphNodeExpandsInstances = (*nodeExpandLocal)(nil)
 )
 
 func (n *nodeExpandLocal) expandsInstances() {}
@@ -68,19 +69,21 @@ func (n *nodeExpandLocal) References() []*addrs.Reference {
 	return refs
 }
 
-func (n *nodeExpandLocal) DynamicExpand(ctx EvalContext) (*Graph, error) {
-	var g Graph
-	expander := ctx.InstanceExpander()
-	for _, module := range expander.ExpandModule(n.Module) {
-		o := &NodeLocal{
-			Addr:   n.Addr.Absolute(module),
-			Config: n.Config,
+func (n *nodeExpandLocal) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	seq := iter.Seq[GraphNodeExecutable](func(yield func(GraphNodeExecutable) bool) {
+		expander := ctx.InstanceExpander()
+		for _, module := range expander.ExpandModule(n.Module) {
+			o := &NodeLocal{
+				Addr:   n.Addr.Absolute(module),
+				Config: n.Config,
+			}
+			log.Printf("[TRACE] Expanding local: adding %s as %T", o.Addr.String(), o)
+			if !yield(o) {
+				break
+			}
 		}
-		log.Printf("[TRACE] Expanding local: adding %s as %T", o.Addr.String(), o)
-		g.Add(o)
-	}
-	addRootNodeToGraph(&g)
-	return &g, nil
+	})
+	return executeGraphNodes(seq, ctx, op)
 }
 
 // NodeLocal represents a named local value in a particular module.

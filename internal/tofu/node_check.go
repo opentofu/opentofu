@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"iter"
 	"log"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -13,7 +14,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -57,9 +57,9 @@ func (n *nodeReportCheck) Name() string {
 }
 
 var (
-	_ GraphNodeModulePath        = (*nodeExpandCheck)(nil)
-	_ GraphNodeDynamicExpandable = (*nodeExpandCheck)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandCheck)(nil)
+	_ GraphNodeModulePath = (*nodeExpandCheck)(nil)
+	_ GraphNodeExecutable = (*nodeExpandCheck)(nil)
+	_ GraphNodeReferencer = (*nodeExpandCheck)(nil)
 )
 
 // nodeExpandCheck creates child nodes that actually execute the assertions for
@@ -74,26 +74,28 @@ type nodeExpandCheck struct {
 	addr   addrs.ConfigCheck
 	config *configs.Check
 
-	makeInstance func(addrs.AbsCheck, *configs.Check) dag.Vertex
+	makeInstance func(addrs.AbsCheck, *configs.Check) GraphNodeExecutable
 }
 
 func (n *nodeExpandCheck) ModulePath() addrs.Module {
 	return n.addr.Module
 }
 
-func (n *nodeExpandCheck) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandCheck) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	exp := ctx.InstanceExpander()
 	modInsts := exp.ExpandModule(n.ModulePath())
 
-	var g Graph
-	for _, modAddr := range modInsts {
-		testAddr := n.addr.Check.Absolute(modAddr)
-		log.Printf("[TRACE] nodeExpandCheck: Node for %s", testAddr)
-		g.Add(n.makeInstance(testAddr, n.config))
-	}
-	addRootNodeToGraph(&g)
+	seq := iter.Seq[GraphNodeExecutable](func(yield func(GraphNodeExecutable) bool) {
+		for _, modAddr := range modInsts {
+			testAddr := n.addr.Check.Absolute(modAddr)
+			log.Printf("[TRACE] nodeExpandCheck: Node for %s", testAddr)
+			if !yield(n.makeInstance(testAddr, n.config)) {
+				break
+			}
+		}
+	})
 
-	return &g, nil
+	return executeGraphNodes(seq, ctx, op)
 }
 
 func (n *nodeExpandCheck) References() []*addrs.Reference {

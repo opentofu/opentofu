@@ -8,6 +8,7 @@ package tofu
 import (
 	"fmt"
 	"log"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -29,11 +30,11 @@ type nodeVariableReference struct {
 }
 
 var (
-	_ GraphNodeDynamicExpandable = (*nodeVariableReference)(nil)
-	_ GraphNodeReferenceable     = (*nodeVariableReference)(nil)
-	_ GraphNodeReferencer        = (*nodeVariableReference)(nil)
-	_ graphNodeExpandsInstances  = (*nodeVariableReference)(nil)
-	_ graphNodeTemporaryValue    = (*nodeVariableReference)(nil)
+	_ GraphNodeExecutable       = (*nodeVariableReference)(nil)
+	_ GraphNodeReferenceable    = (*nodeVariableReference)(nil)
+	_ GraphNodeReferencer       = (*nodeVariableReference)(nil)
+	_ graphNodeExpandsInstances = (*nodeVariableReference)(nil)
+	_ graphNodeTemporaryValue   = (*nodeVariableReference)(nil)
 )
 
 // graphNodeExpandsInstances
@@ -44,10 +45,8 @@ func (n *nodeVariableReference) temporaryValue() bool {
 	return len(n.Config.Validations) == 0
 }
 
-// GraphNodeDynamicExpandable
-func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
-	var g Graph
-
+// GraphNodeExecutable
+func (n *nodeVariableReference) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	// If this variable has preconditions, we need to report these checks now.
 	//
 	// We should only do this during planning as the apply phase starts with
@@ -56,6 +55,14 @@ func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
 		checkableAddrs = addrs.MakeSet[addrs.Checkable]()
 	}
+
+	// As an early step in the transition away from GraphNodeDynamicExpandable
+	// we're still constructing a set of graph nodes here, but then executing
+	// them inline rather than returning them for inversion-of-control style.
+	// TODO: Rework this tomake the nodeVariableReferenceInstance.Execute
+	// logic be just a normal function we can call, without the needless
+	// intermediate "graph node".
+	var nodes []GraphNodeExecutable
 
 	expander := ctx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
@@ -69,15 +76,14 @@ func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
 			Config: n.Config,
 			Expr:   n.Expr,
 		}
-		g.Add(o)
+		nodes = append(nodes, o)
 	}
-	addRootNodeToGraph(&g)
 
 	if checkableAddrs != nil {
 		ctx.Checks().ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
 	}
 
-	return &g, nil
+	return executeGraphNodes(slices.Values(nodes), ctx, op)
 }
 
 func (n *nodeVariableReference) Name() string {
