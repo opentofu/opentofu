@@ -127,6 +127,11 @@ func TestFilesystemMirrorSourceAvailableVersions(t *testing.T) {
 }
 
 func TestFilesystemMirrorSourceAvailableVersions_Unspecified(t *testing.T) {
+	unspecifiedProvider := addrs.Provider{
+		Hostname:  svchost.Hostname("registry.opentofu.org"),
+		Namespace: "testnamespace",
+		Type:      "unspecified",
+	}
 	source := NewFilesystemMirrorSource("testdata/filesystem-mirror-unspecified")
 	got, warn, err := source.AvailableVersions(context.Background(), unspecifiedProvider)
 	if err != nil {
@@ -204,11 +209,6 @@ func TestFilesystemMirrorSourcePackageMeta(t *testing.T) {
 	})
 }
 
-var unspecifiedProvider = addrs.Provider{
-	Hostname:  svchost.Hostname("registry.opentofu.org"),
-	Namespace: "testnamespace",
-	Type:      "unspecified",
-}
 var nullProvider = addrs.Provider{
 	Hostname:  svchost.Hostname("registry.opentofu.org"),
 	Namespace: "hashicorp",
