@@ -742,7 +742,7 @@ We will mode the `"provider"` property to each of the objects under `"instances"
 }
 ```
 
-The state snapshot loader will support both the old and new forms. If the resource-level `"provider"` property is present then any instance that does not have a `"provider"` property will have the value from the resource-level property copied into it, causing all of those instances to therefore refer to the same singleton provider configuration for the same meaning as before.
+The state snapshot loader will support both the old and new forms. If the resource-level `"provider"` property is present then any instance that does not have a `"provider"` property will have the value from the resource-level property copied into it, causing all of those instances to therefore refer to the same singleton provider configuration for the same meaning as before. Any resource instance that has both an instance-level provider address and a resource-level provider address will emit a warning and the instance-level address will take priority.
 
 After potentially propagating the resource-level addresses into instances that didn't have such a property, the state snapshot loader will verify that all of the instances have provider instance addresses that differ _only_ in the trailing instance key, and will fail with an error if not. That constraint preserves for now the fundamental assumption in the language runtime that each resource depends on exactly one provider configuration, while retaining the freedom to loosen that constraint in later versions without further changes to the state snapshot syntax and thus without the need for additional format migration code.
 
