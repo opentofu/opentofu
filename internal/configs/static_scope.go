@@ -22,9 +22,9 @@ import (
 )
 
 // newStaticScope creates a lang.Scope that's backed by the static view of the module represented by the StaticEvaluator
-func newStaticScope(eval *StaticEvaluator, stack ...StaticIdentifier) *lang.Scope {
+func newStaticScope(eval *StaticEvaluator, stack0 StaticIdentifier, stack ...StaticIdentifier) *lang.Scope {
 	return &lang.Scope{
-		Data:        staticScopeData{eval, stack},
+		Data:        staticScopeData{eval, append([]StaticIdentifier{stack0}, stack...)},
 		ParseRef:    addrs.ParseRef,
 		BaseDir:     ".", // Always current working directory for now. (same as Evaluator.Scope())
 		PureOnly:    false,
@@ -56,16 +56,11 @@ func (s staticScopeData) scope(ident StaticIdentifier) (*lang.Scope, tfdiags.Dia
 			})
 		}
 	}
-	return newStaticScope(s.eval, append(s.stack, ident)...), diags
+	return newStaticScope(s.eval, s.stack[0], append(s.stack[1:], ident)...), diags
 }
 
 // If an error occurs when resolving a dependent value, we need to add additional context to the diagnostics
 func (s staticScopeData) enhanceDiagnostics(ident StaticIdentifier, diags tfdiags.Diagnostics) tfdiags.Diagnostics {
-	if len(s.stack) == 0 {
-		// No enhancement possible if we have nothing on our identifier stack.
-		// (We should not typically get here, but can in some contrived situations like unit tests)
-		return diags
-	}
 	if diags.HasErrors() {
 		top := s.stack[len(s.stack)-1]
 		diags = diags.Append(&hcl.Diagnostic{

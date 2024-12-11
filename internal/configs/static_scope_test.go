@@ -20,6 +20,9 @@ import (
 )
 
 func TestStaticScope_GetInputVariable(t *testing.T) {
+	test_ident := StaticIdentifier{
+		Subject: "local.test_scenario",
+	}
 	t.Run("valid", func(t *testing.T) {
 		// This covers an assortment of valid cases that we can test in a single
 		// pass because they are all independent of one another.
@@ -191,7 +194,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		}
 
 		eval := NewStaticEvaluator(mod, call)
-		scope := newStaticScope(eval)
+		scope := newStaticScope(eval, test_ident)
 
 		for name, test := range tests {
 			t.Run(name, func(t *testing.T) {
@@ -227,7 +230,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		assertNoDiagnostics(t, diags)
 
 		eval := NewStaticEvaluator(mod, call)
-		scope := newStaticScope(eval)
+		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.InputVariable{Name: "bad_default"}
 		_, moreDiags := scope.Data.GetInputVariable(addr, tfdiags.SourceRange{Filename: "test.tf"})
@@ -265,7 +268,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		assertNoDiagnostics(t, diags)
 
 		eval := NewStaticEvaluator(mod, call)
-		scope := newStaticScope(eval)
+		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.InputVariable{Name: "not_nullable"}
 		_, moreDiags := scope.Data.GetInputVariable(addr, tfdiags.SourceRange{Filename: "test.tf"})
@@ -280,6 +283,10 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 }
 
 func TestStaticScope_GetLocalValue(t *testing.T) {
+	test_ident := StaticIdentifier{
+		Subject: "local.test_scenario",
+	}
+
 	t.Run("valid", func(t *testing.T) {
 		p := testParser(map[string]string{
 			"test.tf": `
@@ -303,7 +310,7 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 		assertNoDiagnostics(t, diags)
 
 		eval := NewStaticEvaluator(mod, call)
-		scope := newStaticScope(eval)
+		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.LocalValue{Name: "foo"}
 		got, moreDiags := scope.Data.GetLocalValue(addr, tfdiags.SourceRange{Filename: "test.tf"})
@@ -334,7 +341,7 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 		assertNoDiagnostics(t, diags)
 
 		eval := NewStaticEvaluator(mod, call)
-		scope := newStaticScope(eval)
+		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.LocalValue{Name: "nonexist"}
 		_, moreDiags := scope.Data.GetLocalValue(addr, tfdiags.SourceRange{Filename: "test.tf"})
