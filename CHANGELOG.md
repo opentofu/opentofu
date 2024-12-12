@@ -32,7 +32,7 @@ NEW FEATURES:
 ENHANCEMENTS:
 * OpenTofu builds now use Go version 1.22 ([#2050](https://github.com/opentofu/opentofu/issues/2050))
 * `provider` blocks now support `for_each`. ([#2123](https://github.com/opentofu/opentofu/issues/2123))
-* The new `-exclude` planning option complements `-target`, specifying what to exclude rather than what to include. ([#1900](https://github.com/opentofu/opentofu/pull/1900))
+* The new `-exclude` planning option complements `-target`, specifying what to exclude rather than what to include. ([#1900](https://github.com/opentofu/opentofu/pull/1900), [#2154](https://github.com/opentofu/opentofu/pull/2154))
 * State encryption key providers now support customizing the metadata key via `encrypted_metadata_alias`. ([#2080](https://github.com/opentofu/opentofu/pull/2080))
 * OpenTofu will now prompt for values for input variables needed for early evaluation. ([#2047](https://github.com/opentofu/opentofu/pull/2047))
 * Various commands now accept `-consolidate-warnings` and `-consolidate-errors` options to enable or disable OpenTofu's summarization of diagnostic messages. ([#1894](https://github.com/opentofu/opentofu/pull/1894))

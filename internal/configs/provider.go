@@ -179,7 +179,7 @@ func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 			return evalContext, diags.Append(evalDiags)
 		}
 
-		forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc)
+		forVal, evalDiags := evalchecks.EvaluateForEachExpression(p.ForEach, forEachRefsFunc, nil)
 		diags = append(diags, evalDiags.ToHCL()...)
 		if evalDiags.HasErrors() {
 			return diags
