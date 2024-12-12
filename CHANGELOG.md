@@ -6,6 +6,8 @@ NEW FEATURES:
 
 ENHANCEMENTS:
 
+* State encryption now supports using external programs as key providers.
+
 BUG FIXES:
 
 ## Previous Releases

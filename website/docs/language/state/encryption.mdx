@@ -15,6 +15,7 @@ import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
 import GCPKMS from '!!raw-loader!./examples/encryption/gcp_kms.tf'
 import OpenBao from '!!raw-loader!./examples/encryption/openbao.tf'
+import ExternalCommand from '!!raw-loader!./examples/encryption/externalcommand.tofu'
 import Sample from '!!raw-loader!./examples/encryption/sample.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
@@ -225,8 +226,180 @@ The OpenBao key provider is compatible with the last MPL-licensed version of Has
 
 :::
 
-## Methods
+### External command (experimental)
 
+The external command provider lets you run external commands in order to obtain encryption keys. These programs must be specifically written to work with OpenTofu. This key provider has the following fields:
+
+| Option    | Description                                                                          | Min. | Default |
+|-----------|--------------------------------------------------------------------------------------|------|---------|
+| `command` | External command to run in an array format, one parameter being an item in an array. | 1    |         |
+
+For example, you can configure the external program as follows:
+
+<CodeBlock language="hcl">{ExternalCommand}</CodeBlock>
+
+#### Handling inputs
+
+When the program starts and a decryption key is desired, OpenTofu will write the metadata stored with the encrypted data to the program's standard input. If no decryption key is needed, OpenTofu will write a null input (`null`) to the standard input. The input data for decryption will have the following format:
+
+```json
+{
+  "external_data": {
+    "key1": "value1",
+    "key2": "value2"
+  }
+}
+```
+
+The keys and values are the same the external program wrote on a previous run. The JSON schema for the above input is the following:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/externalcommand/input.schema.json",
+  "title": "OpenTofu External Key Provider Input",
+  "description": "Input schema for the OpenTofu external key provider protocol. The external provider must read the input from stdin and write the output to stdout. It may write to stderr to provide more error details.",
+  "type": "object",
+  "properties": {
+    "external_data": {
+      "$comment": "When decryption is desired, OpenTofu passes along the stored metadata. This metadata may contain additional details, such as the number of hashing rounds, that are not sensitive, but must be set properly when decrypting.",
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}
+```
+
+#### Creating outputs
+
+The external program must create an output that matches the following format:
+
+```json
+{
+  "key": {
+    "encryption_key": "newly generated base64-encoded encryption key",
+    "decryption_key": "base64-encoded decryption key, if input meta was present, omitted otherwise"
+  },
+  "meta": {
+    "external_data": {
+      "key1": "value1",
+      "key2": "value2"
+    }
+  }
+}
+```
+
+The JSON schema document for the output is the following:
+
+```json
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/externalcommand/input.schema.json",
+  "title": "OpenTofu External Key Provider Output",
+  "description": "Output schema for the OpenTofu external key provider protocol. The external provider must read the input from stdin and write the output to stdout. It may write to stderr to provide more error details.",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "encryption_key": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "$comment": "Base64-encoded encryption key. The external program must always emit this."
+        },
+        "decryption_key": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "$comment": "Base64-encoded decryption key. The external program should only emit this when all the metadata required to construct the key is present in the input."
+        }
+      },
+      "required": ["encryption_key"]
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "external_data": {
+          "$comment": "When decryption is desired, OpenTofu passes along the stored metadata. This metadata may contain additional details, such as the number of hashing rounds, that are not sensitive, but must be set properly when decrypting.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": ["key","meta"]
+}
+```
+
+#### Example program
+
+An example external program written in Go could be the following:
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"io"
+	"log"
+	"os"
+)
+
+// Metadata describes both the input and the output metadata.
+type Metadata struct {
+	ExternalData map[string]any `json:"external_data"`
+}
+
+// Input describes the input data structure. This is nil on input if no existing data needs to be decrypted
+type Input *Metadata
+
+// Output describes the output data written to stdout.
+type Output struct {
+	Key struct {
+		// EncryptionKey must always be provided.
+		EncryptionKey []byte `json:"encryption_key,omitempty"`
+		// DecryptionKey must be provided when the input metadata is present.
+		DecryptionKey []byte `json:"decryption_key,omitempty"`
+	} `json:"key"`
+	// Meta contains the metadata to store alongside the encrypted data. You can store data here you need
+	// to reconstruct the decryption key later.
+	Meta Metadata `json:"meta"`
+}
+
+func main() {
+	// Write logs to stderr
+	log.Default().SetOutput(os.Stderr)
+
+	// Read the input
+	input, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		log.Fatalf("Failed to read stdin: %v", err)
+	}
+	var inMeta Input
+	if err := json.Unmarshal(input, &inMeta); err != nil {
+		log.Fatalf("Failed to parse stdin: %v", err)
+	}
+
+	// TODO produce the encryption key
+	if inMeta != nil {
+		// TODO produce decryption key
+	}
+
+	output := Output{
+		// TODO: produce output
+	}
+	outputData, err := json.Marshal(output)
+	if err != nil {
+		log.Fatalf("Failed to encode output: %v", err)
+	}
+	_, _ = os.Stdout.Write(outputData)
+}
+```
+
+## Methods
 
 ### AES-GCM
 
