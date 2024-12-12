@@ -130,8 +130,14 @@ func executeGraphNodes(nodes iter.Seq[GraphNodeExecutable], evalCtx EvalContext,
 			}
 
 			nodeName := dag.VertexName(node)
-			log.Printf("[TRACE] executeGraphNodes: executing %s", nodeName)
-			moreDiags := node.Execute(localCtx, op)
+			// TODO: In future we'll plumb context.Context into here through changes to
+			// the GraphNodeExecutable interface, but for now we just stub it since
+			// we know GraphNodeExecutable implementers can't possibly accept a Context
+			// anyway.
+			moreDiags := evalCtx.PerformIO(context.TODO(), func(_ context.Context) tfdiags.Diagnostics {
+				log.Printf("[TRACE] executeGraphNodes: executing %s", nodeName)
+				return node.Execute(localCtx, op)
+			})
 			diagsMu.Lock()
 			diags = diags.Append(moreDiags)
 			diagsMu.Unlock()
