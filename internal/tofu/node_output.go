@@ -8,6 +8,7 @@ package tofu
 import (
 	"fmt"
 	"log"
+	"slices"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -35,18 +36,18 @@ type nodeExpandOutput struct {
 	// by the plan graph builder, as opposed to the apply graph builder.
 	// This quirk is just because we share the same node type between both
 	// phases but in practice there are a few small differences in the actions
-	// we need to take between plan and apply. See method DynamicExpand for
+	// we need to take between plan and apply. See method Execute for
 	// details.
 	Planning bool
 }
 
 var (
-	_ GraphNodeReferenceable     = (*nodeExpandOutput)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandOutput)(nil)
-	_ GraphNodeReferenceOutside  = (*nodeExpandOutput)(nil)
-	_ GraphNodeDynamicExpandable = (*nodeExpandOutput)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandOutput)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferenceable    = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferencer       = (*nodeExpandOutput)(nil)
+	_ GraphNodeReferenceOutside = (*nodeExpandOutput)(nil)
+	_ GraphNodeExecutable       = (*nodeExpandOutput)(nil)
+	_ graphNodeTemporaryValue   = (*nodeExpandOutput)(nil)
+	_ graphNodeExpandsInstances = (*nodeExpandOutput)(nil)
 )
 
 func (n *nodeExpandOutput) expandsInstances() {}
@@ -56,7 +57,7 @@ func (n *nodeExpandOutput) temporaryValue() bool {
 	return !n.Module.IsRoot()
 }
 
-func (n *nodeExpandOutput) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandOutput) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	expander := ctx.InstanceExpander()
 	changes := ctx.Changes()
 
@@ -79,7 +80,13 @@ func (n *nodeExpandOutput) DynamicExpand(ctx EvalContext) (*Graph, error) {
 		}
 	}
 
-	var g Graph
+	// As an early step in the transition away from GraphNodeDynamicExpandable
+	// we're still constructing a set of graph nodes here, but then executing
+	// them inline rather than returning them for inversion-of-control style.
+	// TODO: Rework this tomake the nodeVariableReferenceInstance.Execute
+	// logic be just a normal function we can call, without the needless
+	// intermediate "graph node".
+	var nodes []GraphNodeExecutable
 	for _, module := range expander.ExpandModule(n.Module) {
 		absAddr := n.Addr.Absolute(module)
 		if checkableAddrs != nil {
@@ -102,7 +109,7 @@ func (n *nodeExpandOutput) DynamicExpand(ctx EvalContext) (*Graph, error) {
 			}
 		}
 
-		var node dag.Vertex
+		var node GraphNodeExecutable
 		switch {
 		case module.IsRoot() && n.Destroying:
 			node = &NodeDestroyableOutput{
@@ -122,16 +129,15 @@ func (n *nodeExpandOutput) DynamicExpand(ctx EvalContext) (*Graph, error) {
 		}
 
 		log.Printf("[TRACE] Expanding output: adding %s as %T", absAddr.String(), node)
-		g.Add(node)
+		nodes = append(nodes, node)
 	}
-	addRootNodeToGraph(&g)
 
 	if checkableAddrs != nil {
 		checkState := ctx.Checks()
 		checkState.ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
 	}
 
-	return &g, nil
+	return executeGraphNodes(slices.Values(nodes), ctx, op)
 }
 
 func (n *nodeExpandOutput) Name() string {

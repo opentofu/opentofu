@@ -28,7 +28,7 @@ func (t *LocalTransformer) transformModule(g *Graph, c *configs.Config) error {
 
 	for _, local := range c.Module.Locals {
 		addr := addrs.LocalValue{Name: local.Name}
-		node := &nodeExpandLocal{
+		node := &nodeLocalValue{
 			Addr:   addr,
 			Module: c.Path,
 			Config: local,

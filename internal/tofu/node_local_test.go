@@ -20,7 +20,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 )
 
-func TestNodeLocalExecute(t *testing.T) {
+func TestNodeLocalValueExecute(t *testing.T) {
 	tests := []struct {
 		Value string
 		Want  interface{}
@@ -50,8 +50,9 @@ func TestNodeLocalExecute(t *testing.T) {
 				t.Fatal(diags.Error())
 			}
 
-			n := &NodeLocal{
-				Addr: addrs.LocalValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
+			n := &nodeLocalValue{
+				Addr:   addrs.LocalValue{Name: "foo"},
+				Module: addrs.RootModule,
 				Config: &configs.Local{
 					Expr: expr,
 				},
@@ -86,5 +87,4 @@ func TestNodeLocalExecute(t *testing.T) {
 			}
 		})
 	}
-
 }

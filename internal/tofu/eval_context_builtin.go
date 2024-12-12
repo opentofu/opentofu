@@ -46,6 +46,10 @@ type BuiltinEvalContext struct {
 	// panic if this is not set.
 	pathSet bool
 
+	// concurrencySemaphore is the counting semaphore used to limit concurrency
+	// of functions called indirectly through [BuiltinEvalContext.PerformIO].
+	concurrencySemaphore Semaphore
+
 	// Evaluator is used for evaluating expressions within the scope of this
 	// eval context.
 	Evaluator *Evaluator
@@ -126,6 +130,10 @@ func (ctx *BuiltinEvalContext) Hook(fn func(Hook) (HookAction, error)) error {
 
 func (ctx *BuiltinEvalContext) Input() UIInput {
 	return ctx.InputValue
+}
+
+func (ctx *BuiltinEvalContext) PerformIO(goCtx context.Context, f func(context.Context) tfdiags.Diagnostics) tfdiags.Diagnostics {
+	return performIOSemaphore(goCtx, f, ctx.concurrencySemaphore)
 }
 
 func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, error) {
