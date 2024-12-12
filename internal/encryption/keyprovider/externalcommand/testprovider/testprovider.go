@@ -23,11 +23,13 @@ type Output struct {
 }
 
 func main() {
+	// Write logs to stderr
+	log.Default().SetOutput(os.Stderr)
+
 	input, err := io.ReadAll(os.Stdin)
 	if err != nil {
 		log.Fatalf("Failed to read stdin: %v", err)
 	}
-	_, _ = os.Stderr.Write(input)
 	var inMeta any
 	if err := json.Unmarshal(input, &inMeta); err != nil {
 		log.Fatalf("Failed to parse stdin: %v", err)

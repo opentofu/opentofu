@@ -240,7 +240,7 @@ For example, you can configure the external program as follows:
 
 #### Handling inputs
 
-When the program starts and a decryption key is desired, OpenTofu will write the metadata stored with the encrypted data to the program's standard input. If no decryption key is needed, OpenTofu will write an empty input (`{}`) to the standard input. The input data for decryption will have the following format:
+When the program starts and a decryption key is desired, OpenTofu will write the metadata stored with the encrypted data to the program's standard input. If no decryption key is needed, OpenTofu will write a null input (`null`) to the standard input. The input data for decryption will have the following format:
 
 ```json
 {
@@ -332,6 +332,67 @@ The JSON schema document for the output is the following:
   "additionalProperties": false,
   "required": ["key","meta"]
 }
+```
+
+#### Example program
+
+An example external program written in Go could be the following:
+
+```go
+package main
+
+import (
+	"encoding/json"
+	"io"
+	"log"
+	"os"
+)
+
+// Input describes the input data structure. This is only present if existing data needs to be decrypted,
+// but not present if no existing data needs to be decrypted.
+type Input struct {
+	ExternalData map[string]any `json:"external_data"`
+}
+
+type Output struct {
+	Key struct {
+		EncryptionKey []byte `json:"encryption_key,omitempty"`
+		DecryptionKey []byte `json:"decryption_key,omitempty"`
+	} `json:"key"`
+	Meta *struct {
+		ExternalData map[string]any `json:"external_data"`
+	} `json:"meta,omitempty"`
+}
+
+func main() {
+    // Write logs to stderr
+	log.Default().SetOutput(os.Stderr)
+
+	// Read the input
+	input, err := io.ReadAll(os.Stdin)
+	if err != nil {
+		log.Fatalf("Failed to read stdin: %v", err)
+	}
+	var inMeta *Input
+	if err := json.Unmarshal(input, &inMeta); err != nil {
+		log.Fatalf("Failed to parse stdin: %v", err)
+	}
+
+	// TODO produce the encryption key
+	if inMeta != nil {
+		// TODO produce decryption key
+	}
+
+	output := Output{
+		// TODO: produce output
+	}
+	outputData, err := json.Marshal(output)
+	if err != nil {
+		log.Fatalf("Failed to stringify output: %v", err)
+	}
+	_, _ = os.Stdout.Write(outputData)
+}
+
 ```
 
 ## Methods
