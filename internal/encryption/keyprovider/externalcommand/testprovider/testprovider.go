@@ -17,7 +17,7 @@ type Output struct {
 		EncryptionKey []byte `json:"encryption_key,omitempty"`
 		DecryptionKey []byte `json:"decryption_key,omitempty"`
 	} `json:"key"`
-	Meta *struct {
+	Meta struct {
 		ExternalData map[string]any `json:"external_data"`
 	} `json:"meta,omitempty"`
 }
@@ -48,7 +48,7 @@ func main() {
 			EncryptionKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 			DecryptionKey: decryptionKey,
 		},
-		Meta: &struct {
+		Meta: struct {
 			ExternalData map[string]any `json:"external_data"`
 		}{ExternalData: map[string]any{}},
 	}

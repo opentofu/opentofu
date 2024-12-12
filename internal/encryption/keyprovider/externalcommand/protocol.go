@@ -15,5 +15,5 @@ type Input *Metadata
 // Output describes the output datastructure written to stdout by the external program.
 type Output struct {
 	Key  keyprovider.Output `json:"key"`
-	Meta *Metadata          `json:"meta,omitempty"`
+	Meta Metadata           `json:"meta,omitempty"`
 }

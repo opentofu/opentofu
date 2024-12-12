@@ -348,20 +348,23 @@ import (
 	"os"
 )
 
-// Input describes the input data structure. This is only present if existing data needs to be decrypted,
-// but not present if no existing data needs to be decrypted.
-type Input struct {
+// Metadata describes both the input and the output metadata.
+type Metadata struct {
 	ExternalData map[string]any `json:"external_data"`
 }
 
+// Input describes the input data structure. This is nil on input if no existing data needs to be decrypted
+type Input *Metadata
+
+// Output describes the output data written to stdout.
 type Output struct {
 	Key struct {
+		// EncryptionKey must always be provided.
 		EncryptionKey []byte `json:"encryption_key,omitempty"`
+		// DecryptionKey must be provided when the input metadata is present.
 		DecryptionKey []byte `json:"decryption_key,omitempty"`
 	} `json:"key"`
-	Meta *struct {
-		ExternalData map[string]any `json:"external_data"`
-	} `json:"meta,omitempty"`
+	Meta Metadata `json:"meta"`
 }
 
 func main() {
@@ -373,7 +376,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to read stdin: %v", err)
 	}
-	var inMeta *Input
+	var inMeta Input
 	if err := json.Unmarshal(input, &inMeta); err != nil {
 		log.Fatalf("Failed to parse stdin: %v", err)
 	}
@@ -392,7 +395,6 @@ func main() {
 	}
 	_, _ = os.Stdout.Write(outputData)
 }
-
 ```
 
 ## Methods

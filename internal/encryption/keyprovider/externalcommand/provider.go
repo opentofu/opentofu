@@ -70,5 +70,5 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 		}
 	}
 
-	return result.Key, result.Meta, nil
+	return result.Key, &result.Meta, nil
 }
