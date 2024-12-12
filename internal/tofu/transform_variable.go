@@ -44,7 +44,7 @@ func (t *RootVariableTransformer) Transform(g *Graph) error {
 		}
 		g.Add(node)
 
-		ref := &nodeVariableReference{
+		ref := &nodeInputVariableReference{
 			Addr: addrs.InputVariable{
 				Name: v.Name,
 			},

@@ -128,7 +128,7 @@ func TestNodeRootVariableExecute(t *testing.T) {
 			},
 		}
 
-		ref := &nodeVariableReference{
+		ref := &nodeInputVariableReference{
 			Addr:   n.Addr,
 			Config: n.Config,
 		}

@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
@@ -30,10 +32,10 @@ func TestModuleVariableTransformer(t *testing.T) {
 		}
 	}
 
-	actual := strings.TrimSpace(g.String())
-	expected := strings.TrimSpace(testTransformModuleVarBasicStr)
-	if actual != expected {
-		t.Fatalf("bad:\n\n%s", actual)
+	got := strings.TrimSpace(g.String())
+	want := strings.TrimSpace(testTransformModuleVarBasicStr)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatal("wrong graph\n" + diff)
 	}
 }
 
@@ -55,24 +57,24 @@ func TestModuleVariableTransformer_nested(t *testing.T) {
 		}
 	}
 
-	actual := strings.TrimSpace(g.String())
-	expected := strings.TrimSpace(testTransformModuleVarNestedStr)
-	if actual != expected {
-		t.Fatalf("bad:\n\n%s", actual)
+	got := strings.TrimSpace(g.String())
+	want := strings.TrimSpace(testTransformModuleVarNestedStr)
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatal("wrong graph\n" + diff)
 	}
 }
 
 const testTransformModuleVarBasicStr = `
-module.child.var.value (expand, input)
-module.child.var.value (expand, reference)
-  module.child.var.value (expand, input)
+module.child.var.value (input)
+module.child.var.value (reference)
+  module.child.var.value (input)
 `
 
 const testTransformModuleVarNestedStr = `
-module.child.module.child.var.value (expand, input)
-module.child.module.child.var.value (expand, reference)
-  module.child.module.child.var.value (expand, input)
-module.child.var.value (expand, input)
-module.child.var.value (expand, reference)
-  module.child.var.value (expand, input)
+module.child.module.child.var.value (input)
+module.child.module.child.var.value (reference)
+  module.child.module.child.var.value (input)
+module.child.var.value (input)
+module.child.var.value (reference)
+  module.child.var.value (input)
 `

@@ -8,152 +8,81 @@ package tofu
 import (
 	"fmt"
 	"log"
-	"slices"
 
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// nodeVariableReference is the placeholder for an variable reference that has not yet had
+// nodeInputVariableReference is the placeholder for an variable reference that has not yet had
 // its module path expanded.  It is a dependency on the evaluation (in a different scope) of
 // the nodes which provide the actual variable value to the evaluation context.  This split
 // allows the evaluation and validation of the variable in the two different scopes required.
-type nodeVariableReference struct {
+type nodeInputVariableReference struct {
 	Addr   addrs.InputVariable
 	Module addrs.Module
-	Config *configs.Variable
-	Expr   hcl.Expression // Used for diagnostics only
+	Config *configs.Variable // The declaration, in the called module
+	Expr   hcl.Expression    // The definition, from the call block in the calling module, for diagnostics only
 }
 
 var (
-	_ GraphNodeExecutable       = (*nodeVariableReference)(nil)
-	_ GraphNodeReferenceable    = (*nodeVariableReference)(nil)
-	_ GraphNodeReferencer       = (*nodeVariableReference)(nil)
-	_ graphNodeExpandsInstances = (*nodeVariableReference)(nil)
-	_ graphNodeTemporaryValue   = (*nodeVariableReference)(nil)
+	_ GraphNodeExecutable       = (*nodeInputVariableReference)(nil)
+	_ GraphNodeReferenceable    = (*nodeInputVariableReference)(nil)
+	_ GraphNodeReferencer       = (*nodeInputVariableReference)(nil)
+	_ graphNodeExpandsInstances = (*nodeInputVariableReference)(nil)
+	_ graphNodeTemporaryValue   = (*nodeInputVariableReference)(nil)
 )
 
 // graphNodeExpandsInstances
-func (n *nodeVariableReference) expandsInstances() {}
+func (n *nodeInputVariableReference) expandsInstances() {}
 
 // Abuse graphNodeTemporaryValue to keep the validation rule around
-func (n *nodeVariableReference) temporaryValue() bool {
+func (n *nodeInputVariableReference) temporaryValue() bool {
 	return len(n.Config.Validations) == 0
 }
 
 // GraphNodeExecutable
-func (n *nodeVariableReference) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *nodeInputVariableReference) Execute(evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	expander := evalCtx.InstanceExpander()
+	moduleInstAddrs := expander.ExpandModule(n.Module)
+
 	// If this variable has preconditions, we need to report these checks now.
 	//
 	// We should only do this during planning as the apply phase starts with
 	// all the same checkable objects that were registered during the plan.
 	var checkableAddrs addrs.Set[addrs.Checkable]
-	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
+	if checkState := evalCtx.Checks(); checkState.ConfigHasChecks(n.Addr.InModule(n.Module)) {
 		checkableAddrs = addrs.MakeSet[addrs.Checkable]()
+		for _, module := range moduleInstAddrs {
+			checkableAddrs.Add(n.Addr.Absolute(module))
+		}
+		evalCtx.Checks().ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
 	}
 
-	// As an early step in the transition away from GraphNodeDynamicExpandable
-	// we're still constructing a set of graph nodes here, but then executing
-	// them inline rather than returning them for inversion-of-control style.
-	// TODO: Rework this tomake the nodeVariableReferenceInstance.Execute
-	// logic be just a normal function we can call, without the needless
-	// intermediate "graph node".
-	var nodes []GraphNodeExecutable
-
-	expander := ctx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
 		addr := n.Addr.Absolute(module)
-		if checkableAddrs != nil {
-			checkableAddrs.Add(addr)
-		}
+		// Since this graph node deals with the input variable from the
+		// perspective of the declaration, we use the callee's module
+		// path to instantiate our local evaluation context.
+		calleeEvalCtx := evalCtx.WithPath(addr.Module)
 
-		o := &nodeVariableReferenceInstance{
-			Addr:   addr,
-			Config: n.Config,
-			Expr:   n.Expr,
-		}
-		nodes = append(nodes, o)
+		log.Printf("[TRACE] nodeInputVariableReference: evaluating %s", addr)
+		moreDiags := n.executeInstance(addr, calleeEvalCtx, op == walkValidate)
+		diags = diags.Append(moreDiags)
 	}
 
-	if checkableAddrs != nil {
-		ctx.Checks().ReportCheckableObjects(n.Addr.InModule(n.Module), checkableAddrs)
-	}
-
-	return executeGraphNodes(slices.Values(nodes), ctx, op)
+	return diags
 }
 
-func (n *nodeVariableReference) Name() string {
-	addrStr := n.Addr.String()
-	if len(n.Module) != 0 {
-		addrStr = n.Module.String() + "." + addrStr
-	}
-	return fmt.Sprintf("%s (expand, reference)", addrStr)
-}
+func (n *nodeInputVariableReference) executeInstance(absAddr addrs.AbsInputVariableInstance, evalCtx EvalContext, validating bool) tfdiags.Diagnostics {
+	diags := evalVariableValidations(absAddr, n.Config, n.Expr, evalCtx)
 
-// GraphNodeModulePath
-func (n *nodeVariableReference) ModulePath() addrs.Module {
-	return n.Module
-}
-
-// GraphNodeReferencer
-func (n *nodeVariableReference) References() []*addrs.Reference {
-	var refs []*addrs.Reference
-	if n.Config != nil {
-		for _, validation := range n.Config.Validations {
-			condFuncs, _ := lang.ReferencesInExpr(addrs.ParseRef, validation.Condition)
-			refs = append(refs, condFuncs...)
-			errFuncs, _ := lang.ReferencesInExpr(addrs.ParseRef, validation.ErrorMessage)
-			refs = append(refs, errFuncs...)
-		}
-	}
-	return refs
-}
-
-// GraphNodeReferenceable
-func (n *nodeVariableReference) ReferenceableAddrs() []addrs.Referenceable {
-	return []addrs.Referenceable{n.Addr}
-}
-
-// nodeVariableReferenceInstance represents a module variable reference during
-// the apply step.
-type nodeVariableReferenceInstance struct {
-	Addr   addrs.AbsInputVariableInstance
-	Config *configs.Variable // Config is the var in the config
-	Expr   hcl.Expression    // Used for diagnostics only
-}
-
-// Ensure that we are implementing all of the interfaces we think we are
-// implementing.
-var (
-	_ GraphNodeModuleInstance = (*nodeVariableReferenceInstance)(nil)
-	_ GraphNodeExecutable     = (*nodeVariableReferenceInstance)(nil)
-	_ dag.GraphNodeDotter     = (*nodeVariableReferenceInstance)(nil)
-)
-
-func (n *nodeVariableReferenceInstance) Name() string {
-	return n.Addr.String() + " (reference)"
-}
-
-// GraphNodeModuleInstance
-func (n *nodeVariableReferenceInstance) Path() addrs.ModuleInstance {
-	return n.Addr.Module
-}
-
-// GraphNodeModulePath
-func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
-	return n.Addr.Module.Module()
-}
-
-// GraphNodeExecutable
-func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
-	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
-	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
-
-	if op == walkValidate {
+	if validating {
 		var filtered tfdiags.Diagnostics
 		// Validate may contain unknown values, we can ignore that until plan/apply
 		for _, diag := range diags {
@@ -167,13 +96,34 @@ func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperatio
 	return diags
 }
 
-// dag.GraphNodeDotter impl.
-func (n *nodeVariableReferenceInstance) DotNode(name string, _ *dag.DotOpts) *dag.DotNode {
-	return &dag.DotNode{
-		Name: name,
-		Attrs: map[string]string{
-			"label": n.Name(),
-			"shape": "note",
-		},
+func (n *nodeInputVariableReference) Name() string {
+	addrStr := n.Addr.String()
+	if len(n.Module) != 0 {
+		addrStr = n.Module.String() + "." + addrStr
 	}
+	return fmt.Sprintf("%s (reference)", addrStr)
+}
+
+// GraphNodeModulePath
+func (n *nodeInputVariableReference) ModulePath() addrs.Module {
+	return n.Module
+}
+
+// GraphNodeReferencer
+func (n *nodeInputVariableReference) References() []*addrs.Reference {
+	var refs []*addrs.Reference
+	if n.Config != nil {
+		for _, validation := range n.Config.Validations {
+			condFuncs, _ := lang.ReferencesInExpr(addrs.ParseRef, validation.Condition)
+			refs = append(refs, condFuncs...)
+			errFuncs, _ := lang.ReferencesInExpr(addrs.ParseRef, validation.ErrorMessage)
+			refs = append(refs, errFuncs...)
+		}
+	}
+	return refs
+}
+
+// GraphNodeReferenceable
+func (n *nodeInputVariableReference) ReferenceableAddrs() []addrs.Referenceable {
+	return []addrs.Referenceable{n.Addr}
 }
