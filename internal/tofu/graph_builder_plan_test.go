@@ -255,12 +255,12 @@ aws_load_balancer.weblb (expand)
   aws_instance.web (expand)
 aws_security_group.firewall (expand)
   provider["registry.opentofu.org/hashicorp/aws"]
-local.instance_id (expand)
+local.instance_id
   aws_instance.web (expand)
 openstack_floating_ip.random (expand)
   provider["registry.opentofu.org/hashicorp/openstack"]
 output.instance_id (expand)
-  local.instance_id (expand)
+  local.instance_id
 provider["registry.opentofu.org/hashicorp/aws"]
   openstack_floating_ip.random (expand)
 provider["registry.opentofu.org/hashicorp/aws"] (close)

@@ -7,7 +7,6 @@ package tofu
 
 import (
 	"fmt"
-	"iter"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
@@ -15,37 +14,36 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// nodeExpandLocal represents a named local value in a configuration module,
+// nodeLocalValue represents a named local value in a configuration module,
 // which has not yet been expanded.
-type nodeExpandLocal struct {
+type nodeLocalValue struct {
 	Addr   addrs.LocalValue
 	Module addrs.Module
 	Config *configs.Local
 }
 
 var (
-	_ GraphNodeReferenceable    = (*nodeExpandLocal)(nil)
-	_ GraphNodeReferencer       = (*nodeExpandLocal)(nil)
-	_ GraphNodeExecutable       = (*nodeExpandLocal)(nil)
-	_ graphNodeTemporaryValue   = (*nodeExpandLocal)(nil)
-	_ graphNodeExpandsInstances = (*nodeExpandLocal)(nil)
+	_ GraphNodeReferenceable    = (*nodeLocalValue)(nil)
+	_ GraphNodeReferencer       = (*nodeLocalValue)(nil)
+	_ GraphNodeExecutable       = (*nodeLocalValue)(nil)
+	_ graphNodeTemporaryValue   = (*nodeLocalValue)(nil)
+	_ graphNodeExpandsInstances = (*nodeLocalValue)(nil)
 )
 
-func (n *nodeExpandLocal) expandsInstances() {}
+func (n *nodeLocalValue) expandsInstances() {}
 
 // graphNodeTemporaryValue
-func (n *nodeExpandLocal) temporaryValue() bool {
+func (n *nodeLocalValue) temporaryValue() bool {
 	return true
 }
 
-func (n *nodeExpandLocal) Name() string {
+func (n *nodeLocalValue) Name() string {
 	path := n.Module.String()
-	addr := n.Addr.String() + " (expand)"
+	addr := n.Addr.String()
 
 	if path != "" {
 		return path + "." + addr
@@ -54,103 +52,55 @@ func (n *nodeExpandLocal) Name() string {
 }
 
 // GraphNodeModulePath
-func (n *nodeExpandLocal) ModulePath() addrs.Module {
+func (n *nodeLocalValue) ModulePath() addrs.Module {
 	return n.Module
 }
 
 // GraphNodeReferenceable
-func (n *nodeExpandLocal) ReferenceableAddrs() []addrs.Referenceable {
+func (n *nodeLocalValue) ReferenceableAddrs() []addrs.Referenceable {
 	return []addrs.Referenceable{n.Addr}
 }
 
 // GraphNodeReferencer
-func (n *nodeExpandLocal) References() []*addrs.Reference {
+func (n *nodeLocalValue) References() []*addrs.Reference {
 	refs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.Config.Expr)
 	return refs
 }
 
-func (n *nodeExpandLocal) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
-	seq := iter.Seq[GraphNodeExecutable](func(yield func(GraphNodeExecutable) bool) {
-		expander := ctx.InstanceExpander()
-		for _, module := range expander.ExpandModule(n.Module) {
-			o := &NodeLocal{
-				Addr:   n.Addr.Absolute(module),
-				Config: n.Config,
-			}
-			log.Printf("[TRACE] Expanding local: adding %s as %T", o.Addr.String(), o)
-			if !yield(o) {
-				break
-			}
-		}
-	})
-	return executeGraphNodes(seq, ctx, op)
+func (n *nodeLocalValue) Execute(evalCtx EvalContext, _ walkOperation) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// Local value evaluation does not involve any I/O, and so for simplicity's sake
+	// we deal with all of the instances of a local value as sequential code rather
+	// than trying to evaluate them concurrently.
+
+	expander := evalCtx.InstanceExpander()
+	for _, module := range expander.ExpandModule(n.Module) {
+		absAddr := n.Addr.Absolute(module)
+		modEvalCtx := evalCtx.WithPath(absAddr.Module)
+		log.Printf("[TRACE] nodeLocalValue: evaluating %s", absAddr)
+		moreDiags := n.executeInstance(absAddr, modEvalCtx)
+		diags = diags.Append(moreDiags)
+	}
+
+	return diags
 }
 
-// NodeLocal represents a named local value in a particular module.
-//
-// Local value nodes only have one operation, common to all walk types:
-// evaluate the result and place it in state.
-type NodeLocal struct {
-	Addr   addrs.AbsLocalValue
-	Config *configs.Local
-}
+func (n *nodeLocalValue) executeInstance(absAddr addrs.AbsLocalValue, evalCtx EvalContext) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
 
-var (
-	_ GraphNodeModuleInstance = (*NodeLocal)(nil)
-	_ GraphNodeReferenceable  = (*NodeLocal)(nil)
-	_ GraphNodeReferencer     = (*NodeLocal)(nil)
-	_ GraphNodeExecutable     = (*NodeLocal)(nil)
-	_ graphNodeTemporaryValue = (*NodeLocal)(nil)
-	_ dag.GraphNodeDotter     = (*NodeLocal)(nil)
-)
-
-// graphNodeTemporaryValue
-func (n *NodeLocal) temporaryValue() bool {
-	return true
-}
-
-func (n *NodeLocal) Name() string {
-	return n.Addr.String()
-}
-
-// GraphNodeModuleInstance
-func (n *NodeLocal) Path() addrs.ModuleInstance {
-	return n.Addr.Module
-}
-
-// GraphNodeModulePath
-func (n *NodeLocal) ModulePath() addrs.Module {
-	return n.Addr.Module.Module()
-}
-
-// GraphNodeReferenceable
-func (n *NodeLocal) ReferenceableAddrs() []addrs.Referenceable {
-	return []addrs.Referenceable{n.Addr.LocalValue}
-}
-
-// GraphNodeReferencer
-func (n *NodeLocal) References() []*addrs.Reference {
-	refs, _ := lang.ReferencesInExpr(addrs.ParseRef, n.Config.Expr)
-	return refs
-}
-
-// GraphNodeExecutable
-// NodeLocal.Execute is an Execute implementation that evaluates the
-// expression for a local value and writes it into a transient part of
-// the state.
-func (n *NodeLocal) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	expr := n.Config.Expr
-	addr := n.Addr.LocalValue
+	localAddr := absAddr.LocalValue
 
 	// We ignore diags here because any problems we might find will be found
 	// again in EvaluateExpr below.
 	refs, _ := lang.ReferencesInExpr(addrs.ParseRef, expr)
 	for _, ref := range refs {
-		if ref.Subject == addr {
+		if ref.Subject == localAddr {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Self-referencing local value",
-				Detail:   fmt.Sprintf("Local value %s cannot use its own result as part of its expression.", addr),
+				Detail:   fmt.Sprintf("Local value %s cannot use its own result as part of its expression.", localAddr),
 				Subject:  ref.SourceRange.ToHCL().Ptr(),
 				Context:  expr.Range().Ptr(),
 			})
@@ -160,30 +110,19 @@ func (n *NodeLocal) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Di
 		return diags
 	}
 
-	val, moreDiags := ctx.EvaluateExpr(expr, cty.DynamicPseudoType, nil)
+	val, moreDiags := evalCtx.EvaluateExpr(expr, cty.DynamicPseudoType, nil)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags
 	}
 
-	state := ctx.State()
+	state := evalCtx.State()
 	if state == nil {
+		// Should not get here: there should always be a working state while we're working.
 		diags = diags.Append(fmt.Errorf("cannot write local value to nil state"))
 		return diags
 	}
 
-	state.SetLocalValue(addr.Absolute(ctx.Path()), val)
-
+	state.SetLocalValue(absAddr, val)
 	return diags
-}
-
-// dag.GraphNodeDotter impl.
-func (n *NodeLocal) DotNode(name string, opts *dag.DotOpts) *dag.DotNode {
-	return &dag.DotNode{
-		Name: name,
-		Attrs: map[string]string{
-			"label": n.Name(),
-			"shape": "note",
-		},
-	}
 }
