@@ -5,6 +5,7 @@
 
 package externalcommand
 
+// Metadata describes the metadata structure of the external provider.
 type Metadata struct {
 	ExternalData map[string]any `hcl:"external_data" json:"external_data"`
 }
