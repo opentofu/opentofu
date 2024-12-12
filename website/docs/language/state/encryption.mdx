@@ -364,6 +364,8 @@ type Output struct {
 		// DecryptionKey must be provided when the input metadata is present.
 		DecryptionKey []byte `json:"decryption_key,omitempty"`
 	} `json:"key"`
+	// Meta contains the metadata to store alongside the encrypted data. You can store data here you need
+	// to reconstruct the decryption key later.
 	Meta Metadata `json:"meta"`
 }
 
