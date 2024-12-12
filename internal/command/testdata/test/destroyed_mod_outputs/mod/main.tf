@@ -2,10 +2,10 @@ variable "val" {
 }
 
 output "val" {
-    value = "${var.val}_${test_resource.resource.id}"
+    value = test_resource.resource.id
 }
 
 resource "test_resource" "resource" {
-  id = "598318e0"
+  id    = "${var.val}_598318e0"
   value = var.val
 }
