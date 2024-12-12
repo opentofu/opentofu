@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -181,6 +183,15 @@ func (c *MockEvalContext) Hook(fn func(Hook) (HookAction, error)) error {
 func (c *MockEvalContext) Input() UIInput {
 	c.InputCalled = true
 	return c.InputInput
+}
+
+func (c *MockEvalContext) PerformIO(ctx context.Context, f func(context.Context) tfdiags.Diagnostics) tfdiags.Diagnostics {
+	// We don't have any support for mocking this one away because the
+	// behavior of this method is fundamental and has no need to vary
+	// between uses. We also don't track calls to this method because
+	// numerous calls are expected to happen as an implementation detail
+	// of various different operations.
+	return performIOUnconstrained(ctx, f)
 }
 
 func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderConfig, _ addrs.InstanceKey) (providers.Interface, error) {

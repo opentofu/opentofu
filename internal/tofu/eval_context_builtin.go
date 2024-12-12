@@ -128,6 +128,16 @@ func (ctx *BuiltinEvalContext) Input() UIInput {
 	return ctx.InputValue
 }
 
+func (ctx *BuiltinEvalContext) PerformIO(goCtx context.Context, f func(context.Context) tfdiags.Diagnostics) tfdiags.Diagnostics {
+	// TODO: This should actually use performIOSemaphore, once we get the
+	// semaphore wired in here to actually do that. For now this is just
+	// a placeholder to implement the new API.
+	// FIXME: Rename the reciever symbols on all of these methods to use
+	// our new standard name "evalCtx" so that the context.Context argument
+	// can use the idiomatic name "ctx" instead of the weirdo "goCtx".
+	return performIOUnconstrained(goCtx, f)
+}
+
 func (ctx *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, error) {
 	ctx.ProviderLock.Lock()
 	defer ctx.ProviderLock.Unlock()
