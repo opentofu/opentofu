@@ -393,7 +393,7 @@ func main() {
 	}
 	outputData, err := json.Marshal(output)
 	if err != nil {
-		log.Fatalf("Failed to stringify output: %v", err)
+		log.Fatalf("Failed to encode output: %v", err)
 	}
 	_, _ = os.Stdout.Write(outputData)
 }
