@@ -44,7 +44,7 @@ func TestCompliance(t *testing.T) {
 	compliancetest.ComplianceTest(
 		t,
 		compliancetest.TestConfiguration[*descriptor, *Config, *Metadata, *keyProvider]{
-			Descriptor: New().(*descriptor),
+			Descriptor: New().(*descriptor), //nolint:errcheck //No clue why errcheck fires here.
 			HCLParseTestCases: map[string]compliancetest.HCLParseTestCase[*Config, *keyProvider]{
 				"empty": {
 					HCL: `key_provider "externalcommand" "foo" {

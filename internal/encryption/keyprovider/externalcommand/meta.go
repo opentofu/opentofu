@@ -6,5 +6,5 @@
 package externalcommand
 
 type Metadata struct {
-	ExternalData ExternalCommandMeta `hcl:"external_data"`
+	ExternalData map[string]any `hcl:"external_data" json:"external_data"`
 }

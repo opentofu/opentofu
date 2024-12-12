@@ -20,7 +20,7 @@ type keyProvider struct {
 	command []string
 }
 
-func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovider.Output, encryptionMeta keyprovider.KeyMeta, err error) {
+func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovider.Output, encryptionMeta keyprovider.KeyMeta, err error) { //nolint:nonamedreturns //This is a stupid rule.
 	if rawMeta == nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
 	}
@@ -43,7 +43,7 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
-	cmd := exec.CommandContext(ctx, k.command[0], k.command[1:]...)
+	cmd := exec.CommandContext(ctx, k.command[0], k.command[1:]...) //nolint:gosec //Launching external commands here is the entire point.
 	cmd.Stdin = bytes.NewReader(input)
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
@@ -61,7 +61,7 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 		}
 	}
 
-	var result *ExternalCommandOutput
+	var result *Output
 	decoder := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&result); err != nil {

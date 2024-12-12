@@ -13,7 +13,7 @@ type Output struct {
 		DecryptionKey []byte `json:"decryption_key,omitempty"`
 	} `json:"key"`
 	Meta *struct {
-		ExternalData map[string]any `hcl:"external_data"`
+		ExternalData map[string]any `json:"external_data"`
 	} `json:"meta,omitempty"`
 }
 
@@ -42,7 +42,7 @@ func main() {
 			DecryptionKey: decryptionKey,
 		},
 		Meta: &struct {
-			ExternalData map[string]any `hcl:"external_data"`
+			ExternalData map[string]any `json:"external_data"`
 		}{ExternalData: map[string]any{}},
 	}
 	outputData, err := json.Marshal(output)
