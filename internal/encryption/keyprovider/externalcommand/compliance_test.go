@@ -55,7 +55,7 @@ func TestCompliance(t *testing.T) {
 				},
 				"basic": {
 					HCL: `key_provider "externalcommand" "foo" {
-    command = ["keyprovider"]
+    command = ["` + testProviderBinaryName + `"]
 }`,
 					ValidHCL:   true,
 					ValidBuild: true,
@@ -63,11 +63,18 @@ func TestCompliance(t *testing.T) {
 						if len(config.Command) != 1 {
 							return fmt.Errorf("invalid command after parsing")
 						}
-						if config.Command[0] != "keyprovider" {
+						if config.Command[0] != testProviderBinaryName {
 							return fmt.Errorf("invalid command after parsing")
 						}
 						return nil
 					},
+				},
+				"empty-binary": {
+					HCL: `key_provider "externalcommand" "foo" {
+    command = []
+}`,
+					ValidHCL:   true,
+					ValidBuild: false,
 				},
 			},
 			ConfigStructTestCases: map[string]compliancetest.ConfigStructTestCase[*Config, *keyProvider]{},
