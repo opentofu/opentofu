@@ -52,12 +52,12 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() != 0 {
 				return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
-					Message: fmt.Sprintf("the external command exited with a non-zero exit code (%v)\n\nStdout:\n-------\n%s\n-------\nStderr:\n-------\n%s", err, stdout, stderr),
+					Message: fmt.Sprintf("the external command exited with a non-zero exit code (%v)\n\nStderr:\n-------\n%s", err, stderr),
 				}
 			}
 		}
 		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
-			Message: fmt.Sprintf("the external command exited with an error (%v)\n\nStdout:\n-------\n%s\n-------\nStderr:\n-------\n%s", err, stdout, stderr),
+			Message: fmt.Sprintf("the external command exited with an error (%v)\n\nStderr:\n-------\n%s", err, stderr),
 		}
 	}
 
@@ -66,7 +66,7 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&result); err != nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
-			Message: fmt.Sprintf("the external command returned an invalid JSON response (%v)\n\nStdout:\n-------\n%s\n-------\nStderr:\n-------\n%s", err, stdout, stderr),
+			Message: fmt.Sprintf("the external command returned an invalid JSON response (%v)\n\nStderr:\n-------\n%s", err, stderr),
 		}
 	}
 
