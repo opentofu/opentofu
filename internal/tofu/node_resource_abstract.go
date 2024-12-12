@@ -632,9 +632,7 @@ func graphNodesAreResourceInstancesInDifferentInstancesOfSameModule(a, b dag.Ver
 	}
 	aModInst := aRI.ResourceInstanceAddr().Module
 	bModInst := bRI.ResourceInstanceAddr().Module
-	aMod := aModInst.Module()
-	bMod := bModInst.Module()
-	if !aMod.Equal(bMod) {
+	if !aModInst.HasSameModule(bModInst) {
 		return false
 	}
 	return !aModInst.Equal(bModInst)
