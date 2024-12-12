@@ -8,7 +8,6 @@ package tofu
 import (
 	"log"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
 )
@@ -50,16 +49,10 @@ func (t *checkTransformer) transform(g *Graph, cfg *configs.Config, allNodes []d
 		// embedded in the plan and/or state.
 
 		log.Printf("[TRACE] checkTransformer: Nodes and edges for %s", configAddr)
-		expand := &nodeExpandCheck{
-			addr:   configAddr,
-			config: check,
-			makeInstance: func(addr addrs.AbsCheck, cfg *configs.Check) GraphNodeExecutable {
-				return &nodeCheckAssert{
-					addr:          addr,
-					config:        cfg,
-					executeChecks: t.ExecuteChecks(),
-				}
-			},
+		expand := &nodeEvaluateCheck{
+			addr:          configAddr,
+			config:        check,
+			executeChecks: t.ExecuteChecks(),
 		}
 		g.Add(expand)
 
