@@ -12,6 +12,6 @@ import (
 type ExternalCommandMeta map[string]any
 
 type ExternalCommandOutput struct {
-	Key  keyprovider.Output  `json:"key"`
-	Meta ExternalCommandMeta `json:"meta"`
+	Key  keyprovider.Output `json:"key"`
+	Meta *Metadata          `json:"meta,omitempty"`
 }

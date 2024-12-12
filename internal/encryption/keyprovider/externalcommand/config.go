@@ -19,5 +19,7 @@ func (c *Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 			Message: "the command option is required",
 		}
 	}
-	return &keyProvider{}, &Metadata{}, nil
+	return &keyProvider{
+		command: c.Command,
+	}, &Metadata{}, nil
 }

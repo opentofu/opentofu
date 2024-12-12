@@ -7,6 +7,10 @@ package externalcommand
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"path"
+	"runtime"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -14,8 +18,28 @@ import (
 )
 
 func TestCompliance(t *testing.T) {
+	testProviderBinaryName := "testprovider-binary"
+	if runtime.GOOS == "windows" {
+		testProviderBinaryName += ".exe"
+	}
+	_, err := os.Stat(testProviderBinaryName)
+	if err != nil {
+		cwd, err := os.Getwd()
+		if err != nil {
+			t.Fatalf("Failed to compile test provider binary (%v)", err)
+		}
+		cmd := exec.Command("go", "build", "-o", "../"+testProviderBinaryName)
+		cmd.Dir = path.Join(cwd, "testprovider")
+		// TODO move this to a proper test logger
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Failed to compile test provider binary (%v)", err)
+		}
+	}
+
 	validConfig := &Config{
-		Command: []string{"testprovider"},
+		Command: []string{"./" + testProviderBinaryName},
 	}
 	compliancetest.ComplianceTest(
 		t,
@@ -50,10 +74,8 @@ func TestCompliance(t *testing.T) {
 			MetadataStructTestCases: map[string]compliancetest.MetadataStructTestCase[*Config, *Metadata]{
 				"not-present-externaldata": {
 					ValidConfig: validConfig,
-					Meta: &Metadata{
-						ExternalData: nil,
-					},
-					IsPresent: false,
+					Meta:        nil,
+					IsPresent:   false,
 				},
 				"present-valid": {
 					ValidConfig: validConfig,
@@ -65,12 +87,10 @@ func TestCompliance(t *testing.T) {
 				},
 			},
 			ProvideTestCase: compliancetest.ProvideTestCase[*Config, *Metadata]{
-				ValidConfig: &Config{
-					Command: []string{"testcommand"},
-				},
+				ValidConfig: validConfig,
 				ExpectedOutput: &keyprovider.Output{
-					EncryptionKey: []byte{},
-					DecryptionKey: []byte{},
+					EncryptionKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+					DecryptionKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
 				},
 				ValidateKeys: nil,
 				ValidateMetadata: func(meta *Metadata) error {
