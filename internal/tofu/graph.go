@@ -107,6 +107,14 @@ func (g *Graph) walk(_ context.Context, walker GraphWalker) tfdiags.Diagnostics 
 // to the original DynamicExpand logic, to reduce the risk of the change. All uses of
 // this function should eventually be replaced by something simpler that doesn't involve
 // the instantiation of any new graph nodes.
+//
+// Calling code that is being migrated away from this function MUST use evalCtx.PerformIO
+// directly itself to limit the concurrency of any I/O operations, since that is no longer
+// handled automatically by the graph walk machinery. Although this does now spread the
+// responsibility more than it was before, it also gives the individual graph node
+// implementations more flexibility in deciding exactly what is and is not considered to
+// be an "I/O operation", including skipping the semaphore entirely when performing fast,
+// CPU-bound work that has no need for limited concurrency.
 func executeGraphNodes(nodes iter.Seq[GraphNodeExecutable], evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	var diagsMu sync.Mutex
@@ -130,23 +138,28 @@ func executeGraphNodes(nodes iter.Seq[GraphNodeExecutable], evalCtx EvalContext,
 			}
 
 			nodeName := dag.VertexName(node)
+			// We use evalCtx.PerformIO here to ensure that these not-yet-updated "subgraph"
+			// implementations still respect the concurrency semaphore that was previously
+			// enforced centrally by the graph walker.
+			//
 			// TODO: In future we'll plumb context.Context into here through changes to
 			// the GraphNodeExecutable interface, but for now we just stub it since
 			// we know GraphNodeExecutable implementers can't possibly accept a Context
 			// anyway.
 			moreDiags := evalCtx.PerformIO(context.TODO(), func(_ context.Context) tfdiags.Diagnostics {
 				log.Printf("[TRACE] executeGraphNodes: executing %s", nodeName)
-				return node.Execute(localCtx, op)
+				moreDiags := node.Execute(localCtx, op)
+				if moreDiags.HasErrors() {
+					log.Printf("[TRACE] executeGraphNodes: execution of %s returned errors", nodeName)
+				} else {
+					log.Printf("[TRACE] executeGraphNodes: successfully executed %s", nodeName)
+				}
+				return moreDiags
 			})
 			diagsMu.Lock()
 			diags = diags.Append(moreDiags)
 			diagsMu.Unlock()
 			wg.Done()
-			if moreDiags.HasErrors() {
-				log.Printf("[TRACE] executeGraphNodes: execution of %s returned errors", nodeName)
-			} else {
-				log.Printf("[TRACE] executeGraphNodes: successfully executed %s", nodeName)
-			}
 		}()
 	}
 

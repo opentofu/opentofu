@@ -252,8 +252,6 @@ func performIOUnconstrained(ctx context.Context, f func(context.Context) tfdiags
 
 // performIOSemaphore is a helper for implementing [EvalContext.PerformIO] for the main
 // case where we use a counting semaphore to limit I/O concurrency.
-//
-//nolint:unused // Included here to illustrate how this is intended to evolve in a subsequent commit.
 func performIOSemaphore(ctx context.Context, f func(context.Context) tfdiags.Diagnostics, sema Semaphore) tfdiags.Diagnostics {
 	sema.Acquire()
 	diags := f(ctx)
