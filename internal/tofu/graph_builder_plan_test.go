@@ -259,7 +259,7 @@ local.instance_id
   aws_instance.web (expand)
 openstack_floating_ip.random (expand)
   provider["registry.opentofu.org/hashicorp/openstack"]
-output.instance_id (expand)
+output.instance_id
   local.instance_id
 provider["registry.opentofu.org/hashicorp/aws"]
   openstack_floating_ip.random (expand)
@@ -269,7 +269,7 @@ provider["registry.opentofu.org/hashicorp/openstack"]
 provider["registry.opentofu.org/hashicorp/openstack"] (close)
   openstack_floating_ip.random (expand)
 root
-  output.instance_id (expand)
+  output.instance_id
   provider["registry.opentofu.org/hashicorp/aws"] (close)
   provider["registry.opentofu.org/hashicorp/openstack"] (close)
 var.foo

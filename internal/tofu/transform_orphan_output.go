@@ -24,29 +24,28 @@ type OrphanOutputTransformer struct {
 
 func (t *OrphanOutputTransformer) Transform(g *Graph) error {
 	if t.State == nil {
-		log.Printf("[DEBUG] No state, no orphan outputs")
+		log.Printf("[TRACE] OrphanOutputTransformer: No state, so no orphan outputs")
 		return nil
 	}
 
-	for _, ms := range t.State.Modules {
-		if err := t.transform(g, ms); err != nil {
-			return err
-		}
-	}
-	return nil
+	// Only the root module actually persists output values in the state
+	// between rounds, so we can ignore all other modules.
+	ms := t.State.RootModule()
+	return t.transform(g, ms)
 }
 
 func (t *OrphanOutputTransformer) transform(g *Graph, ms *states.Module) error {
 	if ms == nil {
 		return nil
 	}
-
-	moduleAddr := ms.Addr
+	if !ms.Addr.IsRoot() {
+		panic("OrphanOutputTransformer.transform only deals with root module input variables")
+	}
 
 	// Get the config for this path, which is nil if the entire module has been
 	// removed.
 	var outputs map[string]*configs.Output
-	if c := t.Config.DescendentForInstance(moduleAddr); c != nil {
+	if c := t.Config; c != nil {
 		outputs = c.Module.Outputs
 	}
 
@@ -57,9 +56,11 @@ func (t *OrphanOutputTransformer) transform(g *Graph, ms *states.Module) error {
 			continue
 		}
 
-		g.Add(&NodeDestroyableOutput{
-			Addr:     addrs.OutputValue{Name: name}.Absolute(moduleAddr),
-			Planning: t.Planning,
+		g.Add(&nodeOutputValue{
+			Module:     addrs.RootModule,
+			Addr:       addrs.OutputValue{Name: name},
+			Planning:   t.Planning,
+			Destroying: true, // Force removal instead of evaluation
 		})
 	}
 
