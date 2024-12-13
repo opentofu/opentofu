@@ -3076,11 +3076,11 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		overrides := metaOverridesForProvider(testProvider())
 		ui := new(cli.MockUi)
 		view, _ := testView(t)
-		providerSource, close := newMockProviderSource(t, map[string][]string{
+		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
 			// mock aws provider
 			"hashicorp/aws": {"5.0", "5.8"},
 		})
-		defer close()
+		defer closeCallback()
 		m := Meta{
 			testingOverrides: overrides,
 			Ui:               ui,
@@ -3109,11 +3109,11 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		overrides := metaOverridesForProvider(testProvider())
 		ui := new(cli.MockUi)
 		view, _ := testView(t)
-		providerSource, close := newMockProviderSource(t, map[string][]string{
+		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
 			// mock aws provider
 			"hashicorp/aws": {"5.0", "5.8"},
 		})
-		defer close()
+		defer closeCallback()
 		m := Meta{
 			testingOverrides: overrides,
 			Ui:               ui,
@@ -3129,10 +3129,8 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		// Check error is generated from trying to read encryption key or fail test
 		if code := c.Run(args); code == 0 {
 			t.Fatalf("init should not run successfully\n")
-		} else {
-			if !strings.Contains(ui.ErrorWriter.String(), "Error: Unable to fetch encryption key data") {
-				t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\n")
-			}
+		} else if !strings.Contains(ui.ErrorWriter.String(), "Error: Unable to fetch encryption key data") {
+			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\n")
 		}
 	})
 }
