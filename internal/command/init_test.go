@@ -3096,7 +3096,7 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 			"-backend=false", // should disable reading encryption key run init successfully
 		}
 		if code := c.Run(args); code != 0 {
-			t.Fatalf("init should run successfully with -backend=false: \n%s", ui.ErrorWriter.String())
+			t.Fatalf("init should run successfully with -backend=false: \ngot error : %s\n", ui.ErrorWriter.String())
 		}
 	})
 
@@ -3129,8 +3129,8 @@ func TestInit_skipEncryptionBackendFalse(t *testing.T) {
 		// Check error is generated from trying to read encryption key or fail test
 		if code := c.Run(args); code == 0 {
 			t.Fatalf("init should not run successfully\n")
-		} else if !strings.Contains(ui.ErrorWriter.String(), "Error: Unable to fetch encryption key data") {
-			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\n")
+		} else if !strings.Contains(ui.ErrorWriter.String(), "key_provider.aws_kms.key failed with error:") {
+			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\ninstead got : %s\n", ui.ErrorWriter.String())
 		}
 	})
 }
