@@ -5,6 +5,7 @@
 
 package jsonformat
 
+
 import (
 	"bytes"
 	"encoding/json"
