@@ -22,12 +22,14 @@ import (
 
 // Resource represents a "resource" or "data" block in a module or file.
 type Resource struct {
-	Mode    addrs.ResourceMode
-	Name    string
-	Type    string
-	Config  hcl.Body
+	Mode   addrs.ResourceMode
+	Name   string
+	Type   string
+	Config hcl.Body
+
 	Count   hcl.Expression
 	ForEach hcl.Expression
+	Enabled hcl.Expression
 
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
@@ -117,7 +119,8 @@ func (r *Resource) HasCustomConditions() bool {
 	return len(r.Postconditions) != 0 || len(r.Preconditions) != 0
 }
 
-func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagnostics) {
+//nolint:funlen,gocognit,gocyclo,cyclop // this function predates our use of this linter
+func decodeResourceBlock(block *hcl.Block, override bool, enabledMetaArg bool) (*Resource, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	r := &Resource{
 		Mode:      addrs.ManagedResourceMode,
@@ -128,7 +131,12 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 		Managed:   &ManagedResource{},
 	}
 
-	content, remain, moreDiags := block.Body.PartialContent(ResourceBlockSchema)
+	schema := ResourceBlockSchema
+	if enabledMetaArg {
+		schema = adjustBodySchemaForEnabledMetaArgExperiment(schema)
+	}
+
+	content, remain, moreDiags := block.Body.PartialContent(schema)
 	diags = append(diags, moreDiags...)
 	r.Config = remain
 
@@ -149,21 +157,42 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 		})
 	}
 
+	repetitionArgs := 0
+	var countRng, forEachRng, enabledRng hcl.Range
 	if attr, exists := content.Attributes["count"]; exists {
 		r.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	}
-
 	if attr, exists := content.Attributes["for_each"]; exists {
 		r.ForEach = attr.Expr
-		// Cannot have count and for_each on the same resource block
-		if r.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
+		forEachRng = attr.NameRange
+		repetitionArgs++
+	}
+	if attr, exists := content.Attributes["enabled"]; exists {
+		r.Enabled = attr.Expr
+		enabledRng = attr.NameRange
+		repetitionArgs++
+	}
+	if repetitionArgs > 1 {
+		var complainRng hcl.Range
+		switch {
+		case r.ForEach != nil:
+			complainRng = forEachRng
+		case r.Enabled != nil:
+			complainRng = enabledRng
+		default:
+			complainRng = countRng
 		}
+		// While "enabled" remains experimental we intentionally don't mention it
+		// in this error message, because otherwise we'd need a different error
+		// message for when the experiment is enabled vs. not.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid combination of "count" and "for_each"`,
+			Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
+			Subject:  &complainRng,
+		})
 	}
 
 	if attr, exists := content.Attributes["provider"]; exists {
@@ -371,7 +400,8 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	return r, diags
 }
 
-func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Diagnostics) {
+//nolint:funlen,gocyclo,cyclop // this function predates our use of this linter
+func decodeDataBlock(block *hcl.Block, override, nested bool, enabledMetaArg bool) (*Resource, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	r := &Resource{
 		Mode:      addrs.DataResourceMode,
@@ -381,7 +411,12 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 		TypeRange: block.LabelRanges[0],
 	}
 
-	content, remain, moreDiags := block.Body.PartialContent(dataBlockSchema)
+	schema := dataBlockSchema
+	if enabledMetaArg {
+		schema = adjustBodySchemaForEnabledMetaArgExperiment(schema)
+	}
+
+	content, remain, moreDiags := block.Body.PartialContent(schema)
 	diags = append(diags, moreDiags...)
 	r.Config = remain
 
@@ -402,8 +437,12 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 		})
 	}
 
+	repetitionArgs := 0
+	var countRng, forEachRng, enabledRng hcl.Range
 	if attr, exists := content.Attributes["count"]; exists && !nested {
 		r.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	} else if exists && nested {
 		// We don't allow count attributes in nested data blocks.
 		diags = append(diags, &hcl.Diagnostic{
@@ -413,18 +452,10 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			Subject:  &attr.NameRange,
 		})
 	}
-
 	if attr, exists := content.Attributes["for_each"]; exists && !nested {
 		r.ForEach = attr.Expr
-		// Cannot have count and for_each on the same data block
-		if r.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
-		}
+		forEachRng = attr.NameRange
+		repetitionArgs++
 	} else if exists && nested {
 		// We don't allow for_each attributes in nested data blocks.
 		diags = append(diags, &hcl.Diagnostic{
@@ -432,6 +463,39 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			Summary:  `Invalid "for_each" attribute`,
 			Detail:   `The "count" and "for_each" meta-arguments are not supported within nested data blocks.`,
 			Subject:  &attr.NameRange,
+		})
+	}
+	if attr, exists := content.Attributes["enabled"]; exists && !nested {
+		r.Enabled = attr.Expr
+		enabledRng = attr.NameRange
+		repetitionArgs++
+	} else if exists && nested {
+		// We don't allow for_each attributes in nested data blocks.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid "for_each" attribute`,
+			Detail:   `The "count" and "for_each" meta-arguments are not supported within nested data blocks.`,
+			Subject:  &attr.NameRange,
+		})
+	}
+	if repetitionArgs > 1 {
+		var complainRng hcl.Range
+		switch {
+		case r.ForEach != nil:
+			complainRng = forEachRng
+		case r.Enabled != nil:
+			complainRng = enabledRng
+		default:
+			complainRng = countRng
+		}
+		// While "enabled" remains experimental we intentionally don't mention it
+		// in this error message, because otherwise we'd need a different error
+		// message for when the experiment is enabled vs. not.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid combination of "count" and "for_each"`,
+			Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
+			Subject:  &complainRng,
 		})
 	}
 
@@ -847,6 +911,26 @@ var commonResourceAttributes = []hcl.AttributeSchema{
 	{
 		Name: "depends_on",
 	},
+}
+
+// adjustBodySchemaForEnabledMetaArgExperiment is a temporary helper for use when
+// the "enabled_meta_arg" experiment is enabled for a particular file.
+//
+// This function returns a modified copy of the given schema that declares an
+// extra attribute called "enabled" that is optional.
+func adjustBodySchemaForEnabledMetaArgExperiment(schema *hcl.BodySchema) *hcl.BodySchema {
+	ret := *schema // shallow copy
+
+	// We need to copy one level deeper for "Attributes" so that we can add
+	// our new attribute to it without potentially modifying the original
+	// schema's backing array.
+	ret.Attributes = make([]hcl.AttributeSchema, 0, len(schema.Attributes)+1)
+	ret.Attributes = append(ret.Attributes, schema.Attributes...)
+	ret.Attributes = append(ret.Attributes, hcl.AttributeSchema{
+		Name: "enabled",
+	})
+
+	return &ret
 }
 
 // ResourceBlockSchema is the schema for a resource or data resource type within

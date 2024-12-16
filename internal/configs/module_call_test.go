@@ -27,7 +27,7 @@ func TestLoadModuleCall(t *testing.T) {
 
 	file, diags := parser.LoadConfigFile("module-calls.tf")
 	assertExactDiagnostics(t, diags, []string{
-		`module-calls.tf:20,3-11: Invalid combination of "count" and "for_each"; The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
+		`module-calls.tf:20,3-11: Invalid combination of "count" and "for_each"; The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
 	})
 
 	gotModules := file.ModuleCalls
