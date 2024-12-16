@@ -138,7 +138,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			default:
 				if haveRefreshChanges {
 					renderer.Streams.Print(format.HorizontalRule(renderer.Colorize, renderer.Streams.Stdout.Columns()))
-					renderer.Streams.Println(" ")
+					renderer.Streams.Println("")
 				}
 				renderer.Streams.Print(
 					renderer.Colorize.Color("\n[reset][bold][green]No changes.[reset][bold] Your infrastructure matches the configuration.[reset]\n\n"),
@@ -228,39 +228,25 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 			}
 		}
 
-		// Simplified Plan Summary
-		var planSummary string
-		importActionCount := counts[plans.Create] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete]
-		destroyActionCount := counts[plans.Delete] + counts[plans.DeleteThenCreate] + counts[plans.CreateThenDelete]
-
 		if importingCount > 0 {
-			// If there's something to import, include it in the plan summary
-			planSummary = fmt.Sprintf(
-				"\n[bold]Plan:[reset] %d to import, %d to add, %d to change, %d to destroy",
-				importingCount, 
-				importActionCount,
-				counts[plans.Update], 
-				destroyActionCount,
-			)
-		} else {
-			// If no import, just focus on the rest of the actions
-			planSummary = fmt.Sprintf(
-				"\n[bold]Plan:[reset] %d to add, %d to change, %d to destroy",
-				importActionCount,
+			renderer.Streams.Printf(
+				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to import, %d to add, %d to change, %d to destroy, %d to move, %d to forget.\n"),
+				importingCount,
+				counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
 				counts[plans.Update],
-				destroyActionCount,
-			)
+				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
+				counts[plans.Move],
+				forgettingCount)
+		} else {
+			renderer.Streams.Printf(
+				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to add, %d to change, %d to destroy, %d to move, %d to forget.\n"),
+				counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
+				counts[plans.Update],
+				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
+				counts[plans.Move],
+				forgettingCount)
 		}
-
-		// Add forgetting actions if needed
-		if forgettingCount > 0 {
-			planSummary += fmt.Sprintf(", %d to forget", forgettingCount)
-		}
-
-		// Print the final summary
-		renderer.Streams.Printf(renderer.Colorize.Color(planSummary + ".\n"))
 	}
-
 
 	if len(outputs) > 0 {
 		renderer.Streams.Print("\nChanges to Outputs:\n")
@@ -277,6 +263,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		}
 	}
 }
+
 
 func renderHumanDiffOutputs(renderer Renderer, outputs map[string]computed.Diff) string {
 	var rendered []string
