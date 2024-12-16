@@ -123,7 +123,6 @@ Note that the -target and -exclude options are not suitable for routine use, and
 	return newState, diags
 }
 
-//nolint:revive
 func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
