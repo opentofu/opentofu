@@ -234,14 +234,14 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 				importingCount,
 				counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
 				counts[plans.Update],
-				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete])
+				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
 			        forgettingCount)
 		} else {
 			renderer.Streams.Printf(
 				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to add, %d to change, %d to destroy,%d to forget.\n"),
 				counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
 				counts[plans.Update],
-				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete])
+				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
 			        forgettingCount)
 		}
 	}
