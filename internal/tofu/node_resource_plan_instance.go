@@ -268,19 +268,12 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	}
 
 	// Plan the instance, unless we're in the refresh-only mode
+	expander := ctx.InstanceExpander()
 	if !n.skipPlanChanges {
 
 		// add this instance to n.forceReplace if replacement is triggered by
 		// another change
-		repData := instances.RepetitionData{}
-		switch k := addr.Resource.Key.(type) {
-		case addrs.IntKey:
-			repData.CountIndex = k.Value()
-		case addrs.StringKey:
-			repData.EachKey = k.Value()
-			repData.EachValue = cty.DynamicVal
-		}
-
+		repData := expander.GetResourceInstanceRepetitionData(n.Addr)
 		diags = diags.Append(n.replaceTriggered(ctx, repData))
 		if diags.HasErrors() {
 			return diags
@@ -388,8 +381,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// values, which could result in a post-condition check relying on that
 		// value being inaccurate. Unless we decide to store the value of the
 		// for-each expression in state, this is unavoidable.
-		forEach, _ := evaluateForEachExpression(n.Config.ForEach, ctx)
-		repeatData := EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
+		repeatData := expander.GetResourceInstanceRepetitionData(n.Addr)
 
 		checkDiags := evalCheckRules(
 			addrs.ResourcePrecondition,

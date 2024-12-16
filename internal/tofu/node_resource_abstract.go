@@ -506,6 +506,16 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceForEach(addr.Module, n.Addr.Resource, forEach)
 
+	case n.Config != nil && n.Config.Enabled != nil:
+		enabled, enabledDiags := evaluateEnabledExpression(n.Config.Enabled, ctx)
+		diags = diags.Append(enabledDiags)
+		if enabledDiags.HasErrors() {
+			return diags
+		}
+
+		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
+		expander.SetResourceEnabled(addr.Module, n.Addr.Resource, enabled)
+
 	default:
 		state.SetResourceProvider(addr, n.ResolvedProvider.ProviderConfig)
 		expander.SetResourceSingle(addr.Module, n.Addr.Resource)
