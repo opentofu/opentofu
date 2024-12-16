@@ -58,6 +58,12 @@ func (e *Expander) SetModuleSingle(parentAddr addrs.ModuleInstance, callAddr add
 	e.setModuleExpansion(parentAddr, callAddr, expansionSingleVal)
 }
 
+// SetModuleEnabled records that the given module call inside the given parent
+// module uses the "enabled" repetition argument, with the given value.
+func (e *Expander) SetModuleEnabled(parentAddr addrs.ModuleInstance, callAddr addrs.ModuleCall, enabled bool) {
+	e.setModuleExpansion(parentAddr, callAddr, expansionEnabled(enabled))
+}
+
 // SetModuleCount records that the given module call inside the given parent
 // module instance uses the "count" repetition argument, with the given value.
 func (e *Expander) SetModuleCount(parentAddr addrs.ModuleInstance, callAddr addrs.ModuleCall, count int) {
@@ -79,6 +85,12 @@ func (e *Expander) SetModuleForEach(parentAddr addrs.ModuleInstance, callAddr ad
 // does not use any repetition arguments and is therefore a singleton.
 func (e *Expander) SetResourceSingle(moduleAddr addrs.ModuleInstance, resourceAddr addrs.Resource) {
 	e.setResourceExpansion(moduleAddr, resourceAddr, expansionSingleVal)
+}
+
+// SetResourceEnabled records that the given resource inside the given module
+// uses the "enabled" repetition argument, with the given value.
+func (e *Expander) SetResourceEnabled(moduleAddr addrs.ModuleInstance, resourceAddr addrs.Resource, enabled bool) {
+	e.setResourceExpansion(moduleAddr, resourceAddr, expansionEnabled(enabled))
 }
 
 // SetResourceCount records that the given resource inside the given module
