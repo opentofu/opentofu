@@ -16,6 +16,7 @@ const (
 	CreateThenDelete Action = '±'
 	Delete           Action = '-'
 	Forget           Action = '.'
+	Move            Action = "move" 
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type Action
