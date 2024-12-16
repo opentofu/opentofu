@@ -65,16 +65,18 @@ func (n *NodeDestroyResourceInstance) DestroyAddr() *addrs.AbsResourceInstance {
 
 // GraphNodeDestroyerCBD
 func (n *NodeDestroyResourceInstance) CreateBeforeDestroy() bool {
-	if n.Config != nil && n.Config.Managed != nil {
-		return n.Config.Managed.CreateBeforeDestroy
-	}
-
-	// We only care about create_before_destroy value
-	// from state when there is no configuration present.
+	// State takes precedence during destroy.
+	// If the resource was removed, there is no config to check.
+	// If CBD was forced from descendent, it should be saved in the state
+	// already.
 	if s := n.instanceState; s != nil {
 		if s.Current != nil {
 			return s.Current.CreateBeforeDestroy
 		}
+	}
+
+	if n.Config != nil && n.Config.Managed != nil {
+		return n.Config.Managed.CreateBeforeDestroy
 	}
 
 	return false
