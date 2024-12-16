@@ -64,6 +64,7 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 	willPrintResourceChanges := false
 	counts := make(map[plans.Action]int)
 	importingCount := 0
+	forgettingCount := 0
 	var changes []diff
 	for _, diff := range diffs.changes {
 		action := jsonplan.UnmarshalActions(diff.change.Change.Actions)
@@ -81,6 +82,10 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 		if diff.Importing() {
 			importingCount++
 		}
+
+		if action == plans.Forget {
+			forgettingCount++
+		}	
 
 		// Don't count move-only changes
 		if action != plans.NoOp {
@@ -225,17 +230,19 @@ func (plan Plan) renderHuman(renderer Renderer, mode plans.Mode, opts ...plans.Q
 
 		if importingCount > 0 {
 			renderer.Streams.Printf(
-				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to import, %d to add, %d to change, %d to destroy.\n"),
+				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to import, %d to add, %d to change, %d to destroy, %d to forget.\n"),
 				importingCount,
 				counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
 				counts[plans.Update],
 				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete])
+			        forgettingCount)
 		} else {
 			renderer.Streams.Printf(
-				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to add, %d to change, %d to destroy.\n"),
+				renderer.Colorize.Color("\n[bold]Plan:[reset] %d to add, %d to change, %d to destroy,%d to forget.\n"),
 				counts[plans.Create]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete],
 				counts[plans.Update],
 				counts[plans.Delete]+counts[plans.DeleteThenCreate]+counts[plans.CreateThenDelete])
+			        forgettingCount)
 		}
 	}
 
