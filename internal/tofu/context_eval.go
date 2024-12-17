@@ -24,8 +24,8 @@ type EvalOpts struct {
 // Eval produces a scope in which expressions can be evaluated for
 // the given module path.
 //
-// This method must first evaluate any ephemeral values (input variables, local
-// values, and output values) in the configuration. These ephemeral values are
+// This method must first evaluate any named values (input variables, local
+// values, and output values) in the configuration. These named values are
 // not included in the persisted state, so they must be re-computed using other
 // values in the state before they can be properly evaluated. The updated
 // values are retained in the main state associated with the receiving context.
