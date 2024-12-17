@@ -1442,6 +1442,93 @@ func TestContext2Plan_preventDestroy_good(t *testing.T) {
 	}
 }
 
+func TestContext2Plan_preventDestroy_dynamic(t *testing.T) {
+	m := testModule(t, "plan-prevent-destroy-dynamic")
+	p := &MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test": {
+				Block: &configschema.Block{},
+			},
+		},
+	}
+	p.PlanResourceChangeFn = func(prcr providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState: prcr.ProposedNewState,
+		}
+	}
+	p.ApplyResourceChangeFn = func(arcr providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+		return providers.ApplyResourceChangeResponse{
+			NewState: arcr.PlannedState,
+		}
+	}
+	providerAddr := addrs.NewBuiltInProvider("test")
+	resourceInstAddr := mustResourceInstanceAddr("test.test[0]")
+
+	// Our prior state has test.test[0], but the test fixture configuration
+	// uses count = 0 so this instance is not in the desired state and so
+	// should be planned for deletion.
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		resourceInstAddr.Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{}`),
+		},
+		addrs.AbsProviderConfig{
+			Provider: providerAddr,
+		},
+		addrs.NoKey,
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			providerAddr: testProviderFuncFixed(p),
+		},
+	})
+
+	{
+		t.Log("Plan 1: prevent_destroy = true, so should fail")
+
+		_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			SetVariables: InputValues{
+				"prevent_destroy": {
+					Value: cty.True,
+				},
+			},
+		})
+		if !diags.HasErrors() {
+			t.Fatal("unexpected success; want error about prevent_destroy")
+		}
+		got := diags.Err().Error()
+		wantSubstring := "The resource instance test.test[0] has lifecycle.prevent_destroy set, but the plan calls for this resource to be destroyed."
+		if !strings.Contains(got, wantSubstring) {
+			t.Fatalf("missing expected error\ngot: %s\nwant substring: %s", got, wantSubstring)
+		}
+	}
+	{
+		t.Log("Plan 2: prevent_destroy = false, so should succeed")
+
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			SetVariables: InputValues{
+				"prevent_destroy": {
+					Value: cty.False,
+				},
+			},
+		})
+		assertNoErrors(t, diags)
+
+		change := plan.Changes.ResourceInstance(resourceInstAddr)
+		if change == nil {
+			t.Fatalf("no planned change for %s", resourceInstAddr)
+		}
+		if got, want := change.Action, plans.Delete; got != want {
+			t.Errorf("wrong planned action for %s\ngot:  %s\nwant: %s", resourceInstAddr, got, want)
+		}
+	}
+}
+
 func TestContext2Plan_preventDestroy_countBad(t *testing.T) {
 	m := testModule(t, "plan-prevent-destroy-count-bad")
 	p := testProvider("aws")
