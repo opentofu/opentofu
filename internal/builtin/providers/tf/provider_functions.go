@@ -2,15 +2,16 @@ package tf
 
 import (
 	"errors"
-	"fmt"
+	"log"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/zclconf/go-cty/cty"
 )
 
 // "encode_tfvars"
 // "decode_tfvars"
-// "encode_expr"
 
 type providerFunc interface {
 	Name() string
@@ -21,37 +22,10 @@ type providerFunc interface {
 func getProviderFuncs() map[string]providerFunc {
 	encodeTFVars := &EncodeTFVarsFunc{}
 	decodeTFVars := &DecodeTFVarsFunc{}
-	encodeExpr := &EncodeExprFunc{}
 	return map[string]providerFunc{
 		encodeTFVars.Name(): encodeTFVars,
 		decodeTFVars.Name(): decodeTFVars,
-		encodeExpr.Name():   encodeExpr,
 	}
-}
-
-func validateArgs(args []cty.Value, f providerFunc) error {
-	declaredArgs := f.GetFunctionSpec().Parameters
-	if len(args) != len(declaredArgs) {
-		return fmt.Errorf("incorrect number of arguments, expected %d, got %d", len(declaredArgs), len(args))
-	}
-	var errs []error
-	for i, arg := range args {
-		var err error
-		if !arg.Type().Equals(declaredArgs[i].Type) {
-			err = fmt.Errorf("argument '%s' has an incorrect type, expected %s, got %s", declaredArgs[i].Name, declaredArgs[i].Type.FriendlyName(), arg.Type().FriendlyName())
-		} else if !declaredArgs[i].AllowUnknownValues && !arg.IsKnown() {
-			err = fmt.Errorf("argument '%s' cannot be unknown", declaredArgs[i].Name)
-		} else if !declaredArgs[i].AllowNullValue && arg.IsNull() {
-			err = fmt.Errorf("argument '%s' cannot be null", declaredArgs[i].Name)
-		}
-		if err != nil {
-			errs = append(errs, err)
-		}
-	}
-	if len(errs) > 0 {
-		return fmt.Errorf("invalid arguments for built-in function %q: %w", f.Name(), errors.Join(errs...))
-	}
-	return nil
 }
 
 type EncodeTFVarsFunc struct{}
@@ -61,27 +35,28 @@ func (f *EncodeTFVarsFunc) Name() string {
 }
 
 func (f *EncodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
-	params := []providers.FunctionParameterSpec{}
+	// TODO detailed specs
+	params := []providers.FunctionParameterSpec{
+		{
+			Name: "input",
+			// The input type is determined at runtime
+			Type:              cty.DynamicPseudoType,
+			Description:       "input to encode",
+			DescriptionFormat: providers.TextFormattingPlain,
+		},
+	}
 	return providers.FunctionSpec{
-		// List of parameters required to call the function
-		Parameters: params,
-		// Type which the function will return
-		Return: cty.String,
-		// Human-readable shortened documentation for the function
-		Summary: "",
-		// Human-readable documentation for the function
-		Description: "",
-		// Formatting type of the Description field
+		Parameters:        params,
+		Return:            cty.String,
+		Summary:           "print string",
+		Description:       "",
 		DescriptionFormat: providers.TextFormattingPlain,
 	}
 }
 
 func (f *EncodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
-	if err := validateArgs(args, f); err != nil {
-		return cty.NilVal, err
-	}
-	//TODO: Implement this function
-	return cty.StringVal(""), nil
+	log.Printf("[TRACE] args1: %v", args)
+	return cty.StringVal(args[0].AsString()), nil
 }
 
 type DecodeTFVarsFunc struct{}
@@ -91,55 +66,49 @@ func (f *DecodeTFVarsFunc) Name() string {
 }
 
 func (f *DecodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
-	params := []providers.FunctionParameterSpec{}
+	// TODO detailed specs
+	params := []providers.FunctionParameterSpec{
+		{
+			Name:              "input",
+			Type:              cty.String,
+			Description:       "input to decode",
+			DescriptionFormat: providers.TextFormattingPlain,
+		},
+	}
 	return providers.FunctionSpec{
-		// List of parameters required to call the function
-		Parameters: params,
-		// Type which the function will return
-		Return: cty.String,
-		// Human-readable shortened documentation for the function
-		Summary: "",
-		// Human-readable documentation for the function
-		Description: "",
-		// Formatting type of the Description field
+		Parameters:        params,
+		Return:            cty.DynamicPseudoType,
+		Summary:           "",
+		Description:       "",
 		DescriptionFormat: providers.TextFormattingPlain,
 	}
 }
 
+var FailedToDecodeError = errors.New("failed to decode tfvars content")
+
+func wrapDiagErrors(m error, diag hcl.Diagnostics) error {
+	//Prepend the main error
+	errs := append([]error{m}, diag.Errs()...)
+	return errors.Join(errs...)
+}
 func (f *DecodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
-	if err := validateArgs(args, f); err != nil {
-		return cty.NilVal, err
+	//TODO Add logs
+	varsFileContent := args[0].AsString()
+	schema, diag := hclsyntax.ParseConfig([]byte(varsFileContent), "", hcl.Pos{Line: 0, Column: 0})
+	if schema == nil || diag.HasErrors() {
+		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
 	}
-	//TODO: Implement this function
-	return cty.StringVal(""), nil
-}
-
-type EncodeExprFunc struct{}
-
-func (f *EncodeExprFunc) Name() string {
-	return "encode_expr"
-}
-
-func (f *EncodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
-	params := []providers.FunctionParameterSpec{}
-	return providers.FunctionSpec{
-		// List of parameters required to call the function
-		Parameters: params,
-		// Type which the function will return
-		Return: cty.String,
-		// Human-readable shortened documentation for the function
-		Summary: "",
-		// Human-readable documentation for the function
-		Description: "",
-		// Formatting type of the Description field
-		DescriptionFormat: providers.TextFormattingPlain,
+	attrs, diag := schema.Body.JustAttributes()
+	if attrs == nil || diag.HasErrors() {
+		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
 	}
-}
-
-func (f *EncodeExprFunc) Call(args []cty.Value) (cty.Value, error) {
-	if err := validateArgs(args, f); err != nil {
-		return cty.NilVal, err
+	vals := make(map[string]cty.Value)
+	for name, attr := range attrs {
+		val, diag := attr.Expr.Value(nil)
+		if diag.HasErrors() {
+			return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
+		}
+		vals[name] = val
 	}
-	//TODO: Implement this function
-	return cty.StringVal(""), nil
+	return cty.ObjectVal(vals), nil
 }
