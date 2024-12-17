@@ -96,6 +96,6 @@ versions do not match inexact operators such as `>=`, `~>`, etc.
 
 ### Supporting both OpenTofu and Terraform Versions
 
-- When code needs to support both OpenTofu and Terraform, for example in modules
+- When configuration needs to be supported by both OpenTofu and Terraform, for example in modules
   which need to be consumed by both engines, use a `providers.tofu` file to specify
   the OpenTofu version constraint, overriding the constraint defined in `providers.tf`.
