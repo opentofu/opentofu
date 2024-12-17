@@ -291,7 +291,7 @@ func (c *Context) checkApplyGraph(plan *plans.Plan, config *configs.Config) tfdi
 		return nil
 	}
 	log.Println("[DEBUG] building apply graph to check for errors")
-	_, _, diags := c.applyGraph(plan, config, true, make(ProviderFunctionMapping))
+	_, _, diags := c.applyGraph(plan, config, make(ProviderFunctionMapping))
 	return diags
 }
 
