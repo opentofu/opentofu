@@ -29,10 +29,12 @@ type ConsoleCommand struct {
 
 func (c *ConsoleCommand) Run(args []string) int {
 	ctx := c.CommandContext()
+	var scopeAddrStr string
 
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("console")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
+	cmdFlags.StringVar(&scopeAddrStr, "scope", "", "evaluation scope address")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command line flags: %s\n", err.Error()))
@@ -53,6 +55,18 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}
 
 	var diags tfdiags.Diagnostics
+
+	scopeAddr := addrs.ExprScope(addrs.RootModuleInstance)
+	if scopeAddrStr != "" {
+		// User is trying to specify a scope other than the root module.
+		var scopeAddrDiags tfdiags.Diagnostics
+		scopeAddr, scopeAddrDiags = addrs.ParseExprScopeStr(scopeAddrStr)
+		diags = diags.Append(scopeAddrDiags)
+		if scopeAddrDiags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
+	}
 
 	// Load the encryption configuration
 	enc, encDiags := c.EncryptionFromPath(configPath)
@@ -146,7 +160,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Before we can evaluate expressions, we must compute and populate any
 	// derived values (input variables, local values, output values)
 	// that are not stored in the persistent state.
-	scope, scopeDiags := lr.Core.Eval(ctx, lr.Config, lr.InputState, addrs.RootModuleInstance, evalOpts)
+	scope, scopeDiags := lr.Core.Eval(ctx, lr.Config, lr.InputState, scopeAddr, evalOpts)
 	diags = diags.Append(scopeDiags)
 	if scope == nil {
 		// scope is nil if there are errors so bad that we can't even build a scope.
@@ -214,12 +228,12 @@ func (c *ConsoleCommand) Help() string {
 Usage: tofu [global options] console [options]
 
   Starts an interactive console for experimenting with OpenTofu
-  interpolations.
+  expressions.
 
   This will open an interactive console that you can use to type
-  interpolations into and inspect their values. This command loads the
-  current state. This lets you explore and test interpolations before
-  using them in future configurations.
+  expressions into and inspect their values. This command loads the
+  current state. This lets you explore and test expressions before
+  using them in your modules.
 
   This command will never modify your state.
 
@@ -236,6 +250,11 @@ Options:
   -consolidate-errors    If OpenTofu produces any errors, no consolodation
                          will be performed. All locations, for all errors
                          will be listed. Disabled by default
+
+  -scope=ADDR            Choose the scope where expressions will be evaluated.
+                         Currently this must be a module instance address.
+						 If unspecified, expressions are evaluated in the root
+						 module's scope.
 
   -state=path            Legacy option for the local backend only. See the local
                          backend's documentation for more information.

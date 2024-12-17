@@ -243,6 +243,50 @@ func TestConsole_modules(t *testing.T) {
 	}
 }
 
+func TestConsole_modulesNestedScope(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("modules"), td)
+	defer testChdir(t, td)()
+
+	p := applyFixtureProvider()
+	ui := cli.NewMockUi()
+	view, _ := testView(t)
+
+	c := &ConsoleCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			Ui:               ui,
+			View:             view,
+		},
+	}
+
+	args := []string{"-scope=module.count_child[0]"}
+	commands := map[string]string{
+		// Since the resource instance hasn't been applied yet it
+		// returns an unknown value, but the important thing here
+		// is that it doesn't fail because test_instance.test is
+		// declared inside module.count_child[0] and is
+		// therefore valid to refer to in that scope.
+		"test_instance.test\n": "(known after apply)\n",
+	}
+
+	for cmd, val := range commands {
+		var output bytes.Buffer
+		defer testStdinPipe(t, strings.NewReader(cmd))()
+		outCloser := testStdoutCapture(t, &output)
+		code := c.Run(args)
+		outCloser()
+		if code != 0 {
+			t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter.String())
+		}
+
+		actual := output.String()
+		if output.String() != val {
+			t.Fatalf("bad: %q, expected %q", actual, val)
+		}
+	}
+}
+
 func TestConsole_multiline_pipe(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("console-multiline-vars"), td)
