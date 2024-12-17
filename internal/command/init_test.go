@@ -3065,6 +3065,75 @@ func TestInit_invalidExtraLabel(t *testing.T) {
 	}
 }
 
+func TestInit_skipEncryptionBackendFalse(t *testing.T) {
+	t.Run("init success with encryption present and -backend=false", func(t *testing.T) {
+		// Create a temporary working directory that is empty
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-encryption-available"), td)
+		defer testChdir(t, td)()
+
+		overrides := metaOverridesForProvider(testProvider())
+		ui := new(cli.MockUi)
+		view, _ := testView(t)
+		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
+			// mock aws provider
+			"hashicorp/aws": {"5.0", "5.8"},
+		})
+		defer closeCallback()
+		m := Meta{
+			testingOverrides: overrides,
+			Ui:               ui,
+			View:             view,
+			ProviderSource:   providerSource,
+		}
+
+		c := &InitCommand{
+			Meta: m,
+		}
+
+		args := []string{
+			"-backend=false", // should disable reading encryption key run init successfully
+		}
+		if code := c.Run(args); code != 0 {
+			t.Fatalf("init should run successfully with -backend=false: \ngot error : %s\n", ui.ErrorWriter.String())
+		}
+	})
+
+	t.Run("init fails with encryption present -backend=false not set", func(t *testing.T) {
+		// Create a temporary working directory that is empty
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-encryption-available"), td)
+		defer testChdir(t, td)()
+
+		overrides := metaOverridesForProvider(testProvider())
+		ui := new(cli.MockUi)
+		view, _ := testView(t)
+		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
+			// mock aws provider
+			"hashicorp/aws": {"5.0", "5.8"},
+		})
+		defer closeCallback()
+		m := Meta{
+			testingOverrides: overrides,
+			Ui:               ui,
+			View:             view,
+			ProviderSource:   providerSource,
+		}
+
+		c := &InitCommand{
+			Meta: m,
+		}
+
+		var args []string
+		// Check error is generated from trying to read encryption key or fail test
+		if code := c.Run(args); code == 0 {
+			t.Fatalf("init should not run successfully\n")
+		} else if !strings.Contains(ui.ErrorWriter.String(), "key_provider.aws_kms.key failed with error:") {
+			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\ninstead got : %s\n", ui.ErrorWriter.String())
+		}
+	})
+}
+
 // newMockProviderSource is a helper to succinctly construct a mock provider
 // source that contains a set of packages matching the given provider versions
 // that are available for installation (from temporary local files).
