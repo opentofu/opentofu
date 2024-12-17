@@ -8,6 +8,7 @@ package configs
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/experiments"
 )
 
 // LoadConfigFile reads the file at the given path and parses it as a config
@@ -163,21 +164,21 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 			}
 
 		case "module":
-			cfg, cfgDiags := decodeModuleBlock(block, override)
+			cfg, cfgDiags := decodeModuleBlock(block, override, file.ActiveExperiments.Has(experiments.EnabledMetaArgument))
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.ModuleCalls = append(file.ModuleCalls, cfg)
 			}
 
 		case "resource":
-			cfg, cfgDiags := decodeResourceBlock(block, override)
+			cfg, cfgDiags := decodeResourceBlock(block, override, file.ActiveExperiments.Has(experiments.EnabledMetaArgument))
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.ManagedResources = append(file.ManagedResources, cfg)
 			}
 
 		case "data":
-			cfg, cfgDiags := decodeDataBlock(block, override, false)
+			cfg, cfgDiags := decodeDataBlock(block, override, false, file.ActiveExperiments.Has(experiments.EnabledMetaArgument))
 			diags = append(diags, cfgDiags...)
 			if cfg != nil {
 				file.DataResources = append(file.DataResources, cfg)

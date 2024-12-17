@@ -32,6 +32,10 @@ func evalContextEvaluate(ctx EvalContext) evalchecks.EvaluateFunc {
 	}
 }
 
+func evaluateEnabledExpression(expr hcl.Expression, evalCtx EvalContext) (bool, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateEnabledExpression(expr, evalContextScope(evalCtx))
+}
+
 func evaluateForEachExpression(expr hcl.Expression, ctx EvalContext) (map[string]cty.Value, tfdiags.Diagnostics) {
 	return evalchecks.EvaluateForEachExpression(expr, evalContextScope(ctx))
 }
