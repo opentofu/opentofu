@@ -29,6 +29,7 @@ type ModuleInstance []ModuleInstanceStep
 
 var (
 	_ Targetable = ModuleInstance(nil)
+	_ ExprScope  = ModuleInstance(nil)
 )
 
 func ParseModuleInstance(traversal hcl.Traversal) (ModuleInstance, tfdiags.Diagnostics) {
@@ -517,6 +518,11 @@ func (m ModuleInstance) targetableSigil() {
 
 func (m ModuleInstance) absMoveableSigil() {
 	// ModuleInstance is moveable
+}
+
+// scopeSigil implements ExprScope.
+func (m ModuleInstance) scopeSigil() {
+	// ModuleInstance can be used as an expression evaluation scope.
 }
 
 // IsDeclaredByCall returns true if the receiver is an instance of the given
