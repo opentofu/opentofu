@@ -3066,7 +3066,6 @@ func TestInit_invalidExtraLabel(t *testing.T) {
 }
 
 func TestInit_skipEncryptionBackendFalse(t *testing.T) {
-
 	t.Run("init success with encryption present and -backend=false", func(t *testing.T) {
 		// Create a temporary working directory that is empty
 		td := t.TempDir()
