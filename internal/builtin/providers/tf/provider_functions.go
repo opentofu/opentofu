@@ -2,7 +2,10 @@ package tf
 
 import (
 	"errors"
+	"fmt"
 	"log"
+
+	"github.com/hashicorp/hcl/v2/hclwrite"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -12,6 +15,7 @@ import (
 
 // "encode_tfvars"
 // "decode_tfvars"
+// "encode_expr"
 
 type providerFunc interface {
 	Name() string
@@ -20,43 +24,14 @@ type providerFunc interface {
 }
 
 func getProviderFuncs() map[string]providerFunc {
-	encodeTFVars := &EncodeTFVarsFunc{}
 	decodeTFVars := &DecodeTFVarsFunc{}
+	encodeTFVars := &EncodeTFVarsFunc{}
+	encodeExpr := &EncodeExprFunc{}
 	return map[string]providerFunc{
-		encodeTFVars.Name(): encodeTFVars,
 		decodeTFVars.Name(): decodeTFVars,
+		encodeTFVars.Name(): encodeTFVars,
+		encodeExpr.Name():   encodeExpr,
 	}
-}
-
-type EncodeTFVarsFunc struct{}
-
-func (f *EncodeTFVarsFunc) Name() string {
-	return "encode_tfvars"
-}
-
-func (f *EncodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
-	// TODO detailed specs
-	params := []providers.FunctionParameterSpec{
-		{
-			Name: "input",
-			// The input type is determined at runtime
-			Type:              cty.DynamicPseudoType,
-			Description:       "input to encode",
-			DescriptionFormat: providers.TextFormattingPlain,
-		},
-	}
-	return providers.FunctionSpec{
-		Parameters:        params,
-		Return:            cty.String,
-		Summary:           "print string",
-		Description:       "",
-		DescriptionFormat: providers.TextFormattingPlain,
-	}
-}
-
-func (f *EncodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
-	log.Printf("[TRACE] args1: %v", args)
-	return cty.StringVal(args[0].AsString()), nil
 }
 
 type DecodeTFVarsFunc struct{}
@@ -111,4 +86,97 @@ func (f *DecodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 		vals[name] = val
 	}
 	return cty.ObjectVal(vals), nil
+}
+
+type EncodeTFVarsFunc struct{}
+
+func (f *EncodeTFVarsFunc) Name() string {
+	return "encode_tfvars"
+}
+
+func (f *EncodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
+	// TODO detailed specs
+	params := []providers.FunctionParameterSpec{
+		{
+			Name: "input",
+			// The input type is determined at runtime
+			Type:              cty.DynamicPseudoType,
+			Description:       "input to encode",
+			DescriptionFormat: providers.TextFormattingPlain,
+		},
+	}
+	return providers.FunctionSpec{
+		Parameters:        params,
+		Return:            cty.String,
+		Summary:           "print string",
+		Description:       "",
+		DescriptionFormat: providers.TextFormattingPlain,
+	}
+}
+
+func (f *EncodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
+	//https://pkg.go.dev/github.com/hashicorp/hcl/v2/hclwrite
+	toEncode := args[0]
+	if !toEncode.Type().IsObjectType() {
+		return cty.NullVal(cty.String), errors.New("input is not an object") //TODO errors
+	}
+	ef := hclwrite.NewEmptyFile()
+	body := ef.Body()
+
+	// Iterate over the elements of the input value
+	it := toEncode.ElementIterator()
+	for it.Next() {
+		key, val := it.Element()
+		log.Printf("[TRACE] key: %v, val: %v", key, val)
+		// Check if the key is a string, known and not null, otherwise AsString method panics
+		if !key.Type().Equals(cty.String) || !key.IsKnown() || key.IsNull() {
+			return cty.NullVal(cty.String), fmt.Errorf("key is not a string: %v", key) //TODO errors
+		}
+		body.SetAttributeValue(key.AsString(), val)
+	}
+	b := ef.Bytes()
+	log.Printf("[TRACE] encoded: %s", b)
+	return cty.StringVal(string(b)), nil
+}
+
+type EncodeExprFunc struct{}
+
+func (f *EncodeExprFunc) Name() string {
+	return "encode_expr"
+}
+
+func (f *EncodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
+	// TODO detailed specs
+	params := []providers.FunctionParameterSpec{
+		{
+			Name:              "input",
+			Type:              cty.DynamicPseudoType,
+			Description:       "input to encode",
+			DescriptionFormat: providers.TextFormattingPlain,
+		},
+	}
+	return providers.FunctionSpec{
+		Parameters:        params,
+		Return:            cty.String,
+		Summary:           "print string",
+		Description:       "",
+		DescriptionFormat: providers.TextFormattingPlain,
+	}
+}
+
+func (f *EncodeExprFunc) Call(args []cty.Value) (cty.Value, error) {
+	//TODO add helpful logs
+	toEncode := args[0]
+	nf := hclwrite.NewEmptyFile()
+	if !toEncode.IsWhollyKnown() {
+		return cty.NullVal(cty.String), errors.New("input is not known") //TODO errors
+	}
+	tokens := hclwrite.TokensForValue(toEncode)
+	log.Printf("[TRACE] tokens %+v", tokens)
+	body := nf.Body()
+	body.AppendUnstructuredTokens(tokens)
+	variables := hclwrite.NewExpressionLiteral(toEncode)
+	log.Printf("[TRACE] variables %+v", variables)
+
+	return cty.StringVal(string(nf.Bytes())), nil
 }
