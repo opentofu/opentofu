@@ -175,8 +175,5 @@ func (f *EncodeExprFunc) Call(args []cty.Value) (cty.Value, error) {
 	log.Printf("[TRACE] tokens %+v", tokens)
 	body := nf.Body()
 	body.AppendUnstructuredTokens(tokens)
-	variables := hclwrite.NewExpressionLiteral(toEncode)
-	log.Printf("[TRACE] variables %+v", variables)
-
 	return cty.StringVal(string(nf.Bytes())), nil
 }
