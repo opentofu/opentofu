@@ -1,3 +1,6 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+
 package tf
 
 import (
@@ -73,6 +76,7 @@ func (f *DecodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	if schema == nil || diag.HasErrors() {
 		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
 	}
+	//TODO check if we need to accept empty objects
 	attrs, diag := schema.Body.JustAttributes()
 	if attrs == nil || diag.HasErrors() {
 		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
@@ -114,9 +118,15 @@ func (f *EncodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 	}
 }
 
+var InvalidInputError = errors.New("invalid input")
+
 func (f *EncodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	//https://pkg.go.dev/github.com/hashicorp/hcl/v2/hclwrite
 	toEncode := args[0]
+	// null is invalid input
+	if toEncode.IsNull() {
+		return cty.NullVal(cty.String), fmt.Errorf("%w: must not be null", InvalidInputError) //TODO errors
+	}
 	if !toEncode.Type().IsObjectType() {
 		return cty.NullVal(cty.String), errors.New("input is not an object") //TODO errors
 	}

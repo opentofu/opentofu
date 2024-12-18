@@ -1,10 +1,14 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+
 package tf_test
 
 import (
 	"errors"
-	"github.com/hashicorp/hcl/v2/hclwrite"
 	"strings"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2/hclwrite"
 
 	"github.com/opentofu/opentofu/internal/builtin/providers/tf"
 	"github.com/zclconf/go-cty/cty"
@@ -20,6 +24,9 @@ type test struct {
 // formatHCLWithoutWhitespaces removes all whitespaces from the HCL string
 // This will not result in a valid HCL string, but it will allow us to compare the result without worrying about whitespaces
 func formatHCLWithoutWhitespaces(val cty.Value) string {
+	if val.IsNull() || !val.Type().Equals(cty.String) {
+		panic("formatHCLWithoutWhitespaces only works with string values")
+	}
 	f := string(hclwrite.Format([]byte(val.AsString())))
 	f = strings.ReplaceAll(f, " ", "")
 	f = strings.ReplaceAll(f, "\n", "")
@@ -29,6 +36,11 @@ func formatHCLWithoutWhitespaces(val cty.Value) string {
 
 func TestEncodeTFVarsFunc(t *testing.T) {
 	tests := []test{
+		{
+			name: "empty object",
+			arg:  cty.ObjectVal(map[string]cty.Value{}),
+			want: cty.StringVal(""),
+		},
 		{
 			name: "basic test",
 			arg: cty.ObjectVal(map[string]cty.Value{
@@ -95,14 +107,26 @@ func TestEncodeTFVarsFunc(t *testing.T) {
 				]
 			`),
 		},
+		{
+			name:          "null input",
+			arg:           cty.NullVal(cty.DynamicPseudoType),
+			want:          cty.StringVal(""),
+			expectedError: tf.InvalidInputError,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			encodeTFVars := &tf.EncodeTFVarsFunc{}
 			got, err := encodeTFVars.Call([]cty.Value{tt.arg})
-			if !errors.Is(err, tt.expectedError) {
-				t.Errorf("Call() error = %v, expected %v", err, tt.expectedError)
+			if err != nil {
+				if tt.expectedError == nil {
+					t.Fatalf("Call() unexpected error: %v", err)
+				}
+				if !errors.Is(err, tt.expectedError) {
+					t.Fatalf("Call() error = %v, expected %v", err, tt.expectedError)
+				}
+				return
 			}
 
 			formattedRequirement := formatHCLWithoutWhitespaces(tt.want)
