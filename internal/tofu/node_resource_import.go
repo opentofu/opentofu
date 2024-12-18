@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"iter"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -31,10 +32,10 @@ type graphNodeImportState struct {
 }
 
 var (
-	_ GraphNodeModulePath        = (*graphNodeImportState)(nil)
-	_ GraphNodeExecutable        = (*graphNodeImportState)(nil)
-	_ GraphNodeProviderConsumer  = (*graphNodeImportState)(nil)
-	_ GraphNodeDynamicExpandable = (*graphNodeImportState)(nil)
+	_ GraphNodeModulePath       = (*graphNodeImportState)(nil)
+	_ GraphNodeExecutable       = (*graphNodeImportState)(nil)
+	_ GraphNodeProviderConsumer = (*graphNodeImportState)(nil)
+	_ GraphNodeExecutable       = (*graphNodeImportState)(nil)
 )
 
 func (n *graphNodeImportState) Name() string {
@@ -135,19 +136,28 @@ func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags
 	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
 		return h.PostImportState(absAddr, imported)
 	}))
+	diags = diags.Append(
+		n.prepareImportResults(ctx, op),
+	)
 	return diags
 }
 
-// GraphNodeDynamicExpandable impl.
+// prepareImportResults deals with the possibly-multiple objects generated from a call
+// to provider.ImportResourceState in graphNodeImportState.Execute, arranging for each
+// to be refreshed and added to the current working state.
 //
-// We use DynamicExpand as a way to generate the subgraph of refreshes
-// and state inserts we need to do for our import state. Since they're new
-// resources they don't depend on anything else and refreshes are isolated
-// so this is nearly a perfect use case for dynamic expand.
-func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
+// This must only be called by [graphNodeImportState.Execute] because it uses the
+// "states" field of graphNodeImportState as a weird side-channel argument. This design
+// oddity is due to the heritage of this code and is preserved temporarily only to reduce
+// the risk of refactoring by doing it in multiple steps.
+func (n *graphNodeImportState) prepareImportResults(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	g := &Graph{Path: ctx.Path()}
+	// This is currently awkwardly constructing "graph nodes" to visit because this
+	// code originally used the GraphNodeDynamicExpandable interface that we're
+	// migrating away from.
+	// TODO: Rework this to be more like normal code, without the needless instantiation
+	// of intermediate objects to represent the work.
 
 	// nameCounter is used to de-dup names in the state.
 	nameCounter := make(map[string]int)
@@ -190,29 +200,35 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	}
 	if diags.HasErrors() {
 		// Bail out early, then.
-		return nil, diags.Err()
+		return diags
 	}
 
-	// For each of the states, we add a node to handle the refresh/add to state.
+	// For each of the states, we instantiate a node to handle the refresh/add to state.
 	// "n.states" is populated by our own Execute with the result of
-	// ImportState. Since DynamicExpand is always called after Execute, this is
+	// ImportState. Since prepareImportResults is always called after Execute, this is
 	// safe.
-	for i, state := range n.states {
-		g.Add(&graphNodeImportStateSub{
-			TargetAddr:          addrs[i],
-			State:               state,
-			ResolvedProvider:    n.ResolvedProvider,
-			ResolvedProviderKey: n.ResolvedProviderKey,
-			Schema:              n.Schema,
-			SchemaVersion:       n.SchemaVersion,
-			Config:              n.Config,
-		})
-	}
-
-	addRootNodeToGraph(g)
-
-	// Done!
-	return g, diags.Err()
+	// TODO: Once we rework this to not needlessly construct other "graph nodes" to
+	// execute, we can remove the field n.states from graphNodeImportState and
+	// just pass that data into this function as normal arguments instead.
+	seq := iter.Seq[GraphNodeExecutable](func(yield func(GraphNodeExecutable) bool) {
+		for i, state := range n.states {
+			subNode := &graphNodeImportStateSub{
+				TargetAddr:          addrs[i],
+				State:               state,
+				ResolvedProvider:    n.ResolvedProvider,
+				ResolvedProviderKey: n.ResolvedProviderKey,
+				Schema:              n.Schema,
+				SchemaVersion:       n.SchemaVersion,
+				Config:              n.Config,
+			}
+			if !yield(subNode) {
+				break
+			}
+		}
+	})
+	moreDiags := executeGraphNodes(seq, ctx, op)
+	diags = diags.Append(moreDiags)
+	return diags
 }
 
 // graphNodeImportStateSub is the sub-node of graphNodeImportState

@@ -7,9 +7,9 @@ package tofu
 
 import (
 	"context"
-	"fmt"
+	"iter"
 	"log"
-	"strings"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -39,7 +39,7 @@ func (g *Graph) Walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostic
 	return g.walk(ctx, walker)
 }
 
-func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostics {
+func (g *Graph) walk(_ context.Context, walker GraphWalker) tfdiags.Diagnostics {
 	// The callbacks for enter/exiting a graph
 	evalCtx := walker.EvalContext()
 
@@ -88,58 +88,81 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostic
 			}
 		}
 
-		// If the node is dynamically expanded, then expand it
-		if ev, ok := v.(GraphNodeDynamicExpandable); ok {
-			log.Printf("[TRACE] vertex %q: expanding dynamic subgraph", dag.VertexName(v))
-
-			g, err := ev.DynamicExpand(vertexCtx)
-			diags = diags.Append(err)
-			if diags.HasErrors() {
-				log.Printf("[TRACE] vertex %q: failed expanding dynamic subgraph: %s", dag.VertexName(v), err)
-				return
-			}
-			if g != nil {
-				// The subgraph should always be valid, per our normal acyclic
-				// graph validation rules.
-				if err := g.Validate(); err != nil {
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Graph node has invalid dynamic subgraph",
-						fmt.Sprintf("The internal logic for %q generated an invalid dynamic subgraph: %s.\n\nThis is a bug in OpenTofu. Please report it!", dag.VertexName(v), err),
-					))
-					return
-				}
-				// If we passed validation then there is exactly one root node.
-				// That root node should always be "rootNode", the singleton
-				// root node value.
-				if n, err := g.Root(); err != nil || n != dag.Vertex(rootNode) {
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Graph node has invalid dynamic subgraph",
-						fmt.Sprintf("The internal logic for %q generated an invalid dynamic subgraph: the root node is %T, which is not a suitable root node type.\n\nThis is a bug in OpenTofu. Please report it!", dag.VertexName(v), n),
-					))
-					return
-				}
-
-				// Walk the subgraph
-				log.Printf("[TRACE] vertex %q: entering dynamic subgraph", dag.VertexName(v))
-				subDiags := g.walk(ctx, walker)
-				diags = diags.Append(subDiags)
-				if subDiags.HasErrors() {
-					var errs []string
-					for _, d := range subDiags {
-						errs = append(errs, d.Description().Summary)
-					}
-					log.Printf("[TRACE] vertex %q: dynamic subgraph encountered errors: %s", dag.VertexName(v), strings.Join(errs, ","))
-					return
-				}
-				log.Printf("[TRACE] vertex %q: dynamic subgraph completed successfully", dag.VertexName(v))
-			} else {
-				log.Printf("[TRACE] vertex %q: produced no dynamic subgraph", dag.VertexName(v))
-			}
-		}
-		return
+		return diags
 	}
 
 	return g.AcyclicGraph.Walk(walkFn)
+}
+
+// executeGraphNodes calls the Execute method of each [GraphNodeExecutable] in the
+// given sequence, which must be finite, and returns all of the collected diagnostics.
+//
+// The Execute methods across all of the nodes are called concurrently. This function
+// returns once all of the inner calls have returned.
+//
+// This is a temporary helper used in the early stages of our migration away from
+// GraphNodeDynamicExpandable and the special idea of "subgraphs" that was formerly
+// implemented in Graph.walk. This function is designed to allow a tail call (or similar)
+// to this function to replace a previous use of DynamicExpand with only minimal changes
+// to the original DynamicExpand logic, to reduce the risk of the change. All uses of
+// this function should eventually be replaced by something simpler that doesn't involve
+// the instantiation of any new graph nodes.
+//
+// Calling code that is being migrated away from this function MUST use evalCtx.PerformIO
+// directly itself to limit the concurrency of any I/O operations, since that is no longer
+// handled automatically by the graph walk machinery. Although this does now spread the
+// responsibility more than it was before, it also gives the individual graph node
+// implementations more flexibility in deciding exactly what is and is not considered to
+// be an "I/O operation", including skipping the semaphore entirely when performing fast,
+// CPU-bound work that has no need for limited concurrency.
+func executeGraphNodes(nodes iter.Seq[GraphNodeExecutable], evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	var diagsMu sync.Mutex
+	var wg sync.WaitGroup
+
+	for node := range nodes {
+		wg.Add(1)
+		// In Go 1.22 and later, "node" is a separate symbol in each
+		// iteration of this loop and so is safe to capture into the
+		// closure below. This would not have been safe in Go 1.21 and
+		// earlier: https://go.dev/blog/loopvar-preview
+		go func() {
+			// If the node has its own module instance then we need to provide it an
+			// EvalContext that is bound to that module instance. Otherwise we'll
+			// just use the EvalContext we were given directly, so the node will
+			// execute under the same context as its caller.
+			localCtx := evalCtx
+			if n, ok := node.(GraphNodeModuleInstance); ok {
+				moduleInstAddr := n.Path()
+				localCtx = localCtx.WithPath(moduleInstAddr)
+			}
+
+			nodeName := dag.VertexName(node)
+			// We use evalCtx.PerformIO here to ensure that these not-yet-updated "subgraph"
+			// implementations still respect the concurrency semaphore that was previously
+			// enforced centrally by the graph walker.
+			//
+			// TODO: In future we'll plumb context.Context into here through changes to
+			// the GraphNodeExecutable interface, but for now we just stub it since
+			// we know GraphNodeExecutable implementers can't possibly accept a Context
+			// anyway.
+			moreDiags := evalCtx.PerformIO(context.TODO(), func(_ context.Context) tfdiags.Diagnostics {
+				log.Printf("[TRACE] executeGraphNodes: executing %s", nodeName)
+				moreDiags := node.Execute(localCtx, op)
+				if moreDiags.HasErrors() {
+					log.Printf("[TRACE] executeGraphNodes: execution of %s returned errors", nodeName)
+				} else {
+					log.Printf("[TRACE] executeGraphNodes: successfully executed %s", nodeName)
+				}
+				return moreDiags
+			})
+			diagsMu.Lock()
+			diags = diags.Append(moreDiags)
+			diagsMu.Unlock()
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+	return diags
 }
