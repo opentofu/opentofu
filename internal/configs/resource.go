@@ -69,12 +69,11 @@ type ManagedResource struct {
 	Provisioners []*Provisioner
 
 	CreateBeforeDestroy bool
-	PreventDestroy      bool
+	PreventDestroy      hcl.Expression
 	IgnoreChanges       []hcl.Traversal
 	IgnoreAllChanges    bool
 
 	CreateBeforeDestroySet bool
-	PreventDestroySet      bool
 }
 
 func (r *Resource) moduleUniqueKey() string {
@@ -205,9 +204,7 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 			}
 
 			if attr, exists := lcContent.Attributes["prevent_destroy"]; exists {
-				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.PreventDestroy)
-				diags = append(diags, valDiags...)
-				r.Managed.PreventDestroySet = true
+				r.Managed.PreventDestroy = attr.Expr
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
