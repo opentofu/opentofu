@@ -106,7 +106,7 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 		// Add a plannable input, as the variable may expand
 		// during module expansion
 		// It is evaluated in the "parent" module
-		input := &nodeExpandModuleVariable{
+		input := &nodeModuleInputVariable{
 			Addr: addrs.InputVariable{
 				Name: v.Name,
 			},
@@ -117,7 +117,7 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 		g.Add(input)
 
 		// It is evaluated in the "child" module
-		ref := &nodeVariableReference{
+		ref := &nodeInputVariableReference{
 			Addr: addrs.InputVariable{
 				Name: v.Name,
 			},

@@ -13,7 +13,6 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -57,46 +56,86 @@ func (n *nodeReportCheck) Name() string {
 }
 
 var (
-	_ GraphNodeModulePath        = (*nodeExpandCheck)(nil)
-	_ GraphNodeDynamicExpandable = (*nodeExpandCheck)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandCheck)(nil)
+	_ GraphNodeModulePath = (*nodeEvaluateCheck)(nil)
+	_ GraphNodeExecutable = (*nodeEvaluateCheck)(nil)
+	_ GraphNodeReferencer = (*nodeEvaluateCheck)(nil)
 )
 
-// nodeExpandCheck creates child nodes that actually execute the assertions for
+// nodeEvaluateCheck creates child nodes that actually execute the assertions for
 // a given check block.
 //
 // This must happen after any other nodes/resources/data sources that are
 // referenced, so we implement GraphNodeReferencer.
 //
 // This needs to be separate to nodeReportCheck as nodeReportCheck must happen
-// first, while nodeExpandCheck must execute after any referenced blocks.
-type nodeExpandCheck struct {
+// first, while nodeEvaluateCheck must execute after any referenced blocks.
+type nodeEvaluateCheck struct {
 	addr   addrs.ConfigCheck
 	config *configs.Check
 
-	makeInstance func(addrs.AbsCheck, *configs.Check) dag.Vertex
+	executeChecks bool
 }
 
-func (n *nodeExpandCheck) ModulePath() addrs.Module {
+func (n *nodeEvaluateCheck) ModulePath() addrs.Module {
 	return n.addr.Module
 }
 
-func (n *nodeExpandCheck) DynamicExpand(ctx EvalContext) (*Graph, error) {
-	exp := ctx.InstanceExpander()
+func (n *nodeEvaluateCheck) Execute(evalCtx EvalContext, _ walkOperation) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// Check block evaluation does not involve any I/O, and so for simplicity's sake
+	// we deal with all of the instances of a check block as sequential code rather
+	// than trying to evaluate them concurrently.
+	exp := evalCtx.InstanceExpander()
 	modInsts := exp.ExpandModule(n.ModulePath())
-
-	var g Graph
 	for _, modAddr := range modInsts {
-		testAddr := n.addr.Check.Absolute(modAddr)
-		log.Printf("[TRACE] nodeExpandCheck: Node for %s", testAddr)
-		g.Add(n.makeInstance(testAddr, n.config))
+		absAddr := n.addr.Check.Absolute(modAddr)
+		modEvalCtx := evalCtx.WithPath(absAddr.Module)
+		log.Printf("[TRACE] nodeEvaluateCheck: checking %s", absAddr)
+		moreDiags := n.executeInstance(absAddr, modEvalCtx)
+		diags = diags.Append(moreDiags)
 	}
-	addRootNodeToGraph(&g)
 
-	return &g, nil
+	return diags
 }
 
-func (n *nodeExpandCheck) References() []*addrs.Reference {
+func (n *nodeEvaluateCheck) executeInstance(absAddr addrs.AbsCheck, evalCtx EvalContext) tfdiags.Diagnostics {
+	// We only want to actually execute the checks during specific
+	// operations, such as plan and applies.
+	if n.executeChecks {
+		if status := evalCtx.Checks().ObjectCheckStatus(absAddr); status == checks.StatusFail || status == checks.StatusError {
+			// This check is already failing, so we won't try and evaluate it.
+			// This typically means there was an error in a data block within
+			// the check block.
+			return nil
+		}
+
+		return evalCheckRules(
+			addrs.CheckAssertion,
+			n.config.Asserts,
+			evalCtx,
+			absAddr,
+			EvalDataForNoInstanceKey,
+			tfdiags.Warning,
+		)
+	}
+
+	// Otherwise let's still validate the config and references and return
+	// diagnostics if references do not exist etc.
+	var diags tfdiags.Diagnostics
+	for ix, assert := range n.config.Asserts {
+		_, _, moreDiags := validateCheckRule(
+			addrs.NewCheckRule(absAddr, addrs.CheckAssertion, ix),
+			assert,
+			evalCtx,
+			EvalDataForNoInstanceKey,
+		)
+		diags = diags.Append(moreDiags)
+	}
+	return diags
+}
+
+func (n *nodeEvaluateCheck) References() []*addrs.Reference {
 	var refs []*addrs.Reference
 	for _, assert := range n.config.Asserts {
 		// Check blocks reference anything referenced by conditions or messages
@@ -123,67 +162,8 @@ func (n *nodeExpandCheck) References() []*addrs.Reference {
 	return refs
 }
 
-func (n *nodeExpandCheck) Name() string {
-	return n.addr.String() + " (expand)"
-}
-
-var (
-	_ GraphNodeModuleInstance = (*nodeCheckAssert)(nil)
-	_ GraphNodeExecutable     = (*nodeCheckAssert)(nil)
-)
-
-type nodeCheckAssert struct {
-	addr   addrs.AbsCheck
-	config *configs.Check
-
-	// We only want to actually execute the checks during the plan and apply
-	// operations, but we still want to validate our config during
-	// other operations.
-	executeChecks bool
-}
-
-func (n *nodeCheckAssert) ModulePath() addrs.Module {
-	return n.Path().Module()
-}
-
-func (n *nodeCheckAssert) Path() addrs.ModuleInstance {
-	return n.addr.Module
-}
-
-func (n *nodeCheckAssert) Execute(ctx EvalContext, _ walkOperation) tfdiags.Diagnostics {
-
-	// We only want to actually execute the checks during specific
-	// operations, such as plan and applies.
-	if n.executeChecks {
-		if status := ctx.Checks().ObjectCheckStatus(n.addr); status == checks.StatusFail || status == checks.StatusError {
-			// This check is already failing, so we won't try and evaluate it.
-			// This typically means there was an error in a data block within
-			// the check block.
-			return nil
-		}
-
-		return evalCheckRules(
-			addrs.CheckAssertion,
-			n.config.Asserts,
-			ctx,
-			n.addr,
-			EvalDataForNoInstanceKey,
-			tfdiags.Warning)
-
-	}
-
-	// Otherwise let's still validate the config and references and return
-	// diagnostics if references do not exist etc.
-	var diags tfdiags.Diagnostics
-	for ix, assert := range n.config.Asserts {
-		_, _, moreDiags := validateCheckRule(addrs.NewCheckRule(n.addr, addrs.CheckAssertion, ix), assert, ctx, EvalDataForNoInstanceKey)
-		diags = diags.Append(moreDiags)
-	}
-	return diags
-}
-
-func (n *nodeCheckAssert) Name() string {
-	return n.addr.String() + " (assertions)"
+func (n *nodeEvaluateCheck) Name() string {
+	return n.addr.String() + " (evaluate)"
 }
 
 var (
