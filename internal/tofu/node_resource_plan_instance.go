@@ -237,7 +237,21 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		log.Printf("[WARN] managedResourceExecute: no Managed config value found in instance state for %q", n.Addr)
 	} else {
 		if instanceRefreshState != nil {
+			prevCreateBeforeDestroy := instanceRefreshState.CreateBeforeDestroy
+
+			// This change is usually written to the refreshState and then
+			// updated value used for further graph execution. However, with
+			// "refresh=false", refreshState is not being written and then
+			// some resources with updated configuration could be detached
+			// due to missaligned create_before_destroy in different graph nodes.
 			instanceRefreshState.CreateBeforeDestroy = n.Config.Managed.CreateBeforeDestroy || n.ForceCreateBeforeDestroy
+
+			if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy && n.skipRefresh {
+				diags = diags.Append(n.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
+				if diags.HasErrors() {
+					return diags
+				}
+			}
 		}
 	}
 

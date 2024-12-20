@@ -187,10 +187,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 			Changes:   b.Changes,
 			Operation: b.Operation,
 		},
-		&CBDEdgeTransformer{
-			Config: b.Config,
-			State:  b.State,
-		},
+		&CBDEdgeTransformer{},
 
 		// We need to remove configuration nodes that are not used at all, as
 		// they may not be able to evaluate, especially during destroy.
