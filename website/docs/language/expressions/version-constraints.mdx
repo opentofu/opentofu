@@ -93,3 +93,10 @@ versions do not match inexact operators such as `>=`, `~>`, etc.
 
 - Root modules should use a `~>` constraint to set both a lower and upper bound
   on versions for each provider they depend on.
+
+### Supporting both OpenTofu and Terraform Versions
+
+- When configuration needs to be supported by both OpenTofu and Terraform, for example in modules
+  which need to be consumed by both engines, use a `providers.tofu` file to specify
+  the OpenTofu version constraint, overriding the constraint defined in `providers.tf`.
+  [Read more about extension precedence](../../files/#extension-precedence).
