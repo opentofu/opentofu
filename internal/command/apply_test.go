@@ -2394,6 +2394,83 @@ func TestApply_showSensitiveArg(t *testing.T) {
 	}
 }
 
+func TestApply_CreateBeforeDestroyWithRefreshFalse(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("apply_cbd_with_refresh_false"), td)
+	defer testChdir(t, td)()
+
+	originalState := states.BuildState(func(s *states.SyncState) {
+		s.SetResourceInstanceCurrent(
+			addrs.Resource{
+				Mode: addrs.ManagedResourceMode,
+				Type: "test_instance",
+				Name: "a",
+			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"id":"foo"}`),
+				Status:    states.ObjectReady,
+				// Create before destroy is set in the state and
+				// omitted in the configuration.
+				CreateBeforeDestroy: true,
+			},
+			addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			},
+			addrs.NoKey,
+		)
+	})
+	statePath := testStateFile(t, originalState)
+
+	p := testProvider()
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"test_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id": {Type: cty.String, Computed: true},
+					},
+				},
+			},
+		},
+	}
+	// Resource must be replaced.
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState:    req.ProposedNewState,
+			RequiresReplace: []cty.Path{{cty.GetAttrStep{Name: "id"}}},
+		}
+	}
+
+	view, done := testView(t)
+	c := &ApplyCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-state", statePath,
+		"-auto-approve",
+		// We are disabling refresh to see if cbd will be updated.
+		"-refresh=false",
+	}
+
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("Failed to run: \n%s", output.Stderr())
+	}
+
+	// If cbd is not updated, resource becomes detached and
+	// apply results in 1 added, 0 changed, 0 destroyed.
+	stdout := output.Stdout()
+	if !strings.Contains(stdout, "Apply complete! Resources: 1 added, 0 changed, 1 destroyed.") {
+		t.Fatalf("bad: output should contain 'notsensitive' output\n%s", stdout)
+	}
+}
+
 // applyFixtureSchema returns a schema suitable for processing the
 // configuration in testdata/apply . This schema should be
 // assigned to a mock provider named "test".
