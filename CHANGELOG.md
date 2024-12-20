@@ -7,6 +7,7 @@ NEW FEATURES:
 ENHANCEMENTS:
 
 BUG FIXES:
+* `tofu init` command does not attempt to read encryption keys when `-backend=false` flag is set. (https://github.com/opentofu/opentofu/pull/2293)
 
 ## Previous Releases
 
