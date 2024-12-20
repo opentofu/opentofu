@@ -72,6 +72,7 @@ BUG FIXES:
 * Variables declared in test files are now taking into account type default values. ([#2244](https://github.com/opentofu/opentofu/pull/2244))
 * `tofu test` now removes outputs of destroyed modules between different test runs. ([#2274](https://github.com/opentofu/opentofu/pull/2274))
 * Changes in `create_before_destroy` for resources which require replacement are now properly handled when refresh is disabled. ([#2248](https://github.com/opentofu/opentofu/pull/2248))
+* `tofu init` command does not attempt to read encryption keys when `-backend=false` flag is set. (https://github.com/opentofu/opentofu/pull/2293)
 
 INTERNAL CHANGES:
 
