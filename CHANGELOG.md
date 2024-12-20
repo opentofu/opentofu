@@ -71,13 +71,12 @@ BUG FIXES:
 * `tofu test` is now setting `null`s for dynamic type when generating mock values. ([#2245](https://github.com/opentofu/opentofu/pull/2245))
 * Variables declared in test files are now taking into account type default values. ([#2244](https://github.com/opentofu/opentofu/pull/2244))
 * `tofu test` now removes outputs of destroyed modules between different test runs. ([#2274](https://github.com/opentofu/opentofu/pull/2274))
+* Changes in `create_before_destroy` for resources which require replacement are now properly handled when refresh is disabled. ([#2248](https://github.com/opentofu/opentofu/pull/2248))
 
 INTERNAL CHANGES:
 
 * The Makefile now includes `build` and `help` targets. ([#1925](https://github.com/opentofu/opentofu/pull/1925), [#1927](https://github.com/opentofu/opentofu/pull/1927))
 * The Makefile is now configured to allow only POSIX standard make syntax, without implementation-specific extensions. ([#1811](https://github.com/opentofu/opentofu/pull/1928))
-
-* Changes in `create_before_destroy` for resources which require replacement are now properly handled when refresh is disabled. ([#2248](https://github.com/opentofu/opentofu/pull/2248))
 
 ## Previous Releases
 
