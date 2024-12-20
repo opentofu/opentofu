@@ -204,12 +204,19 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromModule(rootModEarly)
-	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
-		return 1
+	var enc encryption.Encryption
+	// If backend flag is explicitly set to false i.e -backend=false, we disable state and plan encryption
+	if backendFlagSet && !flagBackend {
+		enc = encryption.Disabled()
+	} else {
+		// Load the encryption configuration
+		var encDiags tfdiags.Diagnostics
+		enc, encDiags = c.EncryptionFromModule(rootModEarly)
+		diags = diags.Append(encDiags)
+		if encDiags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
 	}
 
 	var back backend.Backend
