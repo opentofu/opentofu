@@ -173,8 +173,8 @@ func (f *EncodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
 	return providers.FunctionSpec{
 		Parameters:        params,
 		Return:            cty.String,
-		Summary:           "Takes any non-null expression and returns a string representation of it in a valid OpenTofu expression format",
-		Description:       "provider::terraform::encode_expr takes any non-null expression and returns a string representation of it in a valid OpenTofu expression format",
+		Summary:           "Takes an arbitrary expression and converts it into a string with valid OpenTofu syntax",
+		Description:       "provider::terraform::encode_expr takes an arbitrary expression and converts it into a string with valid OpenTofu syntax",
 		DescriptionFormat: providers.TextFormattingPlain,
 	}
 }

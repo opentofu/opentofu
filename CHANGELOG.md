@@ -4,6 +4,11 @@ UPGRADE NOTES:
 
 NEW FEATURES:
 
+- New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
+  - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
+  - `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
+  - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
+
 ENHANCEMENTS:
 
 BUG FIXES:
