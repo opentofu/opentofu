@@ -6,6 +6,8 @@ NEW FEATURES:
 
 ENHANCEMENTS:
 
+* State encryption now supports using external programs as key providers.
+
 BUG FIXES:
 * `tofu init` command does not attempt to read encryption keys when `-backend=false` flag is set. (https://github.com/opentofu/opentofu/pull/2293)
 
