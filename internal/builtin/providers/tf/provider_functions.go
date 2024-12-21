@@ -6,7 +6,6 @@ package tf
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 
@@ -21,11 +20,15 @@ import (
 // "encode_expr"
 
 type providerFunc interface {
+	// Name returns the name of the function which is used to call it
 	Name() string
+	// GetFunctionSpec returns the provider function specification
 	GetFunctionSpec() providers.FunctionSpec
+	// Call is used to invoke the function
 	Call(args []cty.Value) (cty.Value, error)
 }
 
+// getProviderFuncs returns a map of functions that are registered in the provider
 func getProviderFuncs() map[string]providerFunc {
 	decodeTFVars := &DecodeTFVarsFunc{}
 	encodeTFVars := &EncodeTFVarsFunc{}
@@ -37,6 +40,7 @@ func getProviderFuncs() map[string]providerFunc {
 	}
 }
 
+// DecodeTFVarsFunc decodes a TFVars file content into a cty object
 type DecodeTFVarsFunc struct{}
 
 func (f *DecodeTFVarsFunc) Name() string {
@@ -44,20 +48,19 @@ func (f *DecodeTFVarsFunc) Name() string {
 }
 
 func (f *DecodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
-	// TODO detailed specs
 	params := []providers.FunctionParameterSpec{
 		{
-			Name:              "input",
+			Name:              "content",
 			Type:              cty.String,
-			Description:       "input to decode",
+			Description:       "TFVars file content to decode",
 			DescriptionFormat: providers.TextFormattingPlain,
 		},
 	}
 	return providers.FunctionSpec{
 		Parameters:        params,
 		Return:            cty.DynamicPseudoType,
-		Summary:           "",
-		Description:       "",
+		Summary:           "Decode a TFVars file content into an object",
+		Description:       "provider::terraform::decode_tfvars decodes a TFVars file content into an object",
 		DescriptionFormat: providers.TextFormattingPlain,
 	}
 }
@@ -69,15 +72,16 @@ func wrapDiagErrors(m error, diag hcl.Diagnostics) error {
 	errs := append([]error{m}, diag.Errs()...)
 	return errors.Join(errs...)
 }
+
 func (f *DecodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
-	//TODO Add logs
 	varsFileContent := args[0].AsString()
 	schema, diag := hclsyntax.ParseConfig([]byte(varsFileContent), "", hcl.Pos{Line: 0, Column: 0})
 	if schema == nil || diag.HasErrors() {
 		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
 	}
-	//TODO check if we need to accept empty objects
 	attrs, diag := schema.Body.JustAttributes()
+	// Check if there are any errors.
+	// attrs == nil does not mean that there are no attributes, attrs - is still initialized as an empty map
 	if attrs == nil || diag.HasErrors() {
 		return cty.NullVal(cty.DynamicPseudoType), wrapDiagErrors(FailedToDecodeError, diag)
 	}
@@ -92,6 +96,7 @@ func (f *DecodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	return cty.ObjectVal(vals), nil
 }
 
+// EncodeTFVarsFunc encodes an object into a string with the same format as a TFVars file
 type EncodeTFVarsFunc struct{}
 
 func (f *EncodeTFVarsFunc) Name() string {
@@ -99,21 +104,20 @@ func (f *EncodeTFVarsFunc) Name() string {
 }
 
 func (f *EncodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
-	// TODO detailed specs
 	params := []providers.FunctionParameterSpec{
 		{
 			Name: "input",
 			// The input type is determined at runtime
 			Type:              cty.DynamicPseudoType,
-			Description:       "input to encode",
+			Description:       "input to encode for TFVars file. Must be an object with key that are valid identifiers",
 			DescriptionFormat: providers.TextFormattingPlain,
 		},
 	}
 	return providers.FunctionSpec{
 		Parameters:        params,
 		Return:            cty.String,
-		Summary:           "print string",
-		Description:       "",
+		Summary:           "encode an object into a string with the same format as a TFVars file",
+		Description:       "provider::terraform::encode_tfvars encodes an object into a string with the same format as a TFVars file",
 		DescriptionFormat: providers.TextFormattingPlain,
 	}
 }
@@ -121,14 +125,13 @@ func (f *EncodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 var InvalidInputError = errors.New("invalid input")
 
 func (f *EncodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
-	//https://pkg.go.dev/github.com/hashicorp/hcl/v2/hclwrite
 	toEncode := args[0]
 	// null is invalid input
 	if toEncode.IsNull() {
-		return cty.NullVal(cty.String), fmt.Errorf("%w: must not be null", InvalidInputError) //TODO errors
+		return cty.NullVal(cty.String), fmt.Errorf("%w: must not be null", InvalidInputError)
 	}
 	if !toEncode.Type().IsObjectType() {
-		return cty.NullVal(cty.String), errors.New("input is not an object") //TODO errors
+		return cty.NullVal(cty.String), fmt.Errorf("%w: must be an object", InvalidInputError)
 	}
 	ef := hclwrite.NewEmptyFile()
 	body := ef.Body()
@@ -137,18 +140,21 @@ func (f *EncodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	it := toEncode.ElementIterator()
 	for it.Next() {
 		key, val := it.Element()
-		log.Printf("[TRACE] key: %v, val: %v", key, val)
 		// Check if the key is a string, known and not null, otherwise AsString method panics
 		if !key.Type().Equals(cty.String) || !key.IsKnown() || key.IsNull() {
-			return cty.NullVal(cty.String), fmt.Errorf("key is not a string: %v", key) //TODO errors
+			return cty.NullVal(cty.String), fmt.Errorf("%w: object key must be a string: %v", InvalidInputError, key) //TODO errors
+		}
+		name := key.AsString()
+		if valid := hclsyntax.ValidIdentifier(name); !valid {
+			return cty.NullVal(cty.String), fmt.Errorf("%w: object key: %s - must be a valid identifier", InvalidInputError, name)
 		}
 		body.SetAttributeValue(key.AsString(), val)
 	}
 	b := ef.Bytes()
-	log.Printf("[TRACE] encoded: %s", b)
 	return cty.StringVal(string(b)), nil
 }
 
+// EncodeExprFunc encodes an expression into a string
 type EncodeExprFunc struct{}
 
 func (f *EncodeExprFunc) Name() string {
@@ -156,33 +162,32 @@ func (f *EncodeExprFunc) Name() string {
 }
 
 func (f *EncodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
-	// TODO detailed specs
 	params := []providers.FunctionParameterSpec{
 		{
-			Name:              "input",
+			Name:              "expr",
 			Type:              cty.DynamicPseudoType,
-			Description:       "input to encode",
+			Description:       "expression to encode",
 			DescriptionFormat: providers.TextFormattingPlain,
 		},
 	}
 	return providers.FunctionSpec{
 		Parameters:        params,
 		Return:            cty.String,
-		Summary:           "print string",
-		Description:       "",
+		Summary:           "Takes any non-null expression and returns a string representation of it in a valid OpenTofu expression format",
+		Description:       "provider::terraform::encode_expr takes any non-null expression and returns a string representation of it in a valid OpenTofu expression format",
 		DescriptionFormat: providers.TextFormattingPlain,
 	}
 }
 
+var UnknownInputError = errors.New("input is not known")
+
 func (f *EncodeExprFunc) Call(args []cty.Value) (cty.Value, error) {
-	//TODO add helpful logs
 	toEncode := args[0]
 	nf := hclwrite.NewEmptyFile()
 	if !toEncode.IsWhollyKnown() {
-		return cty.NullVal(cty.String), errors.New("input is not known") //TODO errors
+		return cty.NullVal(cty.String), UnknownInputError
 	}
 	tokens := hclwrite.TokensForValue(toEncode)
-	log.Printf("[TRACE] tokens %+v", tokens)
 	body := nf.Body()
 	body.AppendUnstructuredTokens(tokens)
 	return cty.StringVal(string(nf.Bytes())), nil

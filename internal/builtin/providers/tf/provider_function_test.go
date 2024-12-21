@@ -34,6 +34,117 @@ func formatHCLWithoutWhitespaces(val cty.Value) string {
 	return f
 }
 
+func TestDecodeTFVarsFunc(t *testing.T) {
+	tests := []test{
+		{
+			name: "basic test",
+			arg: cty.StringVal(`
+				test = 2
+			`),
+			want: cty.ObjectVal(map[string]cty.Value{
+				"test": cty.NumberIntVal(2),
+			}),
+			expectedError: nil,
+		},
+		{
+			name: "object basic test",
+			arg: cty.StringVal(`
+				test = {
+					k = "v"
+				}
+			`),
+			want: cty.ObjectVal(map[string]cty.Value{
+				"test": cty.ObjectVal(map[string]cty.Value{
+					"k": cty.StringVal("v"),
+				}),
+			}),
+			expectedError: nil,
+		},
+		{
+			name: "list basic test",
+			arg: cty.StringVal(`
+				test = [
+					"i1",
+					"i2",
+					3
+				]
+			`),
+			want: cty.ObjectVal(map[string]cty.Value{
+				"test": cty.TupleVal([]cty.Value{
+					cty.StringVal("i1"),
+					cty.StringVal("i2"),
+					cty.NumberIntVal(3),
+				}),
+			}),
+		},
+		{
+			name: "list of objects",
+			arg: cty.StringVal(`
+				test = [
+					{
+						o1k1 = "o1v1"
+					},
+					{
+						o2k1 = "o2v1"
+						o2k2 = {
+							o3k1 = "o3v1"
+						}
+					}
+				]
+			`),
+			want: cty.ObjectVal(map[string]cty.Value{
+				"test": cty.TupleVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						"o1k1": cty.StringVal("o1v1"),
+					}),
+					cty.ObjectVal(map[string]cty.Value{
+						"o2k1": cty.StringVal("o2v1"),
+						"o2k2": cty.ObjectVal(map[string]cty.Value{
+							"o3k1": cty.StringVal("o3v1"),
+						}),
+					}),
+				}),
+			}),
+		},
+		{
+			name: "empty object",
+			arg:  cty.StringVal(""),
+			want: cty.ObjectVal(map[string]cty.Value{}),
+		},
+		{
+			name:          "invalid content",
+			arg:           cty.StringVal("test"), // not a valid HCL
+			want:          cty.NullVal(cty.DynamicPseudoType),
+			expectedError: tf.FailedToDecodeError,
+		},
+		{
+			name:          "invalid content 2",
+			arg:           cty.StringVal("{}"), // not a valid HCL
+			want:          cty.NullVal(cty.DynamicPseudoType),
+			expectedError: tf.FailedToDecodeError,
+		},
+		{
+			name:          "invalid content 3",
+			arg:           cty.StringVal("\"5*5\": 3"), // not a valid HCL
+			want:          cty.NullVal(cty.DynamicPseudoType),
+			expectedError: tf.FailedToDecodeError,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			decodeTFVars := &tf.DecodeTFVarsFunc{}
+			got, err := decodeTFVars.Call([]cty.Value{tt.arg})
+			if !errors.Is(err, tt.expectedError) {
+				t.Errorf("Call() error = %v, expected %v", err, tt.expectedError)
+			}
+			if got.NotEqual(tt.want).True() {
+				t.Errorf("Call() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestEncodeTFVarsFunc(t *testing.T) {
 	tests := []test{
 		{
@@ -113,6 +224,18 @@ func TestEncodeTFVarsFunc(t *testing.T) {
 			want:          cty.StringVal(""),
 			expectedError: tf.InvalidInputError,
 		},
+		{
+			name:          "invalid input: not an object",
+			arg:           cty.StringVal("test"), // not an object
+			want:          cty.StringVal(""),
+			expectedError: tf.InvalidInputError,
+		},
+		{
+			name:          "invalid input: Object with invalid key",
+			arg:           cty.ObjectVal(map[string]cty.Value{"7*7": cty.StringVal("test")}), // invalid key
+			want:          cty.StringVal(""),
+			expectedError: tf.InvalidInputError,
+		},
 	}
 
 	for _, tt := range tests {
@@ -134,94 +257,6 @@ func TestEncodeTFVarsFunc(t *testing.T) {
 
 			if formattedGot != formattedRequirement {
 				t.Errorf("Call() got: %v, want: %v", formattedGot, formattedRequirement)
-			}
-		})
-	}
-}
-
-func TestDecodeTFVarsFunc(t *testing.T) {
-	tests := []test{
-		{
-			name: "basic test",
-			arg: cty.StringVal(`
-				test = 2
-			`),
-			want: cty.ObjectVal(map[string]cty.Value{
-				"test": cty.NumberIntVal(2),
-			}),
-			expectedError: nil,
-		},
-		{
-			name: "object basic test",
-			arg: cty.StringVal(`
-				test = {
-					k = "v"
-				}
-			`),
-			want: cty.ObjectVal(map[string]cty.Value{
-				"test": cty.ObjectVal(map[string]cty.Value{
-					"k": cty.StringVal("v"),
-				}),
-			}),
-			expectedError: nil,
-		},
-		{
-			name: "list basic test",
-			arg: cty.StringVal(`
-				test = [
-					"i1",
-					"i2",
-					3
-				]
-			`),
-			want: cty.ObjectVal(map[string]cty.Value{
-				"test": cty.TupleVal([]cty.Value{
-					cty.StringVal("i1"),
-					cty.StringVal("i2"),
-					cty.NumberIntVal(3),
-				}),
-			}),
-		},
-		{
-			name: "list of objects",
-			arg: cty.StringVal(`
-				test = [
-					{
-						o1k1 = "o1v1"
-					},
-					{
-						o2k1 = "o2v1"
-						o2k2 = {
-							o3k1 = "o3v1"
-						}
-					}
-				]
-			`),
-			want: cty.ObjectVal(map[string]cty.Value{
-				"test": cty.TupleVal([]cty.Value{
-					cty.ObjectVal(map[string]cty.Value{
-						"o1k1": cty.StringVal("o1v1"),
-					}),
-					cty.ObjectVal(map[string]cty.Value{
-						"o2k1": cty.StringVal("o2v1"),
-						"o2k2": cty.ObjectVal(map[string]cty.Value{
-							"o3k1": cty.StringVal("o3v1"),
-						}),
-					}),
-				}),
-			}),
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			decodeTFVars := &tf.DecodeTFVarsFunc{}
-			got, err := decodeTFVars.Call([]cty.Value{tt.arg})
-			if !errors.Is(err, tt.expectedError) {
-				t.Errorf("Call() error = %v, expected %v", err, tt.expectedError)
-			}
-			if got.NotEqual(tt.want).True() {
-				t.Errorf("Call() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
