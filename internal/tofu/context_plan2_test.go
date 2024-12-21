@@ -6232,6 +6232,15 @@ resource "test_object" "a" {
 
 	onePlan := plan.Changes.ResourceInstance(one)
 	twoPlan := plan.Changes.ResourceInstance(two)
+	if onePlan == nil {
+		t.Errorf("no planned change for %s", one)
+	}
+	if twoPlan == nil {
+		t.Errorf("no planned change for %s", two)
+	}
+	if onePlan == nil || twoPlan == nil {
+		t.FailNow() // to avoid panicking on nil pointer dereferences below
+	}
 
 	// This test is just to make sure things work e2e with modules and generated
 	// config, so we're not too careful about the actual responses - we're just

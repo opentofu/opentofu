@@ -822,7 +822,7 @@ aws_instance.foo
   aws_instance.foo (expand)
 aws_instance.foo (expand)
   provider["registry.opentofu.org/hashicorp/aws"]
-check.my_check (expand)
+check.my_check (evaluate)
   data.aws_data_source.bar
 data.aws_data_source.bar
   (execute checks)
@@ -833,7 +833,7 @@ provider["registry.opentofu.org/hashicorp/aws"]
 provider["registry.opentofu.org/hashicorp/aws"] (close)
   data.aws_data_source.bar
 root
-  check.my_check (expand)
+  check.my_check (evaluate)
   provider["registry.opentofu.org/hashicorp/aws"] (close)
 `
 

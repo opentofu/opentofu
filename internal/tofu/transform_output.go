@@ -56,7 +56,7 @@ func (t *OutputTransformer) transform(g *Graph, c *configs.Config) error {
 	for _, o := range c.Module.Outputs {
 		addr := addrs.OutputValue{Name: o.Name}
 
-		node := &nodeExpandOutput{
+		node := &nodeOutputValue{
 			Addr:        addr,
 			Module:      c.Path,
 			Config:      o,

@@ -100,6 +100,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 	}
 
 	ctx := &BuiltinEvalContext{
+		concurrencySemaphore:    w.Context.parallelSem,
 		StopContext:             w.StopContext,
 		Hooks:                   w.Context.hooks,
 		InputValue:              w.Context.uiInput,
@@ -141,10 +142,10 @@ func (w *ContextGraphWalker) init() {
 	}
 }
 
-func (w *ContextGraphWalker) Execute(ctx EvalContext, n GraphNodeExecutable) tfdiags.Diagnostics {
-	// Acquire a lock on the semaphore
-	w.Context.parallelSem.Acquire()
-	defer w.Context.parallelSem.Release()
-
-	return n.Execute(ctx, w.Operation)
+func (w *ContextGraphWalker) Execute(evalCtx EvalContext, n GraphNodeExecutable) tfdiags.Diagnostics {
+	// Previous OpenTofu versions would always acquire the w.Context.parallelSem.Acquire
+	// semaphore here, but we now delegate that responsibility to individual graph node
+	// implementations to access through evalCtx.PerformIO, so this is now just directly
+	// calls the graph node's Execute function.
+	return n.Execute(evalCtx, w.Operation)
 }
