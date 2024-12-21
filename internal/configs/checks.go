@@ -222,7 +222,9 @@ func decodeCheckBlock(block *hcl.Block, override bool) (*Check, hcl.Diagnostics)
 				continue
 			}
 
-			data, moreDiags := decodeDataBlock(block, override, true)
+			nestedDataBlock := true
+			enabledMetaArgAllowed := false
+			data, moreDiags := decodeDataBlock(block, override, nestedDataBlock, enabledMetaArgAllowed)
 			diags = append(diags, moreDiags...)
 			if !moreDiags.HasErrors() {
 				// Connect this data block back up to this check block.

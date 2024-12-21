@@ -37,6 +37,7 @@ type ModuleCall struct {
 
 	Count   hcl.Expression
 	ForEach hcl.Expression
+	Enabled hcl.Expression
 
 	Providers []PassedProviderConfig
 
@@ -45,7 +46,8 @@ type ModuleCall struct {
 	DeclRange hcl.Range
 }
 
-func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagnostics) {
+//nolint:funlen // this function predates our use of this linter
+func decodeModuleBlock(block *hcl.Block, override bool, enabledMetaArg bool) (*ModuleCall, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	mc := &ModuleCall{
@@ -56,6 +58,9 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 	schema := moduleBlockSchema
 	if override {
 		schema = schemaForOverrides(schema)
+	}
+	if enabledMetaArg {
+		schema = adjustBodySchemaForEnabledMetaArgExperiment(schema)
 	}
 
 	content, remain, moreDiags := block.Body.PartialContent(schema)
@@ -80,21 +85,42 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		mc.Source = attr.Expr
 	}
 
+	repetitionArgs := 0
+	var countRng, forEachRng, enabledRng hcl.Range
 	if attr, exists := content.Attributes["count"]; exists {
 		mc.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	}
-
 	if attr, exists := content.Attributes["for_each"]; exists {
-		if mc.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
-		}
-
 		mc.ForEach = attr.Expr
+		forEachRng = attr.NameRange
+		repetitionArgs++
+	}
+	if attr, exists := content.Attributes["enabled"]; exists {
+		mc.Enabled = attr.Expr
+		enabledRng = attr.NameRange
+		repetitionArgs++
+	}
+	if repetitionArgs > 1 {
+		var complainRng hcl.Range
+		switch {
+		case mc.ForEach != nil:
+			complainRng = forEachRng
+		case mc.Enabled != nil:
+			complainRng = enabledRng
+		default:
+			complainRng = countRng
+		}
+		// While "enabled" remains experimental we intentionally don't mention it
+		// in this error message, because otherwise we'd need a different error
+		// message for when the experiment is enabled vs. not.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid combination of "count" and "for_each"`,
+			Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
+			Subject:  &complainRng,
+		})
 	}
 
 	if attr, exists := content.Attributes["depends_on"]; exists {

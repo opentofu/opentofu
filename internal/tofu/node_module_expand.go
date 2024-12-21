@@ -138,6 +138,14 @@ func (n *nodeExpandModule) Execute(ctx EvalContext, op walkOperation) (diags tfd
 			}
 			expander.SetModuleForEach(module, call, forEach)
 
+		case n.ModuleCall.Enabled != nil:
+			enabled, enDiags := evaluateEnabledExpression(n.ModuleCall.Enabled, ctx)
+			diags = diags.Append(enDiags)
+			if diags.HasErrors() {
+				return diags
+			}
+			expander.SetModuleEnabled(module, call, enabled)
+
 		default:
 			expander.SetModuleSingle(module, call)
 		}
