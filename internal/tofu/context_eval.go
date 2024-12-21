@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -23,8 +24,8 @@ type EvalOpts struct {
 // Eval produces a scope in which expressions can be evaluated for
 // the given module path.
 //
-// This method must first evaluate any ephemeral values (input variables, local
-// values, and output values) in the configuration. These ephemeral values are
+// This method must first evaluate any named values (input variables, local
+// values, and output values) in the configuration. These named values are
 // not included in the persisted state, so they must be re-computed using other
 // values in the state before they can be properly evaluated. The updated
 // values are retained in the main state associated with the receiving context.
@@ -38,7 +39,7 @@ type EvalOpts struct {
 // the returned scope may be nil. If it is not nil then it may still be used
 // to attempt expression evaluation or other analysis, but some expressions
 // may not behave as expected.
-func (c *Context) Eval(ctx context.Context, config *configs.Config, state *states.State, moduleAddr addrs.ModuleInstance, opts *EvalOpts) (*lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) Eval(ctx context.Context, config *configs.Config, state *states.State, scopeAddr addrs.ExprScope, opts *EvalOpts) (*lang.Scope, tfdiags.Diagnostics) {
 	// This is intended for external callers such as the "tofu console"
 	// command. Internally, we create an evaluator in c.walk before walking
 	// the graph, and create scopes in ContextGraphWalker.
@@ -94,6 +95,22 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 		// use a placeholder graph walker here, which'll refer to the
 		// unmodified state.
 		walker = c.graphWalker(walkEval, walkOpts)
+	}
+
+	// Our public API is currently overpromising in its generality here,
+	// but representing this as addrs.ExprScope means that callers can
+	// use the expression scope parser to produce the scope and thus
+	// we don't need to also expose a module-instance-specific adddress
+	// parser in package addrs. If we add new implementations of
+	// addrs.ExprScope in future then we can generalize this more.
+	moduleAddr, ok := scopeAddr.(addrs.ModuleInstance)
+	if !ok {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Unsupported expression evaluation scope",
+			fmt.Sprintf("External expression evaluation in %s is not currently supported.", scopeAddr),
+		))
+		return nil, diags
 	}
 
 	// This is a bit weird since we don't normally evaluate outside of
