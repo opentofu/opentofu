@@ -1,7 +1,7 @@
 // Copyright (c) The OpenTofu Authors
 // SPDX-License-Identifier: MPL-2.0
 
-package tf_test
+package tf
 
 import (
 	"errors"
@@ -10,7 +10,6 @@ import (
 
 	"github.com/hashicorp/hcl/v2/hclwrite"
 
-	"github.com/opentofu/opentofu/internal/builtin/providers/tf"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -115,25 +114,25 @@ func TestDecodeTFVarsFunc(t *testing.T) {
 			name:          "invalid content",
 			arg:           cty.StringVal("test"), // not a valid HCL
 			want:          cty.NullVal(cty.DynamicPseudoType),
-			expectedError: tf.FailedToDecodeError,
+			expectedError: FailedToDecodeError,
 		},
 		{
 			name:          "invalid content 2",
 			arg:           cty.StringVal("{}"), // not a valid HCL
 			want:          cty.NullVal(cty.DynamicPseudoType),
-			expectedError: tf.FailedToDecodeError,
+			expectedError: FailedToDecodeError,
 		},
 		{
 			name:          "invalid content 3",
 			arg:           cty.StringVal("\"5*5\": 3"), // not a valid HCL
 			want:          cty.NullVal(cty.DynamicPseudoType),
-			expectedError: tf.FailedToDecodeError,
+			expectedError: FailedToDecodeError,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			decodeTFVars := &tf.DecodeTFVarsFunc{}
+			decodeTFVars := &decodeTFVarsFunc{}
 			got, err := decodeTFVars.Call([]cty.Value{tt.arg})
 			if !errors.Is(err, tt.expectedError) {
 				t.Errorf("Call() error = %v, expected %v", err, tt.expectedError)
@@ -222,25 +221,25 @@ func TestEncodeTFVarsFunc(t *testing.T) {
 			name:          "null input",
 			arg:           cty.NullVal(cty.DynamicPseudoType),
 			want:          cty.StringVal(""),
-			expectedError: tf.InvalidInputError,
+			expectedError: InvalidInputError,
 		},
 		{
 			name:          "invalid input: not an object",
 			arg:           cty.StringVal("test"), // not an object
 			want:          cty.StringVal(""),
-			expectedError: tf.InvalidInputError,
+			expectedError: InvalidInputError,
 		},
 		{
 			name:          "invalid input: Object with invalid key",
 			arg:           cty.ObjectVal(map[string]cty.Value{"7*7": cty.StringVal("test")}), // invalid key
 			want:          cty.StringVal(""),
-			expectedError: tf.InvalidInputError,
+			expectedError: InvalidInputError,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			encodeTFVars := &tf.EncodeTFVarsFunc{}
+			encodeTFVars := &encodeTFVarsFunc{}
 			got, err := encodeTFVars.Call([]cty.Value{tt.arg})
 			if err != nil {
 				if tt.expectedError == nil {
@@ -315,7 +314,7 @@ func TestEncodeExprFunc(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			encodeExpr := &tf.EncodeExprFunc{}
+			encodeExpr := &encodeExprFunc{}
 			got, err := encodeExpr.Call([]cty.Value{tt.arg})
 			if !errors.Is(err, tt.expectedError) {
 				t.Errorf("Call() error = %v, expected %v", err, tt.expectedError)

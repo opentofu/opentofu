@@ -30,9 +30,9 @@ type providerFunc interface {
 
 // getProviderFuncs returns a map of functions that are registered in the provider
 func getProviderFuncs() map[string]providerFunc {
-	decodeTFVars := &DecodeTFVarsFunc{}
-	encodeTFVars := &EncodeTFVarsFunc{}
-	encodeExpr := &EncodeExprFunc{}
+	decodeTFVars := &decodeTFVarsFunc{}
+	encodeTFVars := &encodeTFVarsFunc{}
+	encodeExpr := &encodeExprFunc{}
 	return map[string]providerFunc{
 		decodeTFVars.Name(): decodeTFVars,
 		encodeTFVars.Name(): encodeTFVars,
@@ -40,14 +40,14 @@ func getProviderFuncs() map[string]providerFunc {
 	}
 }
 
-// DecodeTFVarsFunc decodes a TFVars file content into a cty object
-type DecodeTFVarsFunc struct{}
+// decodeTFVarsFunc decodes a TFVars file content into a cty object
+type decodeTFVarsFunc struct{}
 
-func (f *DecodeTFVarsFunc) Name() string {
+func (f *decodeTFVarsFunc) Name() string {
 	return "decode_tfvars"
 }
 
-func (f *DecodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
+func (f *decodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 	params := []providers.FunctionParameterSpec{
 		{
 			Name:              "content",
@@ -73,7 +73,7 @@ func wrapDiagErrors(m error, diag hcl.Diagnostics) error {
 	return errors.Join(errs...)
 }
 
-func (f *DecodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
+func (f *decodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	varsFileContent := args[0].AsString()
 	schema, diag := hclsyntax.ParseConfig([]byte(varsFileContent), "", hcl.Pos{Line: 0, Column: 0})
 	if schema == nil || diag.HasErrors() {
@@ -96,14 +96,14 @@ func (f *DecodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	return cty.ObjectVal(vals), nil
 }
 
-// EncodeTFVarsFunc encodes an object into a string with the same format as a TFVars file
-type EncodeTFVarsFunc struct{}
+// encodeTFVarsFunc encodes an object into a string with the same format as a TFVars file
+type encodeTFVarsFunc struct{}
 
-func (f *EncodeTFVarsFunc) Name() string {
+func (f *encodeTFVarsFunc) Name() string {
 	return "encode_tfvars"
 }
 
-func (f *EncodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
+func (f *encodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 	params := []providers.FunctionParameterSpec{
 		{
 			Name: "input",
@@ -124,7 +124,7 @@ func (f *EncodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 
 var InvalidInputError = errors.New("invalid input")
 
-func (f *EncodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
+func (f *encodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	toEncode := args[0]
 	// null is invalid input
 	if toEncode.IsNull() {
@@ -154,14 +154,14 @@ func (f *EncodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 	return cty.StringVal(string(b)), nil
 }
 
-// EncodeExprFunc encodes an expression into a string
-type EncodeExprFunc struct{}
+// encodeExprFunc encodes an expression into a string
+type encodeExprFunc struct{}
 
-func (f *EncodeExprFunc) Name() string {
+func (f *encodeExprFunc) Name() string {
 	return "encode_expr"
 }
 
-func (f *EncodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
+func (f *encodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
 	params := []providers.FunctionParameterSpec{
 		{
 			Name:              "expr",
@@ -181,7 +181,7 @@ func (f *EncodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
 
 var UnknownInputError = errors.New("input is not known")
 
-func (f *EncodeExprFunc) Call(args []cty.Value) (cty.Value, error) {
+func (f *encodeExprFunc) Call(args []cty.Value) (cty.Value, error) {
 	toEncode := args[0]
 	nf := hclwrite.NewEmptyFile()
 	if !toEncode.IsWhollyKnown() {
