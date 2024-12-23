@@ -109,7 +109,7 @@ func (f *encodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 			Name: "input",
 			// The input type is determined at runtime
 			Type:              cty.DynamicPseudoType,
-			Description:       "input to encode for TFVars file. Must be an object with key that are valid identifiers",
+			Description:       "Input to encode for TFVars file. Must be an object with key that are valid identifiers",
 			DescriptionFormat: providers.TextFormattingPlain,
 		},
 	}
