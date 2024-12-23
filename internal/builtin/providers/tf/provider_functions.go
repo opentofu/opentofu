@@ -142,7 +142,7 @@ func (f *encodeTFVarsFunc) Call(args []cty.Value) (cty.Value, error) {
 		key, val := it.Element()
 		// Check if the key is a string, known and not null, otherwise AsString method panics
 		if !key.Type().Equals(cty.String) || !key.IsKnown() || key.IsNull() {
-			return cty.NullVal(cty.String), fmt.Errorf("%w: object key must be a string: %v", InvalidInputError, key) //TODO errors
+			return cty.NullVal(cty.String), fmt.Errorf("%w: object key must be a string: %v", InvalidInputError, key)
 		}
 		name := key.AsString()
 		if valid := hclsyntax.ValidIdentifier(name); !valid {
