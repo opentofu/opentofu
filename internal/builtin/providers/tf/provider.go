@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // Provider is an implementation of providers.Interface
@@ -196,4 +197,26 @@ func (p *Provider) CallFunction(r providers.CallFunctionRequest) providers.CallF
 // Close is a noop for this provider, since it's run in-process.
 func (p *Provider) Close() error {
 	return nil
+}
+
+// providerFunc is an interface representing a built-in provider function
+type providerFunc interface {
+	// Name returns the name of the function which is used to call it
+	Name() string
+	// GetFunctionSpec returns the provider function specification
+	GetFunctionSpec() providers.FunctionSpec
+	// Call is used to invoke the function
+	Call(args []cty.Value) (cty.Value, error)
+}
+
+// getProviderFuncs returns a map of functions that are registered in the provider
+func getProviderFuncs() map[string]providerFunc {
+	decodeTFVars := &decodeTFVarsFunc{}
+	encodeTFVars := &encodeTFVarsFunc{}
+	encodeExpr := &encodeExprFunc{}
+	return map[string]providerFunc{
+		decodeTFVars.Name(): decodeTFVars,
+		encodeTFVars.Name(): encodeTFVars,
+		encodeExpr.Name():   encodeExpr,
+	}
 }

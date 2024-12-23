@@ -15,30 +15,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-// "encode_tfvars"
 // "decode_tfvars"
+// "encode_tfvars"
 // "encode_expr"
-
-type providerFunc interface {
-	// Name returns the name of the function which is used to call it
-	Name() string
-	// GetFunctionSpec returns the provider function specification
-	GetFunctionSpec() providers.FunctionSpec
-	// Call is used to invoke the function
-	Call(args []cty.Value) (cty.Value, error)
-}
-
-// getProviderFuncs returns a map of functions that are registered in the provider
-func getProviderFuncs() map[string]providerFunc {
-	decodeTFVars := &decodeTFVarsFunc{}
-	encodeTFVars := &encodeTFVarsFunc{}
-	encodeExpr := &encodeExprFunc{}
-	return map[string]providerFunc{
-		decodeTFVars.Name(): decodeTFVars,
-		encodeTFVars.Name(): encodeTFVars,
-		encodeExpr.Name():   encodeExpr,
-	}
-}
 
 // decodeTFVarsFunc decodes a TFVars file content into a cty object
 type decodeTFVarsFunc struct{}
