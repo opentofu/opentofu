@@ -116,7 +116,7 @@ func (f *encodeTFVarsFunc) GetFunctionSpec() providers.FunctionSpec {
 	return providers.FunctionSpec{
 		Parameters:        params,
 		Return:            cty.String,
-		Summary:           "encode an object into a string with the same format as a TFVars file",
+		Summary:           "Encode an object into a string with the same format as a TFVars file",
 		Description:       "provider::terraform::encode_tfvars encodes an object into a string with the same format as a TFVars file",
 		DescriptionFormat: providers.TextFormattingPlain,
 	}
