@@ -160,7 +160,7 @@ func (f *encodeExprFunc) GetFunctionSpec() providers.FunctionSpec {
 	}
 }
 
-var UnknownInputError = errors.New("input is not known")
+var UnknownInputError = errors.New("input is not wholly known")
 
 func (f *encodeExprFunc) Call(args []cty.Value) (cty.Value, error) {
 	toEncode := args[0]
