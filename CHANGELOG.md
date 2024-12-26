@@ -1,8 +1,15 @@
-## 1.8.8 (unreleased)
+## 1.8.9 (unreleased)
+
+
+
+## 1.8.8
+
+SECURITY:
+* Upgraded `golang.org/x/crypto` to resolve CVE-2024-45337. ([#2287](https://github.com/opentofu/opentofu/pull/2287))
+* Upgraded `golang.org/x/net` to resolve CVE-2024-45338. ([#2311](https://github.com/opentofu/opentofu/pull/2311))
 
 BUG FIXES:
 * `tofu test` now removes outputs of destroyed modules between different test runs. ([#2274](https://github.com/opentofu/opentofu/pull/2274))
-
 
 ## 1.8.7
 
