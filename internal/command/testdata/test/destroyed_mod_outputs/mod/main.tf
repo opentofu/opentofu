@@ -6,6 +6,6 @@ output "val" {
 }
 
 resource "test_resource" "resource" {
-  id = "598318e0"
+  id = "id-${var.val}"
   value = var.val
 }
