@@ -448,7 +448,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 	if _, exists := nodesByName["test.a (destroy)"]; !exists {
 		t.Errorf("missing destroy node for resource instance test.a")
 	}
-	if _, exists := nodesByName["output.test (expand)"]; !exists {
+	if _, exists := nodesByName["output.test"]; !exists {
 		t.Errorf("missing expand for output value 'test'")
 	}
 

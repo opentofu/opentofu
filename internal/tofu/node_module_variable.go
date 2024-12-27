@@ -6,7 +6,6 @@
 package tofu
 
 import (
-	"fmt"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
@@ -14,66 +13,152 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// nodeExpandModuleVariable is the placeholder for an variable that has not yet had
-// its module path expanded.
-type nodeExpandModuleVariable struct {
+// nodeModuleInputVariable represents an input variable from the configuration
+// that has not yet been expanded to represent instances of its calling module,
+// viewed from the perspective of the caller where the definition expression is
+// written.
+//
+// There should also be a [nodeModuleReference] alongside each node of this
+// type which deals with the part of the variable evaluation that needs to happen
+// inside the callee, where expressions from the declaration can be evaluated.
+type nodeModuleInputVariable struct {
 	Addr   addrs.InputVariable
 	Module addrs.Module
-	Config *configs.Variable
-	Expr   hcl.Expression
+	Config *configs.Variable // The declaration, in the called module
+	Expr   hcl.Expression    // The definition, from the call block in the calling module
 }
 
 var (
-	_ GraphNodeDynamicExpandable = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferenceOutside  = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferenceable     = (*nodeExpandModuleVariable)(nil)
-	_ GraphNodeReferencer        = (*nodeExpandModuleVariable)(nil)
-	_ graphNodeTemporaryValue    = (*nodeExpandModuleVariable)(nil)
-	_ graphNodeExpandsInstances  = (*nodeExpandModuleVariable)(nil)
+	_ GraphNodeExecutable       = (*nodeModuleInputVariable)(nil)
+	_ GraphNodeReferenceOutside = (*nodeModuleInputVariable)(nil)
+	_ GraphNodeReferenceable    = (*nodeModuleInputVariable)(nil)
+	_ GraphNodeReferencer       = (*nodeModuleInputVariable)(nil)
+	_ graphNodeTemporaryValue   = (*nodeModuleInputVariable)(nil)
+	_ graphNodeExpandsInstances = (*nodeModuleInputVariable)(nil)
 )
 
-func (n *nodeExpandModuleVariable) expandsInstances() {}
+func (n *nodeModuleInputVariable) expandsInstances() {}
 
-func (n *nodeExpandModuleVariable) temporaryValue() bool {
+func (n *nodeModuleInputVariable) temporaryValue() bool {
 	return true
 }
 
-func (n *nodeExpandModuleVariable) DynamicExpand(ctx EvalContext) (*Graph, error) {
-	var g Graph
+func (n *nodeModuleInputVariable) Execute(evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
 
-	expander := ctx.InstanceExpander()
+	// Input variable evaluation does not involve any I/O, and so for simplicity's sake
+	// we deal with all of the instances of an input variable as sequential code rather
+	// than trying to evaluate them concurrently.
+
+	expander := evalCtx.InstanceExpander()
 	for _, module := range expander.ExpandModule(n.Module) {
-		addr := n.Addr.Absolute(module)
-		o := &nodeModuleVariable{
-			Addr:           addr,
-			Config:         n.Config,
-			Expr:           n.Expr,
-			ModuleInstance: module,
-		}
-		g.Add(o)
+		absAddr := n.Addr.Absolute(module)
+		// We evaluate in the scope of the calling module because that's where
+		// the definition expression is written.
+		callerEvalCtx := evalCtx.WithPath(absAddr.Module.Parent())
+		log.Printf("[TRACE] nodeModuleInputVariable: evaluating %s", absAddr)
+		moreDiags := n.executeInstance(absAddr, callerEvalCtx, op == walkValidate)
+		diags = diags.Append(moreDiags)
 	}
-	addRootNodeToGraph(&g)
 
-	return &g, nil
+	return diags
 }
 
-func (n *nodeExpandModuleVariable) Name() string {
-	return fmt.Sprintf("%s.%s (expand, input)", n.Module, n.Addr.String())
+// executeInstance deals with the execution side-effects for a single instance of the
+// input variable, identified by absAddr.
+func (n *nodeModuleInputVariable) executeInstance(absAddr addrs.AbsInputVariableInstance, callerEvalCtx EvalContext, validateOnly bool) tfdiags.Diagnostics {
+	val, diags := n.evaluateInstance(absAddr, callerEvalCtx, validateOnly)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// Set values for arguments of the call that's providing this
+	// value for future use in expression evaluation.
+	_, call := absAddr.Module.CallInstance()
+	callerEvalCtx.SetModuleCallArgument(call, n.Addr, val)
+
+	return diags
+}
+
+// evaluateInstance determines the final value for a single instance of the input variable,
+// identified by absAddr, without any side-effects.
+//
+// (Side-effects taken based on this result belong in nodeExpandModuleVariable.executeInstance
+// instead.)
+func (n *nodeModuleInputVariable) evaluateInstance(absAddr addrs.AbsInputVariableInstance, evalCtx EvalContext, validateOnly bool) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var givenVal cty.Value
+	var errSourceRange tfdiags.SourceRange
+	if expr := n.Expr; expr != nil {
+		var moduleInstanceRepetitionData instances.RepetitionData
+
+		switch {
+		case validateOnly:
+			// the instance expander does not track unknown expansion values, so we
+			// have to assume all RepetitionData is unknown.
+			moduleInstanceRepetitionData = instances.RepetitionData{
+				CountIndex: cty.UnknownVal(cty.Number),
+				EachKey:    cty.UnknownVal(cty.String),
+				EachValue:  cty.DynamicVal,
+			}
+
+		default:
+			// Get the repetition data for this module instance,
+			// so we can create the appropriate scope for evaluating our expression
+			moduleInstanceRepetitionData = evalCtx.InstanceExpander().GetModuleInstanceRepetitionData(absAddr.Module)
+		}
+
+		scope := evalCtx.EvaluationScope(nil, nil, moduleInstanceRepetitionData)
+		val, moreDiags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+		diags = diags.Append(moreDiags)
+		if moreDiags.HasErrors() {
+			return cty.DynamicVal, diags
+		}
+		givenVal = val
+		errSourceRange = tfdiags.SourceRangeFromHCL(expr.Range())
+	} else {
+		// We'll use cty.NilVal to represent the variable not being set at all.
+		givenVal = cty.NilVal
+		errSourceRange = tfdiags.SourceRangeFromHCL(n.Config.DeclRange) // we use the declaration range as a fallback for an undefined variable
+	}
+
+	// We construct a synthetic InputValue here to pretend as if this were
+	// a root module variable set from outside, just as a convenience so we
+	// can reuse the InputValue type for this.
+	rawVal := &InputValue{
+		Value:       givenVal,
+		SourceType:  ValueFromConfig,
+		SourceRange: errSourceRange,
+	}
+
+	finalVal, moreDiags := prepareFinalInputVariableValue(absAddr, rawVal, n.Config)
+	diags = diags.Append(moreDiags)
+
+	return finalVal, diags
+}
+
+func (n *nodeModuleInputVariable) Name() string {
+	path := n.Module.String()
+	addr := n.Addr.String() + " (input)"
+
+	if path != "" {
+		return path + "." + addr
+	}
+	return addr
 }
 
 // GraphNodeModulePath
-func (n *nodeExpandModuleVariable) ModulePath() addrs.Module {
+func (n *nodeModuleInputVariable) ModulePath() addrs.Module {
 	return n.Module
 }
 
 // GraphNodeReferencer
-func (n *nodeExpandModuleVariable) References() []*addrs.Reference {
+func (n *nodeModuleInputVariable) References() []*addrs.Reference {
 	// If we have no value expression, we cannot depend on anything.
 	if n.Expr == nil {
 		return nil
@@ -100,143 +185,11 @@ func (n *nodeExpandModuleVariable) References() []*addrs.Reference {
 }
 
 // GraphNodeReferenceOutside implementation
-func (n *nodeExpandModuleVariable) ReferenceOutside() (selfPath, referencePath addrs.Module) {
+func (n *nodeModuleInputVariable) ReferenceOutside() (addrs.Module, addrs.Module) {
 	return n.Module, n.Module.Parent()
 }
 
 // GraphNodeReferenceable
-func (n *nodeExpandModuleVariable) ReferenceableAddrs() []addrs.Referenceable {
+func (n *nodeModuleInputVariable) ReferenceableAddrs() []addrs.Referenceable {
 	return []addrs.Referenceable{n.Addr}
-}
-
-// nodeModuleVariable represents a module variable input during
-// the apply step.
-type nodeModuleVariable struct {
-	Addr   addrs.AbsInputVariableInstance
-	Config *configs.Variable // Config is the var in the config
-	Expr   hcl.Expression    // Expr is the value expression given in the call
-	// ModuleInstance in order to create the appropriate context for evaluating
-	// ModuleCallArguments, ex. so count.index and each.key can resolve
-	ModuleInstance addrs.ModuleInstance
-}
-
-// Ensure that we are implementing all of the interfaces we think we are
-// implementing.
-var (
-	_ GraphNodeModuleInstance = (*nodeModuleVariable)(nil)
-	_ GraphNodeExecutable     = (*nodeModuleVariable)(nil)
-	_ graphNodeTemporaryValue = (*nodeModuleVariable)(nil)
-	_ dag.GraphNodeDotter     = (*nodeModuleVariable)(nil)
-)
-
-func (n *nodeModuleVariable) temporaryValue() bool {
-	return true
-}
-
-func (n *nodeModuleVariable) Name() string {
-	return n.Addr.String() + "(input)"
-}
-
-// GraphNodeModuleInstance
-func (n *nodeModuleVariable) Path() addrs.ModuleInstance {
-	// We execute in the parent scope (above our own module) because
-	// expressions in our value are resolved in that context.
-	return n.Addr.Module.Parent()
-}
-
-// GraphNodeModulePath
-func (n *nodeModuleVariable) ModulePath() addrs.Module {
-	return n.Addr.Module.Module()
-}
-
-// GraphNodeExecutable
-func (n *nodeModuleVariable) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	log.Printf("[TRACE] nodeModuleVariable: evaluating %s", n.Addr)
-
-	val, err := n.evalModuleVariable(ctx, op == walkValidate)
-	diags = diags.Append(err)
-	if diags.HasErrors() {
-		return diags
-	}
-
-	// Set values for arguments of a child module call, for later retrieval
-	// during expression evaluation.
-	_, call := n.Addr.Module.CallInstance()
-	ctx.SetModuleCallArgument(call, n.Addr.Variable, val)
-	return diags
-}
-
-// dag.GraphNodeDotter impl.
-func (n *nodeModuleVariable) DotNode(name string, opts *dag.DotOpts) *dag.DotNode {
-	return &dag.DotNode{
-		Name: name,
-		Attrs: map[string]string{
-			"label": n.Name(),
-			"shape": "note",
-		},
-	}
-}
-
-// evalModuleVariable produces the value for a particular variable as will
-// be used by a child module instance.
-//
-// The result is written into a map, with its key set to the local name of the
-// variable, disregarding the module instance address. A map is returned instead
-// of a single value as a result of trying to be convenient for use with
-// EvalContext.SetModuleCallArguments, which expects a map to merge in with any
-// existing arguments.
-//
-// validateOnly indicates that this evaluation is only for config
-// validation, and we will not have any expansion module instance
-// repetition data.
-func (n *nodeModuleVariable) evalModuleVariable(ctx EvalContext, validateOnly bool) (cty.Value, error) {
-	var diags tfdiags.Diagnostics
-	var givenVal cty.Value
-	var errSourceRange tfdiags.SourceRange
-	if expr := n.Expr; expr != nil {
-		var moduleInstanceRepetitionData instances.RepetitionData
-
-		switch {
-		case validateOnly:
-			// the instance expander does not track unknown expansion values, so we
-			// have to assume all RepetitionData is unknown.
-			moduleInstanceRepetitionData = instances.RepetitionData{
-				CountIndex: cty.UnknownVal(cty.Number),
-				EachKey:    cty.UnknownVal(cty.String),
-				EachValue:  cty.DynamicVal,
-			}
-
-		default:
-			// Get the repetition data for this module instance,
-			// so we can create the appropriate scope for evaluating our expression
-			moduleInstanceRepetitionData = ctx.InstanceExpander().GetModuleInstanceRepetitionData(n.ModuleInstance)
-		}
-
-		scope := ctx.EvaluationScope(nil, nil, moduleInstanceRepetitionData)
-		val, moreDiags := scope.EvalExpr(expr, cty.DynamicPseudoType)
-		diags = diags.Append(moreDiags)
-		if moreDiags.HasErrors() {
-			return cty.DynamicVal, diags.ErrWithWarnings()
-		}
-		givenVal = val
-		errSourceRange = tfdiags.SourceRangeFromHCL(expr.Range())
-	} else {
-		// We'll use cty.NilVal to represent the variable not being set at all.
-		givenVal = cty.NilVal
-		errSourceRange = tfdiags.SourceRangeFromHCL(n.Config.DeclRange) // we use the declaration range as a fallback for an undefined variable
-	}
-
-	// We construct a synthetic InputValue here to pretend as if this were
-	// a root module variable set from outside, just as a convenience so we
-	// can reuse the InputValue type for this.
-	rawVal := &InputValue{
-		Value:       givenVal,
-		SourceType:  ValueFromConfig,
-		SourceRange: errSourceRange,
-	}
-
-	finalVal, moreDiags := prepareFinalInputVariableValue(n.Addr, rawVal, n.Config)
-	diags = diags.Append(moreDiags)
-
-	return finalVal, diags.ErrWithWarnings()
 }

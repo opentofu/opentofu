@@ -6,6 +6,9 @@
 package tofu
 
 import (
+	"context"
+	"sync"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -157,6 +160,26 @@ type MockEvalContext struct {
 
 	InstanceExpanderCalled   bool
 	InstanceExpanderExpander *instances.Expander
+
+	// withPaths keeps track of any downstream MockEvalContext we created
+	// from calls to MockEvalContext.WithPath, because sometimes tests
+	// need to poke at their *Called fields to assert correct execution.
+	//
+	// This is awkward because with the main BuiltinEvalContext we just
+	// share most things between different paths using pointers, but
+	// MockEvalContext doesn't share its call-tracking values in a similar
+	// way so those would get lost if we didn't track them explicitly here.
+	//
+	// Tests that need this facility must explicitly assign a pointer to
+	// the zero value of mockEvalContextPathTracking here, since otherwise
+	// it isn't possible for this type to dynamically populate this pointer
+	// without race conditions.
+	withPaths *mockEvalContextPathTracking
+}
+
+type mockEvalContextPathTracking struct {
+	perPath     addrs.Map[addrs.ModuleInstance, *MockEvalContext]
+	perPathLock sync.Mutex
 }
 
 // MockEvalContext implements EvalContext
@@ -181,6 +204,15 @@ func (c *MockEvalContext) Hook(fn func(Hook) (HookAction, error)) error {
 func (c *MockEvalContext) Input() UIInput {
 	c.InputCalled = true
 	return c.InputInput
+}
+
+func (c *MockEvalContext) PerformIO(ctx context.Context, f func(context.Context) tfdiags.Diagnostics) tfdiags.Diagnostics {
+	// We don't have any support for mocking this one away because the
+	// behavior of this method is fundamental and has no need to vary
+	// between uses. We also don't track calls to this method because
+	// numerous calls are expected to happen as an implementation detail
+	// of various different operations.
+	return performIOUnconstrained(ctx, f)
 }
 
 func (c *MockEvalContext) InitProvider(addr addrs.AbsProviderConfig, _ addrs.InstanceKey) (providers.Interface, error) {
@@ -335,8 +367,35 @@ func (c *MockEvalContext) EvaluationScope(self addrs.Referenceable, source addrs
 }
 
 func (c *MockEvalContext) WithPath(path addrs.ModuleInstance) EvalContext {
+	// Because the normal BuiltinEvalContext that we're substituting for
+	// actually shares a bunch of data between all paths through pointers,
+	// existing code tends to expect that it can just trivially pivot
+	// between differently-pathed EvalContexts.
+	// MockEvalContext isn't capable of doing that directly, but so instead
+	// we just keep track of pathed instances we've already returned
+	// in c.inPaths so at least we're always using the same object for a
+	// given path and tests using this can retrieve the individual objects
+	// to inspect the call-tracking fields afterwards.
+
+	withPaths := c.withPaths
+	if withPaths != nil {
+		withPaths.perPathLock.Lock()
+		defer withPaths.perPathLock.Unlock()
+		if withPaths.perPath.Elems == nil {
+			withPaths.perPath = addrs.MakeMap[addrs.ModuleInstance, *MockEvalContext]()
+		}
+		if existing, ok := withPaths.perPath.GetOk(path); ok {
+			return existing
+		}
+	}
+
 	newC := *c
 	newC.PathPath = path
+	if withPaths != nil {
+		// If withPaths is not nil then we should already be
+		// holding withPaths.perPathLock because of the above.
+		withPaths.perPath.Put(path, &newC)
+	}
 	return &newC
 }
 

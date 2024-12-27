@@ -26,9 +26,10 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func TestNodeModuleVariablePath(t *testing.T) {
-	n := &nodeModuleVariable{
-		Addr: addrs.RootModuleInstance.InputVariable("foo"),
+func TestNodeModuleVariableModulePath(t *testing.T) {
+	n := &nodeModuleInputVariable{
+		Module: addrs.RootModule,
+		Addr:   addrs.InputVariable{Name: "foo"},
 		Config: &configs.Variable{
 			Name:           "foo",
 			Type:           cty.String,
@@ -36,15 +37,15 @@ func TestNodeModuleVariablePath(t *testing.T) {
 		},
 	}
 
-	want := addrs.RootModuleInstance
-	got := n.Path()
+	want := addrs.RootModule
+	got := n.ModulePath()
 	if got.String() != want.String() {
 		t.Fatalf("wrong module address %s; want %s", got, want)
 	}
 }
 
 func TestNodeModuleVariableReferenceableName(t *testing.T) {
-	n := &nodeExpandModuleVariable{
+	n := &nodeModuleInputVariable{
 		Addr: addrs.InputVariable{Name: "foo"},
 		Config: &configs.Variable{
 			Name:           "foo",
@@ -78,7 +79,7 @@ func TestNodeModuleVariableReferenceableName(t *testing.T) {
 }
 
 func TestNodeModuleVariableReference(t *testing.T) {
-	n := &nodeExpandModuleVariable{
+	n := &nodeModuleInputVariable{
 		Addr:   addrs.InputVariable{Name: "foo"},
 		Module: addrs.RootModule.Child("bar"),
 		Config: &configs.Variable{
@@ -106,7 +107,7 @@ func TestNodeModuleVariableReference(t *testing.T) {
 }
 
 func TestNodeModuleVariableReference_grandchild(t *testing.T) {
-	n := &nodeExpandModuleVariable{
+	n := &nodeModuleInputVariable{
 		Addr:   addrs.InputVariable{Name: "foo"},
 		Module: addrs.RootModule.Child("bar"),
 		Config: &configs.Variable{

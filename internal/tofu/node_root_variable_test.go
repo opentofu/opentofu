@@ -128,7 +128,7 @@ func TestNodeRootVariableExecute(t *testing.T) {
 			},
 		}
 
-		ref := &nodeVariableReference{
+		ref := &nodeInputVariableReference{
 			Addr:   n.Addr,
 			Config: n.Config,
 		}
@@ -145,19 +145,9 @@ func TestNodeRootVariableExecute(t *testing.T) {
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
-
-		g, err := ref.DynamicExpand(ctx)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
-
-		for _, v := range g.Vertices() {
-			if ev, ok := v.(GraphNodeExecutable); ok {
-				diags = ev.Execute(ctx, walkApply)
-				if diags.HasErrors() {
-					t.Fatalf("unexpected error: %s", diags.Err())
-				}
-			}
+		refDiags := ref.Execute(ctx, walkApply)
+		if refDiags.HasErrors() {
+			t.Fatalf("unexpected error: %s", diags.Err())
 		}
 
 		if !ctx.SetRootModuleArgumentCalled {

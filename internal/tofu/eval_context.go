@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
@@ -37,6 +39,27 @@ type EvalContext interface {
 
 	// Input is the UIInput object for interacting with the UI.
 	Input() UIInput
+
+	// PerformIO runs the given function in a way that's appropriate for
+	// functions that might make network requests or perform other expensive
+	// I/O that might therefore need its concurrency managed.
+	//
+	// For example, the [BuiltinEvalContext] implementation uses a semaphore
+	// to limit how many such functions can run concurrently, based on a
+	// concurrency limit that the user can customize. Other implementations
+	// may follow different strategies, including potentially just running
+	// the function immediately with no constraint whatsoever. Callers of
+	// this function should expect that it could block for a significant
+	// amount of time before executing the given function.
+	//
+	// The [context.Context] passed to the callback function is guaranteed
+	// to be derived from the context given directly to this method, without
+	// any added deadline/cancellation effects. However, it is not guaranteed
+	// to be exactly the same context.
+	//
+	// The diagnostics returned by the given function are returned verbatim
+	// from this method, without any modification.
+	PerformIO(ctx context.Context, f func(ctx context.Context) tfdiags.Diagnostics) tfdiags.Diagnostics
 
 	// InitProvider initializes the provider with the given address, and returns
 	// the implementation of the resource provider or an error.
@@ -218,4 +241,20 @@ type EvalContext interface {
 
 	// Returns the currently configured encryption setup
 	GetEncryption() encryption.Encryption
+}
+
+// performIOUnconstrained is a helper for implementing [EvalContext.PerformIO] in cases
+// where the given function should just be run directly without any special synchronization
+// or constraints.
+func performIOUnconstrained(ctx context.Context, f func(context.Context) tfdiags.Diagnostics) tfdiags.Diagnostics {
+	return f(ctx)
+}
+
+// performIOSemaphore is a helper for implementing [EvalContext.PerformIO] for the main
+// case where we use a counting semaphore to limit I/O concurrency.
+func performIOSemaphore(ctx context.Context, f func(context.Context) tfdiags.Diagnostics, sema Semaphore) tfdiags.Diagnostics {
+	sema.Acquire()
+	diags := f(ctx)
+	sema.Release()
+	return diags
 }

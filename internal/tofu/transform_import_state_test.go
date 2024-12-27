@@ -18,7 +18,21 @@ import (
 
 func TestGraphNodeImportStateExecute(t *testing.T) {
 	state := states.NewState()
-	provider := testProvider("aws")
+	provider := &MockProvider{}
+	provider.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"aws_instance": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id": {
+							Type:     cty.String,
+							Computed: true,
+						},
+					},
+				},
+			},
+		},
+	}
 	provider.ImportResourceStateResponse = &providers.ImportResourceStateResponse{
 		ImportedResources: []providers.ImportedResource{
 			{
@@ -32,8 +46,9 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 	provider.ConfigureProvider(providers.ConfigureProviderRequest{})
 
 	ctx := &MockEvalContext{
-		StateState:       state.SyncWrapper(),
-		ProviderProvider: provider,
+		StateState:           state.SyncWrapper(),
+		ProviderProvider:     provider,
+		ProviderSchemaSchema: *provider.GetProviderSchemaResponse,
 	}
 
 	// Import a new aws_instance.foo, this time with ID=bar. The original
@@ -60,59 +75,13 @@ func TestGraphNodeImportStateExecute(t *testing.T) {
 	if len(node.states) != 1 {
 		t.Fatalf("Wrong result! Expected one imported resource, got %d", len(node.states))
 	}
-	// Verify the ID for good measure
+
 	id := node.states[0].State.GetAttr("id")
 	if !id.RawEquals(cty.StringVal("bar")) {
 		t.Fatalf("Wrong result! Expected id \"bar\", got %q", id.AsString())
 	}
-}
 
-func TestGraphNodeImportStateSubExecute(t *testing.T) {
-	state := states.NewState()
-	provider := testProvider("aws")
-	provider.ConfigureProvider(providers.ConfigureProviderRequest{})
-	ctx := &MockEvalContext{
-		StateState:       state.SyncWrapper(),
-		ProviderProvider: provider,
-		ProviderSchemaSchema: providers.ProviderSchema{
-			ResourceTypes: map[string]providers.Schema{
-				"aws_instance": {
-					Block: &configschema.Block{
-						Attributes: map[string]*configschema.Attribute{
-							"id": {
-								Type:     cty.String,
-								Computed: true,
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-
-	importedResource := providers.ImportedResource{
-		TypeName: "aws_instance",
-		State:    cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("bar")}),
-	}
-
-	node := graphNodeImportStateSub{
-		TargetAddr: addrs.Resource{
-			Mode: addrs.ManagedResourceMode,
-			Type: "aws_instance",
-			Name: "foo",
-		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-		State: importedResource,
-		ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
-			Provider: addrs.NewDefaultProvider("aws"),
-			Module:   addrs.RootModule,
-		}},
-	}
-	diags := node.Execute(ctx, walkImport)
-	if diags.HasErrors() {
-		t.Fatalf("Unexpected error: %s", diags.Err())
-	}
-
-	// check for resource in state
+	// We should now have the new resource instance in the state too.
 	actual := strings.TrimSpace(state.String())
 	expected := `aws_instance.foo:
   ID = bar
