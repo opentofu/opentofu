@@ -407,7 +407,7 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 	}
 
 	if len(resp.Item) == 0 {
-		return nil, fmt.Errorf("no lock info found for LockID: %q within the DynamoDB table: %s", c.lockPath(), c.ddbTable)
+		return nil, fmt.Errorf("no lock info found for: %q within the DynamoDB table: %s", c.lockPath(), c.ddbTable)
 	}
 
 	var infoData string

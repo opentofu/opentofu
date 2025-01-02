@@ -174,7 +174,7 @@ func TestForceUnlock(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected an error to occur:", err)
 	}
-	expectedErrorMsg := fmt.Errorf("failed to retrieve lock info: no lock info found for LockID: \"%s/env:/%s/%s\" within the DynamoDB table: %s", bucketName, secondWorkspace, keyName, bucketName)
+	expectedErrorMsg := fmt.Errorf("failed to retrieve lock info: no lock info found for: \"%s/env:/%s/%s\" within the DynamoDB table: %s", bucketName, secondWorkspace, keyName, bucketName)
 	if err.Error() != expectedErrorMsg.Error() {
 		t.Errorf("Unlock() error = %v, want: %v", err, expectedErrorMsg)
 	}
