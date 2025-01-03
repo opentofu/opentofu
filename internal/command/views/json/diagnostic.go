@@ -133,7 +133,7 @@ type DiagnosticFunctionCall struct {
 
 // NewDiagnostic takes a tfdiags.Diagnostic and a map of configuration sources,
 // and returns a Diagnostic struct.
-func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string]*hcl.File) *Diagnostic { //nolint:funlen,gocognit,gocyclo,cyclop // TODO(1818): Refactor this function.
+func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string]*hcl.File) *Diagnostic {
 	var sev string
 	switch diag.Severity() {
 	case tfdiags.Error:

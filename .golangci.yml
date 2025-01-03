@@ -67,7 +67,7 @@ linters:
     - asciicheck
     - bidichk
     - bodyclose
-    - cyclop
+    #- cyclop # (refer to .golangci-complexity.yml)
     - dupl
     - durationcheck
     - errcheck
@@ -76,14 +76,14 @@ linters:
     - exhaustive
     - exportloopref
     - forbidigo
-    - funlen
+    #- funlen # (refer to .golangci-complexity.yml)
     - gocheckcompilerdirectives
     - gochecknoglobals
     - gochecknoinits
-    - gocognit
+    #- gocognit # (refer to .golangci-complexity.yml)
     - goconst
     - gocritic
-    - gocyclo
+    #- gocyclo # (refer to .golangci-complexity.yml)
     - goimports
     #- gomoddirectives Disabled while we deal with the HCL fork
     - gomodguard
@@ -98,7 +98,7 @@ linters:
     - mnd
     - musttag
     - nakedret
-    - nestif
+    #- nestif # (refer to .golangci-complexity.yml)
     - nilerr
     - nilnil
     - noctx

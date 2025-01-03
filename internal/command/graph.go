@@ -81,7 +81,6 @@ func (c *GraphCommand) Run(args []string) int {
 
 	// Load the backend
 	var b backend.Enhanced
-	//nolint: nestif // This is inspired by apply:PrepareBackend
 	if lp, ok := planFile.Local(); ok {
 		plan, planErr := lp.ReadPlan()
 		if planErr != nil {

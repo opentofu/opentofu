@@ -136,7 +136,6 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 	inputData := basedata{}
 	err := json.Unmarshal(data, &inputData)
 
-	//nolint:nestif // bugger off
 	if len(inputData.Version) == 0 || err != nil {
 		// Not a valid payload, might be already decrypted
 		verr := validator(data)

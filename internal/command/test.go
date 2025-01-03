@@ -507,7 +507,6 @@ func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *modulet
 	}
 }
 
-//nolint:funlen // Historical function predates our complexity rules
 func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletest.Run, file *moduletest.File, state *states.State, config *configs.Config) (*states.State, bool) {
 	log.Printf("[TRACE] TestFileRunner: executing run block %s/%s", file.Name, run.Name)
 

@@ -872,8 +872,6 @@ func providerIterationIdenticalWarning(blockType, target string, sourceExpr, ins
 }
 
 // Compares two for_each statements to see if they are "identical".  This is on a best-effort basis to help prevent foot-guns.
-//
-//nolint:funlen,gocognit,gocyclo,cyclop // just a lot of branches
 func providerIterationIdentical(a, b hcl.Expression) bool {
 	if a == nil && b == nil {
 		return true
