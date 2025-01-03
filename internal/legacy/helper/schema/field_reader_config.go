@@ -3,6 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+//nolint:cyclop,funlen,nestif // This legacy code is frozen from an older version of the codebase and will not be updated to pass any linters.
 package schema
 
 import (
