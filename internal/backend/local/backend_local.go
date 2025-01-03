@@ -41,7 +41,6 @@ func (b *Local) LocalRun(ctx context.Context, op *backend.Operation) (*backend.L
 	return lr, stateMgr, diags
 }
 
-//nolint:funlen // Historical function predates our complexity rules
 func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, *configload.Snapshot, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 

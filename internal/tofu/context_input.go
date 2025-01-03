@@ -36,8 +36,6 @@ import (
 // any other Context method with a different config, because the aforementioned
 // modified internal state won't match. Again, this is an architectural wart
 // that we'll hopefully resolve in future.
-//
-//nolint:cyclop,funlen,gocognit,nestif // Historical function predates our complexity rules
 func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputMode) tfdiags.Diagnostics {
 	// This function used to be responsible for more than it is now, so its
 	// interface is more general than its current functionality requires.
