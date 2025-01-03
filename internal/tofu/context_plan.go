@@ -124,8 +124,6 @@ type PlanOpts struct {
 // planned so far, which is not safe to apply but could potentially be used
 // by the UI layer to give extra context to support understanding of the
 // returned error messages.
-//
-//nolint:cyclop,funlen // Historical function predates our complexity rules
 func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
 	defer c.acquireRun("plan")()
 	var diags tfdiags.Diagnostics

@@ -118,7 +118,6 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext, hasExpan
 
 	useStateFallback := false
 
-	//nolint:nestif // complexity
 	if n.ResolvedProvider.KeyExact != nil {
 		// Pass through from state
 		n.ResolvedProviderKey = n.ResolvedProvider.KeyExact
