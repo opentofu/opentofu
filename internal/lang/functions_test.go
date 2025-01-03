@@ -43,6 +43,8 @@ import (
 // it really is registered correctly) and possibly a small set of additional
 // functions showing real-world use-cases that rely on type conversion
 // behaviors.
+//
+//nolint:gocognit // This test intentionally embraces mainloop complexity so that maintenence can primarily focus on the declarative test table rather than the actual test logic.
 func TestFunctions(t *testing.T) {
 	// used in `pathexpand()` test
 	homePath, err := homedir.Dir()
