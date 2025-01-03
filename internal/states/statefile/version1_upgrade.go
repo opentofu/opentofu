@@ -3,6 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+//nolint:govet,mnd,nilnil // The functions in this file are effectively frozen to support an older state format version, so they will never be updated to pass lint rules.
 package statefile
 
 import (
