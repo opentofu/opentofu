@@ -86,9 +86,10 @@ func formatNullValue(ty cty.Type) string {
 }
 
 func formatMultilineString(v cty.Value, indent int) (string, bool) {
+	const minimumLines = 2
 	str := v.AsString()
 	lines := strings.Split(str, "\n")
-	if len(lines) < 2 {
+	if len(lines) < minimumLines {
 		return "", false
 	}
 
@@ -109,7 +110,7 @@ OUTER:
 		for _, line := range lines {
 			// If the delimiter matches a line, extend it and start again
 			if strings.TrimSpace(line) == delimiter {
-				delimiter = delimiter + "_"
+				delimiter += "_"
 				continue OUTER
 			}
 		}

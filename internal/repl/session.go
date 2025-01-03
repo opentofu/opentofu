@@ -39,8 +39,8 @@ func (s *Session) Handle(line string) (string, bool, tfdiags.Diagnostics) {
 	case strings.TrimSpace(line) == "exit":
 		return "", true, nil
 	case strings.TrimSpace(line) == "help":
-		ret, diags := s.handleHelp()
-		return ret, false, diags
+		ret := s.handleHelp()
+		return ret, false, nil
 	default:
 		ret, diags := s.handleEval(line)
 		return ret, false, diags
@@ -73,7 +73,12 @@ func (s *Session) handleEval(line string) (string, tfdiags.Diagnostics) {
 		switch {
 		case valType.Equals(types.TypeType):
 			// An encapsulated type value, which should be displayed directly.
-			valType := val.EncapsulatedValue().(*cty.Type)
+			valType, ok := val.EncapsulatedValue().(*cty.Type)
+			if !ok {
+				// Should not get here because types.TypeType's encapsulated type
+				// is cty.Type, and so it can't possibly encapsulate anything else.
+				panic(fmt.Sprintf("types.TypeType value contains %T rather than the expected %T", val.EncapsulatedValue(), valType))
+			}
 			return typeString(*valType), diags
 		default:
 			diags = diags.Append(tfdiags.Sourceless(
@@ -88,7 +93,7 @@ func (s *Session) handleEval(line string) (string, tfdiags.Diagnostics) {
 	return FormatValue(val, 0), diags
 }
 
-func (s *Session) handleHelp() (string, tfdiags.Diagnostics) {
+func (s *Session) handleHelp() string {
 	text := `
 The OpenTofu console allows you to experiment with OpenTofu interpolations.
 You may access resources in the state (if you have one) just as you would
@@ -101,7 +106,7 @@ To exit the console, type "exit" and hit <enter>, or use Control-C or
 Control-D.
 `
 
-	return strings.TrimSpace(text), nil
+	return strings.TrimSpace(text)
 }
 
 // typeString returns a string representation of a given type that is
