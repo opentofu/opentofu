@@ -26,25 +26,7 @@ func FormatValue(v cty.Value, indent int) string {
 		return "(sensitive value)"
 	}
 	if v.IsNull() {
-		ty := v.Type()
-		switch {
-		case ty == cty.DynamicPseudoType:
-			return "null"
-		case ty == cty.String:
-			return "tostring(null)"
-		case ty == cty.Number:
-			return "tonumber(null)"
-		case ty == cty.Bool:
-			return "tobool(null)"
-		case ty.IsListType():
-			return fmt.Sprintf("tolist(null) /* of %s */", ty.ElementType().FriendlyName())
-		case ty.IsSetType():
-			return fmt.Sprintf("toset(null) /* of %s */", ty.ElementType().FriendlyName())
-		case ty.IsMapType():
-			return fmt.Sprintf("tomap(null) /* of %s */", ty.ElementType().FriendlyName())
-		default:
-			return fmt.Sprintf("null /* %s */", ty.FriendlyName())
-		}
+		return formatNullValue(v.Type())
 	}
 
 	ty := v.Type()
@@ -80,6 +62,27 @@ func FormatValue(v cty.Value, indent int) string {
 
 	// Should never get here because there are no other types
 	return fmt.Sprintf("%#v", v)
+}
+
+func formatNullValue(ty cty.Type) string {
+	switch {
+	case ty == cty.DynamicPseudoType:
+		return "null"
+	case ty == cty.String:
+		return "tostring(null)"
+	case ty == cty.Number:
+		return "tonumber(null)"
+	case ty == cty.Bool:
+		return "tobool(null)"
+	case ty.IsListType():
+		return fmt.Sprintf("tolist(null) /* of %s */", ty.ElementType().FriendlyName())
+	case ty.IsSetType():
+		return fmt.Sprintf("toset(null) /* of %s */", ty.ElementType().FriendlyName())
+	case ty.IsMapType():
+		return fmt.Sprintf("tomap(null) /* of %s */", ty.ElementType().FriendlyName())
+	default:
+		return fmt.Sprintf("null /* %s */", ty.FriendlyName())
+	}
 }
 
 func formatMultilineString(v cty.Value, indent int) (string, bool) {
