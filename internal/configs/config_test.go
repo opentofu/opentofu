@@ -588,9 +588,7 @@ func TestConfigImportProviderClashesWithResources(t *testing.T) {
 
 	diags = cfg.addProviderRequirements(getproviders.Requirements{}, true, false)
 	assertExactDiagnostics(t, diags, []string{
-		`testdata/invalid-import-files/import-and-resource-clash.tf:9,3-19: Invalid import provider argument; The provider argument can only be specified in import blocks that will generate configuration.
-
-Use the provider argument in the target resource block to configure the provider for a resource with explicit provider configuration.`,
+		`testdata/invalid-import-files/import-and-resource-clash.tf:9,3-19: Invalid import provider argument; The provider argument in the target resource block must match the import block.`,
 	})
 }
 
@@ -600,9 +598,7 @@ func TestConfigImportProviderWithNoResourceProvider(t *testing.T) {
 
 	diags = cfg.addProviderRequirements(getproviders.Requirements{}, true, false)
 	assertExactDiagnostics(t, diags, []string{
-		`testdata/invalid-import-files/import-and-no-resource.tf:5,3-19: Invalid import provider argument; The provider argument can only be specified in import blocks that will generate configuration.
-
-Use the provider argument in the target resource block to configure the provider for a resource with explicit provider configuration.`,
+		`testdata/invalid-import-files/import-and-no-resource.tf:5,3-19: Invalid import provider argument; The provider argument in the target resource block must be specified and match the import block.`,
 	})
 }
 
