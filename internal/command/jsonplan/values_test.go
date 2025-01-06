@@ -370,7 +370,7 @@ func testSchemas() *tofu.Schemas {
 func testChanges(changes *plans.Changes) map[string]*plans.ResourceInstanceChangeSrc {
 	ret := make(map[string]*plans.ResourceInstanceChangeSrc)
 	for _, resource := range changes.Resources {
-		if resource.Action != plans.Delete && resource.DeposedKey == states.NotDeposed {
+		if resource.DeposedKey == states.NotDeposed {
 			ret[resource.Addr.String()] = resource
 		}
 	}
