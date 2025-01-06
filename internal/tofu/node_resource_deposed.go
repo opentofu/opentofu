@@ -87,7 +87,7 @@ func (n *NodePlanDeposedResourceInstanceObject) References() []*addrs.Reference 
 func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] NodePlanDeposedResourceInstanceObject: planning %s deposed object %s", n.Addr, n.DeposedKey)
 
-	diags = n.resolveProvider(ctx, false)
+	diags = n.resolveProvider(ctx, false, n.DeposedKey)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -257,7 +257,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) ModifyCreateBeforeDestroy(v b
 func (n *NodeDestroyDeposedResourceInstanceObject) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	var change *plans.ResourceInstanceChange
 
-	diags = n.resolveProvider(ctx, false)
+	diags = n.resolveProvider(ctx, false, n.DeposedKey)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -409,7 +409,7 @@ func (n *NodeForgetDeposedResourceInstanceObject) References() []*addrs.Referenc
 
 // GraphNodeExecutable impl.
 func (n *NodeForgetDeposedResourceInstanceObject) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	diags = n.resolveProvider(ctx, false)
+	diags = n.resolveProvider(ctx, false, n.DeposedKey)
 	if diags.HasErrors() {
 		return diags
 	}

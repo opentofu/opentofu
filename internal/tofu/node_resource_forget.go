@@ -53,7 +53,7 @@ func (n *NodeForgetResourceInstance) Execute(ctx EvalContext, op walkOperation) 
 		log.Printf("[WARN] NodeForgetResourceInstance for %s with no state", addr)
 	}
 
-	diags = n.resolveProvider(ctx, false)
+	diags = n.resolveProvider(ctx, false, states.NotDeposed)
 	if diags.HasErrors() {
 		return diags
 	}
