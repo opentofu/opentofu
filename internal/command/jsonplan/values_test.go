@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
@@ -295,7 +296,7 @@ func TestMarshalPlanResources(t *testing.T) {
 
 			ris := testResourceAddrs()
 
-			got, err := marshalPlanResources(testChange, ris, testSchemas())
+			got, err := marshalPlanResources(testChanges(testChange), ris, testSchemas())
 			if test.Err {
 				if err == nil {
 					t.Fatal("succeeded; want error")
@@ -364,6 +365,16 @@ func testSchemas() *tofu.Schemas {
 			},
 		},
 	}
+}
+
+func testChanges(changes *plans.Changes) map[string]*plans.ResourceInstanceChangeSrc {
+	ret := make(map[string]*plans.ResourceInstanceChangeSrc)
+	for _, resource := range changes.Resources {
+		if resource.DeposedKey == states.NotDeposed {
+			ret[resource.Addr.String()] = resource
+		}
+	}
+	return ret
 }
 
 func testResourceAddrs() []addrs.AbsResourceInstance {
