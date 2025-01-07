@@ -28,7 +28,7 @@ require (
 	github.com/chzyer/readline v1.5.1
 	github.com/cli/browser v1.3.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/dylanmei/winrmtest v0.0.0-202 q10303004826-fbc9ae56efb6
+	github.com/dylanmei/winrmtest v0.0.0-20210303004826-fbc9ae56efb6
 	github.com/go-test/deep v1.0.3
 	github.com/go-viper/mapstructure/v2 v2.0.0-alpha.1
 	github.com/google/go-cmp v0.6.0
