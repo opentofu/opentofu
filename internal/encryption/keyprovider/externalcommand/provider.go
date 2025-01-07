@@ -22,7 +22,7 @@ type keyProvider struct {
 	command []string
 }
 
-func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovider.Output, encryptionMeta keyprovider.KeyMeta, err error) { //nolint:nonamedreturns //This is a stupid rule.
+func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, keyprovider.KeyMeta, error) {
 	if rawMeta == nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
 	}
