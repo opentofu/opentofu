@@ -11,7 +11,6 @@ NEW FEATURES:
 
 ENHANCEMENTS:
 * OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
-
 * State encryption now supports using external programs as key providers.
 
 BUG FIXES:
