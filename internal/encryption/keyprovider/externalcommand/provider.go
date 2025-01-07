@@ -112,6 +112,8 @@ func (i *ioHandler) Write(p []byte) (int, error) {
 		return n, nil
 	}
 	var header Header
+	// Note: this is intentionally not using strict decoding. Later protocol versions may introduce additional header
+	// fields.
 	if jsonErr := json.Unmarshal([]byte(parts[0]), &header); jsonErr != nil {
 		err := fmt.Errorf("failed to unmarshal header from external binary (%w)", jsonErr)
 		i.err = err
