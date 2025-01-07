@@ -2,6 +2,8 @@
 
 UPGRADE NOTES:
 
+* Using the `ghcr.io/opentofu/opentofu` image as a base image for custom images is no longer supported. Please see https://opentofu.org/docs/intro/install/docker/ for instructions on building your own image.
+
 NEW FEATURES:
 
 - New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
