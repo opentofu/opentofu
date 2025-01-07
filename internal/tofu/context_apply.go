@@ -31,8 +31,9 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
 
+	var diags tfdiags.Diagnostics
+
 	if plan.Errored {
-		var diags tfdiags.Diagnostics
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Cannot apply failed plan",
@@ -50,11 +51,11 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 				// operation. For now, though, we'll call Pre and Post hooks together.
 				_, err := h.PreApplyImport(rc.Addr, *rc.Importing)
 				if err != nil {
-					panic(err)
+					diags.Append(err)
 				}
 				_, err = h.PostApplyImport(rc.Addr, *rc.Importing)
 				if err != nil {
-					panic(err)
+					diags.Append(err)
 				}
 
 			}
@@ -65,11 +66,11 @@ func (c *Context) Apply(plan *plans.Plan, config *configs.Config) (*states.State
 			for _, h := range c.hooks {
 				_, err := h.PreApplyForget(rc.Addr)
 				if err != nil {
-					panic(err)
+					diags.Append(err)
 				}
 				_, err = h.PostApplyForget(rc.Addr)
 				if err != nil {
-					panic(err)
+					diags.Append(err)
 				}
 			}
 		}
