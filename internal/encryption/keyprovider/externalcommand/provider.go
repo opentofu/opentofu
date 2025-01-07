@@ -12,6 +12,8 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"strings"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
@@ -24,7 +26,7 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 	if rawMeta == nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{Message: "bug: no metadata struct provided"}
 	}
-	inMeta, ok := rawMeta.(*Metadata)
+	inMeta, ok := rawMeta.(*MetadataV1)
 	if !ok {
 		return keyprovider.Output{}, nil, &keyprovider.ErrInvalidMetadata{
 			Message: fmt.Sprintf("bug: incorrect metadata type of %T provided", rawMeta),
@@ -38,16 +40,32 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 		}
 	}
 
-	ctx := context.TODO()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
 
-	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 
 	cmd := exec.CommandContext(ctx, k.command[0], k.command[1:]...) //nolint:gosec //Launching external commands here is the entire point.
-	cmd.Stdin = bytes.NewReader(input)
-	cmd.Stdout = stdout
+
+	handler := &ioHandler{
+		false,
+		bytes.NewBuffer(input),
+		[]byte{},
+		cancel,
+		nil,
+	}
+
+	cmd.Stdin = handler
+	cmd.Stdout = handler
 	cmd.Stderr = stderr
 	if err := cmd.Run(); err != nil {
+		if handler.err != nil {
+			return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
+				Message: "external key provider protocol failure",
+				Cause:   err,
+			}
+		}
+
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			if exitErr.ExitCode() != 0 {
@@ -61,8 +79,8 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 		}
 	}
 
-	var result *Output
-	decoder := json.NewDecoder(bytes.NewReader(stdout.Bytes()))
+	var result *OutputV1
+	decoder := json.NewDecoder(bytes.NewReader(handler.output))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(&result); err != nil {
 		return keyprovider.Output{}, nil, &keyprovider.ErrKeyProviderFailure{
@@ -70,5 +88,55 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keysOutput keyprovide
 		}
 	}
 
-	return result.Key, &result.Meta, nil
+	return result.Keys, &result.Meta, nil
+}
+
+type ioHandler struct {
+	headerFinished bool
+	input          *bytes.Buffer
+	output         []byte
+	cancel         func()
+	err            error
+}
+
+func (i *ioHandler) Write(p []byte) (n int, err error) {
+	i.output = append(i.output, p...)
+	n = len(p)
+	err = nil
+	if i.headerFinished {
+		// Header is finished, just collect the output.
+		return
+	}
+	// Check if the full header is present.
+	parts := strings.SplitN(string(i.output), "\n", 2)
+	if len(parts) == 1 {
+		return
+	}
+	var header Header
+	if jsonErr := json.Unmarshal([]byte(parts[0]), &header); jsonErr != nil {
+		err = fmt.Errorf("failed to unmarshal header from external binary (%w)", jsonErr)
+		i.err = err
+		i.cancel()
+		return
+	}
+
+	if header.Magic != HeaderMagic {
+		err = fmt.Errorf("invalid magic received from external key provider: %s", header.Magic)
+		i.err = err
+		i.cancel()
+		return
+	}
+	if header.Version != 1 {
+		err = fmt.Errorf("invalid version number received from external key provider: %d", header.Version)
+		i.err = err
+		i.cancel()
+		return
+	}
+	i.headerFinished = true
+	i.output = []byte(parts[1])
+	return
+}
+
+func (i *ioHandler) Read(p []byte) (n int, err error) {
+	return i.input.Read(p)
 }

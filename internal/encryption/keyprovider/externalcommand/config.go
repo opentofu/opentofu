@@ -21,5 +21,5 @@ func (c *Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 	}
 	return &keyProvider{
 		command: c.Command,
-	}, &Metadata{}, nil
+	}, &MetadataV1{}, nil
 }

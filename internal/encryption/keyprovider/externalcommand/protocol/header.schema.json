@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/opentofu/opentofu/main/internal/encryption/keyprovider/externalcommand/protocol/header.schema.json",
+  "title": "OpenTofu External Key Provider Header",
+  "description": "Header line output when an external key provider is launched.",
+  "type": "object",
+  "properties": {
+    "magic": {
+      "$comment": "Magic string identifying the key provider as such.",
+      "type": "string",
+      "enum": ["OpenTofu-External-Keyprovider"]
+    },
+    "version": {
+      "$comment": "Protocol version number",
+      "type": "integer",
+      "enum": [1]
+    }
+  },
+  "required": ["magic","version"],
+  "additionalProperties": false
+}

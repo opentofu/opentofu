@@ -12,11 +12,16 @@ import (
 	"os"
 )
 
+type Header struct {
+	Magic   string `json:"magic"`
+	Version int    `json:"version"`
+}
+
 type Output struct {
-	Key struct {
+	Keys struct {
 		EncryptionKey []byte `json:"encryption_key,omitempty"`
 		DecryptionKey []byte `json:"decryption_key,omitempty"`
-	} `json:"key"`
+	} `json:"keys"`
 	Meta struct {
 		ExternalData map[string]any `json:"external_data"`
 	} `json:"meta,omitempty"`
@@ -25,6 +30,16 @@ type Output struct {
 func main() {
 	// Write logs to stderr
 	log.Default().SetOutput(os.Stderr)
+
+	header := Header{
+		"OpenTofu-External-Keyprovider",
+		1,
+	}
+	marshalledHeader, err := json.Marshal(header)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	_, _ = os.Stdout.Write(append(marshalledHeader, []byte("\n")...))
 
 	input, err := io.ReadAll(os.Stdin)
 	if err != nil {
@@ -41,7 +56,7 @@ func main() {
 	}
 
 	output := Output{
-		Key: struct {
+		Keys: struct {
 			EncryptionKey []byte `json:"encryption_key,omitempty"`
 			DecryptionKey []byte `json:"decryption_key,omitempty"`
 		}{

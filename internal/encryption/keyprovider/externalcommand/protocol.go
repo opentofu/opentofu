@@ -9,11 +9,26 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
-// Input describes the input datastructure passed in over stdin.
-type Input *Metadata
+// HeaderMagic is the magic string that needs to be present in the header to identify
+// the external program as an external keyprovider for OpenTofu.
+const HeaderMagic = "OpenTofu-External-Keyprovider"
 
-// Output describes the output datastructure written to stdout by the external program.
-type Output struct {
-	Key  keyprovider.Output `json:"key"`
-	Meta Metadata           `json:"meta,omitempty"`
+// Header describes the initial header the external program must output as a single line,
+// followed by a single newline.
+type Header struct {
+	// Magic must always be "OpenTofu-External-Keyprovider".
+	Magic string `json:"magic"`
+	// Version is the protocol version number. This currently must be 1.
+	Version int `json:"version"`
+}
+
+// InputV1 describes the input datastructure passed in over stdin.
+// This structure is valid for protocol version 1.
+type InputV1 *MetadataV1
+
+// OutputV1 describes the output datastructure written to stdout by the external program.
+// This structure is valid for protocol version 1.
+type OutputV1 struct {
+	Keys keyprovider.Output `json:"keys"`
+	Meta MetadataV1         `json:"meta,omitempty"`
 }
