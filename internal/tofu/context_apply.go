@@ -52,11 +52,11 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 				// operation. For now, though, we'll call Pre and Post hooks together.
 				_, err := h.PreApplyImport(rc.Addr, *rc.Importing)
 				if err != nil {
-					diags.Append(err)
+					return nil, diags.Append(err)
 				}
 				_, err = h.PostApplyImport(rc.Addr, *rc.Importing)
 				if err != nil {
-					diags.Append(err)
+					return nil, diags.Append(err)
 				}
 
 			}
@@ -67,11 +67,11 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 			for _, h := range c.hooks {
 				_, err := h.PreApplyForget(rc.Addr)
 				if err != nil {
-					diags.Append(err)
+					return nil, diags.Append(err)
 				}
 				_, err = h.PostApplyForget(rc.Addr)
 				if err != nil {
-					diags.Append(err)
+					return nil, diags.Append(err)
 				}
 			}
 		}
