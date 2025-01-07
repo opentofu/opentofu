@@ -622,7 +622,7 @@ resource "test_object" "x" {
 }
 
 // This test is a copy and paste from TestContext2Apply_destroyWithDeposed
-// with modifications to test the same scenario with dynamic providers.
+// with modifications to test the same scenario with a dynamic provider instance.
 func TestContext2Apply_destroyWithDeposedWithDynamicProvider(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -2435,7 +2435,7 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 }
 
 // This test is a copy and paste from TestContext2Apply_forgetOrphanAndDeposed
-// with modifications to test the same scenario with dynamic providers.
+// with modifications to test the same scenario with  a dynamic provider instance.
 func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 	desposedKey := states.DeposedKey("deposed")
 	addr := "aws_instance.baz"
