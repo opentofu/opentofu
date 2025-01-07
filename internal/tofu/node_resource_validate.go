@@ -282,7 +282,7 @@ var connectionBlockSupersetSchema = &configschema.Block{
 func (n *NodeValidatableResource) validateResource(ctx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, addrs.NoKey) // Provider Instance Keys are ignored during validate
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -568,7 +568,7 @@ func validateForEach(ctx EvalContext, expr hcl.Expression) (diags tfdiags.Diagno
 	const unknownsAllowed = true
 	const tupleNotAllowed = false
 
-	val, forEachDiags := evaluateForEachExpressionValue(expr, ctx, unknownsAllowed, tupleNotAllowed)
+	val, forEachDiags := evaluateForEachExpressionValue(expr, ctx, unknownsAllowed, tupleNotAllowed, nil)
 	// If the value isn't known then that's the best we can do for now, but
 	// we'll check more thoroughly during the plan walk
 	if !val.IsKnown() {

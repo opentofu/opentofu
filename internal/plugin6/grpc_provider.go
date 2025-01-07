@@ -755,7 +755,20 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 			} else {
 				// This should be unreachable
 				resp.Error = fmt.Errorf("invalid CallFunctionRequest: too many arguments passed to non-variadic function %s", r.Name)
+				return resp
 			}
+		}
+
+		if !paramSpec.AllowUnknownValues && !arg.IsWhollyKnown() {
+			// Unlike the standard in cty, AllowUnknownValues == false does not just apply to
+			// the root of the value (IsKnown) and instead also applies to values inside collections
+			// and structures (IsWhollyKnown).
+			// This is documented in the tfplugin proto file comments.
+			//
+			// The standard cty logic can be found in:
+			// https://github.com/zclconf/go-cty/blob/ea922e7a95ba2be57897697117f318670e066d22/cty/function/function.go#L288-L290
+			resp.Result = cty.UnknownVal(spec.Return)
+			return resp
 		}
 
 		if arg.IsNull() {

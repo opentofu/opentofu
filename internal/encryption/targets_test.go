@@ -235,14 +235,15 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 				cfg: cfg,
 				reg: reg,
 			},
-			target:     cfg.State.AsTargetConfig(),
-			enforced:   cfg.State.Enforced,
-			name:       "test",
-			encMeta:    make(map[keyprovider.Addr][]byte),
-			staticEval: staticEval,
+			target:        cfg.State.AsTargetConfig(),
+			enforced:      cfg.State.Enforced,
+			name:          "test",
+			inputEncMeta:  make(map[keyprovider.MetaStorageKey][]byte),
+			outputEncMeta: make(map[keyprovider.MetaStorageKey][]byte),
+			staticEval:    staticEval,
 		}
 
-		methods, diags := base.buildTargetMethods(base.encMeta)
+		methods, diags := base.buildTargetMethods(base.inputEncMeta, base.outputEncMeta)
 
 		if diags.HasErrors() {
 			if !hasDiagWithMsg(diags, testCase.wantErr) {

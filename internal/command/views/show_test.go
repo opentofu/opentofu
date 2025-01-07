@@ -233,6 +233,7 @@ func testState() *states.State {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 		// DeepCopy is used here to ensure our synthetic state matches exactly
 		// with a state that will have been copied during the command

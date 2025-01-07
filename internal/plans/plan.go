@@ -46,6 +46,7 @@ type Plan struct {
 	Changes           *Changes
 	DriftedResources  []*ResourceInstanceChangeSrc
 	TargetAddrs       []addrs.Targetable
+	ExcludeAddrs      []addrs.Targetable
 	ForceReplaceAddrs []addrs.AbsResourceInstance
 	Backend           Backend
 

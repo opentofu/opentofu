@@ -128,6 +128,11 @@ func TestNodeRootVariableExecute(t *testing.T) {
 			},
 		}
 
+		ref := &nodeVariableReference{
+			Addr:   n.Addr,
+			Config: n.Config,
+		}
+
 		ctx.ChecksState = checks.NewState(&configs.Config{
 			Module: &configs.Module{
 				Variables: map[string]*configs.Variable{
@@ -139,6 +144,20 @@ func TestNodeRootVariableExecute(t *testing.T) {
 		diags := n.Execute(ctx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
+		}
+
+		g, err := ref.DynamicExpand(ctx)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		for _, v := range g.Vertices() {
+			if ev, ok := v.(GraphNodeExecutable); ok {
+				diags = ev.Execute(ctx, walkApply)
+				if diags.HasErrors() {
+					t.Fatalf("unexpected error: %s", diags.Err())
+				}
+			}
 		}
 
 		if !ctx.SetRootModuleArgumentCalled {

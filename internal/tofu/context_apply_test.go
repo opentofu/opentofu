@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -49,10 +50,10 @@ func TestContext2Apply_basic(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -144,7 +145,7 @@ func TestContext2Apply_stop(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	// We'll reset the hook events before we apply because we only care about
@@ -154,7 +155,7 @@ func TestContext2Apply_stop(t *testing.T) {
 	// We'll apply in the background so that we can call Stop in the foreground.
 	stateCh := make(chan *states.State)
 	go func(plan *plans.Plan) {
-		state, _ := ctx.Apply(plan, m)
+		state, _ := ctx.Apply(context.Background(), plan, m)
 		stateCh <- state
 	}(plan)
 
@@ -265,7 +266,7 @@ func TestContext2Apply_unstable(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error during Plan: %s", diags.Err())
 	}
@@ -285,7 +286,7 @@ func TestContext2Apply_unstable(t *testing.T) {
 		t.Fatalf("Attribute 'random' has known value %#v; should be unknown in plan", rd.After.GetAttr("random"))
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error during Apply: %s", diags.Err())
 	}
@@ -321,10 +322,10 @@ func TestContext2Apply_escape(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -349,10 +350,10 @@ func TestContext2Apply_resourceCountOneList(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoDiagnostics(t, diags)
 
 	got := strings.TrimSpace(state.String())
@@ -377,10 +378,10 @@ func TestContext2Apply_resourceCountZeroList(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -430,10 +431,10 @@ func TestContext2Apply_resourceDependsOnModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -462,6 +463,7 @@ func TestContext2Apply_resourceDependsOnModuleStateOnly(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.aws_instance.child")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	child.SetResourceInstanceCurrent(
@@ -471,6 +473,7 @@ func TestContext2Apply_resourceDependsOnModuleStateOnly(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"child"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	{
@@ -502,10 +505,10 @@ func TestContext2Apply_resourceDependsOnModuleStateOnly(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		assertNoErrors(t, diags)
 
 		if !reflect.DeepEqual(order, []string{"child", "parent"}) {
@@ -529,10 +532,10 @@ func TestContext2Apply_resourceDependsOnModuleDestroy(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -570,12 +573,12 @@ func TestContext2Apply_resourceDependsOnModuleDestroy(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, globalState, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, globalState, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		assertNoErrors(t, diags)
 
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -623,10 +626,10 @@ func TestContext2Apply_resourceDependsOnModuleGrandchild(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -674,10 +677,10 @@ func TestContext2Apply_resourceDependsOnModuleInModule(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -701,10 +704,10 @@ func TestContext2Apply_mapVarBetweenModules(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -739,10 +742,10 @@ func TestContext2Apply_refCount(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -776,10 +779,10 @@ func TestContext2Apply_providerAlias(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -815,7 +818,7 @@ func TestContext2Apply_providerAliasConfigure(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
@@ -847,7 +850,7 @@ func TestContext2Apply_providerAliasConfigure(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -879,10 +882,10 @@ func TestContext2Apply_providerWarning(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -914,10 +917,10 @@ func TestContext2Apply_emptyModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -944,6 +947,7 @@ func TestContext2Apply_createBeforeDestroy(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -951,14 +955,14 @@ func TestContext2Apply_createBeforeDestroy(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -1013,6 +1017,7 @@ func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
 			CreateBeforeDestroy: true,
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -1023,6 +1028,7 @@ func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
 			Dependencies:        []addrs.ConfigResource{fooAddr.ContainingResource().Config()},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1031,14 +1037,14 @@ func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -1072,6 +1078,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo").Resource,
@@ -1080,6 +1087,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo", "require_new": "abc"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1088,14 +1096,14 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -1133,6 +1141,7 @@ func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	var actual []cty.Value
@@ -1152,14 +1161,14 @@ func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -1194,6 +1203,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceDeposed(
 		mustResourceInstanceAddr("aws_instance.bar[0]").Resource,
@@ -1203,6 +1213,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[1]").Resource,
@@ -1211,6 +1222,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceDeposed(
 		mustResourceInstanceAddr("aws_instance.bar[1]").Resource,
@@ -1220,6 +1232,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1228,14 +1241,14 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -1271,6 +1284,7 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceDeposed(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -1280,6 +1294,7 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1288,14 +1303,14 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -1321,6 +1336,7 @@ func TestContext2Apply_destroyComputed(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo", "output": "value"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1328,7 +1344,7 @@ func TestContext2Apply_destroyComputed(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
@@ -1338,7 +1354,7 @@ func TestContext2Apply_destroyComputed(t *testing.T) {
 		t.Logf("plan:\n\n%s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		logDiagnostics(t, diags)
 		t.Fatal("apply failed")
 	}
@@ -1367,6 +1383,7 @@ func testContext2Apply_destroyDependsOn(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo").Resource,
@@ -1376,6 +1393,7 @@ func testContext2Apply_destroyDependsOn(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.bar")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	// Record the order we see Apply
@@ -1397,12 +1415,12 @@ func testContext2Apply_destroyDependsOn(t *testing.T) {
 		Parallelism: 1, // To check ordering
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -1432,6 +1450,7 @@ func TestContext2Apply_destroyDependsOnStateOnly(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -1457,6 +1476,7 @@ func TestContext2Apply_destroyDependsOnStateOnly(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	// It is possible for this to be racy, so we loop a number of times
@@ -1491,12 +1511,12 @@ func testContext2Apply_destroyDependsOnStateOnly(t *testing.T, state *states.Sta
 		Parallelism: 1, // To check ordering
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -1526,6 +1546,7 @@ func TestContext2Apply_destroyDependsOnStateOnlyModule(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	child.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -1551,6 +1572,7 @@ func TestContext2Apply_destroyDependsOnStateOnlyModule(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	// It is possible for this to be racy, so we loop a number of times
@@ -1586,12 +1608,12 @@ func testContext2Apply_destroyDependsOnStateOnlyModule(t *testing.T, state *stat
 		Parallelism: 1, // To check ordering
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -1620,14 +1642,14 @@ func TestContext2Apply_dataBasic(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	actual := strings.TrimSpace(state.String())
@@ -1663,6 +1685,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"-"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/null"]`),
+		addrs.NoKey,
 	)
 
 	hook := &testHook{}
@@ -1673,7 +1696,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 		Hooks: []Hook{hook},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
@@ -1682,7 +1705,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	newState, diags := ctx.Apply(plan, m)
+	newState, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -1722,6 +1745,7 @@ func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -1730,6 +1754,7 @@ func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1738,7 +1763,7 @@ func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
@@ -1747,7 +1772,7 @@ func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 }
@@ -1768,6 +1793,7 @@ func TestContext2Apply_destroyModuleVarProviderConfig(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -1775,12 +1801,12 @@ func TestContext2Apply_destroyModuleVarProviderConfig(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -1823,12 +1849,12 @@ func TestContext2Apply_destroyCrossProviders(t *testing.T) {
 
 	ctx, m, state := getContextForApply_destroyCrossProviders(t, m, providers)
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		logDiagnostics(t, diags)
 		t.Fatal("apply failed")
 	}
@@ -1844,6 +1870,7 @@ func getContextForApply_destroyCrossProviders(t *testing.T, m *configs.Config, p
 			AttrsJSON: []byte(`{"id":"test"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	child.SetResourceInstanceCurrent(
@@ -1853,6 +1880,7 @@ func getContextForApply_destroyCrossProviders(t *testing.T, m *configs.Config, p
 			AttrsJSON: []byte(`{"id": "vpc-aaabbb12", "value":"test"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -1873,10 +1901,10 @@ func TestContext2Apply_minimal(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -1915,14 +1943,14 @@ func TestContext2Apply_cancel(t *testing.T) {
 	}
 	p.PlanResourceChangeFn = testDiffFn
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	// Start the Apply in a goroutine
 	var applyDiags tfdiags.Diagnostics
 	stateCh := make(chan *states.State)
 	go func() {
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		applyDiags = diags
 
 		stateCh <- state
@@ -1977,14 +2005,14 @@ func TestContext2Apply_cancelBlock(t *testing.T) {
 		return testApplyFn(req)
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	// Start the Apply in a goroutine
 	var applyDiags tfdiags.Diagnostics
 	stateCh := make(chan *states.State)
 	go func() {
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		applyDiags = diags
 
 		stateCh <- state
@@ -2074,14 +2102,14 @@ func TestContext2Apply_cancelProvisioner(t *testing.T) {
 		return nil
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	// Start the Apply in a goroutine
 	var applyDiags tfdiags.Diagnostics
 	stateCh := make(chan *states.State)
 	go func() {
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		applyDiags = diags
 
 		stateCh <- state
@@ -2163,7 +2191,7 @@ func TestContext2Apply_compute(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		SetVariables: InputValues{
 			"value": &InputValue{
 				Value:      cty.NumberIntVal(1),
@@ -2173,7 +2201,7 @@ func TestContext2Apply_compute(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Err())
 	}
@@ -2199,6 +2227,7 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar","foo": "foo","type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
@@ -2207,6 +2236,7 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar","foo": "foo","type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
@@ -2215,6 +2245,7 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "foo": "foo", "type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2223,10 +2254,10 @@ func TestContext2Apply_countDecrease(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	actual := strings.TrimSpace(s.String())
@@ -2249,6 +2280,7 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "foo": "foo", "type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
@@ -2257,6 +2289,7 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
@@ -2265,6 +2298,7 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2273,10 +2307,10 @@ func TestContext2Apply_countDecreaseToOneX(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2319,6 +2353,7 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "foo": "foo", "type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
@@ -2327,6 +2362,7 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"baz", "type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2335,7 +2371,7 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 	{
 		got := strings.TrimSpace(legacyPlanComparisonString(state, plan.Changes))
@@ -2369,7 +2405,7 @@ func TestContext2Apply_countDecreaseToOneCorrupted(t *testing.T) {
 		}
 	}
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2395,6 +2431,7 @@ func TestContext2Apply_countTainted(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "type": "aws_instance", "foo": "foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -2402,7 +2439,7 @@ func TestContext2Apply_countTainted(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 	{
 		got := strings.TrimSpace(legacyDiffComparisonString(plan.Changes))
@@ -2421,7 +2458,7 @@ CREATE: aws_instance.foo[1]
 		}
 	}
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	got := strings.TrimSpace(s.String())
@@ -2453,10 +2490,10 @@ func TestContext2Apply_countVariable(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2479,10 +2516,10 @@ func TestContext2Apply_countVariableRef(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2518,7 +2555,7 @@ func TestContext2Apply_provisionerInterpCount(t *testing.T) {
 		Provisioners: provisioners,
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
 	// We'll marshal and unmarshal the plan here, to ensure that we have
@@ -2536,7 +2573,7 @@ func TestContext2Apply_provisionerInterpCount(t *testing.T) {
 	}
 
 	// Applying the plan should now succeed
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply failed unexpectedly: %s", diags.Err())
 	}
@@ -2558,7 +2595,7 @@ func TestContext2Apply_foreachVariable(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"foo": &InputValue{
@@ -2568,7 +2605,7 @@ func TestContext2Apply_foreachVariable(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2591,10 +2628,10 @@ func TestContext2Apply_moduleBasic(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2652,6 +2689,7 @@ func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"a"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
@@ -2662,6 +2700,7 @@ func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.aws_instance.a")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2670,12 +2709,12 @@ func TestContext2Apply_moduleDestroyOrder(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2720,10 +2759,10 @@ func TestContext2Apply_moduleInheritAlias(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2766,9 +2805,9 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// At this point both resources should be recorded in the state, along
@@ -2787,7 +2826,7 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 		s.SetResourceInstanceCurrent(oneAddr.Instance(addrs.IntKey(0)), &states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
-		}, providerAddr)
+		}, providerAddr, addrs.NoKey)
 	})
 
 	if state.String() != want.String() {
@@ -2801,7 +2840,7 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	plan, diags = ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 	{
 		addr := mustResourceInstanceAddr("test_thing.one[0]")
@@ -2817,7 +2856,7 @@ func TestContext2Apply_orphanResource(t *testing.T) {
 		}
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// The state should now be _totally_ empty, with just an empty root module
@@ -2859,6 +2898,7 @@ func TestContext2Apply_moduleOrphanInheritAlias(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2867,7 +2907,7 @@ func TestContext2Apply_moduleOrphanInheritAlias(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 	{
 		addr := mustResourceInstanceAddr("module.child.aws_instance.bar")
@@ -2886,7 +2926,7 @@ func TestContext2Apply_moduleOrphanInheritAlias(t *testing.T) {
 		}
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2922,6 +2962,7 @@ func TestContext2Apply_moduleOrphanProvider(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2930,10 +2971,10 @@ func TestContext2Apply_moduleOrphanProvider(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 }
@@ -2962,6 +3003,7 @@ func TestContext2Apply_moduleOrphanGrandchildProvider(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -2970,10 +3012,10 @@ func TestContext2Apply_moduleOrphanGrandchildProvider(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 }
@@ -3004,10 +3046,10 @@ func TestContext2Apply_moduleGrandchildProvider(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -3038,10 +3080,10 @@ func TestContext2Apply_moduleOnlyProvider(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3064,10 +3106,10 @@ func TestContext2Apply_moduleProviderAlias(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3089,7 +3131,7 @@ func TestContext2Apply_moduleProviderAliasTargets(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.ConfigResource{
@@ -3104,7 +3146,7 @@ func TestContext2Apply_moduleProviderAliasTargets(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3131,6 +3173,7 @@ func TestContext2Apply_moduleProviderCloseNested(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3139,12 +3182,12 @@ func TestContext2Apply_moduleProviderCloseNested(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 }
@@ -3168,6 +3211,7 @@ func TestContext2Apply_moduleVarRefExisting(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo","foo":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -3176,10 +3220,10 @@ func TestContext2Apply_moduleVarRefExisting(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3201,7 +3245,7 @@ func TestContext2Apply_moduleVarResourceCount(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.DestroyMode,
 		SetVariables: InputValues{
 			"num": &InputValue{
@@ -3212,7 +3256,7 @@ func TestContext2Apply_moduleVarResourceCount(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	ctx = testContext2(t, &ContextOpts{
@@ -3221,7 +3265,7 @@ func TestContext2Apply_moduleVarResourceCount(t *testing.T) {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"num": &InputValue{
@@ -3232,7 +3276,7 @@ func TestContext2Apply_moduleVarResourceCount(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 }
@@ -3249,10 +3293,10 @@ func TestContext2Apply_moduleBool(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3277,7 +3321,7 @@ func TestContext2Apply_moduleTarget(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("B", addrs.NoKey),
@@ -3285,7 +3329,7 @@ func TestContext2Apply_moduleTarget(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3331,10 +3375,10 @@ func TestContext2Apply_multiProvider(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3395,10 +3439,10 @@ func TestContext2Apply_multiProviderDestroy(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		s, diags := ctx.Apply(plan, m)
+		s, diags := ctx.Apply(context.Background(), plan, m)
 		assertNoErrors(t, diags)
 
 		state = s
@@ -3442,12 +3486,12 @@ func TestContext2Apply_multiProviderDestroy(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		assertNoErrors(t, diags)
 
-		s, diags := ctx.Apply(plan, m)
+		s, diags := ctx.Apply(context.Background(), plan, m)
 		assertNoErrors(t, diags)
 
 		if !checked {
@@ -3508,10 +3552,10 @@ func TestContext2Apply_multiProviderDestroyChild(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		s, diags := ctx.Apply(plan, m)
+		s, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3557,12 +3601,12 @@ func TestContext2Apply_multiProviderDestroyChild(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		assertNoErrors(t, diags)
 
-		s, diags := ctx.Apply(plan, m)
+		s, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3591,7 +3635,7 @@ func TestContext2Apply_multiVar(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"num": &InputValue{
@@ -3602,7 +3646,7 @@ func TestContext2Apply_multiVar(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3623,7 +3667,7 @@ func TestContext2Apply_multiVar(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"num": &InputValue{
@@ -3634,7 +3678,7 @@ func TestContext2Apply_multiVar(t *testing.T) {
 		})
 		assertNoErrors(t, diags)
 
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3728,7 +3772,7 @@ func TestContext2Apply_multiVarComprehensive(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"num": &InputValue{
@@ -3834,7 +3878,7 @@ func TestContext2Apply_multiVarComprehensive(t *testing.T) {
 	}))
 
 	t.Run("apply", func(t *testing.T) {
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("error during apply: %s", diags.Err())
 		}
@@ -3874,10 +3918,10 @@ func TestContext2Apply_multiVarOrder(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3905,10 +3949,10 @@ func TestContext2Apply_multiVarOrderInterp(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3940,7 +3984,7 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 		})
 
 		log.Print("\n========\nStep 1 Plan\n========")
-		plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"num": &InputValue{
@@ -3952,7 +3996,7 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 		assertNoErrors(t, diags)
 
 		log.Print("\n========\nStep 1 Apply\n========")
-		state, diags := ctx.Apply(plan, m)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -4004,7 +4048,7 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 		})
 
 		log.Print("\n========\nStep 2 Plan\n========")
-		plan, diags := ctx.Plan(m, s, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, s, &PlanOpts{
 			Mode: plans.NormalMode,
 			SetVariables: InputValues{
 				"num": &InputValue{
@@ -4018,7 +4062,7 @@ func TestContext2Apply_multiVarCountDec(t *testing.T) {
 		t.Logf("Step 2 plan:\n%s", legacyDiffComparisonString(plan.Changes))
 
 		log.Print("\n========\nStep 2 Apply\n========")
-		_, diags = ctx.Apply(plan, m)
+		_, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply errors: %s", diags.Err())
 		}
@@ -4055,11 +4099,11 @@ func TestContext2Apply_multiVarMissingState(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	// Before the relevant bug was fixed, OpenTofu would panic during apply.
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply failed: %s", diags.Err())
 	}
 
@@ -4082,10 +4126,10 @@ func TestContext2Apply_outputOrphan(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4110,10 +4154,10 @@ func TestContext2Apply_outputOrphanModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4140,10 +4184,10 @@ func TestContext2Apply_outputOrphanModule(t *testing.T) {
 	// created "s" above as the result of the previous apply, but I've preserved
 	// it to avoid changing the flow of this test in case that's important
 	// for some reason.
-	plan, diags = ctx.Plan(emptyConfig, state.DeepCopy(), DefaultPlanOpts)
+	plan, diags = ctx.Plan(context.Background(), emptyConfig, state.DeepCopy(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, emptyConfig)
+	state, diags = ctx.Apply(context.Background(), plan, emptyConfig)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4178,10 +4222,10 @@ func TestContext2Apply_providerComputedVar(t *testing.T) {
 		return
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 }
@@ -4206,10 +4250,10 @@ func TestContext2Apply_providerConfigureDisabled(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -4243,10 +4287,10 @@ func TestContext2Apply_provisionerModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4290,7 +4334,7 @@ func TestContext2Apply_Provisioner_compute(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"value": &InputValue{
@@ -4301,7 +4345,7 @@ func TestContext2Apply_Provisioner_compute(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4348,10 +4392,10 @@ func TestContext2Apply_provisionerCreateFail(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags == nil {
 		t.Fatal("should error")
 	}
@@ -4383,10 +4427,10 @@ func TestContext2Apply_provisionerCreateFailNoId(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags == nil {
 		t.Fatal("should error")
 	}
@@ -4418,10 +4462,10 @@ func TestContext2Apply_provisionerFail(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags == nil {
 		t.Fatal("should error")
 	}
@@ -4453,6 +4497,7 @@ func TestContext2Apply_provisionerFail_createBeforeDestroy(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar","require_new":"abc"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4464,10 +4509,10 @@ func TestContext2Apply_provisionerFail_createBeforeDestroy(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("should error")
 	}
@@ -4492,6 +4537,7 @@ func TestContext2Apply_error_createBeforeDestroy(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc","type":"aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4505,10 +4551,10 @@ func TestContext2Apply_error_createBeforeDestroy(t *testing.T) {
 	}
 	p.PlanResourceChangeFn = testDiffFn
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("should have error")
 	}
@@ -4538,6 +4584,7 @@ func TestContext2Apply_errorDestroy_createBeforeDestroy(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar", "require_new": "abc"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4557,10 +4604,10 @@ func TestContext2Apply_errorDestroy_createBeforeDestroy(t *testing.T) {
 	}
 	p.PlanResourceChangeFn = testDiffFn
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("should have error")
 	}
@@ -4596,6 +4643,7 @@ func TestContext2Apply_multiDepose_createBeforeDestroy(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	p.PlanResourceChangeFn = testDiffFn
@@ -4626,7 +4674,7 @@ func TestContext2Apply_multiDepose_createBeforeDestroy(t *testing.T) {
 		}
 	}
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"require_new": &InputValue{
@@ -4638,7 +4686,7 @@ func TestContext2Apply_multiDepose_createBeforeDestroy(t *testing.T) {
 
 	// Destroy is broken, so even though CBD successfully replaces the instance,
 	// we'll have to save the Deposed instance to destroy later
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("should have error")
 	}
@@ -4656,7 +4704,7 @@ aws_instance.web: (1 deposed)
 		Providers: ps,
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"require_new": &InputValue{
@@ -4668,7 +4716,7 @@ aws_instance.web: (1 deposed)
 
 	// We're replacing the primary instance once again. Destroy is _still_
 	// broken, so the Deposed list gets longer
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("should have error")
 	}
@@ -4721,7 +4769,7 @@ aws_instance.web: (1 deposed)
 	ctx = testContext2(t, &ContextOpts{
 		Providers: ps,
 	})
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"require_new": &InputValue{
@@ -4731,7 +4779,7 @@ aws_instance.web: (1 deposed)
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	// Expect error because 1/2 of Deposed destroys failed
 	if !diags.HasErrors() {
 		t.Fatal("should have error")
@@ -4756,7 +4804,7 @@ aws_instance.web: (1 deposed)
 	ctx = testContext2(t, &ContextOpts{
 		Providers: ps,
 	})
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"require_new": &InputValue{
@@ -4765,7 +4813,7 @@ aws_instance.web: (1 deposed)
 		},
 	})
 	assertNoErrors(t, diags)
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal("should not have error:", diags.Err())
 	}
@@ -4802,10 +4850,10 @@ func TestContext2Apply_provisionerFailContinue(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4847,10 +4895,10 @@ func TestContext2Apply_provisionerFailContinueHook(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -4885,6 +4933,7 @@ func TestContext2Apply_provisionerDestroy(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar","foo":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4896,10 +4945,10 @@ func TestContext2Apply_provisionerDestroy(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4932,6 +4981,7 @@ func TestContext2Apply_provisionerDestroyFail(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar","foo":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -4943,10 +4993,10 @@ func TestContext2Apply_provisionerDestroyFail(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags == nil {
 		t.Fatal("should error")
 	}
@@ -4996,6 +5046,7 @@ func TestContext2Apply_provisionerDestroyFailContinue(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5007,12 +5058,12 @@ func TestContext2Apply_provisionerDestroyFailContinue(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5063,6 +5114,7 @@ func TestContext2Apply_provisionerDestroyFailContinueFail(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5074,12 +5126,12 @@ func TestContext2Apply_provisionerDestroyFailContinueFail(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags == nil {
 		t.Fatal("apply succeeded; wanted error from second provisioner")
 	}
@@ -5129,6 +5181,7 @@ func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5140,7 +5193,7 @@ func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"input": &InputValue{
@@ -5153,7 +5206,7 @@ func TestContext2Apply_provisionerDestroyTainted(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5201,10 +5254,10 @@ func TestContext2Apply_provisionerResourceRef(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5245,10 +5298,10 @@ func TestContext2Apply_provisionerSelfRef(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5296,10 +5349,10 @@ func TestContext2Apply_provisionerMultiSelfRef(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5354,10 +5407,10 @@ func TestContext2Apply_provisionerMultiSelfRefSingle(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5406,12 +5459,12 @@ func TestContext2Apply_provisionerExplicitSelfRef(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -5432,14 +5485,14 @@ func TestContext2Apply_provisionerExplicitSelfRef(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -5472,10 +5525,10 @@ func TestContext2Apply_provisionerForEachSelfRef(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5497,10 +5550,10 @@ func TestContext2Apply_Provisioner_Diff(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		logDiagnostics(t, diags)
 		t.Fatal("apply failed")
@@ -5542,10 +5595,10 @@ func TestContext2Apply_Provisioner_Diff(t *testing.T) {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state2, diags := ctx.Apply(plan, m)
+	state2, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		logDiagnostics(t, diags)
 		t.Fatal("apply failed")
@@ -5575,6 +5628,7 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5611,10 +5665,10 @@ func TestContext2Apply_outputDiffVars(t *testing.T) {
 	//    return d, nil
 	// }
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -5631,10 +5685,10 @@ func TestContext2Apply_destroyX(t *testing.T) {
 	})
 
 	// First plan and apply a create operation
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5648,12 +5702,12 @@ func TestContext2Apply_destroyX(t *testing.T) {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5686,10 +5740,10 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 	})
 
 	// First plan and apply a create operation
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5705,12 +5759,12 @@ func TestContext2Apply_destroyOrder(t *testing.T) {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5744,10 +5798,10 @@ func TestContext2Apply_destroyModulePrefix(t *testing.T) {
 	})
 
 	// First plan and apply a create operation
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5766,12 +5820,12 @@ func TestContext2Apply_destroyModulePrefix(t *testing.T) {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5796,6 +5850,7 @@ func TestContext2Apply_destroyNestedModule(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5805,10 +5860,10 @@ func TestContext2Apply_destroyNestedModule(t *testing.T) {
 	})
 
 	// First plan and apply a create operation
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5834,6 +5889,7 @@ func TestContext2Apply_destroyDeeplyNestedModule(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -5843,10 +5899,10 @@ func TestContext2Apply_destroyDeeplyNestedModule(t *testing.T) {
 	})
 
 	// First plan and apply a create operation
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -5872,14 +5928,14 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		if diags.HasErrors() {
 			t.Fatalf("plan diags: %s", diags.Err())
 		} else {
 			t.Logf("Step 1 plan: %s", legacyDiffComparisonString(plan.Changes))
 		}
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply errs: %s", diags.Err())
 		}
@@ -5899,7 +5955,7 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		if diags.HasErrors() {
@@ -5922,7 +5978,7 @@ func TestContext2Apply_destroyModuleWithAttrsReferencingResource(t *testing.T) {
 			t.Fatalf("err: %s", diags.Err())
 		}
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags.Err())
 		}
@@ -5950,10 +6006,10 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -5971,7 +6027,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		if diags.HasErrors() {
@@ -5993,7 +6049,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCount(t *testing.T) {
 			t.Fatalf("err: %s", diags.Err())
 		}
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags.Err())
 		}
@@ -6022,10 +6078,10 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -6038,7 +6094,7 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 			Targets: []addrs.Targetable{
 				addrs.RootModuleInstance.Child("child", addrs.NoKey),
@@ -6059,7 +6115,7 @@ func TestContext2Apply_destroyTargetWithModuleVariableAndCount(t *testing.T) {
 		}
 
 		// Destroy, targeting the module explicitly
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags)
 		}
@@ -6096,10 +6152,10 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -6117,7 +6173,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
+		plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
 		if diags.HasErrors() {
 			t.Fatalf("destroy plan err: %s", diags.Err())
 		}
@@ -6137,7 +6193,7 @@ func TestContext2Apply_destroyWithModuleVariableAndCountNested(t *testing.T) {
 			t.Fatalf("err: %s", diags.Err())
 		}
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags.Err())
 		}
@@ -6174,10 +6230,10 @@ func TestContext2Apply_destroyOutputs(t *testing.T) {
 	})
 
 	// First plan and apply a create operation
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
@@ -6190,12 +6246,12 @@ func TestContext2Apply_destroyOutputs(t *testing.T) {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6211,12 +6267,12 @@ func TestContext2Apply_destroyOutputs(t *testing.T) {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
 }
@@ -6233,6 +6289,7 @@ func TestContext2Apply_destroyOrphan(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -6242,10 +6299,10 @@ func TestContext2Apply_destroyOrphan(t *testing.T) {
 
 	p.PlanResourceChangeFn = testDiffFn
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6271,6 +6328,7 @@ func TestContext2Apply_destroyTaintedProvisioner(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6282,12 +6340,12 @@ func TestContext2Apply_destroyTaintedProvisioner(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6326,10 +6384,10 @@ func TestContext2Apply_error(t *testing.T) {
 	}
 	p.PlanResourceChangeFn = testDiffFn
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags == nil {
 		t.Fatal("should have error")
 	}
@@ -6391,12 +6449,13 @@ func TestContext2Apply_errorDestroy(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("should have error")
 	}
@@ -6450,10 +6509,10 @@ func TestContext2Apply_errorCreateInvalidNew(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags == nil {
 		t.Fatal("should have error")
 	}
@@ -6523,12 +6582,13 @@ func TestContext2Apply_errorUpdateNullNew(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("should have error")
 	}
@@ -6573,6 +6633,7 @@ func TestContext2Apply_errorPartial(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar","type":"aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6592,10 +6653,10 @@ func TestContext2Apply_errorPartial(t *testing.T) {
 	}
 	p.PlanResourceChangeFn = testDiffFn
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags == nil {
 		t.Fatal("should have error")
 	}
@@ -6624,10 +6685,10 @@ func TestContext2Apply_hook(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -6657,6 +6718,7 @@ func TestContext2Apply_hookOrphan(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6666,10 +6728,10 @@ func TestContext2Apply_hookOrphan(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
 
@@ -6696,10 +6758,10 @@ func TestContext2Apply_idAttr(t *testing.T) {
 	p.PlanResourceChangeFn = testDiffFn
 	p.ApplyResourceChangeFn = testApplyFn
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -6730,10 +6792,10 @@ func TestContext2Apply_outputBasic(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6756,10 +6818,10 @@ func TestContext2Apply_outputAdd(t *testing.T) {
 		},
 	})
 
-	plan1, diags := ctx1.Plan(m1, states.NewState(), DefaultPlanOpts)
+	plan1, diags := ctx1.Plan(context.Background(), m1, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state1, diags := ctx1.Apply(plan1, m1)
+	state1, diags := ctx1.Apply(context.Background(), plan1, m1)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6774,10 +6836,10 @@ func TestContext2Apply_outputAdd(t *testing.T) {
 		},
 	})
 
-	plan2, diags := ctx1.Plan(m2, state1, DefaultPlanOpts)
+	plan2, diags := ctx1.Plan(context.Background(), m2, state1, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state2, diags := ctx2.Apply(plan2, m2)
+	state2, diags := ctx2.Apply(context.Background(), plan2, m2)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6800,10 +6862,10 @@ func TestContext2Apply_outputList(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6826,10 +6888,10 @@ func TestContext2Apply_outputMulti(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6852,10 +6914,10 @@ func TestContext2Apply_outputMultiIndex(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6896,6 +6958,7 @@ func TestContext2Apply_taintX(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"baz","num": "2", "type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6904,14 +6967,14 @@ func TestContext2Apply_taintX(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf("plan: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6942,6 +7005,7 @@ func TestContext2Apply_taintDep(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"baz","num": "2", "type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -6951,6 +7015,7 @@ func TestContext2Apply_taintDep(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -6959,14 +7024,14 @@ func TestContext2Apply_taintDep(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf("plan: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -6993,6 +7058,7 @@ func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"baz","num": "2", "type": "aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -7002,6 +7068,7 @@ func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7010,14 +7077,14 @@ func TestContext2Apply_taintDepRequiresNew(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf("plan: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7040,7 +7107,7 @@ func TestContext2Apply_targeted(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -7050,7 +7117,7 @@ func TestContext2Apply_targeted(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7080,7 +7147,7 @@ func TestContext2Apply_targetedCount(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -7090,7 +7157,7 @@ func TestContext2Apply_targetedCount(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7122,7 +7189,7 @@ func TestContext2Apply_targetedCountIndex(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.ResourceInstance(
@@ -7132,7 +7199,7 @@ func TestContext2Apply_targetedCountIndex(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7149,52 +7216,51 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 	m := testModule(t, "destroy-targeted")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
 
-	state := states.NewState()
-	root := state.EnsureModule(addrs.RootModuleInstance)
-	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.a").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"id":"bar"}`),
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-	)
-	root.SetOutputValue("out", cty.StringVal("bar"), false)
+	var state *states.State
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
 
-	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-	child.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("aws_instance.b").Resource,
-		&states.ResourceInstanceObjectSrc{
-			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
-		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
-	)
+		// First plan and apply a create operation
+		if diags := ctx.Validate(context.Background(), m); diags.HasErrors() {
+			t.Fatalf("validate errors: %s", diags.Err())
+		}
 
-	ctx := testContext2(t, &ContextOpts{
-		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
-		},
-	})
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
+		assertNoErrors(t, diags)
 
-	if diags := ctx.Validate(m); diags.HasErrors() {
-		t.Fatalf("validate errors: %s", diags.Err())
+		state, diags = ctx.Apply(context.Background(), plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("apply err: %s", diags.Err())
+		}
 	}
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
-		Mode: plans.DestroyMode,
-		Targets: []addrs.Targetable{
-			addrs.RootModuleInstance.Resource(
-				addrs.ManagedResourceMode, "aws_instance", "a",
-			),
-		},
-	})
-	assertNoErrors(t, diags)
+	{
+		ctx := testContext2(t, &ContextOpts{
+			Providers: map[addrs.Provider]providers.Factory{
+				addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+			},
+		})
 
-	state, diags = ctx.Apply(plan, m)
-	if diags.HasErrors() {
-		t.Fatalf("diags: %s", diags.Err())
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+			Mode: plans.DestroyMode,
+			Targets: []addrs.Targetable{
+				addrs.RootModuleInstance.Resource(
+					addrs.ManagedResourceMode, "aws_instance", "a",
+				),
+			},
+		})
+		assertNoErrors(t, diags)
+
+		state, diags = ctx.Apply(context.Background(), plan, m)
+		if diags.HasErrors() {
+			t.Fatalf("diags: %s", diags.Err())
+		}
 	}
 
 	mod := state.RootModule()
@@ -7223,10 +7289,10 @@ func TestContext2Apply_targetedDestroy(t *testing.T) {
 		t.Fatalf("expected 1 outputs, got: %#v", mod.OutputValues)
 	}
 
-	// the module instance should remain
+	// the module instance should not remain
 	mod = state.Module(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-	if len(mod.Resources) != 1 {
-		t.Fatalf("expected 1 resources, got: %#v", mod.Resources)
+	if mod != nil {
+		t.Fatalf("expected child module to not exist in state, but it does")
 	}
 }
 
@@ -7244,6 +7310,7 @@ func TestContext2Apply_targetedDestroyCountDeps(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -7253,6 +7320,7 @@ func TestContext2Apply_targetedDestroyCountDeps(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7261,7 +7329,7 @@ func TestContext2Apply_targetedDestroyCountDeps(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -7271,7 +7339,7 @@ func TestContext2Apply_targetedDestroyCountDeps(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7294,6 +7362,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -7302,6 +7371,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"i-abc123"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
 	child.SetResourceInstanceCurrent(
@@ -7311,6 +7381,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	child.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
@@ -7319,6 +7390,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"i-abc123"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7327,7 +7399,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
@@ -7337,7 +7409,7 @@ func TestContext2Apply_targetedDestroyModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7377,31 +7449,37 @@ func TestContext2Apply_targetedDestroyCountIndex(t *testing.T) {
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
 		foo,
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
 		foo,
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
 		foo,
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[0]").Resource,
 		bar,
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[1]").Resource,
 		bar,
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[2]").Resource,
 		bar,
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7410,7 +7488,7 @@ func TestContext2Apply_targetedDestroyCountIndex(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.ResourceInstance(
@@ -7423,7 +7501,7 @@ func TestContext2Apply_targetedDestroyCountIndex(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7455,7 +7533,7 @@ func TestContext2Apply_targetedModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey),
@@ -7463,7 +7541,7 @@ func TestContext2Apply_targetedModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7504,7 +7582,7 @@ func TestContext2Apply_targetedModuleDep(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -7518,7 +7596,7 @@ func TestContext2Apply_targetedModuleDep(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7554,7 +7632,8 @@ func TestContext2Apply_targetedModuleUnrelatedOutputs(t *testing.T) {
 	p.ApplyResourceChangeFn = testApplyFn
 
 	state := states.NewState()
-	_ = state.EnsureModule(addrs.RootModuleInstance.Child("child2", addrs.NoKey))
+	child1 := state.EnsureModule(addrs.RootModuleInstance.Child("child1", addrs.NoKey))
+	child1.SetOutputValue("instance_id", cty.StringVal("something"), false)
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -7562,7 +7641,7 @@ func TestContext2Apply_targetedModuleUnrelatedOutputs(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child2", addrs.NoKey),
@@ -7570,7 +7649,7 @@ func TestContext2Apply_targetedModuleUnrelatedOutputs(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7608,7 +7687,7 @@ func TestContext2Apply_targetedModuleResource(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey).Resource(
@@ -7618,7 +7697,7 @@ func TestContext2Apply_targetedModuleResource(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -7643,6 +7722,7 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 	m := testModule(t, "apply-targeted-resource-orphan-module")
 	p := testProvider("aws")
 	p.PlanResourceChangeFn = testDiffFn
+	p.ApplyResourceChangeFn = testApplyFn
 
 	state := states.NewState()
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("parent", addrs.NoKey))
@@ -7650,9 +7730,10 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 		mustResourceInstanceAddr("aws_instance.bar").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
-			AttrsJSON: []byte(`{"type":"aws_instance"}`),
+			AttrsJSON: []byte(`{"id":"abc","type":"aws_instance"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7661,7 +7742,7 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -7671,9 +7752,24 @@ func TestContext2Apply_targetedResourceOrphanModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	state, diags = ctx.Apply(context.Background(), plan, m)
+	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
+
 	}
+
+	checkStateString(t, state, `
+aws_instance.foo:
+  ID = foo
+  provider = provider["registry.opentofu.org/hashicorp/aws"]
+  type = aws_instance
+
+module.parent:
+  aws_instance.bar:
+    ID = abc
+    provider = provider["registry.opentofu.org/hashicorp/aws"]
+    type = aws_instance
+`)
 }
 
 func TestContext2Apply_unknownAttribute(t *testing.T) {
@@ -7707,10 +7803,10 @@ func TestContext2Apply_unknownAttribute(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Error("should error, because attribute 'unknown' is still unknown after apply")
 	}
@@ -7732,7 +7828,7 @@ func TestContext2Apply_unknownAttributeInterpolate(t *testing.T) {
 		},
 	})
 
-	if _, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts); diags == nil {
+	if _, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts); diags == nil {
 		t.Fatal("should error")
 	}
 }
@@ -7743,7 +7839,7 @@ func TestContext2Apply_vars(t *testing.T) {
 	ctx := testContext2(t, opts)
 	m := fixture.Config
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if len(diags) != 0 {
 		t.Fatalf("bad: %s", diags.ErrWithWarnings())
 	}
@@ -7782,13 +7878,13 @@ func TestContext2Apply_vars(t *testing.T) {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:         plans.NormalMode,
 		SetVariables: variables,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -7806,7 +7902,7 @@ func TestContext2Apply_varsEnv(t *testing.T) {
 	ctx := testContext2(t, opts)
 	m := fixture.Config
 
-	diags := ctx.Validate(m)
+	diags := ctx.Validate(context.Background(), m)
 	if len(diags) != 0 {
 		t.Fatalf("bad: %s", diags.ErrWithWarnings())
 	}
@@ -7833,13 +7929,13 @@ func TestContext2Apply_varsEnv(t *testing.T) {
 		},
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode:         plans.NormalMode,
 		SetVariables: variables,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -7873,6 +7969,7 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	root.SetResourceInstanceCurrent(
@@ -7899,6 +7996,7 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -7908,7 +8006,7 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		logDiagnostics(t, diags)
 		t.Fatal("plan failed")
@@ -7917,7 +8015,7 @@ func TestContext2Apply_createBefore_depends(t *testing.T) {
 	}
 
 	h.Active = true
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		logDiagnostics(t, diags)
 		t.Fatal("apply failed")
@@ -8001,6 +8099,7 @@ func TestContext2Apply_singleDestroy(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	root.SetResourceInstanceCurrent(
@@ -8027,6 +8126,7 @@ func TestContext2Apply_singleDestroy(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -8036,11 +8136,11 @@ func TestContext2Apply_singleDestroy(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	h.Active = true
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -8074,7 +8174,7 @@ func TestContext2Apply_issue7824(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8095,7 +8195,7 @@ func TestContext2Apply_issue7824(t *testing.T) {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8130,12 +8230,12 @@ func TestContext2Apply_issue5254(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8149,7 +8249,7 @@ func TestContext2Apply_issue5254(t *testing.T) {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags = ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8169,7 +8269,7 @@ func TestContext2Apply_issue5254(t *testing.T) {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8211,6 +8311,7 @@ func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"ifailedprovisioners"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -8219,7 +8320,7 @@ func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Resource(
@@ -8246,7 +8347,7 @@ func TestContext2Apply_targetedWithTaintedInState(t *testing.T) {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8286,14 +8387,14 @@ func TestContext2Apply_ignoreChangesCreate(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -8344,6 +8445,7 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"i-abc123","ami":"ami-abcd1234"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
@@ -8352,6 +8454,7 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"i-bcd234","ami":"i-bcd234"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_eip.foo[0]").Resource,
@@ -8370,6 +8473,7 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_eip.foo[1]").Resource,
@@ -8388,6 +8492,7 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -8396,10 +8501,10 @@ func TestContext2Apply_ignoreChangesWithDep(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state.DeepCopy(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state.DeepCopy(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	actual := strings.TrimSpace(s.String())
@@ -8427,7 +8532,7 @@ func TestContext2Apply_ignoreChangesAll(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		logDiagnostics(t, diags)
 		t.Fatal("plan failed")
@@ -8435,7 +8540,7 @@ func TestContext2Apply_ignoreChangesAll(t *testing.T) {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	mod := state.RootModule()
@@ -8472,10 +8577,10 @@ func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testin
 		})
 
 		// First plan and apply a create operation
-		plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -8488,7 +8593,7 @@ func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testin
 			},
 		})
 
-		plan, diags := ctx.Plan(m, state, &PlanOpts{
+		plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		if diags.HasErrors() {
@@ -8509,7 +8614,7 @@ func TestContext2Apply_destroyNestedModuleWithAttrsReferencingResource(t *testin
 			t.Fatalf("err: %s", diags.Err())
 		}
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags.Err())
 		}
@@ -8567,10 +8672,10 @@ resource "null_instance" "depends" {
 		}
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	root := state.Module(addrs.RootModuleInstance)
@@ -8594,7 +8699,7 @@ resource "null_instance" "depends" {
 	}
 
 	// run another plan to make sure the data source doesn't show as a change
-	plan, diags = ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	for _, c := range plan.Changes.Resources {
@@ -8633,7 +8738,7 @@ resource "null_instance" "depends" {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	expectedChanges := map[string]plans.Action{
@@ -8661,10 +8766,10 @@ func TestContext2Apply_tfWorkspace(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -8688,10 +8793,10 @@ func TestContext2Apply_tofuWorkspace(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -8714,10 +8819,10 @@ func TestContext2Apply_multiRef(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8739,7 +8844,7 @@ func TestContext2Apply_targetedModuleRecursive(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child", addrs.NoKey),
@@ -8747,7 +8852,7 @@ func TestContext2Apply_targetedModuleRecursive(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8779,10 +8884,10 @@ func TestContext2Apply_localVal(t *testing.T) {
 		Providers: map[addrs.Provider]providers.Factory{},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("error during apply: %s", diags.Err())
 	}
@@ -8814,6 +8919,7 @@ func TestContext2Apply_destroyWithLocals(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetOutputValue("name", cty.StringVal("test-bar"), false)
 
@@ -8823,12 +8929,12 @@ func TestContext2Apply_destroyWithLocals(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(plan, m)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("error during apply: %s", diags.Err())
 	}
@@ -8862,10 +8968,10 @@ func TestContext2Apply_providerWithLocals(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8876,12 +8982,12 @@ func TestContext2Apply_providerWithLocals(t *testing.T) {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -8909,6 +9015,7 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].baz`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
@@ -8918,7 +9025,7 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 	})
 
 	// test that we can't destroy if the provider is missing
-	if _, diags := ctx.Plan(m, state, &PlanOpts{Mode: plans.DestroyMode}); diags == nil {
+	if _, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{Mode: plans.DestroyMode}); diags == nil {
 		t.Fatal("expected plan error, provider.aws.baz doesn't exist")
 	}
 
@@ -8931,12 +9038,12 @@ func TestContext2Apply_destroyWithProviders(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("error during apply: %s", diags.Err())
 	}
@@ -8963,6 +9070,7 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	aliasedProviderState := states.NewState()
@@ -8974,6 +9082,7 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].bar`),
+		addrs.NoKey,
 	)
 
 	moduleProviderState := states.NewState()
@@ -8985,6 +9094,7 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
 		mustProviderConfig(`module.child.provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	for _, tc := range []struct {
@@ -9022,7 +9132,7 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 				},
 			})
 
-			plan, diags := ctx.Plan(m, tc.state, DefaultPlanOpts)
+			plan, diags := ctx.Plan(context.Background(), m, tc.state, DefaultPlanOpts)
 			if tc.err {
 				if diags == nil {
 					t.Fatal("expected error")
@@ -9034,7 +9144,7 @@ func TestContext2Apply_providersFromState(t *testing.T) {
 				t.Fatal(diags.Err())
 			}
 
-			state, diags := ctx.Apply(plan, m)
+			state, diags := ctx.Apply(context.Background(), plan, m)
 			if diags.HasErrors() {
 				t.Fatalf("diags: %s", diags.Err())
 			}
@@ -9064,13 +9174,14 @@ func TestContext2Apply_plannedInterpolatedCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: Providers,
 	})
 
-	plan, diags := ctx.Plan(m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatalf("plan failed: %s", diags.Err())
 	}
@@ -9090,7 +9201,7 @@ func TestContext2Apply_plannedInterpolatedCount(t *testing.T) {
 	}
 
 	// Applying the plan should now succeed
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply failed: %s", diags.Err())
 	}
@@ -9114,6 +9225,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.a[1]").Resource,
@@ -9122,6 +9234,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetOutputValue("out", cty.ListVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("foo")}), false)
 
@@ -9129,7 +9242,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 		Providers: providers,
 	})
 
-	plan, diags := ctx.Plan(m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.DestroyMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatalf("plan failed: %s", diags.Err())
 	}
@@ -9149,7 +9262,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 	}
 
 	// Applying the plan should now succeed
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply failed: %s", diags.Err())
 	}
@@ -9177,6 +9290,7 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.two").Resource,
@@ -9185,13 +9299,14 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: Providers,
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"instance_count": {
@@ -9240,7 +9355,7 @@ func TestContext2Apply_scaleInMultivarRef(t *testing.T) {
 	}
 
 	// Applying the plan should now succeed
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -9278,10 +9393,10 @@ func TestContext2Apply_inconsistentWithPlan(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatalf("apply succeeded; want error")
 	}
@@ -9340,13 +9455,14 @@ func TestContext2Apply_issue19908(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatalf("apply succeeded; want error")
 	}
@@ -9395,13 +9511,13 @@ func TestContext2Apply_invalidIndexRef(t *testing.T) {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	diags := c.Validate(m)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected validation failure: %s", diags.Err())
 	}
 
 	wantErr := `The given key does not identify an element in this collection value`
-	_, diags = c.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags = c.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 
 	if !diags.HasErrors() {
 		t.Fatalf("plan succeeded; want error")
@@ -9457,6 +9573,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		modB := state.EnsureModule(addrs.RootModuleInstance.Child("b", addrs.NoKey))
@@ -9474,6 +9591,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 
 		aBefore, _ := plans.NewDynamicValue(
@@ -9556,7 +9674,7 @@ func TestContext2Apply_moduleReplaceCycle(t *testing.T) {
 		}
 
 		t.Run(mode, func(t *testing.T) {
-			_, diags := ctx.Apply(plan, m)
+			_, diags := ctx.Apply(context.Background(), plan, m)
 			if diags.HasErrors() {
 				t.Fatal(diags.Err())
 			}
@@ -9596,6 +9714,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("null"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -9621,6 +9740,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -9636,6 +9756,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("null"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	Providers := map[addrs.Provider]providers.Factory{
@@ -9647,7 +9768,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 		Providers: Providers,
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	diags.HasErrors()
@@ -9681,7 +9802,7 @@ func TestContext2Apply_destroyDataCycle(t *testing.T) {
 		return resp
 	}
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -9743,6 +9864,7 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -9758,6 +9880,7 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -9773,6 +9896,7 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	Providers := map[addrs.Provider]providers.Factory{
@@ -9784,13 +9908,13 @@ func TestContext2Apply_taintedDestroyFailure(t *testing.T) {
 		Hooks:     []Hook{&testHook{}},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	diags.HasErrors()
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("expected error")
 	}
@@ -9897,13 +10021,13 @@ func TestContext2Apply_plannedConnectionRefs(t *testing.T) {
 		Hooks:        []Hook{hook},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	diags.HasErrors()
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -9948,6 +10072,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -9973,6 +10098,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		addrs.Resource{
@@ -9988,6 +10114,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 
 	Providers := map[addrs.Provider]providers.Factory{
@@ -10000,7 +10127,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 		Hooks:     []Hook{hook},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	diags.HasErrors()
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
@@ -10019,7 +10146,7 @@ func TestContext2Apply_cbdCycle(t *testing.T) {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -10063,10 +10190,10 @@ func TestContext2Apply_ProviderMeta_apply_set(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	if !p.ApplyResourceChangeCalled {
@@ -10143,10 +10270,10 @@ func TestContext2Apply_ProviderMeta_apply_unset(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	if !p.ApplyResourceChangeCalled {
@@ -10192,7 +10319,7 @@ func TestContext2Apply_ProviderMeta_plan_set(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if !p.PlanResourceChangeCalled {
@@ -10259,7 +10386,7 @@ func TestContext2Apply_ProviderMeta_plan_unset(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if !p.PlanResourceChangeCalled {
@@ -10289,7 +10416,7 @@ func TestContext2Apply_ProviderMeta_plan_setNoSchema(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("plan supposed to error, has no errors")
 	}
@@ -10337,7 +10464,7 @@ func TestContext2Apply_ProviderMeta_plan_setInvalid(t *testing.T) {
 		},
 	})
 
-	_, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("plan supposed to error, has no errors")
 	}
@@ -10399,13 +10526,13 @@ func TestContext2Apply_ProviderMeta_refresh_set(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Refresh(m, state, DefaultPlanOpts)
+	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if !p.ReadResourceCalled {
@@ -10468,10 +10595,10 @@ func TestContext2Apply_ProviderMeta_refresh_setNoSchema(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// drop the schema before refresh, to test that it errors
@@ -10483,7 +10610,7 @@ func TestContext2Apply_ProviderMeta_refresh_setNoSchema(t *testing.T) {
 		},
 	})
 
-	_, diags = ctx.Refresh(m, state, DefaultPlanOpts)
+	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("refresh supposed to error, has no errors")
 	}
@@ -10533,10 +10660,10 @@ func TestContext2Apply_ProviderMeta_refresh_setInvalid(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// change the schema before refresh, to test that it errors
@@ -10555,7 +10682,7 @@ func TestContext2Apply_ProviderMeta_refresh_setInvalid(t *testing.T) {
 		},
 	})
 
-	_, diags = ctx.Refresh(m, state, DefaultPlanOpts)
+	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("refresh supposed to error, has no errors")
 	}
@@ -10634,13 +10761,13 @@ func TestContext2Apply_ProviderMeta_refreshdata_set(t *testing.T) {
 		}
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Refresh(m, state, DefaultPlanOpts)
+	_, diags = ctx.Refresh(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
 	if !p.ReadDataSourceCalled {
@@ -10725,10 +10852,10 @@ func TestContext2Apply_ProviderMeta_refreshdata_unset(t *testing.T) {
 		}
 	}
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	if !p.ReadDataSourceCalled {
@@ -10764,7 +10891,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_setNoSchema(t *testing.T) {
 		}),
 	}
 
-	_, diags := ctx.Refresh(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Refresh(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("refresh supposed to error, has no errors")
 	}
@@ -10818,7 +10945,7 @@ func TestContext2Apply_ProviderMeta_refreshdata_setInvalid(t *testing.T) {
 		}),
 	}
 
-	_, diags := ctx.Refresh(m, states.NewState(), DefaultPlanOpts)
+	_, diags := ctx.Refresh(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("refresh supposed to error, has no errors")
 	}
@@ -10888,12 +11015,12 @@ output "out" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -10947,12 +11074,12 @@ resource "aws_instance" "cbd" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -11019,17 +11146,17 @@ func TestContext2Apply_moduleDependsOn(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	plan, diags = ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags = ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -11076,12 +11203,12 @@ output "c" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -11092,14 +11219,14 @@ output "c" {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -11143,12 +11270,12 @@ output "myoutput" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -11159,14 +11286,14 @@ output "myoutput" {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -11221,6 +11348,7 @@ locals {
 			CreateBeforeDestroy: true,
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_instance.a[1]").Resource,
@@ -11231,6 +11359,7 @@ locals {
 			CreateBeforeDestroy: true,
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_instance.b").Resource,
@@ -11241,6 +11370,7 @@ locals {
 			CreateBeforeDestroy: true,
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_instance.c").Resource,
@@ -11254,6 +11384,7 @@ locals {
 			CreateBeforeDestroy: true,
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
 	)
 
 	p := testProvider("test")
@@ -11295,7 +11426,7 @@ locals {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"ct": &InputValue{
@@ -11340,7 +11471,7 @@ locals {
 		}
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		log.Fatal(diags.ErrWithWarnings())
 	}
@@ -11358,7 +11489,7 @@ locals {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"ct": &InputValue{
@@ -11395,7 +11526,7 @@ locals {
 		}
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -11501,10 +11632,10 @@ func TestContext2Apply_destroyProviderReference(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11517,7 +11648,7 @@ func TestContext2Apply_destroyProviderReference(t *testing.T) {
 		Providers: providers,
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
@@ -11535,7 +11666,7 @@ func TestContext2Apply_destroyProviderReference(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context for plan: %s", diags.Err())
 	}
-	if _, diags := ctx.Apply(plan, m); diags.HasErrors() {
+	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
 		t.Fatalf("destroy apply errors: %s", diags.Err())
 	}
 }
@@ -11608,10 +11739,10 @@ output "outputs" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11623,12 +11754,12 @@ output "outputs" {
 			},
 		})
 
-		plan, diags = ctx.Plan(m, state, &PlanOpts{
+		plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 			Mode: plans.DestroyMode,
 		})
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(plan, m)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply errors: %s", diags.Err())
 		}
@@ -11688,7 +11819,7 @@ resource "test_resource" "a" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"v": &InputValue{
@@ -11698,7 +11829,7 @@ resource "test_resource" "a" {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11709,7 +11840,7 @@ resource "test_resource" "a" {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"v": &InputValue{
@@ -11719,7 +11850,7 @@ resource "test_resource" "a" {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11751,7 +11882,7 @@ resource "test_instance" "b" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"v": &InputValue{
@@ -11761,7 +11892,7 @@ resource "test_instance" "b" {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11772,7 +11903,7 @@ resource "test_instance" "b" {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"v": &InputValue{
@@ -11782,7 +11913,7 @@ resource "test_instance" "b" {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11812,7 +11943,7 @@ resource "test_resource" "c" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"ct": &InputValue{
@@ -11822,7 +11953,7 @@ resource "test_resource" "c" {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11833,7 +11964,7 @@ resource "test_resource" "c" {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"ct": &InputValue{
@@ -11843,7 +11974,7 @@ resource "test_resource" "c" {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11912,10 +12043,10 @@ resource "test_resource" "foo" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11927,10 +12058,10 @@ resource "test_resource" "foo" {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags = ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11942,7 +12073,7 @@ resource "test_resource" "foo" {
 		},
 	})
 
-	plan, diags = ctx.Plan(m, state, &PlanOpts{
+	plan, diags = ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"sensitive_id": &InputValue{Value: cty.NilVal},
@@ -11953,7 +12084,7 @@ resource "test_resource" "foo" {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -11985,7 +12116,7 @@ resource "test_resource" "foo" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatalf("plan errors: %s", diags.Err())
 	}
@@ -12020,7 +12151,7 @@ resource "test_resource" "foo" {
 	fooChangeSrc := plan.Changes.ResourceInstance(addr)
 	verifySensitiveValues(fooChangeSrc.AfterValMarks)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -12061,7 +12192,7 @@ resource "test_resource" "baz" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatalf("plan errors: %s", diags.Err())
 	}
@@ -12115,7 +12246,7 @@ resource "test_resource" "baz" {
 	bazChangeSrc := plan.Changes.ResourceInstance(bazAddr)
 	verifySensitiveValues(bazChangeSrc.AfterValMarks, wantedBazPaths)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -12165,15 +12296,16 @@ resource "test_resource" "foo" {
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
-	plan, diags := ctx.Plan(m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
 	addr := mustResourceInstanceAddr("test_resource.foo")
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	fooState := state.ResourceInstance(addr)
@@ -12226,9 +12358,9 @@ resource "test_resource" "foo" {
 		},
 	})
 
-	_, diags = newCtx.Plan(newModule, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	_, diags = newCtx.Plan(context.Background(), newModule, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
-	stateWithoutSensitive, diags := newCtx.Apply(plan, newModule)
+	stateWithoutSensitive, diags := newCtx.Apply(context.Background(), plan, newModule)
 	assertNoErrors(t, diags)
 
 	newFooState := stateWithoutSensitive.ResourceInstance(addr)
@@ -12273,7 +12405,7 @@ output "out" {
 
 	ctx := testContext2(t, &ContextOpts{})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"in": &InputValue{
@@ -12288,7 +12420,7 @@ output "out" {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -12342,12 +12474,12 @@ output "out" {
 
 	// We don't specify a value for the variable here, relying on its defined
 	// default.
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -12392,12 +12524,12 @@ output "out" {
 
 	// We don't specify a value for the variable here, relying on its defined
 	// default.
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -12455,12 +12587,12 @@ output "out" {
 
 	// We don't specify a value for the variable here, relying on its defined
 	// default.
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -12509,7 +12641,7 @@ func TestContext2Apply_provisionerSensitive(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), &PlanOpts{
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
 		SetVariables: InputValues{
 			"password": &InputValue{
@@ -12523,7 +12655,7 @@ func TestContext2Apply_provisionerSensitive(t *testing.T) {
 	// "restart" provisioner
 	pr.CloseCalled = false
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		logDiagnostics(t, diags)
 		t.Fatal("apply failed")
@@ -12575,10 +12707,10 @@ resource "test_resource" "foo" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -12620,12 +12752,12 @@ resource "test_instance" "a" {
 			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -12662,14 +12794,14 @@ func TestContext2Apply_dataSensitive(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
 		t.Logf(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(plan, m)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	addr := mustResourceInstanceAddr("data.null_data_source.testing")
@@ -12708,7 +12840,7 @@ func TestContext2Apply_errorRestorePrivateData(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 			Private:   []byte("private"),
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -12717,12 +12849,12 @@ func TestContext2Apply_errorRestorePrivateData(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
 
-	state, _ = ctx.Apply(plan, m)
+	state, _ = ctx.Apply(context.Background(), plan, m)
 	if string(state.ResourceInstance(addr).Current.Private) != "private" {
 		t.Fatal("missing private data in state")
 	}
@@ -12753,7 +12885,7 @@ func TestContext2Apply_errorRestoreStatus(t *testing.T) {
 			AttrsJSON:    []byte(`{"test_string":"foo"}`),
 			Private:      []byte("private"),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.b")},
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`))
+		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -12762,12 +12894,12 @@ func TestContext2Apply_errorRestoreStatus(t *testing.T) {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, state, DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
 
-	state, diags = ctx.Apply(plan, m)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 
 	errString := diags.ErrWithWarnings().Error()
 	if !strings.Contains(errString, "oops") || !strings.Contains(errString, "warned") {
@@ -12824,12 +12956,12 @@ resource "test_object" "a" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	errString := diags.ErrWithWarnings().Error()
 	if !strings.Contains(errString, "oops") || !strings.Contains(errString, "warned") {
 		t.Fatalf("error missing expected info: %q", errString)
@@ -12860,12 +12992,12 @@ resource "test_object" "a" {
 		},
 	})
 
-	plan, diags := ctx.Plan(m, states.NewState(), DefaultPlanOpts)
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
 
-	_, diags = ctx.Apply(plan, m)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("expected and error")
 	}

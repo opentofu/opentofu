@@ -96,6 +96,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		keyName:            b.path(name),
 		accountName:        b.accountName,
 		snapshot:           b.snapshot,
+		timeoutSeconds:     b.armClient.timeoutSeconds,
 	}
 
 	stateMgr := remote.NewState(client, b.encryption)

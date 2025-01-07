@@ -28,6 +28,7 @@ func TestNodeDataDestroyExecute(t *testing.T) {
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
+		addrs.NoKey,
 	)
 	ctx := &MockEvalContext{
 		StateState: state.SyncWrapper(),

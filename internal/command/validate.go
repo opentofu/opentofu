@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -24,6 +25,8 @@ type ValidateCommand struct {
 }
 
 func (c *ValidateCommand) Run(rawArgs []string) int {
+	ctx := c.CommandContext()
+
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -59,7 +62,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)
 
-	validateDiags := c.validate(dir, args.TestDirectory, args.NoTests)
+	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests)
 	diags = diags.Append(validateDiags)
 
 	// Validating with dev overrides in effect means that the result might
@@ -88,7 +91,7 @@ func (c *ValidateCommand) GatherVariables(args *arguments.Vars) {
 	c.Meta.variableArgs = rawFlags{items: &items}
 }
 
-func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Diagnostics {
+func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	var cfg *configs.Config
 
@@ -116,7 +119,7 @@ func (c *ValidateCommand) validate(dir, testDir string, noTests bool) tfdiags.Di
 			return diags
 		}
 
-		return diags.Append(tfCtx.Validate(cfg))
+		return diags.Append(tfCtx.Validate(ctx, cfg))
 	}
 
 	diags = diags.Append(validate(cfg))
@@ -195,6 +198,18 @@ Usage: tofu [global options] validate [options]
   command instead, which includes an implied validation check.
 
 Options:
+
+  -compact-warnings     If OpenTofu produces any warnings that are not
+                        accompanied by errors, show them in a more compact
+                        form that includes only the summary messages.
+
+  -consolidate-warnings If OpenTofu produces any warnings, no consolodation
+                        will be performed. All locations, for all warnings
+                        will be listed. Enabled by default.
+
+  -consolidate-errors   If OpenTofu produces any errors, no consolodation
+                        will be performed. All locations, for all errors
+                        will be listed. Disabled by default
 
   -json                 Produce output in a machine-readable JSON format, 
                         suitable for use in text editor integrations and other 

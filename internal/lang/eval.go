@@ -75,7 +75,7 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 	body = blocktoattr.FixUpBlockAttrs(body, schema)
 
 	val, evalDiags := hcldec.Decode(body, spec, ctx)
-	diags = diags.Append(s.enhanceFunctionDiags(evalDiags))
+	diags = diags.Append(enhanceFunctionDiags(evalDiags))
 
 	return val, diags
 }
@@ -155,7 +155,7 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 	}
 
 	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), ctx)
-	diags = diags.Append(s.enhanceFunctionDiags(decDiags))
+	diags = diags.Append(enhanceFunctionDiags(decDiags))
 	return val, diags
 }
 
@@ -181,7 +181,7 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 	}
 
 	val, evalDiags := expr.Value(ctx)
-	diags = diags.Append(s.enhanceFunctionDiags(evalDiags))
+	diags = diags.Append(enhanceFunctionDiags(evalDiags))
 
 	if wantType != cty.DynamicPseudoType {
 		var convErr error
@@ -203,47 +203,55 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 }
 
 // Identify and enhance any function related dialogs produced by a hcl.EvalContext
-func (s *Scope) enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
+func enhanceFunctionDiags(diags hcl.Diagnostics) hcl.Diagnostics {
 	out := make(hcl.Diagnostics, len(diags))
 	for i, diag := range diags {
 		out[i] = diag
 
 		if funcExtra, ok := diag.Extra.(hclsyntax.FunctionCallUnknownDiagExtra); ok {
-			funcName := funcExtra.CalledFunctionName()
-			// prefix::stuff::
-			fullNamespace := funcExtra.CalledFunctionNamespace()
-
-			if len(fullNamespace) == 0 {
-				// Not a namespaced function, no enhancements necessary
-				continue
-			}
-
-			// Insert the enhanced copy of diag into diags
-			enhanced := *diag
-			out[i] = &enhanced
-
-			// Update enhanced with additional details
-
-			fn := addrs.ParseFunction(fullNamespace + funcName)
-
-			if fn.IsNamespace(addrs.FunctionNamespaceCore) {
-				// Error is in core namespace, mirror non-core equivalent
-				enhanced.Summary = "Call to unknown function"
-				enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
-			} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
-				if _, err := fn.AsProviderFunction(); err != nil {
-					// complete mismatch or invalid prefix
-					enhanced.Summary = "Invalid function format"
-					enhanced.Detail = err.Error()
-				}
-			} else {
-				enhanced.Summary = "Unknown function namespace"
-				enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
-			}
-			// Function / Provider not found handled by eval_context_builtin.go
+			out[i] = enhanceFunctionDiag(diag, funcExtra)
 		}
 	}
 	return out
+}
+
+// enhanceFunctionDiag returns a potentially-improved version of the given diagnostic
+// based on the information in funcExtra.
+func enhanceFunctionDiag(diag *hcl.Diagnostic, funcExtra hclsyntax.FunctionCallUnknownDiagExtra) *hcl.Diagnostic {
+	funcName := funcExtra.CalledFunctionName()
+	// prefix::stuff::
+	fullNamespace := funcExtra.CalledFunctionNamespace()
+
+	if len(fullNamespace) == 0 {
+		// Not a namespaced function, no enhancements necessary
+		return diag
+	}
+
+	// Shallow copy of the given diagnostic so that we can modify it without affecting
+	// anyone else that might be holding a pointer to it.
+	enhanced := *diag
+
+	// Update enhanced with additional details
+
+	fn := addrs.ParseFunction(fullNamespace + funcName)
+
+	if fn.IsNamespace(addrs.FunctionNamespaceCore) {
+		// Error is in core namespace, mirror non-core equivalent
+		enhanced.Summary = "Call to unknown function"
+		enhanced.Detail = fmt.Sprintf("There is no builtin (%s::) function named %q.", addrs.FunctionNamespaceCore, funcName)
+	} else if fn.IsNamespace(addrs.FunctionNamespaceProvider) {
+		if _, err := fn.AsProviderFunction(); err != nil {
+			// complete mismatch or invalid prefix
+			enhanced.Summary = "Invalid function format"
+			enhanced.Detail = err.Error()
+		}
+	} else {
+		enhanced.Summary = "Unknown function namespace"
+		enhanced.Detail = fmt.Sprintf("Function %q does not exist within a valid namespace (%s)", fn, strings.Join(addrs.FunctionNamespaces, ","))
+	}
+	// Function / Provider not found handled by eval_context_builtin.go
+
+	return &enhanced
 }
 
 // EvalReference evaluates the given reference in the receiving scope and

@@ -2315,6 +2315,12 @@ func TestEnsureProviderVersions_local_source(t *testing.T) {
 			wantHash: getproviders.NilHash, // installation fails for a provider with no executable
 			err:      "provider binary not found: could not find executable file starting with terraform-provider-executable",
 		},
+		"unspecified-version": {
+			provider: "null",
+			version:  "0.0.0",
+			wantHash: getproviders.NilHash,
+			err:      "0.0.0 is not a valid provider version. \nIf the version 0.0.0 is intended to represent a non-published provider, consider using dev_overrides - https://opentofu.org/docs/cli/config/config-file/#development-overrides-for-provider-developers",
+		},
 	}
 
 	for name, test := range tests {

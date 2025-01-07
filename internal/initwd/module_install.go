@@ -13,6 +13,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
@@ -412,6 +413,11 @@ func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key str
 	return mod, diags
 }
 
+// versionRegexp is used to handle edge cases around prerelease version constraints
+// when installing registry modules, its usage is discouraged in favor of the
+// public hashicorp/go-version API.
+var versionRegexp = regexp.MustCompile(version.VersionRegexpRaw)
+
 func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, addr addrs.ModuleSourceRegistry, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, *version.Version, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
@@ -517,10 +523,57 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			// prerelease metadata will be checked. Users may not have even
 			// requested this prerelease so don't print lots of unnecessary #
 			// warnings.
-			acceptableVersions, err := versions.MeetingConstraintsString(req.VersionConstraint.Required.String())
+			//
+			// FIXME: Due to a historical implementation error, this is using the
+			// wrong version constraint parser: it's expecting npm/cargo-style
+			// syntax rather than the Ruby-style syntax OpenTofu otherwise
+			// uses. This should have been written to use
+			// versions.MeetingConstraintsStringRuby instead, but changing it
+			// now risks having OpenTofu select a prerelease in more situations
+			// than it did before, and so we need to understand the implications
+			// of that better before we improve this. For now that means that
+			// it's effectively disallowed to use anything other than a single
+			// exact version constraint to select a prerelease version: any attempt
+			// to combine a prerelease selection with another constraint will
+			// cause all prerelease versions to be excluded from the selection.
+			// For more information:
+			//     https://github.com/opentofu/opentofu/issues/2117
+			constraint := req.VersionConstraint.Required.String()
+			acceptableVersions, err := versions.MeetingConstraintsString(constraint)
 			if err != nil {
-				log.Printf("[WARN] ModuleInstaller: %s ignoring %s because the version constraints (%s) could not be parsed: %s", key, v, req.VersionConstraint.Required.String(), err.Error())
-				continue
+				// apparentlymart/go-versions purposely doesn't accept "v" prefixes.
+				// However, hashicorp/go-version does, which leads to inconsistent
+				// errors when specifying constraints that contain prerelease
+				// versions with "v" prefixes. This creates a semantically equivalent
+				// constraint with all prefixes stripped so it can be checked
+				// against apparentlymart/go-versions. This is definitely a hack but
+				// one we've accepted to minimize the risk of regressing the handling
+				// of any other version constraint input until we have developed a
+				// better understanding of what syntax is currently allowed for version
+				// constraints and how different constraints are handled.
+				//
+				// strippedConstraint should not live beyond this scope.
+				strippedConstraint := string(versionRegexp.ReplaceAllFunc([]byte(constraint), func(match []byte) []byte {
+					if match[0] == 'v' {
+						return match[1:]
+					}
+					return match
+				}))
+				if strippedConstraint != constraint {
+					log.Printf("[WARN] ModuleInstaller: %s (while evaluating %q) failed parsing, so will retry with 'v' prefixes removed (%s)\n    before: %s\n    after:  %s", key, v, err.Error(), constraint, strippedConstraint)
+					acceptableVersions, err = versions.MeetingConstraintsString(strippedConstraint)
+					if err != nil {
+						log.Printf("[WARN] ModuleInstaller: %s ignoring %q because the stripped version constraints (%q) could not be parsed either: %s", key, v, strippedConstraint, err.Error())
+						continue
+					}
+				} else {
+					// If the error here is "commas are not needed to separate version selections"
+					// then that's an expected (though highly unfortunate) consequence of the
+					// incorrect use of MeetingConstraintsString above. Refer to the earlier FIXME
+					// comment for more information.
+					log.Printf("[WARN] ModuleInstaller: %s ignoring %q because the version constraints (%q) could not be parsed: %s", key, v, strippedConstraint, err.Error())
+					continue
+				}
 			}
 
 			// Validate the version is also readable by the other versions
@@ -539,6 +592,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 				log.Printf("[TRACE] ModuleInstaller: %s ignoring %s because it is a pre-release and was not requested exactly", key, v)
 				continue
 			}
+			log.Printf("[TRACE] ModuleInstaller: %s accepting %s because it is a pre-release that was requested exactly", key, v)
 
 			// If we reach here, it means this prerelease version was exactly
 			// requested according to the extra constraints of this library.

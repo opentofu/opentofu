@@ -32,6 +32,15 @@ func (b *Local) opPlan(
 
 	var diags tfdiags.Diagnostics
 
+	// For the moment we have a bit of a tangled mess of context.Context here, for
+	// historical reasons. Hopefully we'll clean this up one day, but here's the
+	// guide for now:
+	// - ctx is used only for its values, and should be connected to the top-level ctx
+	//   from "package main" so that we can obtain telemetry objects, etc from it.
+	// - stopCtx is cancelled to trigger a graceful shutdown.
+	// - cancelCtx is cancelled for a graceless shutdown.
+	ctx := context.WithoutCancel(stopCtx)
+
 	if op.PlanFile != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -79,7 +88,7 @@ func (b *Local) opPlan(
 	}
 
 	// Get our context
-	lr, configSnap, opState, ctxDiags := b.localRun(op)
+	lr, configSnap, opState, ctxDiags := b.localRun(ctx, op)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -108,7 +117,7 @@ func (b *Local) opPlan(
 		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: plan calling Plan")
-		plan, planDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
+		plan, planDiags = lr.Core.Plan(ctx, lr.Config, lr.InputState, lr.PlanOpts)
 	}()
 
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {

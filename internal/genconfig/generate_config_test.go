@@ -18,6 +18,16 @@ import (
 )
 
 func TestConfigGeneration(t *testing.T) {
+	sensitiveVal := func(t cty.Type, required, optional, computed bool) *configschema.Attribute {
+		return &configschema.Attribute{
+			Type:      t,
+			Sensitive: true,
+			Required:  required,
+			Optional:  optional,
+			Computed:  computed,
+		}
+	}
+
 	tcs := map[string]struct {
 		schema   *configschema.Block
 		addr     addrs.AbsResourceInstance
@@ -523,6 +533,139 @@ resource "tfcoremock_simple_resource" "example" {
 			expected: `
 resource "tfcoremock_simple_resource" "example" {
   str = null # sensitive
+}`,
+		},
+		"simple_resource_with_all_sensitive_required_values": {
+			// By having all the values being sensitive and required,
+			// they should be output as null with a comment
+			// indicating that they are sensitive.
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"sensitive_string": sensitiveVal(cty.String, true, false, false),
+					"sensitive_number": sensitiveVal(cty.Number, true, false, false),
+					"sensitive_bool":   sensitiveVal(cty.Bool, true, false, false),
+					"sensitive_list":   sensitiveVal(cty.List(cty.String), true, false, false),
+					"sensitive_map":    sensitiveVal(cty.Map(cty.String), true, false, false),
+					"sensitive_object": sensitiveVal(cty.Object(map[string]cty.Type{}), true, false, false),
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"sensitive_string": cty.StringVal("sensitive").Mark(marks.Sensitive),
+				"sensitive_number": cty.NumberIntVal(42).Mark(marks.Sensitive),
+				"sensitive_bool":   cty.True.Mark(marks.Sensitive),
+				"sensitive_list":   cty.ListVal([]cty.Value{cty.StringVal("sensitive")}).Mark(marks.Sensitive),
+				"sensitive_map":    cty.MapVal(map[string]cty.Value{"key": cty.StringVal("sensitive")}).Mark(marks.Sensitive),
+				"sensitive_object": cty.ObjectVal(map[string]cty.Value{}).Mark(marks.Sensitive),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  sensitive_bool   = null # sensitive
+  sensitive_list   = null # sensitive
+  sensitive_map    = null # sensitive
+  sensitive_number = null # sensitive
+  sensitive_object = null # sensitive
+  sensitive_string = null # sensitive
+}`,
+		},
+		"simple_resource_with_all_sensitive_optional_values": {
+			// By having all the values being sensitive and optional,
+			// they should be output as null with a comment
+			// indicating that they are sensitive.
+
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"sensitive_string": sensitiveVal(cty.String, false, true, false),
+					"sensitive_number": sensitiveVal(cty.Number, false, true, false),
+					"sensitive_bool":   sensitiveVal(cty.Bool, false, true, false),
+					"sensitive_list":   sensitiveVal(cty.List(cty.String), false, true, false),
+					"sensitive_map":    sensitiveVal(cty.Map(cty.String), false, true, false),
+					"sensitive_object": sensitiveVal(cty.Object(map[string]cty.Type{}), false, true, false),
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"sensitive_string": cty.StringVal("sensitive").Mark(marks.Sensitive),
+				"sensitive_number": cty.NumberIntVal(42).Mark(marks.Sensitive),
+				"sensitive_bool":   cty.True.Mark(marks.Sensitive),
+				"sensitive_list":   cty.ListVal([]cty.Value{cty.StringVal("sensitive")}).Mark(marks.Sensitive),
+				"sensitive_map":    cty.MapVal(map[string]cty.Value{"key": cty.StringVal("sensitive")}).Mark(marks.Sensitive),
+				"sensitive_object": cty.ObjectVal(map[string]cty.Value{}).Mark(marks.Sensitive),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
+  sensitive_bool   = null # sensitive
+  sensitive_list   = null # sensitive
+  sensitive_map    = null # sensitive
+  sensitive_number = null # sensitive
+  sensitive_object = null # sensitive
+  sensitive_string = null # sensitive
+}`,
+		},
+		"simple_resource_with_all_sensitive_computed_values": {
+			// By having all the values being sensitive and computed,
+			// they should be omitted from the output because we are not aware of the
+			// actual values.
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"sensitive_string": sensitiveVal(cty.String, false, false, true),
+					"sensitive_number": sensitiveVal(cty.Number, false, false, true),
+					"sensitive_bool":   sensitiveVal(cty.Bool, false, false, true),
+					"sensitive_list":   sensitiveVal(cty.List(cty.String), false, false, true),
+					"sensitive_map":    sensitiveVal(cty.Map(cty.String), false, false, true),
+					"sensitive_object": sensitiveVal(cty.Object(map[string]cty.Type{}), false, false, true),
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "example",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.ObjectVal(map[string]cty.Value{
+				"sensitive_string": cty.StringVal("sensitive").Mark(marks.Sensitive),
+				"sensitive_number": cty.NumberIntVal(42).Mark(marks.Sensitive),
+				"sensitive_bool":   cty.True.Mark(marks.Sensitive),
+				"sensitive_list":   cty.ListVal([]cty.Value{cty.StringVal("sensitive")}).Mark(marks.Sensitive),
+				"sensitive_map":    cty.MapVal(map[string]cty.Value{"key": cty.StringVal("sensitive")}).Mark(marks.Sensitive),
+				"sensitive_object": cty.ObjectVal(map[string]cty.Value{}).Mark(marks.Sensitive),
+			}),
+			expected: `
+resource "tfcoremock_simple_resource" "example" {
 }`,
 		},
 	}

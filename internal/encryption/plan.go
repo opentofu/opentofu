@@ -60,13 +60,14 @@ func (p planEncryption) EncryptPlan(data []byte) ([]byte, error) {
 }
 
 func (p planEncryption) DecryptPlan(data []byte) ([]byte, error) {
-	return p.base.decrypt(data, func(data []byte) error {
+	data, _, err := p.base.decrypt(data, func(data []byte) error {
 		// Check magic bytes
 		if len(data) < 2 || string(data[:2]) != "PK" {
 			return fmt.Errorf("Invalid plan file %v", string(data[:2]))
 		}
 		return nil
 	})
+	return data, err
 }
 
 func PlanEncryptionDisabled() PlanEncryption {

@@ -291,10 +291,18 @@ NeedProvider:
 			// that context will fail immediately anyway.
 			return nil, err
 		}
-
 		if cb := evts.QueryPackagesBegin; cb != nil {
 			cb(provider, reqs[provider], locked[provider])
 		}
+		// Version 0.0.0 not supported
+		if err := checkUnspecifiedVersion(acceptableVersions); err != nil {
+			errs[provider] = err
+			if cb := evts.QueryPackagesFailure; cb != nil {
+				cb(provider, err)
+			}
+			continue
+		}
+
 		available, warnings, err := i.source.AvailableVersions(ctx, provider)
 		if err != nil {
 			errs[provider] = err
@@ -734,6 +742,15 @@ NeedProvider:
 		}
 	}
 	return locks, nil
+}
+
+// checkUnspecifiedVersion Check the presence of version 0.0.0 and return an error with a tip
+func checkUnspecifiedVersion(acceptableVersions versions.Set) error {
+	if !acceptableVersions.Exactly(versions.Unspecified) {
+		return nil
+	}
+	tip := "If the version 0.0.0 is intended to represent a non-published provider, consider using dev_overrides - https://opentofu.org/docs/cli/config/config-file/#development-overrides-for-provider-developers"
+	return fmt.Errorf("0.0.0 is not a valid provider version. \n%s", tip)
 }
 
 // InstallMode customizes the details of how an install operation treats

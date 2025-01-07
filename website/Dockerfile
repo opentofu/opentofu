@@ -6,9 +6,9 @@
 FROM alpine AS parent
 
 RUN apk add git
-RUN git clone --recurse-submodules https://github.com/opentofu/opentofu.org /work
+RUN git clone --depth=1 --shallow-submodules --recurse-submodules https://github.com/opentofu/opentofu.org /work
 
-FROM node
+FROM node:22
 COPY --from=parent /work /work
 WORKDIR /work
 RUN npm i

@@ -30,6 +30,8 @@ func (c *ProvidersSchemaCommand) Synopsis() string {
 }
 
 func (c *ProvidersSchemaCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers schema")
 	c.Meta.varFlagSet(cmdFlags)
@@ -111,7 +113,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)

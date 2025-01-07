@@ -318,7 +318,7 @@ func (m ReferenceMap) References(v dag.Vertex) []dag.Vertex {
 	return matches
 }
 
-// addReferences returns the set of vertices that the given reference requires
+// addReference returns the set of vertices that the given reference requires
 // within a given module.  It additionally excludes the current vertex.
 func (m ReferenceMap) addReference(path addrs.Module, current dag.Vertex, ref *addrs.Reference) []dag.Vertex {
 	var matches []dag.Vertex

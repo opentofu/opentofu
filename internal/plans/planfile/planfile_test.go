@@ -47,12 +47,14 @@ func TestRoundtrip(t *testing.T) {
 		Serial:           2,
 		Lineage:          "abc123",
 		State:            states.NewState(),
+		EncryptionStatus: encryption.StatusSatisfied,
 	}
 	prevStateFileIn := &statefile.File{
 		TerraformVersion: tfversion.SemVer,
 		Serial:           1,
 		Lineage:          "abc123",
 		State:            states.NewState(),
+		EncryptionStatus: encryption.StatusSatisfied,
 	}
 
 	// Minimal plan too, since the serialization of the tfplan portion of the

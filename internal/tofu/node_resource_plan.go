@@ -128,6 +128,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ResolvedProvider = n.ResolvedProvider
+		// ResolvedProviderKey set in AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -155,7 +156,12 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	importResolver := ctx.ImportResolver()
 	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
-		if importTarget.IsFromImportBlock() {
+		// If the import target originates from the import command (instead of the import block), we don't need to
+		// resolve the import as it's already in the resolved form
+		// In addition, if PreDestroyRefresh is true, we know we are running as part of a refresh plan, immediately before a destroy
+		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
+		skipImports := importTarget.IsFromImportBlock() && !n.preDestroyRefresh
+		if skipImports {
 			err := importResolver.ExpandAndResolveImport(importTarget, ctx)
 			diags = diags.Append(err)
 		}
@@ -380,6 +386,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		// Add the config and state since we don't do that via transforms
 		a.Config = n.Config
 		a.ResolvedProvider = n.ResolvedProvider
+		// ResolvedProviderKey will be set during AttachResourceState
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
@@ -413,7 +420,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		&AttachStateTransformer{State: state},
 
 		// Targeting
-		&TargetsTransformer{Targets: n.Targets},
+		&TargetingTransformer{Targets: n.Targets, Excludes: n.Excludes},
 
 		// Connect references so ordering is correct
 		&ReferenceTransformer{},
@@ -427,6 +434,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		Steps: steps,
 		Name:  "nodeExpandPlannableResource",
 	}
-	graph, diags := b.Build(addr.Module)
-	return graph, diags.ErrWithWarnings()
+	graph, graphDiags := b.Build(addr.Module)
+	return graph, diags.Append(graphDiags).ErrWithWarnings()
 }

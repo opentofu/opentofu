@@ -41,3 +41,9 @@ func (c *schemaCache) Get(p addrs.Provider) (ProviderSchema, bool) {
 	s, ok := c.m[p]
 	return s, ok
 }
+
+func (c *schemaCache) Remove(p addrs.Provider) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	delete(c.m, p)
+}

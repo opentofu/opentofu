@@ -26,7 +26,7 @@ For more information on when to use certain custom conditions, see [Choosing Bet
 
 ## Input Variable Validation
 
-Add one or more `validation` blocks within the `variable` block to specify custom conditions. Each validation requires a [`condition` argument](#condition-expressions), an expression that must use the value of the variable to return `true` if the value is valid, or `false` if it is invalid. The expression can refer only to the containing variable and must not produce errors.
+Add one or more `validation` blocks within the `variable` block to specify custom conditions. Each validation requires a [`condition` argument](#condition-expressions), an expression that must use the value of the variable to return `true` if the value is valid, or `false` if it is invalid. The expression can refer to variables, locals, resources, etc. If a variable is unknown during validate/plan, the validation is deferred until the value is known during apply.
 
 If the condition evaluates to `false`, OpenTofu produces an [error message](#error-messages) that includes the result of the `error_message` expression. If you declare multiple validations, OpenTofu returns error messages for all failed conditions.
 

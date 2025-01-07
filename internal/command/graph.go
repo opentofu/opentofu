@@ -33,6 +33,8 @@ func (c *GraphCommand) Run(args []string) int {
 	var verbose bool
 	var planPath string
 
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("graph")
 	c.Meta.varFlagSet(cmdFlags)
@@ -79,7 +81,6 @@ func (c *GraphCommand) Run(args []string) int {
 
 	// Load the backend
 	var b backend.Enhanced
-	//nolint: nestif // This is inspired by apply:PrepareBackend
 	if lp, ok := planFile.Local(); ok {
 		plan, planErr := lp.ReadPlan()
 		if planErr != nil {
@@ -160,7 +161,7 @@ func (c *GraphCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)

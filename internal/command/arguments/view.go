@@ -14,7 +14,9 @@ type View struct {
 	// CompactWarnings is used to coalesce duplicate warnings, to reduce the
 	// level of noise when multiple instances of the same warning are raised
 	// for a configuration.
-	CompactWarnings bool
+	CompactWarnings     bool
+	ConsolidateWarnings bool
+	ConsolidateErrors   bool
 
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
@@ -28,7 +30,9 @@ type View struct {
 // possibly-modified slice of arguments. If any of the supported flags are
 // found, they will be removed from the slice.
 func ParseView(args []string) (*View, []string) {
-	common := &View{}
+	common := &View{
+		ConsolidateWarnings: true,
+	}
 
 	// Keep track of the length of the returned slice. When we find an
 	// argument we support, i will not be incremented.
@@ -39,6 +43,18 @@ func ParseView(args []string) (*View, []string) {
 			common.NoColor = true
 		case "-compact-warnings":
 			common.CompactWarnings = true
+		case "-consolidate-warnings":
+			common.ConsolidateWarnings = true
+		case "-consolidate-warnings=true":
+			common.ConsolidateWarnings = true
+		case "-consolidate-warnings=false":
+			common.ConsolidateWarnings = false
+		case "-consolidate-errors":
+			common.ConsolidateErrors = true
+		case "-consolidate-errors=true":
+			common.ConsolidateErrors = true
+		case "-consolidate-errors=false":
+			common.ConsolidateErrors = false
 		case "-concise":
 			common.Concise = true
 		default:

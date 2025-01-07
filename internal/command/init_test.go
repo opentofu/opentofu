@@ -2930,6 +2930,8 @@ func TestInit_moduleSource(t *testing.T) {
 
 		ui := cli.NewMockUi()
 		view, _ := testView(t)
+		closeInput := testInteractiveInput(t, []string{"./mod"})
+		defer closeInput()
 		c := &InitCommand{
 			Meta: Meta{
 				Ui:   ui,
@@ -2937,13 +2939,54 @@ func TestInit_moduleSource(t *testing.T) {
 			},
 		}
 
-		if code := c.Run(nil); code != 1 {
-			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		if code := c.Run(nil); code != 0 {
+			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		}
+	})
+
+	t.Run("missing-twice", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-module-variable-source-multiple"), td)
+		defer testChdir(t, td)()
+
+		ui := cli.NewMockUi()
+		view, _ := testView(t)
+		closeInput := testInteractiveInput(t, []string{"./mod"})
+		defer closeInput()
+		c := &InitCommand{
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
 		}
 
-		errStr := ui.ErrorWriter.String()
-		if !strings.Contains(errStr, `Variable not provided`) {
-			t.Fatalf("output should point to unmet version constraint, but is:\n\n%s", errStr)
+		if code := c.Run(nil); code != 0 {
+			t.Fatalf("got exit status %d; want 0\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
+		}
+	})
+
+	t.Run("no-input", func(t *testing.T) {
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-module-variable-source"), td)
+		defer testChdir(t, td)()
+
+		ui := cli.NewMockUi()
+		view, _ := testView(t)
+		closeInput := testInteractiveInput(t, []string{})
+		defer closeInput()
+		c := &InitCommand{
+			Meta: Meta{
+				Ui:   ui,
+				View: view,
+			},
+		}
+
+		args := []string{
+			"-input=false",
+		}
+
+		if code := c.Run(args); code != 1 {
+			t.Fatalf("got exit status %d; want 1\nstderr:\n%s\n\nstdout:\n%s", code, ui.ErrorWriter.String(), ui.OutputWriter.String())
 		}
 	})
 
@@ -3020,6 +3063,75 @@ func TestInit_invalidExtraLabel(t *testing.T) {
 	if len(splitted) != 2 {
 		t.Fatalf("want exactly one unsupported block type errors but got: %d\nstderr:\n%s\n\nstdout:\n%s", len(splitted)-1, errStr, ui.OutputWriter.String())
 	}
+}
+
+func TestInit_skipEncryptionBackendFalse(t *testing.T) {
+	t.Run("init success with encryption present and -backend=false", func(t *testing.T) {
+		// Create a temporary working directory that is empty
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-encryption-available"), td)
+		defer testChdir(t, td)()
+
+		overrides := metaOverridesForProvider(testProvider())
+		ui := new(cli.MockUi)
+		view, _ := testView(t)
+		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
+			// mock aws provider
+			"hashicorp/aws": {"5.0", "5.8"},
+		})
+		defer closeCallback()
+		m := Meta{
+			testingOverrides: overrides,
+			Ui:               ui,
+			View:             view,
+			ProviderSource:   providerSource,
+		}
+
+		c := &InitCommand{
+			Meta: m,
+		}
+
+		args := []string{
+			"-backend=false", // should disable reading encryption key run init successfully
+		}
+		if code := c.Run(args); code != 0 {
+			t.Fatalf("init should run successfully with -backend=false: \ngot error : %s\n", ui.ErrorWriter.String())
+		}
+	})
+
+	t.Run("init fails with encryption present -backend=false not set", func(t *testing.T) {
+		// Create a temporary working directory that is empty
+		td := t.TempDir()
+		testCopyDir(t, testFixturePath("init-encryption-available"), td)
+		defer testChdir(t, td)()
+
+		overrides := metaOverridesForProvider(testProvider())
+		ui := new(cli.MockUi)
+		view, _ := testView(t)
+		providerSource, closeCallback := newMockProviderSource(t, map[string][]string{
+			// mock aws provider
+			"hashicorp/aws": {"5.0", "5.8"},
+		})
+		defer closeCallback()
+		m := Meta{
+			testingOverrides: overrides,
+			Ui:               ui,
+			View:             view,
+			ProviderSource:   providerSource,
+		}
+
+		c := &InitCommand{
+			Meta: m,
+		}
+
+		var args []string
+		// Check error is generated from trying to read encryption key or fail test
+		if code := c.Run(args); code == 0 {
+			t.Fatalf("init should not run successfully\n")
+		} else if !strings.Contains(ui.ErrorWriter.String(), "key_provider.aws_kms.key failed with error:") {
+			t.Fatalf("generated error should contain the string \"Error: Unable to fetch encryption key data\"\ninstead got : %s\n", ui.ErrorWriter.String())
+		}
+	})
 }
 
 // newMockProviderSource is a helper to succinctly construct a mock provider

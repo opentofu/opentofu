@@ -66,6 +66,16 @@ Additionally, make sure you back up or version your code as the migration will r
 
 For a successful migration, you will need to perform the following code changes
 
+### Functions
+
+The following functions are not supported in OpenTofu:
+
+- `encode_tfvars`
+- `decode_tfvars`
+- `encode_expr`
+
+If you rely on these functions, please refactor your code to work without them.
+
 ### S3 backend
 
 If you are using the S3 backend, please change your code as follows:
@@ -83,8 +93,7 @@ The OpenTofu `removed` block works differently from the Terraform variant. Pleas
 
 If you are using the `terraform test` feature, you will need to perform the following changes:
 
-1. If you are using `mock_provider`, restructure your tests to work without this feature (see [OpenTofu issue #1155](https://github.com/opentofu/opentofu/issues/1155)).
-2. If you are using `override_resource`, `override_data`, or `override_module`, restructure your tests to work without these features (see [OpenTofu issue #1204](https://github.com/opentofu/opentofu/issues/1204)).
+1. If you are using `override_resource` or `override_data` nested in a `mock_provider` restructure your tests to work without these features (see [OpenTofu issue #1204](https://github.com/opentofu/opentofu/issues/1204)).
 
 ## Step 6: Initialize OpenTofu
 

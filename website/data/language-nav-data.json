@@ -146,6 +146,10 @@
         "path": "language/providers/requirements"
       },
       {
+        "title": "Built-in Provider",
+        "path": "language/providers/builtin"
+      },
+      {
         "title": "Dependency Lock File",
         "path": "language/files/dependency-lock"
       }
@@ -717,7 +721,7 @@
           },
           {
             "title": "<code>issensitive</code>",
-            "path": "language/functions/issensitive",
+            "path": "language/functions/issensitive"
           },
           {
             "title": "<code>tobool</code>",
@@ -1193,7 +1197,7 @@
         "title": "urlencode",
         "path": "language/functions/urlencode",
         "hidden": true
-      },      
+      },
       {
         "title": "urldecode",
         "path": "language/functions/urldecode",

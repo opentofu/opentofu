@@ -204,12 +204,19 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
-	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromModule(rootModEarly)
-	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
-		c.showDiagnostics(diags)
-		return 1
+	var enc encryption.Encryption
+	// If backend flag is explicitly set to false i.e -backend=false, we disable state and plan encryption
+	if backendFlagSet && !flagBackend {
+		enc = encryption.Disabled()
+	} else {
+		// Load the encryption configuration
+		var encDiags tfdiags.Diagnostics
+		enc, encDiags = c.EncryptionFromModule(rootModEarly)
+		diags = diags.Append(encDiags)
+		if encDiags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
 	}
 
 	var back backend.Backend
@@ -1192,6 +1199,18 @@ Options:
                           'key=value' format, and can be specified multiple
                           times. The backend type must be in the configuration
                           itself.
+
+  -compact-warnings       If OpenTofu produces any warnings that are not
+                          accompanied by errors, show them in a more compact
+                          form that includes only the summary messages.
+
+  -consolidate-warnings   If OpenTofu produces any warnings, no consolodation
+                          will be performed. All locations, for all warnings
+                          will be listed. Enabled by default.
+
+  -consolidate-errors     If OpenTofu produces any errors, no consolodation
+                          will be performed. All locations, for all errors
+                          will be listed. Disabled by default
 
   -force-copy             Suppress prompts about copying state data when
                           initializing a new state backend. This is
