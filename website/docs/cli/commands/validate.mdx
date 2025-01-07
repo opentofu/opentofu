@@ -21,6 +21,10 @@ valid and internally consistent, regardless of existing state. It is thus
 primarily useful for general verification of reusable modules, including
 correctness of attribute names and value types.
 
+:::warning
+Validate does not have access to the existing state, validation checks that require state access will be skipped.
+:::
+
 It is safe to run this command automatically, for example as a post-save
 check in a text editor or as a test step for a re-usable module in a CI
 system.

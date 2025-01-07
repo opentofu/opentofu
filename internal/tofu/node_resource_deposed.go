@@ -328,12 +328,12 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 
 	if obj == nil {
 		// No need to encode anything: we'll just write it directly.
-		state.SetResourceInstanceDeposed(absAddr, key, nil, n.ResolvedProvider)
+		state.SetResourceInstanceDeposed(absAddr, key, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 		log.Printf("[TRACE] writeResourceInstanceStateDeposed: removing state object for %s deposed %s", absAddr, key)
 		return nil
 	}
 
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider)
+	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		return err
 	}
@@ -351,7 +351,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 	}
 
 	log.Printf("[TRACE] writeResourceInstanceStateDeposed: writing state object for %s deposed %s", absAddr, key)
-	state.SetResourceInstanceDeposed(absAddr, key, src, n.ResolvedProvider)
+	state.SetResourceInstanceDeposed(absAddr, key, src, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	return nil
 }
 

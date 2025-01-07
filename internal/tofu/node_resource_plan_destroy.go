@@ -47,6 +47,11 @@ func (n *NodePlanDestroyableResourceInstance) DestroyAddr() *addrs.AbsResourceIn
 func (n *NodePlanDestroyableResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
+	diags = diags.Append(n.resolveProvider(ctx, false))
+	if diags.HasErrors() {
+		return diags
+	}
+
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
 		return n.managedResourceExecute(ctx, op)
@@ -121,7 +126,7 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContex
 			Before: cty.NullVal(cty.DynamicPseudoType),
 			After:  cty.NullVal(cty.DynamicPseudoType),
 		},
-		ProviderAddr: n.ResolvedProvider,
+		ProviderAddr: n.ResolvedProvider.ProviderConfig,
 	}
 	return diags.Append(n.writeChange(ctx, change, ""))
 }

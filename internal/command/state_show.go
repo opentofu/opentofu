@@ -31,6 +31,8 @@ type StateShowCommand struct {
 }
 
 func (c *StateShowCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state show")
 	c.Meta.varFlagSet(cmdFlags)
@@ -112,7 +114,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Get the context (required to get the schemas)
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	if ctxDiags.HasErrors() {
 		c.View.Diagnostics(ctxDiags)
 		return 1
@@ -172,6 +174,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		addr.Resource,
 		is.Current,
 		absPc,
+		addrs.NoKey,
 	)
 
 	root, outputs, err := jsonstate.MarshalForRenderer(statefile.New(singleInstance, "", 0), schemas)

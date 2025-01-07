@@ -33,7 +33,8 @@ func (t *RemovedModuleTransformer) Transform(g *Graph) error {
 		if cc != nil {
 			continue
 		}
-		removed[m.Addr.Module().String()] = m.Addr.Module()
+		mod := m.Addr.Module()
+		removed[mod.String()] = mod
 		log.Printf("[DEBUG] %s is no longer in configuration\n", m.Addr)
 	}
 

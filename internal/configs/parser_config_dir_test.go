@@ -95,7 +95,7 @@ func TestParserLoadConfigDirSuccess(t *testing.T) {
 
 	for _, info := range files {
 		name := info.Name()
-		t.Run(fmt.Sprintf("%s as module", name), func(t *testing.T) {
+		t.Run(name, func(t *testing.T) {
 			src, err := os.ReadFile(filepath.Join("testdata/valid-files", name))
 			if err != nil {
 				t.Fatal(err)

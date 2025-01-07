@@ -8,6 +8,7 @@ package tofu
 import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/dag"
 )
 
 // RootVariableTransformer is a GraphTransformer that adds all the root
@@ -42,6 +43,17 @@ func (t *RootVariableTransformer) Transform(g *Graph) error {
 			RawValue: t.RawValues[v.Name],
 		}
 		g.Add(node)
+
+		ref := &nodeVariableReference{
+			Addr: addrs.InputVariable{
+				Name: v.Name,
+			},
+			Config: v,
+		}
+		g.Add(ref)
+
+		// Input must be available before reference is valid
+		g.Connect(dag.BasicEdge(ref, node))
 	}
 
 	return nil

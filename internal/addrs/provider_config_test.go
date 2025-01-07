@@ -15,10 +15,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
-func TestParseAbsProviderConfig(t *testing.T) {
+func TestParseAbsProviderConfigInstances(t *testing.T) {
 	tests := []struct {
 		Input    string
 		Want     AbsProviderConfig
+		WantKey  InstanceKey
 		WantDiag string
 	}{
 		{
@@ -31,6 +32,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 					Hostname:  "registry.opentofu.org",
 				},
 			},
+			NoKey,
 			``,
 		},
 		{
@@ -44,6 +46,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 				},
 				Alias: "foo",
 			},
+			NoKey,
 			``,
 		},
 		{
@@ -56,6 +59,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 					Hostname:  "registry.opentofu.org",
 				},
 			},
+			NoKey,
 			``,
 		},
 		{
@@ -69,56 +73,81 @@ func TestParseAbsProviderConfig(t *testing.T) {
 				},
 				Alias: "foo",
 			},
+			NoKey,
+			``,
+		},
+		{
+			`module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo["keystr"]`,
+			AbsProviderConfig{
+				Module: Module{"baz"},
+				Provider: Provider{
+					Type:      "aws",
+					Namespace: "hashicorp",
+					Hostname:  "registry.opentofu.org",
+				},
+				Alias: "foo",
+			},
+			StringKey("keystr"),
 			``,
 		},
 		{
 			`module.baz["foo"].provider["registry.opentofu.org/hashicorp/aws"]`,
 			AbsProviderConfig{},
-			`Provider address cannot contain module indexes`,
+			NoKey,
+			`A provider configuration must not appear in a module instance that uses count or for_each.`,
 		},
 		{
 			`module.baz[1].provider["registry.opentofu.org/hashicorp/aws"]`,
 			AbsProviderConfig{},
-			`Provider address cannot contain module indexes`,
+			NoKey,
+			`A provider configuration must not appear in a module instance that uses count or for_each.`,
 		},
 		{
 			`module.baz[1].module.bar.provider["registry.opentofu.org/hashicorp/aws"]`,
 			AbsProviderConfig{},
-			`Provider address cannot contain module indexes`,
+			NoKey,
+			`A provider configuration must not appear in a module instance that uses count or for_each.`,
 		},
 		{
 			`aws`,
 			AbsProviderConfig{},
+			NoKey,
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
 			`aws.foo`,
 			AbsProviderConfig{},
+			NoKey,
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
 			`provider`,
 			AbsProviderConfig{},
+			NoKey,
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
-			`provider.aws.foo.bar`,
+			`provider.aws.foo["bar"].baz`,
 			AbsProviderConfig{},
-			`Extraneous operators after provider configuration alias.`,
+			NoKey,
+			`Extraneous operators after provider configuration reference.`,
 		},
 		{
 			`provider["aws"]["foo"]`,
 			AbsProviderConfig{},
+			NoKey,
 			`Provider type name must be followed by a configuration alias name.`,
 		},
 		{
 			`module.foo`,
 			AbsProviderConfig{},
+			NoKey,
 			`Provider address must begin with "provider.", followed by a provider type name.`,
 		},
 		{
 			`provider[0]`,
 			AbsProviderConfig{},
+			NoKey,
 			`The prefix "provider." must be followed by a provider type name.`,
 		},
 	}
@@ -134,7 +163,7 @@ func TestParseAbsProviderConfig(t *testing.T) {
 				return
 			}
 
-			got, diags := ParseAbsProviderConfig(traversal)
+			got, key, diags := ParseAbsProviderConfigInstance(traversal)
 
 			if test.WantDiag != "" {
 				if len(diags) != 1 {
@@ -153,6 +182,10 @@ func TestParseAbsProviderConfig(t *testing.T) {
 
 			for _, problem := range deep.Equal(got, test.Want) {
 				t.Error(problem)
+			}
+
+			if test.WantKey != key {
+				t.Errorf("Wanted key %s, got key %s", test.WantKey, key)
 			}
 		})
 	}

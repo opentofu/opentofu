@@ -76,7 +76,7 @@ func Read(r io.Reader, enc encryption.StateEncryption) (*File, error) {
 		return nil, ErrNoState
 	}
 
-	decrypted, err := enc.DecryptState(src)
+	decrypted, status, err := enc.DecryptState(src)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +90,8 @@ func Read(r io.Reader, enc encryption.StateEncryption) (*File, error) {
 		// Should never happen
 		panic("readState returned nil state with no errors")
 	}
+
+	state.EncryptionStatus = status
 
 	return state, diags.Err()
 }

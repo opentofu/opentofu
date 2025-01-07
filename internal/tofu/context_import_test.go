@@ -6,17 +6,22 @@
 package tofu
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"log"
 	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestContextImport_basic(t *testing.T) {
@@ -39,7 +44,7 @@ func TestContextImport_basic(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -92,7 +97,7 @@ resource "aws_instance" "foo" {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -112,6 +117,187 @@ resource "aws_instance" "foo" {
 	expected := strings.TrimSpace(testImportCountIndexStr)
 	if actual != expected {
 		t.Fatalf("bad: \n%s", actual)
+	}
+}
+
+func TestContextImport_multiInstanceProviderConfig(t *testing.T) {
+	// This test deals with the situation of importing into a resource instance
+	// whose resource has a dynamic instance key in its "provider" argument,
+	// and thus the import step needs to perform dynamic provider instance
+	// selection to determine exactly which provider instance to use.
+
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+
+			provider "test" {
+				alias = "multi"
+				for_each = {
+					a = {}
+					b = {}
+				}
+
+				marker = each.key
+			}
+
+			resource "test_thing" "test" {
+				for_each = { "foo" = "a" }
+				provider = test.multi[each.value]
+			}
+		`})
+
+	resourceTypeSchema := providers.Schema{
+		Block: &configschema.Block{
+			Attributes: map[string]*configschema.Attribute{
+				"id": {
+					Type:     cty.String,
+					Computed: true,
+				},
+				"import_marker": {
+					Type:     cty.String,
+					Computed: true,
+				},
+				"refresh_marker": {
+					Type:     cty.String,
+					Computed: true,
+				},
+			},
+		},
+	}
+	providerSchema := &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{
+			Block: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"marker": {
+						Type:     cty.String,
+						Required: true,
+					},
+				},
+			},
+		},
+		ResourceTypes: map[string]providers.Schema{
+			"test_thing": resourceTypeSchema,
+		},
+	}
+
+	// Unlike most context tests, this one uses a real factory function so that
+	// we can instantiate multiple instances and distinguish them.
+	providerFactory := func() (providers.Interface, error) {
+		// The following uses log.Printf instead of t.Logf so that the logs can interleave with the
+		// verbose trace logs produced by the main logic in this package, to make the order of operations clearer.
+		// To run just this test with trace logs:
+		//   TF_LOG=trace go test ./internal/tofu -run '^TestContextImport_multiInstanceProviderConfig$'
+
+		ret := &MockProvider{}
+		var configuredMarker cty.Value
+		log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: creating new instance of provider 'test' at %p", ret)
+
+		ret.GetProviderSchemaResponse = providerSchema
+		ret.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+			configuredMarker = req.Config.GetAttr("marker")
+			log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: ConfigureProvider for %p with marker = %#v", ret, configuredMarker)
+			return providers.ConfigureProviderResponse{}
+		}
+		ret.ImportResourceStateFn = func(req providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+			log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: ImportResourceState for %p with marker = %#v", ret, configuredMarker)
+			if configuredMarker == cty.NilVal {
+				return providers.ImportResourceStateResponse{
+					Diagnostics: tfdiags.Diagnostics{}.Append(fmt.Errorf("ImportResourceState before ConfigureProvider")),
+				}
+			}
+			return providers.ImportResourceStateResponse{
+				ImportedResources: []providers.ImportedResource{
+					{
+						TypeName: "test_thing",
+						State: cty.ObjectVal(map[string]cty.Value{
+							"id":             cty.StringVal(req.ID),
+							"import_marker":  configuredMarker,
+							"refresh_marker": cty.NullVal(cty.String), // we'll populate this in ReadResource
+						}),
+					},
+				},
+			}
+		}
+		ret.ReadResourceFn = func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+			log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: ReadResource for %p with marker = %#v", ret, configuredMarker)
+			if configuredMarker == cty.NilVal {
+				return providers.ReadResourceResponse{
+					Diagnostics: tfdiags.Diagnostics{}.Append(fmt.Errorf("ReadResource before ConfigureProvider")),
+				}
+			}
+			return providers.ReadResourceResponse{
+				NewState: cty.ObjectVal(map[string]cty.Value{
+					"id":             req.PriorState.GetAttr("id"),
+					"import_marker":  req.PriorState.GetAttr("import_marker"),
+					"refresh_marker": configuredMarker,
+				}),
+			}
+		}
+		return ret, nil
+	}
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewBuiltInProvider("test"): providerFactory,
+		},
+	})
+
+	existingInstanceKey := addrs.StringKey("foo")
+	existingInstanceAddr := addrs.RootModuleInstance.ResourceInstance(
+		addrs.ManagedResourceMode, "test_thing", "test", existingInstanceKey,
+	)
+	t.Logf("importing into %s, which should succeed because it's configured", existingInstanceAddr)
+	log.Printf("[TRACE] TestContextImport_multiInstanceProviderConfig: importing into %s, which should succeed because it's configured", existingInstanceAddr)
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
+		Targets: []*ImportTarget{
+			{
+				CommandLineImportTarget: &CommandLineImportTarget{
+					Addr: existingInstanceAddr,
+					ID:   "fake-import-id",
+				},
+			},
+		},
+	})
+	assertNoErrors(t, diags)
+
+	resourceState := state.Resource(existingInstanceAddr.ContainingResource())
+
+	if got, want := len(resourceState.Instances), 1; got != want {
+		t.Errorf("unexpected number of instances %d; want %d", got, want)
+	}
+
+	instanceState := resourceState.Instances[existingInstanceKey]
+	if instanceState == nil {
+		t.Fatal("no instance with key \"foo\" in final state")
+	}
+	if got, want := instanceState.ProviderKey, addrs.StringKey("a"); got != want {
+		t.Errorf("wrong provider key %s; want %s", got, want)
+	}
+	if instanceState.Current == nil {
+		t.Fatal("final resource instance has no current object")
+	}
+
+	gotObjState, err := instanceState.Current.Decode(resourceTypeSchema.Block.ImpliedType())
+	if err != nil {
+		t.Fatalf("failed to decode final resource instance object state: %s", err)
+	}
+	wantObjState := &states.ResourceInstanceObject{
+		Value: cty.ObjectVal(map[string]cty.Value{
+			"id":             cty.StringVal("fake-import-id"),
+			"import_marker":  cty.StringVal("a"),
+			"refresh_marker": cty.StringVal("a"),
+		}),
+		Status:       states.ObjectReady,
+		Dependencies: []addrs.ConfigResource{},
+	}
+	if diff := cmp.Diff(wantObjState, gotObjState, ctydebug.CmpOptions); diff != "" {
+		t.Error("wrong final object state\n" + diff)
 	}
 }
 
@@ -164,7 +350,7 @@ resource "aws_instance" "foo" {
 		}),
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -218,6 +404,7 @@ func TestContextImport_collision(t *testing.T) {
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},
+			addrs.NoKey,
 		)
 	})
 
@@ -232,7 +419,7 @@ func TestContextImport_collision(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, state, &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, state, &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -278,7 +465,7 @@ func TestContextImport_missingType(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -331,7 +518,7 @@ func TestContextImport_moduleProvider(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -388,7 +575,7 @@ func TestContextImport_providerModule(t *testing.T) {
 		return
 	}
 
-	_, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	_, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -446,7 +633,7 @@ func TestContextImport_providerConfig(t *testing.T) {
 				},
 			}
 
-			state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+			state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 				Targets: []*ImportTarget{
 					{
 						CommandLineImportTarget: &CommandLineImportTarget{
@@ -508,7 +695,7 @@ func TestContextImport_providerConfigResources(t *testing.T) {
 		},
 	}
 
-	_, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	_, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -581,7 +768,7 @@ data "aws_data_source" "bar" {
 		}),
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -634,7 +821,7 @@ func TestContextImport_refreshNil(t *testing.T) {
 		}
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -677,7 +864,7 @@ func TestContextImport_module(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -720,7 +907,7 @@ func TestContextImport_moduleDepth2(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -763,7 +950,7 @@ func TestContextImport_moduleDiff(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -833,7 +1020,7 @@ func TestContextImport_multiState(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -909,7 +1096,7 @@ func TestContextImport_multiStateSame(t *testing.T) {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -1005,7 +1192,7 @@ resource "test_resource" "unused" {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -1077,7 +1264,7 @@ resource "test_resource" "test" {
 		},
 	})
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{
@@ -1124,7 +1311,7 @@ func TestContextImport_33572(t *testing.T) {
 		},
 	}
 
-	state, diags := ctx.Import(m, states.NewState(), &ImportOpts{
+	state, diags := ctx.Import(context.Background(), m, states.NewState(), &ImportOpts{
 		Targets: []*ImportTarget{
 			{
 				CommandLineImportTarget: &CommandLineImportTarget{

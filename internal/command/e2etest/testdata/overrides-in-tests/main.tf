@@ -58,12 +58,17 @@ module "rand_count" {
     source = "./rand"
 }
 
-resource "aws_s3_bucket" "test" {
-  bucket = "must not be used anyway"
+data "http" "first" {
+  url = "must not be used anyway"
 }
 
-data "aws_s3_bucket" "test" {
-  bucket = "must not be used anyway"
+provider http {
+  alias = "aliased"
+}
+
+data "http" "second" {
+  provider = http.aliased
+  url = "must not be used anyway"
 }
 
 provider "local" {

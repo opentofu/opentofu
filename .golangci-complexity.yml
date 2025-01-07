@@ -1,0 +1,64 @@
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+# This is a temporary variant of .golangci.yml to support our work on improving
+# existing functions to pass the code complexity lint rules:
+#    https://github.com/opentofu/opentofu/issues/2325
+#
+# If you are working on the code complexity improvement project then you can
+# check our progress on the complexity-related lints by running the linters
+# as follows:
+#     golangci-lint run -c .golangci-complexity.yml
+#
+# Many existing functions were failing multiple linters at once at the start
+# of this project, and for as long as that remains true it might be helpful
+# to add the --uniq-by-line=false option to review all of the failures at
+# once.
+#
+# This file should be deleted at the same time as we re-enable the five
+# complexity-related linters in .golangci.yml.
+
+run:
+  timeout: 30m
+
+linters-settings:
+  funlen:
+    lines: 100
+    statements: 50
+    ignore-comments: true
+
+  nolintlint:
+    require-explanation: true
+    require-specific: true
+
+  cyclop:
+    max-complexity: 20
+
+  gocognit:
+    min-complexity: 50
+
+  nestif:
+    min-complexity: 6
+
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - funlen
+        - dupl
+        - revive
+    - path: (.+)_test.go
+      text: "ST1003"
+    - path: (.+)_test.go
+      text: "var-naming: don't use underscores in Go names"
+
+linters:
+  disable-all: true
+  enable:
+    - cyclop
+    - funlen
+    - gocognit
+    - gocyclo
+    - nestif

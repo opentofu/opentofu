@@ -6,7 +6,6 @@
 package jsonconfig
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -59,7 +58,7 @@ func marshalExpression(ex hcl.Expression) expression {
 			// into parts until we end up at the smallest referenceable address.
 			remains := ref.Remaining
 			for len(remains) > 0 {
-				varString = append(varString, fmt.Sprintf("%s%s", ref.Subject, traversalStr(remains)))
+				varString = append(varString, fmt.Sprintf("%s%s", ref.Subject, addrs.TraversalStr(remains)))
 				remains = remains[:(len(remains) - 1)]
 			}
 			varString = append(varString, ref.Subject.String())
@@ -156,32 +155,4 @@ func marshalExpressions(body hcl.Body, schema *configschema.Block) expressions {
 	}
 
 	return ret
-}
-
-// traversalStr produces a representation of an HCL traversal that is compact,
-// resembles HCL native syntax, and is suitable for display in the UI.
-//
-// This was copied (and simplified) from internal/command/views/json/diagnostic.go.
-func traversalStr(traversal hcl.Traversal) string {
-	var buf bytes.Buffer
-	for _, step := range traversal {
-		switch tStep := step.(type) {
-		case hcl.TraverseRoot:
-			buf.WriteString(tStep.Name)
-		case hcl.TraverseAttr:
-			buf.WriteByte('.')
-			buf.WriteString(tStep.Name)
-		case hcl.TraverseIndex:
-			buf.WriteByte('[')
-			switch tStep.Key.Type() {
-			case cty.String:
-				buf.WriteString(fmt.Sprintf("%q", tStep.Key.AsString()))
-			case cty.Number:
-				bf := tStep.Key.AsBigFloat()
-				buf.WriteString(bf.Text('g', 10))
-			}
-			buf.WriteByte(']')
-		}
-	}
-	return buf.String()
 }

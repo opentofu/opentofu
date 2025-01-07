@@ -66,6 +66,16 @@ type Locker interface {
 	Unlock(id string) error
 }
 
+// OptionalLocker extends Locker interface to allow callers
+// to know whether or not locking is actually enabled.
+// This is useful for some of the backends, which support
+// optional locking based on the configuration (such as S3,
+// OSS and HTTP backends).
+type OptionalLocker interface {
+	Locker
+	IsLockingEnabled() bool
+}
+
 // test hook to verify that LockWithContext has attempted a lock
 var postLockHook func()
 

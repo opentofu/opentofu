@@ -57,12 +57,11 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 		// brackets we know not to execute the command just yet
 		fullCommand, openState := consoleState.UpdateState(line)
 
-		switch {
-		case openState > 0:
+		if openState > 0 {
 			// here there are open brackets somewhere, so we don't execute it
 			// as we are in a bracket we update the prompt. we use one . per layer pf brackets
 			l.SetPrompt(fmt.Sprintf("%s ", strings.Repeat(".", openState)))
-		default:
+		} else {
 			out, exit, diags := session.Handle(fullCommand)
 			if diags.HasErrors() {
 				c.showDiagnostics(diags)

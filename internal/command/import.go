@@ -30,6 +30,8 @@ type ImportCommand struct {
 }
 
 func (c *ImportCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	// Get the pwd since its our default -config flag value
 	pwd, err := os.Getwd()
 	if err != nil {
@@ -225,7 +227,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, state, ctxDiags := local.LocalRun(opReq)
+	lr, state, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -243,7 +245,7 @@ func (c *ImportCommand) Run(args []string) int {
 	// Perform the import. Note that as you can see it is possible for this
 	// API to import more than one resource at once. For now, we only allow
 	// one while we stabilize this feature.
-	newState, importDiags := lr.Core.Import(lr.Config, lr.InputState, &tofu.ImportOpts{
+	newState, importDiags := lr.Core.Import(ctx, lr.Config, lr.InputState, &tofu.ImportOpts{
 		Targets: []*tofu.ImportTarget{
 			{
 				CommandLineImportTarget: &tofu.CommandLineImportTarget{
@@ -315,6 +317,18 @@ Usage: tofu [global options] import [options] ADDR ID
   the resource being imported.
 
 Options:
+
+  -compact-warnings       If OpenTofu produces any warnings that are not
+                          accompanied by errors, show them in a more compact
+                          form that includes only the summary messages.
+
+  -consolidate-warnings   If OpenTofu produces any warnings, no consolodation
+                          will be performed. All locations, for all warnings
+                          will be listed. Enabled by default.
+
+  -consolidate-errors     If OpenTofu produces any errors, no consolodation
+                          will be performed. All locations, for all errors
+                          will be listed. Disabled by default
 
   -config=path            Path to a directory of OpenTofu configuration files
                           to use to configure the provider. Defaults to pwd.

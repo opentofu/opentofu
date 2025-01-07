@@ -8,6 +8,7 @@ package command
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -129,18 +130,26 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 		name := variable.Name
 		v, ok := variables[name]
 		if !ok {
-			// For now, we are simply failing when the user omits a required variable. This is due to complex interactions between variables in different code paths (apply existing plan for example)
-			// Ideally, we should be able to use something like backend_local.go:interactiveCollectVariables() in the future to allow users to provide values if input is enabled
-			// This is probably blocked by command package refactoring
 			if variable.Required() {
-				// Not specified on CLI or in var files, without a valid default.
-				return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Variable not provided via -var, tfvars files, or env",
-					Subject:  variable.DeclRange.Ptr(),
-				}}
+				// User prompts are best efforts, so we accept the input here
+				// and rely on downstream checks to validate it
+				rawVal, err := m.getInput(context.Background(), variable)
+				if err != nil {
+					return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  fmt.Sprintf("Failed to request input from user for variable var.%s", variable.Name),
+						Subject:  variable.DeclRange.Ptr(),
+					}}
+				}
+				v = unparsedVariableValueString{
+					str:        rawVal,
+					name:       name,
+					sourceType: tofu.ValueFromInput,
+				}
+				m.updateInputVariableCache(name, v)
+			} else {
+				return variable.Default, nil
 			}
-			return variable.Default, nil
 		}
 
 		parsed, parsedDiags := v.ParseVariableValue(variable.ParsingMode)
@@ -148,6 +157,24 @@ func (m *Meta) rootModuleCall(rootDir string) (configs.StaticModuleCall, tfdiags
 	}, rootDir, workspace)
 	m.rootModuleCallCache = &call
 	return call, diags
+}
+
+func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string, error) {
+	if !m.Input() {
+		return "", fmt.Errorf("input is disabled")
+	}
+	uiInput := m.UIInput()
+	rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
+		Id:          fmt.Sprintf("var.%s", variable.Name),
+		Query:       fmt.Sprintf("var.%s", variable.Name),
+		Description: variable.Description,
+		Secret:      variable.Sensitive,
+	})
+	if err != nil {
+		log.Printf("[TRACE] Meta.getInput Failed to prompt for %s: %s", variable.Name, err)
+		return "", err
+	}
+	return rawValue, nil
 }
 
 // loadSingleModuleWithTests matches loadSingleModule except it also loads any

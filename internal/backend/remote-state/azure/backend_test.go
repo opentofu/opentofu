@@ -45,6 +45,63 @@ func TestBackendConfig(t *testing.T) {
 	}
 }
 
+func TestBackendConfig_Timeout(t *testing.T) {
+	config := map[string]any{
+		"storage_account_name": "tfaccount",
+		"container_name":       "tfcontainer",
+		"key":                  "state",
+		"snapshot":             false,
+		// Access Key must be Base64
+		"access_key": "QUNDRVNTX0tFWQ0K",
+	}
+	testCases := []struct {
+		name           string
+		timeoutSeconds any
+		expectError    bool
+	}{
+		{
+			name:           "string timeout",
+			timeoutSeconds: "Nonsense",
+			expectError:    true,
+		},
+		{
+			name:           "negative timeout",
+			timeoutSeconds: -10,
+			expectError:    true,
+		},
+		{
+			// 0 is a valid timeout value, it disables the timeout
+			name:           "zero timeout",
+			timeoutSeconds: 0,
+		},
+		{
+			name:           "positive timeout",
+			timeoutSeconds: 10,
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			config["timeout_seconds"] = tc.timeoutSeconds
+			b, _, errors := backend.TestBackendConfigWarningsAndErrors(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config))
+			if tc.expectError {
+				if len(errors) == 0 {
+					t.Fatalf("Expected an error")
+				}
+				return
+			}
+			if !tc.expectError && len(errors) > 0 {
+				t.Fatalf("Expected no errors, got: %v", errors)
+			}
+			be, ok := b.(*Backend)
+			if !ok || be == nil {
+				t.Fatalf("Expected initialized Backend, got %T", b)
+			}
+			if be.armClient.timeoutSeconds != tc.timeoutSeconds {
+				t.Fatalf("Expected timeoutSeconds to be %d, got %d", tc.timeoutSeconds, be.armClient.timeoutSeconds)
+			}
+		})
+	}
+}
 func TestAccBackendAccessKeyBasic(t *testing.T) {
 	testAccAzureBackend(t)
 	rs := acctest.RandString(4)

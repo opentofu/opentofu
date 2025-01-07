@@ -54,6 +54,15 @@ func (b *Local) opApply(
 
 	var diags, moreDiags tfdiags.Diagnostics
 
+	// For the moment we have a bit of a tangled mess of context.Context here, for
+	// historical reasons. Hopefully we'll clean this up one day, but here's the
+	// guide for now:
+	// - ctx is used only for its values, and should be connected to the top-level ctx
+	//   from "package main" so that we can obtain telemetry objects, etc from it.
+	// - stopCtx is cancelled to trigger a graceful shutdown.
+	// - cancelCtx is cancelled for a graceless shutdown.
+	ctx := context.WithoutCancel(stopCtx)
+
 	// If we have a nil module at this point, then set it to an empty tree
 	// to avoid any potential crashes.
 	if op.PlanFile == nil && op.PlanMode != plans.DestroyMode && !op.HasConfig() {
@@ -72,7 +81,7 @@ func (b *Local) opApply(
 	op.Hooks = append(op.Hooks, stateHook)
 
 	// Get our context
-	lr, _, opState, contextDiags := b.localRun(op)
+	lr, _, opState, contextDiags := b.localRun(ctx, op)
 	diags = diags.Append(contextDiags)
 	if contextDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)
@@ -114,7 +123,7 @@ func (b *Local) opApply(
 	if op.PlanFile == nil {
 		// Perform the plan
 		log.Printf("[INFO] backend/local: apply calling Plan")
-		plan, moreDiags = lr.Core.Plan(lr.Config, lr.InputState, lr.PlanOpts)
+		plan, moreDiags = lr.Core.Plan(ctx, lr.Config, lr.InputState, lr.PlanOpts)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			// If OpenTofu Core generated a partial plan despite the errors
@@ -261,7 +270,7 @@ func (b *Local) opApply(
 		defer panicHandler()
 		defer close(doneCh)
 		log.Printf("[INFO] backend/local: apply calling Apply")
-		applyState, applyDiags = lr.Core.Apply(plan, lr.Config)
+		applyState, applyDiags = lr.Core.Apply(ctx, plan, lr.Config)
 	}()
 
 	if b.opWait(doneCh, stopCtx, cancelCtx, lr.Core, opState, op.View) {

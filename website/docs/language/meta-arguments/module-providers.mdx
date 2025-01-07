@@ -35,26 +35,36 @@ module "example" {
 }
 ```
 
+Each module in an OpenTofu configuration has its own separate namespace of
+provider configurations, but a child module's namespace is populated with
+configurations from the root module, either inheriting the default provider
+configurations automatically or explicitly passing them from the parent
+using the `providers` argument.
+
 ## Default Behavior: Inherit Default Providers
 
 If the child module does not declare any [configuration aliases](../../language/modules/develop/providers.mdx#provider-aliases-within-modules),
 the `providers` argument is optional. If you omit it, a child module inherits
-all of the _default_ provider configurations from its parent module. (Default
-provider configurations are ones that don't use the `alias` argument.)
+all of the
+[default provider configurations](../../language/providers/configuration.mdx#default-provider-configurations)
+from its parent module. (Default provider configurations are any that don't
+use the `alias` argument.)
 
 If you specify a `providers` argument, it cancels this default behavior, and the
-child module will _only_ have access to the provider configurations you specify.
+child module will only have access to the provider configurations you specify.
 
 ## Usage and Behavior
 
-The value of `providers` is a map, where:
+The `providers` argument uses a map-like syntax delimited by braces (`{`, `}`).
+In the given mapping:
 
-- The keys are the provider configuration names used inside the child module.
-- The values are provider configuration names from the parent module.
+- The keys are the provider configuration addresses that will be used inside the
+  child module.
+- The values are provider instance addresses from the parent module.
 
-Both keys and values should be unquoted references to provider configurations.
-For default configurations, this is the local name of the provider; for
-alternate configurations, this is a `<PROVIDER>.<ALIAS>` reference.
+Both parts use
+[provider instance reference syntax](../../language/providers/configuration.mdx#referring-to-provider-instances),
+which for alternative provider configurations appears as `<PROVIDER NAME>.<ALIAS>`.
 
 Within a child module, resources are assigned to provider configurations as
 normal — either OpenTofu chooses a default based on the name of the resource
@@ -117,6 +127,82 @@ Non-default provider configurations are never automatically inherited, so any
 module that works like this will always need a `providers` argument. The
 documentation for the module should specify all of the provider configuration
 names it needs.
+
+### Module instances with differing provider instances
+
+When you write a `provider` block using
+[the `for_each` meta-argument](../../language/providers/configuration.mdx#for_each-multiple-instances-of-a-provider-configuration)
+the provider configuration dynamically declares zero or more provider instances.
+
+If you also write a `module` block that uses `for_each` you can set its provider
+configuration addresses to refer to dynamically-chosen instances of a multi-instance
+provider configuration, which allows instantiating a module once per provider
+instance.
+
+For example, you might instantiate a module for each of a number of different AWS
+regions, declaring foundational infrastructure across all of the regions you use,
+with the module itself using only one default provider configuration that differs
+for each module instance:
+
+```hcl
+variable "aws_regions" {
+  type = map(object({
+    vpc_cidr_block = string
+  }))
+}
+
+provider "aws" {
+  alias    = "by_region"
+  for_each = var.aws_regions
+
+  region = each.key
+}
+
+module "per_region" {
+  source = "./per-region"
+  # This expression filters var.aws_regions to include only
+  # the elements whose value is not null. Refer to the
+  # warning in the text below for more information.
+  for_each = {
+    for region, config in var.aws_regions : region => config
+    if config != null
+  }
+  providers = {
+    aws = aws.by_region[each.key]
+  }
+
+  region_name    = each.key
+  vpc_cidr_block = each.value.vpc_cidr_block
+}
+```
+
+The module in `./per-region` should be written so that all of its AWS resources
+are bound to that module's default configuration for the AWS provider. The
+`providers` argument in the `module` block ensures that each instance of the
+module has its default configuration for the AWS provider bound to a different
+instance of `aws.by_region`.
+
+All instances of the module must refer to instances of the same provider
+configuration: only the expression in brackets (`each.key` in the above example)
+can vary between the instances of the module.
+
+:::warning
+**The `for_each` expression for a resource must not exactly match the
+`for_each` expression for its associated provider configuration.**
+
+OpenTofu uses a provider instance to plan and apply _all_ actions related
+to a resource instance, including destroying a resource instance that
+has been removed from the configuration.
+
+Therefore a provider instance passed into a child module that will declare
+resources associated with that provider instance must always remain in the
+configuration for at least one more plan/apply round after the module instance
+has been removed, or OpenTofu will fail to plan to destroy the resource instances
+declared in the module.
+
+You can find more information on this constraint in
+[Referring to Provider Instances](../../language/providers/configuration.mdx#referring-to-provider-instances).
+:::
 
 ## More Information for Module Developers
 

@@ -80,9 +80,13 @@ func Example() {
 	}
 
 	// Decrypt
-	decryptedState, err := sfe.DecryptState(encrypted)
+	decryptedState, status, err := sfe.DecryptState(encrypted)
 	if err != nil {
 		panic(err)
+	}
+
+	if status != encryption.StatusSatisfied {
+		panic(status)
 	}
 
 	fmt.Printf("%s\n", decryptedState)

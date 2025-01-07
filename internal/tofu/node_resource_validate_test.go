@@ -189,7 +189,7 @@ func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) 
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -257,7 +257,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 				NodeAbstractResource: &NodeAbstractResource{
 					Addr:             mustConfigResourceAddr("test_foo.bar"),
 					Config:           rc,
-					ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 			}
 
@@ -303,7 +303,7 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -339,7 +339,7 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_object.foo"),
 			Config:           rc,
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -376,7 +376,7 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -438,7 +438,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -522,7 +522,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 
@@ -605,7 +605,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 		NodeAbstractResource: &NodeAbstractResource{
 			Addr:             mustConfigResourceAddr("test_foo.bar"),
 			Config:           rc,
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 

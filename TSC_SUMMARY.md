@@ -8,6 +8,205 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
 
+## 2024-12-10
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+Internal housekeeping around hiring and marketing. No voting.
+
+## 2024-11-26
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+- Internal housekeeping around hiring and marketing. No voting.
+- Shall we bring the stack concept to OpenTofu?
+
+### Discussion:
+- Shall we bring the stack concept to OpenTofu?
+https://github.com/opentofu/opentofu/issues/931
+https://github.com/gruntwork-io/terragrunt/issues/3313#issuecomment-2469025204 
+Action Item: observe the issues ^
+Breaking down the state is a real issue for our users.
+
+## 2024-11-19
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+Internal housekeeping around hiring and marketing. No voting.
+
+## 2024-10-22
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Oleksandr Levchenkov ([@ollevche](https://github.com/ollevche))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+No concerns expressed, we publish the Registry Policy. You will find it in the registry github repository: https://github.com/opentofu/registry.
+
+## 2024-10-15
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Oleksandr Levchenkov ([@ollevche](https://github.com/ollevche))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Yousif Akbar ([@yhakbar](https://github.com/yhakbar)) (On behalf of Zach Goldberg)
+
+### Agenda
+
+#### Registry Policy
+
+Vote - as the topic is important for the project, we opt for a unanimous vote. We will ask Env0 to voice their concerns. If needed, discuss the next meeting. But we will vote to move the topic forward. The deadline for expressing the is 22 October/the next TSC meeting:
+
+- Policy: https://github.com/opentofu/registry/blob/main/POLICY.md (to be published on 23 October).
+- An initial vote was taken to escalate to the requirement of a unanimous vote, which passed.
+- Assuming we have unanimous consent (no pushback by the deadline), we will move forward with publishing the current policy as written on 2024/10/15 by the next TSC meeting.
+- The Tech Lead will respond to questions on the policy for existing issues/PRs and not take any action other than referring to the policy. We will need time to review actions already taken and potential future actions. Any significant communication will be cleared in the tsc+core Slack channel.
+- Vote: all TSC attending the meeting voted YES.
+
+### Registry Updates
+
+The core team reached out to the TSC for feedback/opinion on how to update the provider/module registry. Should we discover new providers (Github scrapping), rely on the community or authors to submit them, or take more balanced action? It is a mid priority currently.
+
+The core team considers the following options with regular cadence:
+
+- Option A:
+    - Add the providers’ metadata to our registry
+    - Optionally contact the maintainers to see if they could submit a GPG key
+- Option B:
+    - Contact maintainers of popular provider authors to add their provider and key to the registry.
+    - Could be limited to large clouds/services to reduce the scope
+    - There is a higher likelihood of getting more keys in the registry
+- Option C:
+    - Don’t do anything and expect users to submit providers they need or bug the provider authors themselves.
+
+The TSC recommends a split between Options B and C (especially for less popular providers/modules when polled earlier this week. Having a template for reaching out to the providers/module authors could help us communicate consistently.
+
+#### Discussion
+
+Discussion:
+
+- YousifA: for B, it would be good to have a template (polite and with instructions) that we can use to reach module/provider authors. C → everything else.
+- ChristianM: I like to use stars/forks to see what providers/modules are popular
+- RogerS: B, Can we get the same results from the community? The community could create a list of popular modules/providers missing from the OpenTofu registry. We would contact the authors.
+- WojciechB: For B, I would prefer that the core team contact the authors of popular modules/providers instead of the community members.
+- OleksandrC: C, we can use it as an opportunity to build relationships with large companies/collaborations/blogposts (see IntelliJ).
+- Christian: this task has medium priority.
+
+### Migration from Notion to Google Docs
+
+It will be on hold till Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) is back from holidays.
+
+## 2024-10-09
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Oleksandr Levchenkov ([@ollevche](https://github.com/ollevche))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Yousif Akbar ([@yhakbar](https://github.com/yhakbar)) (On behalf of Zach Goldberg)
+
+### Agenda
+
+### Getting Better About Communicating TSC Meetings
+
+The committee discussed the need to improve communication about TSC meetings and the decisions made during them.
+
+Going forward, a new process will be implemented to ensure that the community is kept informed about the TSC's activities:
+
+- At the beginning of each meeting, the TSC will review an asynchronously authored summary of the previous meeting to ensure
+that it accurately reflects the decisions made, and the thought process behind decisions is communicated effectively.
+- Within 24 hours of the meeting, the TSC will publish the summary of the previous meeting to the OpenTofu community.
+- Before the next meeting, someone from the TSC will volunteer to author the summary of the current meeting, and the process will
+repeat.
+
+The objective of this process is to ensure that the community is kept informed about the TSC's activities and decisions in a timely manner.
+
+### Registry Policy
+
+The committee continued discussions regarding this, and progress was made towards determining the best way to handle the policy.
+
+The discussions included considerations like the following:
+
+- How broad or specific the policy should be.
+- How to handle the policy's enforcement.
+- What the impact of the policy will be on the community.
+
+## 2024-10-01
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Yousif Akbar ([@yhakbar](https://github.com/yhakbar)) (On behalf of Zach Goldberg)
+
+### Agenda
+
+#### Static Evaluation Sensitivity Bug
+
+- Christian: I'm working on a draft to report a security issue with static evaluation of variables.
+    - It can lead to variables marked sensitive being exposed, due to the fact that static
+      evaluation of sensitive variables in module sources, versions, etc might
+      result in sensitive values being written to disk.
+    - What is the best way to tackle breaking this behavior? Should it be removed in a patch release?
+- Igor: This is an issue, but breaking behavior in a patch release is not ideal. 
+    - It might be best to fix it in a minor release.
+    - There's risk that some users consider a breaking change like this really surprising.
+- Yousif: I agree with Igor. The behavior should be addressed in a minor release.
+    - In the interim, would it be possible to emit a warning when users are using sensitive variables in contexts
+      that might expose them?
+    - Users could then be made aware of the issue and take steps to mitigate it before the fix is released.
+    - We could also consider adding a flag to opt-in to allowing sensitive variables in these contexts.
+- Christian: I'll look into adding a warning, but I'm not sure there's a sensible reason to use sensitive variables in these contexts.
+- Igor: Many community members asked for this functionality to be able to include tokens for fetching private modules.
+    - They'll rely on the ability to use sensitive variables in contexts where they might be exposed in `.terraform.lock.hcl` files.
+- Christian: That's a good point. Users might need a mechanism to opt-in to existing behavior.
+   - I'll report this issue, then communicate the plan to address it with a warning in a patch, and fix it in a minor release.
+
+#### OpenTofu Registry Policy
+
+This topic is complex, and the committee is working to finalize a policy that will be acceptable to all parties.
+
+To avoid harassment of any committee members, the comments made by individual members will not be attributed to them in the minutes.
+
+It was discussed that the policy should be clear on what the OpenTofu Steering Committee must do by law,
+and how much flexibility the committee has in making decisions.
+
+The committee agreed to revisit the topic in the following meeting.
+
 ## 2024-08-20
 
 ### Attendees

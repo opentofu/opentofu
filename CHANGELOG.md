@@ -1,4 +1,4 @@
-## 1.9.0 (Unreleased)
+## 1.10.0 (Unreleased)
 
 UPGRADE NOTES:
 
@@ -6,23 +6,24 @@ UPGRADE NOTES:
 
 NEW FEATURES:
 
+- New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
+  - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
+  - `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
+  - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
+
 ENHANCEMENTS:
-* Added `-show-sensitive` flag to tofu plan, apply, state-show and output commands to display sensitive data in output. ([#1554](https://github.com/opentofu/opentofu/pull/1554))
-* Improved performance for large graphs when debug logs are not enabled. ([#1810](https://github.com/opentofu/opentofu/pull/1810))
-* Improved performance for large graphs with many submodules. ([#1809](https://github.com/opentofu/opentofu/pull/1809))
-* Added multi-line support to the `tofu console` command. ([#1307](https://github.com/opentofu/opentofu/issues/1307))
-* Added a help target to the Makefile. ([#1925](https://github.com/opentofu/opentofu/pull/1925))
-* Added a simplified Build Process with a Makefile Target ([#1926](https://github.com/opentofu/opentofu/issues/1926))
-* Added for-each support to providers. ([#300](https://github.com/opentofu/opentofu/issues/300))
+* OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
 
 BUG FIXES:
-* Ensure that using a sensitive path for templatefile that it doesn't panic([#1801](https://github.com/opentofu/opentofu/issues/1801))
-* Fixed crash when module source is not present ([#1888](https://github.com/opentofu/opentofu/pull/1888))
+* `tofu init` command does not attempt to read encryption keys when `-backend=false` flag is set. (https://github.com/opentofu/opentofu/pull/2293)
+
+* Changes in `create_before_destroy` for resources which require replacement are now properly handled when refresh is disabled. ([#2248](https://github.com/opentofu/opentofu/pull/2248))
 
 ## Previous Releases
 
 For information on prior major and minor releases, see their changelogs:
 
+- [v1.9](https://github.com/opentofu/opentofu/blob/v1.9/CHANGELOG.md)
 - [v1.8](https://github.com/opentofu/opentofu/blob/v1.8/CHANGELOG.md)
 - [v1.7](https://github.com/opentofu/opentofu/blob/v1.7/CHANGELOG.md)
 - [v1.6](https://github.com/opentofu/opentofu/blob/v1.6/CHANGELOG.md)

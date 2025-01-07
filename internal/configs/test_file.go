@@ -100,14 +100,14 @@ func (file *TestFile) getTestProviderOrMock(addr string) (*Provider, bool) {
 	mockProvider, ok := file.MockProviders[addr]
 	if ok {
 		p := &Provider{
-			ProviderCommon: ProviderCommon{
-				Name:          mockProvider.Name,
-				NameRange:     mockProvider.NameRange,
-				DeclRange:     mockProvider.DeclRange,
-				IsMocked:      true,
-				MockResources: mockProvider.MockResources,
-			},
-			Alias: mockProvider.Alias,
+			Name:              mockProvider.Name,
+			NameRange:         mockProvider.NameRange,
+			Alias:             mockProvider.Alias,
+			AliasRange:        mockProvider.AliasRange,
+			DeclRange:         mockProvider.DeclRange,
+			IsMocked:          true,
+			MockResources:     mockProvider.MockResources,
+			OverrideResources: mockProvider.OverrideResources,
 		}
 
 		return p, true
@@ -319,7 +319,8 @@ type MockProvider struct {
 
 	// Fields below are specific to configs.MockProvider:
 
-	MockResources []*MockResource
+	MockResources     []*MockResource
+	OverrideResources []*OverrideResource
 }
 
 // moduleUniqueKey is copied from Provider.moduleUniqueKey
@@ -328,6 +329,58 @@ func (p *MockProvider) moduleUniqueKey() string {
 		return fmt.Sprintf("%s.%s", p.Name, p.Alias)
 	}
 	return p.Name
+}
+
+func (p *MockProvider) validateMockResources() hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	managedResources := make(map[string]struct{})
+	dataResources := make(map[string]struct{})
+
+	for _, res := range p.MockResources {
+		resources := managedResources
+		if res.Mode == addrs.DataResourceMode {
+			resources = dataResources
+		}
+
+		if _, ok := resources[res.Type]; ok {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
+				Detail:   fmt.Sprintf("`%v.%v` is already defined in `mock_provider` block.", res.getBlockName(), res.Type),
+				Subject:  p.DeclRange.Ptr(),
+			})
+			continue
+		}
+
+		resources[res.Type] = struct{}{}
+	}
+
+	return diags
+}
+
+func (p *MockProvider) validateOverrideResources() hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	resources := make(map[string]struct{})
+
+	for _, res := range p.OverrideResources {
+		k := res.TargetParsed.String()
+
+		if _, ok := resources[k]; ok {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
+				Detail:   fmt.Sprintf("`%v` with target `%v` is already defined in `mock_provider` block.", res.getBlockName(), k),
+				Subject:  p.DeclRange.Ptr(),
+			})
+			continue
+		}
+
+		resources[k] = struct{}{}
+	}
+
+	return diags
 }
 
 const (
@@ -397,31 +450,17 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 			}
 
 		case "provider":
-			providerBlock, providerDiags := decodeProviderBlock(block)
+			provider, providerDiags := decodeProviderBlock(block)
 			diags = append(diags, providerDiags...)
-			if providerBlock != nil {
-				providers, diagsStatic := providerBlock.decodeStaticFields(nil)
-				diags = append(diags, diagsStatic...)
-				if diagsStatic.HasErrors() {
-					continue
-				}
-				for _, provider := range providers {
-					tf.Providers[provider.Addr().StringCompact()] = provider
-				}
+			if provider != nil {
+				tf.Providers[provider.moduleUniqueKey()] = provider
 			}
 
-		case blockNameOverrideResource:
-			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+		case blockNameOverrideResource, blockNameOverrideData:
+			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block)
 			diags = append(diags, overrideResDiags...)
 			if !overrideResDiags.HasErrors() {
 				tf.OverrideResources = append(tf.OverrideResources, overrideRes)
-			}
-
-		case blockNameOverrideData:
-			overrideData, overrideDataDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
-			diags = append(diags, overrideDataDiags...)
-			if !overrideDataDiags.HasErrors() {
-				tf.OverrideResources = append(tf.OverrideResources, overrideData)
 			}
 
 		case blockNameOverrideModule:
@@ -535,18 +574,11 @@ func decodeTestRunBlock(block *hcl.Block) (*TestRun, hcl.Diagnostics) {
 				r.Module = module
 			}
 
-		case blockNameOverrideResource:
-			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block, addrs.ManagedResourceMode)
+		case blockNameOverrideResource, blockNameOverrideData:
+			overrideRes, overrideResDiags := decodeOverrideResourceBlock(block)
 			diags = append(diags, overrideResDiags...)
 			if !overrideResDiags.HasErrors() {
 				r.OverrideResources = append(r.OverrideResources, overrideRes)
-			}
-
-		case blockNameOverrideData:
-			overrideData, overrideDataDiags := decodeOverrideResourceBlock(block, addrs.DataResourceMode)
-			diags = append(diags, overrideDataDiags...)
-			if !overrideDataDiags.HasErrors() {
-				r.OverrideResources = append(r.OverrideResources, overrideData)
 			}
 
 		case blockNameOverrideModule:
@@ -771,7 +803,7 @@ func decodeTestRunOptionsBlock(block *hcl.Block) (*TestRunOptions, hcl.Diagnosti
 	return &opts, diags
 }
 
-func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*OverrideResource, hcl.Diagnostics) {
+func decodeOverrideResourceBlock(block *hcl.Block) (*OverrideResource, hcl.Diagnostics) {
 	parseTarget := func(attr *hcl.Attribute) (hcl.Traversal, *addrs.ConfigResource, hcl.Diagnostics) {
 		traversal, traversalDiags := hcl.AbsTraversalForExpr(attr.Expr)
 		diags := traversalDiags
@@ -788,8 +820,15 @@ func decodeOverrideResourceBlock(block *hcl.Block, mode addrs.ResourceMode) (*Ov
 		return traversal, &configRes, diags
 	}
 
-	res := &OverrideResource{
-		Mode: mode,
+	res := &OverrideResource{}
+
+	switch block.Type {
+	case blockNameOverrideResource:
+		res.Mode = addrs.ManagedResourceMode
+	case blockNameOverrideData:
+		res.Mode = addrs.DataResourceMode
+	default:
+		panic("BUG: unsupported block type for override resource: " + block.Type)
 	}
 
 	content, diags := block.Body.Content(overrideResourceBlockSchema)
@@ -883,37 +922,25 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 		}
 	}
 
-	var (
-		managedResources = make(map[string]struct{})
-		dataResources    = make(map[string]struct{})
-	)
-
 	for _, block := range content.Blocks {
-		res, resDiags := decodeMockResourceBlock(block)
-		diags = append(diags, resDiags...)
-		if resDiags.HasErrors() {
-			continue
+		switch block.Type {
+		case blockNameMockData, blockNameMockResource:
+			res, resDiags := decodeMockResourceBlock(block)
+			diags = append(diags, resDiags...)
+			if !resDiags.HasErrors() {
+				provider.MockResources = append(provider.MockResources, res)
+			}
+		case blockNameOverrideData, blockNameOverrideResource:
+			res, resDiags := decodeOverrideResourceBlock(block)
+			diags = append(diags, resDiags...)
+			if !resDiags.HasErrors() {
+				provider.OverrideResources = append(provider.OverrideResources, res)
+			}
 		}
-
-		resources := managedResources
-		if res.Mode == addrs.DataResourceMode {
-			resources = dataResources
-		}
-
-		if _, ok := resources[res.Type]; ok {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  fmt.Sprintf("Duplicated `%v` block", res.getBlockName()),
-				Detail:   fmt.Sprintf("`%v.%v` is already defined in `mock_provider` block.", res.getBlockName(), res.Type),
-				Subject:  provider.DeclRange.Ptr(),
-			})
-			continue
-		}
-
-		resources[res.Type] = struct{}{}
-
-		provider.MockResources = append(provider.MockResources, res)
 	}
+
+	diags = append(diags, provider.validateMockResources()...)
+	diags = append(diags, provider.validateOverrideResources()...)
 
 	return provider, diags
 }
@@ -1010,17 +1037,21 @@ func checkForDuplicatedOverrideModules(modules []*OverrideModule) hcl.Diagnostic
 	return diags
 }
 
+// testFileSchema defines the structure of test file configuration for tofu tests.
 var testFileSchema = &hcl.BodySchema{
 	Blocks: []hcl.BlockHeaderSchema{
 		{
+			// run block defines the steps to execute during a test run.
 			Type:       "run",
 			LabelNames: []string{"name"},
 		},
 		{
+			// provider block specifies the infrastructure provider to use for the test.
 			Type:       "provider",
 			LabelNames: []string{"name"},
 		},
 		{
+			// variables block defines input variables to pass to the test.
 			Type: "variables",
 		},
 		{
@@ -1039,23 +1070,32 @@ var testFileSchema = &hcl.BodySchema{
 	},
 }
 
+// testRunBlockSchema defines the structure of the run block within a test,
+// including attributes like the command, expected failures, and providers.
 var testRunBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
+		// command specifies the shell command or script to execute during the test.
 		{Name: "command"},
+		// providers defines the list of infrastructure providers used during the test.
 		{Name: "providers"},
+		// expect_failures indicates whether test failures are expected.
 		{Name: "expect_failures"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{
+			// plan_options block configures options for the planning phase of the test.
 			Type: "plan_options",
 		},
 		{
+			// assert block allows defining conditions that must be met for the test to pass.
 			Type: "assert",
 		},
 		{
+			// variables block provides input variables to be used during the test.
 			Type: "variables",
 		},
 		{
+			// module block specifies the module to be tested.
 			Type: "module",
 		},
 		{
@@ -1070,18 +1110,28 @@ var testRunBlockSchema = &hcl.BodySchema{
 	},
 }
 
+// testRunOptionsBlockSchema defines the structure of the plan_options block
+// within a test, allowing configuration of test planning behavior.
 var testRunOptionsBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
+		// mode defines the execution mode for the plan (e.g., apply or destroy).
 		{Name: "mode"},
+		// refresh determines whether resources should be refreshed before planning.
 		{Name: "refresh"},
+		// replace specifies the resources to be replaced during the plan.
 		{Name: "replace"},
+		// target lists the specific resources to target during the plan.
 		{Name: "target"},
 	},
 }
 
+// testRunModuleBlockSchema defines the structure of the module block within a test run,
+// including attributes for the module's source and version.
 var testRunModuleBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
+		// source specifies the source of the module (e.g., a Git URL or local path).
 		{Name: "source"},
+		// version specifies the version of the module to use.
 		{Name: "version"},
 	},
 }
@@ -1130,6 +1180,12 @@ var mockProviderBlockSchema = &hcl.BodySchema{
 		{
 			Type:       blockNameMockData,
 			LabelNames: []string{"type"},
+		},
+		{
+			Type: blockNameOverrideResource,
+		},
+		{
+			Type: blockNameOverrideData,
 		},
 	},
 }

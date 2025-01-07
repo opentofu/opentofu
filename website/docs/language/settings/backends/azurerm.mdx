@@ -256,6 +256,12 @@ The following configuration options are supported:
   An `endpoint` should only be configured when using Azure Stack.
   :::
 
+* `timeout_seconds` - (Optional) The number of seconds before a timeout is reached when attempting to initialize a client, retrieve a Blob or a Metadata from Azure. This can also be sourced from the `ARM_TIMEOUT_SECONDS` environment variable. Defaults to `300` (5 minutes). To disable the timeout, set this to `0`.
+
+  :::warning Note
+  Setting `timeout_seconds` to `0` or a large value only disables/extends timeouts originating from OpenTofu. Requests will still time out based on your system's network configuration.
+  :::
+
 * `metadata_host` - (Optional) The Hostname of the Azure Metadata Service (for example `management.azure.com`), used to obtain the Cloud Environment when using a Custom Azure Environment. This can also be sourced from the `ARM_METADATA_HOSTNAME` Environment Variable.
 
 * `snapshot` - (Optional) Should the Blob used to store the OpenTofu Statefile be snapshotted before use? Defaults to `false`. This value can also be sourced from the `ARM_SNAPSHOT` environment variable.

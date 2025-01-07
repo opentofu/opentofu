@@ -235,57 +235,102 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 	}
 }
 
-func TestModuleInstaller_ExactMatchPrerelease(t *testing.T) {
+func TestModuleInstaller_Prerelease(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip("this test accesses registry.opentofu.org and github.com; set TF_ACC=1 to run it")
 	}
 
-	fixtureDir := filepath.Clean("testdata/prerelease-version-constraint-match")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
-
-	hooks := &testInstallHooks{}
-
-	modulesDir := filepath.Join(dir, ".terraform/modules")
-
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
-	cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
-
-	if diags.HasErrors() {
-		t.Fatalf("found unexpected errors: %s", diags.Err())
+	testCases := []struct {
+		name            string
+		modulePath      string
+		expectedVersion string
+		shouldError     bool
+	}{
+		{
+			name:            "exact match",
+			modulePath:      "testdata/prerelease-constraint-match",
+			expectedVersion: "v0.0.3-alpha.1",
+		},
+		{
+			name:            "exact match v prefix",
+			modulePath:      "testdata/prerelease-constraint-v-match",
+			expectedVersion: "v0.0.3-alpha.1",
+		},
+		{
+			name:            "exact match eq selector",
+			modulePath:      "testdata/prerelease-constraint-eq-match",
+			expectedVersion: "v0.0.3-alpha.1",
+		},
+		{
+			name:            "exact match v prefix eq selector",
+			modulePath:      "testdata/prerelease-constraint-v-eq-match",
+			expectedVersion: "v0.0.3-alpha.1",
+		},
+		{
+			name:            "partial match",
+			modulePath:      "testdata/prerelease-constraint",
+			expectedVersion: "v0.0.2",
+		},
+		{
+			name:            "partial match v prefix",
+			modulePath:      "testdata/prerelease-constraint-v",
+			expectedVersion: "v0.0.2",
+		},
+		{
+			name:        "multiple constraints",
+			modulePath:  "testdata/prerelease-constraint-multiple",
+			shouldError: true,
+			// NOTE: This one fails because we don't support mixing a prerelease version
+			// selection with other constraints in a single constraint string. This is
+			// unfortunate but accepted for now as a concession to backward compatibility
+			// until we have a more complete plan on how to deal with the various legacy
+			// quirks of our version constraint matching.
+			//
+			// For more information:
+			//     https://github.com/opentofu/opentofu/issues/2117
+		},
+		{
+			name:        "err",
+			modulePath:  "testdata/prerelease-constraint-err",
+			shouldError: true,
+		},
+		{
+			name:        "err v prefix",
+			modulePath:  "testdata/prerelease-constraint-v-err",
+			shouldError: true,
+		},
 	}
 
-	if !cfg.Children["acctest_exact"].Version.Equal(version.Must(version.NewVersion("v0.0.3-alpha.1"))) {
-		t.Fatalf("expected version %s but found version %s", "v0.0.3-alpha.1", cfg.Version.String())
-	}
-}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			fixtureDir := filepath.Clean(tc.modulePath)
+			dir, done := tempChdir(t, fixtureDir)
+			defer done()
 
-func TestModuleInstaller_PartialMatchPrerelease(t *testing.T) {
-	if os.Getenv("TF_ACC") == "" {
-		t.Skip("this test accesses registry.opentofu.org and github.com; set TF_ACC=1 to run it")
-	}
+			hooks := &testInstallHooks{}
 
-	fixtureDir := filepath.Clean("testdata/prerelease-version-constraint")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+			modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	hooks := &testInstallHooks{}
+			loader, closeLoader := configload.NewLoaderForTests(t)
+			defer closeLoader()
+			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+			cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
-	modulesDir := filepath.Join(dir, ".terraform/modules")
+			if tc.shouldError {
+				if !diags.HasErrors() {
+					t.Fatalf("an error was expected, but none was found")
+				}
+				return
+			}
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
-	cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
+			if diags.HasErrors() {
+				t.Fatalf("found unexpected errors: %s", diags.Err())
+			}
 
-	if diags.HasErrors() {
-		t.Fatalf("found unexpected errors: %s", diags.Err())
-	}
-
-	if !cfg.Children["acctest_partial"].Version.Equal(version.Must(version.NewVersion("v0.0.2"))) {
-		t.Fatalf("expected version %s but found version %s", "v0.0.2", cfg.Version.String())
+			if !cfg.Children["acctest"].Version.Equal(version.Must(version.NewVersion(tc.expectedVersion))) {
+				t.Fatalf("expected version %s but found version %s", tc.expectedVersion, cfg.Version.String())
+			}
+		})
 	}
 }
 

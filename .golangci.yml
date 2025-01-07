@@ -30,10 +30,21 @@ linters-settings:
     require-specific: true
 
   cyclop:
-    max-complexity: 15
+    max-complexity: 20
 
   gocognit:
     min-complexity: 50
+
+  goconst:
+    ignore-tests: true # Is documented to be the default behaviour, but that doesn't seem to be the case
+
+  gocritic:
+    settings:
+      ifElseChain:
+        minThreshold: 4
+
+  nestif:
+    min-complexity: 6
 
 issues:
   exclude-rules:
@@ -41,6 +52,13 @@ issues:
       linters:
         - funlen
         - dupl
+        - revive
+        - gocognit
+        - cyclop
+    - path: (.+)_test.go
+      text: "ST1003"
+    - path: (.+)_test.go
+      text: "var-naming: don't use underscores in Go names"
 
 linters:
   disable-all: true
@@ -49,7 +67,7 @@ linters:
     - asciicheck
     - bidichk
     - bodyclose
-    - cyclop
+    #- cyclop # (refer to .golangci-complexity.yml)
     - dupl
     - durationcheck
     - errcheck
@@ -58,14 +76,14 @@ linters:
     - exhaustive
     - exportloopref
     - forbidigo
-    - funlen
+    #- funlen # (refer to .golangci-complexity.yml)
     - gocheckcompilerdirectives
     - gochecknoglobals
     - gochecknoinits
-    - gocognit
+    #- gocognit # (refer to .golangci-complexity.yml)
     - goconst
     - gocritic
-    - gocyclo
+    #- gocyclo # (refer to .golangci-complexity.yml)
     - goimports
     #- gomoddirectives Disabled while we deal with the HCL fork
     - gomodguard
@@ -80,7 +98,7 @@ linters:
     - mnd
     - musttag
     - nakedret
-    - nestif
+    #- nestif # (refer to .golangci-complexity.yml)
     - nilerr
     - nilnil
     - noctx

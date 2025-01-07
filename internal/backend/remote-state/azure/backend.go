@@ -14,6 +14,8 @@ import (
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )
 
+const defaultTimeout = 300 // 5 minutes
+
 // New creates a new backend for Azure remote state.
 func New(enc encryption.StateEncryption) backend.Backend {
 	s := &schema.Backend{
@@ -89,6 +91,20 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				Optional:    true,
 				Description: "A custom Endpoint used to access the Azure Resource Manager API's.",
 				DefaultFunc: schema.EnvDefaultFunc("ARM_ENDPOINT", ""),
+			},
+
+			"timeout_seconds": {
+				Type:        schema.TypeInt,
+				Optional:    true,
+				Description: "The timeout in seconds for initializing a client or retrieving a Blob or a Metadata from Azure.",
+				DefaultFunc: schema.EnvDefaultFunc("ARM_TIMEOUT_SECONDS", defaultTimeout),
+				ValidateFunc: func(v interface{}, _ string) ([]string, []error) {
+					value, ok := v.(int)
+					if !ok || value < 0 {
+						return nil, []error{fmt.Errorf("timeout_seconds expected to be a non-negative integer")}
+					}
+					return nil, nil
+				},
 			},
 
 			"subscription_id": {
@@ -211,6 +227,7 @@ type BackendConfig struct {
 	ClientCertificatePath         string
 	ClientSecret                  string
 	CustomResourceManagerEndpoint string
+	TimeoutSeconds                int
 	MetadataHost                  string
 	Environment                   string
 	MsiEndpoint                   string
@@ -227,6 +244,7 @@ type BackendConfig struct {
 	UseAzureADAuthentication      bool
 }
 
+//nolint:errcheck //at this stage type conversion is safe
 func (b *Backend) configure(ctx context.Context) error {
 	if b.containerName != "" {
 		return nil
@@ -246,6 +264,7 @@ func (b *Backend) configure(ctx context.Context) error {
 		ClientCertificatePath:         data.Get("client_certificate_path").(string),
 		ClientSecret:                  data.Get("client_secret").(string),
 		CustomResourceManagerEndpoint: data.Get("endpoint").(string),
+		TimeoutSeconds:                data.Get("timeout_seconds").(int),
 		MetadataHost:                  data.Get("metadata_host").(string),
 		Environment:                   data.Get("environment").(string),
 		MsiEndpoint:                   data.Get("msi_endpoint").(string),

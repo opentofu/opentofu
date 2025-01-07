@@ -29,6 +29,7 @@ type ApplyCommand struct {
 
 func (c *ApplyCommand) Run(rawArgs []string) int {
 	var diags tfdiags.Diagnostics
+	ctx := c.CommandContext()
 
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
@@ -134,7 +135,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	diags = nil
 
 	// Run the operation
-	op, diags := c.RunOperation(be, opReq)
+	op, diags := c.RunOperation(ctx, be, opReq)
 	view.Diagnostics(diags)
 	if diags.HasErrors() {
 		return 1
@@ -284,6 +285,7 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.PlanFile = planFile
 	opReq.PlanRefresh = args.Refresh
 	opReq.Targets = args.Targets
+	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace
 	opReq.Type = backend.OperationTypeApply
 	opReq.View = view.Operation()
@@ -355,6 +357,14 @@ Options:
   -compact-warnings      If OpenTofu produces any warnings that are not
                          accompanied by errors, show them in a more compact
                          form that includes only the summary messages.
+
+  -consolidate-warnings  If OpenTofu produces any warnings, no consolodation
+                         will be performed. All locations, for all warnings
+                         will be listed. Enabled by default.
+
+  -consolidate-errors    If OpenTofu produces any errors, no consolodation
+                         will be performed. All locations, for all errors
+                         will be listed. Disabled by default
 
   -destroy               Destroy OpenTofu-managed infrastructure.
                          The command "tofu destroy" is a convenience alias

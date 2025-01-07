@@ -115,3 +115,51 @@ func TestGet_cancel(t *testing.T) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
 }
+
+func TestGetCommand_InvalidArgs(t *testing.T) {
+	testCases := []struct {
+		name     string
+		args     []string
+		expected string
+	}{
+		{
+			name:     "TooManyArgs",
+			args:     []string{"too", "many", "args"},
+			expected: "Too many command line arguments",
+		},
+		{
+			name:     "InvalidArgFormat",
+			args:     []string{"--invalid-arg"},
+			expected: "flag provided but not defined",
+		},
+		{
+			name:     "MixedValidAndInvalidArgs",
+			args:     []string{"--update", "--invalid-arg"},
+			expected: "flag provided but not defined",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			wd := tempWorkingDirFixture(t, "get")
+			defer testChdir(t, wd.RootModuleDir())()
+
+			ui := cli.NewMockUi()
+			c := &GetCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(testProvider()),
+					Ui:               ui,
+					WorkingDir:       wd,
+				},
+			}
+
+			if code := c.Run(tc.args); code != 1 {
+				t.Errorf("Expected error code 1 for invalid arguments, got %d", code)
+			}
+
+			if !strings.Contains(ui.ErrorWriter.String(), tc.expected) {
+				t.Errorf("Expected error message to contain '%s', got: %s", tc.expected, ui.ErrorWriter.String())
+			}
+		})
+	}
+}

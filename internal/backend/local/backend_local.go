@@ -26,7 +26,7 @@ import (
 )
 
 // backend.Local implementation.
-func (b *Local) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
+func (b *Local) LocalRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
 	// Make sure the type is invalid. We use this as a way to know not
 	// to ask for input/validate. We're modifying this through a pointer,
 	// so we're mutating an object that belongs to the caller here, which
@@ -37,11 +37,11 @@ func (b *Local) LocalRun(op *backend.Operation) (*backend.LocalRun, statemgr.Ful
 
 	op.StateLocker = op.StateLocker.WithContext(context.Background())
 
-	lr, _, stateMgr, diags := b.localRun(op)
+	lr, _, stateMgr, diags := b.localRun(ctx, op)
 	return lr, stateMgr, diags
 }
 
-func (b *Local) localRun(op *backend.Operation) (*backend.LocalRun, *configload.Snapshot, statemgr.Full, tfdiags.Diagnostics) {
+func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, *configload.Snapshot, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Get the latest state.
@@ -124,7 +124,7 @@ func (b *Local) localRun(op *backend.Operation) (*backend.LocalRun, *configload.
 			mode := tofu.InputModeProvider
 
 			log.Printf("[TRACE] backend/local: requesting interactive input, if necessary")
-			inputDiags := ret.Core.Input(ret.Config, mode)
+			inputDiags := ret.Core.Input(ctx, ret.Config, mode)
 			diags = diags.Append(inputDiags)
 			if inputDiags.HasErrors() {
 				return nil, nil, nil, diags
@@ -134,7 +134,7 @@ func (b *Local) localRun(op *backend.Operation) (*backend.LocalRun, *configload.
 		// If validation is enabled, validate
 		if b.OpValidation {
 			log.Printf("[TRACE] backend/local: running validation operation")
-			validateDiags := ret.Core.Validate(ret.Config)
+			validateDiags := ret.Core.Validate(ctx, ret.Config)
 			diags = diags.Append(validateDiags)
 		}
 	}
@@ -203,6 +203,7 @@ func (b *Local) localRunDirect(op *backend.Operation, run *backend.LocalRun, cor
 	planOpts := &tofu.PlanOpts{
 		Mode:               op.PlanMode,
 		Targets:            op.Targets,
+		Excludes:           op.Excludes,
 		ForceReplace:       op.ForceReplace,
 		SetVariables:       variables,
 		SkipRefresh:        op.Type != backend.OperationTypeRefresh && !op.PlanRefresh,

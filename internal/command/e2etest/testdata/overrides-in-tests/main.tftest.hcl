@@ -4,10 +4,16 @@ override_module {
 
 override_resource {
     target = local_file.dont_create_me
+    values = {
+        file_permission = "000"
+    }
 }
 
 override_resource {
     target = module.first.local_file.dont_create_me
+    values = {
+        file_permission = "000"
+    }
 }
 
 run "check_root_overridden_res" {
@@ -223,16 +229,10 @@ run "check_for_each_n_count_overridden" {
 }
 
 # ensures non-aliased provider is mocked by default
-mock_provider "aws" {
-  mock_resource "aws_s3_bucket" {
+mock_provider "http" {
+  mock_data "http" {
     defaults = {
-      arn = "arn:aws:s3:::mocked"
-    }
-  }
-
-  mock_data "aws_s3_bucket" {
-    defaults = {
-      bucket_domain_name = "mocked.com"
+      response_body = "I am mocked!"
     }
   }
 }
@@ -241,6 +241,12 @@ mock_provider "aws" {
 # and aliased one is mocked
 mock_provider "local" {
   alias = "aliased"
+
+  mock_resource "local_file" {
+    defaults = {
+        file_permission = "000"
+    }
+  }
 }
 
 # ensures we can use this provider in run's providers block
@@ -267,13 +273,8 @@ mock_provider "random" {
 
 run "check_mock_providers" {
   assert {
-    condition     = resource.aws_s3_bucket.test.arn == "arn:aws:s3:::mocked"
-    error_message = "aws s3 bucket resource doesn't have mocked values"
-  }
-
-  assert {
-    condition     = data.aws_s3_bucket.test.bucket_domain_name == "mocked.com"
-    error_message = "aws s3 bucket data doesn't have mocked values"
+    condition     = data.http.first.response_body == "I am mocked!"
+    error_message = "http data doesn't have mocked values"
   }
 
   assert {
@@ -294,7 +295,8 @@ run "check_mock_providers" {
 
 run "check_providers_block" {
   providers = {
-    aws           = aws
+    http          = http
+    http.aliased  = http.aliased
     local.aliased = local.aliased
     random        = random.for_pets
   }
@@ -308,4 +310,77 @@ run "check_providers_block" {
     condition     = resource.random_integer.aliased.id != "11"
     error_message = "random integer should not be mocked if providers block present"
   }
+}
+
+# http.aliased provider is not used directly,
+# but we don't want http provider to make any
+# requests.
+mock_provider "http" {
+    alias = "aliased"
+}
+
+mock_provider "http" {
+    alias = "with_mock_and_override"
+
+    mock_data "http" {
+        defaults = {
+            response_body = "mocked"
+        }
+    }
+
+        override_data {
+        target = data.http.first
+        values = {
+            response_body = "overridden [first]"
+        }
+    }
+
+    override_data {
+        target = data.http.second
+        values = {
+            response_body = "overridden [second]"
+        }
+    }
+}
+
+# This test ensures override_data works
+# inside a provider block and priority 
+# between mocks and overrides is correct.
+run "check_mock_provider_override" {
+    providers = {
+        http = http.with_mock_and_override
+        http.aliased = http.with_mock_and_override
+        local.aliased = local.aliased
+    }
+
+    assert {
+      condition = data.http.first.response_body == "overridden [first]"
+      error_message = "HTTP response body is not mocked"
+    }
+
+    assert {
+      condition = data.http.second.response_body == "overridden [second]"
+      error_message = "HTTP response body is not overridden"
+    }
+}
+
+# This test ensures override inside a mock_provider
+# doesn't apply for resources created via a different
+# provider.
+run "check_multiple_mock_provider_override" {
+    providers = {
+        http = http.with_mock_and_override
+        http.aliased = http
+        local.aliased = local.aliased
+    }
+
+    assert {
+      condition = data.http.first.response_body == "overridden [first]"
+      error_message = "HTTP response body is not mocked"
+    }
+
+    assert {
+      condition = data.http.second.response_body == "I am mocked!"
+      error_message = "HTTP response body is not overridden"
+    }
 }

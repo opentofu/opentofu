@@ -727,17 +727,17 @@ func (from *MoveEndpointInModule) IsModuleReIndex(to *MoveEndpointInModule) bool
 			// the module call. We're not actually comparing indexes, so the
 			// instance doesn't matter.
 			callAddr := f.Instance(NoKey).Module()
-			return callAddr.Equal(t.Module())
+			return t.IsForModule(callAddr)
 		}
 
 	case ModuleInstance:
 		switch t := to.relSubject.(type) {
 		case AbsModuleCall:
 			callAddr := t.Instance(NoKey).Module()
-			return callAddr.Equal(f.Module())
+			return f.IsForModule(callAddr)
 
 		case ModuleInstance:
-			return t.Module().Equal(f.Module())
+			return t.HasSameModule(f)
 		}
 	}
 

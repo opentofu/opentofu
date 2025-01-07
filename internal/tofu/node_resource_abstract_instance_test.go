@@ -131,9 +131,11 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 				// function. (This would not be valid for some other functions.)
 				Addr: test.Addr,
 				NodeAbstractResource: NodeAbstractResource{
-					Addr:                 test.Addr.ConfigResource(),
-					Config:               test.Config,
-					storedProviderConfig: test.StoredProviderConfig,
+					Addr:   test.Addr.ConfigResource(),
+					Config: test.Config,
+					storedProviderConfig: ResolvedProvider{
+						ProviderConfig: test.StoredProviderConfig,
+					},
 				},
 			}
 			got := node.Provider()
@@ -170,7 +172,7 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 	ctx.ProviderProvider = mockProvider

@@ -13,14 +13,27 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // Provider is an implementation of providers.Interface
-type Provider struct{}
+type Provider struct {
+	funcs map[string]providerFunc
+}
 
 // NewProvider returns a new tofu provider
 func NewProvider() providers.Interface {
-	return &Provider{}
+	return &Provider{
+		funcs: getProviderFuncs(),
+	}
+}
+
+func (p *Provider) getFunctionSpecs() map[string]providers.FunctionSpec {
+	funcSpecs := make(map[string]providers.FunctionSpec)
+	for name, fn := range p.funcs {
+		funcSpecs[name] = fn.GetFunctionSpec()
+	}
+	return funcSpecs
 }
 
 // GetSchema returns the complete schema for the provider.
@@ -32,6 +45,7 @@ func (p *Provider) GetProviderSchema() providers.GetProviderSchemaResponse {
 		ResourceTypes: map[string]providers.Schema{
 			"terraform_data": dataStoreResourceSchema(),
 		},
+		Functions: p.getFunctionSpecs(),
 	}
 }
 
@@ -161,14 +175,48 @@ func (p *Provider) ValidateResourceConfig(req providers.ValidateResourceConfigRe
 }
 
 func (p *Provider) GetFunctions() providers.GetFunctionsResponse {
-	panic("unimplemented - terraform provider has no functions")
+	return providers.GetFunctionsResponse{
+		Functions: p.getFunctionSpecs(),
+	}
 }
 
 func (p *Provider) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	panic("unimplemented - terraform provider has no functions")
+	fn, ok := p.funcs[r.Name]
+	if !ok {
+		return providers.CallFunctionResponse{
+			Error: fmt.Errorf("provider function %q not found", r.Name),
+		}
+	}
+	v, err := fn.Call(r.Arguments)
+	return providers.CallFunctionResponse{
+		Result: v,
+		Error:  err,
+	}
 }
 
 // Close is a noop for this provider, since it's run in-process.
 func (p *Provider) Close() error {
 	return nil
+}
+
+// providerFunc is an interface representing a built-in provider function
+type providerFunc interface {
+	// Name returns the name of the function which is used to call it
+	Name() string
+	// GetFunctionSpec returns the provider function specification
+	GetFunctionSpec() providers.FunctionSpec
+	// Call is used to invoke the function
+	Call(args []cty.Value) (cty.Value, error)
+}
+
+// getProviderFuncs returns a map of functions that are registered in the provider
+func getProviderFuncs() map[string]providerFunc {
+	decodeTFVars := &decodeTFVarsFunc{}
+	encodeTFVars := &encodeTFVarsFunc{}
+	encodeExpr := &encodeExprFunc{}
+	return map[string]providerFunc{
+		decodeTFVars.Name(): decodeTFVars,
+		encodeTFVars.Name(): encodeTFVars,
+		encodeExpr.Name():   encodeExpr,
+	}
 }

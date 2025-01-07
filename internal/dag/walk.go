@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -408,6 +409,19 @@ func (w *Walker) walkVertex(v Vertex, info *walkerVertex) {
 	w.diagsLock.Unlock()
 }
 
+const debugWaitDepsInterval = 5 * time.Second
+
+func debugTimer(dur time.Duration) <-chan time.Time {
+	// This is expensive to do at scale, so we only do it when debugging.
+	if logging.IsDebugOrHigher() {
+		return time.After(dur)
+	}
+
+	// Receiving on a nil channel just blocks, which is fine because
+	// waitDeps also selects on depCh and cancelCh.
+	return nil
+}
+
 func (w *Walker) waitDeps(
 	v Vertex,
 	deps map[Vertex]<-chan struct{},
@@ -429,7 +443,7 @@ func (w *Walker) waitDeps(
 				doneCh <- false
 				return
 
-			case <-time.After(time.Second * 5):
+			case <-debugTimer(debugWaitDepsInterval):
 				log.Printf("[TRACE] dag/walk: vertex %q is waiting for %q",
 					VertexName(v), VertexName(dep))
 			}

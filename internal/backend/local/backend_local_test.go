@@ -6,6 +6,7 @@
 package local
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -49,7 +50,7 @@ func TestLocalRun(t *testing.T) {
 		StateLocker:  stateLocker,
 	}
 
-	_, _, diags := b.LocalRun(op)
+	_, _, diags := b.LocalRun(context.Background(), op)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected error: %s", diags.Err().Error())
 	}
@@ -80,7 +81,7 @@ func TestLocalRun_error(t *testing.T) {
 		StateLocker:  stateLocker,
 	}
 
-	_, _, diags := b.LocalRun(op)
+	_, _, diags := b.LocalRun(context.Background(), op)
 	if !diags.HasErrors() {
 		t.Fatal("unexpected success")
 	}
@@ -115,7 +116,7 @@ func TestLocalRun_cloudPlan(t *testing.T) {
 		StateLocker:  stateLocker,
 	}
 
-	_, _, diags := b.LocalRun(op)
+	_, _, diags := b.LocalRun(context.Background(), op)
 	if !diags.HasErrors() {
 		t.Fatal("unexpected success")
 	}
@@ -201,7 +202,7 @@ func TestLocalRun_stalePlan(t *testing.T) {
 		StateLocker:  stateLocker,
 	}
 
-	_, _, diags := b.LocalRun(op)
+	_, _, diags := b.LocalRun(context.Background(), op)
 	if !diags.HasErrors() {
 		t.Fatal("unexpected success")
 	}

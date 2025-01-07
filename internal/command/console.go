@@ -28,6 +28,8 @@ type ConsoleCommand struct {
 }
 
 func (c *ConsoleCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("console")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
@@ -112,7 +114,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}
 
 	// Get the context
-	lr, _, ctxDiags := local.LocalRun(opReq)
+	lr, _, ctxDiags := local.LocalRun(ctx, opReq)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -144,7 +146,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	// Before we can evaluate expressions, we must compute and populate any
 	// derived values (input variables, local values, output values)
 	// that are not stored in the persistent state.
-	scope, scopeDiags := lr.Core.Eval(lr.Config, lr.InputState, addrs.RootModuleInstance, evalOpts)
+	scope, scopeDiags := lr.Core.Eval(ctx, lr.Config, lr.InputState, addrs.RootModuleInstance, evalOpts)
 	diags = diags.Append(scopeDiags)
 	if scope == nil {
 		// scope is nil if there are errors so bad that we can't even build a scope.
@@ -223,15 +225,27 @@ Usage: tofu [global options] console [options]
 
 Options:
 
-  -state=path       Legacy option for the local backend only. See the local
-                    backend's documentation for more information.
+  -compact-warnings      If OpenTofu produces any warnings that are not
+                         accompanied by errors, show them in a more compact
+                         form that includes only the summary messages.
 
-  -var 'foo=bar'    Set a variable in the OpenTofu configuration. This
-                    flag can be set multiple times.
+  -consolidate-warnings  If OpenTofu produces any warnings, no consolodation
+                         will be performed. All locations, for all warnings
+                         will be listed. Enabled by default.
 
-  -var-file=foo     Set variables in the OpenTofu configuration from
-                    a file. If "terraform.tfvars" or any ".auto.tfvars"
-                    files are present, they will be automatically loaded.
+  -consolidate-errors    If OpenTofu produces any errors, no consolodation
+                         will be performed. All locations, for all errors
+                         will be listed. Disabled by default
+
+  -state=path            Legacy option for the local backend only. See the local
+                         backend's documentation for more information.
+
+  -var 'foo=bar'         Set a variable in the OpenTofu configuration. This
+                         flag can be set multiple times.
+
+  -var-file=foo          Set variables in the OpenTofu configuration from
+                         a file. If "terraform.tfvars" or any ".auto.tfvars"
+                         files are present, they will be automatically loaded.
 `
 	return strings.TrimSpace(helpText)
 }

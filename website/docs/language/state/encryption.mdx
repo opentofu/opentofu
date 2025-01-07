@@ -20,6 +20,8 @@ import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
 import FallbackToUnencrypted from '!!raw-loader!./examples/encryption/fallback_to_unencrypted.tf'
 import RemoteState from '!!raw-loader!./examples/encryption/terraform_remote_state.tf'
+import RemoteStateFullA from '!!raw-loader!./examples/encryption/terraform_remote_state_full_a.tf'
+import RemoteStateFullB from '!!raw-loader!./examples/encryption/terraform_remote_state_full_b.tf'
 
 # State and Plan Encryption
 
@@ -72,8 +74,7 @@ The basic configuration structure looks as follows:
 
 :::warning
 
-Once your data is encrypted, do not rename key providers and methods in your configuration! The encrypted data stored in the backend contains metadata related to their specific names. Instead, use a [fallback block](#key-and-method-rollover) to handle changes to key providers.
-
+Once your data is encrypted, do not rename key providers and methods in your configuration! The encrypted data stored in the backend contains metadata related to their specific names. Instead, use a [fallback block](#key-and-method-rollover) to handle changes to key providers. Alternatively, you can specify a unique metadata storage key in the `encrypted_metadata_alias` field on the key provider, which makes it possible to change the name of a key provider without problems.
 :::
 
 :::tip
@@ -140,6 +141,16 @@ For specific remote states, you can use the following syntax:
 - `mymodule.myname` to target a data source in the specified module with the given name.
 - `mymodule.myname[0]` to target the first data source in the specified module with the given name.
 
+In some cases key names between projects can conflict and you will need to use a different name for the key provider in one project than the other. In this case, you should use the `encrypted_metadata_alias` option to set a fixed metadata key in order to ensure the encryption works.
+
+For example, you may create certificates in project "A" and want to reference them in project "B". In project "A", you could create the following setup:
+
+<CodeBlock language="hcl">{RemoteStateFullA}</CodeBlock>
+
+Then you can reference it in project "B" as follows:
+
+<CodeBlock language="hcl">{RemoteStateFullB}</CodeBlock>
+
 ## Key providers
 
 ### PBKDF2
@@ -148,22 +159,24 @@ The PBKDF2 key provider allows you to use a long passphrase as to generate a key
 
 <CodeBlock language="hcl">{PBKDF2}</CodeBlock>
 
-| Option                  | Description                                                                                                                                             | Min.      | Default |
-|-------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|---------|
-| passphrase *(required)* | Enter a long and complex passphrase.                                                                                                                    | 16 chars. | -       |
-| key_length              | Number of bytes to generate as a key.                                                                                                                   | 1         | 32      |
-| iterations              | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000 |
-| salt_length             | Length of the salt for the key derivation.                                                                                                              | 1         | 32      |
-| hash_function           | Specify either `sha256` or `sha512` to use as a hash function. `sha1` is not supported.                                                                 | N/A       | sha512  |
+| Option                   | Description                                                                                                                                             | Min.      | Default                            |
+|--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|------------------------------------|
+| passphrase *(required)*  | Enter a long and complex passphrase.                                                                                                                    | 16 chars. | -                                  |
+| key_length               | Number of bytes to generate as a key.                                                                                                                   | 1         | 32                                 |
+| iterations               | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000                            |
+| salt_length              | Length of the salt for the key derivation.                                                                                                              | 1         | 32                                 |
+| hash_function            | Specify either `sha256` or `sha512` to use as a hash function. `sha1` is not supported.                                                                 | N/A       | sha512                             |
+| encrypted_metadata_alias | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.               | -         | derived from the key provider name |
 
 ### AWS KMS
 
 This key provider uses the [Amazon Web Servers Key Management Service](https://aws.amazon.com/kms/) to generate keys. The authentication options are identical to the [S3 backend](../../language/settings/backends/s3.mdx) excluding any deprecated options. In addition, please provide the following options:
 
-| Option     | Description                                                                                                                                                  | Min. | Default |
-|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|---------|
-| kms_key_id | [Key ID for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                            | 1    | -       |
-| key_spec   | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. `AES_256`). | 1    | -       |
+| Option                   | Description                                                                                                                                                  | Min. | Default                            |
+|--------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
+| kms_key_id               | [Key ID for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-id).                                                            | 1    | -                                  |
+| key_spec                 | [Key spec for AWS KMS](https://docs.aws.amazon.com/kms/latest/developerguide/concepts.html#key-spec). Adapt this to your encryption method (e.g. `AES_256`). | 1    | -                                  |
+| encrypted_metadata_alias | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                    | -    | derived from the key provider name |
 
 The following example illustrates a minimal configuration:
 
@@ -173,10 +186,11 @@ The following example illustrates a minimal configuration:
 
 This key provider uses the [Google Cloud Key Management Service](https://cloud.google.com/kms/docs) to generate keys. The authentication options are identical to the [GCS backend](../../language/settings/backends/gcs.mdx) excluding any deprecated options. In addition, please provide the following options:
 
-| Option                                | Description                                                                                                      | Min. | Default |
-|---------------------------------------|------------------------------------------------------------------------------------------------------------------|------|---------|
-| kms_encryption_key *(required)*       | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console). | N/A  | -       |
-| key_length *(required)*               | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                 | 1    | -       |
+| Option                          | Description                                                                                                                               | Min. | Default                            |
+|---------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
+| kms_encryption_key *(required)* | [Key ID for GCP KMS](https://cloud.google.com/kms/docs/create-key#kms-create-symmetric-encrypt-decrypt-console).                          | N/A  | -                                  |
+| key_length *(required)*         | Number of bytes to generate as a key. Must be in range from `1` to `1024` bytes.                                                          | 1    | -                                  |
+| encrypted_metadata_alias        | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider. | -    | derived from the key provider name |
 
 The following example illustrates a minimal configuration:
 
@@ -186,13 +200,14 @@ The following example illustrates a minimal configuration:
 
 This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/docs/secrets/transit) to generate data keys. You can configure it as follows:
 
-| Option                | Description                                                                                                                                                                 | Min. | Default                |
-|-----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------|
-| key_name *(required)* | Name of the transit encryption key to use to encrypt/decrypt the datakey. [Pre-configure](https://openbao.org/docs/secrets/transit/#setup) it in your in OpenBao server.    | N/A  | -                      |
-| token                 | [Authorization Token](https://openbao.org/docs/concepts/tokens/) to use when accessing OpenBao API. OpenTofu can read it from the `BAO_TOKEN` environment variable as well. | N/A  | -                      |
-| address               | OpenBao server address to access the API. OpenTofu can read it from the `BAO_ADDR` environment variable as well. Your system must trust the TLS certificate of the server.  | N/A  | https://127.0.0.1:8200 |
-| transit_engine_path   | Path at which the Transit Secret Engine is enabled in OpenBao. Customize this if you changed the transit engine path.                                                       | N/A  | /transit               |
-| key_length            | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                       | 16   | 32                     |
+| Option                   | Description                                                                                                                                                                 | Min. | Default                            |
+|--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------|------------------------------------|
+| key_name *(required)*    | Name of the transit encryption key to use to encrypt/decrypt the datakey. [Pre-configure](https://openbao.org/docs/secrets/transit/#setup) it in your in OpenBao server.    | N/A  | -                                  |
+| token                    | [Authorization Token](https://openbao.org/docs/concepts/tokens/) to use when accessing OpenBao API. OpenTofu can read it from the `BAO_TOKEN` environment variable as well. | N/A  | -                                  |
+| address                  | OpenBao server address to access the API. OpenTofu can read it from the `BAO_ADDR` environment variable as well. Your system must trust the TLS certificate of the server.  | N/A  | https://127.0.0.1:8200             |
+| transit_engine_path      | Path at which the Transit Secret Engine is enabled in OpenBao. Customize this if you changed the transit engine path.                                                       | N/A  | /transit                           |
+| key_length               | Number of bytes to generate as a key. Available options are `16`, `32` or `64` bytes.                                                                                       | 16   | 32                                 |
+| encrypted_metadata_alias | Optional identifier to store metadata in the encrypted state/plan files under. Specify this to allow changing the name of a key provider.                                   | -    | derived from the key provider name |
 
 The following example illustrates a possible configuration:
 

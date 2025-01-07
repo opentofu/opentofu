@@ -1,7 +1,24 @@
+.POSIX:
+
 export PATH := $(abspath bin/):${PATH}
 
 # Dependency versions
 LICENSEI_VERSION = 0.9.0
+
+# run Go tests and generate a coverage report
+#
+# NOTE:
+#   The coverage counters are to be updated atomically,
+#   which is useful for tests that run in parallel.
+.PHONY: test-with-coverage
+test-with-coverage:
+	go test -coverprofile=coverage.out -covermode=atomic ./...
+	go tool cover -html=coverage.out -o coverage.html
+
+# run the unit tests across all packages in the tofu project
+.PHONY: test
+test:
+	go test -v ./...
 
 # build tofu binary in the current directory with the version set to the git tag
 # or commit hash if there is no tag.
@@ -30,8 +47,7 @@ protobuf:
 # Golangci-lint
 .PHONY: golangci-lint
 golangci-lint:
-	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.58.1
-	golangci-lint run --timeout 60m ./...
+	go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.58.2 run --timeout 60m --new-from-rev dd5f9afe8948186c76fe6b8b1193d7a8f46919d8 ./...
 
 # Run license check
 .PHONY: license-check

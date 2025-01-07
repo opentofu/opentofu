@@ -327,3 +327,37 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// Tests the IsLockingEnabled method for the S3 remote client.
+// It checks if locking is enabled based on the ddbTable field.
+func TestRemoteClient_IsLockingEnabled(t *testing.T) {
+	tests := []struct {
+		name       string
+		ddbTable   string
+		wantResult bool
+	}{
+		{
+			name:       "Locking enabled when ddbTable is set",
+			ddbTable:   "my-lock-table",
+			wantResult: true,
+		},
+		{
+			name:       "Locking disabled when ddbTable is empty",
+			ddbTable:   "",
+			wantResult: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			client := &RemoteClient{
+				ddbTable: tt.ddbTable,
+			}
+
+			gotResult := client.IsLockingEnabled()
+			if gotResult != tt.wantResult {
+				t.Errorf("IsLockingEnabled() = %v; want %v", gotResult, tt.wantResult)
+			}
+		})
+	}
+}

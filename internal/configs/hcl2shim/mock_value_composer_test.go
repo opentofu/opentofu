@@ -14,12 +14,11 @@ func TestComposeMockValueBySchema(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
-		schema      *configschema.Block
-		config      cty.Value
-		defaults    map[string]cty.Value
-		wantVal     cty.Value
-		wantWarning bool
-		wantError   bool
+		schema    *configschema.Block
+		config    cty.Value
+		defaults  map[string]cty.Value
+		wantVal   cty.Value
+		wantError bool
 	}{
 		"diff-props-in-root-attributes": {
 			schema: &configschema.Block{
@@ -473,10 +472,8 @@ func TestComposeMockValueBySchema(t *testing.T) {
 				}),
 			}),
 			defaults: map[string]cty.Value{
-				"useConfigValue":   cty.StringVal("iAmFromDefaults"),
 				"useDefaultsValue": cty.StringVal("iAmFromDefaults"),
 				"nested": cty.ObjectVal(map[string]cty.Value{
-					"useConfigValue":   cty.StringVal("iAmFromDefaults"),
 					"useDefaultsValue": cty.StringVal("iAmFromDefaults"),
 				}),
 			},
@@ -492,7 +489,57 @@ func TestComposeMockValueBySchema(t *testing.T) {
 					}),
 				}),
 			}),
-			wantWarning: true, // ignored value in defaults
+		},
+		"type-conversion": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"computed-list": {
+						Type:     cty.List(cty.String),
+						Computed: true,
+					},
+				},
+			},
+			defaults: map[string]cty.Value{
+				"computed-list": cty.TupleVal([]cty.Value{
+					cty.StringVal("str"),
+				}),
+			},
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"computed-list": cty.ListVal([]cty.Value{
+					cty.StringVal("str"),
+				}),
+			}),
+		},
+		"config-override": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"config-field": {
+						Type:     cty.String,
+						Optional: true,
+						Computed: true,
+					},
+				},
+			},
+			config: cty.ObjectVal(map[string]cty.Value{
+				"config-field": cty.StringVal("iAmFromConfig"),
+			}),
+			defaults: map[string]cty.Value{
+				"config-field": cty.StringVal("str"),
+			},
+			wantError: true,
+		},
+		"dynamically-typed-values": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"dynamic-field": {
+						Type:     cty.DynamicPseudoType,
+						Optional: true,
+					},
+				},
+			},
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"dynamic-field": cty.NullVal(cty.DynamicPseudoType),
+			}),
 		},
 	}
 
@@ -509,12 +556,6 @@ func TestComposeMockValueBySchema(t *testing.T) {
 
 			case !test.wantError && gotDiags.HasErrors():
 				t.Fatalf("Got unexpected error diags: %v", gotDiags.ErrWithWarnings())
-
-			case test.wantWarning && len(gotDiags) == 0:
-				t.Fatalf("Expected warning in diags, but none returned")
-
-			case !test.wantWarning && len(gotDiags) != 0:
-				t.Fatalf("Got unexpected diags: %v", gotDiags.ErrWithWarnings())
 
 			case !test.wantVal.RawEquals(gotVal):
 				t.Fatalf("Got unexpected value: %v", gotVal.GoString())

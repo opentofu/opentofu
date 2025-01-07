@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/disco"
+
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
@@ -168,7 +169,7 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 
 	for _, mod := range versions.Modules {
 		for _, v := range mod.Versions {
-			log.Printf("[DEBUG] found available version %q for %s", v.Version, mod.Source)
+			log.Printf("[DEBUG] found available version %q for %s", v.Version, module.Module())
 		}
 	}
 
@@ -245,6 +246,11 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 		}
 
 		location = v.Location
+
+		// if the location is empty, we will fallback to the header
+		if location == "" {
+			location = resp.Header.Get(xTerraformGet)
+		}
 
 	case http.StatusNoContent:
 		// FALLBACK: set the found location from the header

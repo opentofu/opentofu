@@ -21,7 +21,9 @@ type View struct {
 	streams  *terminal.Streams
 	colorize *colorstring.Colorize
 
-	compactWarnings bool
+	compactWarnings     bool
+	consolidateWarnings bool
+	consolidateErrors   bool
 
 	// When this is true it's a hint that OpenTofu is being run indirectly
 	// via a wrapper script or other automation and so we may wish to replace
@@ -78,6 +80,8 @@ func (v *View) RunningInAutomation() bool {
 func (v *View) Configure(view *arguments.View) {
 	v.colorize.Disable = view.NoColor
 	v.compactWarnings = view.CompactWarnings
+	v.consolidateWarnings = view.ConsolidateWarnings
+	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
 }
 
@@ -96,7 +100,12 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		return
 	}
 
-	diags = diags.ConsolidateWarnings(1)
+	if v.consolidateWarnings {
+		diags = diags.Consolidate(1, tfdiags.Warning)
+	}
+	if v.consolidateErrors {
+		diags = diags.Consolidate(1, tfdiags.Error)
+	}
 
 	// Since warning messages are generally competing
 	if v.compactWarnings {
