@@ -63,7 +63,6 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx EvalContext, op walkOp
 		}
 		return n.managedResourceExecute(ctx)
 	case addrs.DataResourceMode:
-		// TODO/Oleksandr: should we resolve provider for data resources as well here?
 		return n.dataResourceExecute(ctx)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
