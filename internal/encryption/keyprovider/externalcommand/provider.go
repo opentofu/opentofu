@@ -99,44 +99,43 @@ type ioHandler struct {
 	err            error
 }
 
-func (i *ioHandler) Write(p []byte) (n int, err error) {
+func (i *ioHandler) Write(p []byte) (int, error) {
 	i.output = append(i.output, p...)
-	n = len(p)
-	err = nil
+	n := len(p)
 	if i.headerFinished {
 		// Header is finished, just collect the output.
-		return
+		return n, nil
 	}
 	// Check if the full header is present.
-	parts := strings.SplitN(string(i.output), "\n", 2)
+	parts := strings.SplitN(string(i.output), "\n", 2) //nolint:mnd //This rule is dumb.
 	if len(parts) == 1 {
-		return
+		return n, nil
 	}
 	var header Header
 	if jsonErr := json.Unmarshal([]byte(parts[0]), &header); jsonErr != nil {
-		err = fmt.Errorf("failed to unmarshal header from external binary (%w)", jsonErr)
+		err := fmt.Errorf("failed to unmarshal header from external binary (%w)", jsonErr)
 		i.err = err
 		i.cancel()
-		return
+		return n, err
 	}
 
 	if header.Magic != HeaderMagic {
-		err = fmt.Errorf("invalid magic received from external key provider: %s", header.Magic)
+		err := fmt.Errorf("invalid magic received from external key provider: %s", header.Magic)
 		i.err = err
 		i.cancel()
-		return
+		return n, err
 	}
 	if header.Version != 1 {
-		err = fmt.Errorf("invalid version number received from external key provider: %d", header.Version)
+		err := fmt.Errorf("invalid version number received from external key provider: %d", header.Version)
 		i.err = err
 		i.cancel()
-		return
+		return n, err
 	}
 	i.headerFinished = true
 	i.output = []byte(parts[1])
-	return
+	return n, nil
 }
 
-func (i *ioHandler) Read(p []byte) (n int, err error) {
+func (i *ioHandler) Read(p []byte) (int, error) {
 	return i.input.Read(p)
 }
