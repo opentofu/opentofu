@@ -621,6 +621,61 @@ resource "test_object" "x" {
 
 }
 
+// This test is a copy and paste from TestContext2Apply_destroyWithDeposed
+// with modifications to test the same scenario with a dynamic provider instance.
+func TestContext2Apply_destroyWithDeposedWithDynamicProvider(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+provider "test" {
+  alias = "for_eached"
+  for_each = {a: {}}
+}
+
+resource "test_object" "x" {
+  test_string = "ok"
+  lifecycle {
+    create_before_destroy = true
+  }
+  provider = test.for_eached["a"]
+}`,
+	})
+
+	p := simpleMockProvider()
+
+	deposedKey := states.NewDeposedKey()
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceDeposed(
+		mustResourceInstanceAddr("test_object.x").Resource,
+		deposedKey,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectTainted,
+			AttrsJSON: []byte(`{"test_string":"deposed"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"].for_eached`),
+		addrs.StringKey("a"),
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.DestroyMode,
+	})
+	if diags.HasErrors() {
+		t.Fatalf("plan: %s", diags.Err())
+	}
+
+	_, diags = ctx.Apply(context.Background(), plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("apply: %s", diags.Err())
+	}
+}
+
 func TestContext2Apply_nullableVariables(t *testing.T) {
 	m := testModule(t, "apply-nullable-variables")
 	state := states.NewState()
@@ -2376,6 +2431,67 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 
 	if hook.PostApplyCalled {
 		t.Fatalf("PostApply hook should not be called as part of forget")
+	}
+}
+
+// This test is a copy and paste from TestContext2Apply_forgetOrphanAndDeposed
+// with modifications to test the same scenario with  a dynamic provider instance.
+func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
+	desposedKey := states.DeposedKey("deposed")
+	addr := "aws_instance.baz"
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			provider aws {
+				alias = "for_eached"
+				for_each = {a: {}}
+			}
+
+			removed {
+				from = aws_instance.baz
+			}
+		`,
+	})
+	p := testProvider("aws")
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr(addr).Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"bar"}`),
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].for_eached`),
+		addrs.StringKey("a"),
+	)
+	root.SetResourceInstanceDeposed(
+		mustResourceInstanceAddr(addr).Resource,
+		desposedKey,
+		&states.ResourceInstanceObjectSrc{
+			Status:       states.ObjectTainted,
+			AttrsJSON:    []byte(`{"id":"bar"}`),
+			Dependencies: []addrs.ConfigResource{},
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].for_eached`),
+		addrs.StringKey("a"),
+	)
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
+		},
+	})
+
+	p.PlanResourceChangeFn = testDiffFn
+
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	assertNoErrors(t, diags)
+
+	s, diags := ctx.Apply(context.Background(), plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	if !s.Empty() {
+		t.Fatalf("State should be empty")
 	}
 }
 
