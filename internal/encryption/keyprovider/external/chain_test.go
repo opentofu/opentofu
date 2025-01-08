@@ -31,9 +31,9 @@ func TestChaining(t *testing.T) {
 	if err := reg.RegisterMethod(unencrypted.New()); err != nil {
 		panic(err)
 	}
-	command := append(testProviderBinaryPath, "--hello-world")
-	commandParts := make([]string, len(command))
-	for i, cmdPart := range command {
+	testProviderBinaryPath = append(testProviderBinaryPath, "--hello-world")
+	commandParts := make([]string, len(testProviderBinaryPath))
+	for i, cmdPart := range testProviderBinaryPath {
 		commandParts[i] = "\"" + cmdPart + "\""
 	}
 

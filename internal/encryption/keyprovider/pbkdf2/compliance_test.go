@@ -85,7 +85,7 @@ func TestCompliance(t *testing.T) {
 						if len(config.Chain.EncryptionKey) != 16 {
 							return fmt.Errorf("tncorrect encryption key length")
 						}
-						if bytes.Compare(config.Chain.EncryptionKey, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}) != 0 {
+						if !bytes.Equal(config.Chain.EncryptionKey, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}) {
 							return fmt.Errorf("tncorrect encryption key")
 						}
 						return nil

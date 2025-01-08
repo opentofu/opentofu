@@ -46,7 +46,7 @@ func main() {
 		log.Fatalf("Failed to read stdin: %v", err)
 	}
 	var inMeta any
-	if err := json.Unmarshal(input, &inMeta); err != nil {
+	if err = json.Unmarshal(input, &inMeta); err != nil {
 		log.Fatalf("Failed to parse stdin: %v", err)
 	}
 
