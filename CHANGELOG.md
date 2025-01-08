@@ -15,8 +15,7 @@ ENHANCEMENTS:
 * OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
 
 BUG FIXES:
-* `tofu init` command does not attempt to read encryption keys when `-backend=false` flag is set. ([#2293](https://github.com/opentofu/opentofu/pull/2293))
-* Changes in `create_before_destroy` for resources which require replacement are now properly handled when refresh is disabled. ([#2248](https://github.com/opentofu/opentofu/pull/2248))
+
 
 ## Previous Releases
 
