@@ -27,7 +27,7 @@ go 1.22`)
 
 	tempDir := t.TempDir()
 	dir := path.Join(tempDir, "testprovider-go")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 
@@ -59,7 +59,7 @@ go 1.22`)
 func Python(t *testing.T) []string {
 	tempDir := t.TempDir()
 	dir := path.Join(tempDir, "testprovider-py")
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 	target := path.Join(dir, "testprovider.py")
@@ -91,7 +91,7 @@ func ejectFile(file string, target string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read %s file from embedded dataset (%w)", file, err)
 	}
-	if err := os.WriteFile(target, contents, 0600); err != nil {
+	if err := os.WriteFile(target, contents, 0600); err != nil { //nolint:mnd // This check is stupid
 		return fmt.Errorf("failed to create %s file at %s (%w)", file, target, err)
 	}
 	return nil
