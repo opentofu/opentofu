@@ -49,6 +49,7 @@ func (f descriptor) TypedConfig() *Config {
 	return &Config{
 		randomSource: f.randomSource,
 		Passphrase:   "",
+		Chain:        nil,
 		KeyLength:    DefaultKeyLength,
 		Iterations:   DefaultIterations,
 		HashFunction: DefaultHashFunctionName,

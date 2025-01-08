@@ -489,7 +489,7 @@ func complianceTestMetadataTestCase[TConfig keyprovider.Config, TKeyProvider key
 		if len(output.DecryptionKey) != 0 {
 			compliancetest.Fail(
 				t,
-				"The Provide() function a decryption key despite not receiving input meta. This is incorrect, please don't return a decryption key unless you receive the input metadata.",
+				"The Provide() function returned a decryption key despite not receiving input meta. This is incorrect, please don't return a decryption key unless you receive the input metadata.",
 			)
 		} else {
 			compliancetest.Log(

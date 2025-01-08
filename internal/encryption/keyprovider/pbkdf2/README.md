@@ -15,6 +15,9 @@ terraform {
         key_provider "pbkdf2" "myprovider" {
             passphrase = "enter a long and complex passphrase here"
             
+            # Alternatively, chain the passphrase from an upstream key provider:
+            chain = key_provider.other.provider
+            
             # Adapt the key length to your encryption method needs,
             # check the method documentation for the right key length
             key_length = 32

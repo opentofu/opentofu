@@ -5,6 +5,7 @@ description: >-
 
 import Tabs from '@theme/Tabs';
 import TabItem from '@theme/TabItem';
+import Button from "@site/src/components/Button";
 import CodeBlock from '@theme/CodeBlock';
 import ConfigurationTF from '!!raw-loader!./examples/encryption/configuration.tf'
 import ConfigurationSH from '!!raw-loader!./examples/encryption/configuration.sh'
@@ -15,6 +16,13 @@ import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
 import GCPKMS from '!!raw-loader!./examples/encryption/gcp_kms.tf'
 import OpenBao from '!!raw-loader!./examples/encryption/openbao.tf'
+import External from '!!raw-loader!./examples/encryption/keyprovider-external.tofu'
+import ExternalHeader from '!!raw-loader!./examples/encryption/keyprovider-external-header.json'
+import ExternalInput from '!!raw-loader!./examples/encryption/keyprovider-external-input.json'
+import ExternalOutput from '!!raw-loader!./examples/encryption/keyprovider-external-output.json'
+import ExternalGo from '!!raw-loader!./examples/encryption/keyprovider-external-provider.go'
+import ExternalPython from '!!raw-loader!./examples/encryption/keyprovider-external-provider.py'
+import ExternalSH from '!!raw-loader!./examples/encryption/keyprovider-external-provider.sh'
 import Sample from '!!raw-loader!./examples/encryption/sample.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
@@ -161,7 +169,8 @@ The PBKDF2 key provider allows you to use a long passphrase as to generate a key
 
 | Option                   | Description                                                                                                                                             | Min.      | Default                            |
 |--------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------|-----------|------------------------------------|
-| passphrase *(required)*  | Enter a long and complex passphrase.                                                                                                                    | 16 chars. | -                                  |
+| passphrase *(required)*  | Enter a long and complex passphrase. Required if `chain` is not specified.                                                                              | 16 chars. | -                                  |
+| chain *(required)*       | Receive the passphrase from another key provider. Required if `passphrase` is not specified.                                                            |           | -                                  |
 | key_length               | Number of bytes to generate as a key.                                                                                                                   | 1         | 32                                 |
 | iterations               | Number of iterations. See [this document](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#pbkdf2) for recommendations. | 200.000   | 600.000                            |
 | salt_length              | Length of the salt for the key derivation.                                                                                                              | 1         | 32                                 |
@@ -225,8 +234,78 @@ The OpenBao key provider is compatible with the last MPL-licensed version of Has
 
 :::
 
-## Methods
+### External (experimental)
 
+The external command provider lets you run external commands in order to obtain encryption keys. These programs must be specifically written to work with OpenTofu. This key provider has the following fields:
+
+| Option    | Description                                                                           | Min. | Default |
+|-----------|---------------------------------------------------------------------------------------|------|---------|
+| `command` | External command to run in an array format, each parameter being an item in an array. | 1    |         |
+
+For example, you can configure the external program as follows:
+
+<CodeBlock language="hcl">{External}</CodeBlock>
+
+:::note
+
+You can use this provider in conjunction with the `chain` option in the [PBKDF2](#pbkdf2) key provider to input a passphrase from an external program.
+
+:::
+
+#### Writing an external key provider
+
+An external provider can be anything as long as it is runnable as an application. The protocol consists of 3 steps:
+
+1. The external program writes the header to the standard output.
+2. OpenTofu sends the metadata to the external program over the standard input.
+3. The external program writes the key information to the standard output.
+
+<Tabs>
+    <TabItem value="step1" label="Step 1: Writing the header" default>
+        As a first step, the external program must output a header to the standard output so OpenTofu knows it is a valid external key provider. The header must always be a single line and contain the following:
+        <CodeBlock language={"json"}>{ExternalHeader}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/externalcommand/protocol/header.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="step2" label="Step 2: Reading the input">
+        Once the header is written, OpenTofu writes the input data to the standard input of the external program. If OpenTofu only needs to encrypt data, this will be `null`. If OpenTofu needs to decrypt data, it will write the metadata previously stored with the encrypted form to the standard input:
+        <CodeBlock language={"json"}>{ExternalInput}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/externalcommand/protocol/input.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="step3" label="Step 3: Writing the output">
+        With the input, the external program can now construct the output. If no input is present, the external program only needs to produce an encryption key. If an input is present, it needs to produce a decryption key as well. If needed, the output can also contain metadata that will be stored with the encrypted data and passed as an input on the next run.
+        <CodeBlock language={"json"}>{ExternalOutput}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/externalcommand/protocol/output.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="example-go" label="Example: Go">
+        <CodeBlock language={"go"}>{ExternalGo}</CodeBlock>
+    </TabItem>
+    <TabItem value="example-python" label="Example: Python">
+        <CodeBlock language={"python"}>{ExternalPython}</CodeBlock>
+    </TabItem>
+    <TabItem value="example-sh" label="Example: POSIX Shell">
+        <CodeBlock language={"sh"}>{ExternalSH}</CodeBlock>
+    </TabItem>
+</Tabs>
+
+## Methods
 
 ### AES-GCM
 
