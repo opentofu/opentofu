@@ -3,6 +3,9 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+//
+
+//nolint:revive,staticcheck //Disabling because we want to just stub out some methods
 package cloud
 
 import (
@@ -495,11 +498,11 @@ func (m *MockOrganizations) ReadRunQueue(ctx context.Context, name string, optio
 	return rq, nil
 }
 
-func (m *MockOrganizations) ReadDataRetentionPolicy(ctx context.Context, organization string) (*tfe.DataRetentionPolicy, error){
+func (m *MockOrganizations) ReadDataRetentionPolicy(ctx context.Context, organization string) (*tfe.DataRetentionPolicy, error) {
 	panic("not implemented")
 }
 
-func (m *MockOrganizations) ReadDataRetentionPolicyChoice(ctx context.Context, organization string) (*tfe.DataRetentionPolicyChoice, error){
+func (m *MockOrganizations) ReadDataRetentionPolicyChoice(ctx context.Context, organization string) (*tfe.DataRetentionPolicyChoice, error) {
 	panic("not implemented")
 }
 
@@ -2014,7 +2017,6 @@ func (m *MockWorkspaces) SetDataRetentionPolicyDontDelete(ctx context.Context, w
 func (m *MockWorkspaces) DeleteDataRetentionPolicy(ctx context.Context, workspaceID string) error {
 	panic("not implemented")
 }
-
 
 const alphanumeric = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
