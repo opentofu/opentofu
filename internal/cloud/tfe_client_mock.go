@@ -179,6 +179,8 @@ type MockConfigurationVersions struct {
 	uploadURLs     map[string]*tfe.ConfigurationVersion
 }
 
+var _ tfe.ConfigurationVersions = &MockConfigurationVersions{}
+
 func newMockConfigurationVersions(client *MockClient) *MockConfigurationVersions {
 	return &MockConfigurationVersions{
 		client:         client,
@@ -265,6 +267,18 @@ func (m *MockConfigurationVersions) Archive(ctx context.Context, cvID string) er
 }
 
 func (m *MockConfigurationVersions) Download(ctx context.Context, cvID string) ([]byte, error) {
+	panic("not implemented")
+}
+
+func (m *MockConfigurationVersions) SoftDeleteBackingData(ctx context.Context, svID string) error {
+	panic("not implemented")
+}
+
+func (m *MockConfigurationVersions) RestoreBackingData(ctx context.Context, svID string) error {
+	panic("not implemented")
+}
+
+func (m *MockConfigurationVersions) PermanentlyDeleteBackingData(ctx context.Context, svID string) error {
 	panic("not implemented")
 }
 
