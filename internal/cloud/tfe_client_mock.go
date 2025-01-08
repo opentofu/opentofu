@@ -499,9 +499,22 @@ func (m *MockOrganizations) ReadDataRetentionPolicy(ctx context.Context, organiz
 	panic("not implemented")
 }
 
-func (m *MockOrganizations) ReadDataRetentionPolicyChoice(ctx context.Context, organization string) (*DataRetentionPolicyChoice, error){
+func (m *MockOrganizations) ReadDataRetentionPolicyChoice(ctx context.Context, organization string) (*tfe.DataRetentionPolicyChoice, error){
 	panic("not implemented")
 }
+
+func (m *MockOrganizations) SetDataRetentionPolicy(ctx context.Context, organization string, options tfe.DataRetentionPolicySetOptions) (*tfe.DataRetentionPolicy, error) {
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) SetDataRetentionPolicyDeleteOlder(ctx context.Context, organization string, options tfe.DataRetentionPolicyDeleteOlderSetOptions) (*tfe.DataRetentionPolicyDeleteOlder, error) {
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) SetDataRetentionPolicyDontDelete(ctx context.Context, organization string, options tfe.DataRetentionPolicyDontDeleteSetOptions) (*tfe.DataRetentionPolicyDontDelete, error) {
+	panic("not implemented")
+}
+
 
 func (m *MockOrganizations) DeleteDataRetentionPolicy(ctx context.Context, organization string) error {
 	panic("not implemented")
@@ -1987,11 +2000,15 @@ func (m *MockWorkspaces) ReadDataRetentionPolicyChoice(ctx context.Context, work
 	panic("not implemented")
 }
 
-func (m *MockWorkspaces) SetDataRetentionPolicy(ctx context.Context, workspaceID string, options DataRetentionPolicySetOptions) (*DataRetentionPolicy, error) {
+func (m *MockWorkspaces) SetDataRetentionPolicy(ctx context.Context, workspaceID string, options tfe.DataRetentionPolicySetOptions) (*tfe.DataRetentionPolicy, error) {
 	panic("not implemented")
 }
 
-func (m *MockWorkspaces) SetDataRetentionPolicyDeleteOlder(ctx context.Context, workspaceID string, options tfe.DataRetentionPolicyDeleteOlderSetOptions) (*DataRetentionPolicyDeleteOlder, error) {
+func (m *MockWorkspaces) SetDataRetentionPolicyDeleteOlder(ctx context.Context, workspaceID string, options tfe.DataRetentionPolicyDeleteOlderSetOptions) (*tfe.DataRetentionPolicyDeleteOlder, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) SetDataRetentionPolicyDontDelete(ctx context.Context, workspaceID string, options tfe.DataRetentionPolicyDontDeleteSetOptions) (*tfe.DataRetentionPolicyDontDelete, error) {
 	panic("not implemented")
 }
 
