@@ -101,7 +101,16 @@ func assertNestedBlockCompatible(plannedV, actualV cty.Value, blockS *configsche
 	case configschema.NestingList:
 		return assertNestedBlockCompatibleList(plannedV, actualV, blockS, path)
 	case configschema.NestingMap:
-		return assertNestedBlockCompatibleMap(plannedV, actualV, blockS, path)
+		// A NestingMap might either be a map or an object, depending on
+		// whether there are dynamically-typed attributes inside, but
+		// that's decided statically and so both values will have the same
+		// kind. Our handling of each is slightly different in the details,
+		// but both have similar goals.
+		if plannedV.Type().IsObjectType() {
+			return assertNestedBlockCompatibleMapAsObject(plannedV, actualV, blockS, path)
+		} else {
+			return assertNestedBlockCompatibleMapAsMap(plannedV, actualV, blockS, path)
+		}
 	case configschema.NestingSet:
 		return assertNestedBlockCompatibleSet(plannedV, actualV, blockS, path)
 	default:
@@ -151,57 +160,53 @@ func assertNestedBlockCompatibleList(plannedV, actualV cty.Value, blockS *config
 	return errs
 }
 
-func assertNestedBlockCompatibleMap(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
-	// A NestingMap might either be a map or an object, depending on
-	// whether there are dynamically-typed attributes inside, but
-	// that's decided statically and so both values will have the same
-	// kind.
-
-	var errs []error
-
-	if plannedV.Type().IsObjectType() {
-		plannedAtys := plannedV.Type().AttributeTypes()
-		actualAtys := actualV.Type().AttributeTypes()
-		for k := range plannedAtys {
-			if _, ok := actualAtys[k]; !ok {
-				errs = append(errs, path.NewErrorf("block key %q has vanished", k))
-				continue
-			}
-
-			plannedEV := plannedV.GetAttr(k)
-			actualEV := actualV.GetAttr(k)
-			moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.GetAttrStep{Name: k}))
-			errs = append(errs, moreErrs...)
-		}
-		if plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
-			for k := range actualAtys {
-				if _, ok := plannedAtys[k]; !ok {
-					errs = append(errs, path.NewErrorf("new block key %q has appeared", k))
-					continue
-				}
-			}
-		}
-	} else {
-		if !plannedV.IsKnown() || plannedV.IsNull() || actualV.IsNull() {
-			return errs
-		}
-		plannedL := plannedV.LengthInt()
-		actualL := actualV.LengthInt()
-		if plannedL != actualL && plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
-			errs = append(errs, path.NewErrorf("block count changed from %d to %d", plannedL, actualL))
-			return errs
-		}
-		for it := plannedV.ElementIterator(); it.Next(); {
-			idx, plannedEV := it.Element()
-			if !actualV.HasIndex(idx).True() {
-				continue
-			}
-			actualEV := actualV.Index(idx)
-			moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.IndexStep{Key: idx}))
-			errs = append(errs, moreErrs...)
-		}
+func assertNestedBlockCompatibleMapAsMap(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
+	if !plannedV.IsKnown() || plannedV.IsNull() || actualV.IsNull() {
+		return nil
 	}
 
+	var errs []error
+	plannedL := plannedV.LengthInt()
+	actualL := actualV.LengthInt()
+	if plannedL != actualL && plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
+		errs = append(errs, path.NewErrorf("block count changed from %d to %d", plannedL, actualL))
+		return errs
+	}
+	for it := plannedV.ElementIterator(); it.Next(); {
+		idx, plannedEV := it.Element()
+		if !actualV.HasIndex(idx).True() {
+			continue
+		}
+		actualEV := actualV.Index(idx)
+		moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.IndexStep{Key: idx}))
+		errs = append(errs, moreErrs...)
+	}
+	return errs
+}
+
+func assertNestedBlockCompatibleMapAsObject(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
+	var errs []error
+	plannedAtys := plannedV.Type().AttributeTypes()
+	actualAtys := actualV.Type().AttributeTypes()
+	for k := range plannedAtys {
+		if _, ok := actualAtys[k]; !ok {
+			errs = append(errs, path.NewErrorf("block key %q has vanished", k))
+			continue
+		}
+
+		plannedEV := plannedV.GetAttr(k)
+		actualEV := actualV.GetAttr(k)
+		moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.GetAttrStep{Name: k}))
+		errs = append(errs, moreErrs...)
+	}
+	if plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
+		for k := range actualAtys {
+			if _, ok := plannedAtys[k]; !ok {
+				errs = append(errs, path.NewErrorf("new block key %q has appeared", k))
+				continue
+			}
+		}
+	}
 	return errs
 }
 
