@@ -1,4 +1,5 @@
-# External command key provider
+# External key provider
+
 
 > [!WARNING]
 > This file is not an end-user documentation, it is intended for developers. Please follow the user documentation on the OpenTofu website unless you want to work on the encryption code.
