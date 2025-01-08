@@ -246,6 +246,12 @@ For example, you can configure the external program as follows:
 
 <CodeBlock language="hcl">{External}</CodeBlock>
 
+:::note
+
+You can use this provider in conjunction with the `chain` option in the [PBKDF2](#pbkdf2) key provider to input a passphrase from an external program.
+
+:::
+
 #### Writing an external key provider
 
 An external provider can be anything as long as it is runnable as an application. The protocol consists of 3 steps:
