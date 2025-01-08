@@ -369,6 +369,8 @@ type MockOrganizations struct {
 	organizations map[string]*tfe.Organization
 }
 
+var _ tfe.Organizations = &MockOrganizations{}
+
 func newMockOrganizations(client *MockClient) *MockOrganizations {
 	return &MockOrganizations{
 		client:        client,
@@ -491,6 +493,18 @@ func (m *MockOrganizations) ReadRunQueue(ctx context.Context, name string, optio
 	}
 
 	return rq, nil
+}
+
+func (m *MockOrganizations) ReadDataRetentionPolicy(ctx context.Context, organization string) (*tfe.DataRetentionPolicy, error){
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) ReadDataRetentionPolicyChoice(ctx context.Context, organization string) (*DataRetentionPolicyChoice, error){
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) DeleteDataRetentionPolicy(ctx context.Context, organization string) error {
+	panic("not implemented")
 }
 
 type MockRedactedPlans struct {
