@@ -10,7 +10,7 @@ set -e
 echo '{"magic":"OpenTofu-External-Key-Provider","version":1}'
 
 # Read the input metadata.
-INPUT=$(echo -n $(cat))
+INPUT=$(printf '%s' "$(cat)")
 
 if [ "${INPUT}" = "null" ]; then
   # We don't have metadata and shouldn't output a decryption key.
