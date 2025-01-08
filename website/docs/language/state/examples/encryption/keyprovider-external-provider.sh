@@ -3,7 +3,7 @@
 set -e
 
 # Output the header as a single line:
-echo '{"magic":"OpenTofu-External-Keyprovider","version":1}'
+echo '{"magic":"OpenTofu-External-Key-Provider","version":1}'
 
 # Read the input metadata.
 INPUT=$(echo -n $(cat))

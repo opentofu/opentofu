@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package externalcommand
+package external
 
 // MetadataV1 describes the metadata structure of the external provider.
 type MetadataV1 struct {

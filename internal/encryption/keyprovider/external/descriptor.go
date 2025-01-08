@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package externalcommand
+package external
 
 import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -23,7 +23,7 @@ type descriptor struct {
 }
 
 func (f descriptor) ID() keyprovider.ID {
-	return "externalcommand"
+	return "external"
 }
 
 func (f descriptor) TypedConfig() *Config {

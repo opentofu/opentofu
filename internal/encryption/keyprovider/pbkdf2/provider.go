@@ -58,8 +58,14 @@ func (p pbkdf2KeyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Out
 		if err := inMeta.validate(); err != nil {
 			return keyprovider.Output{}, nil, err
 		}
+		var decryptionPassphrase []byte
+		if p.Chain != nil {
+			decryptionPassphrase = p.Chain.DecryptionKey
+		} else {
+			decryptionPassphrase = []byte(p.Passphrase)
+		}
 		decryptionKey = goPBKDF2.Key(
-			[]byte(p.Passphrase),
+			decryptionPassphrase,
 			inMeta.Salt,
 			inMeta.Iterations,
 			inMeta.KeyLength,
@@ -67,9 +73,15 @@ func (p pbkdf2KeyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Out
 		)
 	}
 
+	var encryptionPassphrase []byte
+	if p.Chain != nil {
+		encryptionPassphrase = p.Chain.EncryptionKey
+	} else {
+		encryptionPassphrase = []byte(p.Passphrase)
+	}
 	return keyprovider.Output{
 		EncryptionKey: goPBKDF2.Key(
-			[]byte(p.Passphrase),
+			encryptionPassphrase,
 			outMeta.Salt,
 			outMeta.Iterations,
 			outMeta.KeyLength,

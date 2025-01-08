@@ -43,7 +43,7 @@ func main() {
 
 	// Write the header:
 	header := Header{
-		"OpenTofu-External-Keyprovider",
+		"OpenTofu-External-Key-Provider",
 		1,
 	}
 	marshalledHeader, err := json.Marshal(header)

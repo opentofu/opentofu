@@ -32,7 +32,7 @@ func main() {
 	log.Default().SetOutput(os.Stderr)
 
 	header := Header{
-		"OpenTofu-External-Keyprovider",
+		"OpenTofu-External-Key-Provider",
 		1,
 	}
 	marshalledHeader, err := json.Marshal(header)
@@ -50,7 +50,12 @@ func main() {
 		log.Fatalf("Failed to parse stdin: %v", err)
 	}
 
-	decryptionKey := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	key := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}
+	if len(os.Args) == 2 && os.Args[1] == "--hello-world" {
+		key = []byte("Hello world! 123")
+	}
+
+	decryptionKey := key
 	if inMeta == nil {
 		decryptionKey = nil
 	}
@@ -60,7 +65,7 @@ func main() {
 			EncryptionKey []byte `json:"encryption_key,omitempty"`
 			DecryptionKey []byte `json:"decryption_key,omitempty"`
 		}{
-			EncryptionKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16},
+			EncryptionKey: key,
 			DecryptionKey: decryptionKey,
 		},
 		Meta: struct {

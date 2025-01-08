@@ -7,7 +7,7 @@ package encryption
 
 import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/aws_kms"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider/externalcommand"
+	"github.com/opentofu/opentofu/internal/encryption/keyprovider/external"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/gcp_kms"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/openbao"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider/pbkdf2"
@@ -31,7 +31,7 @@ func init() {
 	if err := DefaultRegistry.RegisterKeyProvider(openbao.New()); err != nil {
 		panic(err)
 	}
-	if err := DefaultRegistry.RegisterKeyProvider(externalcommand.New()); err != nil {
+	if err := DefaultRegistry.RegisterKeyProvider(external.New()); err != nil {
 		panic(err)
 	}
 	if err := DefaultRegistry.RegisterMethod(aesgcm.New()); err != nil {

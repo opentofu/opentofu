@@ -16,7 +16,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Write the header:
-    sys.stdout.write((json.dumps({"magic": "OpenTofu-External-Keyprovider", "version": 1}) + "\n"))
+    sys.stdout.write((json.dumps({"magic": "OpenTofu-External-Key-Provider", "version": 1}) + "\n"))
 
     # Read the input:
     inputData = sys.stdin.read()

@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package externalcommand
+package external
 
 import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
@@ -11,12 +11,12 @@ import (
 
 // HeaderMagic is the magic string that needs to be present in the header to identify
 // the external program as an external keyprovider for OpenTofu.
-const HeaderMagic = "OpenTofu-External-Keyprovider"
+const HeaderMagic = "OpenTofu-External-Key-Provider"
 
 // Header describes the initial header the external program must output as a single line,
 // followed by a single newline.
 type Header struct {
-	// Magic must always be "OpenTofu-External-Keyprovider".
+	// Magic must always be "OpenTofu-External-Key-Provider".
 	Magic string `json:"magic"`
 	// Version is the protocol version number. This currently must be 1.
 	Version int `json:"version"`

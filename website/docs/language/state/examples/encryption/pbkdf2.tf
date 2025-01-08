@@ -4,6 +4,9 @@ terraform {
       # Specify a long / complex passphrase (min. 16 characters)
       passphrase = "correct-horse-battery-staple"
 
+      # Alternatively, receive the passphrase from another key provider:
+      chain = key_provider.other.provider
+
       # Adjust the key length to the encryption method (default: 32)
       key_length = 32
 

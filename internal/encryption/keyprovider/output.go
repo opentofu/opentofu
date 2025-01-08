@@ -12,7 +12,7 @@ import "github.com/zclconf/go-cty/cty"
 // in the generated keys and this salt will be different for decryption and encryption.
 type Output struct {
 	EncryptionKey []byte `hcl:"encryption_key" cty:"encryption_key" json:"encryption_key,omitempty" yaml:"encryption_key"`
-	DecryptionKey []byte `hcl:"decryption_key" cty:"decryption_key" json:"decryption_key,omitempty" yaml:"decryption_key"`
+	DecryptionKey []byte `hcl:"decryption_key,optional" cty:"decryption_key" json:"decryption_key,omitempty" yaml:"decryption_key"`
 }
 
 // Cty turns the Output struct into a CTY value.

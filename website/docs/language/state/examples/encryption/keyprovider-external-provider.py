@@ -7,7 +7,7 @@ import sys
 if __name__ == "__main__":
     # Write the header:
     sys.stdout.write((json.dumps(
-        {"magic": "OpenTofu-External-Keyprovider", "version": 1}) + "\n"
+        {"magic": "OpenTofu-External-Key-Provider", "version": 1}) + "\n"
     ))
 
     # Read the input:
