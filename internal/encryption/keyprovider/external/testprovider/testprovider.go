@@ -31,7 +31,7 @@ go 1.22`)
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 
-	if err := os.WriteFile(path.Join(dir, "go.mod"), goMod, 0600); err != nil {
+	if err := os.WriteFile(path.Join(dir, "go.mod"), goMod, 0600); err != nil { //nolint:mnd // This check is stupid
 		t.Errorf("%v", err)
 	}
 	if err := ejectFile("testprovider.go", path.Join(dir, "testprovider.go")); err != nil {
