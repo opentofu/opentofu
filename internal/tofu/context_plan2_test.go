@@ -7042,6 +7042,88 @@ import {
 	}
 }
 
+func TestContext2Plan_providerForEachWithOrphanResourceInstanceNotUsingForEach(t *testing.T) {
+	// This test is to cover the bug reported in this issue:
+	//    https://github.com/opentofu/opentofu/issues/2334
+	//
+	// The bug there was that OpenTofu was failing to evaluate the provider
+	// instance key expression for a graph node representing a "orphaned"
+	// resource instance, and was thus always treating them as belonging to
+	// the no-key instance of the given provider. Since a for_each provider
+	// has no instance without an instance key, that caused an error trying
+	// to use a non-existent provider instance.
+
+	instAddr := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test_thing",
+		Name: "a",
+	}.Instance(addrs.StringKey("orphaned")).Absolute(addrs.RootModuleInstance)
+	providerConfigAddr := addrs.AbsProviderConfig{
+		Module:   addrs.RootModule,
+		Provider: addrs.NewBuiltInProvider("test"),
+		Alias:    "multi",
+	}
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+
+			provider "test" {
+				alias    = "multi"
+				for_each = toset(["a"])
+			}
+
+			resource "test_thing" "a" {
+				for_each = toset([])
+				provider = test.multi["a"]
+			}
+		`,
+	})
+	s := states.BuildState(func(ss *states.SyncState) {
+		ss.SetResourceInstanceCurrent(
+			instAddr,
+			&states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(`{}`),
+			},
+			providerConfigAddr,
+			addrs.NoKey, // NOTE: The prior state object is associated with a no-key instance of provider.test
+		)
+	})
+	p := &MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{
+			Block: &configschema.Block{},
+		},
+		ResourceTypes: map[string]providers.Schema{
+			"test_thing": {
+				Block: &configschema.Block{},
+			},
+		},
+	}
+
+	tofuCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			providerConfigAddr.Provider: testProviderFuncFixed(p),
+		},
+	})
+	_, diags := tofuCtx.Plan(context.Background(), m, s, DefaultPlanOpts)
+	err := diags.Err()
+	if err == nil {
+		t.Fatalf("unexpected success; want an error about %s not being declared", providerConfigAddr.InstanceString(addrs.NoKey))
+	}
+	got := err.Error()
+	wantSubstring := `To proceed, return to your previous single-instance configuration for provider["terraform.io/builtin/test"].multi and ensure that test_thing.a["orphaned"] has been destroyed or forgotten before using for_each with this provider, or change the resource configuration to still declare an instance with the key ["orphaned"].`
+	if !strings.Contains(got, wantSubstring) {
+		t.Errorf("missing expected error message\ngot:\n%s\nwant substring: %s", got, wantSubstring)
+	}
+}
+
 func TestContext2Plan_plannedState(t *testing.T) {
 	addr := mustResourceInstanceAddr("test_object.a")
 	m := testModuleInline(t, map[string]string{
