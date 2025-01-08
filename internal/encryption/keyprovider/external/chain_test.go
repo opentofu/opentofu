@@ -2,6 +2,9 @@ package external_test
 
 import (
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -11,8 +14,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method/aesgcm"
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 	"github.com/opentofu/opentofu/internal/encryption/registry/lockingencryptionregistry"
-	"strings"
-	"testing"
 )
 
 func TestChaining(t *testing.T) {
