@@ -392,6 +392,10 @@ Options:
 
   -show-sensitive        If specified, sensitive values will be displayed.
 
+  -json                  Produce output in a machine-readable JSON format,
+                         suitable for use in text editor integrations and 
+                         other automated systems. Always disables color.
+
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.
   For more information on those options, run:
