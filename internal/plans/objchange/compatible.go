@@ -281,75 +281,100 @@ func assertValueCompatible(planned, actual cty.Value, path cty.Path) []error {
 		return errs
 	}
 
-	ty := planned.Type()
-	switch {
-
-	case !actual.IsKnown():
+	if !actual.IsKnown() {
 		errs = append(errs, path.NewErrorf("was known, but now unknown"))
-
-	case ty.IsPrimitiveType():
-		if !actual.Equals(planned).True() {
-			errs = append(errs, path.NewErrorf("was %#v, but now %#v", planned, actual))
-		}
-
-	case ty.IsListType() || ty.IsMapType() || ty.IsTupleType():
-		for it := planned.ElementIterator(); it.Next(); {
-			k, plannedV := it.Element()
-			if !actual.HasIndex(k).True() {
-				errs = append(errs, path.NewErrorf("element %s has vanished", indexStrForErrors(k)))
-				continue
-			}
-
-			actualV := actual.Index(k)
-			moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.IndexStep{Key: k}))
-			errs = append(errs, moreErrs...)
-		}
-
-		for it := actual.ElementIterator(); it.Next(); {
-			k, _ := it.Element()
-			if !planned.HasIndex(k).True() {
-				errs = append(errs, path.NewErrorf("new element %s has appeared", indexStrForErrors(k)))
-			}
-		}
-
-	case ty.IsObjectType():
-		atys := ty.AttributeTypes()
-		for name := range atys {
-			// Because we already tested that the two values have the same type,
-			// we can assume that the same attributes are present in both and
-			// focus just on testing their values.
-			plannedV := planned.GetAttr(name)
-			actualV := actual.GetAttr(name)
-			moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.GetAttrStep{Name: name}))
-			errs = append(errs, moreErrs...)
-		}
-
-	case ty.IsSetType():
-		// We can't really do anything useful for sets here because changing
-		// an unknown element to known changes the identity of the element, and
-		// so we can't correlate them properly. However, we will at least check
-		// to ensure that the number of elements is consistent, along with
-		// the general type-match checks we ran earlier in this function.
-		if planned.IsKnown() && !planned.IsNull() && !actual.IsNull() {
-
-			setErrs := assertSetValuesCompatible(planned, actual, path, func(plannedV, actualV cty.Value) bool {
-				errs := assertValueCompatible(plannedV, actualV, append(path, cty.IndexStep{Key: actualV}))
-				return len(errs) == 0
-			})
-			errs = append(errs, setErrs...)
-
-			// There can be fewer elements in a set after its elements are all
-			// known (values that turn out to be equal will coalesce) but the
-			// number of elements must never get larger.
-
-			plannedL := planned.LengthInt()
-			actualL := actual.LengthInt()
-			if plannedL < actualL {
-				errs = append(errs, path.NewErrorf("length changed from %d to %d", plannedL, actualL))
-			}
-		}
+		return errs
 	}
 
+	// We no longer use "errs" after this point, because we should already have returned
+	// if we've added any errors to it. The following is just to minimize the risk of
+	// mistakes under future maintenence.
+	if len(errs) != 0 {
+		return errs
+	}
+
+	ty := planned.Type()
+	switch {
+	case ty.IsPrimitiveType():
+		return assertValueCompatiblePrimitive(planned, actual, path)
+	case ty.IsListType() || ty.IsMapType() || ty.IsTupleType():
+		return assertValueCompatibleCompositeWithKeys(planned, actual, path)
+	case ty.IsObjectType():
+		atys := ty.AttributeTypes()
+		return assertValueCompatibleObject(planned, actual, atys, path)
+	case ty.IsSetType():
+		return assertValueCompatibleSet(planned, actual, path)
+	default:
+		return nil // we don't have specialized checks for any other type kind
+	}
+}
+
+func assertValueCompatiblePrimitive(planned, actual cty.Value, path cty.Path) []error {
+	var errs []error
+	if !actual.Equals(planned).True() {
+		errs = append(errs, path.NewErrorf("was %#v, but now %#v", planned, actual))
+	}
+	return errs
+}
+
+// assertValueCompatibleCompositeWithKeys is the branch of assertValueCompatible for values
+// that are of composite types where elements have comparable keys/indices separate from their
+// values that want to be compared on an element-by-element basis: lists, maps, and tuples.
+func assertValueCompatibleCompositeWithKeys(planned, actual cty.Value, path cty.Path) []error {
+	var errs []error
+	for it := planned.ElementIterator(); it.Next(); {
+		k, plannedV := it.Element()
+		if !actual.HasIndex(k).True() {
+			errs = append(errs, path.NewErrorf("element %s has vanished", indexStrForErrors(k)))
+			continue
+		}
+
+		actualV := actual.Index(k)
+		moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.IndexStep{Key: k}))
+		errs = append(errs, moreErrs...)
+	}
+	for it := actual.ElementIterator(); it.Next(); {
+		k, _ := it.Element()
+		if !planned.HasIndex(k).True() {
+			errs = append(errs, path.NewErrorf("new element %s has appeared", indexStrForErrors(k)))
+		}
+	}
+	return errs
+}
+
+func assertValueCompatibleObject(planned, actual cty.Value, atys map[string]cty.Type, path cty.Path) []error {
+	var errs []error
+	for name := range atys {
+		// Because we already tested that the two values have the same type,
+		// we can assume that the same attributes are present in both and
+		// focus just on testing their values.
+		plannedV := planned.GetAttr(name)
+		actualV := actual.GetAttr(name)
+		moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.GetAttrStep{Name: name}))
+		errs = append(errs, moreErrs...)
+	}
+	return errs
+}
+
+func assertValueCompatibleSet(planned, actual cty.Value, path cty.Path) []error {
+	var errs []error
+	if planned.IsKnown() && !planned.IsNull() && !actual.IsNull() {
+		setErrs := assertSetValuesCompatible(planned, actual, path, func(plannedV, actualV cty.Value) bool {
+			moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.IndexStep{Key: actualV}))
+			return len(moreErrs) == 0
+		})
+		errs = append(errs, setErrs...)
+
+		// There can be fewer elements in a set after its elements are all
+		// known (values that turn out to be equal will coalesce) but the
+		// number of elements must never get larger.
+
+		plannedL := planned.LengthInt()
+		actualL := actual.LengthInt()
+		if plannedL < actualL {
+			errs = append(errs, path.NewErrorf("length changed from %d to %d", plannedL, actualL))
+		}
+	}
 	return errs
 }
 
