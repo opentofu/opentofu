@@ -515,7 +515,6 @@ func (m *MockOrganizations) SetDataRetentionPolicyDontDelete(ctx context.Context
 	panic("not implemented")
 }
 
-
 func (m *MockOrganizations) DeleteDataRetentionPolicy(ctx context.Context, organization string) error {
 	panic("not implemented")
 }
