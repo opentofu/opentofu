@@ -30,7 +30,8 @@ func decodeProviderMetaBlock(block *hcl.Block) (*ProviderMeta, hcl.Diagnostics) 
 		diags = append(diags, d...)
 	}
 
-	// verify that the local name is already localized or produce an error.
+	// If the name is invalid, we return an error early, lest the invalid value
+	// is used by the caller and causes a panic further down the line.
 	if diags = append(diags, checkProviderNameNormalized(block.Labels[0], block.DefRange)...); diags.HasErrors() {
 		return nil, diags
 	}
