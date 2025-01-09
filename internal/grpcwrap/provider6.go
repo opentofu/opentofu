@@ -396,6 +396,26 @@ func (p *provider6) ReadDataSource(_ context.Context, req *tfplugin6.ReadDataSou
 	return resp, nil
 }
 
+// CloseEphemeralResource implements tfplugin6.ProviderServer.
+func (p *provider6) CloseEphemeralResource(context.Context, *tfplugin6.CloseEphemeralResource_Request) (*tfplugin6.CloseEphemeralResource_Response, error) {
+	panic("unimplemented")
+}
+
+// OpenEphemeralResource implements tfplugin6.ProviderServer.
+func (p *provider6) OpenEphemeralResource(context.Context, *tfplugin6.OpenEphemeralResource_Request) (*tfplugin6.OpenEphemeralResource_Response, error) {
+	panic("unimplemented")
+}
+
+// RenewEphemeralResource implements tfplugin6.ProviderServer.
+func (p *provider6) RenewEphemeralResource(context.Context, *tfplugin6.RenewEphemeralResource_Request) (*tfplugin6.RenewEphemeralResource_Response, error) {
+	panic("unimplemented")
+}
+
+// ValidateEphemeralResourceConfig implements tfplugin6.ProviderServer.
+func (p *provider6) ValidateEphemeralResourceConfig(context.Context, *tfplugin6.ValidateEphemeralResourceConfig_Request) (*tfplugin6.ValidateEphemeralResourceConfig_Response, error) {
+	panic("unimplemented")
+}
+
 func (p *provider6) StopProvider(context.Context, *tfplugin6.StopProvider_Request) (*tfplugin6.StopProvider_Response, error) {
 	resp := &tfplugin6.StopProvider_Response{}
 	err := p.provider.Stop()
