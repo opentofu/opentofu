@@ -17,6 +17,7 @@ ENHANCEMENTS:
 
 BUG FIXES:
 
+- Fixed an issue where an invalid provider name in the `provider_meta` block would crash OpenTofu rather than report an error ([#2347](https://github.com/opentofu/opentofu/pull/2347))
 
 ## Previous Releases
 
