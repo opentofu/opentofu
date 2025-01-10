@@ -3,6 +3,9 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
+//
+
+//nolint:revive,staticcheck //Disabling because we want to just stub out some methods
 package cloud
 
 import (
@@ -179,6 +182,8 @@ type MockConfigurationVersions struct {
 	uploadURLs     map[string]*tfe.ConfigurationVersion
 }
 
+var _ tfe.ConfigurationVersions = &MockConfigurationVersions{}
+
 func newMockConfigurationVersions(client *MockClient) *MockConfigurationVersions {
 	return &MockConfigurationVersions{
 		client:         client,
@@ -268,6 +273,18 @@ func (m *MockConfigurationVersions) Download(ctx context.Context, cvID string) (
 	panic("not implemented")
 }
 
+func (m *MockConfigurationVersions) SoftDeleteBackingData(ctx context.Context, svID string) error {
+	panic("not implemented")
+}
+
+func (m *MockConfigurationVersions) RestoreBackingData(ctx context.Context, svID string) error {
+	panic("not implemented")
+}
+
+func (m *MockConfigurationVersions) PermanentlyDeleteBackingData(ctx context.Context, svID string) error {
+	panic("not implemented")
+}
+
 type MockCostEstimates struct {
 	client      *MockClient
 	Estimations map[string]*tfe.CostEstimate
@@ -354,6 +371,8 @@ type MockOrganizations struct {
 	client        *MockClient
 	organizations map[string]*tfe.Organization
 }
+
+var _ tfe.Organizations = &MockOrganizations{}
 
 func newMockOrganizations(client *MockClient) *MockOrganizations {
 	return &MockOrganizations{
@@ -477,6 +496,30 @@ func (m *MockOrganizations) ReadRunQueue(ctx context.Context, name string, optio
 	}
 
 	return rq, nil
+}
+
+func (m *MockOrganizations) ReadDataRetentionPolicy(ctx context.Context, organization string) (*tfe.DataRetentionPolicy, error) {
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) ReadDataRetentionPolicyChoice(ctx context.Context, organization string) (*tfe.DataRetentionPolicyChoice, error) {
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) SetDataRetentionPolicy(ctx context.Context, organization string, options tfe.DataRetentionPolicySetOptions) (*tfe.DataRetentionPolicy, error) {
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) SetDataRetentionPolicyDeleteOlder(ctx context.Context, organization string, options tfe.DataRetentionPolicyDeleteOlderSetOptions) (*tfe.DataRetentionPolicyDeleteOlder, error) {
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) SetDataRetentionPolicyDontDelete(ctx context.Context, organization string, options tfe.DataRetentionPolicyDontDeleteSetOptions) (*tfe.DataRetentionPolicyDontDelete, error) {
+	panic("not implemented")
+}
+
+func (m *MockOrganizations) DeleteDataRetentionPolicy(ctx context.Context, organization string) error {
+	panic("not implemented")
 }
 
 type MockRedactedPlans struct {
@@ -1343,6 +1386,8 @@ type MockStateVersions struct {
 	outputStates  map[string][]byte
 }
 
+var _ tfe.StateVersions = &MockStateVersions{}
+
 func newMockStateVersions(client *MockClient) *MockStateVersions {
 	return &MockStateVersions{
 		client:        client,
@@ -1449,6 +1494,18 @@ func (m *MockStateVersions) Download(ctx context.Context, url string) ([]byte, e
 }
 
 func (m *MockStateVersions) ListOutputs(ctx context.Context, svID string, options *tfe.StateVersionOutputsListOptions) (*tfe.StateVersionOutputsList, error) {
+	panic("not implemented")
+}
+
+func (m *MockStateVersions) SoftDeleteBackingData(ctx context.Context, svID string) error {
+	panic("not implemented")
+}
+
+func (m *MockStateVersions) RestoreBackingData(ctx context.Context, svID string) error {
+	panic("not implemented")
+}
+
+func (m *MockStateVersions) PermanentlyDeleteBackingData(ctx context.Context, svID string) error {
 	panic("not implemented")
 }
 
@@ -1559,6 +1616,8 @@ type MockWorkspaces struct {
 	workspaceIDs   map[string]*tfe.Workspace
 	workspaceNames map[string]*tfe.Workspace
 }
+
+var _ tfe.Workspaces = &MockWorkspaces{}
 
 func newMockWorkspaces(client *MockClient) *MockWorkspaces {
 	return &MockWorkspaces{
@@ -1932,6 +1991,30 @@ func (m *MockWorkspaces) AddTags(ctx context.Context, workspaceID string, option
 }
 
 func (m *MockWorkspaces) RemoveTags(ctx context.Context, workspaceID string, options tfe.WorkspaceRemoveTagsOptions) error {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) ReadDataRetentionPolicy(ctx context.Context, workspaceID string) (*tfe.DataRetentionPolicy, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) ReadDataRetentionPolicyChoice(ctx context.Context, workspaceID string) (*tfe.DataRetentionPolicyChoice, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) SetDataRetentionPolicy(ctx context.Context, workspaceID string, options tfe.DataRetentionPolicySetOptions) (*tfe.DataRetentionPolicy, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) SetDataRetentionPolicyDeleteOlder(ctx context.Context, workspaceID string, options tfe.DataRetentionPolicyDeleteOlderSetOptions) (*tfe.DataRetentionPolicyDeleteOlder, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) SetDataRetentionPolicyDontDelete(ctx context.Context, workspaceID string, options tfe.DataRetentionPolicyDontDeleteSetOptions) (*tfe.DataRetentionPolicyDontDelete, error) {
+	panic("not implemented")
+}
+
+func (m *MockWorkspaces) DeleteDataRetentionPolicy(ctx context.Context, workspaceID string) error {
 	panic("not implemented")
 }
 
