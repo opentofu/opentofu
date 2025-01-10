@@ -1,29 +1,29 @@
 ---
 sidebar_position: 5
-sidebar_label: Upgrading from OpenTofu 1.6.x/1.7.x
+sidebar_label: Upgrading from OpenTofu 1.7.x/1.8.x/1.9.x
 description: |-
-    Learn how to upgrade OpenTofu from version 1.6.x/1.7.x to 1.8.0.
+    Learn how to upgrade OpenTofu from version 1.7.x/1.8.x/1.9.x to 1.10.0.
 ---
 
-# Upgrading from OpenTofu 1.6.x/1.7.x
+# Upgrading from OpenTofu 1.7.x/1.8.x/1.9.x
 
-OpenTofu 1.8.x is mostly compatible with OpenTofu 1.6.x and 1.7.x (other than one minor breaking change in the S3 backend). This migration guide will take you through the process of
-upgrading OpenTofu to version 1.8.0.
+OpenTofu 1.8.x is mostly compatible with previous OpenTofu versions (other than one minor breaking change in the S3 backend). This migration guide will take you through the process of upgrading OpenTofu to version 1.8.0.
 
 ## Step 0: Prepare a disaster recovery plan
 
-Although OpenTofu 1.8 is mostly compatible with version 1.6 and 1.7, you should take the necessary precautions to prevent
-accidents. Make sure you have an up to date and *tested* disaster recovery plan.
+Although OpenTofu 1.10 is mostly compatible with previous versions, you should take the necessary precautions to prevent accidents. Make sure you have an up to date and *tested* disaster recovery plan.
 
 ## Step 1: If using an S3 backend - Remove any use of `use_legacy_workflow` from S3 backend configurations
 
-If you are using the S3 backend, with `use_legacy_workflow` set, you'd have to remove it. This field has been deprecated in version 1.7.0, and has been changed to default to `false`.
-The legacy workflow of authentication is no longer supported. Please start using the new authentication method, which is more consistent with other AWS tools
+If you are using the S3 backend, with `use_legacy_workflow` set, you'd have to remove it. This field has been deprecated in version 1.7.0, and has been changed to default to `false`. The legacy workflow of authentication is no longer supported. Please start using the new authentication method, which is more consistent with other AWS tools
 
-## Step 2: Apply all changes with OpenTofu 1.6.x/1.7.x
+## Step 2: If you are using `ghcr.io/opentofu/opentofu` as a base image
 
-Before proceeding, make sure that you apply all changes with `tofu apply`. Running `tofu plan` should result
-in no planned changes. While you can switch to OpenTofu with pending changes, it is not recommended.
+If you are using `ghcr.io/opentofu/opentofu` as a base image for your containers, you will need to move away from this setup. Please follow the instructions on the container installation page to build your own base image.
+
+## Step 3: Apply all changes with OpenTofu 1.7.x/1.8.x/1.9.x
+
+Before proceeding, make sure that you apply all changes with `tofu apply`. Running `tofu plan` should result in no planned changes. While you can switch to OpenTofu with pending changes, it is not recommended.
 
 ```
 $ tofu plan
@@ -36,18 +36,18 @@ OpenTofu has compared your real infrastructure against your
 configuration and found no differences, so no changes are needed.
 ```
 
-## Step 3: Install OpenTofu 1.8.x
+## Step 4: Install OpenTofu 1.10.x
 
 As a first step, please [follow the installation instructions for the OpenTofu CLI tool](intro/install/index.mdx). Please test
 if you can successfully execute the `tofu` command and receive the correct version:
 
 ```
 $ tofu --version
-OpenTofu v1.8.0
+OpenTofu v1.10.0
 on linux_amd64
 ```
 
-## Step 4: Back up your state file
+## Step 5: Back up your state file
 
 Before you begin using the `tofu` binary on your Terraform code, make sure to back up your state file. If you are using
 a local state file, you can simply make a copy of your `terraform.tfstate` file in your project directory.
@@ -55,7 +55,7 @@ a local state file, you can simply make a copy of your `terraform.tfstate` file 
 If you are using a remote backend such as an S3 bucket, make sure that you follow the backup procedures for the
 backend and that you exercise the restore procedure at least once.
 
-## Step 5: Initialize OpenTofu 1.8.x
+## Step 6: Initialize OpenTofu 1.10.x
 
 :::warning
 
@@ -75,7 +75,7 @@ If you are using the S3 backend - You will need to run `tofu init -reconfigure` 
 
 :::
 
-## Step 6: Inspect the plan
+## Step 7: Inspect the plan
 
 Once initialized, run `tofu plan` and ensure that there are no pending changes similar to step 1 above. If there are
 unexpected changes in the plan, roll back to OpenTofu 1.6.x/1.7.x and troubleshoot your migration. (See the Troubleshooting
@@ -92,17 +92,17 @@ OpenTofu has compared your real infrastructure against your
 configuration and found no differences, so no changes are needed.
 ```
 
-## Step 7: Test out a small change
+## Step 8: Test out a small change
 
 Before you begin using OpenTofu for larger changes, test out `tofu apply` with a smaller, non-critical
 change.
 
 ## Rolling back and reporting issues
 
-If you have issues migrating to OpenTofu you can follow these steps to roll back to OpenTofu 1.6.x/1.7.x:
+If you have issues migrating to OpenTofu you can follow these steps to roll back to OpenTofu 1.7.x/1.8.x/1.9.x:
 
 1. Create another backup of your state file.
-2. Remove OpenTofu 1.8.x and verify that you are running OpenTofu 1.6.x/1.7.x.
+2. Remove OpenTofu 1.19.x and verify that you are running OpenTofu 1.7.x/1.8.x/1.9.x.
 3. Run `tofu init`.
 4. Run `tofu plan` and verify that no unexpected changes are in the plan.
 5. Test the rollback with a small, non-critical change.
@@ -117,11 +117,11 @@ If you encounter any issues during the migration to OpenTofu, you can join the <
 ### Error: Failed to query available provider packages
 
 This error happens when a provider you specified in your configuration is not available in the OpenTofu registry.
-Please roll back to OpenTofu 1.6.x/1.7.x and make sure your code works with that version. If your code works, please
+Please roll back to OpenTofu 1.7.x/1.8.x/1.9.x and make sure your code works with that version. If your code works, please
 [submit an issue to include the provider in the registry](https://github.com/opentofu/registry/issues/).
 
 ### Error: Module not found
 
 This error happens when a module you specified in your configuration is not available in the OpenTofu registry.
-Please roll back to OpenTofu 1.6.x/1.7.x and make sure your code works with that version. If your code works, please
+Please roll back to OpenTofu 1.7.x/1.8.x/1.9.x and make sure your code works with that version. If your code works, please
 [submit an issue to include the module in the registry](https://github.com/opentofu/registry/issues/).

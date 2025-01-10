@@ -1,209 +1,53 @@
 ---
 sidebar_position: 2
-sidebar_label: What's new in version 1.7?
+sidebar_label: What's new in version 1.10?
 description: |-
-  Learn all about the new features in OpenTofu 1.7.
+  Learn all about the new features in OpenTofu 1.10.
 ---
 
-# What's new in OpenTofu 1.7?
+# What's new in OpenTofu 1.10?
 
-This page will run you through the most important changes in OpenTofu 1.7:
+This page will run you through the most important changes in OpenTofu 1.10:
 
-- [State encryption](#state-encryption)
-- [Provider-defined functions](#provider-defined-functions)
-- [Removed block](#removed-block)
-- [Loopable import blocks](#loopable-import-blocks)
-- [Built-in function changes](#built-in-function-changes)
-- [CLI changes](#cli-changes)
-- [Testing feature changes](#testing-feature-changes)
+- [New features](#new-features)
+  - [New built-in functions](#new-built-in-functions)
+- [Improvements to existing features](#improvements-to-existing-features)
+  - [External programs as encryption key providers (experimental)](#external-programs-as-encryption-key-providers-experimental)
+  - [Smaller improvements](#smaller-improvements)
+- [Deprecations](#deprecations)
+  - [Using `ghcr.io/opentofu/opentofu` as a base image](#using-ghcrioopentofuopentofu-as-a-base-image)
+- [Bugfixes](#bugfixes)
 
-## State encryption
+## New features
 
-State encryption is one of the flagship features of this release. We have prepared a [full documentation](../language/state/encryption.mdx) for this feature.
+### New built-in functions
 
-Before you test this feature, please **make a backup** of your state file. You can then add the following block to enable state encryption:
+New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
 
-```hcl
-terraform {
-  encryption {
-    key_provider "pbkdf2" "my_passphrase" {
-      ## Enter a passphrase here:
-      passphrase = ""
-    }
+- `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
+- `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
+- `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
 
-    method "aes_gcm" "my_method" {
-      keys = key_provider.pbkdf2.my_passphrase
-    }
+## Improvements to existing features
 
-    ## Remove this after the migration:
-    method "unencrypted" "migration" {
-    }
+### External programs as encryption key providers (experimental)
 
-    state {
-      method = method.aes_gcm.my_method
+State encryption now supports using external programs as key providers. Additionally, the PBKDF2 key provider now supports chaining via the `chain` parameter. For details, [see the related documentation](../language/state/encryption.mdx#external-experimental)
 
-      ## Remove the fallback block after migration:
-      fallback{
-        method = method.unencrypted.migration
-      }
-      ## Enable this after migration:
-      #enforced = true
-    }
-  }
-}
-```
+This functionality is experimental and may be changed in future OpenTofu versions.
 
-You can migrate back using the following syntax:
+### Smaller improvements
 
-```hcl
-terraform {
-  encryption {
-    key_provider "pbkdf2" "my_passphrase" {
-      ## Enter a passphrase here:
-      passphrase = ""
-    }
+* OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
 
-    method "aes_gcm" "my_method" {
-      keys = key_provider.pbkdf2.my_passphrase
-    }
+## Deprecations
 
-    method "unencrypted" "migration" {
-    }
+### Using `ghcr.io/opentofu/opentofu` as a base image
 
-    state {
-      method  = method.unencrypted.migration
-      enforced = false
-      fallback{
-        method = method.aes_gcm.my_method
-      }
-    }
-  }
-}
-```
+Using the `ghcr.io/opentofu/opentofu` image as a base image for custom images is deprecated and doesn't work as of OpenTofu 1.10. The reason behind this change is security: while we regularly update OpenTofu itself when security-relevant updates arise, providing a base image would require an update roughly once a week, which we are currently not equipped to do.
 
-If you have access to an AWS, GCP account, or an OpenBao/MPL-licensed HashiCorp Vault installation, you can also [test these key providers](../language/state/encryption.mdx#key-providers).
+However, we have added instructions on building your own base image in the [containerized installation instructions](./install/docker.mdx#building-your-own-image).
 
-## Provider-defined functions
+## Bugfixes
 
-The new Terraform Plugin SDK added support for [provider-defined functions](../language/functions/index.mdx#provider-defined-functions) that you can use directly in OpenTofu. This is a significant improvement over using data sources as provider-defined functions don't increase the size of your state file and require less code to write.
-
-If you want to test provider-defined functions, you can use the [corefunc](https://library.tf/providers/northwood-labs/corefunc/latest) provider by [Ryan Parman](https://github.com/skyzyx):
-
-```hcl
-terraform {
-  required_providers {
-    corefunc = {
-      source = "northwood-labs/corefunc"
-      version = "1.4.0"
-    }
-  }
-}
-
-provider "corefunc" {
-}
-
-output "test" {
-  value = provider::corefunc::str_snake("Hello world!")
-  # Prints: hello_world
-}
-```
-
-What's more, we added an OpenTofu-only feature to let providers dynamically define custom functions based on your configuration. This enhancement allows you to fully integrate other programming languages as [shown in our live stream](https://www.youtube.com/watch?v=6OXBv0MYalY). You can try out this functionality with our experimental [Lua](https://github.com/opentofu/terraform-provider-lua) and [Go](https://github.com/opentofu/terraform-provider-go) providers.
-
-## Removed block
-
-The removed block lets you remove a resource from the state file but keep it on the infrastructure. We have prepared a [full documentation](../language/resources/syntax.mdx#removing-resources) for this feature. You can test it by creating a resource first:
-
-```hcl
-resource "local_file" "test" {
-  content = "Hello world!"
-  filename = "test.txt"
-}
-```
-
-After applying, you can replace the resource with a removed block:
-
-```hcl
-removed {
-  from = local_file.test
-}
-```
-
-After the next apply, you will see that the `local_file.test` resource no longer exists in your state file, but the `test.txt` file should still exist on your disk. You can now remove the removed block safely.
-
-## Loopable import blocks
-
-We made several improvements to the declarative import blocks, most prominently you can now use the `for_each` instruction on the block. We have prepared a [full documentation](../language/import/index.mdx#importing-multiple-resources) for this feature.
-
-In previous OpenTofu versions, you could already use the `import` block to declaratively import resources, for example:
-
-```hcl
-resource "random_id" "test_id" {
-  byte_length = 8
-}
-
-import {
-  to = random_id.test_id
-  id = "Y2FpOGV1Mkk"
-}
-
-output "id" {
-  value = random_id.test_id.b64_url
-}
-```
-
-In this new version you can now also declaratively import resources in a loop:
-
-```hcl
-variable "server_ids" {
-  type = list(string)
-}
-
-resource "random_id" "test_id" {
-  byte_length = 8
-  count = 2
-}
-
-import {
-  to = random_id.test_id[tonumber(each.key)]
-  id = each.value
-  for_each = {
-    for idx, item in var.server_ids: idx => item
-  }
-}
-
-output "id" {
-  value = random_id.test_id.*.b64_url
-}
-```
-
-The example above will let you specify some random IDs from a variable, and let others be automatically generated.
-
-## Built-in function changes
-
-This release also contains several new functions and changes to existing functions:
-
-- New function: [templatestring](../language/functions/templatestring.mdx)
-- New function: [base64gunzip](../language/functions/base64gunzip.mdx)
-- New function: [cidrcontains](../language/functions/cidrcontains.mdx)
-- New function: [urldecode](../language/functions/urldecode.mdx)
-- New function: [issensitive](../language/functions/issensitive.mdx)
-- [nonsensitive](../language/functions/nonsensitive.mdx) no longer returns an error when the applied values are not sensitive.
-- [templatefile](../language/functions/templatefile.mdx) now supports recursion up to a depth of 1024.
-
-## CLI changes
-
-There are also several changes to the CLI:
-
-- `tofu init` now supports the `-json` flag for JSON output.
-- `tofu plan` now has a `-concise` flag to shorten the plan output.
-- `tofu console` now works on Solaris and AIX.
-- The CLI now supports the XDG directory specification.
-- Aliases for:
-    - `state list` &rarr; `state ls`
-    - `state mv` &rarr; `state move`
-    - `state rm` &rarr; `state remove`
-
-## Testing feature changes
-
-- Tofu now reads the `.tfvars` file from the tests folder.
+- Fixed an issue where an invalid provider name in the `provider_meta` block would crash OpenTofu rather than report an error ([#2347](https://github.com/opentofu/opentofu/pull/2347))
