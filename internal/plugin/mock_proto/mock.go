@@ -85,7 +85,7 @@ func (mr *MockProviderClientMockRecorder) CallFunction(arg0, arg1 any, arg2 ...a
 // CloseEphemeralResource mocks base method.
 func (m *MockProviderClient) CloseEphemeralResource(arg0 context.Context, arg1 *tfplugin5.CloseEphemeralResource_Request, arg2 ...grpc.CallOption) (*tfplugin5.CloseEphemeralResource_Response, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -96,9 +96,9 @@ func (m *MockProviderClient) CloseEphemeralResource(arg0 context.Context, arg1 *
 }
 
 // CloseEphemeralResource indicates an expected call of CloseEphemeralResource.
-func (mr *MockProviderClientMockRecorder) CloseEphemeralResource(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockProviderClientMockRecorder) CloseEphemeralResource(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseEphemeralResource", reflect.TypeOf((*MockProviderClient)(nil).CloseEphemeralResource), varargs...)
 }
 
@@ -225,7 +225,7 @@ func (mr *MockProviderClientMockRecorder) MoveResourceState(arg0, arg1 any, arg2
 // OpenEphemeralResource mocks base method.
 func (m *MockProviderClient) OpenEphemeralResource(arg0 context.Context, arg1 *tfplugin5.OpenEphemeralResource_Request, arg2 ...grpc.CallOption) (*tfplugin5.OpenEphemeralResource_Response, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -236,9 +236,9 @@ func (m *MockProviderClient) OpenEphemeralResource(arg0 context.Context, arg1 *t
 }
 
 // OpenEphemeralResource indicates an expected call of OpenEphemeralResource.
-func (mr *MockProviderClientMockRecorder) OpenEphemeralResource(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockProviderClientMockRecorder) OpenEphemeralResource(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "OpenEphemeralResource", reflect.TypeOf((*MockProviderClient)(nil).OpenEphemeralResource), varargs...)
 }
 
@@ -325,7 +325,7 @@ func (mr *MockProviderClientMockRecorder) ReadResource(arg0, arg1 any, arg2 ...a
 // RenewEphemeralResource mocks base method.
 func (m *MockProviderClient) RenewEphemeralResource(arg0 context.Context, arg1 *tfplugin5.RenewEphemeralResource_Request, arg2 ...grpc.CallOption) (*tfplugin5.RenewEphemeralResource_Response, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -336,9 +336,9 @@ func (m *MockProviderClient) RenewEphemeralResource(arg0 context.Context, arg1 *
 }
 
 // RenewEphemeralResource indicates an expected call of RenewEphemeralResource.
-func (mr *MockProviderClientMockRecorder) RenewEphemeralResource(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockProviderClientMockRecorder) RenewEphemeralResource(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RenewEphemeralResource", reflect.TypeOf((*MockProviderClient)(nil).RenewEphemeralResource), varargs...)
 }
 
@@ -405,7 +405,7 @@ func (mr *MockProviderClientMockRecorder) ValidateDataSourceConfig(arg0, arg1 an
 // ValidateEphemeralResourceConfig mocks base method.
 func (m *MockProviderClient) ValidateEphemeralResourceConfig(arg0 context.Context, arg1 *tfplugin5.ValidateEphemeralResourceConfig_Request, arg2 ...grpc.CallOption) (*tfplugin5.ValidateEphemeralResourceConfig_Response, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
+	varargs := []any{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
@@ -416,9 +416,9 @@ func (m *MockProviderClient) ValidateEphemeralResourceConfig(arg0 context.Contex
 }
 
 // ValidateEphemeralResourceConfig indicates an expected call of ValidateEphemeralResourceConfig.
-func (mr *MockProviderClientMockRecorder) ValidateEphemeralResourceConfig(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockProviderClientMockRecorder) ValidateEphemeralResourceConfig(arg0, arg1 any, arg2 ...any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
+	varargs := append([]any{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateEphemeralResourceConfig", reflect.TypeOf((*MockProviderClient)(nil).ValidateEphemeralResourceConfig), varargs...)
 }
 
