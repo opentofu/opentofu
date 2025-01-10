@@ -23,8 +23,6 @@ import (
 )
 
 // LocalRun implements backend.Local
-//
-//nolint:funlen,nestif // Historical function predates our complexity rules
 func (b *Cloud) LocalRun(_ context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := &backend.LocalRun{
