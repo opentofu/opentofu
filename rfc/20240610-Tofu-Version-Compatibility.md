@@ -1,6 +1,6 @@
 # Tofu Version Compatibility
 
-Issue: https://github.com/opentofu/opentofu/issues/1708 <!-- Ideally, this issue will have the "needs-rfc" label added by the Core Team during triage -->
+Issue: https://github.com/opentofu/opentofu/issues/1708
 
 As OpenTofu and Terraform diverge, the concept of "software version" for compatibility becomes murky.
 
@@ -9,69 +9,155 @@ The "software version" is used in a few locations:
 * Provider compatibility checks (deprecated but still used)
 * State compatibility ("terraform_version" field)
 
-At the time of writing this RFC, OpenTofu 1.7.x has very similar features to Terraform 1.8.x (though not identical). As the "software version" requirements are updated in the previous examples, the exact requirements become murky. A module may require features from "Terraform 1.7.4", but would be perfectly happy with "OpenTofu 1.6.5" (as an example).
+As a concrete example, OpenTofu 1.7.x has very similar features to Terraform 1.8.x (though not identical). As the "software version" requirements are updated in the previous examples, the exact requirements become murky. A module may require features from "Terraform 1.7.4", but might be perfectly happy with "OpenTofu 1.6.5".
 
 > [!NOTE]
-> As we are unable to inspect the Hashicorp Terraform Repository in depth, all version compatibility must be based on Release Notes / Changelog Entries as well as user reports.
+> As we are unable to inspect the HashiCorp Terraform Repository in depth, all version compatibility must be based on Release Notes / Changelog Entries as well as user reports.
 
 ## Proposed Solution
 
-As we [introduce support](20240529-OpenTofu-Specific-Code-Override.md) for `.tofu` files, we open up the ability to add new language features without worrying as much about compatibility in shared modules. If we can differentiate between "OpenTofu Version" and "Terraform Version", the above scenarios become much easier.
+We aim to address the scenario in which a module may be written for a given Terraform version and has a specific version requirement, while a OpenTofu user may wish to use the module and bypass the "Terraform" version requirement.
 
-As the [provider compatibility check is deprecated](https://github.com/hashicorp/terraform-plugin-framework/blob/8a09cef0bb892e2d90c89cad551ce12a959f1a2d/provider/configure.go#L28-L32) and the state's "terraform_version" field is not currently used in OpenTofu, we will not discuss them in this RFC.
+Note: Since the [provider compatibility check is deprecated](https://github.com/hashicorp/terraform-plugin-framework/blob/8a09cef0bb892e2d90c89cad551ce12a959f1a2d/provider/configure.go#L28-L32) and the state's "terraform_version" field is not currently used in OpenTofu, we will consider them out of scope for this RFC.
+
+First, some definitions:
+* A "Terraform Version" is represented by a `terraform { required_version = "requirement" }` block within a `.tf` file.
+* A "Tofu Version" is represented by a `terraform { required_version = "requirement" }` block within a `.tofu` file.
+
+Currently in OpenTofu, the "Terraform Version" and "Tofu Version" are treated identically. As mentioned above, the version requirement maps to different feature sets in the two different projects.
+
+The only way around this problem as of today is to create a .tofu file for each `terraform {}` block in a project and module.  This is the "ideal" scenario as modules can explicitly choose which feature sets they want when used within the two projects.
+
+An example of the version split is seen [here](https://github.com/GoogleCloudPlatform/cloud-foundation-fabric/pull/2771) and "resolves" the original issue that spawned this RFC and discussion.  Unfortunately, it took half a year for the module that the user relies upon to update.
+
+This situation leaves users in the lurch, with the only option available being to fork and modify every module with an incompatible "Terraform Version" constraint.
+
+The solution proposed in this RFC is to add the ability for a project author to disable "Terraform Version" requirements all together and rely solely on "Tofu Version".  As this is a potentially dangerous option and requires users to understand the features in both, it should be an explicit opt-in feature.
+
+To help with clarity, an alternative to the `terraform{}` block is proposed, the `tofu{}` block. Functionally speaking, it is identical to the `terraform{}` block and will in most cases be treated as such.  With this in place, we can amend our definitions above with: A "Tofu Version" is also represented by a `tofu { required_version = "requirement" }` block within a `.tf` or `.tofu` file.  We also introduce the term `project{}` block to refer to either interchangeably.
+
+
+From the perspective of a module, root or child, there are two different ways in which "Terraform Version" should be ignored:
+1) Disabled for all child modules of the current module.  This represents someone who has lots of child modules that have not yet added "Tofu Versions" and they are comfortable with the risk of bypassing the "Terraform Version" in all of them (and their children).
+2) Disabled for a specific child module of the current module.  This represents someone who is pulling a small number of child modules that have not yet added "Tofu Versions" and they would like to limit the blast radius of ignoring the "Terraform Version" check in this limited area of the current module.
+
+For for the first scenario, a flag called "bypass_terraform_version_requirement" is added to the `product{}` block.  If set to true, all child modules of the current module will only error on "Tofu Versions" and instead produce warnings for "Terraform Versions".
+
+For the second scenario, a flag called "bypass_terraform_version_requirement" is added to the specific `module{}` block.  If set to true, that specific module and all of it's children will only error on "Tofu Versions" and instead produce warnings for "Terraform Versions".
+
 
 ### User Documentation
 
-Currently the "software version" (both Terraform and Tofu) is defined in the config as `terraform -> required_version`. This represents a valid range of versions that the configuration is compatible with. When OpenTofu is compiled, the "software version" is baked into the binary and used for all version checks (as well as`tofu -version`).
+When adopting OpenTofu in a project or module, considerable care should be taken when inspecting project (terraform/tofu) version requirements.  Even though these projects have a shared ancestry and may follow similar paths, the specific version numbers can mean very different things.  A version represents an arbitrary feature set, which between the two projects will likely diverge further and further over time.
 
-Example:
-```hcl
-terraform {
-    required_version = "1.7.4"
-}
-```
-This configuration currently requires either Terraform 1.7.4 or OpenTofu 1.7.4 which are wildly different things.
+The ideal situation is that every child module that is used in a root module declares both a Terraform and OpenTofu version based on the specific feature sets it needs.  As of today this is not yet practical to rely upon and can make migrating to OpenTofu more of a headache than is ideal.
 
-Let's look at a project or module which plans on supporting both tools (for the time being). They will start to introduce `.tofu` files as they start utilizing additional functionality in OpenTofu. How would they go about setting version requirements?
+To work around this limitation, we introduce the "bypass_terraform_version_requirement" field to both the `teraform{}` and `module{}` blocks.  Additionally, for clarity we introduce the `tofu{}` block as a synonym of the `terraform{}` block and refer to them both as the `project{}` block.
 
+Some definitions before we get into behavior:
+* "Terraform Version" refers to `terraform{ required_version = "requirement" }` present in a `.tf` file
+* "Tofu Version" refers to `terraform{ required_version = "requirement" }` present in a `.tofu` file OR `tofu{ required_version = "requirement" }` in either a `.tf` or `.tofu` file
+
+
+#### Project scoped behavior:
+
+By setting `bypass_terraform_version_requirement = true` in the `project{}` block, all "Terraform Version" requirements in child modules of the current module will be treated as warnings.
+
+For example:
 ```hcl
-# version.tf
-terraform {
-    required_version = "1.7.4"
-}
-```
-```hcl
-# version.tofu
+# main.tofu
+
 tofu {
-    required_version = "1.6.5"
+    required_version = ">=1.5.5"
+    bypass_terraform_version_requirement = true
+}
+
+module "childA" {
+    source = "something/i/dont/want/to/fork"
+    input = "A"
+}
+
+# childB...Y
+
+module "childZ" {
+    source = "something/i/dont/want/to/fork"
+    input = "Z"
 }
 ```
-
-When loaded by:
-* Terraform, the `version.tofu` file would be ignored and the "Terraform Required Version" would be 1.7.4.
-* OpenTofu, the `version.tofu` file would be loaded instead of `version.tf` and the "OpenTofu Required Version" would be 1.6.5.
-
-
-What happens if only the `version.tf` file exists in this module with no tofu overwrite? This is a common case for modules who have not yet considered explicit OpenTofu migration.
-
-As a user, I would like to know if any incompatible terraform_version has been specified as part of my project's configuration and modules. I would also assume any version requirement under 1.6 would be identical between Terraform and OpenTofu.
 
 ```hcl
+# something/i/dont/want/to/fork/versions.tf
 terraform {
-    required_version = 1.7.4
+    required_version = ">=1.42.10"
 }
 ```
-```shell
-$ TF_LOG=debug tofu init
+
+Running `tofu init` will produce:
+```
+
 Initializing the backend...
 Initializing modules...
-Warning: Configuration requests terraform version >= 1.6!
-  Please update the configuration to specify the required OpenTofu Version.  More information is available in the debug log.
-Debug: terraform required_version = 1.7.4 in main.tf:421
-```
-This could also include some information on how to remedy this situation, perhaps linking to the docs.
 
-If an incompatible (>1.5.5) version is detected, OpenTofu will ignore the "Terraform Required Version".
+Warning: Ignored terraform version requirement
+  on: something/i/dont/want/to/fork/versions.tf in module "childA"
+  <suggestion to fix or fork that module>
+
+....
+
+
+Warning: Ignored terraform version requirement
+  on: something/i/dont/want/to/fork/versions.tf in module "childZ"
+  <suggestion to fix or fork that module>
+
+```
+
+
+#### Product scoped behavior:
+
+By setting `bypass_terraform_version_requirement = true` in a `module{}` block, all "Terraform Version" requirements in the requested module and it's children will treated as warnings.
+
+For example:
+```hcl
+# main.tofu
+
+tofu {
+    required_version = ">=1.5.5"
+}
+
+module "child" {
+    source = "something/i/dont/want/to/fork"
+    bypass_terraform_version_requirement = true
+}
+```
+
+```hcl
+# something/i/dont/want/to/fork/versions.tf
+terraform {
+    required_version = ">=1.42.10"
+}
+
+module "inner_child" {
+    source = "somethingelse/i/dont/want/to/fork"
+    bypass_terraform_version_requirement = true
+}
+```
+
+Running `tofu init` will produce:
+```
+
+Initializing the backend...
+Initializing modules...
+
+Warning: Ignored terraform version requirement
+  on: something/i/dont/want/to/fork/versions.tf in module "child"
+  <suggestion to fix or fork that module>
+
+
+Warning: Ignored terraform version requirement
+  on: somethingelse/i/dont/want/to/fork/versions.tf in module "child.inner_child"
+  <suggestion to fix or fork that module>
+
+```
 
 ### Technical Approach
 
@@ -83,27 +169,21 @@ We have two very similar paths here:
 
 Either path is easy to both implement and thoroughly test.
 
-The `configs.Module.CheckCoreVersionRequirements()` function is where we will need to emit the warnings and corresponding debug log entries.
+The `configs.Module.CheckCoreVersionRequirements()` function is where we will need to emit the warning diagnostics.
 
-As discussed in the `.tofu` RFC, we will want to quickly work on support for this feature.
+Additionally, introducing "bypass_terraform_version_requirement" to the `module{}` block is introducing a new "reserved" field that must not be used by module authors. Given it's unique naming and lack of search results on Github, I believe that it is safe to introduce.
 
 ### Open Questions
 
-Should there be an option (config, CLI, or ENV) to:
-* Disable the version checking altogether?
-* Don't check terraform required_versions
-* Treat both Tofu and Terraform version as identical instead of using our equivalent "terraform version" guess?
-* ~~Do we show the guessed terraform version in `tofu -version`, maybe with a `-verbose` flag?~~ This goes against the Technical Steering Committee's strong recommendation against a version compatibility table.
+Should bypass_terraform_version_requirements ever be the default?
 
 ### Future Considerations
 
-If we run into providers expecting a particular terraform version (even though this is deprecated), we may want to use the "Terraform Version Equivalent" in that API call.
+If we run into providers expecting a particular terraform version (even though this is deprecated), we may want to use this flag to work around it?
 
 ## Potential Alternatives
 
 Don't implement this and assume that all module and project authors will adopt the .tofu extension and keep the respective required_versions up to date.
 
-Implement an option to disable required_version checking.
-
-~~Try to guess the equivalent OpenTofu version for a specified Terraform version.~~ This goes against the Technical Steering Committee's strong recommendation against a version compatibility table.
+~~Try to guess the equivalent OpenTofu version for a specified Terraform version.~~ This goes against the Technical Steering Committee's strong recommendation against a version compatibility table and is more confusing for end users.
 
