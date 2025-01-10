@@ -95,6 +95,16 @@ Before you start creating a release, make sure you have the following marketing 
 
 ---
 
+## Updating the documentation (`X.Y.0-beta` and `X.Y.0` stable releases)
+
+Before you release, make sure the following documentation pages are up to date:
+
+- Documentation main page
+- What's new in OpenTofu X.Y?
+- Upgrading from OpenTofu X.Y.Z
+
+---
+
 ## Preparing the repository for a release
 
 Before you can create a release, you need to make sure the following files are up to date:
