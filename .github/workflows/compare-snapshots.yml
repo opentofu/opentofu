@@ -45,8 +45,7 @@ jobs:
             --tests=testing/equivalence-tests/tests \
             --goldens=testing/equivalence-tests/outputs \
             --rewrites=testing/rewrites.jsonc \
-            --binary=./bin/tofu \
-
+            --binary=./bin/tofu
       - name: Ensure there is no diff
         shell: bash
         run: |

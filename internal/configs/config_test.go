@@ -830,3 +830,22 @@ func TestTransformForTest(t *testing.T) {
 		})
 	}
 }
+
+func TestIssue2344(t *testing.T) {
+	cfg, diags := testModuleConfigFromDir("testdata/issue-2344")
+	if diags.HasErrors() {
+		t.Fatal(diags.Error())
+	}
+
+	t.Run("already absolute", func(t *testing.T) {
+		addr := addrs.AbsProviderConfig{
+			Module:   addrs.RootModule,
+			Provider: addrs.NewDefaultProvider("test"),
+			Alias:    "boop",
+		}
+		got := cfg.ResolveAbsProviderAddr(addr, addrs.RootModule)
+		if got, want := got.String(), addr.String(); got != want {
+			t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+}
