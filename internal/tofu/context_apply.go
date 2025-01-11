@@ -58,7 +58,6 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 				if err != nil {
 					return nil, diags.Append(err)
 				}
-
 			}
 		}
 
