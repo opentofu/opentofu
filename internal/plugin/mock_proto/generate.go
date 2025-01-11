@@ -3,6 +3,6 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//go:generate go run github.com/golang/mock/mockgen -destination mock.go github.com/opentofu/opentofu/internal/tfplugin5 ProviderClient,ProvisionerClient,Provisioner_ProvisionResourceClient,Provisioner_ProvisionResourceServer
+//go:generate go run go.uber.org/mock/mockgen -destination mock.go github.com/opentofu/opentofu/internal/tfplugin5 ProviderClient,ProvisionerClient,Provisioner_ProvisionResourceClient,Provisioner_ProvisionResourceServer
 
 package mock_tfplugin5

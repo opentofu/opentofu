@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/opentofu/opentofu/main/internal/encryption/keyprovider/externalcommand/protocol/output.schema.json",
+  "title": "OpenTofu External Key Provider Output",
+  "description": "Output schema for the OpenTofu external key provider protocol. The external provider must read the input from stdin and write the output to stdout. It may write to stderr to provide more error details.",
+  "type": "object",
+  "properties": {
+    "keys": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "encryption_key": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "$comment": "Base64-encoded encryption key. The external program must always emit this."
+        },
+        "decryption_key": {
+          "type": "string",
+          "contentEncoding": "base64",
+          "$comment": "Base64-encoded decryption key. The external program should only emit this when all the metadata required to construct the key is present in the input."
+        }
+      },
+      "required": ["encryption_key"]
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "external_data": {
+          "$comment": "When decryption is desired, OpenTofu passes along the stored metadata. This metadata may contain additional details, such as the number of hashing rounds, that are not sensitive, but must be set properly when decrypting.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": ["keys","meta"]
+}

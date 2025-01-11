@@ -107,7 +107,7 @@ func (n *NodeAbstractResourceInstance) References() []*addrs.Reference {
 	return nil
 }
 
-func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext, hasExpansionData bool) tfdiags.Diagnostics {
+func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext, hasExpansionData bool, deposedKey states.DeposedKey) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] Resolving provider key for %s", n.Addr)
@@ -204,19 +204,75 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx EvalContext, hasExpan
 		return nil
 	}
 
-	if n.ResolvedProviderKey == nil {
-		// Probably an OpenTofu bug
-		return diags.Append(fmt.Errorf("provider %s not initialized for resource %s", n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr))
+	// If we get here then the provider instance address tracked in the state refers to
+	// an instance of the provider configuration that is no longer declared in the
+	// configuration. This could either mean that the provider was previously using
+	// for_each but one of the keys has been removed, or that the "for_each"-ness
+	// of the provider configuration has changed since this state snapshot was created.
+	// There are therefore two different error cases to handle, although we need
+	// slightly different messaging for deposed vs. orphaned instances.
+	if deposedKey == states.NotDeposed {
+		if n.ResolvedProviderKey != nil {
+			// We're associated with an for_each instance key that isn't declared anymore.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Provider instance not present",
+				fmt.Sprintf(
+					"To work with %s its original provider instance at %s is required, but it has been removed. This occurs when an element is removed from the provider configuration's for_each collection while objects created by that the associated provider instance still exist in the state. Re-add the for_each element to destroy %s, after which you can remove the provider configuration again.\n\nThis is commonly caused by using the same for_each collection both for a resource (or its containing module) and its associated provider configuration. To successfully remove an instance of a resource it must be possible to remove the corresponding element from the resource's for_each collection while retaining the corresponding element in the provider's for_each collection.",
+					n.Addr, n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
+				),
+			))
+		} else {
+			// We're associated with the no-key instance of a provider configuration, which
+			// suggests that someone is in the process of adopting provider for_each for
+			// a provider configuration that didn't previously use it but has some
+			// orphaned resource instance objects in the state that need to have
+			// their destroy completed first.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Provider instance not present",
+				fmt.Sprintf(
+					"To work with %s its original provider instance at %s is required, but it has been removed. This suggests that you've added for_each to this provider configuration while there are existing instances of %s that need to be destroyed by the original single-instance provider configuration.\n\nTo proceed, return to your previous single-instance configuration for %s and ensure that %s has been destroyed or forgotten before using for_each with this provider, or change the resource configuration to still declare an instance with the key %s.",
+					n.Addr, n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr.ContainingResource(),
+					n.ResolvedProvider.ProviderConfig, n.Addr, n.Addr.Resource.Key,
+				),
+			))
+		}
+	} else {
+		if n.ResolvedProviderKey != nil {
+			// We're associated with an for_each instance key that isn't declared anymore.
+			// This particualr case is similar to the non-deposed variant above, but we
+			// mention the deposed key in the message and drop the irrelevant note about
+			// using the same for_each for the resource and the provider, since deposed
+			// objects are caused by a failed create_before_destroy (a kind of "replace")
+			// rather than by entirely removing an instance.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Provider instance not present",
+				fmt.Sprintf(
+					"To work with %s's deposed object %s its original provider instance at %s is required, but it has been removed. This occurs when an element is removed from the provider configuration's for_each collection while objects created by that the associated provider instance still exist in the state. Re-add the for_each element to destroy this deposed object for %s, after which you can remove the provider configuration again.",
+					n.Addr, deposedKey, n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
+				),
+			))
+		} else {
+			// We're associated with the no-key instance of a provider configuration, which
+			// suggests that someone is in the process of adopting provider for_each for
+			// a provider configuration that didn't previously use it but has some
+			// deposed resource instance objects in the state that need to have
+			// their destroy completed first.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Provider instance not present",
+				fmt.Sprintf(
+					"To work with %s's deposed object %s its original provider instance at %s is required, but it has been removed. This suggests that you've added for_each to this provider configuration while there are existing deposed objects of %s that need to be destroyed by the original single-instance provider configuration.\n\nTo proceed, return to your previous single-instance configuration for %s and ensure that all deposed instances of %s have been destroyed before using for_each with this provider.",
+					n.Addr, deposedKey, n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey),
+					n.Addr,
+					n.ResolvedProvider.ProviderConfig, n.Addr,
+				),
+			))
+		}
 	}
-
-	return diags.Append(tfdiags.Sourceless(
-		tfdiags.Error,
-		"Provider instance not present",
-		fmt.Sprintf(
-			"To work with %s its original provider instance at %s is required, but it has been removed. This occurs when an element is removed from the provider configuration's for_each collection while objects created by that the associated provider instance still exist in the state. Re-add the for_each element to destroy %s, after which you can remove the provider configuration again.\n\nThis is commonly caused by using the same for_each collection both for a resource (or its containing module) and its associated provider configuration. To successfully remove an instance of a resource it must be possible to remove the corresponding element from the resource's for_each collection while retaining the corresponding element in the provider's for_each collection.",
-			n.Addr, n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
-		),
-	))
+	return diags
 }
 
 // StateDependencies returns the dependencies which will be saved in the state

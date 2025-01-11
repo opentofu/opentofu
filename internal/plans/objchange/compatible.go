@@ -36,15 +36,15 @@ func assertObjectCompatible(schema *configschema.Block, planned, actual cty.Valu
 	var errs []error
 	var atRoot string
 	if len(path) == 0 {
-		atRoot = "Root object "
+		atRoot = "root object "
 	}
 
 	if planned.IsNull() && !actual.IsNull() {
-		errs = append(errs, path.NewErrorf(fmt.Sprintf("%swas absent, but now present", atRoot)))
+		errs = append(errs, path.NewErrorf("%swas absent, but now present", atRoot))
 		return errs
 	}
 	if actual.IsNull() && !planned.IsNull() {
-		errs = append(errs, path.NewErrorf(fmt.Sprintf("%swas present, but now absent", atRoot)))
+		errs = append(errs, path.NewErrorf("%swas present, but now absent", atRoot))
 		return errs
 	}
 	if planned.IsNull() {
@@ -57,144 +57,191 @@ func assertObjectCompatible(schema *configschema.Block, planned, actual cty.Valu
 		actualV := actual.GetAttr(name)
 
 		path := append(path, cty.GetAttrStep{Name: name})
-
-		// Unmark values here before checking value assertions,
-		// but save the marks so we can see if we should suppress
-		// exposing a value through errors
-		unmarkedActualV, marksA := actualV.UnmarkDeep()
-		unmarkedPlannedV, marksP := plannedV.UnmarkDeep()
-		_, isSensitiveActual := marksA[marks.Sensitive]
-		_, isSensitivePlanned := marksP[marks.Sensitive]
-
-		moreErrs := assertValueCompatible(unmarkedPlannedV, unmarkedActualV, path)
-		if attrS.Sensitive || isSensitiveActual || isSensitivePlanned {
-			if len(moreErrs) > 0 {
-				// Use a vague placeholder message instead, to avoid disclosing
-				// sensitive information.
-				errs = append(errs, path.NewErrorf("inconsistent values for sensitive attribute"))
-			}
-		} else {
-			errs = append(errs, moreErrs...)
-		}
+		errs = append(errs, assertAttributeCompatible(plannedV, actualV, attrS, path)...)
 	}
 	for name, blockS := range schema.BlockTypes {
 		plannedV, _ := planned.GetAttr(name).Unmark()
 		actualV, _ := actual.GetAttr(name).Unmark()
 
 		path := append(path, cty.GetAttrStep{Name: name})
-		switch blockS.Nesting {
-		case configschema.NestingSingle, configschema.NestingGroup:
-			// If an unknown block placeholder was present then the placeholder
-			// may have expanded out into zero blocks, which is okay.
-			if !plannedV.IsKnown() && actualV.IsNull() {
+		errs = append(errs, assertNestedBlockCompatible(plannedV, actualV, blockS, path)...)
+	}
+	return errs
+}
+
+func assertAttributeCompatible(plannedV, actualV cty.Value, attrS *configschema.Attribute, path cty.Path) []error {
+	var errs []error
+
+	// Unmark values here before checking value assertions,
+	// but save the marks so we can see if we should suppress
+	// exposing a value through errors
+	unmarkedActualV, marksA := actualV.UnmarkDeep()
+	unmarkedPlannedV, marksP := plannedV.UnmarkDeep()
+	_, isSensitiveActual := marksA[marks.Sensitive]
+	_, isSensitivePlanned := marksP[marks.Sensitive]
+
+	moreErrs := assertValueCompatible(unmarkedPlannedV, unmarkedActualV, path)
+	if attrS.Sensitive || isSensitiveActual || isSensitivePlanned {
+		if len(moreErrs) > 0 {
+			// Use a vague placeholder message instead, to avoid disclosing
+			// sensitive information.
+			errs = append(errs, path.NewErrorf("inconsistent values for sensitive attribute"))
+		}
+	} else {
+		errs = append(errs, moreErrs...)
+	}
+
+	return errs
+}
+
+func assertNestedBlockCompatible(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
+	switch blockS.Nesting {
+	case configschema.NestingSingle, configschema.NestingGroup:
+		return assertNestedBlockCompatibleSingle(plannedV, actualV, blockS, path)
+	case configschema.NestingList:
+		return assertNestedBlockCompatibleList(plannedV, actualV, blockS, path)
+	case configschema.NestingMap:
+		// A NestingMap might either be a map or an object, depending on
+		// whether there are dynamically-typed attributes inside, but
+		// that's decided statically and so both values will have the same
+		// kind. Our handling of each is slightly different in the details,
+		// but both have similar goals.
+		if plannedV.Type().IsObjectType() {
+			return assertNestedBlockCompatibleMapAsObject(plannedV, actualV, blockS, path)
+		} else {
+			return assertNestedBlockCompatibleMapAsMap(plannedV, actualV, blockS, path)
+		}
+	case configschema.NestingSet:
+		return assertNestedBlockCompatibleSet(plannedV, actualV, blockS, path)
+	default:
+		panic(fmt.Sprintf("unsupported nesting mode %s", blockS.Nesting))
+	}
+}
+
+func assertNestedBlockCompatibleSingle(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
+	// If an unknown block placeholder was present then the placeholder
+	// may have expanded out into zero blocks, which is okay.
+	if !plannedV.IsKnown() && actualV.IsNull() {
+		return nil
+	}
+
+	var errs []error
+	moreErrs := assertObjectCompatible(&blockS.Block, plannedV, actualV, path)
+	errs = append(errs, moreErrs...)
+	return errs
+}
+
+func assertNestedBlockCompatibleList(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
+	// A NestingList might either be a list or a tuple, depending on
+	// whether there are dynamically-typed attributes inside. However,
+	// both support a similar-enough API that we can treat them the
+	// same for our purposes here.
+
+	if !plannedV.IsKnown() || !actualV.IsKnown() || plannedV.IsNull() || actualV.IsNull() {
+		return nil
+	}
+
+	var errs []error
+	plannedL := plannedV.LengthInt()
+	actualL := actualV.LengthInt()
+	if plannedL != actualL {
+		errs = append(errs, path.NewErrorf("block count changed from %d to %d", plannedL, actualL))
+		return errs
+	}
+	for it := plannedV.ElementIterator(); it.Next(); {
+		idx, plannedEV := it.Element()
+		if !actualV.HasIndex(idx).True() {
+			continue
+		}
+		actualEV := actualV.Index(idx)
+		moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.IndexStep{Key: idx}))
+		errs = append(errs, moreErrs...)
+	}
+	return errs
+}
+
+func assertNestedBlockCompatibleMapAsMap(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
+	if !plannedV.IsKnown() || plannedV.IsNull() || actualV.IsNull() {
+		return nil
+	}
+
+	var errs []error
+	plannedL := plannedV.LengthInt()
+	actualL := actualV.LengthInt()
+	if plannedL != actualL && plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
+		errs = append(errs, path.NewErrorf("block count changed from %d to %d", plannedL, actualL))
+		return errs
+	}
+	for it := plannedV.ElementIterator(); it.Next(); {
+		idx, plannedEV := it.Element()
+		if !actualV.HasIndex(idx).True() {
+			continue
+		}
+		actualEV := actualV.Index(idx)
+		moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.IndexStep{Key: idx}))
+		errs = append(errs, moreErrs...)
+	}
+	return errs
+}
+
+func assertNestedBlockCompatibleMapAsObject(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
+	var errs []error
+	plannedAtys := plannedV.Type().AttributeTypes()
+	actualAtys := actualV.Type().AttributeTypes()
+	for k := range plannedAtys {
+		if _, ok := actualAtys[k]; !ok {
+			errs = append(errs, path.NewErrorf("block key %q has vanished", k))
+			continue
+		}
+
+		plannedEV := plannedV.GetAttr(k)
+		actualEV := actualV.GetAttr(k)
+		moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.GetAttrStep{Name: k}))
+		errs = append(errs, moreErrs...)
+	}
+	if plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
+		for k := range actualAtys {
+			if _, ok := plannedAtys[k]; !ok {
+				errs = append(errs, path.NewErrorf("new block key %q has appeared", k))
 				continue
 			}
-			moreErrs := assertObjectCompatible(&blockS.Block, plannedV, actualV, path)
-			errs = append(errs, moreErrs...)
-		case configschema.NestingList:
-			// A NestingList might either be a list or a tuple, depending on
-			// whether there are dynamically-typed attributes inside. However,
-			// both support a similar-enough API that we can treat them the
-			// same for our purposes here.
-			if !plannedV.IsKnown() || !actualV.IsKnown() || plannedV.IsNull() || actualV.IsNull() {
-				continue
-			}
-
-			plannedL := plannedV.LengthInt()
-			actualL := actualV.LengthInt()
-			if plannedL != actualL {
-				errs = append(errs, path.NewErrorf("block count changed from %d to %d", plannedL, actualL))
-				continue
-			}
-			for it := plannedV.ElementIterator(); it.Next(); {
-				idx, plannedEV := it.Element()
-				if !actualV.HasIndex(idx).True() {
-					continue
-				}
-				actualEV := actualV.Index(idx)
-				moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.IndexStep{Key: idx}))
-				errs = append(errs, moreErrs...)
-			}
-		case configschema.NestingMap:
-			// A NestingMap might either be a map or an object, depending on
-			// whether there are dynamically-typed attributes inside, but
-			// that's decided statically and so both values will have the same
-			// kind.
-			if plannedV.Type().IsObjectType() {
-				plannedAtys := plannedV.Type().AttributeTypes()
-				actualAtys := actualV.Type().AttributeTypes()
-				for k := range plannedAtys {
-					if _, ok := actualAtys[k]; !ok {
-						errs = append(errs, path.NewErrorf("block key %q has vanished", k))
-						continue
-					}
-
-					plannedEV := plannedV.GetAttr(k)
-					actualEV := actualV.GetAttr(k)
-					moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.GetAttrStep{Name: k}))
-					errs = append(errs, moreErrs...)
-				}
-				if plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
-					for k := range actualAtys {
-						if _, ok := plannedAtys[k]; !ok {
-							errs = append(errs, path.NewErrorf("new block key %q has appeared", k))
-							continue
-						}
-					}
-				}
-			} else {
-				if !plannedV.IsKnown() || plannedV.IsNull() || actualV.IsNull() {
-					continue
-				}
-				plannedL := plannedV.LengthInt()
-				actualL := actualV.LengthInt()
-				if plannedL != actualL && plannedV.IsKnown() { // new blocks may appear if unknown blocks were present in the plan
-					errs = append(errs, path.NewErrorf("block count changed from %d to %d", plannedL, actualL))
-					continue
-				}
-				for it := plannedV.ElementIterator(); it.Next(); {
-					idx, plannedEV := it.Element()
-					if !actualV.HasIndex(idx).True() {
-						continue
-					}
-					actualEV := actualV.Index(idx)
-					moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.IndexStep{Key: idx}))
-					errs = append(errs, moreErrs...)
-				}
-			}
-		case configschema.NestingSet:
-			if !plannedV.IsKnown() || !actualV.IsKnown() || plannedV.IsNull() || actualV.IsNull() {
-				continue
-			}
-
-			if !plannedV.IsKnown() {
-				// When unknown blocks are present the final number of blocks
-				// may be different, either because the unknown set values
-				// become equal and are collapsed, or the count is unknown due
-				// a dynamic block. Unfortunately this means we can't do our
-				// usual checks in this case without generating false
-				// negatives.
-				continue
-			}
-
-			setErrs := assertSetValuesCompatible(plannedV, actualV, path, func(plannedEV, actualEV cty.Value) bool {
-				errs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.IndexStep{Key: actualEV}))
-				return len(errs) == 0
-			})
-			errs = append(errs, setErrs...)
-
-			// There can be fewer elements in a set after its elements are all
-			// known (values that turn out to be equal will coalesce) but the
-			// number of elements must never get larger.
-			plannedL := plannedV.LengthInt()
-			actualL := actualV.LengthInt()
-			if plannedL < actualL {
-				errs = append(errs, path.NewErrorf("block set length changed from %d to %d", plannedL, actualL))
-			}
-		default:
-			panic(fmt.Sprintf("unsupported nesting mode %s", blockS.Nesting))
 		}
 	}
+	return errs
+}
+
+func assertNestedBlockCompatibleSet(plannedV, actualV cty.Value, blockS *configschema.NestedBlock, path cty.Path) []error {
+	if !plannedV.IsKnown() || !actualV.IsKnown() || plannedV.IsNull() || actualV.IsNull() {
+		return nil
+	}
+
+	if !plannedV.IsKnown() {
+		// When unknown blocks are present the final number of blocks
+		// may be different, either because the unknown set values
+		// become equal and are collapsed, or the count is unknown due
+		// a dynamic block. Unfortunately this means we can't do our
+		// usual checks in this case without generating false
+		// negatives.
+		return nil
+	}
+
+	var errs []error
+
+	setErrs := assertSetValuesCompatible(plannedV, actualV, path, func(plannedEV, actualEV cty.Value) bool {
+		moreErrs := assertObjectCompatible(&blockS.Block, plannedEV, actualEV, append(path, cty.IndexStep{Key: actualEV}))
+		return len(moreErrs) == 0
+	})
+	errs = append(errs, setErrs...)
+
+	// There can be fewer elements in a set after its elements are all
+	// known (values that turn out to be equal will coalesce) but the
+	// number of elements must never get larger.
+	plannedL := plannedV.LengthInt()
+	actualL := actualV.LengthInt()
+	if plannedL < actualL {
+		errs = append(errs, path.NewErrorf("block set length changed from %d to %d", plannedL, actualL))
+	}
+
 	return errs
 }
 
@@ -239,75 +286,100 @@ func assertValueCompatible(planned, actual cty.Value, path cty.Path) []error {
 		return errs
 	}
 
-	ty := planned.Type()
-	switch {
-
-	case !actual.IsKnown():
+	if !actual.IsKnown() {
 		errs = append(errs, path.NewErrorf("was known, but now unknown"))
-
-	case ty.IsPrimitiveType():
-		if !actual.Equals(planned).True() {
-			errs = append(errs, path.NewErrorf("was %#v, but now %#v", planned, actual))
-		}
-
-	case ty.IsListType() || ty.IsMapType() || ty.IsTupleType():
-		for it := planned.ElementIterator(); it.Next(); {
-			k, plannedV := it.Element()
-			if !actual.HasIndex(k).True() {
-				errs = append(errs, path.NewErrorf("element %s has vanished", indexStrForErrors(k)))
-				continue
-			}
-
-			actualV := actual.Index(k)
-			moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.IndexStep{Key: k}))
-			errs = append(errs, moreErrs...)
-		}
-
-		for it := actual.ElementIterator(); it.Next(); {
-			k, _ := it.Element()
-			if !planned.HasIndex(k).True() {
-				errs = append(errs, path.NewErrorf("new element %s has appeared", indexStrForErrors(k)))
-			}
-		}
-
-	case ty.IsObjectType():
-		atys := ty.AttributeTypes()
-		for name := range atys {
-			// Because we already tested that the two values have the same type,
-			// we can assume that the same attributes are present in both and
-			// focus just on testing their values.
-			plannedV := planned.GetAttr(name)
-			actualV := actual.GetAttr(name)
-			moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.GetAttrStep{Name: name}))
-			errs = append(errs, moreErrs...)
-		}
-
-	case ty.IsSetType():
-		// We can't really do anything useful for sets here because changing
-		// an unknown element to known changes the identity of the element, and
-		// so we can't correlate them properly. However, we will at least check
-		// to ensure that the number of elements is consistent, along with
-		// the general type-match checks we ran earlier in this function.
-		if planned.IsKnown() && !planned.IsNull() && !actual.IsNull() {
-
-			setErrs := assertSetValuesCompatible(planned, actual, path, func(plannedV, actualV cty.Value) bool {
-				errs := assertValueCompatible(plannedV, actualV, append(path, cty.IndexStep{Key: actualV}))
-				return len(errs) == 0
-			})
-			errs = append(errs, setErrs...)
-
-			// There can be fewer elements in a set after its elements are all
-			// known (values that turn out to be equal will coalesce) but the
-			// number of elements must never get larger.
-
-			plannedL := planned.LengthInt()
-			actualL := actual.LengthInt()
-			if plannedL < actualL {
-				errs = append(errs, path.NewErrorf("length changed from %d to %d", plannedL, actualL))
-			}
-		}
+		return errs
 	}
 
+	// We no longer use "errs" after this point, because we should already have returned
+	// if we've added any errors to it. The following is just to minimize the risk of
+	// mistakes under future maintenence.
+	if len(errs) != 0 {
+		return errs
+	}
+
+	ty := planned.Type()
+	switch {
+	case ty.IsPrimitiveType():
+		return assertValueCompatiblePrimitive(planned, actual, path)
+	case ty.IsListType() || ty.IsMapType() || ty.IsTupleType():
+		return assertValueCompatibleCompositeWithKeys(planned, actual, path)
+	case ty.IsObjectType():
+		atys := ty.AttributeTypes()
+		return assertValueCompatibleObject(planned, actual, atys, path)
+	case ty.IsSetType():
+		return assertValueCompatibleSet(planned, actual, path)
+	default:
+		return nil // we don't have specialized checks for any other type kind
+	}
+}
+
+func assertValueCompatiblePrimitive(planned, actual cty.Value, path cty.Path) []error {
+	var errs []error
+	if !actual.Equals(planned).True() {
+		errs = append(errs, path.NewErrorf("was %#v, but now %#v", planned, actual))
+	}
+	return errs
+}
+
+// assertValueCompatibleCompositeWithKeys is the branch of assertValueCompatible for values
+// that are of composite types where elements have comparable keys/indices separate from their
+// values that want to be compared on an element-by-element basis: lists, maps, and tuples.
+func assertValueCompatibleCompositeWithKeys(planned, actual cty.Value, path cty.Path) []error {
+	var errs []error
+	for it := planned.ElementIterator(); it.Next(); {
+		k, plannedV := it.Element()
+		if !actual.HasIndex(k).True() {
+			errs = append(errs, path.NewErrorf("element %s has vanished", indexStrForErrors(k)))
+			continue
+		}
+
+		actualV := actual.Index(k)
+		moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.IndexStep{Key: k}))
+		errs = append(errs, moreErrs...)
+	}
+	for it := actual.ElementIterator(); it.Next(); {
+		k, _ := it.Element()
+		if !planned.HasIndex(k).True() {
+			errs = append(errs, path.NewErrorf("new element %s has appeared", indexStrForErrors(k)))
+		}
+	}
+	return errs
+}
+
+func assertValueCompatibleObject(planned, actual cty.Value, atys map[string]cty.Type, path cty.Path) []error {
+	var errs []error
+	for name := range atys {
+		// Because we already tested that the two values have the same type,
+		// we can assume that the same attributes are present in both and
+		// focus just on testing their values.
+		plannedV := planned.GetAttr(name)
+		actualV := actual.GetAttr(name)
+		moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.GetAttrStep{Name: name}))
+		errs = append(errs, moreErrs...)
+	}
+	return errs
+}
+
+func assertValueCompatibleSet(planned, actual cty.Value, path cty.Path) []error {
+	var errs []error
+	if planned.IsKnown() && !planned.IsNull() && !actual.IsNull() {
+		setErrs := assertSetValuesCompatible(planned, actual, path, func(plannedV, actualV cty.Value) bool {
+			moreErrs := assertValueCompatible(plannedV, actualV, append(path, cty.IndexStep{Key: actualV}))
+			return len(moreErrs) == 0
+		})
+		errs = append(errs, setErrs...)
+
+		// There can be fewer elements in a set after its elements are all
+		// known (values that turn out to be equal will coalesce) but the
+		// number of elements must never get larger.
+
+		plannedL := planned.LengthInt()
+		actualL := actual.LengthInt()
+		if plannedL < actualL {
+			errs = append(errs, path.NewErrorf("length changed from %d to %d", plannedL, actualL))
+		}
+	}
 	return errs
 }
 
