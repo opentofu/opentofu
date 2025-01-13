@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/version"
 )
 
 var errUnsupportedProtocolVersion = errors.New("unsupported protocol version")
@@ -357,12 +358,23 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 			return nil, err
 		}
 
+		cmd := exec.Command(execFile)
+		originalEnv := os.Environ()
+		additionalEnv := []string{
+			"TF_VARIANT=OpenTofu",
+			fmt.Sprintf("OPENTOFU_VERSION=%s", version.Version),
+		}
+		env := make([]string, len(originalEnv)+len(additionalEnv))
+		copy(env, originalEnv)
+		copy(env[len(originalEnv):], additionalEnv)
+		cmd.Env = env
+
 		config := &plugin.ClientConfig{
 			HandshakeConfig:  tfplugin.Handshake,
 			Logger:           logging.NewProviderLogger(""),
 			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 			Managed:          true,
-			Cmd:              exec.Command(execFile),
+			Cmd:              cmd,
 			AutoMTLS:         enableProviderAutoMTLS,
 			VersionedPlugins: tfplugin.VersionedPlugins,
 			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Provider)),
