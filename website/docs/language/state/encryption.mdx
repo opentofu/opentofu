@@ -265,7 +265,7 @@ An external provider can be anything as long as it is runnable as an application
         As a first step, the external program must output a header to the standard output so OpenTofu knows it is a valid external key provider. The header must always be a single line and contain the following:
         <CodeBlock language={"json"}>{ExternalHeader}</CodeBlock>
         <Button
-            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/externalcommand/protocol/header.schema.json"
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/external/protocol/header.schema.json"
             className="inline-flex"
             target="_blank"
         >
@@ -276,7 +276,7 @@ An external provider can be anything as long as it is runnable as an application
         Once the header is written, OpenTofu writes the input data to the standard input of the external program. If OpenTofu only needs to encrypt data, this will be `null`. If OpenTofu needs to decrypt data, it will write the metadata previously stored with the encrypted form to the standard input:
         <CodeBlock language={"json"}>{ExternalInput}</CodeBlock>
         <Button
-            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/externalcommand/protocol/input.schema.json"
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/external/protocol/input.schema.json"
             className="inline-flex"
             target="_blank"
         >
@@ -287,7 +287,7 @@ An external provider can be anything as long as it is runnable as an application
         With the input, the external program can now construct the output. If no input is present, the external program only needs to produce an encryption key. If an input is present, it needs to produce a decryption key as well. If needed, the output can also contain metadata that will be stored with the encrypted data and passed as an input on the next run.
         <CodeBlock language={"json"}>{ExternalOutput}</CodeBlock>
         <Button
-            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/externalcommand/protocol/output.schema.json"
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/keyprovider/external/protocol/output.schema.json"
             className="inline-flex"
             target="_blank"
         >
