@@ -175,7 +175,50 @@ Additionally, introducing "bypass_terraform_version_requirement" to the `module{
 
 ### Open Questions
 
-Should bypass_terraform_version_requirements ever be the default?
+#### How should existing "Terraform Versions" be treated?
+
+This RFC proposes that the handling of unsatisfied "Terraform Version" requirements is enabled unless otherwise specified.  This keeps consistency with existing functionality and proposes a workaround for those blocked during the migration process.
+
+@apparentlymart brought up the idea that as "Terraform Version" greater than 1.5.x is effectively meaningless, it could be ignored all together (outside of the root module).
+
+This idea brings about the question of what is the true utility of "Project Version" and how is it used and relied upon today.  In general, it is bumped when new language features or fixes are added.
+
+
+As an example, let's consider what happens when a new feature is introduced.  The `required_version` is bumped to the latest version of the project.
+```hcl
+terraform {
+    # Updated for extended moved support
+    required_version = ">=1.9.0"
+}
+moved {
+    # Moved now supports migrating between resources (if supported by the provider)
+    from = some_provider.resource
+    to = some_provider.other_resource
+}
+```
+Note that this does not introduce any new configuration options and instead makes the existing functionality more flexible.  When run with Terraform 1.9.0, this will behave as expected as the feature required was introduced in that version".  When run in previous versions of Terraform, it would have produced an error message detailing that this operation is not supported.  OpenTofu 1.9.0 produces the same error message.  Eventually this will be supported in OpenTofu and a corresponding .tofu file could be added to ensure compatibility.
+
+What was the worst case scenario if the `required_version` was ignored by OpenTofu? A user would see a error message detailing why the operation is not valid.  A charitable user would look at the release notes, issue tracker, or https://cani.tf for feature support.  A uncharitable user would complain about OpenTofu publicly and advocate against it, grumbling about footguns.  That could potentially be softened by adding a warning that the required version check is undefined for "Terraform Version" and is being skipped.
+
+
+A more dangerous example is for complex bugs, such as https://github.com/opentofu/opentofu/issues/1616. In that scenario, handling of sensitive attributes was broken in both Terraform and OpenTofu prior to the fork.  Terraform seems to fixed the issue in the 1.8 series, and the issue was reported from someone migrating from that version.
+```hcl
+terraform {
+    # 1.8.2 and beyond correctly handle sensitive attributes
+    required_version = ">=1.8.2"
+}
+resource "random_password" "password1" {
+  length           = 12
+  special          = false
+}
+```
+
+This bug could not only impact the planning of an apply, but could expose incorrect sensitive attribute detection to third party tools.  With the complexity of this project, bugs like these are bound to exist and require fixes over time. "Product Version" is one of the few ways for module authors to require fixes.
+
+In the case that OpenTofu silently ignored the required_version, a user could be using third party tooling to expose secrets.  If the module explicitly was asking for a "Terraform Version" that was unmet, and the user of the module did not know that the safety check was bypassed, they could both be soured against OpenTofu.  If a warning were added, clarifying that OpenTofu does not understand "Terraform Versions" past 1.5.x and the requirements should be manually reviewed / module updated, a user would at least have a chance at detecting that something was wrong and deciding to ignore it or not. 
+
+
+To make the decision between making "Terraform Version" produce only a warning and the more manual approach of a flag, we must consider those two examples and their outcomes carefully.
 
 ### Future Considerations
 
