@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/opentofu/opentofu/main/internal/encryption/keyprovider/externalcommand/protocol/header.schema.json",
+  "title": "OpenTofu External Encryption Method Header",
+  "description": "Header line output when an external method binary is launched. This must be written on a single line followed by a newline character. Note that the header may contain additional fields in later protocol versions.",
+  "type": "object",
+  "properties": {
+    "magic": {
+      "title": "Magic string",
+      "description": "Magic string identifying the external method as such.",
+      "type": "string",
+      "enum": ["OpenTofu-External-Encryption-Method"]
+    },
+    "version": {
+      "title": "Protocol version number",
+      "type": "integer",
+      "enum": [1]
+    }
+  },
+  "required": ["magic","version"],
+  "additionalProperties": true
+}

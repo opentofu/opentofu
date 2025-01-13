@@ -23,6 +23,12 @@ import ExternalOutput from '!!raw-loader!./examples/encryption/keyprovider-exter
 import ExternalGo from '!!raw-loader!./examples/encryption/keyprovider-external-provider.go'
 import ExternalPython from '!!raw-loader!./examples/encryption/keyprovider-external-provider.py'
 import ExternalSH from '!!raw-loader!./examples/encryption/keyprovider-external-provider.sh'
+import ExternalMethod from '!!raw-loader!./examples/encryption/external-method/method-external.tofu'
+import ExternalMethodHeader from '!!raw-loader!./examples/encryption/external-method/method-external-header.json'
+import ExternalMethodInput from '!!raw-loader!./examples/encryption/external-method/method-external-input.json'
+import ExternalMethodOutput from '!!raw-loader!./examples/encryption/external-method/method-external-output.json'
+import ExternalMethodGo from '!!raw-loader!./examples/encryption/external-method/method-external-method.go'
+import ExternalMethodPython from '!!raw-loader!./examples/encryption/external-method/method-external-method.py'
 import Sample from '!!raw-loader!./examples/encryption/sample.tf'
 import Fallback from '!!raw-loader!./examples/encryption/fallback.tf'
 import FallbackFromUnencrypted from '!!raw-loader!./examples/encryption/fallback_from_unencrypted.tf'
@@ -324,6 +330,70 @@ The AES-GCM method needs 16, 24, or 32-byte keys. Please configure your key prov
 AES-GCM is a secure, industry-standard encryption algorithm, but suffers from "key saturation". In order to configure a secure setup, you should either use a key-derivation key provider (such as PBKDF2) with a long and complex passphrase, or use a key management system that automatically rotates keys regularly. Using short, static keys will degrade your encryption.
 
 :::
+
+### External (experimental)
+
+The external command method lets you run external commands in order to perform encryption and decryption. These programs must be specifically written to work with OpenTofu. This key provider has the following fields:
+
+| Option            | Description                                                                                          | Min. | Default |
+|-------------------|------------------------------------------------------------------------------------------------------|------|---------|
+| `encrypt_command` | External command to run for encryption in an array format, each parameter being an item in an array. | 1    |         |
+| `decrypt_command` | External command to run for decryption in an array format, each parameter being an item in an array. | 1    |         |
+| `keys`            | Reference to a key provider if the external command requires keys.                                   |      |         |
+
+For example, you can configure the external program as follows:
+
+<CodeBlock language="hcl">{ExternalMethod}</CodeBlock>
+
+#### Writing an external method
+
+An external method can be anything as long as it is runnable as an application. The protocol consists of 3 steps:
+
+1. The external program writes the header to the standard output.
+2. OpenTofu sends the key material and data to encrypt/decrypt to the external program over the standard input.
+3. The external program writes the encrypted/decrypted data to the standard output.
+
+<Tabs>
+    <TabItem value="step1" label="Step 1: Writing the header" default>
+        As a first step, the external program must output a header to the standard output so OpenTofu knows it is a valid external method. The header must always be a single line and contain the following:
+        <CodeBlock language={"json"}>{ExternalMethodHeader}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/method/external/protocol/header.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="step2" label="Step 2: Reading the input">
+        Once the header is written, OpenTofu writes the key material and the data to process to the standard input of the external program. The key material may not be present if no key provider is configured. The input will always have the following format:
+        <CodeBlock language={"json"}>{ExternalMethodInput}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/method/external/protocol/input.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="step3" label="Step 3: Writing the output">
+        With the input, the external program can now construct the output.
+        <CodeBlock language={"json"}>{ExternalMethodOutput}</CodeBlock>
+        <Button
+            href="https://github.com/opentofu/opentofu/tree/main/internal/encryption/method/external/protocol/output.schema.json"
+            className="inline-flex"
+            target="_blank"
+        >
+            Open JSON schema file
+        </Button>
+    </TabItem>
+    <TabItem value="example-go" label="Example: Go">
+        <CodeBlock language={"go"}>{ExternalMethodGo}</CodeBlock>
+    </TabItem>
+    <TabItem value="example-python" label="Example: Python">
+        <CodeBlock language={"python"}>{ExternalMethodPython}</CodeBlock>
+    </TabItem>
+</Tabs>
 
 ### Unencrypted
 
