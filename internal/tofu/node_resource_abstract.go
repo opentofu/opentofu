@@ -510,45 +510,37 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 	return diags
 }
 
-func moveProviderType(provider providers.Interface, resource *states.Resource, sourceAddr addrs.ResourceInstance, newAddr addrs.ResourceInstance) tfdiags.Diagnostics {
-	var err error
+func moveProviderType(provider providers.Interface, instance *states.ResourceInstance, sourceAddr addrs.ResourceInstance, newAddr addrs.ResourceInstance) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	for key := range resource.Instances {
-		is := resource.Instance(key)
-		// TODO what happens if current  == nil, is that possible? How can that be? instance to exist and current being nil?
+	// TODO what happens if current  == nil, is that possible? How can that be? instance to exist and current being nil?
 
-		// TODO enabled.MoveResourceState ?
-		resp := provider.MoveResourceState(providers.MoveResourceStateRequest{
-			SourceProviderAddress: sourceAddr.Resource.ImpliedProvider(),
-			SourceTypeName:        sourceAddr.Resource.Type,
-			SourceSchemaVersion:   is.Current.SchemaVersion,
-			SourceStateJSON:       is.Current.AttrsJSON,
-			SourceStateFlatmap:    is.Current.AttrsFlat,
-			SourcePrivate:         is.Current.Private,
-			TargetTypeName:        newAddr.Resource.Type,
-		})
-		if resp.Diagnostics.HasErrors() {
-			diags = diags.Append(resp.Diagnostics)
-			continue
-		}
-
-		schema := provider.GetProviderSchema()
-		rschema, ok := schema.ResourceTypes[newAddr.Resource.Type]
-		if !ok {
-			diags = diags.Append(
-				tfdiags.Sourceless(tfdiags.Error, "new type schema not found", fmt.Sprintf("new type schema not found for %s", newAddr.Resource.Type)))
-			continue
-		}
-		rt := rschema.Block.ImpliedType()
-
-		// TODO we are also calling CompleteUpgrade in updateResourceState call, do we need this here to be called separately before?
-		is.Current, err = is.Current.CompleteUpgrade(resp.TargetState, rt, uint64(rschema.Version))
-		if err != nil {
-			diags = diags.Append(err)
-			continue
-		}
-		is.Current.Private = resp.TargetPrivate
+	// TODO enabled.MoveResourceState ?
+	resp := provider.MoveResourceState(providers.MoveResourceStateRequest{
+		SourceProviderAddress: sourceAddr.Resource.ImpliedProvider(),
+		SourceTypeName:        sourceAddr.Resource.Type,
+		SourceSchemaVersion:   instance.Current.SchemaVersion,
+		SourceStateJSON:       instance.Current.AttrsJSON,
+		SourceStateFlatmap:    instance.Current.AttrsFlat,
+		SourcePrivate:         instance.Current.Private,
+		TargetTypeName:        newAddr.Resource.Type,
+	})
+	if resp.Diagnostics.HasErrors() {
+		return resp.Diagnostics
 	}
+
+	schema := provider.GetProviderSchema()
+	rschema, ok := schema.ResourceTypes[newAddr.Resource.Type]
+	if !ok {
+		return diags.Append(tfdiags.Sourceless(tfdiags.Error, "new type schema not found", fmt.Sprintf("new type schema not found for %s", newAddr.Resource.Type)))
+	}
+	// TODO we are also calling CompleteUpgrade in updateResourceState call, do we need this here to be called separately before?
+	rt := rschema.Block.ImpliedType()
+	var err error
+	instance.Current, err = instance.Current.CompleteUpgrade(resp.TargetState, rt, uint64(rschema.Version))
+	if err != nil {
+		return diags.Append(err)
+	}
+	instance.Current.Private = resp.TargetPrivate
 	return diags
 }
 func resourceTypesDiffer(a, b addrs.AbsResourceInstance) bool {
@@ -578,7 +570,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx EvalContext
 
 	prev := n.prevRunAddr(ctx)
 	if resourceTypesDiffer(addr, prev) {
-		moveDiags := moveProviderType(provider, ctx.State().Resource(addr.ContainingResource()), prev.Resource, addr.Resource)
+		moveDiags := moveProviderType(provider, ctx.State().ResourceInstance(addr), prev.Resource, addr.Resource)
 		if moveDiags.HasErrors() {
 			return nil, diags.Append(moveDiags)
 		}
@@ -631,7 +623,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx Eval
 
 	prev := n.prevRunAddr(ctx)
 	if resourceTypesDiffer(addr, prev) {
-		moveDiags := moveProviderType(provider, ctx.State().Resource(addr.ContainingResource()), prev.Resource, addr.Resource)
+		moveDiags := moveProviderType(provider, ctx.State().ResourceInstance(addr), prev.Resource, addr.Resource)
 		if moveDiags.HasErrors() {
 			return nil, diags.Append(moveDiags)
 		}
