@@ -667,6 +667,7 @@ func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) (
 		return resp
 	}
 	resp.TargetState = state
+	resp.TargetPrivate = protoResp.TargetPrivate
 
 	return resp
 }
