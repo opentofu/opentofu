@@ -23,7 +23,6 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -484,13 +483,7 @@ func (c *Context) prePlanFindAndApplyMoves(config *configs.Config, prevRunState 
 		moveStmts = append(moveStmts, explicitMoveStmts...)
 		moveStmts = append(moveStmts, implicitMoveStmts...)
 	}
-	moveResults := refactoring.ApplyMoves(moveStmts, prevRunState, func(addr addrs.Resource) (providers.Interface, error) {
-		// This is quite crappy, ideally this would be done within the planned resource instance, but I don't know if that's a safe operation
-		// For now, we will just guess at what the correct provider is from the context.
-		// TODO descend module tree
-		paddr := config.Module.ImpliedProviderForUnqualifiedType(addr.ImpliedProvider())
-		return c.plugins.NewProviderInstance(paddr)
-	})
+	moveResults := refactoring.ApplyMoves(moveStmts, prevRunState)
 
 	return moveStmts, moveResults
 }

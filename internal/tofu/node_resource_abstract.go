@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/providers"
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
@@ -509,6 +510,51 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 	return diags
 }
 
+func moveProviderType(provider providers.Interface, resource *states.Resource, sourceAddr addrs.ResourceInstance, newAddr addrs.ResourceInstance) tfdiags.Diagnostics {
+	var err error
+	var diags tfdiags.Diagnostics
+	for key := range resource.Instances {
+		is := resource.Instance(key)
+		// TODO what happens if current  == nil, is that possible? How can that be? instance to exist and current being nil?
+
+		// TODO enabled.MoveResourceState ?
+		resp := provider.MoveResourceState(providers.MoveResourceStateRequest{
+			SourceProviderAddress: sourceAddr.Resource.ImpliedProvider(),
+			SourceTypeName:        sourceAddr.Resource.Type,
+			SourceSchemaVersion:   is.Current.SchemaVersion,
+			SourceStateJSON:       is.Current.AttrsJSON,
+			SourceStateFlatmap:    is.Current.AttrsFlat,
+			SourcePrivate:         is.Current.Private,
+			TargetTypeName:        newAddr.Resource.Type,
+		})
+		if resp.Diagnostics.HasErrors() {
+			diags = diags.Append(resp.Diagnostics)
+			continue
+		}
+
+		schema := provider.GetProviderSchema()
+		rschema, ok := schema.ResourceTypes[newAddr.Resource.Type]
+		if !ok {
+			diags = diags.Append(
+				tfdiags.Sourceless(tfdiags.Error, "new type schema not found", fmt.Sprintf("new type schema not found for %s", newAddr.Resource.Type)))
+			continue
+		}
+		rt := rschema.Block.ImpliedType()
+
+		// TODO we are also calling CompleteUpgrade in updateResourceState call, do we need this here to be called separately before?
+		is.Current, err = is.Current.CompleteUpgrade(resp.TargetState, rt, uint64(rschema.Version))
+		if err != nil {
+			diags = diags.Append(err)
+			continue
+		}
+		is.Current.Private = resp.TargetPrivate
+	}
+	return diags
+}
+func resourceTypesDiffer(a, b addrs.AbsResourceInstance) bool {
+	return a.Resource.Resource.Type != b.Resource.Resource.Type
+}
+
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
 func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
@@ -526,6 +572,16 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx EvalContext
 		// Presumably we only have deposed objects, then.
 		log.Printf("[TRACE] readResourceInstanceState: no state present for %s", addr)
 		return nil, nil
+	}
+	// Make sure the current isn't decoded anywhere before this call (Drifted resource)
+	// also Data.GetResource
+
+	prev := n.prevRunAddr(ctx)
+	if resourceTypesDiffer(addr, prev) {
+		moveDiags := moveProviderType(provider, ctx.State().Resource(addr.ContainingResource()), prev.Resource, addr.Resource)
+		if moveDiags.HasErrors() {
+			return nil, diags.Append(moveDiags)
+		}
 	}
 
 	schema, currentVersion := (providerSchema).SchemaForResourceAddr(addr.Resource.ContainingResource())
@@ -571,6 +627,14 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx Eval
 		// Presumably we only have deposed objects, then.
 		log.Printf("[TRACE] readResourceInstanceStateDeposed: no state present for %s deposed object %s", addr, key)
 		return nil, diags
+	}
+
+	prev := n.prevRunAddr(ctx)
+	if resourceTypesDiffer(addr, prev) {
+		moveDiags := moveProviderType(provider, ctx.State().Resource(addr.ContainingResource()), prev.Resource, addr.Resource)
+		if moveDiags.HasErrors() {
+			return nil, diags.Append(moveDiags)
+		}
 	}
 
 	schema, currentVersion := (providerSchema).SchemaForResourceAddr(addr.Resource.ContainingResource())
