@@ -90,6 +90,25 @@ dockers:
       - "ghcr.io/opentofu/opentofu:{{ .Version }}-amd64"
 
   - use: buildx
+    goarch: amd64
+    dockerfile: Dockerfile.minimal
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/amd64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.vendor=OpenTofu"
+      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.licenses=MPL-2.0"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates:
+      - "ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-amd64"
+
+  - use: buildx
     goarch: arm64
     build_flag_templates:
       - "--pull"
@@ -106,6 +125,25 @@ dockers:
       - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
     image_templates:
       - "ghcr.io/opentofu/opentofu:{{ .Version }}-arm64"
+
+  - use: buildx
+    goarch: arm64
+    dockerfile: Dockerfile.minimal
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm64"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.vendor=OpenTofu"
+      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.licenses=MPL-2.0"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates:
+      - "ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm64"
 
   - use: buildx
     goarch: arm
@@ -126,6 +164,25 @@ dockers:
       - "ghcr.io/opentofu/opentofu:{{ .Version }}-arm"
 
   - use: buildx
+    goarch: arm
+    dockerfile: Dockerfile.minimal
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/arm"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.vendor=OpenTofu"
+      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.licenses=MPL-2.0"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates:
+      - "ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm"
+
+  - use: buildx
     goarch: "386"
     build_flag_templates:
       - "--pull"
@@ -143,6 +200,25 @@ dockers:
     image_templates:
       - "ghcr.io/opentofu/opentofu:{{ .Version }}-386"
 
+  - use: buildx
+    goarch: "386"
+    dockerfile: Dockerfile.minimal
+    build_flag_templates:
+      - "--pull"
+      - "--platform=linux/386"
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.vendor=OpenTofu"
+      - "--label=org.opencontainers.image.description=OpenTofu {{ .Version }}"
+      - "--label=org.opencontainers.image.url=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.documentation=https://github.com/opentofu/opentofu/blob/main/README.md"
+      - "--label=org.opencontainers.image.source=https://github.com/opentofu/opentofu"
+      - "--label=org.opencontainers.image.licenses=MPL-2.0"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.created={{ time \"2006-01-02T15:04:05Z07:00\" }}"
+    image_templates:
+      - "ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-386"
+
 docker_manifests:
   - name_template: ghcr.io/opentofu/opentofu:{{ .Version }}
     image_templates:
@@ -151,12 +227,27 @@ docker_manifests:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
 
+  - name_template: ghcr.io/opentofu/opentofu:{{ .Version }}-minimal
+    image_templates:
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-386
+
   - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}.{{ .Minor }}
     image_templates:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
+    skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
+
+  - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}.{{ .Minor }}-minimal
+    image_templates:
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-386
     skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
 
   - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}
@@ -167,12 +258,28 @@ docker_manifests:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
     skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
 
+  - name_template: ghcr.io/opentofu/opentofu:{{ .Major }}-minimal
+    image_templates:
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-386
+    skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
+
   - name_template: ghcr.io/opentofu/opentofu:latest
     image_templates:
       - ghcr.io/opentofu/opentofu:{{ .Version }}-amd64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm64
       - ghcr.io/opentofu/opentofu:{{ .Version }}-arm
       - ghcr.io/opentofu/opentofu:{{ .Version }}-386
+    skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
+
+  - name_template: ghcr.io/opentofu/opentofu:minimal
+    image_templates:
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-amd64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm64
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-arm
+      - ghcr.io/opentofu/opentofu:{{ .Version }}-minimal-386
     skip_push: auto # Skips the push on pre-release versions, like 1.6.1-alpha1. See https://goreleaser.com/customization/docker_manifest/#customization
 
 nfpms:
