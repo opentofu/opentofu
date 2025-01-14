@@ -41,7 +41,7 @@ From the perspective of a module, root or child, there are two different ways in
 1) Disabled for all child modules of the current module.  This represents someone who has lots of child modules that have not yet added "Tofu Versions" and they are comfortable with the risk of bypassing the "Terraform Version" in all of them (and their children).
 2) Disabled for a specific child module of the current module.  This represents someone who is pulling a small number of child modules that have not yet added "Tofu Versions" and they would like to limit the blast radius of ignoring the "Terraform Version" check in this limited area of the current module.
 
-For for the first scenario, a flag called "bypass_terraform_version_requirement" is added to the `product{}` block.  If set to true, all child modules of the current module will only error on "Tofu Versions" and instead produce warnings for "Terraform Versions".
+For the first scenario, a flag called "bypass_terraform_version_requirement" is added to the `product{}` block.  If set to true, all child modules of the current module will only error on "Tofu Versions" and instead produce warnings for "Terraform Versions".
 
 For the second scenario, a flag called "bypass_terraform_version_requirement" is added to the specific `module{}` block.  If set to true, that specific module and all of it's children will only error on "Tofu Versions" and instead produce warnings for "Terraform Versions".
 
