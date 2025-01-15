@@ -510,7 +510,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 }
 
 func resourceTypesDiffer(a, b addrs.AbsResourceInstance) bool {
-	return a.Resource.Resource.Type != b.Resource.Resource.Type
+	return a.Resource.Resource.Type != b.Resource.Resource.Type || a.Resource.Resource.ImpliedProvider() != b.Resource.Resource.ImpliedProvider()
 }
 
 // readResourceInstanceState reads the current object for a specific instance in
