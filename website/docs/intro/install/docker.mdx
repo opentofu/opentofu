@@ -26,16 +26,24 @@ Instead, follow the [instructions below to build your own OpenTofu image](#build
 Images are hosted as packages in the OpenTofu GitHub organization. See the list
 of available versions [here](https://github.com/opentofu/opentofu/pkgs/container/opentofu/versions?filters%5Bversion_type%5D=tagged).
 
-The multi platform images are available using the following tags:
+The multi-platform images are available using the following tags:
 
 - `latest`: latest overall version of OpenTofu,
 - `Major`: a specific major version of OpenTofu,
 - `Major`.`Minor`: a specific minor version of OpenTofu,
-- `Major`.`Minor`.`Patch`: a specific patch version of OpenTofu.
+- `Major`.`Minor`.`Patch`: a specific patch version of OpenTofu,
+
+Additionally, we make the following minimal tags available for [building a custom image](#building-your-own-image) starting with OpenTofu version 1.9.1:
+
+- `minimal`: minimal image containing only the OpenTofu binary at `/usr/local/bin/tofu`
+- `Major-minimal`: minimal image of a specific major version of OpenTofu,
+- `Major.Minor-minimal`: minimal image of a specific minor version of OpenTofu,
+- `Major.Minor.Patch-minimal`: minimal image of a specific patch version of OpenTofu.
 
 To pull platform-specific images (`amd64`, `arm`, `arm64`, `386`) use:
 
 - `<Version>`-`<Platform>`: a platform specific version of OpenTofu.
+- `<Version>`-`minimal`-`<Platform>`: a platform specific minimal version of OpenTofu.
 
 ## Usage
 
@@ -61,16 +69,40 @@ To run OpenTofu as a Docker container:
 ## Building your own image
 
 The OCI image published by OpenTofu is intended as a basic command line tool. If you need additional tools in the image
-or want to build services on top of OpenTofu, you will need to build your own image. This section outlines how to
-accomplish that.
+or want to build services on top of OpenTofu, you will need to build your own image. You can do this in two ways:
 
-### Step 1: Obtaining the installation script
+1. Base your image on a minimal image (`ghcr.io/opentofu/opentofu:minimal` or similar) and use a multi-stage build to copy the `tofu` binary to your image.
+2. Use the standalone installation script to install `tofu` into your container image.
+
+### Method 1: using a multi-stage build
+
+Assuming you want to use Alpine Linux, your `Dockerfile`/`Containerfile` could look like this:
+
+```Dockerfile
+FROM ghcr.io/opentofu/opentofu:minimal AS tofu
+
+FROM alpine
+
+COPY --from=tofu /usr/local/bin/tofu /usr/local/bin/tofu
+
+# Your other build instructions
+```
+
+:::note
+
+Consider locking down the version to a specific layer SHA hash and update only when needed in order to get the benefit of integrity verification.
+
+:::
+
+### Method 2: Using the installation script
+
+#### Step 1: Obtaining the installation script
 
 OpenTofu publishes POSIX/Powershell installation scripts. You can use these scripts to safely install OpenTofu in your
 container image. Please follow the [standalone installation instructions](standalone.mdx) to obtain the installation
 script and place it next to your `Dockerfile`/`Containerfile`.
 
-### Step 2: Creating a stage for installation
+#### Step 2: Creating a stage for installation
 
 Next, you can start creating a download stage in your `Dockerfile`/`Containerfile`. For details on multi-stage builds
 please read the [Docker documentation](https://docs.docker.com/build/building/multi-stage/).
@@ -84,7 +116,7 @@ RUN apk add gpg
 RUN ./install-opentofu.sh --install-method standalone --install-path / --symlink-path -
 ```
 
-## Step 3: Creating your own image
+#### Step 3: Creating your own image
 
 Now you can add your image below the installation stage and copy the `tofu` binary into it:
 
