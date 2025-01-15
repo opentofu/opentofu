@@ -540,7 +540,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx EvalContext
 	if prevAddr := n.prevRunAddr(ctx); resourceTypesDiffer(addr, prevAddr) {
 		src, diags = moveResourceState(addr, prevAddr, provider, src, schema, currentVersion)
 	} else {
-		src, diags = upgradeResourceState(addr, provider, src, schema, currentVersion)
+		src, diags = upgradeResourceState(addr, prevAddr, provider, src, schema, currentVersion)
 	}
 
 	if n.Config != nil {
@@ -590,7 +590,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx Eval
 	if prevAddr := n.prevRunAddr(ctx); resourceTypesDiffer(addr, prevAddr) {
 		src, diags = moveResourceState(addr, prevAddr, provider, src, schema, currentVersion)
 	} else {
-		src, diags = upgradeResourceState(addr, provider, src, schema, currentVersion)
+		src, diags = upgradeResourceState(addr, prevAddr, provider, src, schema, currentVersion)
 	}
 
 	if n.Config != nil {

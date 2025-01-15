@@ -18,66 +18,78 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-type providerStateTransform func(src *states.ResourceInstanceObjectSrc) (cty.Value, tfdiags.Diagnostics)
+// providerStateTransform transforms the state given the current and the previous AbsResourceInstance, Provider and ResourceInstanceObjectSrc
+// and returns a new state as cty.Value, new private state as []byte and diagnostics
+type providerStateTransform func(addr, prevAddr addrs.AbsResourceInstance, provider providers.Interface, src *states.ResourceInstanceObjectSrc) (cty.Value, []byte, tfdiags.Diagnostics)
 
 // upgradeResourceState will, if necessary, run the provider-defined upgrade
 // logic against the given state object to make it compliant with the
-// current schema version. This is a no-op if the given state object is
-// already at the latest version.
+// current schema version.
 //
 // If any errors occur during upgrade, error diagnostics are returned. In that
 // case it is not safe to proceed with using the original state object.
-func upgradeResourceState(addr addrs.AbsResourceInstance, provider providers.Interface, objectSrc *states.ResourceInstanceObjectSrc, currentSchema *configschema.Block, currentVersion uint64) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
-	return transformResourceState(addr, objectSrc, currentSchema, currentVersion, func(src *states.ResourceInstanceObjectSrc) (cty.Value, tfdiags.Diagnostics) {
-		req := providers.UpgradeResourceStateRequest{
-			TypeName: addr.Resource.Resource.Type,
-
-			// TODO: The internal schema version representations are all using
-			// uint64 instead of int64, but unsigned integers aren't friendly
-			// to all protobuf target languages so in practice we use int64
-			// on the wire. In future we will change all of our internal
-			// representations to int64 too.
-			Version:         int64(src.SchemaVersion),
-			RawStateFlatmap: src.AttrsFlat,
-			RawStateJSON:    src.AttrsJSON,
-		}
-
-		resp := provider.UpgradeResourceState(req)
-		diags := resp.Diagnostics
-		if diags.HasErrors() {
-			return cty.NilVal, diags
-		}
-
-		// After upgrading, the new value must conform to the current schema. When
-		// going over RPC this is actually already ensured by the
-		// marshaling/unmarshaling of the new value, but we'll check it here
-		// anyway for robustness, e.g. for in-process providers.
-		return resp.UpgradedState, diags
-	})
+func upgradeResourceState(addr, prevAddr addrs.AbsResourceInstance, provider providers.Interface, objectSrc *states.ResourceInstanceObjectSrc, currentSchema *configschema.Block, currentVersion uint64) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
+	return transformResourceState(addr, prevAddr, provider, objectSrc, currentSchema, currentVersion, upgradeResourceStateTransform)
 }
 
-func moveResourceState(addr addrs.AbsResourceInstance, prevAddr addrs.AbsResourceInstance, provider providers.Interface, objectSrc *states.ResourceInstanceObjectSrc, currentSchema *configschema.Block, currentVersion uint64) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
-	return transformResourceState(addr, objectSrc, currentSchema, currentVersion, func(src *states.ResourceInstanceObjectSrc) (cty.Value, tfdiags.Diagnostics) {
-		req := providers.MoveResourceStateRequest{
-			SourceProviderAddress: prevAddr.Resource.Resource.ImpliedProvider(),
-			SourceTypeName:        prevAddr.Resource.Resource.Type,
-			SourceSchemaVersion:   src.SchemaVersion,
-			SourceStateJSON:       src.AttrsJSON,
-			SourceStateFlatmap:    src.AttrsFlat,
-			SourcePrivate:         src.Private,
-			TargetTypeName:        addr.Resource.Resource.Type,
-		}
-		resp := provider.MoveResourceState(req)
-		diags := resp.Diagnostics
-		if diags.HasErrors() {
-			return cty.NilVal, diags
-		}
-		objectSrc.Private = resp.TargetPrivate
-		return resp.TargetState, diags
-	})
+// upgradeResourceStateTransform is a providerStateTransform that upgrades the state via provider upgrade logic
+func upgradeResourceStateTransform(addr, _ addrs.AbsResourceInstance, provider providers.Interface, src *states.ResourceInstanceObjectSrc) (cty.Value, []byte, tfdiags.Diagnostics) {
+	log.Printf("[TRACE] upgradeResourceStateTransform: address: %s", addr)
+	req := providers.UpgradeResourceStateRequest{
+		TypeName: addr.Resource.Resource.Type,
+
+		// TODO: The internal schema version representations are all using
+		// uint64 instead of int64, but unsigned integers aren't friendly
+		// to all protobuf target languages so in practice we use int64
+		// on the wire. In future we will change all of our internal
+		// representations to int64 too.
+		Version:         int64(src.SchemaVersion),
+		RawStateFlatmap: src.AttrsFlat,
+		RawStateJSON:    src.AttrsJSON,
+	}
+
+	resp := provider.UpgradeResourceState(req)
+	diags := resp.Diagnostics
+	if diags.HasErrors() {
+		log.Printf("[TRACE] upgradeResourceStateTransform: failed - address: %s", addr)
+		return cty.NilVal, nil, diags
+	}
+
+	return resp.UpgradedState, src.Private, diags
 }
 
-func transformResourceState(addr addrs.AbsResourceInstance, src *states.ResourceInstanceObjectSrc, currentSchema *configschema.Block, currentVersion uint64, providerStateTransform providerStateTransform) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
+// moveResourceState moves the state from one type or provider to another
+// this function runs the provider-defined logic for MoveResourceState and performs the additional validation defined int transformResourceState
+// If any error occurs during the validation or state transformation, error diagnostics are returned.
+// Otherwise, the new state object is returned.
+func moveResourceState(addr, prevAddr addrs.AbsResourceInstance, provider providers.Interface, objectSrc *states.ResourceInstanceObjectSrc, currentSchema *configschema.Block, currentVersion uint64) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
+	return transformResourceState(addr, prevAddr, provider, objectSrc, currentSchema, currentVersion, moveResourceStateTransform)
+}
+
+// moveResourceStateTransform is a providerStateTransform that moves the state via provider move logic
+func moveResourceStateTransform(addr, prevAddr addrs.AbsResourceInstance, provider providers.Interface, src *states.ResourceInstanceObjectSrc) (cty.Value, []byte, tfdiags.Diagnostics) {
+	log.Printf("[TRACE] moveResourceStateTransform: new address: %s, previous address: %s", addr, prevAddr)
+	req := providers.MoveResourceStateRequest{
+		SourceProviderAddress: prevAddr.Resource.Resource.ImpliedProvider(),
+		SourceTypeName:        prevAddr.Resource.Resource.Type,
+		SourceSchemaVersion:   src.SchemaVersion,
+		SourceStateJSON:       src.AttrsJSON,
+		SourceStateFlatmap:    src.AttrsFlat,
+		SourcePrivate:         src.Private,
+		TargetTypeName:        addr.Resource.Resource.Type,
+	}
+	resp := provider.MoveResourceState(req)
+	diags := resp.Diagnostics
+	if diags.HasErrors() {
+		log.Printf("[TRACE] moveResourceStateTransform: failed - new address: %s, previous address: %s", addr, prevAddr)
+		return cty.NilVal, nil, diags
+	}
+	return resp.TargetState, resp.TargetPrivate, diags
+}
+
+// transformResourceState transforms the state based on passed in providerStateTransform and returns new ResourceInstanceObjectSrc
+// the function takes in the current and previous AbsResourceInstance, Provider, ResourceInstanceObjectSrc, current schema and current version
+func transformResourceState(addr, prevAddr addrs.AbsResourceInstance, provider providers.Interface, src *states.ResourceInstanceObjectSrc, currentSchema *configschema.Block, currentVersion uint64, stateTransform providerStateTransform) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
 	if addr.Resource.Resource.Mode != addrs.ManagedResourceMode {
 		// We only do state upgrading for managed resources.
 		// This was a part of the normal workflow in older versions and
@@ -100,7 +112,7 @@ func transformResourceState(addr addrs.AbsResourceInstance, src *states.Resource
 	// TODO: This should eventually use a proper FQN.
 	providerType := addr.Resource.Resource.ImpliedProvider()
 	if src.SchemaVersion > currentVersion {
-		log.Printf("[TRACE] upgradeResourceState: can't downgrade state for %s from version %d to %d", addr, src.SchemaVersion, currentVersion)
+		log.Printf("[TRACE] transformResourceState: can't downgrade state for %s from version %d to %d", addr, src.SchemaVersion, currentVersion)
 		var diags tfdiags.Diagnostics
 		return nil, diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -119,16 +131,20 @@ func transformResourceState(addr addrs.AbsResourceInstance, src *states.Resource
 	// representation, since only the provider has enough information to
 	// understand a flatmap built against an older schema.
 	if src.SchemaVersion != currentVersion {
-		log.Printf("[TRACE] upgradeResourceState: upgrading state for %s from version %d to %d using provider %q", addr, src.SchemaVersion, currentVersion, providerType)
+		log.Printf("[TRACE] transformResourceState: upgrading state for %s from version %d to %d using provider %q", addr, src.SchemaVersion, currentVersion, providerType)
 	} else {
-		log.Printf("[TRACE] upgradeResourceState: schema version of %s is still %d; calling provider %q for any other minor fixups", addr, currentVersion, providerType)
+		log.Printf("[TRACE] transformResourceState: schema version of %s is still %d; calling provider %q for any other minor fixups", addr, currentVersion, providerType)
 	}
 
-	newState, diags := providerStateTransform(src)
+	newState, newPrivate, diags := stateTransform(addr, prevAddr, provider, src)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
+	// After upgrading, the new value must conform to the current schema. When
+	// going over RPC this is actually already ensured by the
+	// marshaling/unmarshaling of the new value, but we'll check it here
+	// anyway for robustness, e.g. for in-process providers.
 	if errs := newState.Type().TestConformance(currentSchema.ImpliedType()); len(errs) > 0 {
 		for _, err := range errs {
 			diags = diags.Append(tfdiags.Sourceless(
@@ -149,6 +165,8 @@ func transformResourceState(addr addrs.AbsResourceInstance, src *states.Resource
 			fmt.Sprintf("Failed to encode state for %s after resource schema upgrade: %s.", addr, tfdiags.FormatError(err)),
 		))
 	}
+	// Assign new private state returned from state transformation
+	newSrc.Private = newPrivate
 	return newSrc, diags
 }
 
