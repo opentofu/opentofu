@@ -177,7 +177,7 @@ Refer to the module-package-specific and provider-package-specific RFCs for more
 
 ### ORAS Manifest Conventions
 
-[OCI Registry As Storate](https://oras.land/), or _ORAS_, is an effort to define a more general set of conventions for distributing various different kinds of artifacts through OCI registries. At the time of writing, the ORAS documentation provides the following motivation:
+[OCI Registry As Storage](https://oras.land/), or _ORAS_, is an effort to define a more general set of conventions for distributing various different kinds of artifacts through OCI registries. At the time of writing, the ORAS documentation provides the following motivation:
 
 > For a long time (pretty much since the beginning), people have been using/abusing OCI Registries to store non-container things. For example, you could upload a video to Docker Hub by just stuffing the video file into a layer in a Docker image (don't do this).
 >
