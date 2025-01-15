@@ -1,0 +1,12 @@
+# Copyright (c) The OpenTofu Authors
+# SPDX-License-Identifier: MPL-2.0
+# Copyright (c) 2023 HashiCorp, Inc.
+# SPDX-License-Identifier: MPL-2.0
+
+FROM scratch
+
+LABEL maintainer="OpenTofu Core Team <core@opentofu.org>"
+
+COPY tofu /usr/local/bin/tofu
+
+ENTRYPOINT ["/usr/local/bin/tofu"]
