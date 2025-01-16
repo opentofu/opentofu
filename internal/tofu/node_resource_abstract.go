@@ -509,22 +509,26 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 	return diags
 }
 
-func resourceTypesDiffer(a, b addrs.AbsResourceInstance) bool {
-	return a.Resource.Resource.Type != b.Resource.Resource.Type || a.Resource.Resource.ImpliedProvider() != b.Resource.Resource.ImpliedProvider()
+func resourceTypeMoved(evalCtx EvalContext, newAddr, oldAddr addrs.AbsResourceInstance) bool {
+	// if newAddr wasn't moved, we don't need to call moveResourceState
+	if !evalCtx.MoveResults().AddrMoved(newAddr) {
+		return false
+	}
+	return newAddr.Resource.Resource.Type != oldAddr.Resource.Resource.Type
 }
 
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		return nil, diags.Append(err)
 	}
 
 	log.Printf("[TRACE] readResourceInstanceState: reading state for %s", addr)
 
-	src := ctx.State().ResourceInstanceObject(addr, states.CurrentGen)
+	src := evalCtx.State().ResourceInstanceObject(addr, states.CurrentGen)
 	if src == nil {
 		// Presumably we only have deposed objects, then.
 		log.Printf("[TRACE] readResourceInstanceState: no state present for %s", addr)
@@ -537,10 +541,20 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx EvalContext
 		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 	}
 
-	if prevAddr := n.prevRunAddr(ctx); resourceTypesDiffer(addr, prevAddr) {
-		src, diags = moveResourceState(addr, prevAddr, provider, src, schema, currentVersion)
+	if prevAddr := n.prevRunAddr(evalCtx); resourceTypeMoved(evalCtx, addr, prevAddr) {
+		src, diags = moveResourceState(stateTransformArgs{
+			addr:      addr,
+			prevAddr:  prevAddr,
+			provider:  provider,
+			objectSrc: src,
+		}, schema, currentVersion)
 	} else {
-		src, diags = upgradeResourceState(addr, prevAddr, provider, src, schema, currentVersion)
+		src, diags = upgradeResourceState(stateTransformArgs{
+			addr:      addr,
+			prevAddr:  prevAddr,
+			provider:  provider,
+			objectSrc: src,
+		}, schema, currentVersion)
 	}
 
 	if n.Config != nil {
@@ -560,9 +574,9 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx EvalContext
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
 // instance in the state.
-func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -574,7 +588,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx Eval
 
 	log.Printf("[TRACE] readResourceInstanceStateDeposed: reading state for %s deposed object %s", addr, key)
 
-	src := ctx.State().ResourceInstanceObject(addr, key)
+	src := evalCtx.State().ResourceInstanceObject(addr, key)
 	if src == nil {
 		// Presumably we only have deposed objects, then.
 		log.Printf("[TRACE] readResourceInstanceStateDeposed: no state present for %s deposed object %s", addr, key)
@@ -587,10 +601,20 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx Eval
 		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 	}
 
-	if prevAddr := n.prevRunAddr(ctx); resourceTypesDiffer(addr, prevAddr) {
-		src, diags = moveResourceState(addr, prevAddr, provider, src, schema, currentVersion)
+	if prevAddr := n.prevRunAddr(evalCtx); resourceTypeMoved(evalCtx, addr, prevAddr) {
+		src, diags = moveResourceState(stateTransformArgs{
+			addr:      addr,
+			prevAddr:  prevAddr,
+			provider:  provider,
+			objectSrc: src,
+		}, schema, currentVersion)
 	} else {
-		src, diags = upgradeResourceState(addr, prevAddr, provider, src, schema, currentVersion)
+		src, diags = upgradeResourceState(stateTransformArgs{
+			addr:      addr,
+			prevAddr:  prevAddr,
+			provider:  provider,
+			objectSrc: src,
+		}, schema, currentVersion)
 	}
 
 	if n.Config != nil {
