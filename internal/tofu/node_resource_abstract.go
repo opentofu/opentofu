@@ -509,11 +509,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 	return diags
 }
 
-func resourceTypeMoved(evalCtx EvalContext, newAddr, oldAddr addrs.AbsResourceInstance) bool {
-	// if newAddr wasn't moved, we don't need to call moveResourceState
-	if !evalCtx.MoveResults().AddrMoved(newAddr) {
-		return false
-	}
+func resourceTypesDiffer(newAddr, oldAddr addrs.AbsResourceInstance) bool {
 	return newAddr.Resource.Resource.Type != oldAddr.Resource.Resource.Type
 }
 
@@ -541,7 +537,8 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalCon
 		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 	}
 
-	if prevAddr := n.prevRunAddr(evalCtx); resourceTypeMoved(evalCtx, addr, prevAddr) {
+	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
+	if prevAddr := n.prevRunAddr(evalCtx); resourceTypesDiffer(addr, prevAddr) {
 		src, diags = moveResourceState(stateTransformArgs{
 			addr:      addr,
 			prevAddr:  prevAddr,
@@ -600,8 +597,8 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx 
 		// Shouldn't happen since we should've failed long ago if no schema is present
 		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 	}
-
-	if prevAddr := n.prevRunAddr(evalCtx); resourceTypeMoved(evalCtx, addr, prevAddr) {
+	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
+	if prevAddr := n.prevRunAddr(evalCtx); resourceTypesDiffer(addr, prevAddr) {
 		src, diags = moveResourceState(stateTransformArgs{
 			addr:      addr,
 			prevAddr:  prevAddr,
