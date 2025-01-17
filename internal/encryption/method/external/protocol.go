@@ -5,6 +5,8 @@
 
 package external
 
+// TODO #2386 / 1.11: consider if the external method changes and unify protocol with the external key provider.
+
 // Magic is the magic string the external method needs to output in the Header.
 const Magic = "OpenTofu-External-Encryption-Method"
 
