@@ -23,6 +23,8 @@ var embedFS embed.FS
 
 // Go builds a key provider as a Go binary and returns its path.
 func Go(t *testing.T) []string {
+	t.Helper()
+
 	// goMod is embedded like this because the go:embed tag doesn't like having module files in embedded paths.
 	var goMod = []byte(`module testmethod
 
@@ -59,6 +61,8 @@ go 1.22`)
 // Python returns the path to a Python script acting as an encryption method. The function returns all arguments
 // required to run the Python script, including the Python interpreter.
 func Python(t *testing.T) []string {
+	t.Helper()
+
 	tempDir := t.TempDir()
 	dir := path.Join(tempDir, "testmethod-py")
 	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
