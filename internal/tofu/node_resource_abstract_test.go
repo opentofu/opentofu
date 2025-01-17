@@ -213,10 +213,14 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 					AttrsJSON: []byte(`{"id":"i-abc123"}`),
 				}, providerAddr, addrs.NoKey)
 			}),
-			Node: &NodeAbstractResourceInstance{NodeAbstractResource: NodeAbstractResource{
-				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
-			}},
+			Node: &NodeAbstractResourceInstance{
+				NodeAbstractResource: NodeAbstractResource{
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+				},
+				//Otherwise prevRunAddr fails, since we have no current Addr in the state\
+				//TODO double check this change
+				Addr: mustResourceInstanceAddr("aws_instance.bar"),
+			},
 			ExpectedInstanceId: "i-abc123",
 		},
 	}
@@ -230,7 +234,8 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 
 			ctx.ProviderProvider = providers.Interface(mockProvider)
 
-			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.NodeAbstractResource.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance))
+			//TODO same change as line 220, please double check
+			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr)
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
 			}
@@ -279,10 +284,13 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 					AttrsJSON: []byte(`{"id":"i-abc123"}`),
 				}, providerAddr, addrs.NoKey)
 			}),
-			Node: &NodeAbstractResourceInstance{NodeAbstractResource: NodeAbstractResource{
-				Addr:             mustConfigResourceAddr("aws_instance.bar"),
-				ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
-			}},
+			//TODO double check
+			Node: &NodeAbstractResourceInstance{
+				NodeAbstractResource: NodeAbstractResource{
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+				},
+				Addr: mustResourceInstanceAddr("aws_instance.bar"),
+			},
 			ExpectedInstanceId: "i-abc123",
 		},
 	}
@@ -296,7 +304,8 @@ func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
 
 			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
 
-			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.NodeAbstractResource.Addr.Resource.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance), key)
+			//TODO double check
+			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.Addr, key)
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
 			}
