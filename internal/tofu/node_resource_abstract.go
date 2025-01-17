@@ -540,18 +540,22 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalCon
 	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
 	if prevAddr := n.prevRunAddr(evalCtx); isResourceMovedToDifferentType(addr, prevAddr) {
 		src, diags = moveResourceState(stateTransformArgs{
-			addr:      addr,
-			prevAddr:  prevAddr,
-			provider:  provider,
-			objectSrc: src,
-		}, schema, currentVersion)
+			currentAddr:          addr,
+			prevAddr:             prevAddr,
+			provider:             provider,
+			objectSrc:            src,
+			currentSchema:        schema,
+			currentSchemaVersion: currentVersion,
+		})
 	} else {
 		src, diags = upgradeResourceState(stateTransformArgs{
-			addr:      addr,
-			prevAddr:  prevAddr,
-			provider:  provider,
-			objectSrc: src,
-		}, schema, currentVersion)
+			currentAddr:          addr,
+			prevAddr:             prevAddr,
+			provider:             provider,
+			objectSrc:            src,
+			currentSchema:        schema,
+			currentSchemaVersion: currentVersion,
+		})
 	}
 
 	if n.Config != nil {
@@ -600,18 +604,22 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx 
 	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
 	if prevAddr := n.prevRunAddr(evalCtx); isResourceMovedToDifferentType(addr, prevAddr) {
 		src, diags = moveResourceState(stateTransformArgs{
-			addr:      addr,
-			prevAddr:  prevAddr,
-			provider:  provider,
-			objectSrc: src,
-		}, schema, currentVersion)
+			currentAddr:          addr,
+			prevAddr:             prevAddr,
+			provider:             provider,
+			objectSrc:            src,
+			currentSchema:        schema,
+			currentSchemaVersion: currentVersion,
+		})
 	} else {
 		src, diags = upgradeResourceState(stateTransformArgs{
-			addr:      addr,
-			prevAddr:  prevAddr,
-			provider:  provider,
-			objectSrc: src,
-		}, schema, currentVersion)
+			currentAddr:          addr,
+			prevAddr:             prevAddr,
+			provider:             provider,
+			objectSrc:            src,
+			currentSchema:        schema,
+			currentSchemaVersion: currentVersion,
+		})
 	}
 
 	if n.Config != nil {
