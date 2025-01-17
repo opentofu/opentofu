@@ -160,20 +160,20 @@ func (i *ioHandler) Write(p []byte) (int, error) {
 	// Note: this is intentionally not using strict decoding. Later protocol versions may introduce additional header
 	// fields.
 	if jsonErr := json.Unmarshal([]byte(parts[0]), &header); jsonErr != nil {
-		err := fmt.Errorf("failed to unmarshal header from external binary (%w)", jsonErr)
+		err := fmt.Errorf("failed to unmarshal header from external method (%w)", jsonErr)
 		i.err = err
 		i.cancel()
 		return n, err
 	}
 
 	if header.Magic != Magic {
-		err := fmt.Errorf("invalid magic received from external key provider: %s", header.Magic)
+		err := fmt.Errorf("invalid magic received from external method: %s", header.Magic)
 		i.err = err
 		i.cancel()
 		return n, err
 	}
 	if header.Version != 1 {
-		err := fmt.Errorf("invalid version number received from external key provider: %d", header.Version)
+		err := fmt.Errorf("invalid version number received from external method: %d", header.Version)
 		i.err = err
 		i.cancel()
 		return n, err

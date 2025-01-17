@@ -29,6 +29,6 @@ type InputV1 struct {
 // OutputV1 is the returned encrypted/decrypted payload from the external method. The external method writes this
 // to the standard output as JSON.
 type OutputV1 struct {
-	// Payload is the payload that has been encrypted/decrypted by the external provider.
+	// Payload is the payload that has been encrypted/decrypted by the external method.
 	Payload []byte `json:"payload"`
 }
