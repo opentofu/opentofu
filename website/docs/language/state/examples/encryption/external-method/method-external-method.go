@@ -40,7 +40,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
-	_, _ = os.Stdout.Write(append(marshalledHeader, []byte("\n")...))
+	_, err = os.Stdout.Write(append(marshalledHeader, []byte("\n")...))
+	if err != nil {
+		log.Fatalf("Failed to write output: %v", err)
+	}
 
 	// Read input:
 	input, err := io.ReadAll(os.Stdin)
@@ -63,5 +66,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to stringify output: %v", err)
 	}
-	_, _ = os.Stdout.Write(outputData)
+	_, err = os.Stdout.Write(outputData)
+	if err != nil {
+		log.Fatalf("Failed to write output: %v", err)
+	}
 }
