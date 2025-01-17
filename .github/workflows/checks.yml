@@ -42,7 +42,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - { runson: ubuntu-latest, goos: linux, goarch: "arm64" }
+          - { runson: ubuntu-24.04-arm, goos: linux, goarch: "arm64" }
           - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
           - { runson: ubuntu-latest, goos: linux, goarch: "386" }
           - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
@@ -55,7 +55,7 @@ jobs:
       # 👇🏾 GH actions supports only "AMD64 arch", so we are using this action
       # for testing on non amd64 envs like 386, arm64 etc...
       - name: "Set up QEMU"
-        if: matrix.goos == 'linux' && matrix.goarch != 'amd64'
+        if: matrix.goos == 'linux' && matrix.goarch != 'amd64' && matrix.goarch != 'arm64'
         uses: docker/setup-qemu-action@v3
 
       - name: "Fetch source code"
