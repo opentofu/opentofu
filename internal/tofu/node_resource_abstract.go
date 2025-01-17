@@ -509,7 +509,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 	return diags
 }
 
-func resourceTypesDiffer(newAddr, oldAddr addrs.AbsResourceInstance) bool {
+func isResourceMovedToDifferentType(newAddr, oldAddr addrs.AbsResourceInstance) bool {
 	return newAddr.Resource.Resource.Type != oldAddr.Resource.Resource.Type
 }
 
@@ -538,7 +538,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalCon
 	}
 
 	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
-	if prevAddr := n.prevRunAddr(evalCtx); resourceTypesDiffer(addr, prevAddr) {
+	if prevAddr := n.prevRunAddr(evalCtx); isResourceMovedToDifferentType(addr, prevAddr) {
 		src, diags = moveResourceState(stateTransformArgs{
 			addr:      addr,
 			prevAddr:  prevAddr,
@@ -598,7 +598,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx 
 		return nil, diags.Append(fmt.Errorf("no schema available for %s while reading state; this is a bug in OpenTofu and should be reported", addr))
 	}
 	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
-	if prevAddr := n.prevRunAddr(evalCtx); resourceTypesDiffer(addr, prevAddr) {
+	if prevAddr := n.prevRunAddr(evalCtx); isResourceMovedToDifferentType(addr, prevAddr) {
 		src, diags = moveResourceState(stateTransformArgs{
 			addr:      addr,
 			prevAddr:  prevAddr,
