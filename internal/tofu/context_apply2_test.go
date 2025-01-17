@@ -4849,6 +4849,178 @@ variable "other_var" {
 	})
 }
 
+func TestContext2Apply_dataResourcePostconditionDuringApply(t *testing.T) {
+	// This test is covering the edge-case discussed in the following issue:
+	//     https://github.com/opentofu/opentofu/issues/2355
+
+	m := testModuleInline(t, map[string]string{
+		"test.tf": `
+			terraform {
+				required_providers {
+					test = {
+						source = "terraform.io/builtin/test"
+					}
+				}
+			}
+
+			data "test_thing" "example" {
+				for_each = toset(["a", "b"])
+
+				name  = each.key
+				delay = timestamp() # to force reading during apply
+
+				lifecycle {
+					postcondition {
+						condition     = self.result == "a"
+						error_message = "result is not A"
+					}
+				}
+			}
+		`,
+	})
+	resourceAddr := addrs.Resource{
+		Mode: addrs.DataResourceMode,
+		Type: "test_thing",
+		Name: "example",
+	}.Absolute(addrs.RootModuleInstance)
+	instAddrA := resourceAddr.Instance(addrs.StringKey("a"))
+	instAddrB := resourceAddr.Instance(addrs.StringKey("b"))
+	providerAddr := addrs.AbsProviderConfig{
+		Module:   addrs.RootModule,
+		Provider: addrs.NewBuiltInProvider("test"),
+	}
+	state := states.BuildState(func(ss *states.SyncState) {
+		ss.SetResourceProvider(resourceAddr, providerAddr)
+		ss.SetResourceInstanceCurrent(
+			instAddrA,
+			&states.ResourceInstanceObjectSrc{
+				AttrsJSON: []byte(`{"name":"a","result":"a"}`),
+			},
+			providerAddr,
+			addrs.NoKey,
+		)
+		// Intentionally no entry for instAddrB yet, since we're
+		// aiming to have that read for the first time in the
+		// plan/apply round we'll run below.
+	})
+
+	p := &MockProvider{}
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		Provider: providers.Schema{
+			Block: &configschema.Block{},
+		},
+		DataSources: map[string]providers.Schema{
+			"test_thing": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"name": {
+							Type:     cty.String,
+							Required: true,
+						},
+						"delay": {
+							Type:     cty.String,
+							Optional: true,
+						},
+						"result": {
+							Type:     cty.String,
+							Computed: true,
+						},
+					},
+				},
+			},
+		},
+	}
+	p.ReadDataSourceFn = func(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+		// This simple "data source" just copies the given name into its result attribute.
+		return providers.ReadDataSourceResponse{
+			State: cty.ObjectVal(map[string]cty.Value{
+				"name":   req.Config.GetAttr("name"),
+				"delay":  req.Config.GetAttr("delay"),
+				"result": req.Config.GetAttr("name"),
+			}),
+		}
+	}
+
+	tofuCtx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			providerAddr.Provider: providers.FactoryFixed(p),
+		},
+	})
+
+	ctx := context.Background()
+	plan, planDiags := tofuCtx.Plan(ctx, m, state, DefaultPlanOpts)
+	assertNoErrors(t, planDiags)
+	if aPlan := plan.Changes.ResourceInstance(instAddrA); aPlan == nil {
+		t.Errorf("no planned change for %s", instAddrA)
+	} else if got, want := aPlan.Action, plans.Read; got != want {
+		t.Errorf("wrong planned action %#v for %s; want %#v", got, instAddrA, want)
+	}
+	if bPlan := plan.Changes.ResourceInstance(instAddrB); bPlan == nil {
+		t.Errorf("no planned change for %s", instAddrB)
+	} else if got, want := bPlan.Action, plans.Read; got != want {
+		t.Errorf("wrong planned action %#v for %s; want %#v", got, instAddrB, want)
+	}
+	plannedState := plan.PlannedState
+	if resourceState := plannedState.Resource(resourceAddr); resourceState == nil {
+		t.Fatalf("no planned state for %s", resourceAddr)
+	} else {
+		if aState := resourceState.Instances[instAddrA.Resource.Key]; aState == nil || aState.Current == nil {
+			t.Errorf("no planned state for %s", instAddrA)
+		} else if got, want := aState.Current.Status, states.ObjectPlanned; got != want {
+			t.Errorf("wrong status %#v for current object of %s; want %#v", got, instAddrA, want)
+		}
+		if bState := resourceState.Instances[instAddrB.Resource.Key]; bState == nil || bState.Current == nil {
+			t.Errorf("no planned state for %s", instAddrB)
+		} else if got, want := bState.Current.Status, states.ObjectPlanned; got != want {
+			t.Errorf("wrong status %#v for current object of %s; want %#v", got, instAddrB, want)
+		}
+	}
+	if aCheckResult := plan.Checks.GetObjectResult(instAddrA); aCheckResult == nil || aCheckResult.Status != checks.StatusUnknown {
+		t.Errorf("check result for %s is not unknown", instAddrA)
+	}
+	if bCheckResult := plan.Checks.GetObjectResult(instAddrB); bCheckResult == nil || bCheckResult.Status != checks.StatusUnknown {
+		t.Errorf("check result for %s is not unknown", instAddrB)
+	}
+
+	finalState, applyDiags := tofuCtx.Apply(ctx, plan, m)
+	if !applyDiags.HasErrors() {
+		t.Fatalf("apply succeeded; expected postcondition failure")
+	}
+	foundDiag := false
+	for _, diag := range applyDiags {
+		if diag.Severity() != tfdiags.Error {
+			continue
+		}
+		if diag.Description().Summary != "Resource postcondition failed" {
+			continue
+		}
+		foundDiag = true // this seems to be what we were looking for, then
+		// However, we'll check to make sure that the error seems to have
+		// come from the expected instance. To do that we'll poke around in
+		// the expression information to find out what "self" was for
+		// the condition that failed.
+		exprInfo := diag.FromExpr()
+		selfVal, ok := exprInfo.EvalContext.Variables["self"]
+		if !ok {
+			t.Error("postcondition expression did not have 'self' in scope")
+			continue
+		}
+		if got, want := selfVal.GetAttr("name"), cty.StringVal("b"); !want.RawEquals(got) {
+			t.Errorf("postcondition failure is for %#v; should be for %#v", got, want)
+		}
+	}
+	if !foundDiag {
+		t.Error("missing 'Resource postcondition failed' diagnostic\n" + applyDiags.Err().Error())
+	}
+
+	if aCheckResult := finalState.CheckResults.GetObjectResult(instAddrA); aCheckResult == nil || aCheckResult.Status != checks.StatusPass {
+		t.Errorf("check result for %s is not Pass", instAddrA)
+	}
+	if bCheckResult := finalState.CheckResults.GetObjectResult(instAddrB); bCheckResult == nil || bCheckResult.Status != checks.StatusFail {
+		t.Errorf("check result for %s is not Fail", instAddrB)
+	}
+}
+
 // Test unknown variable (timefn?)
 // Test variable references to resource that's not/is available
 func TestContext2Apply_variableValidateDataSource(t *testing.T) {
