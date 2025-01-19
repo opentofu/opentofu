@@ -822,7 +822,7 @@ func TestContext2Apply_providerAliasConfigure(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	// Configure to record calls AFTER Plan above
@@ -959,7 +959,7 @@ func TestContext2Apply_createBeforeDestroy(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags = ctx.Apply(context.Background(), plan, m)
@@ -1041,7 +1041,7 @@ func TestContext2Apply_createBeforeDestroyUpdate(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags = ctx.Apply(context.Background(), plan, m)
@@ -1100,7 +1100,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags = ctx.Apply(context.Background(), plan, m)
@@ -1165,7 +1165,7 @@ func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
@@ -1245,7 +1245,7 @@ func TestContext2Apply_createBeforeDestroy_deposedCount(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags = ctx.Apply(context.Background(), plan, m)
@@ -1307,7 +1307,7 @@ func TestContext2Apply_createBeforeDestroy_deposedOnly(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags = ctx.Apply(context.Background(), plan, m)
@@ -1646,7 +1646,7 @@ func TestContext2Apply_dataBasic(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags := ctx.Apply(context.Background(), plan, m)
@@ -1702,7 +1702,7 @@ func TestContext2Apply_destroyData(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	newState, diags := ctx.Apply(context.Background(), plan, m)
@@ -1769,7 +1769,7 @@ func TestContext2Apply_destroySkipsCBD(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	if _, diags := ctx.Apply(context.Background(), plan, m); diags.HasErrors() {
@@ -3795,7 +3795,7 @@ func TestContext2Apply_multiVarComprehensive(t *testing.T) {
 
 		t.Run("config for "+key, func(t *testing.T) {
 			for _, problem := range deep.Equal(got, want) {
-				t.Errorf(problem)
+				t.Errorf("%s", problem)
 			}
 		})
 	}
@@ -8391,7 +8391,7 @@ func TestContext2Apply_ignoreChangesCreate(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags := ctx.Apply(context.Background(), plan, m)
@@ -8537,7 +8537,7 @@ func TestContext2Apply_ignoreChangesAll(t *testing.T) {
 		logDiagnostics(t, diags)
 		t.Fatal("plan failed")
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags := ctx.Apply(context.Background(), plan, m)
@@ -12798,7 +12798,7 @@ func TestContext2Apply_dataSensitive(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags := ctx.Apply(context.Background(), plan, m)
