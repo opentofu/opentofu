@@ -70,8 +70,15 @@ func (s simple) ValidateDataResourceConfig(req providers.ValidateDataResourceCon
 	return resp
 }
 
-func (s simple) MoveResourceState(_ providers.MoveResourceStateRequest) (resp providers.MoveResourceStateResponse) {
-	panic("unimplmented")
+func (s simple) MoveResourceState(req providers.MoveResourceStateRequest) (resp providers.MoveResourceStateResponse) {
+	val, err := ctyjson.Unmarshal(req.SourceStateJSON, s.schema.ResourceTypes["simple_resource"].Block.ImpliedType())
+	resp.Diagnostics = resp.Diagnostics.Append(err)
+	if err != nil {
+		return resp
+	}
+	resp.TargetState = val
+	resp.TargetPrivate = req.SourcePrivate
+	return resp
 }
 func (p simple) UpgradeResourceState(req providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
