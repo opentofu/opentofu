@@ -306,7 +306,7 @@ func TestHttpClient_Unlock(t *testing.T) {
 			jsonLockInfo:       []byte("Simplicity is prerequisite for reliability."),
 			lockResponseStatus: 0,
 			lockResponseBody:   nil,
-			expectedErrorMsg:   fmt.Errorf("failed to unmarshal jsonLockInfo"),
+			expectedErrorMsg:   fmt.Errorf("failed to unmarshal jsonLockInfo: invalid character 'S' looking for beginning of value"),
 			expectedPayload:    nil,
 		},
 		{

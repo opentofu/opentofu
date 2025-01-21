@@ -140,7 +140,7 @@ func (c *httpClient) Unlock(id string) error {
 	// which means that c.jsonLockInfo will be nil
 	if c.jsonLockInfo != nil {
 		if err := json.Unmarshal(c.jsonLockInfo, &lockInfo); err != nil {
-			return fmt.Errorf("failed to unmarshal jsonLockInfo")
+			return fmt.Errorf("failed to unmarshal jsonLockInfo: %w", err)
 		}
 		if lockInfo.ID != id {
 			return &statemgr.LockError{
