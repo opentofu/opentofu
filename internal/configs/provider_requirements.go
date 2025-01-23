@@ -41,7 +41,7 @@ func decodeRequiredProvidersBlock(block *hcl.Block) (*RequiredProviders, hcl.Dia
 	attrs, diags := block.Body.JustAttributes()
 	if diags.HasErrors() {
 		// Returns an empty RequiredProvider to allow further validations to work properly,
-		// allowing to return correctly all the diagnostics.
+		// allowing to return all the diagnostics correctly.
 		return ret, diags
 	}
 
