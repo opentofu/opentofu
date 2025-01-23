@@ -226,7 +226,7 @@ func TestModule_required_providers_multiple_one_with_syntax_error(t *testing.T) 
 		`Duplicate required providers configuration`,
 	}
 	if wantLen, gotLen := len(want), len(diags.Errs()); wantLen != gotLen {
-		t.Fatalf("got less errors than expected. Expected %d but got %d", wantLen, gotLen)
+		t.Fatalf("expected %d errors but got %d", wantLen, gotLen)
 	}
 	for i, e := range diags.Errs() {
 		if got := e.Error(); !strings.Contains(got, want[i]) {
