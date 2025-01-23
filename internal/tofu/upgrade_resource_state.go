@@ -54,6 +54,9 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 	// This was previously taken care of by the provider, but data sources do
 	// not go through the UpgradeResourceState process.
 	//
+	// Required for upgrade not for move,
+	// since the deprecated fields might still be relevant for the migration.
+	//
 	// Legacy flatmap state is already taken care of during conversion.
 	// If the schema version is be changed, then allow the provider to handle
 	// removed attributes.
@@ -138,7 +141,7 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 		))
 	}
 
-	// If we get down here then we need to upgrade the state, with the
+	// If we get down here then we need to transform the state, with the
 	// provider's help.
 	// If this state was originally created by a version of OpenTofu prior to
 	// v0.12, this also includes translating from legacy flatmap to new-style
