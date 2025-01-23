@@ -189,7 +189,7 @@ func TestTimeCmp(t *testing.T) {
 func TestMakeStaticTimestampFunc(t *testing.T) {
 	tests := []struct {
 		Name string
-		// Setup bound like this to be able to generate the "want" value based on the generated time
+		// Setup made like this to bind the generated time value to the wanted value.
 		Setup func() (time.Time, cty.Value)
 	}{
 		{

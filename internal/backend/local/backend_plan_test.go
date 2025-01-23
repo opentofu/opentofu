@@ -161,6 +161,39 @@ func TestLocal_plan_context_error(t *testing.T) {
 	}
 }
 
+// Ensure that the plantimestamp() call is not affecting the validation step during planning.
+func TestLocal_plan_range_over_zero_plan_timestamp(t *testing.T) {
+	b := TestLocal(t)
+	// Enable validation. Otherwise, this test is bringing no value
+	b.OpValidation = true
+
+	op, configCleanup, done := testOperationPlan(t, "./testdata/plan_range_over_plan_timestamp")
+	defer configCleanup()
+	op.PlanRefresh = true
+
+	run, err := b.Operation(context.Background(), op)
+	if err != nil {
+		t.Fatalf("error running local operation: %s", err)
+	}
+	<-run.Done()
+	if run.Result != backend.OperationSuccess {
+		t.Fatalf("plan operation failed")
+	}
+
+	// the backend should be unlocked after a run
+	assertBackendStateUnlocked(t, b)
+
+	expectedOutput := `Changes to Outputs:
+  + table_years = [
+      + "2024",
+      + "2025",
+      + "2026",
+    ]`
+	if allOut := done(t).All(); !strings.Contains(allOut, expectedOutput) {
+		t.Fatalf("the expected output was not generated.\n\n\n-> expected:\n%s\n\n\n-> actual:\n%s", expectedOutput, allOut)
+	}
+}
+
 func TestLocal_planOutputsChanged(t *testing.T) {
 	b := TestLocal(t)
 	testStateFile(t, b.StatePath, states.BuildState(func(ss *states.SyncState) {
