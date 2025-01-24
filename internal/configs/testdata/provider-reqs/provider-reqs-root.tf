@@ -32,3 +32,15 @@ data "terraform_remote_state" "bar" {
 provider "configured" {
   version = "~> 1.4"
 }
+
+# Import using implied provider
+import {
+  to = importimplied.targetA
+  id = "ii"
+}
+
+import {
+  to = importimplied.targetB
+  id = "ie"
+  provider = importexplicit
+}
