@@ -538,24 +538,19 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalCon
 	}
 
 	// prevAddr will match the newAddr if the resource wasn't moved (prevRunAddr checks move results)
-	if prevAddr := n.prevRunAddr(evalCtx); isResourceMovedToDifferentType(addr, prevAddr) {
-		src, diags = moveResourceState(stateTransformArgs{
-			currentAddr:          addr,
-			prevAddr:             prevAddr,
-			provider:             provider,
-			objectSrc:            src,
-			currentSchema:        schema,
-			currentSchemaVersion: currentVersion,
-		})
+	prevAddr := n.prevRunAddr(evalCtx)
+	transformArgs := stateTransformArgs{
+		currentAddr:          addr,
+		prevAddr:             prevAddr,
+		provider:             provider,
+		objectSrc:            src,
+		currentSchema:        schema,
+		currentSchemaVersion: currentVersion,
+	}
+	if isResourceMovedToDifferentType(addr, prevAddr) {
+		src, diags = moveResourceState(transformArgs)
 	} else {
-		src, diags = upgradeResourceState(stateTransformArgs{
-			currentAddr:          addr,
-			prevAddr:             prevAddr,
-			provider:             provider,
-			objectSrc:            src,
-			currentSchema:        schema,
-			currentSchemaVersion: currentVersion,
-		})
+		src, diags = upgradeResourceState(transformArgs)
 	}
 
 	if n.Config != nil {
