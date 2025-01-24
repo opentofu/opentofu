@@ -55,16 +55,16 @@ func main() {
 		log.Fatalf("Failed to parse stdin: %v", err)
 	}
 
-	// Create encrypt the input and produce the output here.
+	// Encrypt/decrypt the input and produce the output here.
 	var outputPayload []byte
 	if len(os.Args) != 2 {
 		log.Fatalf("Expected --encrypt or --decrypt")
 	}
 	switch os.Args[1] {
 	case "--encrypt":
-		// Produce encryption key
+		// Encrypt the payload
 	case "--decrypt":
-		// Produce decryption key
+		// Decrypt the payload
 	default:
 		log.Fatalf("Expected --encrypt or --decrypt")
 	}
