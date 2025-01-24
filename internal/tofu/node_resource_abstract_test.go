@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -178,7 +179,16 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	}
 }
 
-func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
+type readResourceInstanceStateTest struct {
+	Name               string
+	State              *states.State
+	Node               *NodeAbstractResourceInstance
+	MoveResults        refactoring.MoveResults
+	Provider           *MockProvider
+	ExpectedInstanceId string
+}
+
+func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) []readResourceInstanceStateTest {
 	mockProvider := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"id": {
@@ -187,32 +197,30 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			},
 		},
 	})
+	mockProviderWithStateChange := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"id": {
+				Type:     cty.String,
+				Optional: true,
+			},
+		},
+	})
+
+	// Changes id to i-abc1234
+	mockProviderWithStateChange.MoveResourceStateResponse = &providers.MoveResourceStateResponse{
+		TargetState: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("i-abc1234")}),
+	}
+
 	// This test does not configure the provider, but the mock provider will
 	// check that this was called and report errors.
 	mockProvider.ConfigureProviderCalled = true
+	mockProviderWithStateChange.ConfigureProviderCalled = true
 
-	tests := map[string]struct {
-		State              *states.State
-		Node               *NodeAbstractResourceInstance
-		ExpectedInstanceId string
-	}{
-		"ReadState gets primary instance state": {
-			State: states.BuildState(func(s *states.SyncState) {
-				providerAddr := addrs.AbsProviderConfig{
-					Provider: addrs.NewDefaultProvider("aws"),
-					Module:   addrs.RootModule,
-				}
-				oneAddr := addrs.Resource{
-					Mode: addrs.ManagedResourceMode,
-					Type: "aws_instance",
-					Name: "bar",
-				}.Absolute(addrs.RootModuleInstance)
-				s.SetResourceProvider(oneAddr, providerAddr)
-				s.SetResourceInstanceCurrent(oneAddr.Instance(addrs.NoKey), &states.ResourceInstanceObjectSrc{
-					Status:    states.ObjectReady,
-					AttrsJSON: []byte(`{"id":"i-abc123"}`),
-				}, providerAddr, addrs.NoKey)
-			}),
+	tests := []readResourceInstanceStateTest{
+		{
+			Name:     "gets primary instance state",
+			Provider: mockProvider,
+			State:    states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
 					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
@@ -222,94 +230,129 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			},
 			ExpectedInstanceId: "i-abc123",
 		},
-	}
-
-	for k, test := range tests {
-		t.Run(k, func(t *testing.T) {
-			ctx := new(MockEvalContext)
-			ctx.StateState = test.State.SyncWrapper()
-			ctx.PathPath = addrs.RootModuleInstance
-			ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
-
-			ctx.ProviderProvider = providers.Interface(mockProvider)
-			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr)
-			if readDiags.HasErrors() {
-				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
-			}
-
-			expected := test.ExpectedInstanceId
-
-			if !(got != nil && got.Value.GetAttr("id") == cty.StringVal(expected)) {
-				t.Fatalf("[%s] Expected output with ID %#v, got: %#v", k, expected, got)
-			}
-		})
-	}
-}
-
-func TestNodeAbstractResource_ReadResourceInstanceStateDeposed(t *testing.T) {
-	mockProvider := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
-		Attributes: map[string]*configschema.Attribute{
-			"id": {
-				Type:     cty.String,
-				Optional: true,
+		{
+			Name:     "resource moved to another type without state change",
+			Provider: mockProvider,
+			MoveResults: refactoring.MoveResults{
+				Changes: addrs.MakeMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](
+					addrs.MakeMapElem(mustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
+						From: mustResourceInstanceAddr("aws_instance0.baz"),
+						To:   mustResourceInstanceAddr("aws_instance.bar"),
+					})),
 			},
-		},
-	})
-	// This test does not configure the provider, but the mock provider will
-	// check that this was called and report errors.
-	mockProvider.ConfigureProviderCalled = true
-
-	tests := map[string]struct {
-		State              *states.State
-		Node               *NodeAbstractResourceInstance
-		ExpectedInstanceId string
-	}{
-		"ReadStateDeposed gets deposed instance": {
-			State: states.BuildState(func(s *states.SyncState) {
-				providerAddr := addrs.AbsProviderConfig{
-					Provider: addrs.NewDefaultProvider("aws"),
-					Module:   addrs.RootModule,
-				}
-				oneAddr := addrs.Resource{
-					Mode: addrs.ManagedResourceMode,
-					Type: "aws_instance",
-					Name: "bar",
-				}.Absolute(addrs.RootModuleInstance)
-				s.SetResourceProvider(oneAddr, providerAddr)
-				s.SetResourceInstanceDeposed(oneAddr.Instance(addrs.NoKey), states.DeposedKey("00000001"), &states.ResourceInstanceObjectSrc{
-					Status:    states.ObjectReady,
-					AttrsJSON: []byte(`{"id":"i-abc123"}`),
-				}, providerAddr, addrs.NoKey)
-			}),
+			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
 					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
+				//Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
 			},
 			ExpectedInstanceId: "i-abc123",
 		},
+		{
+			Name:     "resource moved to another type with state change",
+			Provider: mockProviderWithStateChange,
+			MoveResults: refactoring.MoveResults{
+				Changes: addrs.MakeMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](
+					addrs.MakeMapElem(mustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
+						From: mustResourceInstanceAddr("aws_instance0.baz"),
+						To:   mustResourceInstanceAddr("aws_instance.bar"),
+					})),
+			},
+			State: states.BuildState(stateBuilder),
+			Node: &NodeAbstractResourceInstance{
+				NodeAbstractResource: NodeAbstractResource{
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+				},
+				//Otherwise prevRunAddr fails, since we have no current Addr in the state
+				Addr: mustResourceInstanceAddr("aws_instance.bar"),
+			},
+			// The state change should have been applied
+			ExpectedInstanceId: "i-abc1234",
+		},
 	}
-	for k, test := range tests {
-		t.Run(k, func(t *testing.T) {
+	return tests
+}
+
+// TestNodeAbstractResource_ReadResourceInstanceState tests the readResourceInstanceState and readResourceInstanceStateDeposed methods of NodeAbstractResource.
+// Those are quite similar in behavior, so we can test them together.
+func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
+	tests := getReadResourceInstanceStateTests(func(s *states.SyncState) {
+		providerAddr := addrs.AbsProviderConfig{
+			Provider: addrs.NewDefaultProvider("aws"),
+			Module:   addrs.RootModule,
+		}
+		oneAddr := addrs.Resource{
+			Mode: addrs.ManagedResourceMode,
+			Type: "aws_instance",
+			Name: "bar",
+		}.Absolute(addrs.RootModuleInstance)
+		s.SetResourceProvider(oneAddr, providerAddr)
+		s.SetResourceInstanceCurrent(oneAddr.Instance(addrs.NoKey), &states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		}, providerAddr, addrs.NoKey)
+	})
+	for _, test := range tests {
+		t.Run("ReadState "+test.Name, func(t *testing.T) {
 			ctx := new(MockEvalContext)
 			ctx.StateState = test.State.SyncWrapper()
 			ctx.PathPath = addrs.RootModuleInstance
-			ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
-			ctx.ProviderProvider = providers.Interface(mockProvider)
+			ctx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
+			ctx.MoveResultsResults = test.MoveResults
+			ctx.ProviderProvider = providers.Interface(test.Provider)
 
-			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
-
-			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.Addr, key)
+			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr)
 			if readDiags.HasErrors() {
-				t.Fatalf("[%s] Got err: %#v", k, readDiags.Err())
+				t.Fatalf("[%s] Got err: %#v", test.Name, readDiags.Err())
 			}
 
 			expected := test.ExpectedInstanceId
 
 			if !(got != nil && got.Value.GetAttr("id") == cty.StringVal(expected)) {
-				t.Fatalf("[%s] Expected output with ID %#v, got: %#v", k, expected, got)
+				t.Fatalf("[%s] Expected output with ID %#v, got: %#v", test.Name, expected, got)
 			}
 		})
+	}
+	// Deposed tests
+	deposedTest := getReadResourceInstanceStateTests(func(s *states.SyncState) {
+		providerAddr := addrs.AbsProviderConfig{
+			Provider: addrs.NewDefaultProvider("aws"),
+			Module:   addrs.RootModule,
+		}
+		oneAddr := addrs.Resource{
+			Mode: addrs.ManagedResourceMode,
+			Type: "aws_instance",
+			Name: "bar",
+		}.Absolute(addrs.RootModuleInstance)
+		s.SetResourceProvider(oneAddr, providerAddr)
+		s.SetResourceInstanceDeposed(oneAddr.Instance(addrs.NoKey), "00000001", &states.ResourceInstanceObjectSrc{
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"i-abc123"}`),
+		}, providerAddr, addrs.NoKey)
+	})
+	for _, test := range deposedTest {
+		t.Run("ReadStateDeposed "+test.Name, func(t *testing.T) {
+			ctx := new(MockEvalContext)
+			ctx.StateState = test.State.SyncWrapper()
+			ctx.PathPath = addrs.RootModuleInstance
+			ctx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
+			ctx.MoveResultsResults = test.MoveResults
+			ctx.ProviderProvider = providers.Interface(test.Provider)
+
+			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
+			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.Addr, key)
+			if readDiags.HasErrors() {
+				t.Fatalf("[%s] Got err: %#v", test.Name, readDiags.Err())
+			}
+
+			expected := test.ExpectedInstanceId
+
+			if !(got != nil && got.Value.GetAttr("id") == cty.StringVal(expected)) {
+				t.Fatalf("[%s] Expected output with ID %#v, got: %#v", test.Name, expected, got)
+			}
+		})
+
 	}
 }
