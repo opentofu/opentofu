@@ -7,11 +7,15 @@ package tofu
 
 import (
 	"bytes"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"reflect"
+	"strings"
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
-	"reflect"
-	"testing"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/zclconf/go-cty/cty"
 )
@@ -156,6 +160,8 @@ func TestStripRemovedStateAttributes(t *testing.T) {
 	}
 }
 
+// mustResourceInstanceAddr is a helper to create an absolute resource instance to test moveResourceStateTransform.
+// current address foo2_instance.cur and prev address foo_instance.prev
 func getMoveStateArgs() stateTransformArgs {
 	return stateTransformArgs{
 		currentAddr: mustResourceInstanceAddr("foo2_instance.cur"),
@@ -191,6 +197,7 @@ func TestMoveResourceStateTransform(t *testing.T) {
 	}
 
 	tests := []test{
+		// Make sure that the moveResourceStateTransform function does not change state if the provider does not return a new state
 		{
 			name: "Move no changes",
 			args: getMoveStateArgs(),
@@ -199,6 +206,7 @@ func TestMoveResourceStateTransform(t *testing.T) {
 			}),
 			wantPrivate: []byte("private"),
 		},
+		// Check that the request is correctly populated
 		{
 			name: "Move check request",
 			args: getMoveStateArgs(),
@@ -236,6 +244,9 @@ func TestMoveResourceStateTransform(t *testing.T) {
 	}
 }
 
+// mustResourceInstanceAddr is a helper to create an absolute resource instance to test upgradeResourceStateTransform.
+// current address and the previous address are foo_instance.cur
+// schema has field1 and field2, but the json state has field1, field2, and field3
 func getUpgradeStateArgs() stateTransformArgs {
 	sch := &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -290,6 +301,7 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 		{
 			name: "Upgrade basic",
 			args: getUpgradeStateArgs(),
+			// Checking schema trimming and private state update
 			wantState: cty.ObjectVal(map[string]cty.Value{
 				"field1": cty.StringVal("bar"),
 				"field2": cty.True,
@@ -299,6 +311,7 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 		{
 			name: "Upgrade check request",
 			args: getUpgradeStateArgs(),
+			// Checking that field3 is removed from the state before sending the request
 			wantRequest: &providers.UpgradeResourceStateRequest{
 				TypeName:        "foo_instance",
 				Version:         2,
@@ -330,10 +343,157 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 	}
 }
 
-// 1) We should never have flatmap state in the returned state from transformResourceState
-// 2) State must pass TestConformance, i.e. be the same type as the current schema, otherwise expect error
-// 3) If the current version of the schema is higher than the previous version, expect an error "Resource instance managed by newer provider version"
-// 4) Non-Managed resources should not be upgraded and should return the same object source without errors
+func getDataResourceModeInstance() addrs.AbsResourceInstance {
+	addr := mustResourceInstanceAddr("foo_instance.cur")
+	addr.Resource.Resource.Mode = addrs.DataResourceMode
+	return addr
+}
+
 func TestTransformResourceState(t *testing.T) {
+	tests := []struct {
+		name           string
+		args           stateTransformArgs
+		stateTransform providerStateTransform
+		wantDiagErr    string
+		// Callback to validate the object source after transformation.
+		objectSrcValidator func(*testing.T, *states.ResourceInstanceObjectSrc)
+	}{
+		//We should never have flatmap state in the returned ObjectSrc from transformResourceState (Ensured by objectSrc.CompleteUpgrade)
+		{
+			name: "flatmap state should be removed after transformation",
+			args: stateTransformArgs{
+				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+				provider: &MockProvider{
+					GetProviderSchemaResponse: testProviderSchema("test"),
+				},
+				objectSrc: &states.ResourceInstanceObjectSrc{
+					AttrsFlat: map[string]string{"foo": "bar"},
+					AttrsJSON: []byte(`{"foo":"bar"}`),
+				},
+				currentSchema: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"foo": {Type: cty.String},
+					},
+				},
+			},
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+				return cty.ObjectVal(map[string]cty.Value{
+					"foo": cty.StringVal("bar"),
+				}), nil, nil
+			},
+			objectSrcValidator: func(t *testing.T, got *states.ResourceInstanceObjectSrc) {
+				if got.AttrsFlat != nil {
+					t.Error("AttrsFlat should be nil after transformation")
+				}
+			},
+		},
+		// State must pass TestConformance, i.e. be the same type as the current schema, otherwise expect error
+		{
+			name: "state must conform to schema",
+			args: stateTransformArgs{
+				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+				provider: &MockProvider{
+					GetProviderSchemaResponse: testProviderSchema("test"),
+				},
+				objectSrc: &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{"foo":"bar"}`),
+				},
+				currentSchema: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"baz": {Type: cty.String}, // different attribute
+					},
+				},
+			},
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+				return cty.ObjectVal(map[string]cty.Value{
+					"foo": cty.StringVal("bar"), // doesn't match schema
+				}), nil, nil
+			},
+			wantDiagErr: "Invalid resource state upgrade",
+		},
+		//If the current version of the schema is higher than the previous version, expect an error "Resource instance managed by newer provider version"
+		{
+			name: "cannot downgrade schema version",
+			args: stateTransformArgs{
+				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+				objectSrc: &states.ResourceInstanceObjectSrc{
+					SchemaVersion: 2,
+				},
+				currentSchemaVersion: 1,
+			},
+			wantDiagErr: "Resource instance managed by newer provider version",
+		},
+		//Non-Managed resources should not be upgraded and should return the same object source without errors
+		{
+			name: "non-managed resource should not be upgraded",
+			args: stateTransformArgs{
+				currentAddr: getDataResourceModeInstance(),
+				objectSrc: &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{"foo":"bar"}`),
+				},
+			},
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+				t.Error("stateTransform should not be called for data sources")
+				return cty.NilVal, nil, nil
+			},
+			objectSrcValidator: func(t *testing.T, got *states.ResourceInstanceObjectSrc) {
+				if !bytes.Equal(got.AttrsJSON, []byte(`{"foo":"bar"}`)) {
+					t.Error("state should remain unchanged")
+				}
+			},
+		},
+		//The new private state (returned from the provider/state transform call) should be set in the object source
+		{
+			name: "private state should be updated",
+			args: stateTransformArgs{
+				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
+				provider: &MockProvider{
+					GetProviderSchemaResponse: testProviderSchema("test"),
+				},
+				objectSrc: &states.ResourceInstanceObjectSrc{
+					AttrsJSON: []byte(`{"foo":"bar"}`),
+					Private:   []byte("old-private"),
+				},
+				currentSchema: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"foo": {Type: cty.String},
+					},
+				},
+			},
+			stateTransform: func(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
+				return cty.ObjectVal(map[string]cty.Value{
+					"foo": cty.StringVal("bar"),
+				}), []byte("new-private"), nil
+			},
+			objectSrcValidator: func(t *testing.T, got *states.ResourceInstanceObjectSrc) {
+				if !bytes.Equal(got.Private, []byte("new-private")) {
+					t.Error("private state not updated")
+				}
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, diags := transformResourceState(tt.args, tt.stateTransform)
+
+			if tt.wantDiagErr != "" {
+				if !diags.HasErrors() {
+					t.Fatal("expected error diagnostics")
+				}
+				if !strings.Contains(diags.Err().Error(), tt.wantDiagErr) {
+					t.Errorf("expected error containing %q, got %q", tt.wantDiagErr, diags.Err())
+				}
+				return
+			}
+
+			if diags.HasErrors() {
+				t.Fatalf("unexpected errors: %s", diags.Err())
+			}
+
+			if tt.objectSrcValidator != nil {
+				tt.objectSrcValidator(t, got)
+			}
+		})
+	}
 
 }
