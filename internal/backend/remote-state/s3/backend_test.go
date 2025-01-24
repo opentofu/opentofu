@@ -1284,7 +1284,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	}
 
 	// Write the first state
-	stateMgr := &remote.State{Client: client}
+	stateMgr := remote.NewState(client, encryption.StateEncryptionDisabled())
 	if err := stateMgr.WriteState(s1); err != nil {
 		t.Fatal(err)
 	}
@@ -1296,7 +1296,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	// Note a new state manager - otherwise, because these
 	// states are equal, the state will not Put to the remote
 	client.path = b.path("s2")
-	stateMgr2 := &remote.State{Client: client}
+	stateMgr2 := remote.NewState(client, encryption.StateEncryptionDisabled())
 	if err := stateMgr2.WriteState(s2); err != nil {
 		t.Fatal(err)
 	}
