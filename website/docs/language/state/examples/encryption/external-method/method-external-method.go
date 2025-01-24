@@ -57,6 +57,17 @@ func main() {
 
 	// Create encrypt the input and produce the output here.
 	var outputPayload []byte
+	if len(os.Args) != 2 {
+		log.Fatalf("Expected --encrypt or --decrypt")
+	}
+	switch os.Args[1] {
+	case "--encrypt":
+		// Produce encryption key
+	case "--decrypt":
+		// Produce decryption key
+	default:
+		log.Fatalf("Expected --encrypt or --decrypt")
+	}
 
 	// Write output
 	output := Output{
