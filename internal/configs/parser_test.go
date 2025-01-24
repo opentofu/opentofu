@@ -180,13 +180,13 @@ func assertExactDiagnostics(t *testing.T, diags hcl.Diagnostics, want []string) 
 	bad := false
 	for got := range gotDiags {
 		if _, exists := wantDiags[got]; !exists {
-			t.Errorf("unexpected diagnostic: %s", got)
+			t.Errorf("unexpected diagnostic: \n%s", got)
 			bad = true
 		}
 	}
 	for want := range wantDiags {
 		if _, exists := gotDiags[want]; !exists {
-			t.Errorf("missing expected diagnostic: %s", want)
+			t.Errorf("missing expected diagnostic: \n%s", want)
 			bad = true
 		}
 	}
