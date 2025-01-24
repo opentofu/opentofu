@@ -431,19 +431,6 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 		}
 		reqs[fqn] = nil
 	}
-	for _, i := range c.Module.Import {
-		implied, err := addrs.ParseProviderPart(i.StaticTo.Resource.ImpliedProvider())
-		if err == nil {
-			provider := c.Module.ImpliedProviderForUnqualifiedType(implied)
-			if _, exists := reqs[provider]; exists {
-				// Explicit dependency already present
-				continue
-			}
-			reqs[provider] = nil
-		}
-		// We don't return a diagnostic here, because the invalid address will
-		// have been caught elsewhere.
-	}
 
 	// Import blocks that are generating config may also have a custom provider
 	// meta argument. Like the provider meta argument used in resource blocks,
@@ -454,6 +441,14 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 	// this will be because the user has written explicit provider arguments
 	// that don't agree and we'll get them to fix it.
 	for _, i := range c.Module.Import {
+		// Add the import's declared or implicit provider
+		fqn := i.Provider
+		if _, exists := reqs[fqn]; !exists {
+			reqs[fqn] = nil
+		}
+
+		// TODO: This should probably be moved to provider_validation.go so that
+		// import providers can be properly validated across modules (root -> children)
 		if len(i.StaticTo.Module) > 0 {
 			// All provider information for imports into modules should come
 			// from the module block, so we don't need to load anything for
@@ -479,7 +474,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					diags = append(diags, &hcl.Diagnostic{
 						Severity: hcl.DiagError,
 						Summary:  "Invalid import provider argument",
-						Detail:   "The provider argument can only be specified in import blocks that will generate configuration.\n\nUse the provider argument in the target resource block to configure the provider for a resource with explicit provider configuration.",
+						Detail:   "The provider argument in the target resource block must be specified and match the import block.",
 						Subject:  i.ProviderDeclRange.Ptr(),
 					})
 					continue
@@ -499,27 +494,13 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 					diags = append(diags, &hcl.Diagnostic{
 						Severity: hcl.DiagError,
 						Summary:  "Invalid import provider argument",
-						Detail:   "The provider argument can only be specified in import blocks that will generate configuration.\n\nUse the provider argument in the target resource block to configure the provider for a resource with explicit provider configuration.",
+						Detail:   "The provider argument in the target resource block must match the import block.",
 						Subject:  i.ProviderDeclRange.Ptr(),
 					})
 					continue
 				}
 			}
-
-			// All the provider information should come from the target resource
-			// which has already been processed, so skip the rest of this
-			// processing.
-			continue
 		}
-
-		// Otherwise we are generating config for the resource being imported,
-		// so all the provider information must come from this import block.
-		fqn := i.Provider
-		if _, exists := reqs[fqn]; exists {
-			// Explicit dependency already present
-			continue
-		}
-		reqs[fqn] = nil
 	}
 
 	// "provider" block can also contain version constraints

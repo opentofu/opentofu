@@ -1,6 +1,8 @@
 ## 1.8.9 (unreleased)
 
+BUG FIXES:
 
+- Provider used in import is correctly identified. ([#2336](https://github.com/opentofu/opentofu/pull/2336))
 
 ## 1.8.8
 
