@@ -8,6 +8,7 @@ package backend
 import (
 	"fmt"
 	"reflect"
+	"runtime"
 	"sort"
 	"testing"
 
@@ -304,6 +305,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	if v := foo.State(); v.HasManagedResourceInstanceObjects() {
 		t.Fatalf("should be empty: %s", v)
 	}
+
 	// and delete it again
 	if err := b.DeleteWorkspace("foo", true); err != nil {
 		t.Fatalf("err: %s", err)
@@ -325,6 +327,14 @@ func TestBackendStates(t *testing.T, b Backend) {
 			t.Fatalf("wrong workspaces list\ngot:  %#v\nwant: %#v", workspaces, expected)
 		}
 	}
+
+	// Trigger garbage collection to ensure that all open file handles are closed.
+	// This prevents TempDir cleanup errors on Windows.
+	t.Cleanup(func() {
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
+	})
 }
 
 // TestBackendStateLocks will test the locking functionality of the remote
