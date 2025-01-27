@@ -3,6 +3,7 @@
 BUG FIXES:
 
 - Provider used in import is correctly identified. ([#2336](https://github.com/opentofu/opentofu/pull/2336))
+- `plantimestamp()` now returns unknown value during validation ([#2397](https://github.com/opentofu/opentofu/issues/2397))
 
 ## 1.9.0
 
