@@ -301,6 +301,8 @@ func (p *MockProvider) MoveResourceState(r providers.MoveResourceStateRequest) (
 			return resp
 		}
 		resp.TargetState = v
+	default:
+		resp.TargetState = cty.NullVal(schemaType)
 	}
 
 	resp.TargetPrivate = r.SourcePrivate
