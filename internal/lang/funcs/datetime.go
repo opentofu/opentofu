@@ -30,6 +30,11 @@ func MakeStaticTimestampFunc(static time.Time) function.Function {
 		Params: []function.Parameter{},
 		Type:   function.StaticReturnType(cty.String),
 		Impl: func(args []cty.Value, retType cty.Type) (cty.Value, error) {
+			// During validation phase, the planTimestamp is zero. By returning unknown value, it's forcing the
+			// HCL parser to skip any evaluation of other expressions that could use this.
+			if static.IsZero() {
+				return cty.UnknownVal(cty.String), nil
+			}
 			return cty.StringVal(static.Format(time.RFC3339)), nil
 		},
 	})

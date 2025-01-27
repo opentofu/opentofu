@@ -185,3 +185,49 @@ func TestTimeCmp(t *testing.T) {
 		})
 	}
 }
+
+func TestMakeStaticTimestampFunc(t *testing.T) {
+	tests := []struct {
+		Name string
+		// Setup made like this to bind the generated time value to the wanted value.
+		Setup func() (time.Time, cty.Value)
+	}{
+		{
+			Name: "zero",
+			Setup: func() (time.Time, cty.Value) {
+				in := time.Time{}
+				out := cty.UnknownVal(cty.String)
+				return in, out
+			},
+		},
+		{
+			Name: "now",
+			Setup: func() (time.Time, cty.Value) {
+				in := time.Now()
+				out := cty.StringVal(in.Format(time.RFC3339))
+				return in, out
+			},
+		},
+		{
+			Name: "one year later",
+			Setup: func() (time.Time, cty.Value) {
+				in := time.Now().Add(8766 * time.Hour) // 1 year later
+				out := cty.StringVal(in.Format(time.RFC3339))
+				return in, out
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("MakeStaticTimestampFunc(%s)", test.Name), func(t *testing.T) {
+			in, want := test.Setup()
+			got, err := MakeStaticTimestampFunc(in).Call(nil)
+			if err != nil {
+				t.Fatalf("MakeStaticTimestampFunc is not meant to return error but got one: %v", err)
+			}
+			if !got.RawEquals(want) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, want)
+			}
+		})
+	}
+}
