@@ -2568,3 +2568,21 @@ variable "obfmod" {
 		t.Fatalf("Expected function call")
 	}
 }
+
+// Ensure that the plantimestamp() call is not affecting the validation step.
+func TestContext2Validate_rangeOverZeroPlanTimestamp(t *testing.T) {
+	p := testProvider("test")
+
+	m := testModule(t, "plan_range_over_plan_timestamp")
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	diags := ctx.Validate(m)
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+}
