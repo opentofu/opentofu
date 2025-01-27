@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package testprovider
+package testmethod
 
 import (
 	"context"
@@ -22,18 +22,16 @@ import (
 var embedFS embed.FS
 
 // Go builds a key provider as a Go binary and returns its path.
-// This binary will always return []byte{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16} as a hard-coded key.
-// You may pass --hello-world to change it to []byte("Hello world! 123")
 func Go(t *testing.T) []string {
 	t.Helper()
 
 	// goMod is embedded like this because the go:embed tag doesn't like having module files in embedded paths.
-	var goMod = []byte(`module testprovider
+	var goMod = []byte(`module testmethod
 
 go 1.22`)
 
 	tempDir := t.TempDir()
-	dir := path.Join(tempDir, "testprovider-go")
+	dir := path.Join(tempDir, "testmethod-go")
 	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
@@ -41,60 +39,41 @@ go 1.22`)
 	if err := os.WriteFile(path.Join(dir, "go.mod"), goMod, 0600); err != nil { //nolint:mnd // This check is stupid
 		t.Errorf("%v", err)
 	}
-	if err := ejectFile("testprovider.go", path.Join(dir, "testprovider.go")); err != nil {
+	if err := ejectFile("testmethod.go", path.Join(dir, "testmethod.go")); err != nil {
 		t.Errorf("%v", err)
 	}
-	targetBinary := path.Join(dir, "testprovider")
+	targetBinary := path.Join(dir, "testmethod")
 	if runtime.GOOS == "windows" {
 		targetBinary += ".exe"
 	}
-	t.Logf("\033[32mCompiling test provider binary...\033[0m")
+	t.Logf("\033[32mCompiling test method binary...\033[0m")
 	cmd := exec.Command("go", "build", "-o", targetBinary)
 	cmd.Dir = dir
 	// TODO move this to a proper test logger once available.
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		t.Skipf("Failed to build test provider binary (%v)", err)
+		t.Skipf("Failed to build test method binary (%v)", err)
 	}
 	return []string{targetBinary}
 }
 
-// Python returns the path to a Python script acting as a key provider. The function returns all arguments required to
-// run the Python script, including the Python interpreter.
-// This script will always return []byte{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16} as a hard-coded key.
+// Python returns the path to a Python script acting as an encryption method. The function returns all arguments
+// required to run the Python script, including the Python interpreter.
 func Python(t *testing.T) []string {
 	t.Helper()
 
 	tempDir := t.TempDir()
-	dir := path.Join(tempDir, "testprovider-py")
+	dir := path.Join(tempDir, "testmethod-py")
 	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
-	target := path.Join(dir, "testprovider.py")
-	if err := ejectFile("testprovider.py", target); err != nil {
+	target := path.Join(dir, "testmethod.py")
+	if err := ejectFile("testmethod.py", target); err != nil {
 		t.Errorf("%v", err)
 	}
 	python := findExecutable(t, []string{"python", "python3"}, []string{"--version"})
 	return []string{python, target}
-}
-
-// POSIXShell returns a path to a POSIX shell script acting as a key provider.
-// This script will always return []byte{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16} as a hard-coded key.
-func POSIXShell(t *testing.T) []string {
-	t.Helper()
-
-	tempDir := t.TempDir()
-	dir := path.Join(tempDir, "testprovider-sh")
-	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
-		t.Errorf("Failed to create temporary directory (%v)", err)
-	}
-	target := path.Join(dir, "testprovider.sh")
-	if err := ejectFile("testprovider.sh", target); err != nil {
-		t.Errorf("%v", err)
-	}
-	sh := findExecutable(t, []string{"sh", "/bin/sh", "/usr/bin/sh"}, []string{"-c", "echo \"Hello world!\""})
-	return []string{sh, target}
 }
 
 func ejectFile(file string, target string) error {

@@ -1,0 +1,4 @@
+{
+  "payload": "base64-encoded payload to encrypt or decrypt",
+  "key": "base64-encoded key for encryption or decryption (optional)"
+}

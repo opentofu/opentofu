@@ -9,6 +9,7 @@ if __name__ == "__main__":
     sys.stdout.write((json.dumps(
         {"magic": "OpenTofu-External-Key-Provider", "version": 1}) + "\n"
     ))
+    sys.stdout.flush()
 
     # Read the input:
     inputData = sys.stdin.read()

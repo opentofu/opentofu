@@ -202,6 +202,9 @@ type EncryptDecryptTestCase[TConfig method.Config, TMethod method.Method] struct
 	ValidEncryptOnlyConfig TConfig
 	// ValidFullConfig is a configuration that contains both an encryption and decryption key.
 	ValidFullConfig TConfig
+	// DecryptCannotBeVerified allows the decryption to succeed unencrypted data. This is needed for methods that
+	// cannot verify if data decrypted successfully (e.g. xor).
+	DecryptCannotBeVerified bool
 }
 
 func (m EncryptDecryptTestCase[TConfig, TMethod]) execute(t *testing.T) {
@@ -248,16 +251,18 @@ func (m EncryptDecryptTestCase[TConfig, TMethod]) execute(t *testing.T) {
 	}
 	typedDecryptError = nil
 
-	_, err = decryptMethod.Decrypt(plainData)
-	if err == nil {
-		compliancetest.Fail(t, "Decrypt() must return an error when decrypting unencrypted data, no error returned.")
-	} else {
-		compliancetest.Log(t, "Decrypt() correctly returned an error when decrypting unencrypted data.")
-	}
-	if !errors.As(err, &typedDecryptError) {
-		compliancetest.Fail(t, "Decrypt() returned a %T instead of a %T when decrypting unencrypted data. Please use the correct typed errors.", err, typedDecryptError)
-	} else {
-		compliancetest.Log(t, "Decrypt() returned the correct error type of %T when decrypting unencrypted data.", typedDecryptError)
+	if !m.DecryptCannotBeVerified {
+		_, err = decryptMethod.Decrypt(plainData)
+		if err == nil {
+			compliancetest.Fail(t, "Decrypt() must return an error when decrypting unencrypted data, no error returned.")
+		} else {
+			compliancetest.Log(t, "Decrypt() correctly returned an error when decrypting unencrypted data.")
+		}
+		if !errors.As(err, &typedDecryptError) {
+			compliancetest.Fail(t, "Decrypt() returned a %T instead of a %T when decrypting unencrypted data. Please use the correct typed errors.", err, typedDecryptError)
+		} else {
+			compliancetest.Log(t, "Decrypt() returned the correct error type of %T when decrypting unencrypted data.", typedDecryptError)
+		}
 	}
 
 	decryptedData, err := decryptMethod.Decrypt(encryptedData)
