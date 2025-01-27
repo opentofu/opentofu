@@ -9,6 +9,12 @@ Stores the state in a [Postgres database](https://www.postgresql.org) version 10
 
 This backend supports [state locking](../../../language/state/locking.mdx).
 
+:::warning
+OpenTofu 1.10 changed how workspace creation locking works. It is unsafe to
+use `pg` backend with multiple OpenTofu versions (under 1.10) in parallel if those
+are sharing the same underlying database.
+:::
+
 ## Example Configuration
 
 ```hcl
