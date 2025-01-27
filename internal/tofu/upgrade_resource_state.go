@@ -109,7 +109,7 @@ func moveResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfd
 	resp := args.provider.MoveResourceState(req)
 	diags := resp.Diagnostics
 	if diags.HasErrors() {
-		log.Printf("[TRACE] moveResourceStateTransform: failed - new address: %s, previous address: %s", args.currentAddr, args.prevAddr)
+		log.Printf("[TRACE] moveResourceStateTransform: failed - new address: %s, previous address: %s - diags: %s", args.currentAddr, args.prevAddr, diags.Err().Error())
 		return cty.NilVal, nil, diags
 	}
 	return resp.TargetState, resp.TargetPrivate, diags
