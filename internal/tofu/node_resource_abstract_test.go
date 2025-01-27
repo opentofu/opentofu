@@ -8,6 +8,7 @@ package tofu
 import (
 	"fmt"
 	"github.com/opentofu/opentofu/internal/refactoring"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -186,6 +187,7 @@ type readResourceInstanceStateTest struct {
 	MoveResults        refactoring.MoveResults
 	Provider           *MockProvider
 	ExpectedInstanceId string
+	WantErrorStr       string
 }
 
 func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) []readResourceInstanceStateTest {
@@ -210,11 +212,25 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 	mockProviderWithStateChange.MoveResourceStateResponse = &providers.MoveResourceStateResponse{
 		TargetState: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("i-abc1234")}),
 	}
+	mockProviderWithMoveUnsupported := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
+		Attributes: map[string]*configschema.Attribute{
+			"id": {
+				Type:     cty.String,
+				Optional: true,
+			},
+		},
+	})
+	mockProviderWithMoveUnsupported.MoveResourceStateFn = func(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+		return providers.MoveResourceStateResponse{
+			Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "move not supported", "")},
+		}
+	}
 
 	// This test does not configure the provider, but the mock provider will
 	// check that this was called and report errors.
 	mockProvider.ConfigureProviderCalled = true
 	mockProviderWithStateChange.ConfigureProviderCalled = true
+	mockProviderWithMoveUnsupported.ConfigureProviderCalled = true
 
 	tests := []readResourceInstanceStateTest{
 		{
@@ -271,6 +287,25 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			// The state change should have been applied
 			ExpectedInstanceId: "i-abc1234",
 		},
+		{
+			Name:     "resource moved to another type but move not supported by provider",
+			Provider: mockProviderWithMoveUnsupported,
+			MoveResults: refactoring.MoveResults{
+				Changes: addrs.MakeMap[addrs.AbsResourceInstance, refactoring.MoveSuccess](
+					addrs.MakeMapElem(mustResourceInstanceAddr("aws_instance.bar"), refactoring.MoveSuccess{
+						From: mustResourceInstanceAddr("aws_instance0.baz"),
+					}),
+				),
+			},
+			State: states.BuildState(stateBuilder),
+			Node: &NodeAbstractResourceInstance{
+				NodeAbstractResource: NodeAbstractResource{
+					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+				},
+				Addr: mustResourceInstanceAddr("aws_instance.bar"),
+			},
+			WantErrorStr: "move not supported",
+		},
 	}
 	return tests
 }
@@ -304,6 +339,15 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			ctx.ProviderProvider = providers.Interface(test.Provider)
 
 			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr)
+			if test.WantErrorStr != "" {
+				if !readDiags.HasErrors() {
+					t.Fatalf("[%s] Expected error, got none", test.Name)
+				}
+				if readDiags.Err().Error() != test.WantErrorStr {
+					t.Fatalf("[%s] Expected error %q, got %q", test.Name, test.WantErrorStr, readDiags.Err().Error())
+				}
+				return
+			}
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", test.Name, readDiags.Err())
 			}
@@ -316,7 +360,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 		})
 	}
 	// Deposed tests
-	deposedTest := getReadResourceInstanceStateTests(func(s *states.SyncState) {
+	deposedTests := getReadResourceInstanceStateTests(func(s *states.SyncState) {
 		providerAddr := addrs.AbsProviderConfig{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
@@ -332,7 +376,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"i-abc123"}`),
 		}, providerAddr, addrs.NoKey)
 	})
-	for _, test := range deposedTest {
+	for _, test := range deposedTests {
 		t.Run("ReadStateDeposed "+test.Name, func(t *testing.T) {
 			ctx := new(MockEvalContext)
 			ctx.StateState = test.State.SyncWrapper()
@@ -343,6 +387,15 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 
 			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
 			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.Addr, key)
+			if test.WantErrorStr != "" {
+				if !readDiags.HasErrors() {
+					t.Fatalf("[%s] Expected error, got none", test.Name)
+				}
+				if readDiags.Err().Error() != test.WantErrorStr {
+					t.Fatalf("[%s] Expected error %q, got %q", test.Name, test.WantErrorStr, readDiags.Err().Error())
+				}
+				return
+			}
 			if readDiags.HasErrors() {
 				t.Fatalf("[%s] Got err: %#v", test.Name, readDiags.Err())
 			}
