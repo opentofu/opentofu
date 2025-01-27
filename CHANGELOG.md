@@ -3,7 +3,7 @@
 UPGRADE NOTES:
 
 * Using the `ghcr.io/opentofu/opentofu` image as a base image for custom images is no longer supported. Please see https://opentofu.org/docs/intro/install/docker/ for instructions on building your own image.
-* OpenTofu 1.10 with `pg` backend must not be used in paralel with older versions. It may lead to unsafe state writes, when the database is shared across multiple projects.
+* OpenTofu 1.10 with `pg` backend must not be used in parallel with older versions. It may lead to unsafe state writes, when the database is shared across multiple projects.
 
 NEW FEATURES:
 

@@ -8,7 +8,7 @@ environments, etc.). Those configuration setups are isolated and must be applied
 even though they are operating in the same database.
 
 Currently, workspace creation locking is database scoped with a shared static ID, which disallows creation of
-workspaces (including the `default` one) in paralel if the database is reused across multiple OpenTofu setups.
+workspaces (including the `default` one) in parallel if the database is reused across multiple OpenTofu setups.
 
 ## Proposed Solution
 
@@ -26,7 +26,7 @@ solution is to change static `-1` ID to schema-based ID to isolate workspace cre
 
 ### User Documentation
 
-We don't need to change anything from the user perspective. The only difference is that paralel `tofu apply` calls
+We don't need to change anything from the user perspective. The only difference is that parallel `tofu apply` calls
 for different setups must not fail even if their backends are using the same database (but different schemas).
 
 ### Technical Approach
@@ -40,7 +40,7 @@ option. Additional attention needs to be paid to overflows, since `pg_advisory_l
 and we want to generate a hash, which fits into that range.
 
 Since `pg_advisory_lock` is session scoped we don't need to worry about the migration or breaking changes. Problem may arise
-if users run paralel `tofu apply` for the same backend with different versions of OpenTofu (i.e. one run acquires `-1` lock
+if users run parallel `tofu apply` for the same backend with different versions of OpenTofu (i.e. one run acquires `-1` lock
 and the other one acquires the hash of the same schema name). In this scenario, we end up with unsafe database writes.
 
 ### Open Questions
