@@ -94,6 +94,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	creationLockID := c.composeCreationLockID()
 
 	// Try to acquire locks for the existing row `id` and the creation lock.
+	//nolint:gosec // we only parameterize user passed values
 	query := fmt.Sprintf(`SELECT %s.id, pg_try_advisory_lock(%s.id), pg_try_advisory_lock(%s) FROM %s.%s WHERE %s.name = $1`,
 		statesTableName, statesTableName, creationLockID, c.SchemaName, statesTableName, statesTableName)
 
@@ -117,15 +118,15 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 		return "", &statemgr.LockError{Info: info, Err: err}
 	case string(didLock) == "false":
 		// Existing workspace is already locked. Release the attempted creation lock.
-		lockUnlock(creationLockID)
+		_ = lockUnlock(creationLockID)
 		return "", &statemgr.LockError{Info: info, Err: fmt.Errorf("Workspace is already locked: %s", c.Name)}
 	case string(didLockForCreate) == "false":
 		// Someone has the creation lock already. Release the existing workspace because it might not be safe to touch.
-		lockUnlock(string(pgLockId))
+		_ = lockUnlock(string(pgLockId))
 		return "", &statemgr.LockError{Info: info, Err: fmt.Errorf("Cannot lock workspace; already locked for workspace creation: %s", c.Name)}
 	default:
 		// Existing workspace is now locked. Release the attempted creation lock.
-		lockUnlock(creationLockID)
+		_ = lockUnlock(creationLockID)
 		info.Path = string(pgLockId)
 	}
 	c.info = info

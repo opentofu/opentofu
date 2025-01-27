@@ -533,8 +533,12 @@ func dropSchema(t *testing.T, db *sql.DB, schemaName string) {
 }
 
 func dropSchemaByQuotedName(t *testing.T, db *sql.DB, quotedSchemaName string) {
-	_, err := db.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", quotedSchemaName))
+	rows, err := db.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", quotedSchemaName))
 	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	if err = rows.Err(); err != nil {
 		t.Fatal(err)
 	}
 }
