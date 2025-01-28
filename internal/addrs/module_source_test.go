@@ -138,6 +138,27 @@ func TestParseModuleSource(t *testing.T) {
 				Subdir:  "example/foo",
 			},
 		},
+		"github.com with branch and subdir": {
+			input: "github.com/hashicorp/terraform-cidr-subnets//example/foo?ref=bar",
+			want: ModuleSourceRemote{
+				Package: ModulePackage("git::https://github.com/hashicorp/terraform-cidr-subnets.git?ref=bar"),
+				Subdir:  "example/foo",
+			},
+		},
+		"github.com with subdir and malformed query params": {
+			input: "github.com/hashicorp/terraform-cidr-subnets//example/foo?",
+			want: ModuleSourceRemote{
+				Package: ModulePackage("git::https://github.com/hashicorp/terraform-cidr-subnets.git"),
+				Subdir:  "example/foo",
+			},
+		},
+		"github.com subdir from a branch containing slash in the name": {
+			input: "github.com/hashicorp/terraform-cidr-subnets//example/foo?ref=bar/baz",
+			want: ModuleSourceRemote{
+				Package: ModulePackage("git::https://github.com/hashicorp/terraform-cidr-subnets.git?ref=bar/baz"),
+				Subdir:  "example/foo",
+			},
+		},
 		"git protocol, URL-style": {
 			input: "git://example.com/code/baz.git",
 			want: ModuleSourceRemote{
