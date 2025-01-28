@@ -406,6 +406,10 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 		return nil, err
 	}
 
+	if len(resp.Item) == 0 {
+		return nil, fmt.Errorf("no lock info found for: %q within the DynamoDB table: %s", c.lockPath(), c.ddbTable)
+	}
+
 	var infoData string
 	if v, ok := resp.Item["Info"]; ok {
 		if v, ok := v.(*dtypes.AttributeValueMemberS); ok {
@@ -430,9 +434,6 @@ func (c *RemoteClient) Unlock(id string) error {
 	lockErr := &statemgr.LockError{}
 	ctx := context.TODO()
 
-	// TODO: store the path and lock ID in separate fields, and have proper
-	// projection expression only delete the lock if both match, rather than
-	// checking the ID from the info field first.
 	lockInfo, err := c.getLockInfo(ctx)
 	if err != nil {
 		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %w", err)
@@ -445,11 +446,16 @@ func (c *RemoteClient) Unlock(id string) error {
 		return lockErr
 	}
 
+	// Use a condition expression to ensure both the lock info and lock ID match
 	params := &dynamodb.DeleteItemInput{
 		Key: map[string]dtypes.AttributeValue{
 			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath()},
 		},
-		TableName: aws.String(c.ddbTable),
+		TableName:           aws.String(c.ddbTable),
+		ConditionExpression: aws.String("Info = :info"),
+		ExpressionAttributeValues: map[string]dtypes.AttributeValue{
+			":info": &dtypes.AttributeValueMemberS{Value: string(lockInfo.Marshal())},
+		},
 	}
 	_, err = c.dynClient.DeleteItem(ctx, params)
 
