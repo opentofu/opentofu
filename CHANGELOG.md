@@ -4,6 +4,7 @@ BUG FIXES:
 
 - Provider used in import is correctly identified. ([#2336](https://github.com/opentofu/opentofu/pull/2336))
 - `plantimestamp()` now returns unknown value during validation ([#2397](https://github.com/opentofu/opentofu/issues/2397))
+- Syntax error in the `required_providers` block does not panic anymore, but yields "syntax error" ([2344](https://github.com/opentofu/opentofu/issues/2344))
 
 ## 1.7.7
 
