@@ -210,6 +210,31 @@ func TestModule_required_provider_overrides(t *testing.T) {
 	}
 }
 
+// When having multiple required providers defined, and one with syntax error,
+// ensure that the diagnostics are returned correctly for each and every validation.
+// In case a required_provider is containing syntax errors, we are returning an empty one just to allow the
+// later validations to add their results.
+func TestModule_required_providers_multiple_one_with_syntax_error(t *testing.T) {
+	_, diags := testModuleFromDir("testdata/invalid-modules/multiple-required-providers-with-syntax-error")
+	if !diags.HasErrors() {
+		t.Fatal("module should have error diags, but does not")
+	}
+
+	want := []string{
+		`Missing attribute value; Expected an attribute value`,
+		`Unexpected "resource" block; Blocks are not allowed here`,
+		`Duplicate required providers configuration`,
+	}
+	if wantLen, gotLen := len(want), len(diags.Errs()); wantLen != gotLen {
+		t.Fatalf("expected %d errors but got %d", wantLen, gotLen)
+	}
+	for i, e := range diags.Errs() {
+		if got := e.Error(); !strings.Contains(got, want[i]) {
+			t.Errorf("expected error to contain %q\nerror was: \n\t%q\n", want[i], got)
+		}
+	}
+}
+
 // Resources without explicit provider configuration are assigned a provider
 // implied based on the resource type. For example, this resource:
 //
