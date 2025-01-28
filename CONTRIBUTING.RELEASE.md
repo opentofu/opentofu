@@ -7,6 +7,9 @@ This manual describes how to create an OpenTofu release. OpenTofu has two kinds 
 from the `main` branch, while we split off a version (e.g. `v1.8`) branch before creating an `rc` or `stable`
 release.
 
+> [!WARNING]
+> Many tools depend on the release order on GitHub to determine the latest version. When creating a point release, make sure to first release the oldest version first, then follow by the newer versions. Do not release an older point release without also releasing the newer versions or tooling will break.
+
 --- 
 
 ## Naming in this document
