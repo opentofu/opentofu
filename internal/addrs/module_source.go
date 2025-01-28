@@ -275,6 +275,10 @@ func parseModuleSourceRemote(raw string) (ModuleSourceRemote, error) {
 		return ModuleSourceRemote{}, fmt.Errorf("subdirectory path %q leads outside of the module package", subDir)
 	}
 
+	// Some of the detectors used by NormalizePackageAddress, are not handling the query params correctly.
+	// Therefore, in order to ensure that the params are kept as given, just extract and concat later.
+	raw, queryParams := splitQueryParams(raw)
+
 	// A remote source address is really just a go-getter address resulting
 	// from go-getter's "detect" phase, which adds on the prefix specifying
 	// which protocol it should use and possibly also adjusts the
@@ -312,6 +316,9 @@ func parseModuleSourceRemote(raw string) (ModuleSourceRemote, error) {
 		}
 	}
 
+	if len(queryParams) > 0 {
+		norm += "?" + queryParams
+	}
 	return ModuleSourceRemote{
 		Package: ModulePackage(norm),
 		Subdir:  subDir,
@@ -367,4 +374,11 @@ func (s ModuleSourceRemote) FromRegistry(given ModuleSourceRegistry) ModuleSourc
 	}
 
 	return ret
+}
+
+func splitQueryParams(raw string) (string, string) {
+	if idx := strings.Index(raw, "?"); idx > -1 {
+		return raw[:idx], raw[idx+1:]
+	}
+	return raw, ""
 }
