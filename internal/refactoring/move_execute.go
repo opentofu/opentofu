@@ -159,7 +159,9 @@ func ApplyMoves(stmts []MoveStatement, state *states.State) MoveResults {
 							newInst := newAddr.Instance(key)
 							recordOldAddr(oldInst, newInst)
 						}
+
 						state.MoveAbsResource(rAddr, newAddr)
+
 						continue
 					}
 					for key := range rs.Instances {

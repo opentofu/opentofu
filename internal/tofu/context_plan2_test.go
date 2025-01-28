@@ -1391,6 +1391,79 @@ func TestContext2Plan_movedResourceBasic(t *testing.T) {
 	})
 }
 
+func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
+	addrA := mustResourceInstanceAddr("test_object0.a")
+	addrB := mustResourceInstanceAddr("test_object.b")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_object" "b" {
+				test_number = 1
+			}
+
+			moved {
+				from = test_object0.a
+				to   = test_object.b
+			}
+		`,
+	})
+
+	state := states.BuildState(
+		func(s *states.SyncState) {
+			providerAddr := addrs.AbsProviderConfig{
+				Provider: addrs.NewDefaultProvider("test"),
+				Module:   addrs.RootModule,
+			}
+			s.SetResourceProvider(addrA.ContainingResource(), providerAddr)
+			s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(`{"test_number": 1}`),
+			}, providerAddr, addrs.NoKey)
+		})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+		ForceReplace: []addrs.AbsResourceInstance{
+			addrA,
+		},
+	})
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+	}
+
+	t.Run(addrA.String(), func(t *testing.T) {
+		instPlan := plan.Changes.ResourceInstance(addrA)
+		if instPlan != nil {
+			t.Fatalf("unexpected plan for %s; should've moved to %s", addrA, addrB)
+		}
+	})
+	t.Run(addrB.String(), func(t *testing.T) {
+		instPlan := plan.Changes.ResourceInstance(addrB)
+		if instPlan == nil {
+			t.Fatalf("no plan for %s at all", addrB)
+		}
+
+		if got, want := instPlan.Addr, addrB; !got.Equal(want) {
+			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.PrevRunAddr, addrA; !got.Equal(want) {
+			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.Action, plans.NoOp; got != want {
+			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+		}
+		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+		}
+	})
+}
+
 func TestContext2Plan_movedResourceCollision(t *testing.T) {
 	addrNoKey := mustResourceInstanceAddr("test_object.a")
 	addrZeroKey := mustResourceInstanceAddr("test_object.a[0]")
@@ -4289,7 +4362,7 @@ resource "test_object" "b" {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"in": {
@@ -4527,7 +4600,7 @@ resource "test_object" "a" {
 	testProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{
+				"test_object": {
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"map": {
@@ -4882,10 +4955,10 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: simpleTestSchema()},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: simpleTestSchema()},
+						"test_object": {Block: simpleTestSchema()},
 					},
 					DataSources: map[string]providers.Schema{
-						"test_object": providers.Schema{
+						"test_object": {
 							Block: &configschema.Block{
 								Attributes: map[string]*configschema.Attribute{
 									"test_string": {
@@ -5087,7 +5160,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: providerSchema},
+						"test_object": {Block: providerSchema},
 					},
 				},
 			}
@@ -5574,7 +5647,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": providers.Schema{Block: providerSchema},
+						"test_object": {Block: providerSchema},
 					},
 				},
 			}
