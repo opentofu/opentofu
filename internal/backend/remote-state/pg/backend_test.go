@@ -160,7 +160,7 @@ func TestBackendConfig(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer dbCleaner.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
+			defer dropSchemaByQuotedName(t, dbCleaner, schemaName)
 
 			var diags tfdiags.Diagnostics
 			b := New(encryption.StateEncryptionDisabled()).(*Backend)
@@ -324,7 +324,7 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 			if tc.Setup != nil {
 				tc.Setup(t, db, schemaName)
 			}
-			defer db.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
+			defer dropSchemaByQuotedName(t, db, schemaName)
 
 			b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 
@@ -393,7 +393,7 @@ func TestBackendStates(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer dbCleaner.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", pq.QuoteIdentifier(schemaName)))
+			defer dropSchema(t, dbCleaner, schemaName)
 
 			config := backend.TestWrapConfig(map[string]interface{}{
 				"conn_str":    connStr,
@@ -418,7 +418,7 @@ func TestBackendStateLocks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer dbCleaner.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
+	defer dropSchema(t, dbCleaner, schemaName)
 
 	config := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
@@ -448,7 +448,6 @@ func TestBackendConcurrentLock(t *testing.T) {
 	}
 
 	getStateMgr := func(schemaName string) (statemgr.Full, *statemgr.LockInfo) {
-		defer dbCleaner.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", schemaName))
 		config := backend.TestWrapConfig(map[string]interface{}{
 			"conn_str":    connStr,
 			"schema_name": schemaName,
@@ -470,8 +469,12 @@ func TestBackendConcurrentLock(t *testing.T) {
 		return stateMgr, info
 	}
 
-	s1, i1 := getStateMgr(fmt.Sprintf("terraform_%s_1", t.Name()))
-	s2, i2 := getStateMgr(fmt.Sprintf("terraform_%s_2", t.Name()))
+	firstSchema, secondSchema := fmt.Sprintf("terraform_%s_1", t.Name()), fmt.Sprintf("terraform_%s_2", t.Name())
+	defer dropSchema(t, dbCleaner, firstSchema)
+	defer dropSchema(t, dbCleaner, secondSchema)
+
+	s1, i1 := getStateMgr(firstSchema)
+	s2, i2 := getStateMgr(secondSchema)
 
 	// First we need to create the workspace as the lock for creating them is
 	// global
@@ -523,4 +526,19 @@ func TestBackendConcurrentLock(t *testing.T) {
 
 func getDatabaseUrl() string {
 	return os.Getenv("DATABASE_URL")
+}
+
+func dropSchema(t *testing.T, db *sql.DB, schemaName string) {
+	dropSchemaByQuotedName(t, db, pq.QuoteIdentifier(schemaName))
+}
+
+func dropSchemaByQuotedName(t *testing.T, db *sql.DB, quotedSchemaName string) {
+	rows, err := db.Query(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", quotedSchemaName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rows.Close()
+	if err = rows.Err(); err != nil {
+		t.Fatal(err)
+	}
 }

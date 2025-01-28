@@ -9,6 +9,12 @@ Stores the state in a [Postgres database](https://www.postgresql.org) version 10
 
 This backend supports [state locking](../../../language/state/locking.mdx).
 
+:::warning
+OpenTofu 1.10 changed how workspace creation locking works. It is unsafe to
+use `pg` backend with multiple OpenTofu versions (under 1.10) in parallel if those
+are sharing the same underlying database.
+:::
+
 ## Example Configuration
 
 ```hcl
@@ -101,6 +107,8 @@ This backend creates one table **states** in the automatically-managed Postgres 
 The table is keyed by the [workspace](../../../language/state/workspaces.mdx) name. If workspaces are not in use, the name `default` is used.
 
 Locking is supported using [Postgres advisory locks](https://www.postgresql.org/docs/9.5/explicit-locking.html#ADVISORY-LOCKS). [`force-unlock`](../../../cli/commands/force-unlock.mdx) is not supported, because these database-native locks will automatically unlock when the session is aborted or the connection fails. To see outstanding locks in a Postgres server, use the [`pg_locks` system view](https://www.postgresql.org/docs/9.5/view-pg-locks.html).
+
+Advisory locks are used for multiple scenarios: state updates and state creation. When the state is updated, advisory lock is acquired with state ID. Otherwise, on state (and workspace) creation, it is acquired with the hash of schema name. This way, multiple backend configurations doesn't affect each other, when the database is shared.
 
 The **states** table contains:
 
