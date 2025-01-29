@@ -1,0 +1,1 @@
+'in quotes >we take <redirection metacharacters | literally 2>&and as a normal; part of the overall string'

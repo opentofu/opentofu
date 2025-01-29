@@ -1,0 +1,1 @@
+not a shell, so >we take <redirection metacharacters | literally 2>&but still accept them; blah

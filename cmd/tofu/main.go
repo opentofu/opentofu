@@ -19,7 +19,6 @@ import (
 	"github.com/apparentlymart/go-shquot/shquot"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -36,9 +35,6 @@ import (
 )
 
 const (
-	// EnvCLI is the environment variable name to set additional CLI args.
-	EnvCLI = "TF_CLI_ARGS"
-
 	// The parent process will create a file to collect crash logs
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
 )
@@ -226,6 +222,20 @@ func realMain() int {
 		return 1
 	}
 
+	// We expand the file-based args before potentially handing the -chdir option because it's
+	// our existing convention to do this sort of early file access relative to the "real"
+	// working directory (e.g. the CLI configuration handling and reattach provider handling
+	// above) and because it allows the -chdir option to potentially be part of one of the
+	// included files.
+	args, err = expandFileBasedArgs(args)
+	if err != nil {
+		// expandFileBasedArgs should return an error only when it has a strong signal that
+		// a particular argument was intended to be expanded from a file that exists but
+		// the contents of that file are somehow invalid.
+		Ui.Error(fmt.Sprintf("Invalid command line arguments: %s", err))
+		return 1
+	}
+
 	// The arguments can begin with a -chdir option to ask OpenTofu to switch
 	// to a different working directory for the rest of its work. If that
 	// option is present then extractChdirOption returns a trimmed args with that option removed.
@@ -359,50 +369,6 @@ func realMain() int {
 	}
 
 	return exitCode
-}
-
-func mergeEnvArgs(envName string, cmd string, args []string) ([]string, error) {
-	v := os.Getenv(envName)
-	if v == "" {
-		return args, nil
-	}
-
-	log.Printf("[INFO] %s value: %q", envName, v)
-	extra, err := shellwords.Parse(v)
-	if err != nil {
-		return nil, fmt.Errorf(
-			"Error parsing extra CLI args from %s: %s",
-			envName, err)
-	}
-
-	// Find the command to look for in the args. If there is a space,
-	// we need to find the last part.
-	search := cmd
-	if idx := strings.LastIndex(search, " "); idx >= 0 {
-		search = cmd[idx+1:]
-	}
-
-	// Find the index to place the flags. We put them exactly
-	// after the first non-flag arg.
-	idx := -1
-	for i, v := range args {
-		if v == search {
-			idx = i
-			break
-		}
-	}
-
-	// idx points to the exact arg that isn't a flag. We increment
-	// by one so that all the copying below expects idx to be the
-	// insertion point.
-	idx++
-
-	// Copy the args
-	newArgs := make([]string, len(args)+len(extra))
-	copy(newArgs, args[:idx])
-	copy(newArgs[idx:], extra)
-	copy(newArgs[len(extra)+idx:], args[idx:])
-	return newArgs, nil
 }
 
 // parse information on reattaching to unmanaged providers out of a
