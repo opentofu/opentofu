@@ -92,47 +92,61 @@ func TestParserLoadConfigFileFailure(t *testing.T) {
 
 // This test uses a subset of the same fixture files as
 // TestParserLoadConfigFileFailure, but additionally verifies that each
-// file produces the expected diagnostic summary.
+// file produces the expected diagnostic summary and detail.
 func TestParserLoadConfigFileFailureMessages(t *testing.T) {
 	tests := []struct {
 		Filename     string
 		WantSeverity hcl.DiagnosticSeverity
 		WantDiag     string
+		WantDetail   string
 	}{
 		{
 			"invalid-files/data-resource-lifecycle.tf",
 			hcl.DiagError,
 			"Invalid data resource lifecycle argument",
+			`The lifecycle argument "ignore_changes" is defined only for managed resources ("resource" blocks), and is not valid for data resources.`,
 		},
 		{
 			"invalid-files/variable-type-unknown.tf",
 			hcl.DiagError,
 			"Invalid type specification",
+			`The keyword "notatype" is not a valid type specification.`,
 		},
 		{
 			"invalid-files/unexpected-attr.tf",
 			hcl.DiagError,
 			"Unsupported argument",
+			`An argument named "foo" is not expected here.`,
 		},
 		{
 			"invalid-files/unexpected-block.tf",
 			hcl.DiagError,
 			"Unsupported block type",
+			`Blocks of type "varyable" are not expected here. Did you mean "variable"?`,
 		},
 		{
 			"invalid-files/resource-count-and-for_each.tf",
 			hcl.DiagError,
 			`Invalid combination of "count" and "for_each"`,
+			`The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
 		},
 		{
 			"invalid-files/data-count-and-for_each.tf",
 			hcl.DiagError,
 			`Invalid combination of "count" and "for_each"`,
+			`The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
 		},
 		{
 			"invalid-files/resource-lifecycle-badbool.tf",
 			hcl.DiagError,
 			"Unsuitable value type",
+			`Unsuitable value: a bool is required`,
+		},
+		{
+			"invalid-files/variable-complex-bad-default-inner-obj.tf",
+			hcl.DiagError,
+			"Invalid default value for variable",
+			`This default value is not compatible with the variable's type constraint: ["mykey"].field: a bool is required.`,
 		},
 	}
 
@@ -160,6 +174,9 @@ func TestParserLoadConfigFileFailureMessages(t *testing.T) {
 			}
 			if diags[0].Summary != test.WantDiag {
 				t.Errorf("Wrong diagnostic summary\ngot:  %s\nwant: %s", diags[0].Summary, test.WantDiag)
+			}
+			if diags[0].Detail != test.WantDetail {
+				t.Errorf("Wrong diagnostic detail\ngot:  %s\nwant: %s", diags[0].Detail, test.WantDetail)
 			}
 		})
 	}
