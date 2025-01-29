@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/convert"
 
@@ -157,7 +158,7 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid default value for variable",
-					Detail:   fmt.Sprintf("This default value is not compatible with the variable's type constraint: %s.", err),
+					Detail:   fmt.Sprintf("This default value is not compatible with the variable's type constraint: %s.", tfdiags.FormatError(err)),
 					Subject:  attr.Expr.Range().Ptr(),
 				})
 				val = cty.DynamicVal
