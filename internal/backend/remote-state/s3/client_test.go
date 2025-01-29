@@ -163,6 +163,21 @@ func TestForceUnlock(t *testing.T) {
 	if err = s2.Unlock(lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
+
+	// No State lock information found for the new workspace. The client should throw the appropriate error message.
+	secondWorkspace := "new-workspace"
+	s2, err = b2.StateMgr(secondWorkspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s2.Unlock(lockID)
+	if err == nil {
+		t.Fatal("expected an error to occur:", err)
+	}
+	expectedErrorMsg := fmt.Errorf("failed to retrieve lock info: no lock info found for: \"%s/env:/%s/%s\" within the DynamoDB table: %s", bucketName, secondWorkspace, keyName, bucketName)
+	if err.Error() != expectedErrorMsg.Error() {
+		t.Errorf("Unlock() error = %v, want: %v", err, expectedErrorMsg)
+	}
 }
 
 func TestRemoteClient_clientMD5(t *testing.T) {
