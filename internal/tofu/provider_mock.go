@@ -266,9 +266,9 @@ func (p *MockProvider) MoveResourceState(r providers.MoveResourceStateRequest) (
 		return resp
 	}
 
-	schema, ok := p.getProviderSchema().ResourceTypes[r.TargetTypeName]
+	schema, ok := p.getProviderSchema().ResourceTypes[r.SourceTypeName]
 	if !ok {
-		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("no schema found for %q", r.TargetTypeName))
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("no schema found for %q", r.SourceTypeName))
 		return resp
 	}
 
