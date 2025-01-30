@@ -348,7 +348,7 @@ func (p *MockProvider) ImportResourceState(r providers.ImportResourceStateReques
 	return p.ImportResourceStateResponse
 }
 
-func (p *MockProvider) MoveResourceState(r providers.MoveResourceStateRequest) (resp providers.MoveResourceStateResponse) {
+func (p *MockProvider) MoveResourceState(_ providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
 	panic("not implemented")
 }
 

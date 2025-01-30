@@ -7,11 +7,11 @@ package tofu
 
 import (
 	"bytes"
-	"github.com/opentofu/opentofu/internal/addrs"
 	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
@@ -520,5 +520,4 @@ func TestTransformResourceState(t *testing.T) {
 			}
 		})
 	}
-
 }

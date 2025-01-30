@@ -240,7 +240,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 				NodeAbstractResource: NodeAbstractResource{
 					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
-				//Otherwise prevRunAddr fails, since we have no current Addr in the state
+				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
 			},
 			ExpectedInstanceId: "i-abc123",
@@ -260,7 +260,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 				NodeAbstractResource: NodeAbstractResource{
 					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
-				//Otherwise prevRunAddr fails, since we have no current Addr in the state
+				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
 			},
 			ExpectedInstanceId: "i-abc123",
@@ -280,7 +280,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 				NodeAbstractResource: NodeAbstractResource{
 					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
-				//Otherwise prevRunAddr fails, since we have no current Addr in the state
+				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
 			},
 			// The state change should have been applied
