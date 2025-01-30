@@ -1391,77 +1391,495 @@ func TestContext2Plan_movedResourceBasic(t *testing.T) {
 	})
 }
 
+func customTestSchema(attrs map[string]*configschema.Attribute) providers.Schema {
+	return providers.Schema{
+		Block: &configschema.Block{Attributes: attrs},
+	}
+}
+
 func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
-	addrA := mustResourceInstanceAddr("test_object0.a")
-	addrB := mustResourceInstanceAddr("test_object.b")
-	m := testModuleInline(t, map[string]string{
-		"main.tf": `
-			resource "test_object" "b" {
-				test_number = 1
-			}
+	type test struct {
+		name       string
+		oldSchema  providers.Schema
+		newSchema  providers.Schema
+		oldType    string
+		newType    string
+		config     map[string]string
+		attrsJSON  []byte
+		wantOp     plans.Action
+		wantErrStr string
+	}
 
-			moved {
-				from = test_object0.a
-				to   = test_object.b
-			}
-		`,
-	})
+	tests := []test{
+		{
+			name: "basic case",
+			oldSchema: customTestSchema(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Optional: true,
+				},
+			}),
+			newSchema: customTestSchema(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Optional: true,
+				},
+			}),
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {
 
-	state := states.BuildState(
-		func(s *states.SyncState) {
+					}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{}`),
+			wantOp:    plans.NoOp,
+		},
+		{
+			name: "attributes unchanged",
+			oldSchema: customTestSchema(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			newSchema: customTestSchema(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {
+						test_number = 1
+					}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{"test_number": 1}`),
+			wantOp:    plans.NoOp,
+		},
+		{
+			name: "attribute changed",
+			oldSchema: customTestSchema(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			newSchema: customTestSchema(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {
+						test_number = 1
+					}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON: []byte(`{"test_number": 2}`),
+			wantOp:    plans.Update,
+		},
+		{
+			name: "attribute removed provider doesn't remove the attribute",
+			oldSchema: customTestSchema(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+				"test_string": {
+					Type:     cty.String,
+					Required: true,
+				},
+			}),
+			newSchema: customTestSchema(map[string]*configschema.Attribute{
+				"test_number": {
+					Type:     cty.Number,
+					Required: true,
+				},
+			}),
+			oldType: "test_object0",
+			newType: "test_object",
+			config: map[string]string{
+				"main.tf": `
+					resource "test_object" "new" {
+						test_number = 1
+					}
+					moved {
+						from = test_object0.old
+						to   = test_object.new
+					}
+				`,
+			},
+			attrsJSON:  []byte(`{"test_number": 1, "test_string": "foo"}`),
+			wantErrStr: `unsupported attribute "test_string"`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			oldAddr := mustResourceInstanceAddr(tt.oldType + ".old")
+			newAddr := mustResourceInstanceAddr(tt.newType + ".new")
+			m := testModuleInline(t, tt.config)
 			providerAddr := addrs.AbsProviderConfig{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			}
-			s.SetResourceProvider(addrA.ContainingResource(), providerAddr)
-			s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
+			state := states.BuildState(
+				func(s *states.SyncState) {
+					s.SetResourceProvider(oldAddr.ContainingResource(), providerAddr)
+					s.SetResourceInstanceCurrent(oldAddr, &states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectReady,
+						AttrsJSON: tt.attrsJSON,
+					}, providerAddr, addrs.NoKey)
+				})
+			p := &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						tt.newType: tt.newSchema,
+						tt.oldType: tt.oldSchema,
+					},
+				},
+			}
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					providerAddr.Provider: testProviderFuncFixed(p),
+				},
+			})
+
+			plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+				Mode: plans.NormalMode,
+			})
+
+			if tt.wantErrStr != "" {
+				if !diags.HasErrors() {
+					t.Fatalf("expected errors, got none")
+				}
+				if got, want := diags.Err().Error(), tt.wantErrStr; !strings.Contains(got, want) {
+					t.Fatalf("wrong error\ngot: %s\nwant substring: %s", got, want)
+				}
+				return
+			}
+			assertNoErrors(t, diags)
+			// Check that no plan was created for the old resource
+			instPlan := plan.Changes.ResourceInstance(oldAddr)
+			if instPlan != nil {
+				t.Fatalf("unexpected plan for %s; should've moved to %s", oldAddr, newAddr)
+			}
+			// Check that a plan was created for the new resource
+			instPlan = plan.Changes.ResourceInstance(newAddr)
+			if instPlan == nil {
+				t.Fatalf("no plan for %s at all", newAddr)
+			}
+
+			if got, want := instPlan.Addr, newAddr; !got.Equal(want) {
+				t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.PrevRunAddr, oldAddr; !got.Equal(want) {
+				t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.Action, tt.wantOp; got != want {
+				t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+				t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+			}
+		})
+	}
+}
+
+func TestContext2Plan_movedResourceToDifferentTypeProviderFailure(t *testing.T) {
+	oldAddr := mustResourceInstanceAddr("test_object0.old")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_object" "new" {}
+			moved {
+				from = test_object0.old
+				to   = test_object.new
+			}
+		`,
+	})
+	providerAddr := addrs.AbsProviderConfig{
+		Provider: addrs.NewDefaultProvider("test"),
+		Module:   addrs.RootModule,
+	}
+	state := states.BuildState(
+		func(s *states.SyncState) {
+			s.SetResourceProvider(oldAddr.ContainingResource(), providerAddr)
+			s.SetResourceInstanceCurrent(oldAddr, &states.ResourceInstanceObjectSrc{
 				Status:    states.ObjectReady,
-				AttrsJSON: []byte(`{"test_number": 1}`),
+				AttrsJSON: []byte(`{}`),
 			}, providerAddr, addrs.NoKey)
 		})
-
-	p := simpleMockProvider()
+	p := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"test_object": customTestSchema(map[string]*configschema.Attribute{
+					"test_number": {
+						Type:     cty.Number,
+						Optional: true,
+					},
+				}),
+				"test_object0": customTestSchema(map[string]*configschema.Attribute{
+					"test_number": {
+						Type:     cty.Number,
+						Optional: true,
+					},
+				}),
+			},
+		},
+		MoveResourceStateResponse: &providers.MoveResourceStateResponse{
+			Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "move failed", "")},
+		},
+	}
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+			providerAddr.Provider: testProviderFuncFixed(p),
 		},
 	})
 
 	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
 		Mode: plans.NormalMode,
-		ForceReplace: []addrs.AbsResourceInstance{
-			addrA,
+	})
+
+	if !diags.HasErrors() {
+		t.Fatalf("expected errors, got none")
+	}
+	if got, want := diags.Err().Error(), "move failed"; !strings.Contains(got, want) {
+		t.Fatalf("wrong error\ngot: %s\nwant substring: %s", got, want)
+	}
+	// Check that no plan was created for the old resource
+	instPlan := plan.Changes.ResourceInstance(oldAddr)
+	if instPlan != nil {
+		t.Fatalf("unexpected plan for %s;", oldAddr)
+	}
+}
+
+func TestContext2Plan_movedResourceToDifferentProviderTypeSameSchema(t *testing.T) {
+	oldAddr := mustResourceInstanceAddr("provider1_object.old")
+	newAddr := mustResourceInstanceAddr("provider2_object.new")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "provider2_object" "new" {
+				test_number = 1
+			}
+			moved {
+				from = provider1_object.old
+				to   = provider2_object.new
+			}
+		`,
+	})
+	providerAddr1 := addrs.AbsProviderConfig{
+		Provider: addrs.NewDefaultProvider("provider1"),
+		Module:   addrs.RootModule,
+	}
+	providerAddr2 := addrs.AbsProviderConfig{
+		Provider: addrs.NewDefaultProvider("provider2"),
+		Module:   addrs.RootModule,
+	}
+	state := states.BuildState(
+		func(s *states.SyncState) {
+			s.SetResourceProvider(oldAddr.ContainingResource(), providerAddr1)
+			s.SetResourceInstanceCurrent(oldAddr, &states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(`{"test_number":1}`),
+			}, providerAddr1, addrs.NoKey)
+		})
+	p1 := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"provider1_object": customTestSchema(map[string]*configschema.Attribute{
+					"test_number": {
+						Type:     cty.Number,
+						Required: true,
+					},
+				}),
+			},
+		},
+	}
+	p2 := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"provider2_object": customTestSchema(map[string]*configschema.Attribute{
+					"test_number": {
+						Type:     cty.Number,
+						Required: true,
+					},
+				}),
+				// Needed since mock provider doesn't know about provider1_object
+				"provider1_object": customTestSchema(map[string]*configschema.Attribute{
+					"test_number": {
+						Type:     cty.Number,
+						Required: true,
+					},
+				}),
+			},
+		},
+		MoveResourceStateResponse: &providers.MoveResourceStateResponse{
+			TargetState: cty.ObjectVal(map[string]cty.Value{
+				"test_number": cty.NumberIntVal(1),
+			}),
+		},
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			providerAddr1.Provider: testProviderFuncFixed(p1),
+			providerAddr2.Provider: testProviderFuncFixed(p2),
 		},
 	})
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors\n%s", diags.Err().Error())
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+	})
+
+	assertNoErrors(t, diags)
+	// Check that no plan was created for the old resource
+	instPlan := plan.Changes.ResourceInstance(oldAddr)
+	if instPlan != nil {
+		t.Fatalf("unexpected plan for %s; should've moved to %s", oldAddr, newAddr)
+	}
+	// Check that a plan was created for the new resource
+	instPlan = plan.Changes.ResourceInstance(newAddr)
+	if instPlan == nil {
+		t.Fatalf("no plan for %s at all", newAddr)
 	}
 
-	t.Run(addrA.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrA)
-		if instPlan != nil {
-			t.Fatalf("unexpected plan for %s; should've moved to %s", addrA, addrB)
-		}
-	})
-	t.Run(addrB.String(), func(t *testing.T) {
-		instPlan := plan.Changes.ResourceInstance(addrB)
-		if instPlan == nil {
-			t.Fatalf("no plan for %s at all", addrB)
-		}
+	if got, want := instPlan.Addr, newAddr; !got.Equal(want) {
+		t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := instPlan.PrevRunAddr, oldAddr; !got.Equal(want) {
+		t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := instPlan.Action, plans.NoOp; got != want {
+		t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+		t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+	}
+}
 
-		if got, want := instPlan.Addr, addrB; !got.Equal(want) {
-			t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.PrevRunAddr, addrA; !got.Equal(want) {
-			t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.Action, plans.NoOp; got != want {
-			t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
-		if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
-			t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
-		}
+func TestContext2Plan_movedResourceToDifferentProviderTypeSchemaChange(t *testing.T) {
+	oldAddr := mustResourceInstanceAddr("provider1_object.old")
+	newAddr := mustResourceInstanceAddr("provider2_object.new")
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "provider2_object" "new" {
+				test_string = "2"
+			}
+			moved {
+				from = provider1_object.old
+				to   = provider2_object.new
+			}
+		`,
 	})
+	providerAddr1 := addrs.AbsProviderConfig{
+		Provider: addrs.NewDefaultProvider("provider1"),
+		Module:   addrs.RootModule,
+	}
+	providerAddr2 := addrs.AbsProviderConfig{
+		Provider: addrs.NewDefaultProvider("provider2"),
+		Module:   addrs.RootModule,
+	}
+	state := states.BuildState(
+		func(s *states.SyncState) {
+			s.SetResourceProvider(oldAddr.ContainingResource(), providerAddr1)
+			s.SetResourceInstanceCurrent(oldAddr, &states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(`{"test_number":1}`),
+			}, providerAddr1, addrs.NoKey)
+		})
+	p1 := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"provider1_object": customTestSchema(map[string]*configschema.Attribute{
+					"test_number": {
+						Type:     cty.Number,
+						Required: true,
+					},
+				}),
+			},
+		},
+	}
+	p2 := &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"provider2_object": customTestSchema(map[string]*configschema.Attribute{
+					"test_string": {
+						Type:     cty.String,
+						Required: true,
+					},
+				}),
+				// Needed since mock provider doesn't know about provider1_object
+				"provider1_object": customTestSchema(map[string]*configschema.Attribute{
+					"test_number": {
+						Type:     cty.Number,
+						Required: true,
+					},
+				}),
+			},
+		},
+		MoveResourceStateResponse: &providers.MoveResourceStateResponse{
+			TargetState: cty.ObjectVal(map[string]cty.Value{
+				"test_string": cty.StringVal("1"),
+			}),
+		},
+	}
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			providerAddr1.Provider: testProviderFuncFixed(p1),
+			providerAddr2.Provider: testProviderFuncFixed(p2),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+	})
+
+	assertNoErrors(t, diags)
+	// Check that no plan was created for the old resource
+	instPlan := plan.Changes.ResourceInstance(oldAddr)
+	if instPlan != nil {
+		t.Fatalf("unexpected plan for %s; should've moved to %s", oldAddr, newAddr)
+	}
+	// Check that a plan was created for the new resource
+	instPlan = plan.Changes.ResourceInstance(newAddr)
+	if instPlan == nil {
+		t.Fatalf("no plan for %s at all", newAddr)
+	}
+
+	if got, want := instPlan.Addr, newAddr; !got.Equal(want) {
+		t.Errorf("wrong current address\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := instPlan.PrevRunAddr, oldAddr; !got.Equal(want) {
+		t.Errorf("wrong previous run address\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := instPlan.Action, plans.Update; got != want {
+		t.Errorf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := instPlan.ActionReason, plans.ResourceInstanceChangeNoReason; got != want {
+		t.Errorf("wrong action reason\ngot:  %s\nwant: %s", got, want)
+	}
 }
 
 func TestContext2Plan_movedResourceCollision(t *testing.T) {
@@ -7835,7 +8253,7 @@ func TestContext2Plan_removedResourceButResourceBlockStillExistsInChildModule(t 
 			module "mod" {
 				source = "./mod"
 			}
-			
+
 			removed {
 				from = module.mod.test_object.a
 			}
