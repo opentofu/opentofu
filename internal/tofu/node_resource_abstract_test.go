@@ -190,36 +190,35 @@ type readResourceInstanceStateTest struct {
 	WantErrorStr       string
 }
 
-func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) []readResourceInstanceStateTest {
-	mockProvider := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
-		Attributes: map[string]*configschema.Attribute{
-			"id": {
-				Type:     cty.String,
-				Optional: true,
+func getMockProviderForReadResourceInstanceState() *MockProvider {
+	return &MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			ResourceTypes: map[string]providers.Schema{
+				"aws_instance": customTestSchema(map[string]*configschema.Attribute{
+					"id": {
+						Type: cty.String,
+					},
+				}),
+				"aws_instance0": customTestSchema(map[string]*configschema.Attribute{
+					"id": {
+						Type: cty.String,
+					},
+				}),
 			},
 		},
-	})
-	mockProviderWithStateChange := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
-		Attributes: map[string]*configschema.Attribute{
-			"id": {
-				Type:     cty.String,
-				Optional: true,
-			},
-		},
-	})
+	}
+}
 
+func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) []readResourceInstanceStateTest {
+	mockProvider := getMockProviderForReadResourceInstanceState()
+
+	mockProviderWithStateChange := getMockProviderForReadResourceInstanceState()
 	// Changes id to i-abc1234
 	mockProviderWithStateChange.MoveResourceStateResponse = &providers.MoveResourceStateResponse{
 		TargetState: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("i-abc1234")}),
 	}
-	mockProviderWithMoveUnsupported := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
-		Attributes: map[string]*configschema.Attribute{
-			"id": {
-				Type:     cty.String,
-				Optional: true,
-			},
-		},
-	})
+
+	mockProviderWithMoveUnsupported := getMockProviderForReadResourceInstanceState()
 	mockProviderWithMoveUnsupported.MoveResourceStateFn = func(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
 		return providers.MoveResourceStateResponse{
 			Diagnostics: tfdiags.Diagnostics{tfdiags.Sourceless(tfdiags.Error, "move not supported", "")},

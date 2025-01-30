@@ -163,6 +163,22 @@ func TestStripRemovedStateAttributes(t *testing.T) {
 // mustResourceInstanceAddr is a helper to create an absolute resource instance to test moveResourceStateTransform.
 // current address foo2_instance.cur and prev address foo_instance.prev
 func getMoveStateArgs() stateTransformArgs {
+	providerSchemaResponse := &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"foo_instance": customTestSchema(map[string]*configschema.Attribute{
+				"foo": {
+					Type:     cty.String,
+					Required: true,
+				},
+			}),
+			"foo2_instance": customTestSchema(map[string]*configschema.Attribute{
+				"foo": {
+					Type:     cty.String,
+					Required: true,
+				},
+			}),
+		},
+	}
 	return stateTransformArgs{
 		currentAddr: mustResourceInstanceAddr("foo2_instance.cur"),
 		prevAddr:    mustResourceInstanceAddr("foo_instance.prev"),
@@ -174,7 +190,7 @@ func getMoveStateArgs() stateTransformArgs {
 				}),
 				TargetPrivate: []byte("private"),
 			},
-			GetProviderSchemaResponse: testProviderSchema("foo2"),
+			GetProviderSchemaResponse: providerSchemaResponse,
 		},
 		objectSrc: &states.ResourceInstanceObjectSrc{
 			SchemaVersion: 2,
@@ -409,7 +425,7 @@ func TestTransformResourceState(t *testing.T) {
 					"foo": cty.StringVal("bar"), // doesn't match schema
 				}), nil, nil
 			},
-			wantDiagErr: "Invalid resource state upgrade",
+			wantDiagErr: "Invalid resource state transformation",
 		},
 		//If the current version of the schema is higher than the previous version, expect an error "Resource instance managed by newer provider version"
 		{
