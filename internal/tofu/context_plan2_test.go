@@ -1391,7 +1391,7 @@ func TestContext2Plan_movedResourceBasic(t *testing.T) {
 	})
 }
 
-func customTestSchema(attrs map[string]*configschema.Attribute) providers.Schema {
+func constructProviderSchemaForTesting(attrs map[string]*configschema.Attribute) providers.Schema {
 	return providers.Schema{
 		Block: &configschema.Block{Attributes: attrs},
 	}
@@ -1413,13 +1413,13 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 	tests := []test{
 		{
 			name: "basic case",
-			oldSchema: customTestSchema(map[string]*configschema.Attribute{
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"test_number": {
 					Type:     cty.Number,
 					Optional: true,
 				},
 			}),
-			newSchema: customTestSchema(map[string]*configschema.Attribute{
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"test_number": {
 					Type:     cty.Number,
 					Optional: true,
@@ -1443,13 +1443,13 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 		},
 		{
 			name: "attributes unchanged",
-			oldSchema: customTestSchema(map[string]*configschema.Attribute{
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"test_number": {
 					Type:     cty.Number,
 					Required: true,
 				},
 			}),
-			newSchema: customTestSchema(map[string]*configschema.Attribute{
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"test_number": {
 					Type:     cty.Number,
 					Required: true,
@@ -1473,13 +1473,13 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 		},
 		{
 			name: "attribute changed",
-			oldSchema: customTestSchema(map[string]*configschema.Attribute{
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"test_number": {
 					Type:     cty.Number,
 					Required: true,
 				},
 			}),
-			newSchema: customTestSchema(map[string]*configschema.Attribute{
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"test_number": {
 					Type:     cty.Number,
 					Required: true,
@@ -1503,7 +1503,7 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 		},
 		{
 			name: "attribute removed provider doesn't remove the attribute",
-			oldSchema: customTestSchema(map[string]*configschema.Attribute{
+			oldSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"test_number": {
 					Type:     cty.Number,
 					Required: true,
@@ -1513,7 +1513,7 @@ func TestContext2Plan_movedResourceToDifferentType(t *testing.T) {
 					Required: true,
 				},
 			}),
-			newSchema: customTestSchema(map[string]*configschema.Attribute{
+			newSchema: constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"test_number": {
 					Type:     cty.Number,
 					Required: true,
@@ -1635,13 +1635,13 @@ func TestContext2Plan_movedResourceToDifferentTypeProviderFailure(t *testing.T) 
 	p := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": customTestSchema(map[string]*configschema.Attribute{
+				"test_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"test_number": {
 						Type:     cty.Number,
 						Optional: true,
 					},
 				}),
-				"test_object0": customTestSchema(map[string]*configschema.Attribute{
+				"test_object0": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"test_number": {
 						Type:     cty.Number,
 						Optional: true,
@@ -1708,7 +1708,7 @@ func TestContext2Plan_movedResourceToDifferentProviderTypeSameSchema(t *testing.
 	p1 := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"provider1_object": customTestSchema(map[string]*configschema.Attribute{
+				"provider1_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"test_number": {
 						Type:     cty.Number,
 						Required: true,
@@ -1720,14 +1720,14 @@ func TestContext2Plan_movedResourceToDifferentProviderTypeSameSchema(t *testing.
 	p2 := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"provider2_object": customTestSchema(map[string]*configschema.Attribute{
+				"provider2_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"test_number": {
 						Type:     cty.Number,
 						Required: true,
 					},
 				}),
 				// Needed since mock provider doesn't know about provider1_object
-				"provider1_object": customTestSchema(map[string]*configschema.Attribute{
+				"provider1_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"test_number": {
 						Type:     cty.Number,
 						Required: true,
@@ -1810,7 +1810,7 @@ func TestContext2Plan_movedResourceToDifferentProviderTypeSchemaChange(t *testin
 	p1 := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"provider1_object": customTestSchema(map[string]*configschema.Attribute{
+				"provider1_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"test_number": {
 						Type:     cty.Number,
 						Required: true,
@@ -1822,14 +1822,14 @@ func TestContext2Plan_movedResourceToDifferentProviderTypeSchemaChange(t *testin
 	p2 := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"provider2_object": customTestSchema(map[string]*configschema.Attribute{
+				"provider2_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"test_string": {
 						Type:     cty.String,
 						Required: true,
 					},
 				}),
 				// Needed since mock provider doesn't know about provider1_object
-				"provider1_object": customTestSchema(map[string]*configschema.Attribute{
+				"provider1_object": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"test_number": {
 						Type:     cty.Number,
 						Required: true,
