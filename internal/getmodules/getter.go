@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
@@ -34,7 +35,7 @@ import (
 // tradeoffs we're making here.
 
 var goGetterDetectors = []getter.Detector{
-	new(getter.GitHubDetector),
+	&withoutQueryParams{d: new(getter.GitHubDetector)},
 	new(getter.GitDetector),
 
 	// Because historically BitBucket supported both Git and Mercurial
@@ -166,4 +167,26 @@ func (g reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAdd
 	// copied a previous tree we downloaded, and so either way we should
 	// have got the full module package structure written into instPath.
 	return nil
+}
+
+// withoutQueryParams implements getter.Detector and can be used to wrap another detector.
+// This will look for any query params that might exist in the src and strip that away before calling
+// getter.Detector#Detect. After the response is returned, the query params are attached back to the resulted src.
+type withoutQueryParams struct {
+	d getter.Detector
+}
+
+func (w *withoutQueryParams) Detect(src string, pwd string) (string, bool, error) {
+	var qp string
+	if idx := strings.Index(src, "?"); idx > -1 {
+		qp = src[idx+1:]
+		src = src[:idx]
+	}
+
+	src, ok, err := w.d.Detect(src, pwd)
+	// Attach the query params only when the wrapped detector returns a value back
+	if len(src) > 0 && len(qp) > 0 {
+		src += "?" + qp
+	}
+	return src, ok, err
 }
