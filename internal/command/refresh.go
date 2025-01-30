@@ -236,6 +236,10 @@ Options:
                          a file. If "terraform.tfvars" or any ".auto.tfvars"
                          files are present, they will be automatically loaded.
 
+  -json                  Produce output in a machine-readable JSON format,
+                         suitable for use in text editor integrations and 
+                         other automated systems. Always disables color.
+
   -state, state-out, and -backup are legacy options supported for the local
   backend only. For more information, see the local backend's documentation.
 `

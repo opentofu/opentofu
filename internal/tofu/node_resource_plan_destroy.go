@@ -47,7 +47,7 @@ func (n *NodePlanDestroyableResourceInstance) DestroyAddr() *addrs.AbsResourceIn
 func (n *NodePlanDestroyableResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
-	diags = diags.Append(n.resolveProvider(ctx, false))
+	diags = diags.Append(n.resolveProvider(ctx, false, states.NotDeposed))
 	if diags.HasErrors() {
 		return diags
 	}

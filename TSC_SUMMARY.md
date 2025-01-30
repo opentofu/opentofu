@@ -8,6 +8,57 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
 
+## 2024-12-10
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+Internal housekeeping around hiring and marketing. No voting.
+
+## 2024-11-26
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+- Internal housekeeping around hiring and marketing. No voting.
+- Shall we bring the stack concept to OpenTofu?
+
+### Discussion:
+- Shall we bring the stack concept to OpenTofu?
+https://github.com/opentofu/opentofu/issues/931
+https://github.com/gruntwork-io/terragrunt/issues/3313#issuecomment-2469025204 
+Action Item: observe the issues ^
+Breaking down the state is a real issue for our users.
+
+## 2024-11-19
+
+### Attendees
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+Internal housekeeping around hiring and marketing. No voting.
+
 ## 2024-10-22
 
 ### Attendees

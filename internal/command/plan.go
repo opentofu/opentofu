@@ -310,6 +310,10 @@ Other Options:
                              information.
 
   -show-sensitive            If specified, sensitive values will be displayed.
+
+  -json                      Produce output in a machine-readable JSON format, 
+                             suitable for use in text editor integrations and 
+                             other automated systems. Always disables color.
 `
 	return strings.TrimSpace(helpText)
 }

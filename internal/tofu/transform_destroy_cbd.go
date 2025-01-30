@@ -9,9 +9,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
-	"github.com/opentofu/opentofu/internal/states"
 )
 
 // GraphNodeDestroyerCBD must be implemented by nodes that might be
@@ -115,12 +113,7 @@ func (t *ForcedCBDTransformer) hasCBDDescendent(g *Graph, v dag.Vertex) bool {
 // will get here by recording the CBD-ness of each change in the plan during
 // the plan walk and then forcing the nodes into the appropriate setting during
 // DiffTransformer when building the apply graph.
-type CBDEdgeTransformer struct {
-	// Module and State are only needed to look up dependencies in
-	// any way possible. Either can be nil if not available.
-	Config *configs.Config
-	State  *states.State
-}
+type CBDEdgeTransformer struct{}
 
 func (t *CBDEdgeTransformer) Transform(g *Graph) error {
 	// Go through and reverse any destroy edges

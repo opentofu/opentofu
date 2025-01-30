@@ -54,6 +54,9 @@ If interested, a Community Member will take the following actions to submit an R
    - The Core Team may ask for a new RFC or may close the original issue entirely.
 6. The RFC is Merged, and the Core Team creates issues in the relevant repositories to track the work required to implement the RFC.
 
+> [!NOTE]
+> The subsequent proposal [RFC Tracking Issues](./20241023-rfc-tracking-issues.md) has introduced some additional structure for the final step, with specific guidance on where to create and how to use an RFC tracking issue.
+
 ### Technical Approach
 
 No automation is proposed as part of this process, however we are using the RFC Template proposed in this PR to "dog-food" the process.

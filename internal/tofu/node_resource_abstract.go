@@ -165,6 +165,11 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 		refs, _ = lang.ReferencesInExpr(addrs.ParseRef, c.ForEach)
 		result = append(result, refs...)
 
+		if c.ProviderConfigRef != nil && c.ProviderConfigRef.KeyExpression != nil {
+			providerRefs, _ := lang.ReferencesInExpr(addrs.ParseRef, c.ProviderConfigRef.KeyExpression)
+			result = append(result, providerRefs...)
+		}
+
 		for _, expr := range c.TriggersReplacement {
 			refs, _ = lang.ReferencesInExpr(addrs.ParseRef, expr)
 			result = append(result, refs...)
@@ -480,7 +485,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 
 	switch {
 	case n.Config != nil && n.Config.Count != nil:
-		count, countDiags := evaluateCountExpression(n.Config.Count, ctx)
+		count, countDiags := evaluateCountExpression(n.Config.Count, ctx, addr)
 		diags = diags.Append(countDiags)
 		if countDiags.HasErrors() {
 			return diags
@@ -490,7 +495,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.ForEach != nil:
-		forEach, forEachDiags := evaluateForEachExpression(n.Config.ForEach, ctx)
+		forEach, forEachDiags := evaluateForEachExpression(n.Config.ForEach, ctx, addr)
 		diags = diags.Append(forEachDiags)
 		if forEachDiags.HasErrors() {
 			return diags
@@ -657,9 +662,7 @@ func graphNodesAreResourceInstancesInDifferentInstancesOfSameModule(a, b dag.Ver
 	}
 	aModInst := aRI.ResourceInstanceAddr().Module
 	bModInst := bRI.ResourceInstanceAddr().Module
-	aMod := aModInst.Module()
-	bMod := bModInst.Module()
-	if !aMod.Equal(bMod) {
+	if !aModInst.HasSameModule(bModInst) {
 		return false
 	}
 	return !aModInst.Equal(bModInst)

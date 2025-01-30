@@ -18,8 +18,24 @@ Once an RFC is submitted, community members discuss the RFC in detail until all 
 
 To Accept an RFC, the majority of the OpenTofu [Core Team](../MAINTAINERS) must approve the Pull Request. If a consensus is not reached, the Pull Request is closed and the Core Team may ask for a new RFC or close the original issue entirely.
 
-Once an RFC is Accepted and Merged, the Core Team creates issues in the relevant repositories to track the work required to implement the RFC.
+Once an RFC is Accepted and Merged, the Core Team typically creates a Tracking Issue to represent all of the work required for the RFC in a single place, as described in the next section.
+
+## RFC Tracking Issues
+
+An RFC tracking issue is a GitHub issue used to represent all of the work required to produce the result described in an accepted RFC.
+
+An RFC is more a technical design proposal than a project plan, and so the initial creation of an RFC tracking issue effectively requires translating the RFC's goals into a set of concrete work items that would, once completed, cause the product to behave as described in the RFC. We use a separate tracking issue because an issue can be updated independently of changes to the main repository content, and so we can more easily keep it up-to-date and respond to new information by changing our implementation plan as we go.
+
+An RFC tracking issue shold be closed once enough work has been completed to meet the goals described in the RFC, possibly including RFC amendments as described in the next section.
+
+There is more information on RFC tracking issues in [the process RFC that proposed the use of tracking issues](./20241023-rfc-tracking-issues.md).
 
 ## Amending an RFC
 
-RFCs are not set in stone, Approval signifies that an initial consensus has been reached and work can be started. If you realize that parts of the implementation won't work, feel free to amend the RFC in a subsequent PR. Doing so will serve as an important point of discussion if something doesn't go according to plan.
+An approved RFC is not frozen; approval represents that consensus has been reached and so work can begin.
+
+During the work described in the RFC's tracking issue, the project team might find that a different design is needed, in which case they can open a new PR to amend the existing RFC. The new PR should typically be linked from the RFC's tracking issue so that observers can understand retroactively how the design evolved.
+
+We typically consider an RFC to be frozen after its tracking issue has been closed, because the RFC then describes the result of the project that the tracking issue represented. However, if a subsequent project proposes to change a decision that was made in an older RFC it's helpful to propose an amendment to the older RFC that introduces a compact [`[!NOTE]` callout](https://github.com/orgs/community/discussions/16925) near to the affected content that notes that the decision was invalidated by a later RFC and links to that later RFC, so that future readers are less likely to be misled by stale RFC content. Other amendments to "frozen" RFCs are not recommended, but might be accepted with sufficient justification on a case-by-case basis.
+
+For more details, refer to [RFC Amendments](./20241023-rfc-tracking-issues.md#rfc-amendments) in the Tracking Issues RFC.

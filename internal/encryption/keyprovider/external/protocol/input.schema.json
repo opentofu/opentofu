@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/opentofu/opentofu/main/internal/encryption/keyprovider/externalcommand/protocol/input.schema.json",
+  "title": "OpenTofu External Key Provider Input",
+  "description": "Input schema for the OpenTofu external key provider protocol. The external provider must read the input from stdin and write the output to stdout. It may write to stderr to provide more error details.",
+  "oneOf": [
+    {
+      "type": "null",
+      "$comment": "When no decryption is desired, OpenTofu will send null."
+    },
+    {
+      "type": "object",
+      "$comment": "When decryption is needed, OpenTofu sends the stored metadata on the standard input.",
+      "properties": {
+        "external_data": {
+          "$comment": "When decryption is desired, OpenTofu passes along the stored metadata. This metadata may contain additional details, such as the number of hashing rounds, that are not sensitive, but must be set properly when decrypting.",
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

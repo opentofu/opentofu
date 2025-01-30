@@ -86,7 +86,7 @@ var (
 func (n *NodePlannableResourceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	addr := n.ResourceInstanceAddr()
 
-	diags := n.resolveProvider(ctx, true)
+	diags := n.resolveProvider(ctx, true, states.NotDeposed)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -237,7 +237,21 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		log.Printf("[WARN] managedResourceExecute: no Managed config value found in instance state for %q", n.Addr)
 	} else {
 		if instanceRefreshState != nil {
+			prevCreateBeforeDestroy := instanceRefreshState.CreateBeforeDestroy
+
+			// This change is usually written to the refreshState and then
+			// updated value used for further graph execution. However, with
+			// "refresh=false", refreshState is not being written and then
+			// some resources with updated configuration could be detached
+			// due to missaligned create_before_destroy in different graph nodes.
 			instanceRefreshState.CreateBeforeDestroy = n.Config.Managed.CreateBeforeDestroy || n.ForceCreateBeforeDestroy
+
+			if prevCreateBeforeDestroy != instanceRefreshState.CreateBeforeDestroy && n.skipRefresh {
+				diags = diags.Append(n.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
+				if diags.HasErrors() {
+					return diags
+				}
+			}
 		}
 	}
 
@@ -388,7 +402,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		// values, which could result in a post-condition check relying on that
 		// value being inaccurate. Unless we decide to store the value of the
 		// for-each expression in state, this is unavoidable.
-		forEach, _ := evaluateForEachExpression(n.Config.ForEach, ctx)
+		forEach, _ := evaluateForEachExpression(n.Config.ForEach, ctx, n.ResourceAddr())
 		repeatData := EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
 		checkDiags := evalCheckRules(

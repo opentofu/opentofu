@@ -12,6 +12,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -21,9 +22,9 @@ import (
 )
 
 // newStaticScope creates a lang.Scope that's backed by the static view of the module represented by the StaticEvaluator
-func newStaticScope(eval *StaticEvaluator, stack ...StaticIdentifier) *lang.Scope {
+func newStaticScope(eval *StaticEvaluator, stack0 StaticIdentifier, stack ...StaticIdentifier) *lang.Scope {
 	return &lang.Scope{
-		Data:        staticScopeData{eval, stack},
+		Data:        staticScopeData{eval, append([]StaticIdentifier{stack0}, stack...)},
 		ParseRef:    addrs.ParseRef,
 		BaseDir:     ".", // Always current working directory for now. (same as Evaluator.Scope())
 		PureOnly:    false,
@@ -55,7 +56,7 @@ func (s staticScopeData) scope(ident StaticIdentifier) (*lang.Scope, tfdiags.Dia
 			})
 		}
 	}
-	return newStaticScope(s.eval, append(s.stack, ident)...), diags
+	return newStaticScope(s.eval, s.stack[0], append(s.stack[1:], ident)...), diags
 }
 
 // If an error occurs when resolving a dependent value, we need to add additional context to the diagnostics
@@ -257,10 +258,121 @@ func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags
 	}
 
 	val, valDiags := s.eval.call.vars(variable)
+	diags = diags.Append(valDiags)
+	if valDiags.HasErrors() {
+		// If the variable value was too invalid to pass the initial request
+		// then we'll bail out immediately here since our other checks below
+		// are likely to produce redundant errors that would be confusing.
+		return cty.DynamicVal, s.enhanceDiagnostics(id, diags)
+	}
+
+	// "val" now contains the raw value passed by the caller. We need to prepare it
+	// in various ways based on the declaration, so that it conforms to the
+	// requirements expected by the module author.
+	// FIXME: This is currently essentially a duplication of various logic from
+	// internal/tofu/eval_variable.go, prepareFinalInputVariableValue.
+	// We should find some way for both of these codepaths to share this logic.
+
+	convertTy := variable.ConstraintType
+	if convertTy == cty.NilType {
+		convertTy = cty.DynamicPseudoType
+	}
+
+	// FIXME: Failing when a required variable isn't set or substituting its default
+	// when it is could be implemented centrally here, but currently variations of
+	// that are duplicated into each implementation of s.eval.call.vars, so we'll
+	// just assume that the default was already substituted if appropriate.
+	// We do still need to re-evaluate the default here though, because we might
+	// need it downstream.
+	defaultVal := variable.Default
+	if defaultVal != cty.NilVal {
+		var err error
+		defaultVal, err = convert.Convert(defaultVal, convertTy)
+		if err != nil {
+			// We shouldn't get here because the default value's convertability to
+			// the type constraint is checked during config decoding, but we'll
+			// handle this here just to be robust.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid default value for module argument",
+				Detail: fmt.Sprintf(
+					"The default value for variable %q is incompatible with its type constraint: %s.",
+					variable.Name, err,
+				),
+				Subject: &variable.DeclRange,
+			})
+			return cty.UnknownVal(variable.ConstraintType), diags
+		}
+	}
+
+	// Some type constraints contain default values to use when attributes are null,
+	// so we need to resolve those before we proceed further.
+	if variable.TypeDefaults != nil && !val.IsNull() {
+		val = variable.TypeDefaults.Apply(val)
+	}
+
+	// The module author specifies what type of value they are expecting. The
+	// caller is allowed to provide any value that can convert to the given
+	// type constraint, while expressions in the module only see the converted
+	// value.
+	var err error
+	val, err = convert.Convert(val, convertTy)
+	if err != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid value for input variable",
+			Detail: fmt.Sprintf(
+				"The given value is not suitable for %s declared at %s: %s.",
+				id.Subject, id.DeclRange, err,
+			),
+		})
+		// We'll return a placeholder unknown value to avoid producing
+		// redundant downstream errors.
+		return cty.UnknownVal(variable.Type), diags
+	}
+
+	// By the time we get here, we know:
+	// - val matches the variable's type constraint
+	// - val is definitely not cty.NilVal, but might be a null value if the given was already null.
+	//
+	// That means we just need to handle the case where the value is null,
+	// which might mean we need to use the default value, or produce an error.
+	//
+	// For historical reasons we do this only for a "non-nullable" variable.
+	// Nullable variables just appear as null if they were set to null,
+	// regardless of any default value.
+	if val.IsNull() && !variable.Nullable {
+		if defaultVal != cty.NilVal {
+			val = defaultVal
+		} else {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  `Required variable not set`,
+				Detail: fmt.Sprintf(
+					"The given value is not suitable for %s defined at %s: required variable may not be set to null.",
+					id.Subject, id.DeclRange.String(),
+				),
+				Subject: id.DeclRange.Ptr(),
+			})
+		}
+	}
+
 	if variable.Sensitive {
+		// Sensitive input variables must always be marked on the way in, so
+		// that their sensitivity can propagate to derived expressions.
 		val = val.Mark(marks.Sensitive)
 	}
-	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
+
+	// TODO: We should check the variable validations here too, since module
+	// authors expect that any value that doesn't meet the validation requirements
+	// will not propagate to any other expression in the module, but that's
+	// a non-trivial amount of code to duplicate here so we'll just let it be
+	// for now. This means that invalid variable values can make it into
+	// static eval contexts where they will probably produce confusing errors,
+	// but if we manage to get far enough despite that then we'll catch the
+	// variable validation errors once we reach the dynamic eval phase.
+
+	return val, s.enhanceDiagnostics(id, diags)
 }
 
 func (s staticScopeData) GetOutput(addrs.OutputValue, tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {

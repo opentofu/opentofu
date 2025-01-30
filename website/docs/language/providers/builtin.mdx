@@ -1,0 +1,74 @@
+---
+sidebar_position: 3
+sidebar_label: Built-in Provider
+---
+# Built-in Provider
+
+Most providers are distributed separately as plugins, but there
+is one provider that is built into OpenTofu itself. This provider enables the
+[the `terraform_remote_state` data source](../state/remote-state-data.mdx).
+
+Because this provider is built in to OpenTofu, you don't need to declare it
+in the `required_providers` block in order to use its features (except provider functions).
+It has a special provider source address, which is
+`terraform.io/builtin/terraform`. This address may sometimes appear in
+OpenTofu's error messages and other output in order to unambiguously refer
+to the built-in provider, as opposed to a hypothetical third-party provider
+with the type name "terraform".
+
+There is also an existing provider with the source address
+`hashicorp/terraform`, which is an older version of the now-built-in provider.
+`hashicorp/terraform` is not compatible with OpenTofu and should never be declared in a
+`required_providers` block.
+
+## Functions
+
+The built-in provider has additional functions, which can be called after declaring the provider in the `required_providers` block.
+
+```hcl
+terraform {
+  required_providers {
+    terraform = {
+      source = "terraform.io/builtin/terraform"
+    }
+  }
+}
+```
+### decode_tfvars
+
+`decode_tfvars` takes the content of the .tfvars file as a string input and returns a decoded object.
+
+```hcl
+locals {
+  content = file("./example_file.tfvars")
+  decoded = provider::terraform::decode_tfvars(local.content) # Returns object
+}
+```
+### encode_tfvars
+
+`encode_tfvars` takes an object and returns the string representation of the object that can be used as the content of the .tfvars file.
+
+```hcl
+locals {
+  object = {
+    key1 = "value1"
+    key2 = "value2"
+  }
+  encoded = provider::terraform::encode_tfvars(local.object) # Returns string
+}
+```
+The keys in the object need to be [valid identifiers](../syntax/configuration.mdx#identifiers).
+
+### encode_expr
+
+`encode_expr` takes an arbitrary [expression](../expressions/index.mdx) and converts it into a string with valid OpenTofu syntax.
+
+```hcl
+locals {
+  expression = {
+    key1 = "value1"
+    key2 = "value2"
+  }
+  encoded = provider::terraform::encode_expr(local.expression) # Returns string
+}
+```

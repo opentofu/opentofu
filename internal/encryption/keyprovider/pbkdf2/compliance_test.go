@@ -6,6 +6,7 @@
 package pbkdf2
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"testing"
@@ -28,10 +29,18 @@ func TestCompliance(t *testing.T) {
 		compliancetest.TestConfiguration[*descriptor, *Config, *Metadata, *pbkdf2KeyProvider]{
 			Descriptor: New().(*descriptor),
 			HCLParseTestCases: map[string]compliancetest.HCLParseTestCase[*Config, *pbkdf2KeyProvider]{
+				"invalid": {
+					HCL: `key_provider "pbkdf2" "foo" {
+    chain = {
+        encryption_key = "Hello world! 123"
+    }
+}`,
+					ValidHCL: false,
+				},
 				"empty": {
 					HCL: `key_provider "pbkdf2" "foo" {
 }`,
-					ValidHCL:   false,
+					ValidHCL:   true,
 					ValidBuild: false,
 					Validate:   nil,
 				},
@@ -47,6 +56,37 @@ func TestCompliance(t *testing.T) {
 						}
 						if keyProvider.Passphrase != "Hello world! 123" {
 							return fmt.Errorf("invalid passphrase in key provideer")
+						}
+						return nil
+					},
+				},
+				"both-passphrase-and-chain": {
+					HCL: `key_provider "pbkdf2" "foo" {
+    passphrase = "Hello world! 123"
+    chain = {
+        encryption_key = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+    }
+}`,
+					ValidHCL:   true,
+					ValidBuild: false,
+				},
+				"chain": {
+					HCL: `key_provider "pbkdf2" "foo" {
+    chain = {
+        encryption_key = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]
+    }
+}`,
+					ValidHCL:   true,
+					ValidBuild: true,
+					Validate: func(config *Config, keyProvider *pbkdf2KeyProvider) error {
+						if config.Chain == nil {
+							return fmt.Errorf("no chain after parsing")
+						}
+						if len(config.Chain.EncryptionKey) != 16 {
+							return fmt.Errorf("tncorrect encryption key length")
+						}
+						if !bytes.Equal(config.Chain.EncryptionKey, []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16}) {
+							return fmt.Errorf("tncorrect encryption key")
 						}
 						return nil
 					},
