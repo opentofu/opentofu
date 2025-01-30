@@ -50,6 +50,18 @@ func upgradeResourceState(args stateTransformArgs) (*states.ResourceInstanceObje
 func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] upgradeResourceStateTransform: address: %s", args.currentAddr)
 
+	providerType := args.currentAddr.Resource.Resource.ImpliedProvider()
+	// If we get down here then we need to transform the state, with the
+	// provider's help.
+	// If this state was originally created by a version of OpenTofu prior to
+	// v0.12, this also includes translating from legacy flatmap to new-style
+	// representation, since only the provider has enough information to
+	// understand a flatmap built against an older schema.
+	if args.objectSrc.SchemaVersion != args.currentSchemaVersion {
+		log.Printf("[TRACE] transformResourceState: upgrading state for %s from version %d to %d using provider %q", args.currentAddr, args.objectSrc.SchemaVersion, args.currentSchemaVersion, providerType)
+	} else {
+		log.Printf("[TRACE] transformResourceState: schema version of %s is still %d; calling provider %q for any other minor fixups", args.currentAddr, args.currentSchemaVersion, providerType)
+	}
 	// Remove any attributes from state that are not present in the schema.
 	// This was previously taken care of by the provider, but data sources do
 	// not go through the UpgradeResourceState process.
@@ -119,10 +131,10 @@ func moveResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfd
 // the function takes in the current and previous AbsResourceInstance, Provider, ResourceInstanceObjectSrc, current schema and current version
 func transformResourceState(args stateTransformArgs, stateTransform providerStateTransform) (*states.ResourceInstanceObjectSrc, tfdiags.Diagnostics) {
 	if args.currentAddr.Resource.Resource.Mode != addrs.ManagedResourceMode {
-		// We only do state upgrading for managed resources.
+		// We only do state transformation for managed resources.
 		// This was a part of the normal workflow in older versions and
 		// returned early, so we are only going to log the error for now.
-		log.Printf("[ERROR] data resource %s should not require state upgrade", args.currentAddr)
+		log.Printf("[ERROR] data resource %s should not require state transformation", args.currentAddr)
 		return args.objectSrc, nil
 	}
 
@@ -141,18 +153,6 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 		))
 	}
 
-	// If we get down here then we need to transform the state, with the
-	// provider's help.
-	// If this state was originally created by a version of OpenTofu prior to
-	// v0.12, this also includes translating from legacy flatmap to new-style
-	// representation, since only the provider has enough information to
-	// understand a flatmap built against an older schema.
-	if args.objectSrc.SchemaVersion != args.currentSchemaVersion {
-		log.Printf("[TRACE] transformResourceState: upgrading state for %s from version %d to %d using provider %q", args.currentAddr, args.objectSrc.SchemaVersion, args.currentSchemaVersion, providerType)
-	} else {
-		log.Printf("[TRACE] transformResourceState: schema version of %s is still %d; calling provider %q for any other minor fixups", args.currentAddr, args.currentSchemaVersion, providerType)
-	}
-
 	newState, newPrivate, diags := stateTransform(args)
 	if diags.HasErrors() {
 		return nil, diags
@@ -166,8 +166,8 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 		for _, err := range errs {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				"Invalid resource state upgrade",
-				fmt.Sprintf("The %s provider upgraded the state for %s from a previous version, but produced an invalid result: %s.", providerType, args.currentAddr, tfdiags.FormatError(err)),
+				"Invalid resource state transformation",
+				fmt.Sprintf("The %s provider changed the state for %s from a previous version, but produced an invalid result: %s.", providerType, args.currentAddr, tfdiags.FormatError(err)),
 			))
 		}
 		return nil, diags
@@ -178,7 +178,7 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 		// codepath should be rare and is probably a bug somewhere under CompleteUpgrade.
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
-			"Failed to encode result of resource state upgrade",
+			"Failed to encode result of resource state transformation",
 			fmt.Sprintf("Failed to encode state for %s after resource schema upgrade: %s.", args.currentAddr, tfdiags.FormatError(err)),
 		))
 	}
