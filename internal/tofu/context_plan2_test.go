@@ -4778,7 +4778,7 @@ resource "test_object" "b" {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": {
+				"test_object": providers.Schema{
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"in": {
@@ -5016,7 +5016,7 @@ resource "test_object" "a" {
 	testProvider := &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": {
+				"test_object": providers.Schema{
 					Block: &configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
 							"map": {
@@ -5371,10 +5371,10 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: simpleTestSchema()},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": {Block: simpleTestSchema()},
+						"test_object": providers.Schema{Block: simpleTestSchema()},
 					},
 					DataSources: map[string]providers.Schema{
-						"test_object": {
+						"test_object": providers.Schema{
 							Block: &configschema.Block{
 								Attributes: map[string]*configschema.Attribute{
 									"test_string": {
@@ -5576,7 +5576,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": {Block: providerSchema},
+						"test_object": providers.Schema{Block: providerSchema},
 					},
 				},
 			}
@@ -6063,7 +6063,7 @@ import {
 				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 					Provider: providers.Schema{Block: providerSchema},
 					ResourceTypes: map[string]providers.Schema{
-						"test_object": {Block: providerSchema},
+						"test_object": providers.Schema{Block: providerSchema},
 					},
 				},
 			}
@@ -8251,7 +8251,7 @@ func TestContext2Plan_removedResourceButResourceBlockStillExistsInChildModule(t 
 			module "mod" {
 				source = "./mod"
 			}
-
+			
 			removed {
 				from = module.mod.test_object.a
 			}
