@@ -194,12 +194,12 @@ func getMockProviderForReadResourceInstanceState() *MockProvider {
 	return &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			ResourceTypes: map[string]providers.Schema{
-				"aws_instance": customTestSchema(map[string]*configschema.Attribute{
+				"aws_instance": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"id": {
 						Type: cty.String,
 					},
 				}),
-				"aws_instance0": customTestSchema(map[string]*configschema.Attribute{
+				"aws_instance0": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 					"id": {
 						Type: cty.String,
 					},

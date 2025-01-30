@@ -165,13 +165,13 @@ func TestStripRemovedStateAttributes(t *testing.T) {
 func getMoveStateArgs() stateTransformArgs {
 	providerSchemaResponse := &providers.GetProviderSchemaResponse{
 		ResourceTypes: map[string]providers.Schema{
-			"foo_instance": customTestSchema(map[string]*configschema.Attribute{
+			"foo_instance": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"foo": {
 					Type:     cty.String,
 					Required: true,
 				},
 			}),
-			"foo2_instance": customTestSchema(map[string]*configschema.Attribute{
+			"foo2_instance": constructProviderSchemaForTesting(map[string]*configschema.Attribute{
 				"foo": {
 					Type:     cty.String,
 					Required: true,
