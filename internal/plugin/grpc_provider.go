@@ -302,7 +302,7 @@ func (p *GRPCProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 
 	protoReq := &proto.UpgradeResourceState_Request{
 		TypeName: r.TypeName,
-		Version:  int64(r.Version),
+		Version:  r.Version,
 		RawState: &proto.RawState{
 			Json:    r.RawStateJSON,
 			Flatmap: r.RawStateFlatmap,
@@ -638,7 +638,8 @@ func (p *GRPCProvider) ImportResourceState(r providers.ImportResourceStateReques
 	return resp
 }
 
-func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) (resp providers.MoveResourceStateResponse) {
+func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	var resp providers.MoveResourceStateResponse
 	logger.Trace("GRPCProvider: MoveResourceState")
 
 	schema := p.GetProviderSchema()
@@ -656,7 +657,8 @@ func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) (
 	protoReq := &proto.MoveResourceState_Request{
 		SourceProviderAddress: r.SourceProviderAddress,
 		SourceTypeName:        r.SourceTypeName,
-		SourceSchemaVersion:   int64(r.SourceSchemaVersion),
+		// nolint:gosec this will be refactored eventually
+		SourceSchemaVersion: int64(r.SourceSchemaVersion),
 		SourceState: &proto.RawState{
 			Json:    r.SourceStateJSON,
 			Flatmap: r.SourceStateFlatmap,

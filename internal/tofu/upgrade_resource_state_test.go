@@ -242,8 +242,12 @@ func TestMoveResourceStateTransform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotState, gotPrivate, diags := moveResourceStateTransform(tt.args)
 			if tt.wantRequest != nil {
-				if !reflect.DeepEqual(tt.args.provider.(*MockProvider).MoveResourceStateRequest, *tt.wantRequest) {
-					t.Fatalf("unexpected request: got %+v, want %+v", tt.args.provider.(*MockProvider).MoveResourceStateRequest, tt.wantRequest)
+				mockProvider, ok := tt.args.provider.(*MockProvider)
+				if !ok {
+					t.Fatalf("unexpected provider type: %T", tt.args.provider)
+				}
+				if !reflect.DeepEqual(mockProvider.MoveResourceStateRequest, *tt.wantRequest) {
+					t.Fatalf("unexpected request: got %+v, want %+v", mockProvider.MoveResourceStateRequest, tt.wantRequest)
 				}
 				return
 			}
@@ -341,8 +345,12 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			gotState, gotPrivate, diags := upgradeResourceStateTransform(tt.args)
 			if tt.wantRequest != nil {
-				if !reflect.DeepEqual(tt.args.provider.(*MockProvider).UpgradeResourceStateRequest, *tt.wantRequest) {
-					t.Fatalf("unexpected request: got %+v, want %+v", tt.args.provider.(*MockProvider).UpgradeResourceStateRequest, tt.wantRequest)
+				mockProvider, ok := tt.args.provider.(*MockProvider)
+				if !ok {
+					t.Fatalf("unexpected provider type: %T", tt.args.provider)
+				}
+				if !reflect.DeepEqual(mockProvider.UpgradeResourceStateRequest, *tt.wantRequest) {
+					t.Fatalf("unexpected request: got %+v, want %+v", mockProvider.UpgradeResourceStateRequest, tt.wantRequest)
 				}
 				return
 			}
@@ -374,7 +382,7 @@ func TestTransformResourceState(t *testing.T) {
 		// Callback to validate the object source after transformation.
 		objectSrcValidator func(*testing.T, *states.ResourceInstanceObjectSrc)
 	}{
-		//We should never have flatmap state in the returned ObjectSrc from transformResourceState (Ensured by objectSrc.CompleteUpgrade)
+		// We should never have flatmap state in the returned ObjectSrc from transformResourceState (Ensured by objectSrc.CompleteUpgrade)
 		{
 			name: "flatmap state should be removed after transformation",
 			args: stateTransformArgs{
@@ -427,7 +435,7 @@ func TestTransformResourceState(t *testing.T) {
 			},
 			wantDiagErr: "Invalid resource state transformation",
 		},
-		//If the current version of the schema is higher than the previous version, expect an error "Resource instance managed by newer provider version"
+		// If the current version of the schema is higher than the previous version, expect an error "Resource instance managed by newer provider version"
 		{
 			name: "cannot downgrade schema version",
 			args: stateTransformArgs{
@@ -439,7 +447,7 @@ func TestTransformResourceState(t *testing.T) {
 			},
 			wantDiagErr: "Resource instance managed by newer provider version",
 		},
-		//Non-Managed resources should not be upgraded and should return the same object source without errors
+		// Non-Managed resources should not be upgraded and should return the same object source without errors
 		{
 			name: "non-managed resource should not be upgraded",
 			args: stateTransformArgs{
@@ -458,7 +466,7 @@ func TestTransformResourceState(t *testing.T) {
 				}
 			},
 		},
-		//The new private state (returned from the provider/state transform call) should be set in the object source
+		// The new private state (returned from the provider/state transform call) should be set in the object source
 		{
 			name: "private state should be updated",
 			args: stateTransformArgs{
@@ -488,6 +496,7 @@ func TestTransformResourceState(t *testing.T) {
 			},
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, diags := transformResourceState(tt.args, tt.stateTransform)

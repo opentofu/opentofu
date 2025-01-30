@@ -71,11 +71,11 @@ func (s simple) ValidateDataResourceConfig(req providers.ValidateDataResourceCon
 	return resp
 }
 
-func (p simple) MoveResourceState(_ providers.MoveResourceStateRequest) (resp providers.MoveResourceStateResponse) {
-	panic("unimplmented")
+func (s simple) MoveResourceState(_ providers.MoveResourceStateRequest) (resp providers.MoveResourceStateResponse) {
+	panic("not implemented")
 }
-func (p simple) UpgradeResourceState(req providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
-	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
+func (s simple) UpgradeResourceState(req providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
+	ty := s.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 	val, err := ctyjson.Unmarshal(req.RawStateJSON, ty)
 	resp.Diagnostics = resp.Diagnostics.Append(err)
 	resp.UpgradedState = val

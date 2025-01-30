@@ -1696,7 +1696,6 @@ func TestContext2Plan_movedResourceToDifferentProviderTypeSameSchema(t *testing.
 	}
 	providerAddr2 := addrs.AbsProviderConfig{
 		Provider: addrs.NewDefaultProvider("provider2"),
-		Module:   addrs.RootModule,
 	}
 	state := states.BuildState(
 		func(s *states.SyncState) {
@@ -1799,7 +1798,6 @@ func TestContext2Plan_movedResourceToDifferentProviderTypeSchemaChange(t *testin
 	}
 	providerAddr2 := addrs.AbsProviderConfig{
 		Provider: addrs.NewDefaultProvider("provider2"),
-		Module:   addrs.RootModule,
 	}
 	state := states.BuildState(
 		func(s *states.SyncState) {
