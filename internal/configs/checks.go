@@ -27,6 +27,9 @@ type CheckRule struct {
 	// The available variables in a condition expression vary depending on what
 	// a check is attached to. For example, validation rules attached to
 	// input variables can only refer to the variable that is being validated.
+	//
+	// This field is nil whenever ErrorMessages is set, and is always set
+	// in conjunction with ErrorMessage.
 	Condition hcl.Expression
 
 	// ErrorMessage should be one or more full sentences, which should be in
@@ -37,7 +40,22 @@ type CheckRule struct {
 	//
 	// The error message expression has the same variables available for
 	// interpolation as the corresponding condition.
+	//
+	// This field is nil whenever ErrorMessages is set, and is always set
+	// in conjunction with Condition.
 	ErrorMessage hcl.Expression
+
+	// ErrorMessages is used for the multi-message variant of a validation
+	// rule, where the block contains only a single argument error_messages
+	// that incorporates both the condition and error message generation.
+	//
+	// In this case the expression must return something that can convert
+	// to a list of strings where an empty list represents that the value
+	// is valid while a non-empty list represents a list of problems with
+	// the value.
+	//
+	// This field is nil whenever Condition and ErrorMessage are set.
+	ErrorMessages hcl.Expression
 
 	DeclRange hcl.Range
 }
@@ -131,19 +149,43 @@ func decodeCheckRuleBlock(block *hcl.Block, override bool) (*CheckRule, hcl.Diag
 		cr.ErrorMessage = attr.Expr
 	}
 
+	if attr, exists := content.Attributes["error_messages"]; exists {
+		cr.ErrorMessages = attr.Expr
+	}
+
+	if cr.ErrorMessages != nil {
+		// error_messages is mutually-exclusive with condition+error_message.
+		if cr.Condition != nil || cr.ErrorMessage != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Invalid %s block arguments", block.Type),
+				Detail:   fmt.Sprintf("Each %s block must have either the error_messages argument, or both the condition and error_message arguments.", block.Type),
+				Subject:  cr.DeclRange.Ptr(),
+			})
+		}
+	} else {
+		// condition and error_message must both be set together if error_messages isn't set
+		if cr.Condition == nil || cr.ErrorMessage == nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Invalid %s block arguments", block.Type),
+				Detail:   fmt.Sprintf("Each %s block must have either condition and error_message arguments together, or a single error_messages argument.", block.Type),
+				Subject:  cr.DeclRange.Ptr(),
+			})
+		}
+	}
+
 	return cr, diags
 }
 
 var checkRuleBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
-		{
-			Name:     "condition",
-			Required: true,
-		},
-		{
-			Name:     "error_message",
-			Required: true,
-		},
+		// This initial schema treats these all as optional, but during decoding
+		// we required that either condition+error_message are both set xor
+		// error_messages is set.
+		{Name: "condition"},
+		{Name: "error_message"},
+		{Name: "error_messages"},
 	},
 }
 

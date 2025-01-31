@@ -13,6 +13,8 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -24,6 +26,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -6013,6 +6016,78 @@ resource "aws_instance" "foo" {
 		// Should get this error:
 		// Unsupported attribute: This object does not have an attribute named "missing"
 		t.Fatal("succeeded; want errors")
+	}
+}
+
+func TestContext2Validate_variableCustomValidationErrorMessages(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		`main.tf`: `
+			variable "test" {
+				type = list(string)
+
+				validation {
+					error_messages = [
+						for i, s in var.test : "Element ${i} must start with \"thingy-\"."
+						if !startswith(s, "thingy-")
+					]
+				}
+			}
+		`,
+	})
+	tofuCtx := testContext2(t, &ContextOpts{})
+
+	ctx := context.Background()
+	plan, diags := tofuCtx.Plan(ctx, m, nil, &PlanOpts{
+		SetVariables: InputValues{
+			"test": {
+				Value: cty.ListVal([]cty.Value{
+					cty.StringVal("thingy-0"),
+					cty.StringVal("thingy-1"),
+					cty.StringVal("thnigy-2"), // intentional typo for testing purposes
+					cty.StringVal("thingy-3"),
+					cty.UnknownVal(cty.String).Refine().StringPrefix("thingy-").NotNull().NewValue(),
+					cty.UnknownVal(cty.String).Refine().StringPrefix("thinngy-").NotNull().NewValue(), // intentional typo for testing purposes
+					cty.StringVal(""), // intentionally empty for testing purposes
+				}),
+				SourceType: ValueFromCaller,
+			},
+		},
+	})
+
+	// The input variable should have an associated check status that is marked as failed.
+	varAddr := addrs.InputVariable{Name: "test"}.Absolute(addrs.RootModuleInstance)
+	checkResult := plan.Checks.GetObjectResult(varAddr)
+	if checkResult == nil {
+		t.Errorf("%s has no check result", varAddr)
+	} else if got, want := checkResult.Status, checks.StatusFail; got != want {
+		t.Errorf("wrong check result for %s\ngot:  %s\nwant: %s", varAddr, got, want)
+	}
+
+	wantIndices := []string{
+		// These are the list indices from the test input above that do _not_
+		// conform to the validation rule and therefore produced error message
+		// strings in the error_messages argument.
+		"2", // definitely doesn't have the correct prefix
+		"5", // the refined string prefix tells us that the prefix is wrong even though the value isn't known
+		"6", // empty string does not start with the wanted prefix
+	}
+	var gotIndices []string
+	pattern := regexp.MustCompile(`Element (\d+) must start with "thingy-".`)
+	for _, diag := range diags {
+		if diag.Severity() != tfdiags.Error {
+			continue
+		}
+		detail := diag.Description().Detail
+		matches := pattern.FindStringSubmatch(detail)
+		if len(matches) == 0 {
+			continue
+		}
+		gotIndices = append(gotIndices, matches[1])
+	}
+	sort.Strings(gotIndices)
+
+	if !slices.Equal(gotIndices, wantIndices) {
+		t.Errorf("wrong indices reported as errors\ngot:  %#v\nwant: %#v\ndiagnostics:\n%s", gotIndices, wantIndices, diags.Err())
 	}
 }
 
