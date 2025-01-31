@@ -16,7 +16,7 @@ import (
 
 func (b *Backend) Workspaces() ([]string, error) {
 	query := `SELECT name FROM %s.%s WHERE name != 'default' ORDER BY name`
-	rows, err := b.db.Query(fmt.Sprintf(query, b.schemaName, statesTableName))
+	rows, err := b.db.Query(fmt.Sprintf(query, b.schemaName, b.tableName))
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	}
 
 	query := `DELETE FROM %s.%s WHERE name = $1`
-	_, err := b.db.Exec(fmt.Sprintf(query, b.schemaName, statesTableName), name)
+	_, err := b.db.Exec(fmt.Sprintf(query, b.schemaName, b.tableName), name)
 	if err != nil {
 		return err
 	}
@@ -61,6 +61,8 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 			Client:     b.db,
 			Name:       name,
 			SchemaName: b.schemaName,
+			TableName:  b.tableName,
+			IndexName:  b.indexName,
 		},
 		b.encryption,
 	)
