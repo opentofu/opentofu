@@ -17,6 +17,9 @@ release.
 - **Stable** is a release that has no new features and bug fixes over an RC. This is versioned `X.Y.0`, where `X` and `Y` are numbers, such as `1.2.0`.
 - **Point release** is a release that contains bugfixes only on top of a stable release. This is versioned `X.Y.Z` where `X`, `Y` and `Z` are numbers, such as `1.2.3`.
 
+> [!WARNING]
+> Many tools depend on the release order on GitHub to determine the latest version. When creating a point release, make sure to release the oldest version first, then follow by the newer versions. Do not release an older point release without also releasing the newer versions or tooling _will_ break.
+
 ---
 
 ## Gathering the team for a release
