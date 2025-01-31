@@ -10,15 +10,20 @@ import "fmt"
 // ErrCryptoFailure indicates a generic cryptographic failure. This error should be embedded into
 // ErrEncryptionFailed, ErrDecryptionFailed, or ErrInvalidConfiguration.
 type ErrCryptoFailure struct {
-	Message string
-	Cause   error
+	Message          string
+	Cause            error
+	SupplementalData string
 }
 
 func (e ErrCryptoFailure) Error() string {
+	result := e.Message
 	if e.Cause != nil {
-		return fmt.Sprintf("%s: %v", e.Message, e.Cause)
+		result += " (" + e.Cause.Error() + ")"
 	}
-	return e.Message
+	if e.SupplementalData != "" {
+		result += "\n-----\n" + e.SupplementalData
+	}
+	return result
 }
 
 func (e ErrCryptoFailure) Unwrap() error {
