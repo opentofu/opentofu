@@ -50,4 +50,11 @@ However, we have added instructions on building your own base image in the [cont
 
 ## Bugfixes
 
+:::warning
+OpenTofu 1.10 changed how workspace creation locking works. It is unsafe to
+use `pg` backend with multiple OpenTofu versions (under 1.10) in parallel if those
+are sharing the same underlying database.
+:::
+
 - Fixed an issue where an invalid provider name in the `provider_meta` block would crash OpenTofu rather than report an error ([#2347](https://github.com/opentofu/opentofu/pull/2347))
+- `pg` backend doesn't fail on workspace creation for parallel runs, when the database is shared across multiple projects. ([#2411](https://github.com/opentofu/opentofu/pull/2411))
