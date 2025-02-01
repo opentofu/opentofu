@@ -71,8 +71,16 @@ func (s simple) ValidateDataResourceConfig(req providers.ValidateDataResourceCon
 	return resp
 }
 
-func (s simple) MoveResourceState(_ providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
-	panic("not implemented")
+func (s simple) MoveResourceState(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	var resp providers.MoveResourceStateResponse
+	val, err := ctyjson.Unmarshal(req.SourceStateJSON, s.schema.ResourceTypes["simple_resource"].Block.ImpliedType())
+	resp.Diagnostics = resp.Diagnostics.Append(err)
+	if err != nil {
+		return resp
+	}
+	resp.TargetState = val
+	resp.TargetPrivate = req.SourcePrivate
+	return resp
 }
 func (s simple) UpgradeResourceState(req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	var resp providers.UpgradeResourceStateResponse
