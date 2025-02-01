@@ -18,11 +18,6 @@ import (
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
 )
 
-const (
-	statesTableName = "states"
-	statesIndexName = "states_by_name"
-)
-
 func defaultBoolFunc(k string, dv bool) schema.SchemaDefaultFunc {
 	return func() (interface{}, error) {
 		if v := os.Getenv(k); v != "" {
@@ -58,11 +53,25 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: defaultBoolFunc("PG_SKIP_SCHEMA_CREATION", false),
 			},
 
+			"table_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Name of the automatically managed Postgres table to store state",
+				DefaultFunc: schema.EnvDefaultFunc("PG_TABLE_NAME", "states"),
+			},
+
 			"skip_table_creation": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Description: "If set to `true`, OpenTofu won't try to create the Postgres table",
 				DefaultFunc: defaultBoolFunc("PG_SKIP_TABLE_CREATION", false),
+			},
+
+			"index_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Name of the automatically managed Postgres index used for stored state",
+				DefaultFunc: schema.EnvDefaultFunc("PG_INDEX_NAME", "states_by_name"),
 			},
 
 			"skip_index_creation": {
@@ -88,6 +97,8 @@ type Backend struct {
 	configData *schema.ResourceData
 	connStr    string
 	schemaName string
+	tableName  string
+	indexName  string
 }
 
 func (b *Backend) configure(ctx context.Context) error {
@@ -96,7 +107,27 @@ func (b *Backend) configure(ctx context.Context) error {
 	data := b.configData
 
 	b.connStr = data.Get("conn_str").(string)
-	b.schemaName = pq.QuoteIdentifier(data.Get("schema_name").(string))
+
+	schemaName, ok := data.Get("schema_name").(string)
+	if !ok {
+		b.schemaName = pq.QuoteIdentifier("terraform_remote_state")
+	} else {
+		b.schemaName = pq.QuoteIdentifier(schemaName)
+	}
+
+	tableName, ok := data.Get("table_name").(string)
+	if !ok {
+		b.tableName = pq.QuoteIdentifier("states")
+	} else {
+		b.tableName = pq.QuoteIdentifier(tableName)
+	}
+
+	indexName, ok := data.Get("index_name").(string)
+	if !ok {
+		b.indexName = pq.QuoteIdentifier("states_by_name")
+	} else {
+		b.indexName = pq.QuoteIdentifier(indexName)
+	}
 
 	db, err := sql.Open("postgres", b.connStr)
 	if err != nil {
@@ -136,14 +167,14 @@ func (b *Backend) configure(ctx context.Context) error {
 			name text UNIQUE,
 			data text
 			)`
-		if _, err := db.Exec(fmt.Sprintf(query, b.schemaName, statesTableName)); err != nil {
+		if _, err := db.Exec(fmt.Sprintf(query, b.schemaName, b.tableName)); err != nil {
 			return err
 		}
 	}
 
 	if !data.Get("skip_index_creation").(bool) {
 		query = `CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s.%s (name)`
-		if _, err := db.Exec(fmt.Sprintf(query, statesIndexName, b.schemaName, statesTableName)); err != nil {
+		if _, err := db.Exec(fmt.Sprintf(query, b.indexName, b.schemaName, b.tableName)); err != nil {
 			return err
 		}
 	}

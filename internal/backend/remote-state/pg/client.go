@@ -22,13 +22,15 @@ type RemoteClient struct {
 	Client     *sql.DB
 	Name       string
 	SchemaName string
+	TableName  string
+	IndexName  string
 
 	info *statemgr.LockInfo
 }
 
 func (c *RemoteClient) Get() (*remote.Payload, error) {
 	query := `SELECT data FROM %s.%s WHERE name = $1`
-	row := c.Client.QueryRow(fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
+	row := c.Client.QueryRow(fmt.Sprintf(query, c.SchemaName, c.TableName), c.Name)
 	var data []byte
 	err := row.Scan(&data)
 	switch {
@@ -50,7 +52,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	query := `INSERT INTO %s.%s (name, data) VALUES ($1, $2)
 		ON CONFLICT (name) DO UPDATE
 		SET data = $2 WHERE %s.name = $1`
-	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, statesTableName, statesTableName), c.Name, data)
+	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, c.TableName, c.TableName), c.Name, data)
 	if err != nil {
 		return err
 	}
@@ -59,7 +61,7 @@ func (c *RemoteClient) Put(data []byte) error {
 
 func (c *RemoteClient) Delete() error {
 	query := `DELETE FROM %s.%s WHERE name = $1`
-	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
+	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, c.TableName), c.Name)
 	if err != nil {
 		return err
 	}
@@ -96,7 +98,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	// Try to acquire locks for the existing row `id` and the creation lock.
 	//nolint:gosec // we only parameterize user passed values
 	query := fmt.Sprintf(`SELECT %s.id, pg_try_advisory_lock(%s.id), pg_try_advisory_lock(%s) FROM %s.%s WHERE %s.name = $1`,
-		statesTableName, statesTableName, creationLockID, c.SchemaName, statesTableName, statesTableName)
+		c.TableName, c.TableName, creationLockID, c.SchemaName, c.TableName, c.TableName)
 
 	row := c.Client.QueryRow(query, c.Name)
 	var pgLockId, didLock, didLockForCreate []byte
@@ -150,6 +152,6 @@ func (c *RemoteClient) Unlock(id string) error {
 
 func (c *RemoteClient) composeCreationLockID() string {
 	hash := fnv.New32()
-	hash.Write([]byte(c.SchemaName))
+	hash.Write([]byte(c.SchemaName + "|" + c.TableName))
 	return fmt.Sprintf("%d", int64(hash.Sum32())*-1)
 }
