@@ -50,7 +50,21 @@ func upgradeResourceState(args stateTransformArgs) (*states.ResourceInstanceObje
 func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] upgradeResourceStateTransform: address: %s", args.currentAddr)
 
+	// TODO: This should eventually use a proper FQN.
 	providerType := args.currentAddr.Resource.Resource.ImpliedProvider()
+
+	if args.objectSrc.SchemaVersion > args.currentSchemaVersion {
+		log.Printf("[TRACE] upgradeResourceStateTransform: can't downgrade state for %s from version %d to %d", args.currentAddr, args.objectSrc.SchemaVersion, args.currentSchemaVersion)
+		var diags tfdiags.Diagnostics
+		return cty.NilVal, nil, diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Resource instance managed by newer provider version",
+			// This is not a very good error message, but we don't retain enough
+			// information in state to give good feedback on what provider
+			// version might be required here. :(
+			fmt.Sprintf("The current state of %s was created by a newer provider version than is currently selected. Upgrade the %s provider to work with this state.", args.currentAddr, providerType),
+		))
+	}
 	// If we get down here then we need to transform the state, with the
 	// provider's help.
 	// If this state was originally created by a version of OpenTofu prior to
@@ -139,21 +153,6 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 		return args.objectSrc, nil
 	}
 
-	// TODO: This should eventually use a proper FQN.
-	providerType := args.currentAddr.Resource.Resource.ImpliedProvider()
-	if args.objectSrc.SchemaVersion > args.currentSchemaVersion {
-		log.Printf("[TRACE] transformResourceState: can't downgrade state for %s from version %d to %d", args.currentAddr, args.objectSrc.SchemaVersion, args.currentSchemaVersion)
-		var diags tfdiags.Diagnostics
-		return nil, diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Resource instance managed by newer provider version",
-			// This is not a very good error message, but we don't retain enough
-			// information in state to give good feedback on what provider
-			// version might be required here. :(
-			fmt.Sprintf("The current state of %s was created by a newer provider version than is currently selected. Upgrade the %s provider to work with this state.", args.currentAddr, providerType),
-		))
-	}
-
 	newState, newPrivate, diags := stateTransform(args)
 	if diags.HasErrors() {
 		return nil, diags
@@ -164,11 +163,12 @@ func transformResourceState(args stateTransformArgs, stateTransform providerStat
 	// marshaling/unmarshaling of the new value, but we'll check it here
 	// anyway for robustness, e.g. for in-process providers.
 	if errs := newState.Type().TestConformance(args.currentSchema.ImpliedType()); len(errs) > 0 {
+		providerType := args.currentAddr.Resource.Resource.ImpliedProvider()
 		for _, err := range errs {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid resource state transformation",
-				fmt.Sprintf("The %s provider changed the state for %s from a previous version, but produced an invalid result: %s.", providerType, args.currentAddr, tfdiags.FormatError(err)),
+				fmt.Sprintf("The %s provider changed the state for %s, but produced an invalid result: %s.", providerType, args.currentAddr, tfdiags.FormatError(err)),
 			))
 		}
 		return nil, diags
