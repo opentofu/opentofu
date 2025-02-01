@@ -349,6 +349,10 @@ func (p *MockProvider) ImportResourceState(r providers.ImportResourceStateReques
 	return p.ImportResourceStateResponse
 }
 
+func (p *MockProvider) MoveResourceState(_ providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	panic("not implemented")
+}
+
 func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 	p.Lock()
 	defer p.Unlock()

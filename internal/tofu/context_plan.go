@@ -482,6 +482,7 @@ func (c *Context) prePlanFindAndApplyMoves(config *configs.Config, prevRunState 
 		moveStmts = append(moveStmts, implicitMoveStmts...)
 	}
 	moveResults := refactoring.ApplyMoves(moveStmts, prevRunState)
+
 	return moveStmts, moveResults
 }
 
@@ -938,8 +939,12 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 					prevRunAddr = move.From
 				}
 
-				newIS := newState.ResourceInstance(addr)
+				if isResourceMovedToDifferentType(addr, prevRunAddr) {
+					// We don't report drift in case of resource type change
+					continue
+				}
 
+				newIS := newState.ResourceInstance(addr)
 				schema, _ := schemas.ResourceTypeConfig(
 					provider,
 					addr.Resource.Resource.Mode,

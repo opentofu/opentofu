@@ -444,7 +444,7 @@ Each resource can have moved from only one source resource.`,
 					`other.single`,
 				),
 			},
-			WantError: `Resource type mismatch: This statement declares a move from test.nonexist1 to other.single, which is a resource of a different type.`,
+			WantError: ``,
 		},
 		"resource instance type mismatch": {
 			Statements: []MoveStatement{
@@ -453,7 +453,7 @@ Each resource can have moved from only one source resource.`,
 					`other.single`,
 				),
 			},
-			WantError: `Resource type mismatch: This statement declares a move from test.nonexist1[0] to other.single, which is a resource instance of a different type.`,
+			WantError: ``,
 		},
 		"crossing nested statements": {
 			// overlapping nested moves will result in a cycle.

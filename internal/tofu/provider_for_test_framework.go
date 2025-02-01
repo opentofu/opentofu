@@ -136,6 +136,10 @@ func (p providerForTest) ImportResourceState(providers.ImportResourceStateReques
 	panic("Importing is not supported in testing context. providerForTest must not be used to call ImportResourceState")
 }
 
+func (p providerForTest) MoveResourceState(providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	panic("Moving is not supported in testing context. providerForTest must not be used to call MoveResourceState")
+}
+
 // Calling the internal provider ensures providerForTest has the same behaviour as if
 // it wasn't overridden or mocked. The only exception is ImportResourceState, which panics
 // if called via providerForTest because importing is not supported in testing framework.
