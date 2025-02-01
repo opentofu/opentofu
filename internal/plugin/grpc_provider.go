@@ -697,7 +697,6 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	dataSchema, ok := schema.DataSources[r.TypeName]
 	if !ok {
 		schema.Diagnostics = schema.Diagnostics.Append(fmt.Errorf("unknown data source %q", r.TypeName))
-		return resp
 	}
 
 	metaSchema := schema.ProviderMeta
