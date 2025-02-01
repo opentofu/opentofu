@@ -315,7 +315,11 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 		wantRequest *providers.UpgradeResourceStateRequest
 		wantState   cty.Value
 		wantPrivate []byte
+		wantErr     string
 	}
+
+	argsForDowngrade := getUpgradeStateArgs()
+	argsForDowngrade.currentSchemaVersion = 1
 
 	tests := []test{
 		{
@@ -339,11 +343,25 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 				RawStateFlatmap: map[string]string{"foo": "bar"},
 			},
 		},
+		{
+			name:    "Upgrade to lower version should fail",
+			args:    argsForDowngrade,
+			wantErr: "Resource instance managed by newer provider version",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			gotState, gotPrivate, diags := upgradeResourceStateTransform(tt.args)
+			if tt.wantErr != "" {
+				if !diags.HasErrors() {
+					t.Fatalf("expected error: %s", tt.wantErr)
+				}
+				if !strings.Contains(diags.Err().Error(), tt.wantErr) {
+					t.Fatalf("unexpected error: got %s, want %s", diags.Err(), tt.wantErr)
+				}
+				return
+			}
 			if tt.wantRequest != nil {
 				mockProvider, ok := tt.args.provider.(*MockProvider)
 				if !ok {
@@ -378,7 +396,7 @@ func TestTransformResourceState(t *testing.T) {
 		name           string
 		args           stateTransformArgs
 		stateTransform providerStateTransform
-		wantDiagErr    string
+		wantErr        string
 		// Callback to validate the object source after transformation.
 		objectSrcValidator func(*testing.T, *states.ResourceInstanceObjectSrc)
 	}{
@@ -433,19 +451,7 @@ func TestTransformResourceState(t *testing.T) {
 					"foo": cty.StringVal("bar"), // doesn't match schema
 				}), nil, nil
 			},
-			wantDiagErr: "Invalid resource state transformation",
-		},
-		// If the current version of the schema is higher than the previous version, expect an error "Resource instance managed by newer provider version"
-		{
-			name: "cannot downgrade schema version",
-			args: stateTransformArgs{
-				currentAddr: mustResourceInstanceAddr("test_instance.foo"),
-				objectSrc: &states.ResourceInstanceObjectSrc{
-					SchemaVersion: 2,
-				},
-				currentSchemaVersion: 1,
-			},
-			wantDiagErr: "Resource instance managed by newer provider version",
+			wantErr: "Invalid resource state transformation",
 		},
 		// Non-Managed resources should not be upgraded and should return the same object source without errors
 		{
@@ -501,12 +507,12 @@ func TestTransformResourceState(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, diags := transformResourceState(tt.args, tt.stateTransform)
 
-			if tt.wantDiagErr != "" {
+			if tt.wantErr != "" {
 				if !diags.HasErrors() {
 					t.Fatal("expected error diagnostics")
 				}
-				if !strings.Contains(diags.Err().Error(), tt.wantDiagErr) {
-					t.Errorf("expected error containing %q, got %q", tt.wantDiagErr, diags.Err())
+				if !strings.Contains(diags.Err().Error(), tt.wantErr) {
+					t.Errorf("expected error containing %q, got %q", tt.wantErr, diags.Err())
 				}
 				return
 			}
