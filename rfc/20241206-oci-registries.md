@@ -11,7 +11,7 @@ However, thanks to the generic architecture of OCI registries, several implement
 The OCI registry standardization and the implementation of the OpenTofu/Terraform Registry protocols (the latter used by OpenTofu) happened around the same time (see [here for providers](https://opentofu.org/docs/internals/provider-registry-protocol/) and [here for modules](https://opentofu.org/docs/internals/module-registry-protocol/)). These protocols followed different design goals. For example, the provider registry protocol concerns itself with artifact signing and decoupling the index and the download part of the registry, whereas OCI is concerned, for example, with layer pull efficiency. To this day OCI image signing is still in development and only a partially solved problem, with projects like [sigstore/cosign](https://www.sigstore.dev/) attempting to take a stab the issue.
 
 > [!NOTE]
-> We have created a [primer on OCI](20241206-oci-registries/oci-primer.md) for this RFC. If you are unfamiliar with the protocol, you may want to read it before reading this RFC.
+> We have created a [primer on OCI](20241206-oci-registries/1-oci-primer.md) for this RFC. If you are unfamiliar with the protocol, you may want to read it before reading this RFC.
 
 ## Why OCI?
 
