@@ -98,9 +98,14 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 		// on the wire. In future we will change all of our internal
 		// representations to int64 too.
 		//nolint:gosec // this will be refactored eventually
-		Version:         int64(args.objectSrc.SchemaVersion),
-		RawStateFlatmap: args.objectSrc.AttrsFlat,
-		RawStateJSON:    args.objectSrc.AttrsJSON,
+		Version: int64(args.objectSrc.SchemaVersion),
+	}
+
+	stateIsFlatmap := len(args.objectSrc.AttrsJSON) == 0
+	if stateIsFlatmap {
+		req.RawStateFlatmap = args.objectSrc.AttrsFlat
+	} else {
+		req.RawStateJSON = args.objectSrc.AttrsJSON
 	}
 
 	resp := args.provider.UpgradeResourceState(req)
