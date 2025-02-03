@@ -99,8 +99,6 @@ The tool will also have a way to hook in external tools (such as [Syft](https://
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
-
 | [« Previous](4-registry-changes.md) | [Up](../20241206-oci-registries.md) | [Next »](6-modules.md) |
 
 ---
