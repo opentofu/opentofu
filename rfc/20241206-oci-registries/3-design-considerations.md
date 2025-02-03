@@ -92,8 +92,6 @@ Since the path forward on signing is currently not clear, we will defer signing 
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
-
 | [« Previous](2-survey-results.md) | [Up](../20241206-oci-registries.md) | [Next »](4-registry-changes.md) |
 
 ---

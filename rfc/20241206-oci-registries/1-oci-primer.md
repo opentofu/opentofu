@@ -206,8 +206,6 @@ It is worth noting that trying to pull an ORAS image with traditional containeri
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
-
 | [« Previous](../20241206-oci-registries.md) | [Up](../20241206-oci-registries.md) | [Next »](2-survey-results.md) |
 
 ---

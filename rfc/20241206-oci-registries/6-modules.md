@@ -5,7 +5,7 @@
 
 This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
-| [« Previous](5-providers.md) | [Up](../20241206-oci-registries.md) | [Next »](7-common.md) |
+| [« Previous](5-providers.md) | [Up](../20241206-oci-registries.md) | [Next »](7-authentication.md) |
 
 ---
 
@@ -53,8 +53,6 @@ We also intend to provide a tool similar to how [providers work](5-providers.md)
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
-
-| [« Previous](5-providers.md) | [Up](../20241206-oci-registries.md) | [Next »](7-common.md) |
+| [« Previous](5-providers.md) | [Up](../20241206-oci-registries.md) | [Next »](7-authentication.md) |
 
 ---
