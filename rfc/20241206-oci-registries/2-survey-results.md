@@ -36,8 +36,6 @@ In our survey, we asked our community what security scanning tools they would li
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
-
 | [« Previous](1-oci-primer.md) | [Up](../20241206-oci-registries.md) | [Next »](3-design-considerations.md) |
 
 ---
