@@ -62,7 +62,7 @@ In this case, provider addresses matching `include` blocks would be redirected t
 OpenTofu takes some inspiration from how [ORAS](1-oci-primer.md#oras) stores files, but with a few key differences. It is our hope that [ORAS will soon support multi-arch images](https://github.com/oras-project/oras/issues/1053) and this implementation will be compatible.
 
 1. Each OpenTofu provider OS and architecture (e.g. linux_amd64) will be stored as a ZIP file directly in an OCI blob. OpenTofu will not use tar files as it would be typical for a classic container image.
-2. Each provider OS and architecture will have an image manifest with a single layer with the `mediaType` of `archive/zip+opentofu-provider` and the `org.opencontainers.image.title` annotation containing the original file name of the ZIP file.
+2. Each provider OS and architecture will have an image manifest with a single layer with the `mediaType` of `archive/zip` and the `org.opencontainers.image.title` annotation containing the original file name of the ZIP file.
 3. The main manifest of the image will be an index manifest, containing separate entries for each provider OS and architecture. Additionally, the main manifest must declare the `artifactType` attribute as `application/vnd.opentofu.provider` in order for OpenTofu to accept it as a provider image.
 4. The provider artifact must be tagged with the same version number as for the non-OCI use case. OpenTofu will ignore any versions it cannot identify as a semver version number, including the `latest` tag.
 5. The index manifest may reference additional artifacts, such as SBOM manifests, under their corresponding MIME types. OpenTofu will ignore any artifacts without a known `artifactType`.
@@ -76,13 +76,15 @@ Additionally, the OS/architecture artifact may contain the following files as se
 
 The index manifest may contain the following additional files as additional ORAS-style layers:
 
+- `terraform-provider-YOURNAME.spdx.json` as `application/spdx+json` containing an SPDX SBOM file covering all OS/architecture combinations. This file will currently be ignored by OpenTofu, but may be used at a later date.
+- `terraform-provider-YOURNAME.intoto.jsonl` as `application/vnd.in-toto+json` containing an [in-toto attestation framework](https://github.com/in-toto/attestation)/[SLSA Provenance](https://slsa.dev/spec/v1.0/provenance) file covering all OS/architecture combinations. This file will currently be ignored by OpenTofu, but may be used at a later date.
 - `terraform-provider-YOURNAME_SHA256SUMS` as `text/plain+sha256sum` containing the checksums. If present, OpenTofu will download this file and refuse to use layers that don't match in their checksums.
 - `terraform-provider-YOURNAME_SHA256SUMS.gpg` as `application/pgp-signature` containing the GPG signature of the SHA256SUMS file. This file will currently be ignored by OpenTofu, but may be used at a later date.
 
 ⚠ TODO: Does this make sense? Shouldn't we add this as an attached signature instead?
 
 > [!WARNING]
-> Provider artifacts in OCI *must* be multi-arch images. OpenTofu will refuse to download and use non-multiarch artifacts as provider images. In contrast, [modules](6-modules.md) *must* be non-multiarch.
+> Provider artifacts in OCI *must* be multi-arch images. OpenTofu will refuse to download and use non-multi-arch artifacts as provider images. In contrast, [modules](6-modules.md) *must* be non-multi-arch.
 
 ## Publishing or mirroring a provider
 
