@@ -337,10 +337,9 @@ func TestUpgradeResourceStateTransform(t *testing.T) {
 			args: getUpgradeStateArgs(),
 			// Checking that field3 is removed from the state before sending the request
 			wantRequest: &providers.UpgradeResourceStateRequest{
-				TypeName:        "foo_instance",
-				Version:         2,
-				RawStateJSON:    []byte(`{"field1":"bar","field2":true}`),
-				RawStateFlatmap: map[string]string{"foo": "bar"},
+				TypeName:     "foo_instance",
+				Version:      2,
+				RawStateJSON: []byte(`{"field1":"bar","field2":true}`),
 			},
 		},
 		{
