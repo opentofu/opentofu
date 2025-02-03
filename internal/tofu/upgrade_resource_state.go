@@ -50,6 +50,20 @@ func upgradeResourceState(args stateTransformArgs) (*states.ResourceInstanceObje
 func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] upgradeResourceStateTransform: address: %s", args.currentAddr)
 
+	// Remove any attributes from state that are not present in the schema.
+	// This was previously taken care of by the provider, but data sources do
+	// not go through the UpgradeResourceState process.
+	//
+	// Required for upgrade not for move,
+	// since the deprecated fields might still be relevant for the migration.
+	//
+	// Legacy flatmap state is already taken care of during conversion.
+	// If the schema version is be changed, then allow the provider to handle
+	// removed attributes.
+	if len(args.objectSrc.AttrsJSON) > 0 && args.objectSrc.SchemaVersion == args.currentSchemaVersion {
+		args.objectSrc.AttrsJSON = stripRemovedStateAttributes(args.objectSrc.AttrsJSON, args.currentSchema.ImpliedType())
+	}
+
 	// TODO: This should eventually use a proper FQN.
 	providerType := args.currentAddr.Resource.Resource.ImpliedProvider()
 
@@ -76,19 +90,7 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 	} else {
 		log.Printf("[TRACE] transformResourceState: schema version of %s is still %d; calling provider %q for any other minor fixups", args.currentAddr, args.currentSchemaVersion, providerType)
 	}
-	// Remove any attributes from state that are not present in the schema.
-	// This was previously taken care of by the provider, but data sources do
-	// not go through the UpgradeResourceState process.
-	//
-	// Required for upgrade not for move,
-	// since the deprecated fields might still be relevant for the migration.
-	//
-	// Legacy flatmap state is already taken care of during conversion.
-	// If the schema version is be changed, then allow the provider to handle
-	// removed attributes.
-	if len(args.objectSrc.AttrsJSON) > 0 && args.objectSrc.SchemaVersion == args.currentSchemaVersion {
-		args.objectSrc.AttrsJSON = stripRemovedStateAttributes(args.objectSrc.AttrsJSON, args.currentSchema.ImpliedType())
-	}
+
 	req := providers.UpgradeResourceStateRequest{
 		TypeName: args.currentAddr.Resource.Resource.Type,
 
