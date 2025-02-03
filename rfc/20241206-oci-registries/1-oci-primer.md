@@ -104,13 +104,13 @@ Although not standardized in the distribution spec, the `/v2/_catalog` endpoint 
 
 Everything above refers to the standard container image layout. However, [ORAS](https://oras.land/) describes how artifacts can be stored in a non-standard layout. ORAS today has wide-ranging support.
 
-ORAS "abuses" the OCI system to store artifacts of an arbitrary type instead of storing it as a differential tar layer.
+ORAS uses a different media type to store the artifact in a layer:
 
 ```json
 {
   "schemaVersion": 2,
   "mediaType": "application/vnd.oci.image.manifest.v1+json",
-  "artifactType": "archive/zip+opentofu-provider",
+  "artifactType": "application/vnd.opentofu.provider",
   "config": {
     "mediaType": "application/vnd.oci.empty.v1+json",
     "digest": "sha256:44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
@@ -119,7 +119,7 @@ ORAS "abuses" the OCI system to store artifacts of an arbitrary type instead of 
   },
   "layers": [
     {
-      "mediaType": "archive/zip+opentofu-provider",
+      "mediaType": "archive/zip",
       "digest": "sha256:54b0178fd0fcbd60ce806b2569974694af59faaf0b2c734f703753f1fdfb1f21",
       "size": 146839280,
       "annotations": {
@@ -161,7 +161,7 @@ When pushing multiple files with ORAS, each file is stored in a separate layer:
   },
   "layers": [
     {
-      "mediaType": "archive/zip+opentofu-provider",
+      "mediaType": "archive/zip",
       "digest": "sha256:54b0178fd0fcbd60ce806b2569974694af59faaf0b2c734f703753f1fdfb1f21",
       "size": 146839280,
       "annotations": {
@@ -169,7 +169,7 @@ When pushing multiple files with ORAS, each file is stored in a separate layer:
       }
     },
     {
-      "mediaType": "archive/zip+opentofu-provider",
+      "mediaType": "archive/zip",
       "digest": "sha256:aa50fb3769355eeddfec7614bae674d0841c3b0b771e5183ac2db4dfc04b9423",
       "size": 132401007,
       "annotations": {
