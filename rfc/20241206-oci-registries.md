@@ -31,5 +31,5 @@ In order to make this RFC easier to read, we have split it into several parts:
 4. [Changes to the existing registry](20241206-oci-registries/4-registry-changes.md)
 5. [Providers in OCI](20241206-oci-registries/5-providers.md)
 6. [Modules in OCI](20241206-oci-registries/6-modules.md)
-7. [Common configuration options](20241206-oci-registries/7-common.md)
+7. [Authentication](20241206-oci-registries/7-authentication.md)
 8. [Open questions](20241206-oci-registries/8-open-questions.md)

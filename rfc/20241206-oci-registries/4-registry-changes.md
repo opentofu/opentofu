@@ -52,8 +52,8 @@ The OpenTofu Registry will, when scanning provider releases, identify the follow
 
 Note, however:
 
-- `*.spdx.xml` (SPDX) will *not** be supported until [there is an approved MIME type for it](https://github.com/spdx/spdx-spec/issues/577#issuecomment-960295523).
-- `bom.xml` and `bom.json` (CycloneDX) will **not** be supported [until there is an approved MIME type for it](https://github.com/CycloneDX/specification/issues/210).
+- `*.spdx.xml` (SPDX) will *not* be supported until [there is an approved MIME type for it](https://github.com/spdx/spdx-spec/issues/577#issuecomment-960295523).
+- `bom.xml` and `bom.json` (CycloneDX) will *not* be supported [until there is an approved MIME type for it](https://github.com/CycloneDX/specification/issues/210).
 
 > [!NOTE]
 > OpenTofu will not validate the contents of the attestations as there are too many possible formats to support. It is between the provider/module author and their community to ensure that the attestations are correct.
@@ -71,8 +71,6 @@ As part of the effort for supply chain security, OpenTofu will modify the [mirro
 > In an effort to support supply-chain security, we will also make these changes for the main OpenTofu release pipeline. The version including the OCI feature will also include an SBOM artifact.
 
 ---
-
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
 | [« Previous](3-design-considerations.md) | [Up](../20241206-oci-registries.md) | [Next »](5-providers.md) |
 
