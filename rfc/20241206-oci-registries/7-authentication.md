@@ -26,19 +26,24 @@ oci {
 
 ## Integrated Docker mode
 
-OpenTofu will support reading Docker configuration files, such as `~/.docker/config.json`, directly as requested by 53% of respondents in our survey. However, since 25% of respondents indicated that they want OpenTofu to not read Docker configuration files, this is an option that has to be explicitly enabled. You can do so by setting this option:
+OpenTofu will support reading [Docker configuration files](https://github.com/moby/moby/blob/131e2bf12b2e1b3ee31b628a501f96bbb901f479/cliconfig/config.go#L49), such as `~/.docker/config.json`, directly as requested by 53% of respondents in our survey. However, since 25% of respondents indicated that they want OpenTofu to not read Docker configuration files, this is an option can be disabled. You can do so by setting this option:
 
 ```hcl
 oci {
   authentication {
-    use_docker = true
-    # Optional:
-    # docker_config_path = "~/.docker/config.json"
+    # Use the container engine configuration present on the current device.
+    # Defaults to: "auto"
+    # Possible values: "auto", "docker", "off
+    use_container_engine_authentication = "auto"
+
+    # Specify which configuration files to look for.
+    # Defaults to ["~/.docker/config.json"]
+    container_engine_config_paths = ["~/.docker/config.json"]
   }
 }
 ```
 
-Setting this option will use Docker's stored credentials and configured credential helpers.
+By default, OpenTofu will default to auto-detecting which container engine is present and use their configuration paths for credential helpers and credential helper configuration. OpenTofu users can disable this functionality by changing `use_container_engine_authentication = "off"`.
 
 ## Explicit mode
 
@@ -47,14 +52,18 @@ Alternative to the integrated Docker mode, you can also specify credentials dire
 ```hcl
 oci {
   authentication {
+    use_container_engine_authentication = "off"
+    
     # Specify credentials explicitly for a host:
-    host "ghcr.io" {
-      token = "token-here"
-      # or:
+    domain "ghcr.io" {
+      # Authenticate with username and password:
       username = "your-user"
       password = "your-password"
+
+      # Use a domain-specific credentials helper:
+      docker_credentials_helper = "/path/to/credentials/helper"
     }
-    # Optional, use Docker cred helper:
+    # Use a Docker cred helper:
     docker_credentials_helper = "/path/to/credentials/helper"
   }
 }
