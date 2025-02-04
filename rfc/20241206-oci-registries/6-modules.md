@@ -56,9 +56,10 @@ oras push \
     terraform-your-module.zip:archive/zip
 ```
 
-We also intend to provide a tool similar to how [providers work](5-providers.md) that will allow for publishing and mirroring modules.
+We also intend to provide a tool similar to how [providers work](5-providers.md) that will allow for publishing and mirroring modules. Similar to providers, the mirroring tool will attach detected SBOM and attestation artifacts to the modules in OCI. Specifically, the mirroring tool will detect:
 
-⚠ TODO: what do we do with SBOM and signature artifacts?
+- `*.spdx.json` as `application/spdx+json` containing an SPDX SBOM file.
+- `*.intoto.jsonl` as `application/vnd.in-toto+json` containing an [in-toto attestation framework](https://github.com/in-toto/attestation)/[SLSA Provenance](https://slsa.dev/spec/v1.0/provenance) file.
 
 ---
 
