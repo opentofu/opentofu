@@ -46,10 +46,10 @@ However, there are several key reasons for deciding against this layout:
 1. **It breaks provider checksums**<br />OpenTofu today records the checksums of all providers it sees in the `.terraform.lock.hcl` file. These checksums can have two formats: the `h1` (Go-specific directory hash) and the `zh` (ZIP hash) format. While the former would be suitable for hashing container images, hashes today are almost universally the of the latter format. Computing a SHA256 hash over a ZIP file is much simpler than extracting its contents and using a [Go-specific hashing format over the files](https://pkg.go.dev/golang.org/x/mod/sumdb/dirhash). Provider authors publish their checksums in the SHA256SUMS file when releasing providers and sign the checksums file with their GPG key. Fortunately for us, OCI registries also use SHA256 checksums as blob identifiers, so storing the ZIP file in a blob in OCI will guarantee that the checksum doesn't change even when switching from the OpenTofu Registry to a mirrored OCI registry. In contrast, a container image-like layout would mean you have to run `tofu providers lock` to update the checksums in your `.terraform.lock.hcl` and your lock file would now be exclusive to your OCI mirror.
 2. **Supporting layers adds complexity**<br />OpenTofu today contains over 300.000 lines of code. Supporting the diff-tar layer format adds complexity to the codebase and increases the resource consumption of the download. Simply downloading a ZIP-blob allows us to reuse much of the code already in place in OpenTofu today.
 
-Therefore, we have decided to use a layout that does not indicate a container image and follows the [ORAS](https://oras.land) conventions with added multi-arch support. See the [Providers](5-providers.md) and [Modules](6-modules.md) documents for details on the respective artifact layouts.
+Therefore, we have decided to use a layout that does not indicate a container image and follows the [ORAS](https://oras.land) conventions with added multi-platform support. See the [Providers](5-providers.md) and [Modules](6-modules.md) documents for details on the respective artifact layouts.
 
 > [!NOTE]
-> In contrast to providers, modules currently have a protocol option. This allows us to integrate them safely without breaking existing tooling. However, to indicate possible OCI layout changes in the future, we will use the protocol prefix of `oci+zip://`.
+> In contrast to providers, modules currently have a protocol option. This allows us to integrate them safely without breaking existing tooling. However, to indicate possible OCI layout changes in the future, we will use the protocol prefix of `oci://`.
 
 ## Software Bill of Materials (SBOM)
 
@@ -74,7 +74,7 @@ For both purposes, OpenTofu will consider SBOM-specific file names in the provid
 
 While not a question in the survey, several respondents have taken the time to express that artifact signing is an important consideration to them.
 
-Today, OpenTofu providers are signed with GPG keys and [there is an open issue about supporting Sigstore/Cosign](https://github.com/opentofu/opentofu/issues/307), which is blocked on the availability of a stable Go library to do so.
+Today, OpenTofu providers are signed with GPG keys and [there is an open issue about supporting Sigstore/Cosign](https://github.com/opentofu/opentofu/issues/307), which is blocked on the availability of a stable Go library to do so. Another project worth some consideration is the [Notary Project](https://notaryproject.dev/) with similar aims to Sigstore/Cosign.
 
 Modules are currently not signed in OpenTofu, which is a separate question to address. This consideration will, therefore, only address providers.
 
