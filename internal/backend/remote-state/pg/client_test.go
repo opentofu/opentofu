@@ -40,7 +40,7 @@ func TestRemoteClient(t *testing.T) {
 	config := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": schemaName,
-		"stable_name": tableName,
+		"table_name":  tableName,
 		"index_name":  indexName,
 	})
 	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
@@ -72,7 +72,7 @@ func TestRemoteLocks(t *testing.T) {
 	config := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": schemaName,
-		"stable_name": tableName,
+		"table_name":  tableName,
 		"index_name":  indexName,
 	})
 
@@ -115,14 +115,14 @@ func TestConcurrentCreationLocksInDifferentSchemas(t *testing.T) {
 	firstConfig := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": firstSchema,
-		"stable_name": firstTable,
+		"table_name":  firstTable,
 		"index_name":  firstIndex,
 	})
 
 	secondConfig := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": secondSchema,
-		"stable_name": secondTable,
+		"table_name":  secondTable,
 		"index_name":  secondIndex,
 	})
 
@@ -142,18 +142,24 @@ func TestConcurrentCreationLocksInDifferentSchemas(t *testing.T) {
 		Client:     firstBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: firstBackend.schemaName,
+		TableName:  firstBackend.tableName,
+		IndexName:  firstBackend.indexName,
 	}
 
 	secondClient := &RemoteClient{
 		Client:     secondBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: secondBackend.schemaName,
+		TableName:  secondBackend.tableName,
+		IndexName:  secondBackend.indexName,
 	}
 
 	thirdClient := &RemoteClient{
 		Client:     thirdBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: thirdBackend.schemaName,
+		TableName:  thirdBackend.tableName,
+		IndexName:  thirdBackend.indexName,
 	}
 
 	// It doesn't matter what lock info to supply for workspace creation.
@@ -211,14 +217,14 @@ func TestConcurrentCreationLocksInDifferentTables(t *testing.T) {
 	firstConfig := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": schema,
-		"stable_name": firstTable,
+		"table_name":  firstTable,
 		"index_name":  firstIndex,
 	})
 
 	secondConfig := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": schema,
-		"stable_name": secondTable,
+		"table_name":  secondTable,
 		"index_name":  secondIndex,
 	})
 
@@ -238,18 +244,24 @@ func TestConcurrentCreationLocksInDifferentTables(t *testing.T) {
 		Client:     firstBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: firstBackend.schemaName,
+		TableName:  firstBackend.tableName,
+		IndexName:  firstBackend.indexName,
 	}
 
 	secondClient := &RemoteClient{
 		Client:     secondBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: secondBackend.schemaName,
+		TableName:  secondBackend.tableName,
+		IndexName:  secondBackend.indexName,
 	}
 
 	thirdClient := &RemoteClient{
 		Client:     thirdBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: thirdBackend.schemaName,
+		TableName:  thirdBackend.tableName,
+		IndexName:  thirdBackend.indexName,
 	}
 
 	// It doesn't matter what lock info to supply for workspace creation.

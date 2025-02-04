@@ -172,22 +172,38 @@ func TestBackendConfig(t *testing.T) {
 			schemaName, ok := tc.Config["schema_name"].(string)
 			if !ok {
 				t.Fatal("schema_name not provided")
-			} else {
-				schemaName = pq.QuoteIdentifier(schemaName)
 			}
 
 			tableName, ok := tc.Config["table_name"].(string)
 			if !ok {
 				t.Fatal("table_name not provided")
-			} else {
-				tableName = pq.QuoteIdentifier(tableName)
+			}
+
+			indexName, ok := tc.Config["index_name"].(string)
+			if !ok {
+				t.Fatal("index_name not provided")
+			}
+
+			skipSchemaCreation, ok := tc.Config["skip_schema_creation"].(bool)
+			if !ok {
+				skipSchemaCreation = false
+			}
+
+			skipTableCreation, ok := tc.Config["skip_table_creation"].(bool)
+			if !ok {
+				skipTableCreation = false
+			}
+
+			skipIndexCreation, ok := tc.Config["skip_index_creation"].(bool)
+			if !ok {
+				skipIndexCreation = false
 			}
 
 			dbCleaner, err := sql.Open("postgres", connStr)
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer dropSchemaByQuotedName(t, dbCleaner, schemaName)
+			defer dropSchema(t, dbCleaner, schemaName)
 
 			var diags tfdiags.Diagnostics
 			b := New(encryption.StateEncryptionDisabled()).(*Backend)
@@ -215,7 +231,7 @@ func TestBackendConfig(t *testing.T) {
 
 			confDiags := b.Configure(obj)
 			if tc.ExpectConnectionError != "" {
-				err := confDiags.InConfigBody(config, "").ErrWithWarnings()
+				err = confDiags.InConfigBody(config, "").ErrWithWarnings()
 				if err == nil {
 					t.Fatal("error expected but got none")
 				}
@@ -232,14 +248,48 @@ func TestBackendConfig(t *testing.T) {
 				t.Fatal("Backend could not be configured")
 			}
 
-			rows, err := b.db.Query(fmt.Sprintf("SELECT name, data FROM %s.%s LIMIT 1", schemaName, tableName))
-			if err != nil {
-				t.Fatal(err)
+			// Make sure everything has been created
+			if !skipSchemaCreation {
+				// Make sure schema exists
+				var count int
+				query := fmt.Sprintf(`select count(*) from information_schema.schemata where schema_name=$1`)
+				if err = b.db.QueryRow(query, schemaName).Scan(&count); err != nil {
+					t.Fatal(err)
+				}
+
+				if count != 1 {
+					t.Fatalf("The schema has not been created (%d)", count)
+				}
 			}
-			defer rows.Close()
-			err = rows.Err()
-			if err != nil {
-				t.Fatal(err)
+
+			if !skipTableCreation {
+				// Make sure that the index exists
+				var count int
+
+				query := fmt.Sprintf(`select count(*) from pg_catalog.pg_tables where schemaname=$1 and tablename=$2;`)
+				err = b.db.QueryRow(query, schemaName, tableName).Scan(&count)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if count != 1 {
+					t.Fatalf("The table has not been created (%d)", count)
+				}
+			}
+
+			if !skipIndexCreation {
+				// Make sure that the index exists
+				var count int
+
+				query := fmt.Sprintf(`select count(*) from pg_indexes where schemaname=$1 and tablename=$2 and indexname=$3;`)
+				err = b.db.QueryRow(query, schemaName, tableName, indexName+"_name_key").Scan(&count)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if count != 1 {
+					t.Fatalf("The index has not been created (%d)", count)
+				}
 			}
 
 			_, err = b.StateMgr(backend.DefaultStateName)
@@ -251,6 +301,7 @@ func TestBackendConfig(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+
 			c := s.(*remote.State).Client.(*RemoteClient)
 			if c.Name != backend.DefaultStateName {
 				t.Fatal("RemoteClient name is not configured")
@@ -267,64 +318,84 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 	connStr := getDatabaseUrl()
 
 	testCases := []struct {
-		Name               string
-		SkipSchemaCreation bool
-		SkipTableCreation  bool
-		SkipIndexCreation  bool
-		TestIndexIsPresent bool
-		Setup              func(t *testing.T, db *sql.DB, schemaName string, tableName string, indexName string)
+		Name                string
+		SkipSchemaCreation  bool
+		SkipTableCreation   bool
+		SkipIndexCreation   bool
+		TestSchemaIsPresent bool
+		TestTableIsPresent  bool
+		TestIndexIsPresent  bool
+		Setup               func(t *testing.T, db *sql.DB, schemaName string, tableName string, indexName string)
 	}{
 		{
-			Name:               "skip_schema_creation",
-			SkipSchemaCreation: true,
-			TestIndexIsPresent: true,
+			Name:                "skip_schema_creation",
+			SkipSchemaCreation:  true,
+			SkipTableCreation:   false,
+			SkipIndexCreation:   false,
+			TestSchemaIsPresent: true,
+			TestTableIsPresent:  true,
+			TestIndexIsPresent:  true,
 			Setup: func(t *testing.T, db *sql.DB, schemaName string, tableName string, indexName string) {
 				// create the schema as a prerequisites
-				_, err := db.Query(fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, schemaName))
+				query := fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, pq.QuoteIdentifier(schemaName))
+				_, err := db.Exec(query)
 				if err != nil {
 					t.Fatal(err)
 				}
 			},
 		},
 		{
-			Name:               "skip_table_creation",
-			SkipTableCreation:  true,
-			TestIndexIsPresent: true,
+			Name:                "skip_table_creation",
+			SkipSchemaCreation:  true,
+			SkipTableCreation:   true,
+			SkipIndexCreation:   false,
+			TestSchemaIsPresent: true,
+			TestTableIsPresent:  true,
+			TestIndexIsPresent:  true,
 			Setup: func(t *testing.T, db *sql.DB, schemaName string, tableName string, indexName string) {
 				// since the table needs to be already created the schema must be too
-				_, err := db.Query(fmt.Sprintf(`CREATE SCHEMA %s`, schemaName))
+				query := fmt.Sprintf(`CREATE SCHEMA %s`, pq.QuoteIdentifier(schemaName))
+				_, err := db.Exec(query)
 				if err != nil {
 					t.Fatal(err)
 				}
-				_, err = db.Query(fmt.Sprintf(`CREATE TABLE %s.%s (
+				query = fmt.Sprintf(`CREATE TABLE %s.%s (
 					id SERIAL PRIMARY KEY,
-					name TEXT,
+					name text UNIQUE,
 					data TEXT
-					)`, schemaName, tableName))
+					)`, pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(tableName))
+				_, err = db.Exec(query)
 				if err != nil {
 					t.Fatal(err)
 				}
 			},
 		},
 		{
-			Name:               "skip_index_creation",
-			SkipIndexCreation:  true,
-			TestIndexIsPresent: true,
+			Name:                "skip_index_creation",
+			SkipSchemaCreation:  true,
+			SkipTableCreation:   true,
+			SkipIndexCreation:   true,
+			TestSchemaIsPresent: true,
+			TestTableIsPresent:  true,
+			TestIndexIsPresent:  true,
 			Setup: func(t *testing.T, db *sql.DB, schemaName string, tableName string, indexName string) {
 				// Everything need to exists for the index to be created
-				_, err := db.Query(fmt.Sprintf(`CREATE SCHEMA %s`, schemaName))
+				query := fmt.Sprintf(`CREATE SCHEMA %s`, pq.QuoteIdentifier(schemaName))
+				_, err := db.Exec(query)
 				if err != nil {
 					t.Fatal(err)
 				}
-				_, err = db.Query(fmt.Sprintf(`CREATE TABLE %s.%s (
+				query = fmt.Sprintf(`CREATE TABLE %s.%s (
 					id SERIAL PRIMARY KEY,
-					name TEXT,
+					name text UNIQUE,
 					data TEXT
-					)`, schemaName, tableName))
+					)`, pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(tableName))
+				_, err = db.Exec(query)
 				if err != nil {
 					t.Fatal(err)
 				}
-				_, err = db.Exec(fmt.Sprintf(`CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s.%s (name)`, indexName, schemaName, tableName))
+				query = fmt.Sprintf(`CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s.%s (name)`, pq.QuoteIdentifier(indexName), pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(tableName))
+				_, err = db.Exec(query)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -345,13 +416,13 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 			config := backend.TestWrapConfig(map[string]interface{}{
 				"conn_str":             connStr,
 				"schema_name":          schemaName,
+				"table_name":           tableName,
+				"index_name":           indexName,
 				"skip_schema_creation": tc.SkipSchemaCreation,
 				"skip_table_creation":  tc.SkipTableCreation,
 				"skip_index_creation":  tc.SkipIndexCreation,
 			})
-			schemaName = pq.QuoteIdentifier(schemaName)
-			tableName = pq.QuoteIdentifier(tableName)
-			indexName = pq.QuoteIdentifier(indexName)
+
 			db, err := sql.Open("postgres", connStr)
 			if err != nil {
 				t.Fatal(err)
@@ -360,39 +431,56 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 			if tc.Setup != nil {
 				tc.Setup(t, db, schemaName, tableName, indexName)
 			}
-			defer dropSchemaByQuotedName(t, db, schemaName)
+			defer dropSchema(t, db, schemaName)
 
-			b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
+			unconfiguredBackend := New(encryption.StateEncryptionDisabled())
+			b := backend.TestBackendConfig(t, unconfiguredBackend, config).(*Backend)
 
 			if b == nil {
 				t.Fatal("Backend could not be configured")
 			}
 
 			// Make sure everything has been created
+			if tc.TestSchemaIsPresent {
+				// Make sure schema exists
+				var count int
+				query := fmt.Sprintf(`select count(*) from information_schema.schemata where schema_name=$1`)
+				if err = b.db.QueryRow(query, schemaName).Scan(&count); err != nil {
+					t.Fatal(err)
+				}
 
-			// This tests that both the schema and the table have been created
-			rows, err := b.db.Query(fmt.Sprintf("SELECT name, data FROM %s.%s LIMIT 1", schemaName, tableName))
-			if err != nil {
-				t.Fatal(err)
+				if count != 1 {
+					t.Fatalf("The schema has not been created (%d)", count)
+				}
 			}
-			defer rows.Close()
-			err = rows.Err()
 
-			if err != nil {
-				t.Fatal(err)
-			}
-			if tc.TestIndexIsPresent {
+			if tc.TestTableIsPresent {
 				// Make sure that the index exists
-				query := `select count(*) from pg_indexes where schemaname=$1 and tablename=$2 and indexname=$3;`
 				var count int
 
-				err = b.db.QueryRow(query, tc.Name, tableName, indexName).Scan(&count)
+				query := fmt.Sprintf(`select count(*) from pg_catalog.pg_tables where schemaname=$1 and tablename=$2;`)
+				err = b.db.QueryRow(query, schemaName, tableName).Scan(&count)
 				if err != nil {
 					t.Fatal(err)
 				}
 
 				if count != 1 {
-					t.Fatalf("The index has not been created (%d)", count)
+					t.Fatalf("The table has not been created (%d)", count)
+				}
+			}
+
+			if tc.TestIndexIsPresent {
+				// Make sure that the index exists
+				var count int
+
+				query := fmt.Sprintf(`select count(*) from pg_indexes where schemaname=$1 and tablename=$2 and indexname=$3;`)
+				err = b.db.QueryRow(query, schemaName, tableName, indexName+"_name_key").Scan(&count)
+				if err != nil {
+					t.Fatal(err)
+				}
+
+				if count != 1 {
+					t.Fatalf("The index has not been c reated (%d)", count)
 				}
 			}
 
@@ -411,17 +499,18 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 			}
 
 			// Make sure that all workspace must have a unique name
-			_, err = db.Exec(fmt.Sprintf(`INSERT INTO %s.%s VALUES (100, 'unique_name_test', '')`, schemaName, tableName))
+			query := fmt.Sprintf(`INSERT INTO %s.%s VALUES (100, 'unique_name_test', '')`, pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(tableName))
+			_, err = db.Exec(query)
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = db.Exec(fmt.Sprintf(`INSERT INTO %s.%s VALUES (101, 'unique_name_test', '')`, schemaName, tableName))
+			query = fmt.Sprintf(`INSERT INTO %s.%s VALUES (101, 'unique_name_test', '')`, pq.QuoteIdentifier(schemaName), pq.QuoteIdentifier(tableName))
+			_, err = db.Exec(query)
 			if err == nil {
 				t.Fatal("Creating two workspaces with the same name did not raise an error")
 			}
 		})
 	}
-
 }
 
 func TestBackendStates(t *testing.T) {
@@ -550,7 +639,7 @@ func TestBackendConcurrentLock(t *testing.T) {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
-	if err := s1.Unlock(lockID1); err != nil {
+	if err = s1.Unlock(lockID1); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
@@ -563,7 +652,7 @@ func TestBackendConcurrentLock(t *testing.T) {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
-	if err := s2.Unlock(lockID2); err != nil {
+	if err = s2.Unlock(lockID2); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
@@ -578,11 +667,11 @@ func TestBackendConcurrentLock(t *testing.T) {
 		t.Fatalf("failed to lock second state: %v", err)
 	}
 
-	if err := s1.Unlock(lockID1); err != nil {
+	if err = s1.Unlock(lockID1); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
-	if err := s2.Unlock(lockID2); err != nil {
+	if err = s2.Unlock(lockID2); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 }
@@ -592,11 +681,8 @@ func getDatabaseUrl() string {
 }
 
 func dropSchema(t *testing.T, db *sql.DB, schemaName string) {
-	dropSchemaByQuotedName(t, db, pq.QuoteIdentifier(schemaName))
-}
-
-func dropSchemaByQuotedName(t *testing.T, db *sql.DB, quotedSchemaName string) {
-	_, err := db.Exec(fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", quotedSchemaName))
+	query := fmt.Sprintf("DROP SCHEMA IF EXISTS %s CASCADE", pq.QuoteIdentifier(schemaName))
+	_, err := db.Exec(query)
 	if err != nil {
 		t.Fatal(err)
 	}
