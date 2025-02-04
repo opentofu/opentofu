@@ -74,7 +74,7 @@ jobs:
           path: out/${{ env.ARTIFACT_BASENAME }}
           if-no-files-found: error
       - if: ${{ inputs.goos == 'linux' }}
-        uses: hashicorp/actions-packaging-linux@v1
+        uses: hashicorp/actions-packaging-linux@514d75d0961adeddf1f928fb93b82f41735fc488 # v1.6.0
         with:
           name: "opentofu"
           description: "OpenTofu enables you to safely and predictably create, change, and improve infrastructure. It is an open source tool that codifies APIs into declarative configuration files that can be shared amongst team members, treated as code, edited, reviewed, and versioned."
