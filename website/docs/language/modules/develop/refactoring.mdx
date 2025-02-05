@@ -45,6 +45,7 @@ describe several refactoring use-cases and the appropriate addressing syntax
 for each situation.
 
 * [Renaming a Resource](#renaming-a-resource)
+* [Changing a Resource Type](#changing-a-resource-type)
 * [Enabling `count` or `for_each` For a Resource](#enabling-count-or-for_each-for-a-resource)
 * [Renaming a Module Call](#renaming-a-module-call)
 * [Enabling `count` or `for_each` For a Module Call](#enabling-count-or-for_each-for-a-module-call)
@@ -96,11 +97,15 @@ so OpenTofu recognizes the move for all instances of the resource. That is,
 it covers both `aws_instance.a[0]` and `aws_instance.a[1]` without the need
 to identify each one separately.
 
-Each resource type has a separate schema and so objects of different types
-are not compatible. Therefore, although you can use `moved` to change the name
-of a resource, you _cannot_ use `moved` to change to a different resource type
-or to change a managed resource (a `resource` block) into a data resource
-(a `data` block).
+## Changing a Resource Type
+
+Each resource type has a separate schema, so objects of different types are not generally compatible.
+However, some providers will let you change an object from one resource type to another.
+It is also possible to change one provider's resource to another provider's resource, as long as the new provider supports migration from the old resource.
+Refer to the provider documentation for more information about resource compatibility.
+
+You can use `moved` to change the name (and sometimes type) of a resource,
+but you _cannot_ use `moved` to change a managed resource (a `resource` block) into a data resource (a `data` block).
 
 ## Enabling `count` or `for_each` For a Resource
 
