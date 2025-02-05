@@ -53,6 +53,12 @@ type MockProvider struct {
 	UpgradeResourceStateRequest  providers.UpgradeResourceStateRequest
 	UpgradeResourceStateFn       func(providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse
 
+	MoveResourceStateCalled   bool
+	MoveResourceStateTypeName string
+	MoveResourceStateResponse *providers.MoveResourceStateResponse
+	MoveResourceStateRequest  providers.MoveResourceStateRequest
+	MoveResourceStateFn       func(providers.MoveResourceStateRequest) providers.MoveResourceStateResponse
+
 	ConfigureProviderCalled   bool
 	ConfigureProviderResponse *providers.ConfigureProviderResponse
 	ConfigureProviderRequest  providers.ConfigureProviderRequest
@@ -248,6 +254,59 @@ func (p *MockProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 		resp.UpgradedState = v
 	}
 
+	return resp
+}
+
+func (p *MockProvider) MoveResourceState(r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	var resp providers.MoveResourceStateResponse
+	p.Lock()
+	defer p.Unlock()
+
+	if !p.ConfigureProviderCalled {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("configure not called before MoveResourceState %s -> %s", r.SourceTypeName, r.TargetTypeName))
+		return resp
+	}
+
+	schema, ok := p.getProviderSchema().ResourceTypes[r.SourceTypeName]
+	if !ok {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("no schema found for %q", r.SourceTypeName))
+		return resp
+	}
+
+	schemaType := schema.Block.ImpliedType()
+
+	p.MoveResourceStateCalled = true
+	p.MoveResourceStateRequest = r
+
+	if p.MoveResourceStateFn != nil {
+		return p.MoveResourceStateFn(r)
+	}
+
+	if p.MoveResourceStateResponse != nil {
+		return *p.MoveResourceStateResponse
+	}
+
+	switch {
+	case r.SourceStateFlatmap != nil:
+		v, err := hcl2shim.HCL2ValueFromFlatmap(r.SourceStateFlatmap, schemaType)
+		if err != nil {
+			resp.Diagnostics = resp.Diagnostics.Append(err)
+			return resp
+		}
+		resp.TargetState = v
+	case len(r.SourceStateJSON) > 0:
+		v, err := ctyjson.Unmarshal(r.SourceStateJSON, schemaType)
+
+		if err != nil {
+			resp.Diagnostics = resp.Diagnostics.Append(err)
+			return resp
+		}
+		resp.TargetState = v
+	default:
+		resp.TargetState = cty.NullVal(schemaType)
+	}
+
+	resp.TargetPrivate = r.SourcePrivate
 	return resp
 }
 
@@ -501,7 +560,6 @@ func (p *MockProvider) ImportResourceState(r providers.ImportResourceStateReques
 
 	return resp
 }
-
 func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
 	p.Lock()
 	defer p.Unlock()
