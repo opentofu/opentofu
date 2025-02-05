@@ -1,0 +1,1 @@
+we don't expand $(command substitutions) because arbitrary command execution would be a significant security risk

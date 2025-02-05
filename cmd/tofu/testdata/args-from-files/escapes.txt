@@ -1,0 +1,2 @@
+can escape\ spaces and\
+newlines and \"double quotes\" and \'single quotes\'!
