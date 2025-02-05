@@ -33,3 +33,11 @@ In order to make this RFC easier to read, we have split it into several parts:
 6. [Modules in OCI](20241206-oci-registries/6-modules.md)
 7. [Authentication](20241206-oci-registries/7-authentication.md)
 8. [Open questions](20241206-oci-registries/8-open-questions.md)
+
+### Appendices
+
+The following additional sections discuss potential implementation details of the features described in the earlier chapters. These are primarily for core team reference purposes, but potentially interesting to others too.
+
+9. [Authentication-related implementation details](20241206-oci-registries/9-auth-implementation-details.md)
+10. [Provider installation implementation details](20241206-oci-registries/10-provider-implementation-details.md)
+11. [Module installation implementation details](20241206-oci-registries/11-module-implementation-details.md)

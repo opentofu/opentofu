@@ -26,6 +26,29 @@ Users working on multiple projects may want to use different credentials for the
 
 Currently, this RFC [proscribes registry semantics](6-modules.md) for module versions. Do we want to use this or switch to Git-like semantics?
 
+## Provider Source Addresses with Unsupported Unicode Characters
+
+OpenTofu's provider source address syntax allows a wide variety of Unicode characters in all three components, following the [RFC 3491 "Nameprep"](https://datatracker.ietf.org/doc/rfc3491/) rules.
+
+However, the OCI Distribution specification has a considerably more restrictive allowed character set for repository names: it supports only ASCII letters and digits along with a small set of punctuation.
+
+Because of this, there some valid OpenTofu provider source addresses that cannot be translated mechanically to valid OCI Distribution repository addresses via template substitution alone. A provider source address that, for example, has a Japanese alphabet character in its "type" portion would be projected into a syntactically-invalid OCI repository address.
+
+Our initial prototype assumed that in practice non-ASCII characters in these addresses are very rare, and so just returns an error message whenever this situation arises:
+
+```
+requested provider address example.com/foo/ほげ contains characters that
+are not valid in an OCI distribution repository name, so this provider
+cannot be installed from an OCI repository as
+ghcr.io/examplecom-otf-providers/foo-ほげ
+```
+
+Of course, we cannot see into every organization to know whether they have in-house providers that are named with non-ASCII characters, and the fact that the OpenTofu project works primarily in English means that we are less likely to hear from those whose typical working language is not English.
+
+If we learn in future that supporting non-ASCII characters in provider source addresses installed from OCI registries is important, we could potentially force a specific scheme for automatically transforming those names into ones that are compatible with the OCI repository name requirements, such as applying a "[Punycode](https://en.wikipedia.org/wiki/Punycode)-like" encoding to them before rendering them into the template.
+
+However, Punycode in particular is not generally human-readable and so translation strategies like this often require some UI support to automatically transcode the data back into human-readable form for display. Any OpenTofu-specific mapping strategy we might invent is unlikely to be handled automatically by the UI associated with any general-purpose OCI registry implementation.
+
 ---
 
 | [« Previous](7-authentication.md) | [Up](../20241206-oci-registries.md) |
