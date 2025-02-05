@@ -493,6 +493,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 	var expiredKeyID string
 
 	for _, key := range s.Keys {
+		keyCopy := key
 		keyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(key.ASCIIArmor))
 		if err != nil {
 			return nil, "", fmt.Errorf("error decoding signing key: %w", err)
@@ -512,11 +513,11 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 			// Else if it's an expired key then save it for later incase we don't find a non‐expired key.
 			if expiredKey == nil {
-				expiredKey = &key
+				expiredKey = &keyCopy
 				if entity != nil && entity.PrimaryKey != nil {
 					expiredKeyID = entity.PrimaryKey.KeyIdString()
 				} else {
-					expiredKeyID = "n/a"
+					expiredKeyID = "n/a" //nolint:goconst
 				}
 			}
 			continue
@@ -533,6 +534,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 	// Warn only once when ALL keys are expired.
 	if expiredKey != nil && !s.shouldEnforceGPGExpiration() {
+		//nolint:forbidigo // This is a warning message and is fine to be handled this way
 		fmt.Printf("[WARN] Provider %s/%s (%v) gpg key expired, this will fail in future versions of OpenTofu\n",
 			s.Meta.Provider.Namespace, s.Meta.Provider.Type, s.Meta.Provider.Hostname)
 		return expiredKey, expiredKeyID, nil
