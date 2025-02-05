@@ -35,7 +35,7 @@ jobs:
       pkg-name: ${{ steps.get-pkg-name.outputs.pkg-name }}
 
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Get Package Name
         id: get-pkg-name
         run: |
@@ -43,7 +43,7 @@ jobs:
           echo "pkg-name=${pkg_name}" | tee -a "${GITHUB_OUTPUT}"
       - name: Decide version number
         id: get-product-version
-        uses: hashicorp/actions-set-product-version@v1
+        uses: hashicorp/actions-set-product-version@b426ea77cad0389738a8a81d89e933146a3ba97f # unreleased, untagged (upgrade of actions/checkout)
       - name: Determine experiments
         id: get-ldflags
         env:
@@ -62,7 +62,7 @@ jobs:
       go-version: ${{ steps.get-go-version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Determine Go version
         id: get-go-version
         uses: ./.github/actions/go-version
@@ -75,10 +75,10 @@ jobs:
       filepath: ${{ steps.generate-metadata-file.outputs.filepath }}
 
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Generate package metadata
         id: generate-metadata-file
-        uses: hashicorp/actions-generate-metadata@v1
+        uses: hashicorp/actions-generate-metadata@f6f1ca9cededa05d841a58d171064faf3de8ec74 # unreleased, untagged (upgrade of multiple gha)
         with:
           version: ${{ needs.get-product-version.outputs.product-version }}
           product: ${{ env.PKG_NAME }}
@@ -137,9 +137,9 @@ jobs:
       repo: "opentofu"
       version: ${{needs.get-product-version.outputs.product-version}}
     steps:
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Build Docker images
-        uses: hashicorp/actions-docker-build@v1
+        uses: hashicorp/actions-docker-build@0635aed766f1f4e4519845ca22a4d024c96fb55d # unreleased, untagged (upgrade of multiple gha)
         with:
           pkg_name: "opentofu_${{env.version}}"
           version: ${{env.version}}
@@ -185,10 +185,10 @@ jobs:
           cache_path=internal/command/e2etest/build
           echo "e2e-cache-key=${cache_key}" | tee -a "${GITHUB_OUTPUT}"
           echo "e2e-cache-path=${cache_path}" | tee -a "${GITHUB_OUTPUT}"
-      - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install Go toolchain
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
 
@@ -205,7 +205,7 @@ jobs:
           bash ./internal/command/e2etest/make-archive.sh
 
       - name: Save test harness to cache
-        uses: actions/cache/save@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ${{ steps.set-cache-values.outputs.e2e-cache-path }}
           key: ${{ steps.set-cache-values.outputs.e2e-cache-key }}_${{ matrix.goos }}_${{ matrix.goarch }}
@@ -243,9 +243,9 @@ jobs:
       # fresh build from source.)
       - name: Checkout repo
         if: ${{ (matrix.goos == 'linux') || (matrix.goos == 'darwin') }}
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: "Restore cache"
-        uses: actions/cache/restore@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         id: e2etestpkg
         with:
           path: ${{ needs.e2etest-build.outputs.e2e-cache-path }}
@@ -264,7 +264,7 @@ jobs:
           unzip "${{ needs.e2etest-build.outputs.e2e-cache-path }}/tofu-e2etest_${{ env.os }}_${{ env.arch }}.zip"
           unzip "./tofu_${{env.version}}_${{ env.os }}_${{ env.arch }}.zip"
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@2b82ce82d56a2a04d2637cd93a637ae1b359c0a7 # v2.2.0
+        uses: docker/setup-qemu-action@53851d14592bedcffcf25ea515637cff71ef929a # v3.3.0
         if: ${{ contains(matrix.goarch, 'arm') }}
         with:
           platforms: all
@@ -298,7 +298,7 @@ jobs:
 
     steps:
       - name: Install Go toolchain
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: ${{ needs.get-go-version.outputs.go-version }}
       - name: Download OpenTofu CLI package
@@ -308,7 +308,7 @@ jobs:
           name: tofu_${{ env.version }}_linux_amd64.zip
           path: .
       - name: Checkout tofu-exec repo
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: opentofu/tofu-exec
           path: tofu-exec

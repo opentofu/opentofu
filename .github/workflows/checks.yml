@@ -56,17 +56,17 @@ jobs:
       # for testing on non amd64 envs like 386, arm64 etc...
       - name: "Set up QEMU"
         if: matrix.goos == 'linux' && matrix.goarch != 'amd64' && matrix.goarch != 'arm64'
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@53851d14592bedcffcf25ea515637cff71ef929a # v3.3.0
 
       - name: "Fetch source code"
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Determine Go version
         id: go
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -74,7 +74,7 @@ jobs:
       # identical across the unit-tests, e2e-tests, and consistency-checks
       # jobs, or else weird things could happen.
       - name: Cache Go modules
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: "~/go/pkg"
           key: go-mod-${{ hashFiles('go.sum') }}
@@ -91,14 +91,14 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Determine Go version
         id: go
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -106,7 +106,7 @@ jobs:
       # identical across the unit-tests, e2e-tests, and consistency-checks
       # jobs, or else weird things could happen.
       - name: Cache Go modules
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: "~/go/pkg"
           key: go-mod-${{ hashFiles('go.sum') }}
@@ -129,14 +129,14 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Determine Go version
         id: go
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -144,7 +144,7 @@ jobs:
       # identical across the unit-tests, e2e-tests, and consistency-checks
       # jobs, or else weird things could happen.
       - name: Cache Go modules
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: "~/go/pkg"
           key: go-mod-${{ hashFiles('go.sum') }}
@@ -161,7 +161,7 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0 # We need to do comparisons against the main branch.
 
@@ -170,7 +170,7 @@ jobs:
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -178,7 +178,7 @@ jobs:
       # identical across the unit-tests, e2e-tests, and consistency-checks
       # jobs, or else weird things could happen.
       - name: Cache Go modules
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: "~/go/pkg"
           key: go-mod-${{ hashFiles('go.sum') }}
@@ -194,7 +194,7 @@ jobs:
           fi
 
       - name: Cache protobuf tools
-        uses: actions/cache@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: "tools/protobuf-compile/.workdir"
           key: protobuf-tools-${{ hashFiles('tools/protobuf-compile/protobuf-compile.go') }}
@@ -210,7 +210,7 @@ jobs:
             exit 1
           fi
       - name: "Code linting"
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@e60da84bfae8c7920a47be973d75e15710aa8bd7 # v6.3.0
         with:
           version: v1.62
           # Only compare with changes from when we introduced linting.  Eventually we can get rid of this and lint the whole project
@@ -230,14 +230,14 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Install licensei
         run: |
           make deps
 
       - name: Restore cache license information of dependencies
-        uses: actions/cache/restore@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache/restore@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: ".licensei.cache"
           key: licensei-cache-${{ hashFiles('go.sum') }}
@@ -249,7 +249,7 @@ jobs:
         uses: ./.github/actions/go-version
 
       - name: Install Go toolchain
-        uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: ${{ steps.go.outputs.version }}
 
@@ -261,7 +261,7 @@ jobs:
         if: env.LICENSE_CHECK != 'false'
 
       - name: Save cache license information of dependencies
-        uses: actions/cache/save@88522ab9f39a2ea568f7027eddc7d8d8bc9d59c8 # v3.3.1
+        uses: actions/cache/save@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         if: always()
         with:
           path: ".licensei.cache"
@@ -273,7 +273,7 @@ jobs:
 
     steps:
       - name: "Fetch source code"
-        uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: "Run Installation Instructions Test"
         run: make test-linux-install-instructions
