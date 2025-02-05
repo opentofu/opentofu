@@ -506,8 +506,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 		if err != nil {
 			// If in enforcing mode (or if the error isn’t related to expiry) return immediately.
-			if s.shouldEnforceGPGExpiration() ||
-				(!errors.Is(err, openpgpErrors.ErrKeyExpired) && !errors.Is(err, openpgpErrors.ErrSignatureExpired)) {
+			if !errors.Is(err, openpgpErrors.ErrKeyExpired) && !errors.Is(err, openpgpErrors.ErrSignatureExpired) {
 				return nil, "", fmt.Errorf("error checking signature: %w", err)
 			}
 
