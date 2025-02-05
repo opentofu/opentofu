@@ -50,6 +50,11 @@ type Warnings = []string
 // altogether, which means that it is not required at all.
 type Requirements map[addrs.Provider]VersionConstraints
 
+// ExplicitProviders stores all the definitions found in the required_providers blocks.
+// We need this to be able to compile guidance on the failed to download providers that are not
+// explicitly defined
+type ExplicitProviders map[addrs.Provider]struct{}
+
 // Merge takes the requirements in the receiver and the requirements in the
 // other given value and produces a new set of requirements that combines
 // all of the requirements of both.
@@ -65,6 +70,19 @@ func (r Requirements) Merge(other Requirements) Requirements {
 		ret[addr] = append(ret[addr], constraints...)
 	}
 	return ret
+}
+
+// Merge gets another ExplicitProvider and returns back a new one that is having the values from both,
+// the receiver and the one in the args.
+func (r ExplicitProviders) Merge(other ExplicitProviders) ExplicitProviders {
+	out := make(ExplicitProviders)
+	for addr, v := range r {
+		out[addr] = v
+	}
+	for addr, v := range other {
+		out[addr] = v
+	}
+	return out
 }
 
 // Selections gathers together version selections for many different providers.

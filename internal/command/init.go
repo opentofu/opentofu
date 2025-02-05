@@ -576,6 +576,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		reqs = reqs.Merge(stateReqs)
 	}
 
+	explicitProviders := config.ExplicitProviders()
 	potentialProviderConflicts := make(map[string][]string)
 
 	for providerAddr := range reqs {
@@ -712,6 +713,15 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					suggestion += "\n\nIf you believe this provider is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/new/choose"
 				}
 
+				if _, ok := explicitProviders[provider]; !ok {
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Warning,
+						"The provider might be requested by an implicit reference",
+						fmt.Sprintf("The provider %s could not be found in any required_providers blocks. Ensure that the root or any used module is having the required_providers block properly configured.",
+							provider.ForDisplay(),
+						),
+					))
+				}
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Failed to query available provider packages",

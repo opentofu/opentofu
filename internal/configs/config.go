@@ -12,7 +12,6 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -306,6 +305,21 @@ func (c *Config) ProviderRequirements() (getproviders.Requirements, hcl.Diagnost
 	diags := c.addProviderRequirements(reqs, true, true)
 
 	return reqs, diags
+}
+
+func (c *Config) ExplicitProviders() getproviders.ExplicitProviders {
+	explicit := make(getproviders.ExplicitProviders)
+	if c.Module.ProviderRequirements != nil {
+		for _, providerReqs := range c.Module.ProviderRequirements.RequiredProviders {
+			explicit[providerReqs.Type] = struct{}{}
+		}
+	}
+	// Gather the explicit providers from the imported modules too.
+	for _, childConfig := range c.Children {
+		explicit = explicit.Merge(childConfig.ExplicitProviders())
+	}
+
+	return explicit
 }
 
 // ProviderRequirementsShallow searches only the direct receiver for explicit
