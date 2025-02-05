@@ -516,7 +516,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 				if entity != nil && entity.PrimaryKey != nil {
 					expiredKeyID = entity.PrimaryKey.KeyIdString()
 				} else {
-					expiredKeyID = "n/a" //nolint:goconst
+					expiredKeyID = "n/a" //nolint:goconst // This is a placeholder value
 				}
 			}
 			continue
