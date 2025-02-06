@@ -11,6 +11,7 @@ This page will run you through the most important changes in OpenTofu 1.10:
 
 - [New features](#new-features)
   - [New built-in functions](#new-built-in-functions)
+  - [Moved for different resource types](#moved-for-different-resource-types)
 - [Improvements to existing features](#improvements-to-existing-features)
   - [External programs as encryption key providers (experimental)](#external-programs-as-encryption-key-providers-experimental)
   - [Smaller improvements](#smaller-improvements)
@@ -27,6 +28,11 @@ New builtin provider functions added ([#2306](https://github.com/opentofu/opento
 - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
 - `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
 - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
+
+### Moved for different resource types
+
+- `moved` block can now be used to migrate between different types of resources ([docs](../language/modules/develop/refactoring.mdx#changing-a-resource-type)).
+- Builtin provider now supports migration from `null_resource` to `terraform_data` resource.
 
 ## Improvements to existing features
 

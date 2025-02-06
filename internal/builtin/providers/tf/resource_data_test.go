@@ -6,6 +6,7 @@
 package tf
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 
@@ -82,6 +83,57 @@ func TestManagedDataUpgradeState(t *testing.T) {
 	}
 }
 
+func TestManagedDataMovedState(t *testing.T) {
+	nullSchema := nullResourceSchema()
+	nullTy := nullSchema.Block.ImpliedType()
+
+	state := cty.ObjectVal(map[string]cty.Value{
+		"triggers": cty.MapVal(map[string]cty.Value{
+			"examplekey": cty.StringVal("value"),
+		}),
+		"id": cty.StringVal("not-quite-unique"),
+	})
+
+	jsState, err := ctyjson.Marshal(state, nullTy)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// empty request should fail
+	req := providers.MoveResourceStateRequest{}
+
+	resp := moveDataStoreResourceState(req)
+	if !resp.Diagnostics.HasErrors() {
+		t.Fatalf("expected error, got %#v", resp)
+	}
+
+	// valid request
+	req = providers.MoveResourceStateRequest{
+		TargetTypeName:  "terraform_data",
+		SourceTypeName:  "null_resource",
+		SourcePrivate:   []byte("PRIVATE"),
+		SourceStateJSON: jsState,
+	}
+
+	resp = moveDataStoreResourceState(req)
+
+	expectedState := cty.ObjectVal(map[string]cty.Value{
+		"triggers_replace": cty.ObjectVal(map[string]cty.Value{
+			"examplekey": cty.StringVal("value"),
+		}),
+		"id":     cty.StringVal("not-quite-unique"),
+		"input":  cty.NullVal(cty.DynamicPseudoType),
+		"output": cty.NullVal(cty.DynamicPseudoType),
+	})
+	if !resp.TargetState.RawEquals(expectedState) {
+		t.Errorf("prior state was:\n%#v\nmoved state is:\n%#v\n", expectedState, resp.TargetState)
+	}
+
+	if !bytes.Equal(resp.TargetPrivate, req.SourcePrivate) {
+		t.Error("expected private data to be copied")
+	}
+
+}
 func TestManagedDataRead(t *testing.T) {
 	req := providers.ReadResourceRequest{
 		TypeName: "terraform_data",
