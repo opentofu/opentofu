@@ -502,6 +502,39 @@ func TestInitProviderNotFound(t *testing.T) {
 			t.Errorf("wrong output:\n%s", cmp.Diff(stripAnsi(stderr), expectedErr))
 		}
 	})
+
+	t.Run("implicit provider not found", func(t *testing.T) {
+		implicitFixturePath := filepath.Join("testdata", "provider-implicit-ref-not-found")
+		tf := e2e.NewBinary(t, tofuBin, implicitFixturePath)
+		stdout, _, err := tf.Run("init")
+		if err == nil {
+			t.Fatal("expected error, got success")
+		}
+
+		// Testing that the warn wrote to the user is containing the resource address from where the provider
+		// was registered to be downloaded
+		expectedOutput := `Initializing the backend...
+Initializing modules...
+- testmod in mod
+
+Initializing provider plugins...
+- Finding latest version of hashicorp/nonexistingprov...
+╷
+│ Warning: No explicit definition for the provider
+│ 
+│ The provider hashicorp/nonexistingprov could not be found in any
+│ required_providers blocks. Ensure that the root or any used module is
+│ having the required_providers block properly configured. 
+│ Or if the definition is already there, ensure that the resources are having
+│ 'provider' configured properly.
+│ 
+│ Implicitly referenced from main.tf:2,1-39. And is referenced from 1 more
+│ resource(s).
+╵`
+		if cleanOut := strings.TrimSpace(stripAnsi(stdout)); cleanOut != expectedOutput {
+			t.Errorf("wrong output:\n%s", cmp.Diff(cleanOut, expectedOutput))
+		}
+	})
 }
 
 // The following test is temporarily removed until the OpenTofu registry returns a deprecation warning
