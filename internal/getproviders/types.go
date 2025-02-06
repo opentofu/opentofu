@@ -13,6 +13,7 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/apparentlymart/go-versions/versions/constraints"
+	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -50,10 +51,34 @@ type Warnings = []string
 // altogether, which means that it is not required at all.
 type Requirements map[addrs.Provider]VersionConstraints
 
-// ExplicitProviders stores all the definitions found in the required_providers blocks.
-// We need this to be able to compile guidance on the failed to download providers that are not
-// explicitly defined
-type ExplicitProviders map[addrs.Provider]struct{}
+// ProvidersQualification is storing the implicit/explicit reference qualification of the providers.
+// This is necessary to be able to warn the user when the resources are referencing a provider that
+// is not specifically defined in a required_providers block. When the implicitly referenced
+// provider is tried to be downloaded without a specific provider requirement, it will be tried
+// from the default namespace (hashicorp), failing to download it when it does not exist in the default namespace.
+// Therefore, we want to let the user know what resources are generating this situation.
+type ProvidersQualification struct {
+	Implicit map[addrs.Provider][]hcl.Range
+	Explicit map[addrs.Provider]struct{}
+}
+
+// AddImplicitProvider saves an addrs.Provider with the place in the configuration where this is generated from.
+func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, ref hcl.Range) {
+	if pq.Implicit == nil {
+		pq.Implicit = map[addrs.Provider][]hcl.Range{}
+	}
+	refs, _ := pq.Implicit[provider]
+	refs = append(refs, ref)
+	pq.Implicit[provider] = refs
+}
+
+// AddExplicitProvider saves an addrs.Provider that is specifically configured in a required_providers block.
+func (pq *ProvidersQualification) AddExplicitProvider(provider addrs.Provider) {
+	if pq.Explicit == nil {
+		pq.Explicit = map[addrs.Provider]struct{}{}
+	}
+	pq.Explicit[provider] = struct{}{}
+}
 
 // Merge takes the requirements in the receiver and the requirements in the
 // other given value and produces a new set of requirements that combines
@@ -70,19 +95,6 @@ func (r Requirements) Merge(other Requirements) Requirements {
 		ret[addr] = append(ret[addr], constraints...)
 	}
 	return ret
-}
-
-// Merge gets another ExplicitProvider and returns back a new one that is having the values from both,
-// the receiver and the one in the args.
-func (r ExplicitProviders) Merge(other ExplicitProviders) ExplicitProviders {
-	out := make(ExplicitProviders)
-	for addr, v := range r {
-		out[addr] = v
-	}
-	for addr, v := range other {
-		out[addr] = v
-	}
-	return out
 }
 
 // Selections gathers together version selections for many different providers.

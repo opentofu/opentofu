@@ -566,7 +566,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 	// First we'll collect all the provider dependencies we can see in the
 	// configuration and the state.
-	reqs, hclDiags := config.ProviderRequirements()
+	reqs, qualifs, hclDiags := config.ProviderRequirements()
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		return false, true, diags
@@ -576,7 +576,6 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		reqs = reqs.Merge(stateReqs)
 	}
 
-	explicitProviders := config.ExplicitProviders()
 	potentialProviderConflicts := make(map[string][]string)
 
 	for providerAddr := range reqs {
@@ -713,15 +712,9 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 					suggestion += "\n\nIf you believe this provider is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/new/choose"
 				}
 
-				if _, ok := explicitProviders[provider]; !ok {
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Warning,
-						"The provider might be requested by an implicit reference",
-						fmt.Sprintf("The provider %s could not be found in any required_providers blocks. Ensure that the root or any used module is having the required_providers block properly configured.",
-							provider.ForDisplay(),
-						),
-					))
-				}
+				warnDiags := warnOnFailedImplicitProvReference(provider, qualifs)
+				diags = diags.Append(warnDiags)
+
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Failed to query available provider packages",
@@ -1047,6 +1040,34 @@ version control system if they represent changes you intended to make.`))
 	}
 
 	return true, false, diags
+}
+
+// warnOnFailedImplicitProvReference returns a warn diagnostic when the downloader fails to fetch a provider that is implicitly referenced.
+// In other words, if the failed to download provider is having no required_providers entry, this function is trying to give to the user
+// more information on the source of the issue and gives also instructions on how to fix it.
+func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getproviders.ProvidersQualification) tfdiags.Diagnostic {
+	if _, ok := qualifs.Explicit[provider]; !ok {
+		var refFromHint string
+		if refs, ok := qualifs.Implicit[provider]; ok && len(refs) > 0 {
+			refFromHint = fmt.Sprintf("Implicitly referenced from %s.", refs[0].String())
+			if noOfTotalRes := len(refs) - 1; noOfTotalRes > 0 {
+				refFromHint += fmt.Sprintf(" And is referenced from %d more resource(s).", noOfTotalRes)
+			}
+		}
+		details := fmt.Sprintf(`The provider %s could not be found in any required_providers blocks. Ensure that the root or any used module is having the required_providers block properly configured. 
+Or if the definition is already there, ensure that the resources are having 'provider' configured properly.`,
+			provider.ForDisplay(),
+		)
+		if len(refFromHint) > 0 {
+			details += fmt.Sprintf("\n\n%s", refFromHint)
+		}
+		return tfdiags.Sourceless(
+			tfdiags.Warning,
+			"No explicit definition for the provider",
+			details,
+		)
+	}
+	return nil
 }
 
 // backendConfigOverrideBody interprets the raw values of -backend-config
