@@ -522,11 +522,11 @@ Initializing provider plugins...
 ╷
 │ Warning: No explicit definition for the provider
 │ 
-│ The provider hashicorp/nonexistingprov could not be found in any
-│ required_providers blocks. Ensure that the root or any used module is
-│ having the required_providers block properly configured. 
-│ Or if the definition is already there, ensure that the resources are having
-│ 'provider' configured properly.
+│ The provider hashicorp/nonexistingprov doesn't exist and is referenced by a
+│ resource implicitly without a 'required_providers' blocks. This typically
+│ happens when you are missing the 'required_providers' block or you are not
+│ referencing it correctly using the 'provider=' parameter in your resource
+│ or data source block.
 │ 
 │ Implicitly referenced from main.tf:2,1-39. And is referenced from 1 more
 │ resource(s).

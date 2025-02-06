@@ -1054,7 +1054,7 @@ func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getprov
 				refFromHint += fmt.Sprintf(" And is referenced from %d more resource(s).", noOfTotalRes)
 			}
 		}
-		details := fmt.Sprintf(`The provider %s doesn't exist and is referenced by a resource implicitly without a 'required_providers' blocks. This typically happens when you are missing the 'required_providers' block or you are not referencing it correctly using the `provider=` parameter in your resource or data source block.`,
+		details := fmt.Sprintf(`The provider %s doesn't exist and is referenced by a resource implicitly without a 'required_providers' blocks. This typically happens when you are missing the 'required_providers' block or you are not referencing it correctly using the 'provider=' parameter in your resource or data source block.`,
 			provider.ForDisplay(),
 		)
 		if len(refFromHint) > 0 {
