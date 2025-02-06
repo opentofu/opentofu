@@ -199,7 +199,7 @@ The optional `endpoints` argument contains the following options:
 ```hcl
 terraform {
   backend "s3" {
-    endpoints {
+    endpoints = {
       dynamodb = "http://localhost:4569"
       s3       = "http://localhost:4572"
     }
