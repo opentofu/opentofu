@@ -43,6 +43,9 @@ type Unconfigured interface {
 	MoveResourceState(MoveResourceStateRequest) MoveResourceStateResponse
 
 	// CallFunction requests that the given function is called and response returned.
+	// There is a bit of a quirk in OpenTofu-land.  We allow providers to supply
+	// additional functions via GetFunctions() after configuration.  Those functions
+	// will only be available via CallFunction after ConfigureProvider is called.
 	CallFunction(CallFunctionRequest) CallFunctionResponse
 
 	// Configure configures and initialized the provider.
