@@ -67,7 +67,7 @@ func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, r
 	if pq.Implicit == nil {
 		pq.Implicit = map[addrs.Provider][]hcl.Range{}
 	}
-	refs, _ := pq.Implicit[provider]
+	refs := pq.Implicit[provider]
 	refs = append(refs, ref)
 	pq.Implicit[provider] = refs
 }
