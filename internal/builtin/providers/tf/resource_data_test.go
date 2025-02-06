@@ -118,7 +118,7 @@ func TestManagedDataMovedState(t *testing.T) {
 	resp = moveDataStoreResourceState(req)
 
 	expectedState := cty.ObjectVal(map[string]cty.Value{
-		"triggers_replace": cty.MapVal(map[string]cty.Value{
+		"triggers_replace": cty.ObjectVal(map[string]cty.Value{
 			"examplekey": cty.StringVal("value"),
 		}),
 		"id":     cty.StringVal("not-quite-unique"),
