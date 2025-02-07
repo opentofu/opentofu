@@ -4,7 +4,7 @@
 
 This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
-| [Up](../20241206-oci-registries.md) | [Next »](10-provider-implementation-details.md) |
+| [« Previous](8-open-questions.md) | [Up](../20241206-oci-registries.md) | [Next »](10-provider-implementation-details.md) |
 
 ---
 
@@ -56,3 +56,9 @@ To continue that evolution, we will extend `initwd.NewModuleInstaller` to also t
 [`package main` directly instantiates `command.Meta`](https://github.com/opentofu/opentofu/blob/ffa43acfcdc4431f139967198faa2dd20a2752ea/cmd/tofu/commands.go#L89-L115) as its primary way of injecting dependencies into the CLI command layer, including the population of the `ProviderSource` field described above. We will therefore also pass the centrally-instantiated `getmodules.PackageFetcher` in the same way, completing the chain of dependency passing all the way from `package main` to the module installer.
 
 The support for OCI registries as a module installation source will involve the addition of a new implementation of `go-getter`'s `Getter` interface, which will include the preconfigured `ociclient.OCIClient` as one of its fields. For more information, refer to [Module implementation details](11-module-implementation-details.md).
+
+---
+
+| [« Previous](8-open-questions.md) | [Up](../20241206-oci-registries.md) | [Next »](10-provider-implementation-details.md) |
+
+---

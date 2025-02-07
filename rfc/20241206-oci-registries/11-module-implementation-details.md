@@ -14,3 +14,9 @@ This appendix discusses implementation details related to [installing module pac
 > This section is still under construction, subject to change based on feedback on the earlier chapters, and may not yet be up-to-date with the latest changes in the earlier chapters.
 
 > **TODO:** Write this!
+
+---
+
+| [« Previous](10-provider-implementation-details.md) | [Up](../20241206-oci-registries.md) |
+
+---

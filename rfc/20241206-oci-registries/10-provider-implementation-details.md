@@ -32,3 +32,9 @@ OpenTofu's existing provider registry protocol always uses `.zip` archives as pr
 We are not intending to support OCI artifact signing in our first implementation, since we are focusing initially only on the "OCI mirror" use-case. Without any signatures, we'll capture in the dependency lock file only the checksum of the specific artifact we downloaded, for consistency with the guarantees we make from installing from unsigned sources in today's OpenTofu. When we later add support for optionally signing the index manifest, we can begin using those signatures to justify including the `zh:` checksums from _all_ of the per-platform artifacts, announcing the ID of the signing key as part of the `tofu init` output just as we do for registry-distributed signatures today. It remains the user's responsibility to verify that the key ID is one they expected before committing the new checksums in the dependency lock file.
 
 As with OpenTofu's current provider registry protocol, an OCI provider artifact cannot provide us any trustworthy representation of the `h1:` checksum of a provider package, and so OpenTofu will calculate that locally based on the already-downloaded package(s), assuming that they also match one of the previously-discovered `zh:` checksums, as usual.
+
+---
+
+| [« Previous](9-auth-implementation-details.md) | [Up](../20241206-oci-registries.md) | [Next »](10-provider-implementation-details.md) |
+
+---
