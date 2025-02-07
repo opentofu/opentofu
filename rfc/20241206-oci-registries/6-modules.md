@@ -13,29 +13,40 @@ In contrast to [providers](5-providers.md), modules already support schemes as p
 
 ```hcl
 module "foo" {
-  source="oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY"
+  source = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY"
 }
 ```
 
-By default, this will load the last stable version according to semantic versioning. If you would like to use specific version tags, you can specify the version separately:
-
-```hcl
-module "foo" {
-  source  = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY"
-  version = "1.1.0"
-}
-```
+By default, this will inspect all of the tags whose name can be parsed as a semantic versioning-style version number, and select the one with the highest precedence according to [the semantic versioning specification](https://semver.org/). If there are multiple tags that all share the highest precedence, OpenTofu will prefer one without a build identifier segment if available, or will otherwise arbitrarily select the one whose build metadata would have the greatest precedence if treated as a prerelease identifier instead.
 
 > [!NOTE]
-> Module version numbers may contain the `+` sign, such as `1.1.0+something`. This is not a valid OCI reference. OpenTofu will automatically translate the `+` sign to `_` and vice versa when creating or looking for OCI tags.
+> Semantic versioning numbers may contain the `+` sign delimiting a build identifier, such as `1.1.0+something`. That character is not valid in an OCI reference, so OpenTofu will automatically translate the `_` symbol to `+` when attempting to parse a tag name as a version number.
 
-You can also reference a folder inside a module:
+If you would prefer to override the automatic selection, or to use a tag whose name does not conform to the semantic versioning syntax at all, you can specify a specific tag using the optional `tag` argument:
 
 ```hcl
 module "foo" {
-  source  = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY//folder1/folder2"
+  source = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY?tag=1.1.0"
 }
 ```
+
+Alternatively, you can specify a specific digest directly using the optional `digest` argument, which is mutually-exclusive with `tag`:
+
+```hcl
+module "foo" {
+  source = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY?digest=sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac"
+}
+```
+
+By default, OpenTofu expects to find a module in the root of the artifact, but you can optionally specify a subdirectory using [the usual subdirectory syntax](https://opentofu.org/docs/language/modules/sources/#modules-in-package-sub-directories):
+
+```hcl
+module "foo" {
+  source  = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY//dir1/dir2"
+}
+```
+
+To combine that with the explicit `tag` argument, place the query string after the subdirectory portion: `oci://example.com/repository//directory?tag=example`.
 
 ## Artifact layout
 
@@ -60,6 +71,18 @@ We also intend to provide a tool similar to how [providers work](5-providers.md)
 
 - `*.spdx.json` as `application/spdx+json` containing an SPDX SBOM file.
 - `*.intoto.jsonl` as `application/vnd.in-toto+json` containing an [in-toto attestation framework](https://github.com/in-toto/attestation)/[SLSA Provenance](https://slsa.dev/spec/v1.0/provenance) file.
+
+## OCI-based Modules through an OpenTofu Module Registry
+
+The existing [OpenTofu Module Registry Protocol](https://opentofu.org/docs/internals/module-registry-protocol/) works as a facade over arbitrary remote [module source addresses](https://opentofu.org/docs/language/modules/sources/), and so any OpenTofu version that supports OCI-based module installation will also support module registries that respond to [Download Source Code for a Specific Module Version](https://opentofu.org/docs/internals/module-registry-protocol/#download-source-code-for-a-specific-module-version) with a location property using the `oci://` prefix as described above.
+
+For example, a module registry would be allowed to respond to such a request by returning an address like the following:
+
+```json
+{"location":"oci://example.com/repository?digest=sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac"}
+```
+
+Such a design would use the module registry protocol to hide the implementation detail that the packages are actually coming from an OCI registry, but at the expense of needing to run an additional OpenTofu-specific module registry service. We do not currently anticipate this being a common need, but it is a natural consequence of the existing module registry protocol design.
 
 ---
 
