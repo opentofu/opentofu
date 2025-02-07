@@ -41,3 +41,13 @@ The following additional sections discuss potential implementation details of th
 9. [Authentication-related implementation details](20241206-oci-registries/9-auth-implementation-details.md)
 10. [Provider installation implementation details](20241206-oci-registries/10-provider-implementation-details.md)
 11. [Module installation implementation details](20241206-oci-registries/11-module-implementation-details.md)
+
+## Potential alternatives
+
+OCI resolves a very real pain-point for enterprise users wanting to run a private registry. A potential alternative would be, of course, making the use of a private registry easier, or creating a tool that can maintain a private registry purely based on static files. On that note, we could also implement running the OpenTofu Registry on the same dataset privately, which has been [documented in this issue](https://github.com/opentofu/registry/issues/1518).
+
+These solutions would also work towards the goal of making the ecosystem fully decentralized.
+
+That being said, neither of these solutions are as convenient as OCI since the infrastructure for this protocol is ubiquitous and cheap. 
+
+## Future plans
