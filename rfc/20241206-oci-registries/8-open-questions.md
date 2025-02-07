@@ -4,7 +4,7 @@
 
 This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
-| [« Previous](7-authentication.md) | [Up](../20241206-oci-registries.md) |
+| [« Previous](7-authentication.md) | [Up](../20241206-oci-registries.md) | [Next »](9-auth-implementation-details.md) |
 
 ---
 
@@ -51,6 +51,6 @@ However, Punycode in particular is not generally human-readable and so translati
 
 ---
 
-| [« Previous](7-authentication.md) | [Up](../20241206-oci-registries.md) |
+| [« Previous](7-authentication.md) | [Up](../20241206-oci-registries.md) | [Next »](9-auth-implementation-details.md) |
 
 ---
