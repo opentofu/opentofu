@@ -503,8 +503,8 @@ func TestInitProviderNotFound(t *testing.T) {
 		}
 	})
 
-	t.Run("implicit provider not found", func(t *testing.T) {
-		implicitFixturePath := filepath.Join("testdata", "provider-implicit-ref-not-found")
+	t.Run("implicit provider resource and data not found", func(t *testing.T) {
+		implicitFixturePath := filepath.Join("testdata", "provider-implicit-ref-not-found/implicit-by-resource-and-data")
 		tf := e2e.NewBinary(t, tofuBin, implicitFixturePath)
 		stdout, _, err := tf.Run("init")
 		if err == nil {
@@ -513,12 +513,10 @@ func TestInitProviderNotFound(t *testing.T) {
 
 		// Testing that the warn wrote to the user is containing the resource address from where the provider
 		// was registered to be downloaded
-		expectedOutput := `Initializing the backend...
-Initializing modules...
-- testmod in mod
-
-Initializing provider plugins...
-- Finding latest version of hashicorp/nonexistingprov...
+		expectedContentInOutput := []string{
+			`"nonexistingProv2_data" "test2"`,
+			`resource "nonexistingProv_res" "test1"`,
+			`
 ╷
 │ Warning: Automatically-inferred provider dependency
 │ 	on main.tf line 2:
@@ -544,7 +542,28 @@ Initializing provider plugins...
 │ - Use a "provider" argument within this resource block to override
 │ OpenTofu's automatic selection of the local name "nonexistingprov".
 │ 
-╵`
+╵`}
+		for _, expectedOutput := range expectedContentInOutput {
+			if cleanOut := strings.TrimSpace(stripAnsi(stdout)); !strings.Contains(cleanOut, expectedOutput) {
+				t.Errorf("wrong output.\n\toutput:\n%s\n\n\tdoes not contain:\n%s", cleanOut, expectedOutput)
+			}
+		}
+	})
+
+	t.Run("resource pointing to a not configured provider does not warn on implicit reference", func(t *testing.T) {
+		implicitFixturePath := filepath.Join("testdata", "provider-implicit-ref-not-found/resource-with-provider-attribute")
+		tf := e2e.NewBinary(t, tofuBin, implicitFixturePath)
+		stdout, _, err := tf.Run("init")
+		if err == nil {
+			t.Fatal("expected error, got success")
+		}
+
+		// Ensure that the output does not contain the warning since the resource is pointing already to a specific
+		// provider (even though it is misspelled)
+		expectedOutput := `Initializing the backend...
+
+Initializing provider plugins...
+- Finding latest version of hashicorp/asw...`
 		if cleanOut := strings.TrimSpace(stripAnsi(stdout)); cleanOut != expectedOutput {
 			t.Errorf("wrong output:\n%s", cmp.Diff(cleanOut, expectedOutput))
 		}

@@ -424,11 +424,19 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 		if _, exists := reqs[fqn]; exists {
 			// If this is called for a child module, and the provider was added from another implicit reference and not
 			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, rc.Addr().InModule(c.Path), tfdiags.SourceRangeFromHCL(rc.DeclRange))
+			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+				CfgRes:            rc.Addr().InModule(c.Path),
+				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+				ProviderAttribute: rc.ProviderConfigRef != nil,
+			})
 			// Explicit dependency already present
 			continue
 		}
-		qualifs.AddImplicitProvider(fqn, rc.Addr().InModule(c.Path), tfdiags.SourceRangeFromHCL(rc.DeclRange))
+		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+			CfgRes:            rc.Addr().InModule(c.Path),
+			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+			ProviderAttribute: rc.ProviderConfigRef != nil,
+		})
 		reqs[fqn] = nil
 	}
 	for _, rc := range c.Module.DataResources {
@@ -436,12 +444,20 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 		if _, exists := reqs[fqn]; exists {
 			// If this is called for a child module, and the provider was added from another implicit reference and not
 			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, rc.Addr().InModule(c.Path), tfdiags.SourceRangeFromHCL(rc.DeclRange))
+			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+				CfgRes:            rc.Addr().InModule(c.Path),
+				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+				ProviderAttribute: rc.ProviderConfigRef != nil,
+			})
 
 			// Explicit dependency already present
 			continue
 		}
-		qualifs.AddImplicitProvider(rc.Provider, rc.Addr().InModule(c.Path), tfdiags.SourceRangeFromHCL(rc.DeclRange))
+		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+			CfgRes:            rc.Addr().InModule(c.Path),
+			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+			ProviderAttribute: rc.ProviderConfigRef != nil,
+		})
 		reqs[fqn] = nil
 	}
 
@@ -458,8 +474,10 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 		fqn := i.Provider
 		if _, exists := reqs[fqn]; !exists {
 			reqs[fqn] = nil
-			//i.StaticTo.String()
-			qualifs.AddImplicitProvider(i.Provider, i.StaticTo, tfdiags.SourceRangeFromHCL(i.DeclRange))
+			qualifs.AddImplicitProvider(i.Provider, getproviders.ResourceRef{
+				CfgRes: i.StaticTo,
+				Ref:    tfdiags.SourceRangeFromHCL(i.DeclRange),
+			})
 		}
 
 		// TODO: This should probably be moved to provider_validation.go so that

@@ -1058,6 +1058,9 @@ func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getprov
 	// NOTE: if needed, in the future we can use the rest of the "refs" to print all the culprits or at least to give
 	// a hint on how many resources are causing this
 	ref := refs[0]
+	if ref.ProviderAttribute {
+		return nil
+	}
 	resourceType := "resource"
 	if ref.CfgRes.Resource.Mode == addrs.DataResourceMode {
 		resourceType = "data"

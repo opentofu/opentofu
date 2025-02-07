@@ -62,12 +62,13 @@ type ProvidersQualification struct {
 }
 
 type ResourceRef struct {
-	CfgRes addrs.ConfigResource
-	Ref    tfdiags.SourceRange
+	CfgRes            addrs.ConfigResource
+	Ref               tfdiags.SourceRange
+	ProviderAttribute bool
 }
 
 // AddImplicitProvider saves an addrs.Provider with the place in the configuration where this is generated from.
-func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, cfgRes addrs.ConfigResource, ref tfdiags.SourceRange) {
+func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, ref ResourceRef) {
 	if pq.Implicit == nil {
 		pq.Implicit = map[addrs.Provider][]ResourceRef{}
 	}
@@ -79,10 +80,7 @@ func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, c
 		return
 	}
 	refs := pq.Implicit[provider]
-	refs = append(refs, ResourceRef{
-		CfgRes: cfgRes,
-		Ref:    ref,
-	})
+	refs = append(refs, ref)
 	pq.Implicit[provider] = refs
 }
 

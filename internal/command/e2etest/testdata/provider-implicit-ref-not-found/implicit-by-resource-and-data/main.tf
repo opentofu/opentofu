@@ -2,6 +2,9 @@
 resource "nonexistingProv_res" "test1" {
 }
 
+data "nonexistingProv2_data" "test2" {
+}
+
 module "testmod" {
   source = "./mod"
 }
