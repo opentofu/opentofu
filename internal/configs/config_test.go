@@ -18,6 +18,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
 	version "github.com/hashicorp/go-version"
@@ -171,21 +172,36 @@ func TestConfigProviderRequirements(t *testing.T) {
 		grandchildProvider:     nil,
 	}
 	wantQualifs := &getproviders.ProvidersQualification{
-		Implicit: map[addrs.Provider][]hcl.Range{
+		Implicit: map[addrs.Provider][]getproviders.ResourceRef{
 			grandchildProvider: {
-				{Filename: "testdata/provider-reqs/child/grandchild/provider-reqs-grandchild.tf", Start: hcl.Pos{Line: 3, Column: 1, Byte: 136}, End: hcl.Pos{Line: 3, Column: 32, Byte: 167}},
+				{
+					CfgRes: addrs.ConfigResource{Module: []string{"kinder", "nested"}, Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "grandchild_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/child/grandchild/provider-reqs-grandchild.tf", Start: tfdiags.SourcePos{Line: 3, Column: 1, Byte: 136}, End: tfdiags.SourcePos{Line: 3, Column: 32, Byte: 167}},
+				},
 			},
 			impliedProvider: {
-				{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: hcl.Pos{Line: 16, Column: 1, Byte: 317}, End: hcl.Pos{Line: 16, Column: 29, Byte: 345}},
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "implied_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 16, Column: 1, Byte: 317}, End: tfdiags.SourcePos{Line: 16, Column: 29, Byte: 345}},
+				},
 			},
 			importexplicitProvider: {
-				{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: hcl.Pos{Line: 42, Column: 1, Byte: 939}, End: hcl.Pos{Line: 42, Column: 7, Byte: 945}},
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "importimplied", Name: "targetB"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 42, Column: 1, Byte: 939}, End: tfdiags.SourcePos{Line: 42, Column: 7, Byte: 945}},
+				},
 			},
 			importimpliedProvider: {
-				{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: hcl.Pos{Line: 37, Column: 1, Byte: 886}, End: hcl.Pos{Line: 37, Column: 7, Byte: 892}},
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "importimplied", Name: "targetA"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 37, Column: 1, Byte: 886}, End: tfdiags.SourcePos{Line: 37, Column: 7, Byte: 892}},
+				},
 			},
 			terraformProvider: {
-				{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: hcl.Pos{Line: 27, Column: 1, Byte: 628}, End: hcl.Pos{Line: 27, Column: 36, Byte: 663}},
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "terraform_remote_state", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 27, Column: 1, Byte: 628}, End: tfdiags.SourcePos{Line: 27, Column: 36, Byte: 663}},
+				},
 			},
 		},
 		Explicit: map[addrs.Provider]struct{}{
@@ -237,12 +253,18 @@ func TestConfigProviderRequirementsInclTests(t *testing.T) {
 	}
 
 	wantQualifs := &getproviders.ProvidersQualification{
-		Implicit: map[addrs.Provider][]hcl.Range{
+		Implicit: map[addrs.Provider][]getproviders.ResourceRef{
 			impliedProvider: {
-				{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: hcl.Pos{Line: 12, Column: 1, Byte: 247}, End: hcl.Pos{Line: 12, Column: 29, Byte: 275}},
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "implied_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 12, Column: 1, Byte: 247}, End: tfdiags.SourcePos{Line: 12, Column: 29, Byte: 275}},
+				},
 			},
 			terraformProvider: {
-				{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: hcl.Pos{Line: 19, Column: 1, Byte: 516}, End: hcl.Pos{Line: 19, Column: 36, Byte: 551}},
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "terraform_remote_state", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 19, Column: 1, Byte: 516}, End: tfdiags.SourcePos{Line: 19, Column: 36, Byte: 551}},
+				},
 			},
 		},
 		Explicit: map[addrs.Provider]struct{}{

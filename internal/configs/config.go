@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // A Config is a node in the tree of modules within a configuration.
@@ -423,11 +424,11 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 		if _, exists := reqs[fqn]; exists {
 			// If this is called for a child module, and the provider was added from another implicit reference and not
 			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, rc.DeclRange)
+			qualifs.AddImplicitProvider(fqn, rc.Addr().InModule(c.Path), tfdiags.SourceRangeFromHCL(rc.DeclRange))
 			// Explicit dependency already present
 			continue
 		}
-		qualifs.AddImplicitProvider(fqn, rc.DeclRange)
+		qualifs.AddImplicitProvider(fqn, rc.Addr().InModule(c.Path), tfdiags.SourceRangeFromHCL(rc.DeclRange))
 		reqs[fqn] = nil
 	}
 	for _, rc := range c.Module.DataResources {
@@ -435,12 +436,12 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 		if _, exists := reqs[fqn]; exists {
 			// If this is called for a child module, and the provider was added from another implicit reference and not
 			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, rc.DeclRange)
+			qualifs.AddImplicitProvider(fqn, rc.Addr().InModule(c.Path), tfdiags.SourceRangeFromHCL(rc.DeclRange))
 
 			// Explicit dependency already present
 			continue
 		}
-		qualifs.AddImplicitProvider(rc.Provider, rc.DeclRange)
+		qualifs.AddImplicitProvider(rc.Provider, rc.Addr().InModule(c.Path), tfdiags.SourceRangeFromHCL(rc.DeclRange))
 		reqs[fqn] = nil
 	}
 
@@ -457,7 +458,8 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 		fqn := i.Provider
 		if _, exists := reqs[fqn]; !exists {
 			reqs[fqn] = nil
-			qualifs.AddImplicitProvider(i.Provider, i.DeclRange)
+			//i.StaticTo.String()
+			qualifs.AddImplicitProvider(i.Provider, i.StaticTo, tfdiags.SourceRangeFromHCL(i.DeclRange))
 		}
 
 		// TODO: This should probably be moved to provider_validation.go so that

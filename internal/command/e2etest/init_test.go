@@ -520,16 +520,30 @@ Initializing modules...
 Initializing provider plugins...
 - Finding latest version of hashicorp/nonexistingprov...
 ╷
-│ Warning: No explicit definition for the provider
+│ Warning: Automatically-inferred provider dependency
+│ 	on main.tf line 2:
+│ 		2: resource "nonexistingProv_res" "test1"
 │ 
-│ The provider hashicorp/nonexistingprov doesn't exist and is referenced by a
-│ resource implicitly without a 'required_providers' blocks. This typically
-│ happens when you are missing the 'required_providers' block or you are not
-│ referencing it correctly using the 'provider=' parameter in your resource
-│ or data source block.
+│ Due to the prefix of the resource type name OpenTofu guessed that
+│ you intended to associate nonexistingProv_res.test1 with a provider whose
+│ local name is "nonexistingprov", but that name is not declared in this
+│ module's
+│ required_providers block. OpenTofu therefore guessed that you
+│ intended to use hashicorp/nonexistingprov, but that provider does not
+│ exist.
 │ 
-│ Implicitly referenced from main.tf:2,1-39. And is referenced from 1 more
-│ resource(s).
+│ Make at least one of the following changes to tell OpenTofu which
+│ provider to use:
+│ 
+│ - Add a declaration for local name "nonexistingprov" to this module's
+│ required_providers block, specifying the full source address
+│ for the provider you intended to use.
+│ - Verify that "nonexistingProv_res" is the correct resource type name to
+│ use.
+│ Did you omit a prefix which would imply the correct provider?
+│ - Use a "provider" argument within this resource block to override
+│ OpenTofu's automatic selection of the local name "nonexistingprov".
+│ 
 ╵`
 		if cleanOut := strings.TrimSpace(stripAnsi(stdout)); cleanOut != expectedOutput {
 			t.Errorf("wrong output:\n%s", cmp.Diff(cleanOut, expectedOutput))

@@ -13,9 +13,8 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/apparentlymart/go-versions/versions/constraints"
-	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Version represents a particular single version of a provider.
@@ -58,14 +57,19 @@ type Requirements map[addrs.Provider]VersionConstraints
 // from the default namespace (hashicorp), failing to download it when it does not exist in the default namespace.
 // Therefore, we want to let the user know what resources are generating this situation.
 type ProvidersQualification struct {
-	Implicit map[addrs.Provider][]hcl.Range
+	Implicit map[addrs.Provider][]ResourceRef
 	Explicit map[addrs.Provider]struct{}
 }
 
+type ResourceRef struct {
+	CfgRes addrs.ConfigResource
+	Ref    tfdiags.SourceRange
+}
+
 // AddImplicitProvider saves an addrs.Provider with the place in the configuration where this is generated from.
-func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, ref hcl.Range) {
+func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, cfgRes addrs.ConfigResource, ref tfdiags.SourceRange) {
 	if pq.Implicit == nil {
-		pq.Implicit = map[addrs.Provider][]hcl.Range{}
+		pq.Implicit = map[addrs.Provider][]ResourceRef{}
 	}
 	// This is avoiding adding the implicit reference of the provider if this is already explicitly configured.
 	// Done this way, because when collecting these qualifications, if there are at least 2 resources (A from root module and B from an imported module),
@@ -75,7 +79,10 @@ func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, r
 		return
 	}
 	refs := pq.Implicit[provider]
-	refs = append(refs, ref)
+	refs = append(refs, ResourceRef{
+		CfgRes: cfgRes,
+		Ref:    ref,
+	})
 	pq.Implicit[provider] = refs
 }
 

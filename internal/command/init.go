@@ -1049,22 +1049,34 @@ func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getprov
 	if _, ok := qualifs.Explicit[provider]; ok {
 		return nil
 	}
-
-	var refFromHint string
-	if refs, ok := qualifs.Implicit[provider]; ok && len(refs) > 0 {
-		refFromHint = fmt.Sprintf("\n\nImplicitly referenced from %s.", refs[0].String())
-		if noOfTotalRes := len(refs) - 1; noOfTotalRes > 0 {
-			refFromHint += fmt.Sprintf(" And is referenced from %d more resource(s).", noOfTotalRes)
-		}
+	refs, ok := qualifs.Implicit[provider]
+	if !ok || len(refs) == 0 {
+		// If there is no implicit reference for that provider, do not write the warn, let just the error to be returned.
+		return nil
 	}
+
+	// NOTE: if needed, in the future we can use the rest of the "refs" to print all the culprits or at least to give
+	// a hint on how many resources are causing this
+	ref := refs[0]
+	resourceType := "resource"
+	if ref.CfgRes.Resource.Mode == addrs.DataResourceMode {
+		resourceType = "data"
+	}
+	summary := fmt.Sprintf(implicitProviderReferenceHead,
+		ref.Ref.Filename, ref.Ref.Start.Line, ref.Ref.Start.Line, resourceType, ref.CfgRes.Resource.Type, ref.CfgRes.Resource.Name)
+	details := fmt.Sprintf(
+		implicitProviderReferenceBody,
+		ref.CfgRes.String(),
+		provider.Type,
+		provider.ForDisplay(),
+		provider.Type,
+		ref.CfgRes.Resource.Type,
+		provider.Type,
+	)
 	return tfdiags.Sourceless(
 		tfdiags.Warning,
-		"No explicit definition for the provider",
-		fmt.Sprintf(
-			`The provider %s doesn't exist and is referenced by a resource implicitly without a 'required_providers' blocks. This typically happens when you are missing the 'required_providers' block or you are not referencing it correctly using the 'provider=' parameter in your resource or data source block.%s`,
-			provider.ForDisplay(),
-			refFromHint,
-		),
+		summary,
+		details,
 	)
 }
 
@@ -1408,3 +1420,25 @@ The current .terraform.lock.hcl file only includes checksums for %s, so OpenTofu
 To calculate additional checksums for another platform, run:
   tofu providers lock -platform=linux_amd64
 (where linux_amd64 is the platform to generate)`
+
+const implicitProviderReferenceHead = `Automatically-inferred provider dependency
+	on %s line %d:
+		%d: %s "%s" "%s"`
+
+const implicitProviderReferenceBody = `Due to the prefix of the resource type name OpenTofu guessed that
+you intended to associate %s with a provider whose
+local name is "%s", but that name is not declared in this module's
+required_providers block. OpenTofu therefore guessed that you
+intended to use %s, but that provider does not exist.
+
+Make at least one of the following changes to tell OpenTofu which
+provider to use:
+
+- Add a declaration for local name "%s" to this module's
+required_providers block, specifying the full source address
+for the provider you intended to use.
+- Verify that "%s" is the correct resource type name to use.
+Did you omit a prefix which would imply the correct provider?
+- Use a "provider" argument within this resource block to override
+OpenTofu's automatic selection of the local name "%s".
+`
