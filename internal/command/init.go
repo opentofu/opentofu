@@ -1046,27 +1046,26 @@ version control system if they represent changes you intended to make.`))
 // In other words, if the failed to download provider is having no required_providers entry, this function is trying to give to the user
 // more information on the source of the issue and gives also instructions on how to fix it.
 func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getproviders.ProvidersQualification) tfdiags.Diagnostic {
-	if _, ok := qualifs.Explicit[provider]; !ok {
-		var refFromHint string
-		if refs, ok := qualifs.Implicit[provider]; ok && len(refs) > 0 {
-			refFromHint = fmt.Sprintf("Implicitly referenced from %s.", refs[0].String())
-			if noOfTotalRes := len(refs) - 1; noOfTotalRes > 0 {
-				refFromHint += fmt.Sprintf(" And is referenced from %d more resource(s).", noOfTotalRes)
-			}
-		}
-		details := fmt.Sprintf(`The provider %s doesn't exist and is referenced by a resource implicitly without a 'required_providers' blocks. This typically happens when you are missing the 'required_providers' block or you are not referencing it correctly using the 'provider=' parameter in your resource or data source block.`,
-			provider.ForDisplay(),
-		)
-		if len(refFromHint) > 0 {
-			details += fmt.Sprintf("\n\n%s", refFromHint)
-		}
-		return tfdiags.Sourceless(
-			tfdiags.Warning,
-			"No explicit definition for the provider",
-			details,
-		)
+	if _, ok := qualifs.Explicit[provider]; ok {
+		return nil
 	}
-	return nil
+
+	var refFromHint string
+	if refs, ok := qualifs.Implicit[provider]; ok && len(refs) > 0 {
+		refFromHint = fmt.Sprintf("\n\nImplicitly referenced from %s.", refs[0].String())
+		if noOfTotalRes := len(refs) - 1; noOfTotalRes > 0 {
+			refFromHint += fmt.Sprintf(" And is referenced from %d more resource(s).", noOfTotalRes)
+		}
+	}
+	return tfdiags.Sourceless(
+		tfdiags.Warning,
+		"No explicit definition for the provider",
+		fmt.Sprintf(
+			`The provider %s doesn't exist and is referenced by a resource implicitly without a 'required_providers' blocks. This typically happens when you are missing the 'required_providers' block or you are not referencing it correctly using the 'provider=' parameter in your resource or data source block.%s`,
+			provider.ForDisplay(),
+			refFromHint,
+		),
+	)
 }
 
 // backendConfigOverrideBody interprets the raw values of -backend-config
