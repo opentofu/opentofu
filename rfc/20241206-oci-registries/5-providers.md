@@ -75,17 +75,7 @@ When necessary, you can attach artifacts containing signatures or attestations u
 > [!WARNING]
 > As of this RFC, OpenTofu will not use these artifacts directly, but may do so in a later version based on the MIME type. This section describes the files we intend to use for mirroring below, but will not otherwise process in this release.
 
-Manifests attached to a single platform manifest:
-
-- `terraform-provider-YOURNAME_VERSION_PLATFORM_ARCH.zip.gpg` as `application/pgp-signature` containing the GPG Signature of the ZIP file.
-- `terraform-provider-YOURNAME_VERSION_PLATFORM_ARCH.spdx.json` as `application/spdx+json` containing an SPDX SBOM file specific to this provider ZIP.
-- `terraform-provider-YOURNAME_VERSION_PLATFORM_ARCH.intoto.jsonl` as `application/vnd.in-toto+json` containing an [in-toto attestation framework](https://github.com/in-toto/attestation)/[SLSA Provenance](https://slsa.dev/spec/v1.0/provenance) file for the OS/architecture ZIP.
-
-For the top level (index) manifest:
-
-- `terraform-provider-YOURNAME.spdx.json` as `application/spdx+json` containing an SPDX SBOM file covering all OS/architecture combinations.
-- `terraform-provider-YOURNAME.intoto.jsonl` as `application/vnd.in-toto+json` containing an [in-toto attestation framework](https://github.com/in-toto/attestation)/[SLSA Provenance](https://slsa.dev/spec/v1.0/provenance) file covering all OS/architecture combinations.
-- `terraform-provider-YOURNAME_SHA256SUMS` as `text/plain`, containing the SHA256 checksums for the individual platform ZIP files. Additionally, `terraform-provider-YOURNAME_SHA256SUMS.gpg` may be attached to the current file as `application/pgp-signature`.
+Here we follow the naming in the [SBOM RFC](https://github.com/opentofu/opentofu/pull/2494) to determine which files are platform-dependent and which ones belong to the top-level manifest.
 
 > [!WARNING]
 > Provider artifacts in OCI *must* have multi-platform (index) manifests. OpenTofu will refuse to download and use non-multi-platform artifacts as provider manifests. In contrast, [modules](6-modules.md) *must* have non-multi-platform manifests.
@@ -99,7 +89,7 @@ Currently, there is no third-party tool capable of pushing an OCI artifact in th
 
 In both cases we expect to find ZIP files that are [correctly named](https://search.opentofu.org/docs/providers/publishing#manually-for-the-adventurous) for providers, which will be published with individual multi-platform manifests. Additionally, the tool will process and upload any files matching file names described above.
 
-The tool will also have a way to hook in external tools (such as [Syft](https://github.com/anchore/syft)) to generate SBOM files at the time of publication or mirroring.
+The tool will also have a way to hook in external tools (such as [Syft](https://github.com/anchore/syft)) to generate SBOM files at the time of publication or mirroring. The naming of the generated SBOM artifacts must match the naming in the [SBOM RFC](https://github.com/opentofu/opentofu/pull/2494).
 
 ---
 

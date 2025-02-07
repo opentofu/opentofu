@@ -17,7 +17,7 @@ module "foo" {
 }
 ```
 
-By default, this will inspect all of the tags whose name can be parsed as a semantic versioning-style version number, and select the one with the highest precedence according to [the semantic versioning specification](https://semver.org/). If there are multiple tags that all share the highest precedence, OpenTofu will prefer one without a build identifier segment if available, or will otherwise arbitrarily select the one whose build metadata would have the greatest precedence if treated as a prerelease identifier instead.
+By default, this will inspect all the tags whose name can be parsed as a semantic versioning-style version number, and select the one with the highest precedence according to [the semantic versioning specification](https://semver.org/). If there are multiple tags that all share the highest precedence, OpenTofu will prefer one without a build identifier segment if available, or will otherwise arbitrarily select the one whose build metadata would have the greatest precedence if treated as a prerelease identifier instead.
 
 > [!NOTE]
 > Semantic versioning numbers may contain the `+` sign delimiting a build identifier, such as `1.1.0+something`. That character is not valid in an OCI reference, so OpenTofu will automatically translate the `_` symbol to `+` when attempting to parse a tag name as a version number.
@@ -30,7 +30,7 @@ module "foo" {
 }
 ```
 
-Alternatively, you can specify a specific digest directly using the optional `digest` argument, which is mutually-exclusive with `tag`:
+Alternatively, you can specify a specific digest directly using the optional `reference` argument, which is mutually-exclusive with `tag`:
 
 ```hcl
 module "foo" {
@@ -70,7 +70,6 @@ oras push \
 We also intend to provide a tool similar to how [providers work](5-providers.md) that will allow for publishing and mirroring modules. Similar to providers, the mirroring tool will attach detected SBOM and attestation artifacts to the modules in OCI. Specifically, the mirroring tool will detect:
 
 - `*.spdx.json` as `application/spdx+json` containing an SPDX SBOM file.
-- `*.intoto.jsonl` as `application/vnd.in-toto+json` containing an [in-toto attestation framework](https://github.com/in-toto/attestation)/[SLSA Provenance](https://slsa.dev/spec/v1.0/provenance) file.
 
 ## OCI-based Modules through an OpenTofu Module Registry
 
@@ -83,6 +82,9 @@ For example, a module registry would be allowed to respond to such a request by 
 ```
 
 Such a design would use the module registry protocol to hide the implementation detail that the packages are actually coming from an OCI registry, but at the expense of needing to run an additional OpenTofu-specific module registry service. We do not currently anticipate this being a common need, but it is a natural consequence of the existing module registry protocol design.
+
+> [!WARNING]
+> Classic OpenTofu Registry implementations should consider that references to OCI addresses will only work with OpenTofu version 1.10 and up. Older versions will be unable to access modules referenced in such a way.
 
 ---
 
