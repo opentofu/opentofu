@@ -423,9 +423,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 		if _, exists := reqs[fqn]; exists {
 			// If this is called for a child module, and the provider was added from another implicit reference and not
 			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			if _, ok := qualifs.Explicit[fqn]; !ok {
-				qualifs.AddImplicitProvider(fqn, rc.DeclRange)
-			}
+			qualifs.AddImplicitProvider(fqn, rc.DeclRange)
 			// Explicit dependency already present
 			continue
 		}
@@ -437,9 +435,8 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 		if _, exists := reqs[fqn]; exists {
 			// If this is called for a child module, and the provider was added from another implicit reference and not
 			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			if _, ok := qualifs.Explicit[fqn]; !ok {
-				qualifs.AddImplicitProvider(fqn, rc.DeclRange)
-			}
+			qualifs.AddImplicitProvider(fqn, rc.DeclRange)
+
 			// Explicit dependency already present
 			continue
 		}

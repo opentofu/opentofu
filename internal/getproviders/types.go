@@ -67,6 +67,13 @@ func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, r
 	if pq.Implicit == nil {
 		pq.Implicit = map[addrs.Provider][]hcl.Range{}
 	}
+	// This is avoiding adding the implicit reference of the provider if this is already explicitly configured.
+	// Done this way, because when collecting these qualifications, if there are at least 2 resources (A from root module and B from an imported module),
+	// root module could have no explicit definition but the module of B could have an explicit one. But in case none of the modules is having
+	// an explicit definition, we want to gather all the resources that are implicitly referencing a provider.
+	if _, ok := pq.Explicit[provider]; ok {
+		return
+	}
 	refs := pq.Implicit[provider]
 	refs = append(refs, ref)
 	pq.Implicit[provider] = refs

@@ -224,7 +224,7 @@ func TestConfigProviderRequirementsInclTests(t *testing.T) {
 	terraformProvider := addrs.NewBuiltInProvider("terraform")
 	configuredProvider := addrs.NewDefaultProvider("configured")
 
-	got, qualifs, diags := cfg.ProviderRequirements() // TODO: Question: should this handle also the test providers?
+	got, qualifs, diags := cfg.ProviderRequirements()
 	assertNoDiagnostics(t, diags)
 	want := getproviders.Requirements{
 		// the nullProvider constraints from the two modules are merged
