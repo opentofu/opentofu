@@ -56,7 +56,6 @@ To combine that with the explicit `ref` argument, place the query string after t
 Publishing modules in OpenTofu will be performed as a single, non-multi-platform ORAS-style artifact with the `artifactType` attribute as `application/vnd.opentofu.module`. OpenTofu will refuse to use multi-platform artifacts. Specifically:
 
 1. The module must be packaged into a single ZIP file and published as a blob in OCI.
-1. The module must be packaged into a single ZIP file and published as a blob in OCI.
 2. The main manifest is an image manifest (not an index manifest) and declares the `artifactType` of `application/vnd.opentofu.module` on the main manifest. The layer must have the `artifactType` of `archive/zip`.
 3. Tag names must follow existing versioning rules for modules in the OpenTofu registry. OpenTofu will ignore any incorrectly formatted tags, including `latest`.
 
