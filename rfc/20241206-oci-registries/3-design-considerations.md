@@ -88,8 +88,6 @@ One of the main goals of supporting OCI is to ease the maintenance burden, not a
 
 Since the path forward on signing is currently not clear, we will defer signing to a later release. This is in line with the lack of support for signing in the [Provider Network Mirror Protocol](https://opentofu.org/docs/internals/provider-network-mirror-protocol/).
 
-## Authentication
-
 ---
 
 | [« Previous](2-survey-results.md) | [Up](../20241206-oci-registries.md) | [Next »](4-registry-changes.md) |
