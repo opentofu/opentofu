@@ -1,12 +1,12 @@
+# Authentication configuration
+
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
+This document is part of the [OCI registries RFC](../20241206-oci-registries.md).  Please leave your comments on [this pull request](https://github.com/opentofu/opentofu/pull/2163) as a review.
 
 | [« Previous](6-modules.md) | [Up](../20241206-oci-registries.md) | [Next »](8-open-questions.md) |
 
 ---
-
-# Authentication configuration
 
 OpenTofu today supports defining a [`credentials` block in your .tofurc](https://opentofu.org/docs/cli/config/config-file/#credentials). This block allows you to define access tokens for services related to a hostname. However, critically, this block does not account for the need of usernames and passwords, which is needed for OCI.
 

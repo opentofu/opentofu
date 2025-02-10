@@ -2,7 +2,7 @@
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
+This document is part of the [OCI registries RFC](../20241206-oci-registries.md). Please leave your comments on [this pull request](https://github.com/opentofu/opentofu/pull/2163) as a review.
 
 | [« Previous](7-authentication.md) | [Up](../20241206-oci-registries.md) | [Next »](9-auth-implementation-details.md) |
 
