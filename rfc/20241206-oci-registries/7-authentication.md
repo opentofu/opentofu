@@ -34,6 +34,8 @@ oci {
     # Use the container engine configuration present on the current device.
     # Defaults to: "auto"
     # Possible values: "auto", "docker", "off
+    # Note that currently "auto" and "docker" are equivalent, but this behavior
+    # may later change.
     use_container_engine_authentication = "auto"
 
     # Specify which configuration files to look for.
