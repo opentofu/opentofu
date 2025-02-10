@@ -56,6 +56,7 @@ To combine that with the explicit `ref` argument, place the query string after t
 Publishing modules in OpenTofu will be performed as a single, non-multi-platform ORAS-style artifact with the `artifactType` attribute as `application/vnd.opentofu.module`. OpenTofu will refuse to use multi-platform artifacts. Specifically:
 
 1. The module must be packaged into a single ZIP file and published as a blob in OCI.
+1. The module must be packaged into a single ZIP file and published as a blob in OCI.
 2. The main manifest is an image manifest (not an index manifest) and declares the `artifactType` of `application/vnd.opentofu.module` on the main manifest. The layer must have the `artifactType` of `archive/zip`.
 3. Tag names must follow existing versioning rules for modules in the OpenTofu registry. OpenTofu will ignore any incorrectly formatted tags, including `latest`.
 
@@ -81,7 +82,7 @@ The existing [OpenTofu Module Registry Protocol](https://opentofu.org/docs/inter
 For example, a module registry would be allowed to respond to such a request by returning an address like the following:
 
 ```json
-{"location":"oci://example.com/repository?digest=sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac"}
+{"location":"oci://example.com/repository?ref=sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac"}
 ```
 
 Such a design would use the module registry protocol to hide the implementation detail that the packages are actually coming from an OCI registry, but at the expense of needing to run an additional OpenTofu-specific module registry service. We do not currently anticipate this being a common need, but it is a natural consequence of the existing module registry protocol design.
