@@ -2,6 +2,9 @@
 
 Issue: https://github.com/opentofu/opentofu/issues/308
 
+> [!NOTE]
+> Please leave your comments on [this pull request](https://github.com/opentofu/opentofu/pull/2163) as a review.
+
 ## Background
 
 OCI registries (also historically known as Docker registries) form the backbone of the container ecosystem. They present an easy way to publish self-contained miniature operating system userland images that users can run without installing additional libraries or tools beyond a container engine. The main feature of an OCI registry is its ability to publish layers containing differential changes, making container image updates very efficient.
