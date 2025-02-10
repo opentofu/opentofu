@@ -13,12 +13,12 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// Interface represents the set of methods required for a complete resource
-// provider plugin.
-type Interface interface {
-	// GetMetadata is not yet implemented or used at this time.  It may
+// Unconfigured represents a provider plugin that has not yet been configured. It has
+// limited functionality that must not depend on ConfigureProvider having been called.
+type Unconfigured interface {
+	// GetMetadata is not yet implemented or used at this time. It may
 	// be used in the future to avoid loading a provider's full schema
-	// for initial validation.  This could result in some potential
+	// for initial validation. This could result in some potential
 	// memory savings.
 
 	// GetSchema returns the complete schema for the provider.
@@ -38,14 +38,21 @@ type Interface interface {
 	// configuration values.
 	ValidateDataResourceConfig(ValidateDataResourceConfigRequest) ValidateDataResourceConfigResponse
 
-	// UpgradeResourceState is called when the state loader encounters an
-	// instance state whose schema version is less than the one reported by the
-	// currently-used version of the corresponding provider, and the upgraded
-	// result is used for any further processing.
-	UpgradeResourceState(UpgradeResourceStateRequest) UpgradeResourceStateResponse
+	// MoveResourceState requests that the given resource data be moved from one
+	// type to another, potentially between providers as well.
+	MoveResourceState(MoveResourceStateRequest) MoveResourceStateResponse
+
+	// CallFunction requests that the given function is called and response returned.
+	// There is a bit of a quirk in OpenTofu-land.  We allow providers to supply
+	// additional functions via GetFunctions() after configuration.  Those functions
+	// will only be available via CallFunction after ConfigureProvider is called.
+	CallFunction(CallFunctionRequest) CallFunctionResponse
 
 	// Configure configures and initialized the provider.
 	ConfigureProvider(ConfigureProviderRequest) ConfigureProviderResponse
+
+	// Close shuts down the plugin process if applicable.
+	Close() error
 
 	// Stop is called when the provider should halt any in-flight actions.
 	//
@@ -58,6 +65,20 @@ type Interface interface {
 	// stop somehow failed and that the user should expect potentially waiting
 	// a longer period of time.
 	Stop() error
+}
+
+// Configured represents a provider plugin that has been configured. It has additional
+// functionallity on top of the Unconfigured interface that depends on ConfigureProvider
+// having been called.
+type Configured interface {
+	// A configured provider can do anything a unconfigured provider can.
+	Unconfigured
+
+	// UpgradeResourceState is called when the state loader encounters an
+	// instance state whose schema version is less than the one reported by the
+	// currently-used version of the corresponding provider, and the upgraded
+	// result is used for any further processing.
+	UpgradeResourceState(UpgradeResourceStateRequest) UpgradeResourceStateResponse
 
 	// ReadResource refreshes a resource and returns its current state.
 	ReadResource(ReadResourceRequest) ReadResourceResponse
@@ -74,20 +95,19 @@ type Interface interface {
 	// ImportResourceState requests that the given resource be imported.
 	ImportResourceState(ImportResourceStateRequest) ImportResourceStateResponse
 
-	MoveResourceState(MoveResourceStateRequest) MoveResourceStateResponse
-
 	// ReadDataSource returns the data source's current state.
 	ReadDataSource(ReadDataSourceRequest) ReadDataSourceResponse
 
-	// GetFunctions returns a full list of functions defined in this provider.  It should be a super
+	// GetFunctions returns a full list of functions defined in this provider. It should be a super
 	// set of the functions returned in GetProviderSchema()
 	GetFunctions() GetFunctionsResponse
+}
 
-	// CallFunction requests that the given function is called and response returned.
-	CallFunction(CallFunctionRequest) CallFunctionResponse
-
-	// Close shuts down the plugin process if applicable.
-	Close() error
+// Interface represents the set of methods required for a complete resource
+// provider plugin. Longer term, we could remove this interface in favor of it's
+// component parts (Unconfigured, Configured) for added safety and clarity.
+type Interface interface {
+	Configured
 }
 
 // GetProviderSchemaResponse is the return type for GetProviderSchema, and
