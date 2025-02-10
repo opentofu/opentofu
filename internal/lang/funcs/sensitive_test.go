@@ -48,10 +48,8 @@ func TestSensitive(t *testing.T) {
 			``,
 		},
 		{
-			// A value with some non-standard mark gets "fixed" to be marked
-			// with the standard "sensitive" mark. (This situation occurring
-			// would imply an inconsistency/bug elsewhere, so we're just
-			// being robust about it here.)
+			// Any non-sensitive marks must be propagated alongside
+			// with a sensitive one.
 			cty.NumberIntVal(1).Mark("bloop"),
 			``,
 		},
@@ -83,15 +81,11 @@ func TestSensitive(t *testing.T) {
 				t.Errorf("result is not marked sensitive")
 			}
 
+			inputMarks := test.Input.Marks()
+			delete(inputMarks, marks.Sensitive)
+
 			gotRaw, gotMarks := got.Unmark()
-			if len(gotMarks) != 1 {
-				// We're only expecting to have the "sensitive" mark we checked
-				// above. Any others are an error, even if they happen to
-				// appear alongside "sensitive". (We might change this rule
-				// if someday we decide to use marks for some additional
-				// unrelated thing in OpenTofu, but currently we assume that
-				// _all_ marks imply sensitive, and so returning any other
-				// marks would be confusing.)
+			if len(gotMarks) != len(inputMarks)+1 {
 				t.Errorf("extraneous marks %#v", gotMarks)
 			}
 
