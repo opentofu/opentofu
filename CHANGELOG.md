@@ -18,6 +18,7 @@ ENHANCEMENTS:
 * The `element` function now accepts negative indices, which extends the existing "wrapping" model into the negative direction. In particular, choosing element `-1` selects the final element in the sequence. ([#2371](https://github.com/opentofu/opentofu/pull/2371))
 * `moved` now supports moving between different types ([#2370](https://github.com/opentofu/opentofu/pull/2370))
 * `moved` block can now be used to migrate from the `null_resource` to the `terraform_data` resource. ([#2481](https://github.com/opentofu/opentofu/pull/2481))
+* Warn on implicit references of providers without a `required_providers` entry. ([#2084](https://github.com/opentofu/opentofu/issues/2084))
 
 BUG FIXES:
 

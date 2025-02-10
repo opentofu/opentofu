@@ -211,6 +211,15 @@ func TestConfigProviderRequirements(t *testing.T) {
 			tlsProvider:        {},
 		},
 	}
+	// These 2 assertions are strictly to ensure that later the "provider" blocks are not registered into the qualifications.
+	// Technically speaking, provider blocks are indeed implicit references, but the current warning message
+	// on implicitly referenced providers could be misleading for the "provider" blocks.
+	if _, okExpl := qualifs.Explicit[configuredProvider]; okExpl {
+		t.Errorf("provider blocks shouldn't be added into the explicit qualifications")
+	}
+	if _, okImpl := qualifs.Implicit[configuredProvider]; okImpl {
+		t.Errorf("provider blocks shouldn't be added into the implicit qualifications")
+	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("wrong reqs result\n%s", diff)
@@ -656,7 +665,7 @@ func TestConfigAddProviderRequirements(t *testing.T) {
 		addrs.NewDefaultProvider("null"): nil,
 	}
 	qualifs := new(getproviders.ProvidersQualification)
-	diags = cfg.addProviderRequirements(reqs, qualifs, true, false) // TODO add assertion
+	diags = cfg.addProviderRequirements(reqs, qualifs, true, false)
 	assertNoDiagnostics(t, diags)
 }
 
