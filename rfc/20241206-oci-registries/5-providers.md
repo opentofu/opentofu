@@ -51,8 +51,10 @@ In this case, provider addresses matching `include` blocks would be redirected t
 > ```hcl
 > terraform {
 >   required_providers {
->     source  = "yourcompany.org/us-east-1/aws"
->     version = "5.64.0"
+>     aws = {
+>       source  = "yourcompany.org/us-east-1/aws"
+>       version = "5.64.0"
+>     }
 >   }
 > }
 > ```

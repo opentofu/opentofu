@@ -376,10 +376,10 @@ ORAS can also customize the config manifest using the `--config` option. This wi
 }
 ```
 
-It is worth noting that trying to pull an ORAS image with traditional containerization software will result in unexpected errors [as documented here](https://oras.land/docs/how_to_guides/manifest_config#docker-behaviors).
+It is worth noting that trying to pull an ORAS image with traditional containerization software may result in unexpected errors [as documented here](https://oras.land/docs/how_to_guides/manifest_config#docker-behaviors).
 
 > [!NOTE]
-> At the time of writing, [ORAS does not support multi-platform images](https://github.com/oras-project/oras/issues/1053).
+> At the time of writing, [ORAS does not support multi-platform images](https://github.com/oras-project/oras/issues/1053). However, it is possible to push manifests manually using the `oras manifest` subcommand.
 
 ---
 

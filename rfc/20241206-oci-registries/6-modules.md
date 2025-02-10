@@ -22,21 +22,24 @@ By default, this will inspect all the tags whose name can be parsed as a semanti
 > [!NOTE]
 > Semantic versioning numbers may contain the `+` sign delimiting a build identifier, such as `1.1.0+something`. That character is not valid in an OCI reference, so OpenTofu will automatically translate the `_` symbol to `+` when attempting to parse a tag name as a version number.
 
-If you would prefer to override the automatic selection, or to use a tag whose name does not conform to the semantic versioning syntax at all, you can specify a specific tag using the optional `tag` argument:
+If you preferred to override the automatic selection, or to use a tag whose name does not conform to the semantic versioning syntax at all, you can specify a specific tag using the optional `ref` argument:
 
 ```hcl
 module "foo" {
-  source = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY?tag=1.1.0"
+  source = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY?ref=1.1.0"
 }
 ```
 
-Alternatively, you can specify a specific digest directly using the optional `reference` argument, which is mutually-exclusive with `tag`:
+Alternatively, you can specify a specific digest as a reference:
 
 ```hcl
 module "foo" {
-  source = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY?digest=sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac"
+  source = "oci://AWS_ACCOUNT_ID.dkr.ecr.REGION.amazonaws.com/REPOSITORY?ref=sha256:1d57d25084effd3fdfd902eca00020b34b1fb020253b84d7dd471301606015ac"
 }
 ```
+
+> [!NOTE]
+> OpenTofu currently doesn't support semantic versioning outside of traditional OpenTofu/Terraform registries. See [this issue](https://github.com/opentofu/opentofu/issues/2495) for details.
 
 By default, OpenTofu expects to find a module in the root of the artifact, but you can optionally specify a subdirectory using [the usual subdirectory syntax](https://opentofu.org/docs/language/modules/sources/#modules-in-package-sub-directories):
 
@@ -46,7 +49,7 @@ module "foo" {
 }
 ```
 
-To combine that with the explicit `tag` argument, place the query string after the subdirectory portion: `oci://example.com/repository//directory?tag=example`.
+To combine that with the explicit `ref` argument, place the query string after the subdirectory portion: `oci://example.com/repository//directory?ref=example`.
 
 ## Artifact layout
 
