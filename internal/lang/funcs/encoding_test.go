@@ -166,12 +166,27 @@ func TestBase64Gunzip(t *testing.T) {
 	tests := []struct {
 		String cty.Value
 		Want   cty.Value
-		Err    bool
+		Err    string
 	}{
 		{
 			cty.StringVal("H4sIAAAAAAAA/ypJLS4BAAAA//8BAAD//wx+f9gEAAAA"),
 			cty.StringVal("test"),
-			false,
+			"",
+		},
+		{
+			cty.StringVal("H4sIAAAAAAAA/ypJLS4BAAAA//8BAAD//wx+f9gEAAAA").Mark(marks.Sensitive),
+			cty.StringVal("test").Mark(marks.Sensitive),
+			"",
+		},
+		{
+			cty.StringVal("hello"),
+			cty.NilVal,
+			`failed to decode base64 data "hello"`,
+		},
+		{
+			cty.StringVal("hello").Mark(marks.Sensitive),
+			cty.NilVal,
+			`failed to decode base64 data (sensitive value)`,
 		},
 	}
 
@@ -179,9 +194,12 @@ func TestBase64Gunzip(t *testing.T) {
 		t.Run(fmt.Sprintf("base64gunzip(%#v)", test.String), func(t *testing.T) {
 			got, err := Base64Gunzip(test.String)
 
-			if test.Err {
+			if test.Err != "" {
 				if err == nil {
 					t.Fatal("succeeded; want error")
+				}
+				if err.Error() != test.Err {
+					t.Fatalf("got unexpected error: %v", err.Error())
 				}
 				return
 			} else if err != nil {
