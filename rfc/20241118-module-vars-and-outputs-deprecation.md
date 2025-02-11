@@ -72,47 +72,68 @@ If module caller has references to deprecated module outputs in their configurat
 deprecation warning as specified by module author:
 
 ```hcl
-│ Warning: The output "this_is_my_output" is marked as deprecated by module author.
+│ Warning: Value derived from a deprecated source
 │ 
 │   on main.tf line 9, in resource "some_resource" "some_name":
 │    9:     some_field = module.mod.this_is_my_output
 │ 
-│ This output will be removed on 2024-12-31. Use that_is_my_output instead.
+│ This value is derived from module.mod.this_is_my_output, which is
+│ deprecated with the following message:
+|
+| This output will be removed on 2024-12-31. Use that_is_my_output instead.
 ```
 
-> [!NOTE]
-> Module users may rely on [output precondition check](https://opentofu.org/docs/language/values/outputs/#custom-condition-checks).
-> However it doesn't require implicit references, so this type of usage will not be counted when generating deprecation warnings. We
-> might want to forbid deprecation of outputs with precondition checks so module authors would be required to migrate them beforehand.
+#### Silencing deprecation warnings for dependencies
+
+If the module is not controlled by the configuration author, it makes sense to optionally ignore deprecation warnings raised in such
+a module. This could be presented in two different ways: globally for all non-local module calls or on per-module
+basis. This setting shouldn't be a part of a module call block since there could be multiple calls for the same module and each such
+call should either produce or silence the warnings.
+
+In this RFC I suggest to allow users to control module deprecation warnings via a CLI flag: `module-deprecation-warnings`, which may
+have the following values: `all` (default) or `local` (raise deprecation warnings only from usage inside of the local modules). This
+could be extended later to include other options such as `none` to disable the deprecation warnings altogether.
 
 ### Technical Approach
 
 Technical approach should be different for input variables and outputs. For input variables, we can follow existing approach, where
 variables are being validated.
 
-As for module outputs, it is slightly harder to determine if it's is actually referenced in the user configuration, because
-`nodeExpandOutput` is included in the graph regardless of its actual usage. On graph walk, this node expands to one or more
-`NodeApplyableOutput` nodes. `NodeApplyableOutput` also run validation of precondition checks on its execution.
+As for module outputs, we can't follow the same idea, since those values can be used on execution of different graph nodes,
+so we need to track deprecation "flags" alongside the values modules produce. This is possible with [go-cty's value marks](https://github.com/zclconf/go-cty/blob/main/docs/concepts.md#marks).
 
-In the case we decide to forbid deprecating outputs with precondition checks, we can extend `nodeExpandOutput` with the
-deprecation check and then extend `ModuleExpansionTransformer` to not link `nodeExpandOutput` with `nodeCloseModule`. This
-way we are getting rid of unused output nodes from the graph. Deprecation check is just ignored if the output is unused.
+Currently, OpenTofu uses value marks to track sensitive values and a specific output from console-only `type` function. Some
+implementations (e.g. `genconfig.GenerateResourceContents`) treat any mark as sensitive and some other implementations (e.g.
+`funcs.SensitiveFunc`) erase any non-sensitive marks during its execution. Before the actual implementation of deprecation marks,
+we need to carefully review all the places, where OpenTofu operates with marks. This step is crucial to make it possible to 
+introduce new marks even beyond deprecation ones.
 
-Otherwise, we can extend existing `ReferenceTransformer` (or create a new one) to check if there are any connections to
-`nodeExpandOutput` from the outside of its module. We should keep in mind potential performance downgrades since for large
-graphs it may be slow to go through all the connections. This approach would also require us to slightly refactor `GraphTransformer`
-interface to being able to produce non-critical errors (warnings).
+#### Deprecation marks
+
+Sensitive and type marks are boolean flags which are represented by internal go type of `marks.valueMark`. On the contrary,
+deprecation marks must carry more data, including the list of addresses from where this value has been composed. This fact
+requires us to introduce a new type (e.g. `marks.Deprecation`), which is a struct with a list of source addresses. Based on
+how `go-cty` handles marks (as a set, i.e. map with only keys to be used), we will not be able to use built-in check for mark
+presence.
+
+We would need to extend module output nodes to also mark values as deprecated if the user specified so. Then, the mark should
+be checked where `tofu.EvalContext` is used to evaluate expressions and blocks (i.e. `EvalContext.EvaluateBlock` and
+`EvalContext.EvaluateExpr`). The deprecation mark check must take into account the value of `module-deprecation-warnings` flag
+and also it shouldn't fire if the value is used inside the module, which marked this value as deprecated.
+
+This approach would also allow us to reuse the implementation, if we want to mark more values as deprecated from different
+sources (i.e. not only module outputs).
 
 ### Open Questions
 
-* Do we want to support silencing of deprecation warnings?
-* Should we forbid deprecating module outputs with precondition checks?
+None.
 
 ### Future Considerations
 
 It is hard to implement generic deprecation mechanism for the OpenTofu language. However, this solution should be generic 
 enough from the UX point of view to potentially be extended for other purposes. This way we keep consistent experience for
-OpenTofu users.
+OpenTofu users. Deprecation marks could help reuse parts of the implementation (evaluation checks) to handle more `deprecation`
+flags in the future.
 
 Also, we want to keep compatibility with Terraform's deprecation mechanisms.
 
@@ -133,6 +154,8 @@ variable "this_is_my_variable" {
   description = "This is a variable for the old way of configuring things."
 }
 ```
+
+Allowing comments to be a valid part of the configuration is also constrainted by an internal implementation of `hclsyntax` parser.
 
 #### Separate `deprecation` block
 
