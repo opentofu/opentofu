@@ -522,27 +522,23 @@ func TestInitProviderNotFound(t *testing.T) {
 │ 	on main.tf line 2:
 │ 		2: resource "nonexistingProv_res" "test1"
 │ 
-│ Due to the prefix of the resource type name OpenTofu guessed that
-│ you intended to associate nonexistingProv_res.test1 with a provider whose
-│ local name is "nonexistingprov", but that name is not declared in this
-│ module's
-│ required_providers block. OpenTofu therefore guessed that you
-│ intended to use hashicorp/nonexistingprov, but that provider does not
-│ exist.
+│ Due to the prefix of the resource type name OpenTofu guessed that you
+│ intended to associate nonexistingProv_res.test1 with a provider whose local
+│ name is "nonexistingprov", but that name is not declared in this module's
+│ required_providers block. OpenTofu therefore guessed that you intended to
+│ use hashicorp/nonexistingprov, but that provider does not exist.
 │ 
-│ Make at least one of the following changes to tell OpenTofu which
-│ provider to use:
+│ Make at least one of the following changes to tell OpenTofu which provider
+│ to use:
 │ 
 │ - Add a declaration for local name "nonexistingprov" to this module's
-│ required_providers block, specifying the full source address
-│ for the provider you intended to use.
+│ required_providers block, specifying the full source address for the
+│ provider you intended to use.
 │ - Verify that "nonexistingProv_res" is the correct resource type name to
-│ use.
-│ Did you omit a prefix which would imply the correct provider?
+│ use. Did you omit a prefix which would imply the correct provider?
 │ - Use a "provider" argument within this resource block to override
 │ OpenTofu's automatic selection of the local name "nonexistingprov".
-│ 
-╵`}
+│`}
 		for _, expectedOutput := range expectedContentInOutput {
 			if cleanOut := strings.TrimSpace(stripAnsi(stdout)); !strings.Contains(cleanOut, expectedOutput) {
 				t.Errorf("wrong output.\n\toutput:\n%s\n\n\tdoes not contain:\n%s", cleanOut, expectedOutput)

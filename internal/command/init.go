@@ -1428,20 +1428,11 @@ const implicitProviderReferenceHead = `Automatically-inferred provider dependenc
 	on %s line %d:
 		%d: %s "%s" "%s"`
 
-const implicitProviderReferenceBody = `Due to the prefix of the resource type name OpenTofu guessed that
-you intended to associate %s with a provider whose
-local name is "%s", but that name is not declared in this module's
-required_providers block. OpenTofu therefore guessed that you
-intended to use %s, but that provider does not exist.
+const implicitProviderReferenceBody = `Due to the prefix of the resource type name OpenTofu guessed that you intended to associate %s with a provider whose local name is "%s", but that name is not declared in this module's required_providers block. OpenTofu therefore guessed that you intended to use %s, but that provider does not exist.
 
-Make at least one of the following changes to tell OpenTofu which
-provider to use:
+Make at least one of the following changes to tell OpenTofu which provider to use:
 
-- Add a declaration for local name "%s" to this module's
-required_providers block, specifying the full source address
-for the provider you intended to use.
-- Verify that "%s" is the correct resource type name to use.
-Did you omit a prefix which would imply the correct provider?
-- Use a "provider" argument within this resource block to override
-OpenTofu's automatic selection of the local name "%s".
+- Add a declaration for local name "%s" to this module's required_providers block, specifying the full source address for the provider you intended to use.
+- Verify that "%s" is the correct resource type name to use. Did you omit a prefix which would imply the correct provider?
+- Use a "provider" argument within this resource block to override OpenTofu's automatic selection of the local name "%s".
 `
