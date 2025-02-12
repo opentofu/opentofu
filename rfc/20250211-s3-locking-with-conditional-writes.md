@@ -1,0 +1,119 @@
+# S3 Backend: Locking by using the recently released feature of conditional writes
+
+Issue: https://github.com/opentofu/opentofu/issues/599
+
+Considering the request from the ticket above, and the newly AWS released S3 feature, we can now have state locking without relying on another instance of DynamoDB.
+
+The main reasons for such a change could be summarized as follows:
+* Less resources to maintain.
+* Removing costs that now are totally useless.
+* One less point of failure (removing DynamoDB from the state management)
+
+The most important things that need to be handled during this implementation:
+* A simple way to enable/disable locking by using S3 conditional writes.
+* A path forward to migrate the locking and state digest from DynamoDB to S3.
+* The default behavior should be untouched as long as the `backend` block configuration contains no attributes related to the new locking option.
+
+## Proposed Solution
+
+Until recently, most of the approaches that could have been taken for this implementation, could have been prone to data races.
+But AWS released a new functionality to the S3, and now it supports conditional writes on any given S3 bucket.
+
+For more details on the AWS S3 feature and the way it works, you can read more on the [official docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html).
+
+> By using conditional writes, you can add an additional header to your WRITE requests to specify preconditions for your Amazon S3 operation. To conditionally write objects, add the HTTP `If-None-Match` or `If-Match` header.
+> 
+> The `If-None-Match` header prevents overwrites of existing data by validating that there's not an object with the same key name already in your bucket.
+>
+> Alternatively, you can add the `If-Match` header to check an object's entity tag (`ETag`) before writing an object. With this header, Amazon S3 compares the provided `ETag` value with the `ETag` value of the object in S3. If the ETag values don't match, the operation fails.
+
+
+To allow this in OpenTofu, the `backend "s3"` will receive one new attribute:
+* `use_lockfile` `bool` (Default: `false`) - Flag to indicate if the locking should be performed by using strictly the S3 bucket.
+
+> [!NOTE]
+>
+> The name `use_lockfile` was selected this way to keep the [feature parity with Terraform](https://developer.hashicorp.com/terraform/language/backend/s3#state-locking).
+
+When OpenTofu will find the above attribute in the backend configuration, it will handle the state locking and the digest of the state file in the same bucket as configured for the state file.
+
+### User Documentation
+
+In order to make use of this new feature, the users will have to add the attribute in the `backend` block:
+```terraform
+terraform {
+  backend "s3" {
+    bucket = "tofu-state-backend"
+    key = "statefile"
+    region = "us-east-1"
+    dynamodb_table = "tofu_locking"
+    use_lockfile = true
+  }
+}
+```
+
+* When the new attribute `use_lockfile` exists and `dynamodb_table` is missing, OpenTofu will behave as normal:
+  * The only thing that will have to do extra, is to ensure that the MD5 file is there and if not, to create it.
+    * The generation of the MD5 checksum is already part of the [implementation](https://github.com/opentofu/opentofu/blob/6614782/internal/backend/remote-state/s3/client.go#L178).
+    * We just need to store it in a new file in the configured S3 bucket (file name: <state-file-path>-md5)
+* When the new attribute `use_lockfile` will exist **alongside** `dynamodb_table`, OpenTofu will:
+  * Acquire the lock in the S3 bucket;
+  * Get the digest of the statefile from S3. If missing:
+    * Acquire the lock in DynamoDB table; 
+    * Get the digest of the statefile from DynamoDB and migrate it to the S3 bucket;
+    * Release the lock from DynamoDB table;
+  * Perform the requested sub-command
+  * Release the lock from the S3 bucket;
+
+> [!NOTE]
+>
+> OpenTofu [recommends](https://opentofu.org/docs/language/settings/backends/s3/) to have versioning enabled for the S3 buckets used to store state files.
+>
+> Acquiring and releasing locks will add a good amount of writes and reads to the bucket. Therefore, for a versioning-enabled S3 bucket, the number of versions for that file could grow significantly.
+> Even though the cost should be negligible for the locking files, any user using this feature could consider configuring the lifecycle of the S3 bucket to limit the number of versions of a file.
+
+### Technical Approach
+
+In order to achieve and ensure a proper state locking via S3 bucket, the implementation will do a call to `s3client.PutObject` with the property `IfNoneMatch: "*"`.
+For more information, please check the [official documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html#conditional-write-key-names).
+
+But the simplified implementation should look like this:
+```go
+input := &s3.PutObjectInput{
+    Bucket:            aws.String(bucket),
+    Key:               aws.String(key),
+    Body:              bytes.NewReader([]byte(lockInfo)),
+    IfNoneMatch:       aws.String("*"),
+}
+_, err := actor.S3Client.PutObject(ctx, input)
+```
+
+### Open Questions
+
+* Do we want to provide the option to have the lock files into another bucket? This will break the feature parity.
+* When writing the digest (*-md5) file, should we consider conditional writing by using the `IfMatch` argument?
+  ```go
+  func (actor S3Actions) UpdateDigest(ctx context.Context, bucket string, key string, beforeApplyDigest string) error {
+      newDigest := uuid.NewString()
+      input := &s3.PutObjectInput{
+          Bucket:            aws.String(bucket),
+          Key:               aws.String(key),
+          Body:              bytes.NewReader([]byte(newDigest)),
+          ChecksumAlgorithm: types.ChecksumAlgorithmSha256,
+          IfMatch:           aws.String(beforeApplyDigest),
+      }
+      _, err := actor.S3Client.PutObject(ctx, input)
+      return err
+  }
+  ```
+  Asking because this could also lead to other issues in case it doesn't match. I would suggest to have this only for showing an error in case the digest is different.
+* Right now, since the MD5 digest is stored in DynamoDB, this is written only when the `dynamodb_table` is specified.
+  * Should we do the same in the new implementation? Write the MD5 digest only if the `use_lockfile=true`?
+    * Considering the other conditional write option, with the header `IfMatch=<ETag of <state-file-path-before-applying>-md5>`, in case the user(s) is having no locking enabled, we could actually be able to warn the user if the digest was updated concurrently and suggesting enabling the locking mechanism to avoid concurrent writes on the state file.
+      * If needed, I could provide a small POC for it.
+### Future Considerations
+If this feature will prove to have a high adoption rate, later, we might consider to deprecate the DynamoDB locking mechanism. 
+
+## Potential Alternatives
+
+[//]: # (TODO)
