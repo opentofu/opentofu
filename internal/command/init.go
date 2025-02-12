@@ -1045,7 +1045,7 @@ version control system if they represent changes you intended to make.`))
 // warnOnFailedImplicitProvReference returns a warn diagnostic when the downloader fails to fetch a provider that is implicitly referenced.
 // In other words, if the failed to download provider is having no required_providers entry, this function is trying to give to the user
 // more information on the source of the issue and gives also instructions on how to fix it.
-func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getproviders.ProvidersQualification) tfdiags.Diagnostic {
+func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getproviders.ProvidersQualification) tfdiags.Diagnostics {
 	if _, ok := qualifs.Explicit[provider]; ok {
 		return nil
 	}
@@ -1061,12 +1061,6 @@ func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getprov
 	if ref.ProviderAttribute {
 		return nil
 	}
-	resourceType := "resource"
-	if ref.CfgRes.Resource.Mode == addrs.DataResourceMode {
-		resourceType = "data"
-	}
-	summary := fmt.Sprintf(implicitProviderReferenceHead,
-		ref.Ref.Filename, ref.Ref.Start.Line, ref.Ref.Start.Line, resourceType, ref.CfgRes.Resource.Type, ref.CfgRes.Resource.Name)
 	details := fmt.Sprintf(
 		implicitProviderReferenceBody,
 		ref.CfgRes.String(),
@@ -1076,11 +1070,13 @@ func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getprov
 		ref.CfgRes.Resource.Type,
 		provider.Type,
 	)
-	return tfdiags.Sourceless(
-		tfdiags.Warning,
-		summary,
-		details,
-	)
+	return tfdiags.Diagnostics{}.Append(
+		&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Subject:  ref.Ref.ToHCL().Ptr(),
+			Summary:  implicitProviderReferenceHead,
+			Detail:   details,
+		})
 }
 
 // backendConfigOverrideBody interprets the raw values of -backend-config
@@ -1424,9 +1420,7 @@ To calculate additional checksums for another platform, run:
   tofu providers lock -platform=linux_amd64
 (where linux_amd64 is the platform to generate)`
 
-const implicitProviderReferenceHead = `Automatically-inferred provider dependency
-	on %s line %d:
-		%d: %s "%s" "%s"`
+const implicitProviderReferenceHead = `Automatically-inferred provider dependency`
 
 const implicitProviderReferenceBody = `Due to the prefix of the resource type name OpenTofu guessed that you intended to associate %s with a provider whose local name is "%s", but that name is not declared in this module's required_providers block. OpenTofu therefore guessed that you intended to use %s, but that provider does not exist.
 

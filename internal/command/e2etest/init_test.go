@@ -514,13 +514,13 @@ func TestInitProviderNotFound(t *testing.T) {
 		// Testing that the warn wrote to the user is containing the resource address from where the provider
 		// was registered to be downloaded
 		expectedContentInOutput := []string{
-			`"nonexistingProv2_data" "test2"`,
-			`resource "nonexistingProv_res" "test1"`,
+			`(and one more similar warning elsewhere)`,
 			`
 ╷
 │ Warning: Automatically-inferred provider dependency
-│ 	on main.tf line 2:
-│ 		2: resource "nonexistingProv_res" "test1"
+│ 
+│   on main.tf line 2:
+│    2: resource "nonexistingProv_res" "test1" {
 │ 
 │ Due to the prefix of the resource type name OpenTofu guessed that you
 │ intended to associate nonexistingProv_res.test1 with a provider whose local
