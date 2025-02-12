@@ -17,8 +17,9 @@ import (
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/hashicorp/go-azure-helpers/authentication"
-	"github.com/hashicorp/go-azure-helpers/sender"
-	"github.com/manicminer/hamilton/environments"
+	"github.com/hashicorp/go-azure-sdk/sdk/auth"
+	authWrapper "github.com/hashicorp/go-azure-sdk/sdk/auth/autorest"
+	"github.com/hashicorp/go-azure-sdk/sdk/environments"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/version"
 	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
@@ -68,76 +69,74 @@ func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, erro
 		return &client, nil
 	}
 
-	builder := authentication.Builder{
-		ClientID:                      config.ClientID,
-		SubscriptionID:                config.SubscriptionID,
-		TenantID:                      config.TenantID,
-		CustomResourceManagerEndpoint: config.CustomResourceManagerEndpoint,
-		MetadataHost:                  config.MetadataHost,
-		Environment:                   config.Environment,
-		ClientSecretDocsLink:          "https://registry.opentofu.org/providers/hashicorp/azurerm/latest/docs/guides/service_principal_client_secret",
+	authConfig := auth.Credentials{
+		ClientID: config.ClientID,
+		TenantID: config.TenantID,
 
 		// Service Principal (Client Certificate)
-		ClientCertPassword: config.ClientCertificatePassword,
-		ClientCertPath:     config.ClientCertificatePath,
+		ClientCertificatePath:     config.ClientCertificatePath,
+		ClientCertificatePassword: config.ClientCertificatePassword,
 
 		// Service Principal (Client Secret)
 		ClientSecret: config.ClientSecret,
 
 		// Managed Service Identity
-		MsiEndpoint: config.MsiEndpoint,
+		CustomManagedIdentityEndpoint: config.MsiEndpoint,
 
 		// OIDC
-		IDToken:             config.OIDCToken,
-		IDTokenFilePath:     config.OIDCTokenFilePath,
-		IDTokenRequestURL:   config.OIDCRequestURL,
-		IDTokenRequestToken: config.OIDCRequestToken,
+		OIDCAssertionToken:          config.OIDCToken,
+		GitHubOIDCTokenRequestURL:   config.OIDCRequestURL,
+		GitHubOIDCTokenRequestToken: config.OIDCRequestToken,
+
+		AzureCliSubscriptionIDHint: config.SubscriptionID,
 
 		// Feature Toggles
-		SupportsAzureCliToken:          true,
-		SupportsClientCertAuth:         true,
-		SupportsClientSecretAuth:       true,
-		SupportsManagedServiceIdentity: config.UseMsi,
-		SupportsOIDCAuth:               config.UseOIDC,
-		UseMicrosoftGraph:              true,
-	}
-	armConfig, err := builder.Build()
-	if err != nil {
-		return nil, fmt.Errorf("Error building ARM Config: %w", err)
+		EnableAuthenticatingUsingClientCertificate: true,
+		EnableAuthenticatingUsingClientSecret:      true,
+		EnableAuthenticatingUsingAzureCLI:          true,
+		EnableAuthenticatingUsingManagedIdentity:   config.UseMsi,
+		EnableAuthenticationUsingOIDC:              config.UseOIDC,
+		EnableAuthenticationUsingGitHubOIDC:        config.UseOIDC,
 	}
 
-	oauthConfig, err := armConfig.BuildOAuthConfig(env.ActiveDirectoryEndpoint)
-	if err != nil {
-		return nil, err
+	if config.MetadataHost != "" {
+		log.Printf("[DEBUG] Configuring cloud environment from Metadata Service at %q", config.MetadataHost)
+		authEnvironment, err := environments.FromEndpoint(ctx, fmt.Sprintf("https://%s", config.MetadataHost))
+		if err != nil {
+			return nil, err
+		}
+		authConfig.Environment = *authEnvironment
+	} else {
+		log.Printf("[DEBUG] Configuring built-in cloud environment by name: %q", config.Environment)
+		authEnvironment, err := environments.FromName(config.Environment)
+		if err != nil {
+			return nil, err
+		}
+		authConfig.Environment = *authEnvironment
 	}
 
-	hamiltonEnv, err := environments.EnvironmentFromString(config.Environment)
-	if err != nil {
-		return nil, err
-	}
-
-	sender := sender.BuildSender("backend/remote-state/azure")
 	log.Printf("[DEBUG] Obtaining an MSAL / Microsoft Graph token for Resource Manager..")
-	auth, err := armConfig.GetMSALToken(ctx, hamiltonEnv.ResourceManager, sender, oauthConfig, env.TokenAudience)
+	authorizer, err := auth.NewAuthorizerFromCredentials(ctx, authConfig, authConfig.Environment.ResourceManager)
 	if err != nil {
 		return nil, err
 	}
 
 	if config.UseAzureADAuthentication {
 		log.Printf("[DEBUG] Obtaining an MSAL / Microsoft Graph token for Storage..")
-		storageAuth, err := armConfig.GetMSALToken(ctx, hamiltonEnv.Storage, sender, oauthConfig, env.ResourceIdentifiers.Storage)
+		storageAuth, err := auth.NewAuthorizerFromCredentials(ctx, authConfig, authConfig.Environment.Storage)
 		if err != nil {
 			return nil, err
 		}
-		client.azureAdStorageAuth = &storageAuth
+		a := autorest.Authorizer(authWrapper.AutorestAuthorizer(storageAuth))
+		client.azureAdStorageAuth = &a
 	}
 
-	accountsClient := armStorage.NewAccountsClientWithBaseURI(env.ResourceManagerEndpoint, armConfig.SubscriptionID)
-	client.configureClient(&accountsClient.Client, auth)
+	accountsClient := armStorage.NewAccountsClientWithBaseURI(env.ResourceManagerEndpoint, config.SubscriptionID)
+	client.configureClient(&accountsClient.Client, authWrapper.AutorestAuthorizer(authorizer))
 	client.storageAccountsClient = &accountsClient
 
-	groupsClient := resources.NewGroupsClientWithBaseURI(env.ResourceManagerEndpoint, armConfig.SubscriptionID)
-	client.configureClient(&groupsClient.Client, auth)
+	groupsClient := resources.NewGroupsClientWithBaseURI(env.ResourceManagerEndpoint, config.SubscriptionID)
+	client.configureClient(&groupsClient.Client, authWrapper.AutorestAuthorizer(authorizer))
 	client.groupsClient = &groupsClient
 
 	return &client, nil
