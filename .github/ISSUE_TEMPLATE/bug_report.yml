@@ -30,7 +30,7 @@ body:
       description: Please leave this note unchanged.
       value: |
         > [!TIP]
-        > 👋 Hi there, OpenTofu community! The OpenTofu team prioritizes issues based on upvotes. Please make sure to upvote this issue and describe how it affects you in detail in the comments if you would like to see it implemented.
+        > 👋 Hi there, OpenTofu community! The OpenTofu team prioritizes issues based on upvotes. Please make sure to upvote this issue and describe how it affects you in detail in the comments to show your support.
   - type: textarea
     id: tf-version
     attributes:
