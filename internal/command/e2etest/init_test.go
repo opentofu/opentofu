@@ -502,6 +502,68 @@ func TestInitProviderNotFound(t *testing.T) {
 			t.Errorf("wrong output:\n%s", cmp.Diff(stripAnsi(stderr), expectedErr))
 		}
 	})
+
+	t.Run("implicit provider resource and data not found", func(t *testing.T) {
+		implicitFixturePath := filepath.Join("testdata", "provider-implicit-ref-not-found/implicit-by-resource-and-data")
+		tf := e2e.NewBinary(t, tofuBin, implicitFixturePath)
+		stdout, _, err := tf.Run("init")
+		if err == nil {
+			t.Fatal("expected error, got success")
+		}
+
+		// Testing that the warn wrote to the user is containing the resource address from where the provider
+		// was registered to be downloaded
+		expectedContentInOutput := []string{
+			`(and one more similar warning elsewhere)`,
+			`
+╷
+│ Warning: Automatically-inferred provider dependency
+│ 
+│   on main.tf line 2:
+│    2: resource "nonexistingProv_res" "test1" {
+│ 
+│ Due to the prefix of the resource type name OpenTofu guessed that you
+│ intended to associate nonexistingProv_res.test1 with a provider whose local
+│ name is "nonexistingprov", but that name is not declared in this module's
+│ required_providers block. OpenTofu therefore guessed that you intended to
+│ use hashicorp/nonexistingprov, but that provider does not exist.
+│ 
+│ Make at least one of the following changes to tell OpenTofu which provider
+│ to use:
+│ 
+│ - Add a declaration for local name "nonexistingprov" to this module's
+│ required_providers block, specifying the full source address for the
+│ provider you intended to use.
+│ - Verify that "nonexistingProv_res" is the correct resource type name to
+│ use. Did you omit a prefix which would imply the correct provider?
+│ - Use a "provider" argument within this resource block to override
+│ OpenTofu's automatic selection of the local name "nonexistingprov".
+│`}
+		for _, expectedOutput := range expectedContentInOutput {
+			if cleanOut := strings.TrimSpace(stripAnsi(stdout)); !strings.Contains(cleanOut, expectedOutput) {
+				t.Errorf("wrong output.\n\toutput:\n%s\n\n\tdoes not contain:\n%s", cleanOut, expectedOutput)
+			}
+		}
+	})
+
+	t.Run("resource pointing to a not configured provider does not warn on implicit reference", func(t *testing.T) {
+		implicitFixturePath := filepath.Join("testdata", "provider-implicit-ref-not-found/resource-with-provider-attribute")
+		tf := e2e.NewBinary(t, tofuBin, implicitFixturePath)
+		stdout, _, err := tf.Run("init")
+		if err == nil {
+			t.Fatal("expected error, got success")
+		}
+
+		// Ensure that the output does not contain the warning since the resource is pointing already to a specific
+		// provider (even though it is misspelled)
+		expectedOutput := `Initializing the backend...
+
+Initializing provider plugins...
+- Finding latest version of hashicorp/asw...`
+		if cleanOut := strings.TrimSpace(stripAnsi(stdout)); cleanOut != expectedOutput {
+			t.Errorf("wrong output:\n%s", cmp.Diff(cleanOut, expectedOutput))
+		}
+	})
 }
 
 // The following test is temporarily removed until the OpenTofu registry returns a deprecation warning

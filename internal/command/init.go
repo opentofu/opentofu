@@ -566,7 +566,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 
 	// First we'll collect all the provider dependencies we can see in the
 	// configuration and the state.
-	reqs, hclDiags := config.ProviderRequirements()
+	reqs, qualifs, hclDiags := config.ProviderRequirements()
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		return false, true, diags
@@ -711,6 +711,9 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				if provider.Hostname == addrs.DefaultProviderRegistryHost {
 					suggestion += "\n\nIf you believe this provider is missing from the registry, please submit a issue on the OpenTofu Registry https://github.com/opentofu/registry/issues/new/choose"
 				}
+
+				warnDiags := warnOnFailedImplicitProvReference(provider, qualifs)
+				diags = diags.Append(warnDiags)
 
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
@@ -1037,6 +1040,43 @@ version control system if they represent changes you intended to make.`))
 	}
 
 	return true, false, diags
+}
+
+// warnOnFailedImplicitProvReference returns a warn diagnostic when the downloader fails to fetch a provider that is implicitly referenced.
+// In other words, if the failed to download provider is having no required_providers entry, this function is trying to give to the user
+// more information on the source of the issue and gives also instructions on how to fix it.
+func warnOnFailedImplicitProvReference(provider addrs.Provider, qualifs *getproviders.ProvidersQualification) tfdiags.Diagnostics {
+	if _, ok := qualifs.Explicit[provider]; ok {
+		return nil
+	}
+	refs, ok := qualifs.Implicit[provider]
+	if !ok || len(refs) == 0 {
+		// If there is no implicit reference for that provider, do not write the warn, let just the error to be returned.
+		return nil
+	}
+
+	// NOTE: if needed, in the future we can use the rest of the "refs" to print all the culprits or at least to give
+	// a hint on how many resources are causing this
+	ref := refs[0]
+	if ref.ProviderAttribute {
+		return nil
+	}
+	details := fmt.Sprintf(
+		implicitProviderReferenceBody,
+		ref.CfgRes.String(),
+		provider.Type,
+		provider.ForDisplay(),
+		provider.Type,
+		ref.CfgRes.Resource.Type,
+		provider.Type,
+	)
+	return tfdiags.Diagnostics{}.Append(
+		&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Subject:  ref.Ref.ToHCL().Ptr(),
+			Summary:  implicitProviderReferenceHead,
+			Detail:   details,
+		})
 }
 
 // backendConfigOverrideBody interprets the raw values of -backend-config
@@ -1379,3 +1419,14 @@ The current .terraform.lock.hcl file only includes checksums for %s, so OpenTofu
 To calculate additional checksums for another platform, run:
   tofu providers lock -platform=linux_amd64
 (where linux_amd64 is the platform to generate)`
+
+const implicitProviderReferenceHead = `Automatically-inferred provider dependency`
+
+const implicitProviderReferenceBody = `Due to the prefix of the resource type name OpenTofu guessed that you intended to associate %s with a provider whose local name is "%s", but that name is not declared in this module's required_providers block. OpenTofu therefore guessed that you intended to use %s, but that provider does not exist.
+
+Make at least one of the following changes to tell OpenTofu which provider to use:
+
+- Add a declaration for local name "%s" to this module's required_providers block, specifying the full source address for the provider you intended to use.
+- Verify that "%s" is the correct resource type name to use. Did you omit a prefix which would imply the correct provider?
+- Use a "provider" argument within this resource block to override OpenTofu's automatic selection of the local name "%s".
+`
