@@ -9,6 +9,7 @@ import (
 	"testing"
 )
 
+//nolint:cyclop // The complexity of this test naturally scales by the number of test conditions, and would be less readable/maintainable if broken into smaller parts.
 func TestMap(t *testing.T) {
 	variableName := InputVariable{Name: "name"}
 	localHello := LocalValue{Name: "hello"}
