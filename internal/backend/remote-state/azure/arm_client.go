@@ -69,7 +69,24 @@ func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, erro
 		return &client, nil
 	}
 
+	var authEnvironment *environments.Environment
+	if config.MetadataHost != "" {
+		log.Printf("[DEBUG] Configuring cloud environment from Metadata Service at %q", config.MetadataHost)
+		authEnvironment, err = environments.FromEndpoint(ctx, fmt.Sprintf("https://%s", config.MetadataHost))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		log.Printf("[DEBUG] Configuring built-in cloud environment by name: %q", config.Environment)
+		authEnvironment, err = environments.FromName(config.Environment)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	authConfig := auth.Credentials{
+		Environment: *authEnvironment,
+
 		ClientID: config.ClientID,
 		TenantID: config.TenantID,
 
@@ -97,22 +114,6 @@ func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, erro
 		EnableAuthenticatingUsingManagedIdentity:   config.UseMsi,
 		EnableAuthenticationUsingOIDC:              config.UseOIDC,
 		EnableAuthenticationUsingGitHubOIDC:        config.UseOIDC,
-	}
-
-	if config.MetadataHost != "" {
-		log.Printf("[DEBUG] Configuring cloud environment from Metadata Service at %q", config.MetadataHost)
-		authEnvironment, err := environments.FromEndpoint(ctx, fmt.Sprintf("https://%s", config.MetadataHost))
-		if err != nil {
-			return nil, err
-		}
-		authConfig.Environment = *authEnvironment
-	} else {
-		log.Printf("[DEBUG] Configuring built-in cloud environment by name: %q", config.Environment)
-		authEnvironment, err := environments.FromName(config.Environment)
-		if err != nil {
-			return nil, err
-		}
-		authConfig.Environment = *authEnvironment
 	}
 
 	log.Printf("[DEBUG] Obtaining an MSAL / Microsoft Graph token for Resource Manager..")
