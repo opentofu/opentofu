@@ -71,7 +71,7 @@ body:
       placeholder:
       value:
     validations:
-      required: true
+      required: false
 
   - type: textarea
     id: tf-workarounds
