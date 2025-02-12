@@ -2,11 +2,11 @@
 
 Issue: https://github.com/opentofu/opentofu/issues/599
 
-Considering the request from the ticket above, and the newly AWS released S3 feature, we can now have state locking without relying on another instance of DynamoDB.
+Considering the request from the ticket above, and the newly AWS released S3 feature, we can now have state locking without relying on DynamoDB.
 
 The main reasons for such a change could be summarized as follows:
 * Less resources to maintain.
-* Removing costs that now are totally useless.
+* Potentially reducing costs by eliminating usage of dynamo db.
 * One less point of failure (removing DynamoDB from the state management)
 
 The most important things that need to be handled during this implementation:
@@ -17,7 +17,7 @@ The most important things that need to be handled during this implementation:
 ## Proposed Solution
 
 Until recently, most of the approaches that could have been taken for this implementation, could have been prone to data races.
-But AWS released a new functionality to the S3, and now it supports conditional writes on any given S3 bucket.
+But AWS has released new functionality for S3, supporting conditional writes on objects in any S3 bucket.
 
 For more details on the AWS S3 feature and the way it works, you can read more on the [official docs](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html).
 
