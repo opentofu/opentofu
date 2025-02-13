@@ -9,11 +9,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
-	"os"
 )
 
 // ProvidersPullCommand pulls a specified provider into a specified directory for the current platform. This is mainly
