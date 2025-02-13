@@ -8,9 +8,7 @@ This document is part of the [OCI registries RFC](../20241206-oci-registries.md)
 
 ---
 
-We have run a survey on the OCI feature among the OpenTofu community, which attracted 103 responses. This document discusses this survey and the conclusions we draw from it. In addition to this document, you can also [download the cleaned up responses here](survey-results.csv). Please note that we have cleaned up the survey responses to remove duplicate manual responses and removed information that would make the identification of the respondents possible.
-
-Below we detail the most important data points for this RFC. The full dataset is available for analysis above.
+We have run a survey on the OCI feature among the OpenTofu community, which attracted 103 responses. This document discusses this survey and the conclusions we draw from it.
 
 > [!WARNING]
 > The survey analysis is still pending verification, these numbers may change.
