@@ -14,13 +14,24 @@ We expect OCI registries used within organizations to need authentication, so we
 
 When dealing with OCI registries, OpenTofu will, without additional configuration, attempt an anonymous authentication against any registries responding with the authentication required header. Additional authentication configuration can be passed in the `.tofurc` file. However, since the OCI ecosystem is different from OpenTofu's own services, it will not use the `credentials` block.
 
-Instead, a separate top-level `oci{}` block will contain all configuration:
+Instead, a separate top-level blocks will contain all configuration:
 
 ```hcl
-oci {
-  authentication {
-    // Options here
-  }
+oci_default_credentials {
+  use_container_engine_authentication = "off"
+  docker_credentials_helper           = "example"
+}
+
+oci_credentials "example.com" {
+  # These are the default settings for the example.com registry as a whole
+  docker_credentials_helper = "osxkeychain"
+}
+
+oci_credentials "example.com/foo/bar" {
+  # These are special settings used only for repositories under the foo/bar
+  # prefix on example.com
+  username = "foobar"
+  password = "example"
 }
 ```
 
@@ -29,19 +40,18 @@ oci {
 OpenTofu will support reading [Docker configuration files](https://github.com/moby/moby/blob/131e2bf12b2e1b3ee31b628a501f96bbb901f479/cliconfig/config.go#L49), such as `~/.docker/config.json`, directly as requested by 53% of respondents in our survey. However, since 25% of respondents indicated that they want OpenTofu to not read Docker configuration files, this is an option can be disabled. You can do so by setting this option:
 
 ```hcl
-oci {
-  authentication {
-    # Use the container engine configuration present on the current device.
-    # Defaults to: "auto"
-    # Possible values: "auto", "docker", "off
-    # Note that currently "auto" and "docker" are equivalent, but this behavior
-    # may later change.
-    use_container_engine_authentication = "auto"
+oci_default_credentials {
+  # Use the container engine configuration present on the current device.
+  # Defaults to: "auto"
+  # Possible values: "auto", "docker", "off
+  # Note that currently "auto" and "docker" are equivalent, but this behavior
+  # may later change.
+  use_container_engine_authentication = "auto"
+}
 
-    # Specify which configuration files to look for.
-    # Defaults to ["~/.docker/config.json"]
-    container_engine_config_paths = ["~/.docker/config.json"]
-  }
+oci_credentials "example.com" {
+  # Ignore the container engine configuration for example.com:
+  use_container_engine_authentication = "off"
 }
 ```
 
@@ -52,22 +62,16 @@ By default, OpenTofu will default to auto-detecting which container engine is pr
 Alternative to the integrated Docker mode, you can also specify credentials directly in the `.tofurc` file. You can specify credentials directly:
 
 ```hcl
-oci {
-  authentication {
-    use_container_engine_authentication = "off"
-    
-    # Specify credentials explicitly for a host:
-    domain "ghcr.io" {
-      # Authenticate with username and password:
-      username = "your-user"
-      password = "your-password"
+oci_credentials "example.com" {
+  # Disable reading Docker and other configuration files for this domain:
+  use_container_engine_authentication = "off"
 
-      # Use a domain-specific credentials helper:
-      docker_credentials_helper = "/path/to/credentials/helper"
-    }
-    # Use a Docker cred helper:
-    docker_credentials_helper = "/path/to/credentials/helper"
-  }
+  # Authenticate with username and password:
+  username = "your-user"
+  password = "your-password"
+
+  # Use a Docker-style domain-specific credentials helper:
+  docker_credentials_helper = "/path/to/credentials/helper"
 }
 ```
 
