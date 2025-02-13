@@ -57,7 +57,7 @@ func (c *ProvidersPullCommand) Run(args []string) int {
 		return 1
 	}
 
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
+	if err := os.MkdirAll(targetDir, 0755); err != nil { //nolint:mnd //Nope, we are not adding a constant for this.
 		c.Ui.Error(fmt.Sprintf("Cannot create target directory %s (%s)\n", targetDir, err.Error()))
 		return 1
 	}
