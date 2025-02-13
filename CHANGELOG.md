@@ -11,6 +11,7 @@ NEW FEATURES:
   - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
   - `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
   - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
+- New CLI command: `tofu providers pull` lets you pull a provider binary into a directory without a project set up.
 
 ENHANCEMENTS:
 * OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))

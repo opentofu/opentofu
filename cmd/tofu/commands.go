@@ -259,6 +259,12 @@ func initCommands(
 			}, nil
 		},
 
+		"providers pull": func() (cli.Command, error) {
+			return &command.ProvidersPullCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"providers schema": func() (cli.Command, error) {
 			return &command.ProvidersSchemaCommand{
 				Meta: meta,
