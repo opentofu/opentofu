@@ -40,7 +40,7 @@ func (c *ProvidersPullCommand) Run(args []string) int {
 	c.Meta.varFlagSet(cmdFlags)
 	var addr string
 	var targetDir string
-	cmdFlags.StringVar(&addr, "addr", "", "provider address in the hostname/namespace/type format")
+	cmdFlags.StringVar(&addr, "addr", "", "provider address in the hostname/namespace/type, namespace/type, or type format")
 	cmdFlags.StringVar(&targetDir, "target-dir", "", "target directory to unpack the provider into")
 
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -96,8 +96,8 @@ Usage: tofu [global options] providers pull [options]
 
 Options:
 
-  -addr address          Provider address in the hostname/namespace/type
-                         format. (Required)
+  -addr address          Provider address in the hostname/namespace/type,
+                         namespace/type, or type format. (Required)
 
   -target-dir targetDir  Directory to unpack the provider into. OpenTofu must
                          have read permission on all files in this directory.
