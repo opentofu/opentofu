@@ -65,6 +65,12 @@ type Config struct {
 	// configuration, but we decode into a slice here so that we can handle
 	// that validation at validation time rather than initial decode time.
 	ProviderInstallation []*ProviderInstallation
+
+	// OCIDefaultCredentials represents any oci_default_credentials blocks
+	// in the configuration. Only one of these is allowed across the whole
+	// configuration, but we decode into a slice here so that we can handle
+	// that validation at validation time rather than initial decode time.
+	OCIDefaultCredentials []*OCIDefaultCredentials
 }
 
 // ConfigHost is the structure of the "host" nested block within the CLI
@@ -177,12 +183,16 @@ func loadConfigFile(path string) (*Config, tfdiags.Diagnostics) {
 		return result, diags
 	}
 
-	// Deal with the provider_installation block, which is not handled using
-	// DecodeObject because its structure is not compatible with the
-	// limitations of that function.
-	providerInstBlocks, moreDiags := decodeProviderInstallationFromConfig(obj)
-	diags = diags.Append(moreDiags)
+	// A few other blocks need some more special treatment because we are
+	// using a structure that is not compatible with HCL 1's DecodeObject,
+	// or HCL 1 would be too liberal in parsing and thus make it harder
+	// for us to potentially transition to using HCL 2 later.
+	providerInstBlocks, providerInstDiags := decodeProviderInstallationFromConfig(obj)
+	diags = diags.Append(providerInstDiags)
 	result.ProviderInstallation = providerInstBlocks
+	ociDefaultCredsBlocks, ociDefaultCredsDiags := decodeOCIDefaultCredentialsFromConfig(obj, path)
+	diags = diags.Append(ociDefaultCredsDiags)
+	result.OCIDefaultCredentials = ociDefaultCredsBlocks
 
 	// Replace all env vars
 	for k, v := range result.Providers {
@@ -327,6 +337,14 @@ func (c *Config) Validate() tfdiags.Diagnostics {
 		)
 	}
 
+	// Should have zero or one "oci_default_credentials" blocks
+	if len(c.OCIDefaultCredentials) > 1 {
+		diags = diags.Append(
+			//nolint:stylecheck // Despite typical Go idiom, our existing precedent here is to return full sentences suitable for inclusion in diagnostics.
+			fmt.Errorf("No more than one oci_default_credentials block may be specified"),
+		)
+	}
+
 	if c.PluginCacheDir != "" {
 		_, err := os.Stat(c.PluginCacheDir)
 		if err != nil {
@@ -411,6 +429,11 @@ func (c *Config) Merge(c2 *Config) *Config {
 	if (len(c.ProviderInstallation) + len(c2.ProviderInstallation)) > 0 {
 		result.ProviderInstallation = append(result.ProviderInstallation, c.ProviderInstallation...)
 		result.ProviderInstallation = append(result.ProviderInstallation, c2.ProviderInstallation...)
+	}
+
+	if (len(c.OCIDefaultCredentials) + len(c2.OCIDefaultCredentials)) > 0 {
+		result.OCIDefaultCredentials = append(result.OCIDefaultCredentials, c.OCIDefaultCredentials...)
+		result.OCIDefaultCredentials = append(result.OCIDefaultCredentials, c2.OCIDefaultCredentials...)
 	}
 
 	return &result
