@@ -107,6 +107,14 @@ const (
 	// ValueFromCaller indicates that the value was explicitly overridden by
 	// a caller to Context.SetVariable after the context was constructed.
 	ValueFromCaller ValueSourceType = 'S'
+
+	// ValueFromExternalCommand indicates that the value was obtained by executing
+	// an external command.
+	ValueFromExternalCommand ValueSourceType = 'X'
+
+	// ValueFromUpstreamProject indicates that the value was obtained by querying
+	// the state of an upstream project.
+	ValueFromUpstreamProject ValueSourceType = 'U'
 )
 
 func (v *InputValue) GoString() string {

@@ -228,8 +228,10 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 // desirable for the arguments package to handle the gathering of variables
 // directly, returning a map of variable values.
 type Vars struct {
-	vars     *flagNameValueSlice
-	varFiles *flagNameValueSlice
+	vars        *flagNameValueSlice
+	varFiles    *flagNameValueSlice
+	varCommands *flagNameValueSlice
+	varUpstream *flagNameValueSlice
 }
 
 func (v *Vars) All() []FlagNameValue {
@@ -279,10 +281,17 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 	if vars != nil {
 		varsFlags := newFlagNameValueSlice("-var")
 		varFilesFlags := varsFlags.Alias("-var-file")
+		varCommandsFlags := varsFlags.Alias("-var-command")
+		varUpstreamFlags := varsFlags.Alias("-var-upstream")
+
 		vars.vars = &varsFlags
 		vars.varFiles = &varFilesFlags
+		vars.varCommands = &varCommandsFlags
+		vars.varUpstream = &varUpstreamFlags
 		f.Var(vars.vars, "var", "var")
 		f.Var(vars.varFiles, "var-file", "var-file")
+		f.Var(vars.varCommands, "var-command", "var-command")
+		f.Var(vars.varUpstream, "var-upstream", "var-upstream")
 	}
 
 	return f

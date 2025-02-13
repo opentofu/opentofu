@@ -611,8 +611,12 @@ func (m *Meta) varFlagSet(f *flag.FlagSet) {
 	}
 	varValues := m.variableArgs.Alias("-var")
 	varFiles := m.variableArgs.Alias("-var-file")
+	varCommands := m.variableArgs.Alias("-var-command")
+	varUpstream := m.variableArgs.Alias("var-upstream")
 	f.Var(varValues, "var", "variables")
 	f.Var(varFiles, "var-file", "variable file")
+	f.Var(varCommands, "var-command", "run this external command to obtain variable values")
+	f.Var(varUpstream, "var-upstream", "obtain values from this OpenTofu project's outputs")
 }
 
 // extendedFlagSet adds custom flags that are mostly used by commands

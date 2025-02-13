@@ -6,9 +6,12 @@
 package command
 
 import (
+	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -120,7 +123,22 @@ func (m *Meta) collectVariableValues() (map[string]backend.UnparsedVariableValue
 		case "-var-file":
 			moreDiags := m.addVarsFromFile(rawFlag.Value, tofu.ValueFromNamedFile, ret)
 			diags = diags.Append(moreDiags)
-
+		case "-var-upstream":
+			moreDiags := m.addVarsFromCommand(
+				[]string{os.Args[0], "-chdir=" + rawFlag.Value, "output", "-json"},
+				tofu.ValueFromUpstreamProject,
+				ret,
+			)
+			diags = diags.Append(moreDiags)
+		case "-var-command":
+			var args []string
+			if runtime.GOOS == "" {
+				args = []string{"cmd", "/C"}
+			} else {
+				args = []string{"/bin/sh", "-c"}
+			}
+			moreDiags := m.addVarsFromCommand(append(args, rawFlag.Value), tofu.ValueFromExternalCommand, ret)
+			diags = diags.Append(moreDiags)
 		default:
 			// Should never happen; always a bug in the code that built up
 			// the contents of m.variableArgs.
@@ -163,6 +181,28 @@ func (m *Meta) addVarsFromDir(currDir string, ret map[string]backend.UnparsedVar
 	return diags
 }
 
+func (m *Meta) addVarsFromCommand(args []string, sourceType tofu.ValueSourceType, to map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	cmd := exec.CommandContext(m.CommandContext(), args[0], args[1:]...)
+	output := &bytes.Buffer{}
+	cmd.Stdout = output
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to execute external command",
+			err.Error(),
+		))
+		return diags
+	}
+	data := output.Bytes()
+	var json = false
+	if len(data) > 0 && data[0] == '{' {
+		json = true
+	}
+	return m.loadVariableSource("", json, sourceType, to, data)
+}
+
 func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType, to map[string]backend.UnparsedVariableValue) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
@@ -184,17 +224,6 @@ func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType,
 		return diags
 	}
 
-	loader, err := m.initConfigLoader()
-	if err != nil {
-		diags = diags.Append(err)
-		return diags
-	}
-
-	// Record the file source code for snippets in diagnostic messages.
-	loader.Parser().ForceFileSource(filename, src)
-
-	var f *hcl.File
-
 	extJSON := strings.HasSuffix(filename, ".json")
 	extTfvars := strings.HasSuffix(filename, DefaultVarsExtension)
 
@@ -202,7 +231,26 @@ func (m *Meta) addVarsFromFile(filename string, sourceType tofu.ValueSourceType,
 	// Ex: -var-file=<(./scripts/vars.sh)
 	detectJSON := !extJSON && !extTfvars && strings.HasPrefix(strings.TrimSpace(string(src)), "{")
 
-	if extJSON || detectJSON {
+	return m.loadVariableSource(filename, extJSON || detectJSON, sourceType, to, src)
+}
+
+func (m *Meta) loadVariableSource(filename string, json bool, sourceType tofu.ValueSourceType, to map[string]backend.UnparsedVariableValue, src []byte) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	loader, err := m.initConfigLoader()
+	if err != nil {
+		diags = diags.Append(err)
+		return diags
+	}
+
+	// Record the file source code for snippets in diagnostic messages.
+	if filename != "" {
+		loader.Parser().ForceFileSource(filename, src)
+	}
+
+	var f *hcl.File
+
+	if json {
 		var hclDiags hcl.Diagnostics
 		f, hclDiags = hcljson.Parse(src, filename)
 		diags = diags.Append(hclDiags)
