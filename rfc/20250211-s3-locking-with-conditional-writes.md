@@ -25,7 +25,7 @@ For more details on the AWS S3 feature and the way it works, you can read more o
 > 
 > The `If-None-Match` header prevents overwrites of existing data by validating that there's not an object with the same key name already in your bucket.
 >
-> Alternatively, you can add the `If-Match` header to check an object's entity tag (`ETag`) before writing an object. With this header, Amazon S3 compares the provided `ETag` value with the `ETag` value of the object in S3. If the ETag values don't match, the operation fails.
+> Alternatively, you can add the `If-Match` header to check an object's entity tag (`ETag`) before writing an object. With this header, Amazon S3 compares the provided `ETag` value with the `ETag` value of the object in S3. If the `ETag` values don't match, the operation fails.
 
 
 To allow this in OpenTofu, the `backend "s3"` will receive one new attribute:
@@ -74,10 +74,11 @@ terraform {
 
 ### Technical Approach
 
-In order to achieve and ensure a proper state locking via S3 bucket, the implementation will do a call to `s3client.PutObject` with the property `IfNoneMatch: "*"`.
+In order to achieve and ensure a proper state locking via S3 bucket, we want to attempt to create the locking object only when it is missing. 
+In order to do so we need to call `s3client.PutObject` with the property `IfNoneMatch: "*"`.
 For more information, please check the [official documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html#conditional-write-key-names).
 
-But the simplified implementation should look like this:
+But the simplified implementation would look like this:
 ```go
 input := &s3.PutObjectInput{
     Bucket:            aws.String(bucket),
@@ -88,10 +89,39 @@ input := &s3.PutObjectInput{
 _, err := actor.S3Client.PutObject(ctx, input)
 ```
 
+The `err` returned above should be handled accordingly with the [behaviour defined](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html) in the official docs:
+* HTTP 200 (OK) - Means that the locking file was not existing. Therefore, the lock can be considered as acquired.
+  * For buckets with versioning enabled, if there's no current object version with the same name, or if the current object version is a delete marker, the write operation succeeds.
+* HTTP 412 (Precondition Failed) - Means that the locking file is already there. Therefore, the whole process should exit because the lock couldn't be acquired.
+* HTTP 409 (Conflict) - Means that the there was a conflict of concurrent requests. AWS recommends to retry the request in such cases, but we could just handle this similarly to the 412 case.
+
+#### Digest updates
+The S3 conditional writes, offer also the option to overwrite an object conditionally, only when the `ETag` of the existing object is matching the `ETag` that it is given in the `If-Match: <etag from reading>` header.
+
+We can use this option to write the digest (`<state-file-path>-md5`) object after the state file is saved.
+
+To do so, when [reading the digest](https://github.com/opentofu/opentofu/blob/6614782/internal/backend/remote-state/s3/client.go#L88) for checking against the state file, we should store also the `ETag` of the read file.
+Later, when writing the newly generated digest, we can use the `ETag` in the `PutObjectInput.IfMatch` to ensure that the file didn't get any other update in the meantime:
+* If the action succeeds, we should just proceed.
+* If the action fails (404, 409, 412), we could warn the user and retry the writing of the digest object without the `ETag`.
+  * The retry should be done to ensure consistency between the state file content and its digest.
+
+As a short pseudocode, this would look something like:
+```go
+state := getState()
+digest, etag := getMD5()
+// ... process
+err := putMD5(sum, etag)
+if err {
+	warn("concurrent writes on the state digest detected")
+	err := putMD5(sum, "") // Empty ETag should rewrite the digest object
+}
+```
+
 ### Open Questions
 
-* Do we want to provide the option to have the lock files into another bucket? This will break the feature parity.
-* When writing the digest (*-md5) file, should we consider conditional writing by using the `IfMatch` argument?
+* Do we want to provide the option to have the lock objects into another bucket? This will break the feature parity.
+* When writing the digest (*-md5) object, should we consider conditional writing by using the `IfMatch` argument?
   ```go
   func (actor S3Actions) UpdateDigest(ctx context.Context, bucket string, key string, beforeApplyDigest string) error {
       newDigest := uuid.NewString()
@@ -115,5 +145,4 @@ _, err := actor.S3Client.PutObject(ctx, input)
 If this feature will prove to have a high adoption rate, later, we might consider to deprecate the DynamoDB locking mechanism. 
 
 ## Potential Alternatives
-
-[//]: # (TODO)
+Since this new feature relies on the S3 conditional writes, there is hardly other reliable alternative to implement this. 
