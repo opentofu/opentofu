@@ -35,7 +35,7 @@ To allow this in OpenTofu, the `backend "s3"` will receive one new attribute:
 >
 > The name `use_lockfile` was selected this way to keep the [feature parity with Terraform](https://developer.hashicorp.com/terraform/language/backend/s3#state-locking).
 
-When OpenTofu will find the above attribute in the backend configuration, it will handle the state locking and the digest of the state file in the same bucket as configured for the state file.
+When OpenTofu will find the above attribute in the backend configuration, it will handle the state locking and the digest of the state object in the same bucket.
 
 ### User Documentation
 
@@ -53,24 +53,24 @@ terraform {
 ```
 
 * When the new attribute `use_lockfile` exists and `dynamodb_table` is missing, OpenTofu will behave as normal:
-  * The only thing that will have to do extra, is to ensure that the MD5 file is there and if not, to create it.
-    * The generation of the MD5 checksum is already part of the [implementation](https://github.com/opentofu/opentofu/blob/6614782/internal/backend/remote-state/s3/client.go#L178).
-    * We just need to store it in a new file in the configured S3 bucket (file name: <state-file-path>-md5)
+  * The only thing that will have to do extra, is to ensure that the digest object is there and if not, to create it.
+    * The generation of the state checksum is already part of the [implementation](https://github.com/opentofu/opentofu/blob/6614782/internal/backend/remote-state/s3/client.go#L178).
+    * We just need to store it in a new object in the configured S3 bucket (object key: `<state-object-path>-md5`)
 * When the new attribute `use_lockfile` will exist **alongside** `dynamodb_table`, OpenTofu will:
   * Acquire the lock in the S3 bucket;
-  * Get the digest of the statefile from S3. If missing:
+  * Get the digest of the state object from S3. If missing:
     * Acquire the lock in DynamoDB table; 
-    * Get the digest of the statefile from DynamoDB and migrate it to the S3 bucket;
+    * Get the digest of the state object from DynamoDB and migrate it to the S3 bucket;
     * Release the lock from DynamoDB table;
   * Perform the requested sub-command
   * Release the lock from the S3 bucket;
 
 > [!NOTE]
 >
-> OpenTofu [recommends](https://opentofu.org/docs/language/settings/backends/s3/) to have versioning enabled for the S3 buckets used to store state files.
+> OpenTofu [recommends](https://opentofu.org/docs/language/settings/backends/s3/) to have versioning enabled for the S3 buckets used to store state objects.
 >
-> Acquiring and releasing locks will add a good amount of writes and reads to the bucket. Therefore, for a versioning-enabled S3 bucket, the number of versions for that file could grow significantly.
-> Even though the cost should be negligible for the locking files, any user using this feature could consider configuring the lifecycle of the S3 bucket to limit the number of versions of a file.
+> Acquiring and releasing locks will add a good amount of writes and reads to the bucket. Therefore, for a versioning-enabled S3 bucket, the number of versions for that object could grow significantly.
+> Even though the cost should be negligible for the locking objects, any user using this feature could consider configuring the lifecycle of the S3 bucket to limit the number of versions of an object.
 
 ### Technical Approach
 
@@ -90,21 +90,21 @@ _, err := actor.S3Client.PutObject(ctx, input)
 ```
 
 The `err` returned above should be handled accordingly with the [behaviour defined](https://docs.aws.amazon.com/AmazonS3/latest/userguide/conditional-writes.html) in the official docs:
-* HTTP 200 (OK) - Means that the locking file was not existing. Therefore, the lock can be considered as acquired.
+* HTTP 200 (OK) - Means that the locking object was not existing. Therefore, the lock can be considered as acquired.
   * For buckets with versioning enabled, if there's no current object version with the same name, or if the current object version is a delete marker, the write operation succeeds.
-* HTTP 412 (Precondition Failed) - Means that the locking file is already there. Therefore, the whole process should exit because the lock couldn't be acquired.
+* HTTP 412 (Precondition Failed) - Means that the locking object is already there. Therefore, the whole process should exit because the lock couldn't be acquired.
 * HTTP 409 (Conflict) - Means that the there was a conflict of concurrent requests. AWS recommends to retry the request in such cases, but we could just handle this similarly to the 412 case.
 
 #### Digest updates
 The S3 conditional writes, offer also the option to overwrite an object conditionally, only when the `ETag` of the existing object is matching the `ETag` that it is given in the `If-Match: <etag from reading>` header.
 
-We can use this option to write the digest (`<state-file-path>-md5`) object after the state file is saved.
+We can use this option to write the digest object (`<state-object-path>-md5`) after the state object is saved.
 
-To do so, when [reading the digest](https://github.com/opentofu/opentofu/blob/6614782/internal/backend/remote-state/s3/client.go#L88) for checking against the state file, we should store also the `ETag` of the read file.
-Later, when writing the newly generated digest, we can use the `ETag` in the `PutObjectInput.IfMatch` to ensure that the file didn't get any other update in the meantime:
+To do so, when [reading the digest object](https://github.com/opentofu/opentofu/blob/6614782/internal/backend/remote-state/s3/client.go#L88) for checking against the state object content, we should store also the `ETag` of the read object.
+Later, when writing the newly generated digest, we can use the `ETag` in the `PutObjectInput.IfMatch` to ensure that the state didn't get any other update in the meantime:
 * If the action succeeds, we should just proceed.
 * If the action fails (404, 409, 412), we could warn the user and retry the writing of the digest object without the `ETag`.
-  * The retry should be done to ensure consistency between the state file content and its digest.
+  * The retry should be done to ensure consistency between the state object content and its digest.
 
 As a short pseudocode, this would look something like:
 ```go
@@ -121,7 +121,7 @@ if err {
 ### Open Questions
 
 * Do we want to provide the option to have the lock objects into another bucket? This will break the feature parity.
-* When writing the digest (*-md5) object, should we consider conditional writing by using the `IfMatch` argument?
+* When writing the digest object (`<state-object-path>-md5`), should we consider conditional writing by using the `IfMatch` argument?
   ```go
   func (actor S3Actions) UpdateDigest(ctx context.Context, bucket string, key string, beforeApplyDigest string) error {
       newDigest := uuid.NewString()
@@ -137,9 +137,9 @@ if err {
   }
   ```
   Asking because this could also lead to other issues in case it doesn't match. I would suggest to have this only for showing an error in case the digest is different.
-* Right now, since the MD5 digest is stored in DynamoDB, this is written only when the `dynamodb_table` is specified.
-  * Should we do the same in the new implementation? Write the MD5 digest only if the `use_lockfile=true`?
-    * Considering the other conditional write option, with the header `IfMatch=<ETag of <state-file-path-before-applying>-md5>`, in case the user(s) is having no locking enabled, we could actually be able to warn the user if the digest was updated concurrently and suggesting enabling the locking mechanism to avoid concurrent writes on the state file.
+* Right now, since the state digest is stored in DynamoDB, this is written only when the `dynamodb_table` is specified.
+  * Should we do the same in the new implementation? Write the state digest only if the `use_lockfile=true`?
+    * Considering the other conditional write option, with the header `IfMatch=<ETag of <state-object-path-before-applying>-md5>`, in case the user(s) is having no locking enabled, we could actually be able to warn the user if the digest was updated concurrently and suggesting enabling the locking mechanism to avoid concurrent writes on the state object.
       * If needed, I could provide a small POC for it.
 ### Future Considerations
 If this feature will prove to have a high adoption rate, later, we might consider to deprecate the DynamoDB locking mechanism. 
