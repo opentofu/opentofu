@@ -27,6 +27,8 @@ vendor/
 .vscode/launch.json
 
 # Coverage
+coverage.html
+coverage.out
 coverage.txt
 
 # GoReleaser build directory
