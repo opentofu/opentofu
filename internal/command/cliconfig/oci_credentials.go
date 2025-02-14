@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl"
 	hclast "github.com/hashicorp/hcl/hcl/ast"
 
+	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -239,13 +240,12 @@ func decodeOCIDefaultCredentialsBlockBody(body *hclast.ObjectType, filename stri
 // to be considered in conjunction with all of the other OCICredentials objects across
 // the CLI configuration, and the OCIDefaultCredentials object too.
 type OCIRepositoryCredentials struct {
-	// RegistryDomain is the domain name (and optional port number) of the registry
-	// containing the repositories that these credentials apply to.
-	RegistryDomain string
-
-	// RepositoryPathPrefix is an optional path prefix that constrains which
-	// repositories on RegistryDomain these credentials can be used for.
-	RepositoryPathPrefix string
+	// A repository address prefix, in the form "domain/path", that describes which
+	// repositories these credentials are to be used for.
+	//
+	// This string is treated in the same way as the properties of the "auths" object
+	// in a container engine configuration file.
+	RepositoryPrefix string
 
 	// Username and Password are credentials to use for a "Basic"-style
 	// authentication method. These are mutually-exclusive with AccessToken
@@ -256,9 +256,249 @@ type OCIRepositoryCredentials struct {
 	// authentication method. These are mutually-exclusive with Username
 	// and Password.
 	AccessToken, RefreshToken string
+
+	// DockerCredentialsHelper is the name of a Docker-style credential helper program
+	// to use.
+	//
+	// Docker-style config only allows credential helpers to be configured at
+	// whole-registry-domain granularity, so for consistency we only allow this to be
+	// set when RepositoryPathPrefix isn't set.
+	DockerCredentialHelper string
 }
 
-// TODO: Implement decodeOCICredentialsFromConfig, returning []*OCIRepositoryCredentials
+// decodeOCIRepositoryCredentialsFromConfig uses the HCL AST API directly
+// to decode "oci_credentials" blocks from the given file.
+//
+// The overall CLI configuration can contain zero or more blocks of this
+// type. We require that each one describes a distinct OCI repository
+// address prefix, but that constraint must be enforced by the caller of
+// this function because it must be checked across all of the CLI
+// configuration files together, rather than just one file at a time.
+//
+// This uses the HCL AST directly, rather than HCL's decoder, to continue
+// our precedent of trying to constrain new features only to what could be
+// supported compatibly in a hypothetical future HCL 2-based implementation
+// of the CLI configuration language.
+//
+// Note that this function wants the top-level file object which might or
+// might not contain oci_credentials blocks, not an oci_credentials block
+// directly itself.
+func decodeOCIRepositoryCredentialsFromConfig(hclFile *hclast.File) ([]*OCIRepositoryCredentials, tfdiags.Diagnostics) {
+	var ret []*OCIRepositoryCredentials
+	var diags tfdiags.Diagnostics
+
+	root, ok := hclFile.Node.(*hclast.ObjectList)
+	if !ok {
+		// A HCL file that doesn't have an object list at its root is weird, but
+		// dealing with that is outside the scope of this function.
+		// (In practice both the native syntax and JSON parsers for HCL force
+		// the root to be an ObjectList, so we should not get here for any real file.)
+		return ret, diags
+	}
+	for _, block := range root.Items {
+		const errInvalidSummary = "Invalid oci_credentials block"
+		if block.Keys[0].Token.Value() != "oci_credentials" {
+			continue
+		}
+
+		// This helper function compensates for HCL 1's inability to automatically
+		// resolve the block label vs. block argument ambiguity in its JSON syntax.
+		// (This is why HCL 2 requires explicit schema!)
+		const TWO = 2 // To quiet the "mnd" linter
+		unwrapHCLObjectKeysFromJSON(block, TWO)
+		if len(block.Keys) != TWO {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				errInvalidSummary,
+				fmt.Sprintf("The oci_credentials block at %s must have one label, giving an OCI repository address prefix.", block.Pos()),
+			))
+			continue
+		}
+
+		// HCL only tracks whether the input was JSON or native syntax inside
+		// individual tokens, so we'll use our block type token to decide
+		// and assume that the rest of the block must be written in the same
+		// syntax, because syntax is a whole-file idea.
+		isJSON := block.Keys[0].Token.JSON
+		if block.Assign.Line != 0 && !isJSON {
+			// Seems to be an attribute rather than a block
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				errInvalidSummary,
+				fmt.Sprintf("The oci_credentials block at %s must not be introduced with an equals sign.", block.Pos()),
+			))
+			continue
+		}
+		body, ok := block.Val.(*hclast.ObjectType)
+		if !ok {
+			// We can't get in here with native HCL syntax because we
+			// already checked above that we're using block syntax, but
+			// if we're reading JSON then our value could potentially be
+			// anything.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				errInvalidSummary,
+				fmt.Sprintf("The oci_credentials block at %s must be represented by a JSON object.", block.Pos()),
+			))
+			continue
+		}
+		label, ok := block.Keys[1].Token.Value().(string)
+		if !ok {
+			// HCL grammar doesn't allow anything other than string in the key position,
+			// so we should not get here.
+			panic(fmt.Sprintf("HCL returned non-string label %#v for oci_credentials block", block.Keys[1].Token))
+		}
+
+		result, blockDiags := decodeOCICredentialsBlockBody(label, body)
+		diags = diags.Append(blockDiags)
+		if result != nil {
+			ret = append(ret, result)
+		}
+	}
+
+	return ret, diags
+}
+
+func decodeOCICredentialsBlockBody(label string, body *hclast.ObjectType) (*OCIRepositoryCredentials, tfdiags.Diagnostics) {
+	const errInvalidSummary = "Invalid oci_credentials block"
+	var diags tfdiags.Diagnostics
+
+	// We only validate here, since the repository-matching function in ociauthconfig
+	// wants the unparsed string and performs its own parsing step for consistency
+	// with the handling of container-engine-style config files.
+	_, repositoryPath, labelErr := ociauthconfig.ParseRepositoryAddressPrefix(label)
+	if labelErr != nil {
+		diags = append(diags, tfdiags.Sourceless(
+			tfdiags.Error,
+			errInvalidSummary,
+			fmt.Sprintf(
+				"The oci_credentials block at %s has an invalid block label: %s.",
+				body.Pos(), labelErr,
+			),
+		))
+		return nil, diags
+	}
+	repositoryPrefix := label
+
+	// Although decodeOCICredentialsFromConfig did some lower-level decoding
+	// to try to force HCL 2-compatible syntax, the _content_ of this block is all
+	// just relatively-simple arguments and so we can use HCL 1's decoder here.
+	type BodyContent struct {
+		// The following three groups of arguments are mutually-exclusive.
+
+		// Basic-auth-style credentials, statically configured
+		Username *string `hcl:"username"`
+		Password *string `hcl:"password"`
+
+		// OAuth style credentials
+		AccessToken  *string `hcl:"access_token"`
+		RefreshToken *string `hcl:"refresh_token"`
+
+		// Docker-style credentials helper providing Basic-auth-style credentials
+		// indirectly through an external program
+		DockerCredentialsHelper *string `hcl:"docker_credentials_helper"`
+	}
+	var bodyContent BodyContent
+	err := hcl.DecodeObject(&bodyContent, body)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			errInvalidSummary,
+			fmt.Sprintf("Invalid oci_credentials block at %s: %s.", body.Pos(), err),
+		))
+		return nil, diags
+	}
+
+	staticBasicAuth := bodyContent.Username != nil || bodyContent.Password != nil
+	oauth := bodyContent.AccessToken != nil || bodyContent.RefreshToken != nil
+	dockerCredHelper := bodyContent.DockerCredentialsHelper != nil
+	stylesConfigured := trueCount(staticBasicAuth, oauth, dockerCredHelper)
+	if stylesConfigured == 0 {
+		diags = append(diags, tfdiags.Sourceless(
+			tfdiags.Error,
+			errInvalidSummary,
+			fmt.Sprintf(
+				"The oci_credentials block at %s must set either username+password, access_token+refresh_token, or docker_credentials_helper.",
+				body.Pos(),
+			),
+		))
+		return nil, diags
+	}
+	if stylesConfigured > 1 {
+		diags = append(diags, tfdiags.Sourceless(
+			tfdiags.Error,
+			errInvalidSummary,
+			fmt.Sprintf(
+				"The oci_credentials block at %s must set only one group out of username+password, access_token+refresh_token, or docker_credentials_helper.",
+				body.Pos(),
+			),
+		))
+		return nil, diags
+	}
+
+	ret := &OCIRepositoryCredentials{
+		RepositoryPrefix: repositoryPrefix,
+	}
+	switch {
+	case staticBasicAuth:
+		if bodyContent.Username == nil || bodyContent.Password == nil {
+			diags = append(diags, tfdiags.Sourceless(
+				tfdiags.Error,
+				errInvalidSummary,
+				fmt.Sprintf(
+					"The oci_credentials block at %s must set both username and password together when using static credentials.",
+					body.Pos(),
+				),
+			))
+			return nil, diags
+		}
+		ret.Username = *bodyContent.Username
+		ret.Password = *bodyContent.Password
+	case oauth:
+		// FIXME: Is refresh_roken actually required? We could potentially allow setting
+		// only access_token and let the request just immediately fail if the token has expired.
+		if bodyContent.AccessToken == nil || bodyContent.RefreshToken == nil {
+			diags = append(diags, tfdiags.Sourceless(
+				tfdiags.Error,
+				errInvalidSummary,
+				fmt.Sprintf(
+					"The oci_credentials block at %s must set both access_token and refresh_token together when using OAuth-style credentials.",
+					body.Pos(),
+				),
+			))
+			return nil, diags
+		}
+		ret.AccessToken = *bodyContent.AccessToken
+		ret.RefreshToken = *bodyContent.RefreshToken
+	case dockerCredHelper:
+		ret.DockerCredentialHelper = *bodyContent.DockerCredentialsHelper
+		if repositoryPath != "" {
+			diags = append(diags, tfdiags.Sourceless(
+				tfdiags.Error,
+				errInvalidSummary,
+				fmt.Sprintf(
+					"The oci_credentials block at %s cannot set docker_credentials_helper with a repository path: credential helpers only support credentials for whole domains.",
+					body.Pos(),
+				),
+			))
+		}
+		if !validDockerCredentialHelperName(ret.DockerCredentialHelper) {
+			diags = append(diags, tfdiags.Sourceless(
+				tfdiags.Error,
+				errInvalidSummary,
+				fmt.Sprintf(
+					"The oci_credentials block at %s specifies the invalid Docker credential helper name %q. Must be a non-empty string that could be used as part of an executable filename.",
+					body.Pos(), ret.DockerCredentialHelper,
+				),
+			))
+		}
+		if diags.HasErrors() {
+			return nil, diags
+		}
+	}
+
+	return ret, diags
+}
 
 func validDockerCredentialHelperName(n string) bool {
 	switch {
@@ -275,5 +515,58 @@ func validDockerCredentialHelperName(n string) bool {
 		return false
 	default:
 		return true
+	}
+}
+
+func trueCount(flags ...bool) int {
+	ret := 0
+	for _, flag := range flags {
+		if flag {
+			ret++
+		}
+	}
+	return ret
+}
+
+// unwrapHCLObjectKeysFromJSON cleans up an edge case that can occur when
+// parsing JSON as input using the old HCL 1 parser: if we're parsing JSON
+// then directly nested items will show up as additional "keys".
+//
+// For objects that expect a fixed number of keys, this breaks the
+// decoding process. This function unwraps the object into what it would've
+// looked like if it came directly from HCL 1 by specifying the number of keys
+// you expect.
+//
+// Example:
+//
+// { "foo": { "baz": {} } }
+//
+// Will show up with Keys being: []string{"foo", "baz"}
+// when we really just want the first one. This function will fix this.
+//
+// This function is a fun old helper cribbed from a much older version before
+// HCL 2, where the main language was also implemented using HCL 1:
+// https://github.com/opentofu/opentofu/blob/e0fd3ddd704b230897723a7ca251f36b71c2b67a/config/loader_hcl.go#L1215-L1237
+func unwrapHCLObjectKeysFromJSON(item *hclast.ObjectItem, depth int) {
+	if len(item.Keys) > depth && item.Keys[0].Token.JSON {
+		for len(item.Keys) > depth {
+			// Pop off the last key
+			n := len(item.Keys)
+			key := item.Keys[n-1]
+			item.Keys[n-1] = nil
+			item.Keys = item.Keys[:n-1]
+
+			// Wrap our value in a list
+			item.Val = &hclast.ObjectType{
+				List: &hclast.ObjectList{
+					Items: []*hclast.ObjectItem{
+						{
+							Keys: []*hclast.ObjectKey{key},
+							Val:  item.Val,
+						},
+					},
+				},
+			}
+		}
 	}
 }
