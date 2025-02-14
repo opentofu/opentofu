@@ -68,7 +68,19 @@ terraform {
 
 > [!WARNING]
 > 
-> When OpenTofu S3 backend is used with an S3 compatible provider, it needs to be checked that the provider is supporting conditional writes in the same way AWS S3 is offering. 
+> When OpenTofu S3 backend is used with an S3 compatible provider, it needs to be checked that the provider is supporting conditional writes in the same way AWS S3 is offering.
+
+#### Migration paths
+##### I have no locking enabled
+In this case, the user can just add the new `use_lockfile=true` and run `tofu init -reconfigure`.
+
+##### I have DynamoDB locking enabled
+In case the user is having DynamoDB enabled, there are two paths forward:
+1. Add the new attribute `use_lockfile=true` and run `tofu init -reconfigure`
+   * Later, remove the `dynamodb_table` attribute and run `tofu init -reconfigure` again
+2. Add the new attribute `use_lockfile=true`, remove the `dynamodb_table` one and run `tofu init -reconfigure`
+
+OpenTofu recommends to have both locking mechanisms enabled for a limited amount of time and later remove the DynamoDB locking.
 ### Technical Approach
 
 In order to achieve and ensure a proper state locking via S3 bucket, we want to attempt to create the locking object only when it is missing. 
