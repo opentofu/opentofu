@@ -134,25 +134,25 @@ type LockInfo struct {
 	// Unique ID for the lock. NewLockInfo provides a random ID, but this may
 	// be overridden by the lock implementation. The final value of ID will be
 	// returned by the call to Lock.
-	ID string
+	ID string `json:"ID,omitempty"`
 
 	// OpenTofu operation, provided by the caller.
-	Operation string
+	Operation string `json:"operation,omitempty"`
 
 	// Extra information to store with the lock, provided by the caller.
-	Info string
+	Info string `json:"info,omitempty"`
 
 	// user@hostname when available
-	Who string
+	Who string `json:"who,omitempty"`
 
 	// OpenTofu version
-	Version string
+	Version string `json:"version,omitempty"`
 
 	// Time that the lock was taken.
-	Created time.Time
+	Created time.Time `json:"created"`
 
 	// Path to the state file when applicable. Set by the Lock implementation.
-	Path string
+	Path string `json:"path,omitempty"`
 }
 
 // NewLockInfo creates a LockInfo object and populates many of its fields

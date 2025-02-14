@@ -35,7 +35,10 @@ import (
 const (
 	s3EncryptionAlgorithm  = "AES256"
 	stateIDSuffix          = "-md5"
+	lockFileSuffix         = ".tflock"
 	s3ErrCodeInternalError = "InternalError"
+
+	contentTypeJSON = "application/json"
 )
 
 type RemoteClient struct {
@@ -50,6 +53,8 @@ type RemoteClient struct {
 	ddbTable              string
 
 	skipS3Checksum bool
+
+	useLockfile bool
 }
 
 var (
@@ -190,11 +195,10 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 }
 
 func (c *RemoteClient) Put(data []byte) error {
-	contentType := "application/json"
 	contentLength := int64(len(data))
 
 	i := &s3.PutObjectInput{
-		ContentType:   &contentType,
+		ContentType:   aws.String(contentTypeJSON),
 		ContentLength: aws.Int64(contentLength),
 		Body:          bytes.NewReader(data),
 		Bucket:        &c.bucketName,
@@ -272,10 +276,32 @@ func (c *RemoteClient) Delete() error {
 }
 
 func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+	s3LockID, err := c.s3Lock(info)
+	if err != nil {
+		return "", err
+	}
+	dynamoLockID, err := c.dynamoDBLock(info)
+	if err != nil {
+		return "", err
+	}
+	switch {
+	case c.useLockfile && c.ddbTable != "":
+		if s3LockID != dynamoLockID {
+			log.Printf("[WARN] acquiring s3 and dynamodb lock resulted in different lockIds. s3 lockId: %s; dynamodb lockId; %s", s3LockID, dynamoLockID)
+		}
+		return s3LockID, nil
+	case c.useLockfile:
+		return s3LockID, nil
+	case c.ddbTable != "":
+		return dynamoLockID, nil
+	}
+	return "", nil
+}
+
+func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) (string, error) {
 	if c.ddbTable == "" {
 		return "", nil
 	}
-
 	info.Path = c.lockPath()
 
 	if info.ID == "" {
@@ -300,6 +326,49 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfo(ctx)
+		if infoErr != nil {
+			err = multierror.Append(err, infoErr)
+		}
+
+		lockErr := &statemgr.LockError{
+			Err:  err,
+			Info: lockInfo,
+		}
+		return "", lockErr
+	}
+
+	return info.ID, nil
+}
+
+func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) (string, error) {
+	if !c.useLockfile {
+		return "", nil
+	}
+	info.Path = c.lockPath()
+
+	if info.ID == "" {
+		lockID, err := uuid.GenerateUUID()
+		if err != nil {
+			return "", err
+		}
+		info.ID = lockID
+	}
+
+	lInfo := info.Marshal()
+	putParams := &s3.PutObjectInput{
+		ContentType:   aws.String(contentTypeJSON),
+		ContentLength: aws.Int64(int64(len(lInfo))),
+		Bucket:        aws.String(c.bucketName),
+		Key:           aws.String(c.lockFilePath()),
+		Body:          bytes.NewReader(lInfo),
+		IfNoneMatch:   aws.String("*"),
+	}
+
+	ctx := context.TODO()
+	ctx, _ = attachLoggerToContext(ctx)
+	_, err := c.s3Client.PutObject(ctx, putParams)
+	if err != nil {
+		lockInfo, infoErr := c.getS3LockInfo(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
 		}
@@ -426,7 +495,90 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 	return lockInfo, nil
 }
 
+func (c *RemoteClient) getS3LockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
+	getParams := &s3.GetObjectInput{
+		Bucket: aws.String(c.bucketName),
+		Key:    aws.String(c.lockFilePath()),
+	}
+
+	resp, err := c.s3Client.GetObject(ctx, getParams)
+	if err != nil {
+		var nb *types.NoSuchBucket
+		if errors.As(err, &nb) {
+			//nolint:stylecheck // error message already used in multiple places. Not recommended to be updated
+			return nil, fmt.Errorf(errS3NoSuchBucket, err)
+		}
+
+		var nk *types.NotFound
+		if errors.As(err, &nk) {
+			return &statemgr.LockInfo{}, nil
+		}
+
+		return nil, err
+	}
+
+	lockContent, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("could not read the content of the lock object: %w", err)
+	}
+	if len(lockContent) == 0 {
+		return nil, fmt.Errorf("no lock info found for %q in the s3 bucket: %s", c.lockFilePath(), c.bucketName)
+	}
+
+	lockInfo := &statemgr.LockInfo{}
+	err = json.Unmarshal(lockContent, lockInfo)
+	if err != nil {
+		return nil, fmt.Errorf("unable to json parse the lock info %q from bucket %q: %w", c.lockFilePath(), c.bucketName, err)
+	}
+
+	return lockInfo, nil
+}
+
 func (c *RemoteClient) Unlock(id string) error {
+	if c.useLockfile {
+		if err := c.s3Unlock(id); err != nil {
+			return err
+		}
+	}
+	if c.ddbTable != "" {
+		if err := c.dynamoDBUnlock(id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *RemoteClient) s3Unlock(id string) error {
+	lockErr := &statemgr.LockError{}
+	ctx := context.TODO()
+	ctx, _ = attachLoggerToContext(ctx)
+
+	lockInfo, err := c.getS3LockInfo(ctx)
+	if err != nil {
+		lockErr.Err = fmt.Errorf("failed to retrieve s3 lock info: %w", err)
+		return lockErr
+	}
+	lockErr.Info = lockInfo
+
+	if lockInfo.ID != id {
+		lockErr.Err = fmt.Errorf("lock id %q from s3 does not match existing lock", id)
+		return lockErr
+	}
+
+	params := &s3.DeleteObjectInput{
+		Bucket: aws.String(c.bucketName),
+		Key:    aws.String(c.lockFilePath()),
+	}
+
+	_, err = c.s3Client.DeleteObject(ctx, params)
+	if err != nil {
+		lockErr.Err = err
+		return lockErr
+	}
+	return nil
+}
+
+func (c *RemoteClient) dynamoDBUnlock(id string) error {
 	if c.ddbTable == "" {
 		return nil
 	}
@@ -476,7 +628,11 @@ func (c *RemoteClient) getSSECustomerKeyMD5() string {
 }
 
 func (c *RemoteClient) IsLockingEnabled() bool {
-	return c.ddbTable != ""
+	return c.ddbTable != "" || c.useLockfile
+}
+
+func (c *RemoteClient) lockFilePath() string {
+	return fmt.Sprintf("%s%s", c.path, lockFileSuffix)
 }
 
 const errBadChecksumFmt = `state data in S3 does not have the expected content.
