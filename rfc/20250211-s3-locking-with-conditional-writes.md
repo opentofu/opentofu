@@ -72,6 +72,9 @@ terraform {
 > Acquiring and releasing locks will add a good amount of writes and reads to the bucket. Therefore, for a versioning-enabled S3 bucket, the number of versions for that object could grow significantly.
 > Even though the cost should be negligible for the locking objects, any user using this feature could consider configuring the lifecycle of the S3 bucket to limit the number of versions of an object.
 
+> [!WARNING]
+> 
+> When OpenTofu S3 backend is used with an S3 compatible provider, it needs to be checked that the provider is supporting conditional writes in the same way AWS S3 is offering. 
 ### Technical Approach
 
 In order to achieve and ensure a proper state locking via S3 bucket, we want to attempt to create the locking object only when it is missing. 
