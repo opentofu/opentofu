@@ -141,7 +141,7 @@ if err {
   ```
   Asking because this could also lead to other issues in case it doesn't match. I would suggest to have this only for showing an error in case the digest is different.
 * Right now, since the state digest is stored in DynamoDB, this is written only when the `dynamodb_table` is specified.
-  * Should we do the same in the new implementation? Write the state digest only if the `use_lockfile=true`?
+  * Should we do the same in the new implementation? Write the state digest only if `use_lockfile=true`?
     * Considering the other conditional write option, with the header `IfMatch=<ETag of <state-object-path-before-applying>-md5>`, in case the user(s) is having no locking enabled, we could actually be able to warn the user if the digest was updated concurrently and suggesting enabling the locking mechanism to avoid concurrent writes on the state object.
       * If needed, I could provide a small POC for it.
 ### Future Considerations
