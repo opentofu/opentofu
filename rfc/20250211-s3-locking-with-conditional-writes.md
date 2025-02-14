@@ -59,6 +59,8 @@ terraform {
   * Release the lock from the S3 bucket;
   * Release the lock from DynamoDB table.
 
+The usage of [workspaces](https://opentofu.org/docs/language/state/workspaces/) will not impact this new way of locking. The locking object will always be stored right next to its related state object.
+
 > [!NOTE]
 >
 > OpenTofu [recommends](https://opentofu.org/docs/language/settings/backends/s3/) to have versioning enabled for the S3 buckets used to store state objects.
