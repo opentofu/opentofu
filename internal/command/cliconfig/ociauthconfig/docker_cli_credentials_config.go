@@ -182,12 +182,24 @@ func dockerCLIStyleAuthMatch(authsPropertyName string, wantRegistryDomain, wantR
 	if authsPropertyName == "" {
 		return NoCredentialsSpecificity // Invalid
 	}
-	gotDomain, gotRepositoryPath, havePath := strings.Cut(authsPropertyName, "/")
+	var gotDomain, gotRepositoryPath string
+	if strings.Count(authsPropertyName, "/") > 0 {
+		var err error
+		gotDomain, gotRepositoryPath, err = ParseRepositoryAddressPrefix(authsPropertyName)
+		if err != nil {
+			// Since these Docker CLI-style config files are not exclusively for OpenTofu,
+			// we just silently ignore a property whose name we can't make sense of
+			// in case a future version of this format adds something new that we
+			// don't yet support.
+			return NoCredentialsSpecificity // Invalid
+		}
+	} else {
+		gotDomain = authsPropertyName
+	}
 	if gotDomain != wantRegistryDomain {
 		return NoCredentialsSpecificity // does not match
 	}
-	if !havePath {
-		// Domain-only match fast path
+	if gotRepositoryPath == "" {
 		return DomainCredentialsSpecificity // matches only the domain
 	}
 	// If authsPropertyName includes a path (that is: if gotRepositoryPath != "")
