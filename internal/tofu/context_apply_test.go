@@ -1203,7 +1203,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBD2(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	} else {
-		t.Logf(legacyDiffComparisonString(plan.Changes))
+		t.Log(legacyDiffComparisonString(plan.Changes))
 	}
 
 	state, diags = ctx.Apply(context.Background(), plan, m)
