@@ -70,19 +70,22 @@ The usage of [workspaces](https://opentofu.org/docs/language/state/workspaces/) 
 
 > [!WARNING]
 > 
-> When OpenTofu S3 backend is used with an S3 compatible provider, it needs to be checked that the provider is supporting conditional writes in the same way AWS S3 is offering.
+> When OpenTofu S3 backend is used with an S3 compatible provider, it needs to be checked that the provider supports conditional writes in the same way AWS S3 is offering.
 
 #### Migration paths
 ##### I have no locking enabled
 In this case, the user can just add the new `use_lockfile=true` and run `tofu init -reconfigure`.
 
 ##### I have DynamoDB locking enabled
-In case the user is having DynamoDB enabled, there are two paths forward:
+In case the user has DynamoDB enabled, there are two paths forward:
 1. Add the new attribute `use_lockfile=true` and run `tofu init -reconfigure`
-   * Later, remove the `dynamodb_table` attribute and run `tofu init -reconfigure` again
-2. Add the new attribute `use_lockfile=true`, remove the `dynamodb_table` one and run `tofu init -reconfigure`
+   * Later, after a baking period with both locking mechanisms enabled, if no issues encountered, remove the `dynamodb_table` attribute and run `tofu init -reconfigure` again.
+   * Letting both locking mechanisms enabled, ensures that nobody will acquire the lock regardless of having or not the latest configuration.
+2. Add the new attribute `use_lockfile=true`, remove the `dynamodb_table` one and run `tofu init -reconfigure` 
+   * **Caution:** when the configuration updated is executed from multiple places (multiple machines, pipelines on PRs, etc), you might get into issues where one outdated copy of the configuration is using DynamoDB locking and the one updated is using S3 locking. This could create concurrent access on the same state.
+   * Once the state is updated by using this approach, the state digest that OpenTofu was storing in DynamoDB (for data consistency checks) will get stale. If it is wanted to go back to DynamoDB locking, the old digest needs to be cleaned up manually.
 
-OpenTofu recommends to have both locking mechanisms enabled for a limited amount of time and later remove the DynamoDB locking.
+OpenTofu recommends to have both locking mechanisms enabled for a limited amount of time and later remove the DynamoDB locking. This is to ensure that the changes pushed upstream will be propagated into all of your places that the configuration could be executed from.
 ### Technical Approach
 
 In order to achieve and ensure a proper state locking via S3 bucket, we want to attempt to create the locking object only when it is missing. 
@@ -111,10 +114,10 @@ The `err` returned above should be handled accordingly with the [behaviour defin
 > Right now, when locking is enabled on DynamoDB, at the moment of updating the state object content, OpenTofu also writes an entry in DynamoDB with the MD5 sum of the state object.
 > The reason is to be able to check the integrity of the state object from the S3 bucket in a future run. This is done by reading the digest from DynamoDB and comparing it with the ETag attribute of the state object from S3. 
 
-By moving to the S3 based locking, OpenTofu will hold no other file for the digest of the state object, since the digest is kept in `ETag` header of the object.
+By moving to the S3 based locking, OpenTofu will store no other file for the digest of the state object. This was a mechanism to validate the state object integrity when the lock was stored in DynamoDB.
 More info about this topic can be found on the [official documentation](https://docs.aws.amazon.com/AmazonS3/latest/userguide/checking-object-integrity.html).
 
-But if both locks are enabled (`use_lockfile=true` and `dynamodb_table=<actual_table_name>`), the digest file will still be stored in DynamoDB.
+But if both locks are enabled (`use_lockfile=true` and `dynamodb_table=<actual_table_name>`), the state digest will still be stored in DynamoDB.
 
 > [!WARNING]
 > 
