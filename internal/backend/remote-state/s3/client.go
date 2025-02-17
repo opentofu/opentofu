@@ -282,6 +282,10 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 	dynamoLockID, err := c.dynamoDBLock(info)
 	if err != nil {
+		// when second lock fails to get acquired, release the initially acquired one
+		if uErr := c.s3Unlock(s3LockID); uErr != nil {
+			log.Printf("[WARN] failed to release the S3 lock on after failed to acquire the dynamoDD lock: %v", uErr)
+		}
 		return "", err
 	}
 	switch {

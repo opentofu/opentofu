@@ -1810,6 +1810,15 @@ func unmarshalObject(dec cty.Value, atys map[string]cty.Type, path cty.Path) (ct
 	return cty.ObjectVal(vals), nil
 }
 
+func numberOfObjects(t *testing.T, ctx context.Context, s3Client *s3.Client, bucketName string) int {
+	resp, err := s3Client.ListObjects(ctx, &s3.ListObjectsInput{Bucket: &bucketName})
+	if err != nil {
+		t.Fatalf("error getting objects from bucket %s: %v", bucketName, err)
+		return 0
+	}
+	return len(resp.Contents)
+}
+
 func must[T any](v T, err error) T {
 	if err != nil {
 		panic(err)

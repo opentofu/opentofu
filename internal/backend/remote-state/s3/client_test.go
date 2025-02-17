@@ -59,6 +59,7 @@ func TestRemoteClientLocks(t *testing.T) {
 		"key":            keyName,
 		"encrypt":        true,
 		"dynamodb_table": bucketName,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
 	})).(*Backend)
 
 	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
@@ -66,6 +67,7 @@ func TestRemoteClientLocks(t *testing.T) {
 		"key":            keyName,
 		"encrypt":        true,
 		"dynamodb_table": bucketName,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
 	})).(*Backend)
 
 	ctx := context.TODO()
@@ -85,6 +87,131 @@ func TestRemoteClientLocks(t *testing.T) {
 	}
 
 	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+}
+
+func TestRemoteS3ClientLocks(t *testing.T) {
+	testACC(t)
+	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
+	keyName := "testState"
+
+	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"bucket":       bucketName,
+		"key":          keyName,
+		"encrypt":      true,
+		"use_lockfile": true,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
+	})).(*Backend)
+
+	b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"bucket":       bucketName,
+		"key":          keyName,
+		"encrypt":      true,
+		"use_lockfile": true,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
+	})).(*Backend)
+
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+
+	s1, err := b1.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s2, err := b2.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//nolint:errcheck // don't need to check the error from type assertion
+	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+}
+
+func TestRemoteS3AndDynamoDBClientLocks(t *testing.T) {
+	testACC(t)
+	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
+	keyName := "testState"
+
+	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"bucket":         bucketName,
+		"key":            keyName,
+		"dynamodb_table": bucketName,
+		"encrypt":        true,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
+	})).(*Backend)
+
+	b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"bucket":         bucketName,
+		"key":            keyName,
+		"dynamodb_table": bucketName,
+		"encrypt":        true,
+		"use_lockfile":   true,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
+	})).(*Backend)
+
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+
+	s1, err := b1.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	s2, err := b2.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("dynamo lock goes first and s3+dynamo locks second", func(t *testing.T) {
+		//nolint:errcheck // don't need to check the error from type assertion
+		remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+	})
+
+	t.Run("s3+dynamo lock goes first and dynamo locks second", func(t *testing.T) {
+		//nolint:errcheck // don't need to check the error from type assertion
+		remote.TestRemoteLocks(t, s2.(*remote.State).Client, s1.(*remote.State).Client)
+	})
+}
+
+func TestRemoteS3AndDynamoDBClientLocksWithNoDBInstance(t *testing.T) {
+	testACC(t)
+	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
+	keyName := "testState"
+
+	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"bucket":         bucketName,
+		"key":            keyName,
+		"dynamodb_table": bucketName,
+		"encrypt":        true,
+		"use_lockfile":   true,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
+	})).(*Backend)
+
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+
+	s1, err := b1.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	infoA := statemgr.NewLockInfo()
+	infoA.Operation = "test"
+	infoA.Who = "clientA"
+
+	if _, err := s1.Lock(infoA); err == nil {
+		t.Fatal("unexpected successful lock: ", err)
+	}
+
+	expected := 0
+	if actual := numberOfObjects(t, ctx, b1.s3Client, bucketName); actual != expected {
+		t.Fatalf("expected to have %d objects but got %d", expected, actual)
+	}
 }
 
 // verify that we can unlock a state with an existing lock
@@ -177,6 +304,99 @@ func TestForceUnlock(t *testing.T) {
 	expectedErrorMsg := fmt.Errorf("failed to retrieve lock info: no lock info found for: \"%s/env:/%s/%s\" within the DynamoDB table: %s", bucketName, secondWorkspace, keyName, bucketName)
 	if err.Error() != expectedErrorMsg.Error() {
 		t.Errorf("Unlock() error = %v, want: %v", err, expectedErrorMsg)
+	}
+}
+
+// verify that we can unlock a state with an existing lock
+func TestForceUnlockS3Only(t *testing.T) {
+	testACC(t)
+	bucketName := fmt.Sprintf("%s-force-s3-%x", testBucketPrefix, time.Now().Unix())
+	keyName := "testState"
+
+	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"bucket":       bucketName,
+		"key":          keyName,
+		"encrypt":      true,
+		"use_lockfile": true,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
+	})).(*Backend)
+
+	b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"bucket":       bucketName,
+		"key":          keyName,
+		"encrypt":      true,
+		"use_lockfile": true,
+		// "use_path_style": true, // NOTE: enable this to test against localstack (https://docs.localstack.cloud/getting-started/)
+	})).(*Backend)
+
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+
+	// first test with default
+	s1, err := b1.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info := statemgr.NewLockInfo()
+	info.Operation = "test"
+	info.Who = "clientA"
+
+	lockID, err := s1.Lock(info)
+	if err != nil {
+		t.Fatal("unable to get initial lock:", err)
+	}
+
+	// s1 is now locked, get the same state through s2 and unlock it
+	s2, err := b2.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatal("failed to get default state to force unlock:", err)
+	}
+
+	if err = s2.Unlock(lockID); err != nil {
+		t.Fatal("failed to force-unlock default state")
+	}
+
+	// now try the same thing with a named state
+	// first test with default
+	s1, err = b1.StateMgr("test")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info = statemgr.NewLockInfo()
+	info.Operation = "test"
+	info.Who = "clientA"
+
+	lockID, err = s1.Lock(info)
+	if err != nil {
+		t.Fatal("unable to get initial lock:", err)
+	}
+
+	// s1 is now locked, get the same state through s2 and unlock it
+	s2, err = b2.StateMgr("test")
+	if err != nil {
+		t.Fatal("failed to get named state to force unlock:", err)
+	}
+
+	if err = s2.Unlock(lockID); err != nil {
+		t.Fatal("failed to force-unlock named state")
+	}
+
+	// No State lock information found for the new workspace. The client should throw the appropriate error message.
+	secondWorkspace := "new-workspace"
+	s2, err = b2.StateMgr(secondWorkspace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = s2.Unlock(lockID)
+	if err == nil {
+		t.Fatal("expected an error to occur:", err)
+	}
+	expectedErrorMsg := fmt.Errorf("failed to retrieve s3 lock info: operation error S3: GetObject, https response error StatusCode: 404")
+	if !strings.HasPrefix(err.Error(), expectedErrorMsg.Error()) {
+		t.Errorf("Unlock()\nactual = %v\nexpected = %v", err, expectedErrorMsg)
 	}
 }
 
@@ -347,9 +567,10 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 // It checks if locking is enabled based on the ddbTable field.
 func TestRemoteClient_IsLockingEnabled(t *testing.T) {
 	tests := []struct {
-		name       string
-		ddbTable   string
-		wantResult bool
+		name        string
+		ddbTable    string
+		useLockfile bool
+		wantResult  bool
 	}{
 		{
 			name:       "Locking enabled when ddbTable is set",
@@ -361,12 +582,31 @@ func TestRemoteClient_IsLockingEnabled(t *testing.T) {
 			ddbTable:   "",
 			wantResult: false,
 		},
+		{
+			name:        "Locking disabled when ddbTable is empty and useLockfile disabled",
+			ddbTable:    "",
+			useLockfile: false,
+			wantResult:  false,
+		},
+		{
+			name:        "Locking enabled when ddbTable is set or useLockfile enabled",
+			ddbTable:    "my-lock-table",
+			useLockfile: true,
+			wantResult:  true,
+		},
+		{
+			name:        "Locking enabled when ddbTable is empty and useLockfile enabled",
+			ddbTable:    "",
+			useLockfile: true,
+			wantResult:  true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			client := &RemoteClient{
-				ddbTable: tt.ddbTable,
+				ddbTable:    tt.ddbTable,
+				useLockfile: tt.useLockfile,
 			}
 
 			gotResult := client.IsLockingEnabled()
