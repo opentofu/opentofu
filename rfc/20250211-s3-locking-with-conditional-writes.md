@@ -125,7 +125,9 @@ But if both locks are enabled (`use_lockfile=true` and `dynamodb_table=<actual_t
 * Do we want to provide the option to have the lock objects into another bucket? This will break the feature parity.
 
 ### Future Considerations
-If this feature will prove to have a high adoption rate, later, we might consider to deprecate the DynamoDB locking mechanism. 
+Later, DynamoDB based locking might be considered for deprecation once (at least) the following are true:
+* Conditional writes are implemented in the majority of the S3 compatible services.
+* The adoption rate for the new S3 based locking will be high enough to not affect the existing users.
 
 ## Potential Alternatives
 Since this new feature relies on the S3 conditional writes, there is hardly other reliable alternative to implement this. 
