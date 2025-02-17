@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/hashicorp/go-uuid"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -367,6 +368,86 @@ func testDiffFn(req providers.PlanResourceChangeRequest) (resp providers.PlanRes
 
 	resp.PlannedState = cty.ObjectVal(planned)
 	return
+}
+
+// testProviderBuiltin returns a mock provider that implements the relevant parts of builtin provider schema for testing.
+// Used to test with scenarios that are used for actual configs. Currently, ignores input and output attr handling.
+func testProviderBuiltin() *MockProvider {
+	p := new(MockProvider)
+	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
+		ResourceTypes: map[string]providers.Schema{
+			"terraform_data": {
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"triggers_replace": {Type: cty.DynamicPseudoType, Optional: true},
+						"id":               {Type: cty.String, Computed: true},
+					},
+				},
+			},
+		},
+	}
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		var resp providers.PlanResourceChangeResponse
+		if req.ProposedNewState.IsNull() {
+			// destroy op
+			resp.PlannedState = req.ProposedNewState
+			return resp
+		}
+
+		planned := req.ProposedNewState.AsValueMap()
+		trigger := req.ProposedNewState.GetAttr("triggers_replace")
+
+		switch {
+		case req.PriorState.IsNull():
+			// Create
+			// Set the id value to unknown.
+			planned["id"] = cty.UnknownVal(cty.String).RefineNotNull()
+
+			resp.PlannedState = cty.ObjectVal(planned)
+			return resp
+
+		case !req.PriorState.GetAttr("triggers_replace").RawEquals(trigger):
+			// trigger changed, so we need to replace the entire instance
+			resp.RequiresReplace = append(resp.RequiresReplace, cty.GetAttrPath("triggers_replace"))
+			planned["id"] = cty.UnknownVal(cty.String).RefineNotNull()
+		}
+
+		resp.PlannedState = cty.ObjectVal(planned)
+		return resp
+	}
+
+	p.ApplyResourceChangeFn = func(req providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+		var resp providers.ApplyResourceChangeResponse
+		if req.PlannedState.IsNull() {
+			resp.NewState = req.PlannedState
+			return resp
+		}
+
+		newState := req.PlannedState.AsValueMap()
+
+		if !req.PlannedState.GetAttr("id").IsKnown() {
+			idString, err := uuid.GenerateUUID()
+			// OpenTofu would probably never get this far without a good random
+			// source, but catch the error anyway.
+			if err != nil {
+				diag := tfdiags.AttributeValue(
+					tfdiags.Error,
+					"Error generating id",
+					err.Error(),
+					cty.GetAttrPath("id"),
+				)
+
+				resp.Diagnostics = resp.Diagnostics.Append(diag)
+			}
+
+			newState["id"] = cty.StringVal(idString)
+		}
+
+		resp.NewState = cty.ObjectVal(newState)
+
+		return resp
+	}
+	return p
 }
 
 func testProvider(prefix string) *MockProvider {

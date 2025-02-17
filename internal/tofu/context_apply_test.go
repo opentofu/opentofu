@@ -1124,6 +1124,98 @@ aws_instance.foo:
   require_new = yes
   type = aws_instance
 	`)
+
+	// Check that create_before_destroy was set on the foo resource
+	foo := state.RootModule().Resources["aws_instance.foo"].Instances[addrs.NoKey].Current
+	if !foo.CreateBeforeDestroy {
+		t.Fatalf("foo resource should have create_before_destroy set")
+	}
+}
+
+// This tests that when a CBD (C) resource depends on a non-CBD (B) resource that depends on another CBD resource (A)
+// Check that create_before_destroy is still set on the B resource after only the B resource is updated
+func TestContext2Apply_createBeforeDestroy_dependsNonCBD2(t *testing.T) {
+	m := testModule(t, "apply-cbd-depends-non-cbd2")
+	p := testProviderBuiltin()
+
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("terraform_data.A").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"id": "a1",
+				"triggers_replace": {
+				  "value": { "version": 0 },
+				  "type": ["object", { "version": "number" }]
+				}
+			}`),
+			CreateBeforeDestroy: true,
+		},
+		mustProviderConfig(`provider["terraform.io/builtin/terraform"]`),
+		addrs.NoKey,
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("terraform_data.B").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"id": "b1",
+				"triggers_replace": {
+				  "value": {
+					"base": "a1",
+					"version": 0
+				  },
+				  "type": ["object", { "base": "string", "version": "number" }]
+				}
+			}`),
+			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("terraform_data.A")},
+		},
+		mustProviderConfig(`provider["terraform.io/builtin/terraform"]`),
+		addrs.NoKey,
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("terraform_data.C").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"id": "c1",
+				"triggers_replace": null
+			}`),
+			Dependencies:        []addrs.ConfigResource{mustConfigResourceAddr("terraform_data.A"), mustConfigResourceAddr("terraform_data.B")},
+			CreateBeforeDestroy: true,
+		},
+		mustProviderConfig(`provider["terraform.io/builtin/terraform"]`),
+		addrs.NoKey,
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewBuiltInProvider("terraform"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	} else {
+		t.Logf(legacyDiffComparisonString(plan.Changes))
+	}
+
+	state, diags = ctx.Apply(context.Background(), plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	// Check that create_before_destroy was set on the foo resource
+	foo := state.RootModule().Resources["terraform_data.B"].Instances[addrs.NoKey].Current
+	if !foo.CreateBeforeDestroy {
+		t.Fatalf("foo resource should have create_before_destroy set")
+	}
 }
 
 func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
