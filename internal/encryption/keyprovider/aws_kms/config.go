@@ -92,6 +92,10 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	var roles []awsbase.AssumeRole
+	if assumeRole != nil {
+		roles = append(roles, *assumeRole)
+	}
 
 	// Get assume role with web identity
 	assumeRoleWithWebIdentity, err := c.AssumeRoleWithWebIdentity.asAWSBase()
@@ -168,7 +172,7 @@ func (c Config) asAWSBase() (*awsbase.Config, error) {
 
 		SharedCredentialsFiles:    stringArrayAttrEnvFallback(c.SharedCredentialsFiles, "AWS_SHARED_CREDENTIALS_FILE"),
 		SharedConfigFiles:         stringArrayAttrEnvFallback(c.SharedConfigFiles, "AWS_SHARED_CONFIG_FILE"),
-		AssumeRole:                assumeRole,
+		AssumeRole:                roles,
 		AssumeRoleWithWebIdentity: assumeRoleWithWebIdentity,
 		AllowedAccountIds:         c.AllowedAccountIds,
 		ForbiddenAccountIds:       c.ForbiddenAccountIds,
