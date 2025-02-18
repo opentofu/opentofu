@@ -8,6 +8,7 @@ The main reasons for such a change could be summarized as follows:
 * Less resources to maintain.
 * Potentially reducing costs by eliminating usage of dynamo db.
 * One less point of failure (removing DynamoDB from the state management)
+* Easy for other S3 compatible services to implement and enable locking
 
 The most important things that need to be handled during this implementation:
 * A simple way to enable/disable locking by using S3 conditional writes.
