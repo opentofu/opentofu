@@ -8,6 +8,59 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
 
+## 2024-01-28
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+
+### Agenda
+- Discuss OpenTofu Charter updates. Vote: All present members voted yes to submitting the updated charter to the Linux Foundation
+- CNCF Application Review - Continuing to find ways to communicate with them
+
+### Discussion
+ - Actively planning OpenTofu day at CNCF London - Roger, James, Christian are planning to attend in person
+ - Moving forward with interviews for a candidate core team member sponsored by Gruntwork
+ - OCI Survey was published and has ~100 results so far
+ - [Make the Switch to OpenTofu](https://blog.gruntwork.io/make-the-switch-to-opentofu-6904ba95e799) published by Gruntwork
+ - Discussed the status of stacks, discussed the need to gather requirements from the community on how/if OpenTofu should be doing anything here
+
+  
+## 2024-01-14
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+
+### Agenda
+- Release process discussion.  Guiding principle decided "The policy should be guided by need to balance the desire to provide assurance to adopters with the resourcing required to maintain older versions, we’re open to feedback"
+- No formal votes.
+
+### Discussion
+- Discussion of release process, and that we think its important for enterprise support that we provide patches for every major version going back at least 1 year.  Christian agreed to discuss w/Core team.  
+- Discussion that regardless of final policy, we want to be explict about what versions are supported with e.g. an actual table on opentofu.org
+- Discussion of how much traction we're seeing, especially post-releases.  Setup a download-tracker spreadsheet to track github release download counts, we don't do much else on reddit, linkedin etc.
+- Discussion of getting feedback from TACOs for OpenTofu - "Make it Faster" - Add OpenTelemetry.
+- Discussion of CNCF application and what steps are needed to continue to advance the application and gain an exception to the apache license policy
+
+  
+## 2024-01-07
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+
+### Agenda
+
+ - Vote on Emepheral values.  Results: Roger, Roni, Oleksandr, Zach and Woj for Pushing Ephemeral to after 1.10.
+
+### Discussion
+ - Timing of 1.9 release, confirming its this week
+
 ## 2024-12-10
 
 ### Attendees
