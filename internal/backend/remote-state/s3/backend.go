@@ -772,9 +772,9 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	if value := obj.GetAttr("assume_role"); !value.IsNull() {
-		cfg.AssumeRole = configureNestedAssumeRole(obj)
+		cfg.AssumeRole = []awsbase.AssumeRole{configureNestedAssumeRole(obj)}
 	} else if value := obj.GetAttr("role_arn"); !value.IsNull() {
-		cfg.AssumeRole = configureAssumeRole(obj)
+		cfg.AssumeRole = []awsbase.AssumeRole{configureAssumeRole(obj)}
 	}
 
 	if val := obj.GetAttr("assume_role_with_web_identity"); !val.IsNull() {
@@ -885,7 +885,7 @@ func getS3Config(obj cty.Value) func(options *s3.Options) {
 	}
 }
 
-func configureNestedAssumeRole(obj cty.Value) *awsbase.AssumeRole {
+func configureNestedAssumeRole(obj cty.Value) awsbase.AssumeRole {
 	assumeRole := awsbase.AssumeRole{}
 
 	obj = obj.GetAttr("assume_role")
@@ -922,10 +922,10 @@ func configureNestedAssumeRole(obj cty.Value) *awsbase.AssumeRole {
 		assumeRole.TransitiveTagKeys = val
 	}
 
-	return &assumeRole
+	return assumeRole
 }
 
-func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
+func configureAssumeRole(obj cty.Value) awsbase.AssumeRole {
 	assumeRole := awsbase.AssumeRole{}
 
 	assumeRole.RoleARN = stringAttr(obj, "role_arn")
@@ -944,7 +944,7 @@ func configureAssumeRole(obj cty.Value) *awsbase.AssumeRole {
 		assumeRole.TransitiveTagKeys = val
 	}
 
-	return &assumeRole
+	return assumeRole
 }
 
 func configureAssumeRoleWithWebIdentity(obj cty.Value) *awsbase.AssumeRoleWithWebIdentity {
