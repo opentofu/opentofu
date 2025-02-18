@@ -772,9 +772,9 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	}
 
 	if value := obj.GetAttr("assume_role"); !value.IsNull() {
-		cfg.AssumeRole = append(cfg.AssumeRole, configureNestedAssumeRole(obj))
+		cfg.AssumeRole = []awsbase.AssumeRole{configureNestedAssumeRole(obj)}
 	} else if value := obj.GetAttr("role_arn"); !value.IsNull() {
-		cfg.AssumeRole = append(cfg.AssumeRole, configureAssumeRole(obj))
+		cfg.AssumeRole = []awsbase.AssumeRole{configureAssumeRole(obj)}
 	}
 
 	if val := obj.GetAttr("assume_role_with_web_identity"); !val.IsNull() {
