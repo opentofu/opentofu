@@ -1,10 +1,10 @@
-# 2. Design considerations for OCI in OpenTofu
+# Design considerations for OCI in OpenTofu
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md). Please leave your comments on [this pull request](https://github.com/opentofu/opentofu/pull/2163) as a review.
+This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
-| [« Previous](2-survey-results.md) | [Up](../20241206-oci-registries.md) | [Next »](4-registry-changes.md) |
+| [« Previous](2-survey-results.md) | [Up](../20241206-oci-registries.md) | [Next »](4-providers.md) |
 
 ---
 
@@ -22,11 +22,10 @@ In parallel, a similar number of respondents have indicated that they would like
 
 Changing the provider address understanding would result in numerous changes in the OpenTofu and other codebases, and affect third party tools rely on this understanding. It would also affect the state file format, as well as the JSON output.
 
-Alternatively, we could implement adding a set of well-known registries, such as `ghcr.io`, to a list of host names that should be treated as OCI registries rather than OpenTofu registries. This, however, opens up several questions, for example:
+Alternatively, we could reserve a specific subdomain owned by the OpenTofu project to represent the intent to install directly from an OCI registry, giving source addresses like `ghcr.io.example.com/namespace/name` (assuming that `example.com` were the special subdomain, which is of course just a placeholder). This, however, opens up several questions, for example:
 
 1. How do we convert a virtual provider address into an OCI address? Some OCI registries need various prefixes, etc.
-2. What do we do if a host exposes both an OpenTofu and an OCI registry? Which one do we prefer?
-3. How does such a change affect third party tools?
+2. How does such a change affect third party tools?
 
 Since adding support for public providers via OCI would be a profound change, we opt to proceed with caution. We will implement using OCI for providers in a private setting first. In other words, we will treat OCI for providers the same way as the Provider Mirror Protocol and you will need to add [a CLI configuration option](https://opentofu.org/docs/cli/config/config-file/#provider-installation) to your `.tofurc` file, which we explore in detail in the [providers section of this RFC](providers.md).
 
@@ -43,32 +42,22 @@ ADD * /
 
 However, there are several key reasons for deciding against this layout:
 
-1. **It breaks provider checksums**<br />OpenTofu today records the checksums of all providers it sees in the `.terraform.lock.hcl` file. These checksums can have two formats: the `h1` (Go-specific directory hash) and the `zh` (ZIP hash) format. While the former would be suitable for hashing container images, hashes today are almost universally the of the latter format. Computing a SHA256 hash over a ZIP file is much simpler than extracting its contents and using a [Go-specific hashing format over the files](https://pkg.go.dev/golang.org/x/mod/sumdb/dirhash). Provider authors publish their checksums in the SHA256SUMS file when releasing providers and sign the checksums file with their GPG key. Fortunately for us, OCI registries also use SHA256 checksums as blob identifiers, so storing the ZIP file in a blob in OCI will guarantee that the checksum doesn't change even when switching from the OpenTofu Registry to a mirrored OCI registry. In contrast, a container image-like layout would mean you have to run `tofu providers lock` to update the checksums in your `.terraform.lock.hcl` and your lock file would now be exclusive to your OCI mirror.
-2. **Supporting layers adds complexity**<br />OpenTofu today contains over 300.000 lines of code. Supporting the diff-tar layer format adds complexity to the codebase and increases the resource consumption of the download. Simply downloading a ZIP-blob allows us to reuse much of the code already in place in OpenTofu today.
+1. **It changes provider checksums**<br />OpenTofu today records the checksums of all providers it sees in the `.terraform.lock.hcl` file. These checksums can have two formats: the `h1` (container-agnostic directory hash) and the `zh` (zip file hash) format. While the former would be suitable for hashing container images, hashes today are almost universally the of the latter format. For legacy reasons, provider authors publish checksums of their `.zip` files in the SHA256SUMS file when releasing providers and sign the checksums file with their GPG key. Fortunately for us, OCI registries also use SHA256 checksums as blob identifiers, so storing the ZIP file in a blob in OCI will guarantee that the checksum doesn't change even when switching from the OpenTofu Registry to a mirrored OCI registry. In contrast, a container image-like layout would mean you have to run `tofu providers lock` to update the checksums in your `.terraform.lock.hcl` and your lock file would now be exclusive to your OCI mirror.
+2. **Supporting layers adds complexity**<br />Supporting the diff-tar layer format adds complexity to the codebase and increases the resource consumption of the download. Downloading a ZIP-blob instead allows us to reuse much of the provider-package-handling code already in place in OpenTofu today.
 
-Therefore, we have decided to use a layout that does not indicate a container image and follows the [ORAS](https://oras.land) conventions with added multi-platform support. See the [Providers](5-providers.md) and [Modules](6-modules.md) documents for details on the respective artifact layouts.
-
-> [!NOTE]
-> In contrast to providers, modules currently have a protocol option. This allows us to integrate them safely without breaking existing tooling. However, to indicate possible OCI layout changes in the future, we will use the protocol prefix of `oci://`.
+Therefore, we have decided to use a layout that does not indicate a container image and follows the [ORAS](https://oras.land) conventions with added multi-platform support. Refer to the [Providers](4-providers.md) and [Modules](5-modules.md) documents for details on the respective artifact layouts.
 
 ## Software Bill of Materials (SBOM)
 
 The decision to use a custom image layout as described above profoundly impacts security scanners, which a [large number of our users want to use](2-survey-results.md). We have tested several of the popular security scanners with varying degrees of success.
 
-The popular scanners supporting container images out of the box, such as [Trivy](https://trivy.dev/), only support the default container image-like layout and do not support custom artifact types, such as the one uploaded with [ORAS](https://oras.land/). Other popular tools, such as TFLint, do not support container images at all and need to be configured manually.
+The popular scanners supporting container images out of the box, such as [Trivy](https://trivy.dev/), only directly support the default container image-like layout and do not support custom artifact types, such as the one uploaded with [ORAS](https://oras.land/). Other popular tools, such as TFLint, do not support container images at all and need to be configured manually.
 
-However, we have also discovered that many of these tools [already support various SBOM formats](https://trivy.dev/latest/docs/target/sbom/). This gives us the option to let security scanners work on SBOM files instead of scanning a container image and the binary contained therein.
+However, tools in this space have varying degrees of support for indirect scanning via Software Bill of Materials (SBOM) manifests, which is a growing new design that effectively separates the problem of taking inventory of dependencies from the problem of detecting whether those dependencies have known vulnerabilities. This means that we can provide a means for a provider developer to publish an SBOM for their provider and let the security scanners work with that instead of attempting to construct one themselves by directly inspecting the OCI artifact.
 
-We, therefore, intend to start supporting the publication of SBOM artifacts in the SPDX (JSON) and CycloneDX (JSON and XML) format in the existing OpenTofu Registry by the provider author, and we intend the mirroring tool for OCI registries to mirror these artifacts correctly. Since this file will be included in the `SHA256SUMS` file, the contents of this file will also be signed with the provider GPG key.
+To reduce scope for the initial implementation we do not intend to generate or use SBOM artifacts initially. However, we are considering extending the OpenTofu Provider Registry and Module Registry protocols to be able to return additional links to SBOM artifacts in future, at which point it would become possible to copy those artifacts into an OCI registry along with the packages they relate to, and thus make that information available to any OCI-registry-integrated security scanners that have SBOM support.
 
-Additionally, we intend to provide a hook in the tool that mirrors or builds OpenTofu provider and module OCI artifacts that allows for the creation of an SBOM artifact, which the tool will then publish in the OCI registry.
-
-Since modules are more flexible in their publication mechanism than providers, for modules we will consider files included in the root folder of module distributions.
-
-For both purposes, OpenTofu will consider SBOM-specific file names in the provider release or root folder of the module as an SBOM attestation. However, OpenTofu will not validate the correctness of these artifacts and will simply accept them as such.
-
-> [!NOTE]
-> Using SBOMs instead of scanning the contents offers the same features for most use cases. Security scanners for providers rely on the Go-specific symbols in the provider binary for their CVE and license reporting, which are easy to fake. Only virus scanners that analyze the binary itself would be able to detect malicious binaries.
+At the time of writing we have started discussing possible future SBOM functionality in [Pull Request #2494](https://github.com/opentofu/opentofu/pull/2494). Our initial release will prioritize the fundamentals of hosting provider and module packages in OCI registries _at all_, and so those whose interest in OCI-based distribution is motivated primarily by security scanner integration will need to either wait for a future release or generate and upload SBOMs directly to their registry.
 
 ## Artifact signing
 
@@ -86,10 +75,10 @@ Alternatively, we could also support Sigstore/Cosign for providers as well, but 
 
 One of the main goals of supporting OCI is to ease the maintenance burden, not add to it. This is also something that many respondents indicated in their responses when we asked about the reasons for wanting OCI. Running a Sigstore infrastructure or performing manual key management is contrary to this goal.
 
-Since the path forward on signing is currently not clear, we will defer signing to a later release. This is in line with the lack of support for signing in the [Provider Network Mirror Protocol](https://opentofu.org/docs/internals/provider-network-mirror-protocol/).
+Since the path forward on signing is currently not clear, we will defer signing to a later release. This is consistent with the lack of support for signing in the [Provider Network Mirror Protocol](https://opentofu.org/docs/internals/provider-network-mirror-protocol/).
 
 ---
 
-| [« Previous](2-survey-results.md) | [Up](../20241206-oci-registries.md) | [Next »](4-registry-changes.md) |
+| [« Previous](2-survey-results.md) | [Up](../20241206-oci-registries.md) | [Next »](4-providers.md) |
 
 ---

@@ -2,13 +2,13 @@
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md). Please leave your comments on [this pull request](https://github.com/opentofu/opentofu/pull/2163) as a review.
+This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
-| [« Previous](9-auth-implementation-details.md) | [Up](../20241206-oci-registries.md) | [Next »](11-module-implementation-details.md) |
+| [« Previous](8-auth-implementation-details.md) | [Up](../20241206-oci-registries.md) | [Next »](10-module-implementation-details.md) |
 
 ---
 
-This appendix discusses implementation details related to [installing provider packages from OCI registries](5-providers.md).
+This appendix discusses implementation details related to [installing provider packages from OCI registries](4-providers.md).
 
 > [!WARNING]
 > This appendix is still under construction, subject to change based on feedback on the earlier chapters, and may not yet be up-to-date with the latest changes in the earlier chapters.
@@ -27,7 +27,7 @@ Additionally, whenever possible OpenTofu retrieves a GPG signature and associate
 
 OpenTofu's existing provider registry protocol always uses `.zip` archives as provider packages and requires the provider developer's signature to cover a document containing SHA256 checksums of all of the `.zip` archives for a particular version. These translate into `zh:`-schemed checksums in the dependency lock file, but since those checksums can only be verified against a not-yet-unpacked `.zip` archive OpenTofu also generates a more general `h1:` checksum based on the _contents_ of the package it downloaded, which it can then use to verify already-unpacked provider packages in the local filesystem.
 
-[Our OCI artifact layout for provider packages](5-providers.md#storage-in-oci) intentionally uses `archive/zip` layers so that we can use byte-for-byte identical copies of a provider developer's signed `.zip` packages as the layer blobs, and therefore we can directly translate the `sha256:` digest of each layer into a `zh:`-style checksum for dependency locking purposes, without having to download the package and recalculate the checksum locally.
+[Our OCI artifact layout for provider packages](4-providers.md#storage-in-oci) intentionally uses `archive/zip` layers so that we can use byte-for-byte identical copies of a provider developer's signed `.zip` packages as the layer blobs, and therefore we can directly translate the `sha256:` digest of each layer into a `zh:`-style checksum for dependency locking purposes, without having to download the package and recalculate the checksum locally.
 
 We are not intending to support OCI artifact signing in our first implementation, since we are focusing initially only on the "OCI mirror" use-case. Without any signatures, we'll capture in the dependency lock file only the checksum of the specific artifact we downloaded, for consistency with the guarantees we make from installing from unsigned sources in today's OpenTofu. When we later add support for optionally signing the index manifest, we can begin using those signatures to justify including the `zh:` checksums from _all_ of the per-platform artifacts, announcing the ID of the signing key as part of the `tofu init` output just as we do for registry-distributed signatures today. It remains the user's responsibility to verify that the key ID is one they expected before committing the new checksums in the dependency lock file.
 
@@ -35,6 +35,6 @@ As with OpenTofu's current provider registry protocol, an OCI provider artifact 
 
 ---
 
-| [« Previous](9-auth-implementation-details.md) | [Up](../20241206-oci-registries.md) | [Next »](11-module-implementation-details.md) |
+| [« Previous](8-auth-implementation-details.md) | [Up](../20241206-oci-registries.md) | [Next »](10-module-implementation-details.md) |
 
 ---
