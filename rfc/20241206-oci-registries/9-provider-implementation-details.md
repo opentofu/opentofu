@@ -10,14 +10,35 @@ This document is part of the [OCI registries RFC](../20241206-oci-registries.md)
 
 This appendix discusses implementation details related to [installing provider packages from OCI registries](4-providers.md).
 
-> [!WARNING]
-> This appendix is still under construction, subject to change based on feedback on the earlier chapters, and may not yet be up-to-date with the latest changes in the earlier chapters.
-
 ## OCI Mirror Provider Installation Source
 
-> **TODO:** Describe something like what we did for OCI Mirror sources in [the earlier prototype](https://github.com/opentofu/opentofu/pull/2170), with adjustments for the latest modifications to the proposed artifact layout.
->
-> For now we can ignore the parts of that prototype related to treating an OCI registry as if it is an OpenTofu registry directly, since we're not planning to implement that in the first round.
+Each installation method block type that OpenTofu accepts in [the CLI Configuration's `provider_installation` block](https://opentofu.org/docs/cli/config/config-file/#provider-installation) corresponds to an implementation of [`getproviders.Source`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/getproviders#Source). At the time of writing, we have:
+
+* `direct` corresponding to [`getproviders.RegistrySource`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/getproviders#RegistrySource)
+* `filesystem_mirror` corresponding to [`getproviders.FilesystemMirrorSource`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/getproviders#FilesystemMirrorSource)
+* `network_mirror` corresponding to [`getproviders.HTTPMirrorSource`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/getproviders#HTTPMirrorSource)
+
+This project will therefore introduce `getproviders.OCIMirrorSource` to correspond with the new `oci_mirror` installation method. This particular one needs to be configured with a means to obtain an ORAS-Go OCI Distribution registry client object and with a function that takes an `addrs.Provider` (our internal representation of a provider source address) and returns an OCI registry domain name and a repository path:
+
+```go
+func NewOCIMirrorSource(
+    getRepositoryAddress(addrs.Provider) (registryDomainName, repositoryPath string, err error),
+    getRegistryClient func(ctx context.Context, registryDomainName, repositoryPath string) (*orasregistry.Registry, error),
+) *OCIMirrorSource
+```
+
+As usual, `package main` (in `provider_installation.go`) is responsible for providing the concrete implementations of these two functions so that we can follow the dependency-inversion principle, where:
+
+- `getRepositoryAddress` will actually delegate to a function provided in `package cliconfig` for evaluating the `repository_template` argument from the CLI configuration as a HCL-style [string template](https://opentofu.org/docs/language/expressions/strings/#string-templates).
+- `getRegistryClient` will first use the `ociauthconfig.CredentialsConfigs` object produced by `package cliconfig` (refer to [OCI Registry Credentials Policy Layer](9-auth-implementation-details.md#oci-registry-credentials-policy-layer)) to select suitable credentials (if any) for the requested repository address, and then use those credentials to instantiate [the ORAS library's registry client type](https://pkg.go.dev/oras.land/oras-go/v2@v2.5.0/registry/remote#Registry).
+
+The registry client type can then in turn produce [a repository-specific client](https://pkg.go.dev/oras.land/oras-go/v2@v2.5.0/registry#Repository), which provides the functions that we'll need for our `getproviders.Source` implementation:
+
+- enumerate all of the available tags ([`Tags`](https://pkg.go.dev/oras.land/oras-go/v2@v2.5.0/registry#Tags))
+- fetch manifests ([`ManifestStore`](https://pkg.go.dev/oras.land/oras-go/v2@v2.5.0/registry#ManifestStore))
+- fetch blobs ([`BlobStore`](https://pkg.go.dev/oras.land/oras-go/v2@v2.5.0/registry#BlobStore))
+
+We expect that the implementation of `OCIMirrorSource` will be very similar to the existing `HTTPMirrorSource`, but will of course use the OCI Distribution protocol when making requests instead of OpenTofu's own "network mirror protocol".
 
 ## Package checksums and signing
 
@@ -31,7 +52,14 @@ OpenTofu's existing provider registry protocol always uses `.zip` archives as pr
 
 We are not intending to support OCI artifact signing in our first implementation, since we are focusing initially only on the "OCI mirror" use-case. Without any signatures, we'll capture in the dependency lock file only the checksum of the specific artifact we downloaded, for consistency with the guarantees we make from installing from unsigned sources in today's OpenTofu. When we later add support for optionally signing the index manifest, we can begin using those signatures to justify including the `zh:` checksums from _all_ of the per-platform artifacts, announcing the ID of the signing key as part of the `tofu init` output just as we do for registry-distributed signatures today. It remains the user's responsibility to verify that the key ID is one they expected before committing the new checksums in the dependency lock file.
 
-As with OpenTofu's current provider registry protocol, an OCI provider artifact cannot provide us any trustworthy representation of the `h1:` checksum of a provider package, and so OpenTofu will calculate that locally based on the already-downloaded package(s), assuming that they also match one of the previously-discovered `zh:` checksums, as usual.
+As with OpenTofu's current provider registry protocol, an OCI provider artifact cannot provide us any trustworthy representation of the `h1:` checksum of a provider package, and so OpenTofu will calculate that locally based on the already-downloaded package(s), assuming that they also match one of the previously-discovered `zh:` checksums, as usual. Operators will be able to use the existing `tofu providers lock` command to force OpenTofu to calculate and record `h1:` checksums for other platforms if desired, just as is possible today with all of the existing provider installation methods.
+
+> [!NOTE]
+> The `tofu providers lock` command by default ignores the operator's configured provider installation methods and instead always attempts to install providers from their origin registries. This default is to support the workflow where `tofu providers lock` is used to obtain the checksums of the "official" releases from the origin registry and then subsequent `tofu init` against a mirror source can verify that the mirrored packages match those official release packages without needing to directly access the origin registry.
+>
+> There are `-net-mirror` and `-fs-mirror` command line options that effectively substitute for the similarly-named installation method blocks in the CLI Configuration, to handle the less-common situation where a particular provider is _only_ available from a mirror. In a future release we ought to add a similar `-oci-mirror` option to restore parity with the full set of installation methods, but we'll exclude that from the initial release just to limit scope and so that we will have fewer backward-compatibility constraints if we need to make subsequent changes in response to feedback.
+>
+> At some point during the first phase of development of these features we will create a separate feature request issue to represent the addition of an `-oci-mirror` option to the `tofu providers lock` command, which will presumably take as an argument a repository address template string similar to the one used in the `repository_template` argument in an `oci_mirror` installation method configuration block.
 
 ---
 
