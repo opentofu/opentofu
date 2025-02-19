@@ -1814,7 +1814,6 @@ func numberOfObjectsInBucket(t *testing.T, ctx context.Context, s3Client *s3.Cli
 	resp, err := s3Client.ListObjects(ctx, &s3.ListObjectsInput{Bucket: &bucketName})
 	if err != nil {
 		t.Fatalf("error getting objects from bucket %s: %v", bucketName, err)
-		return 0
 	}
 	return len(resp.Contents)
 }
