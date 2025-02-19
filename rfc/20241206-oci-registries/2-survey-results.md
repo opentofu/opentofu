@@ -1,8 +1,8 @@
-# 2. OCI survey results
+# OCI survey results
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md). Please leave your comments on [this pull request](https://github.com/opentofu/opentofu/pull/2163) as a review.
+This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
 | [« Previous](1-oci-primer.md) | [Up](../20241206-oci-registries.md) | [Next »](3-design-considerations.md) |
 

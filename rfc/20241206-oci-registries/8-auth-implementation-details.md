@@ -2,13 +2,13 @@
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md). Please leave your comments on [this pull request](https://github.com/opentofu/opentofu/pull/2163) as a review.
+This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
-| [« Previous](8-open-questions.md) | [Up](../20241206-oci-registries.md) | [Next »](10-provider-implementation-details.md) |
+| [« Previous](7-open-questions.md) | [Up](../20241206-oci-registries.md) | [Next »](9-provider-implementation-details.md) |
 
 ---
 
-This appendix discusses implementation details related to [OCI Registry Authentication](7-authentication.md).
+This appendix discusses implementation details related to [OCI Registry Authentication](6-authentication.md).
 
 > [!WARNING]
 > This appendix is still under construction, subject to change based on feedback on the earlier chapters, and may not yet be up-to-date with the latest changes in the earlier chapters.
@@ -37,7 +37,7 @@ The fine details of how we will find and decode Docker CLI-style and Podman CLI-
 
 The provider installation components already follow the dependency inversion principle, with `package main` constructing various implementations of [`getproviders.Source`](https://pkg.go.dev/github.com/opentofu/opentofu/internal/getproviders#Source) based on the `provider_installation` block in the CLI configuration, or the implied fallbacks thereof.
 
-The full details of how OCI registries will be realized as new provider source types is discussed in [Provider implementation details](10-provider-implementation-details.md). For authentication, any new implementatinos of `getproviders.Source` that interact with OCI registries must take a preconfigured `ociclient.OCIClient` as a dependency during instantiation.
+The full details of how OCI registries will be realized as new provider source types is discussed in [Provider implementation details](9-provider-implementation-details.md). For authentication, any new implementatinos of `getproviders.Source` that interact with OCI registries must take a preconfigured `ociclient.OCIClient` as a dependency during instantiation.
 
 The existing logic for instantiating the provider installation methods in `package main` can then be extended to pass the shared OCI registry client to those sources when instantiating them.
 
@@ -55,10 +55,10 @@ To continue that evolution, we will extend `initwd.NewModuleInstaller` to also t
 
 [`package main` directly instantiates `command.Meta`](https://github.com/opentofu/opentofu/blob/ffa43acfcdc4431f139967198faa2dd20a2752ea/cmd/tofu/commands.go#L89-L115) as its primary way of injecting dependencies into the CLI command layer, including the population of the `ProviderSource` field described above. We will therefore also pass the centrally-instantiated `getmodules.PackageFetcher` in the same way, completing the chain of dependency passing all the way from `package main` to the module installer.
 
-The support for OCI registries as a module installation source will involve the addition of a new implementation of `go-getter`'s `Getter` interface, which will include the preconfigured `ociclient.OCIClient` as one of its fields. For more information, refer to [Module implementation details](11-module-implementation-details.md).
+The support for OCI registries as a module installation source will involve the addition of a new implementation of `go-getter`'s `Getter` interface, which will include the preconfigured `ociclient.OCIClient` as one of its fields. For more information, refer to [Module implementation details](10-module-implementation-details.md).
 
 ---
 
-| [« Previous](8-open-questions.md) | [Up](../20241206-oci-registries.md) | [Next »](10-provider-implementation-details.md) |
+| [« Previous](7-open-questions.md) | [Up](../20241206-oci-registries.md) | [Next »](9-provider-implementation-details.md) |
 
 ---
