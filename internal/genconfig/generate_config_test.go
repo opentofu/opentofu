@@ -84,6 +84,104 @@ resource "tfcoremock_simple_resource" "empty" {
   }
 }`,
 		},
+		"simple_resource_with_propertyname_containing_a_dot": {
+			schema: &configschema.Block{
+				BlockTypes: map[string]*configschema.NestedBlock{
+					"list_block": {
+						Block: configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"nested_value.json": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+						},
+						Nesting: configschema.NestingSingle,
+					},
+				},
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"value": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "empty",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.NilVal,
+			expected: `
+resource "tfcoremock_simple_resource" "empty" {
+  value = null                 # OPTIONAL string
+  list_block {                 # OPTIONAL block
+    "nested_value.json" = null # OPTIONAL string
+  }
+}`,
+		},
+		"simple_resource_with_propertyname_containing_double_quotes": {
+			schema: &configschema.Block{
+				BlockTypes: map[string]*configschema.NestedBlock{
+					"list_block": {
+						Block: configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"nested_value\"example": {
+									Type:     cty.String,
+									Optional: true,
+								},
+							},
+						},
+						Nesting: configschema.NestingSingle,
+					},
+				},
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"value": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+			addr: addrs.AbsResourceInstance{
+				Module: nil,
+				Resource: addrs.ResourceInstance{
+					Resource: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "tfcoremock_simple_resource",
+						Name: "empty",
+					},
+					Key: nil,
+				},
+			},
+			provider: addrs.LocalProviderConfig{
+				LocalName: "tfcoremock",
+			},
+			value: cty.NilVal,
+			expected: `
+resource "tfcoremock_simple_resource" "empty" {
+  value = null                     # OPTIONAL string
+  list_block {                     # OPTIONAL block
+    "nested_value\"example" = null # OPTIONAL string
+  }
+}`,
+		},
 		"simple_resource_with_state": {
 			schema: &configschema.Block{
 				BlockTypes: map[string]*configschema.NestedBlock{
@@ -670,20 +768,20 @@ resource "tfcoremock_simple_resource" "example" {
 		},
 	}
 	for name, tc := range tcs {
-		t.Run(name, func(t *testing.T) {
+		t.Run(name, func(tt *testing.T) {
 			err := tc.schema.InternalValidate()
 			if err != nil {
-				t.Fatalf("schema failed InternalValidate: %s", err)
+				tt.Fatalf("schema failed InternalValidate: %s", err)
 			}
 			contents, diags := GenerateResourceContents(tc.addr, tc.schema, tc.provider, tc.value)
 			if len(diags) > 0 {
-				t.Errorf("expected no diagnostics but found %s", diags)
+				tt.Errorf("expected no diagnostics but found %s", diags)
 			}
 
 			got := WrapResourceContents(tc.addr, contents)
 			want := strings.TrimSpace(tc.expected)
 			if diff := cmp.Diff(got, want); len(diff) > 0 {
-				t.Errorf("got:\n%s\nwant:\n%s\ndiff:\n%s", got, want, diff)
+				tt.Errorf("got:\n%s\nwant:\n%s\ndiff:\n%s", got, want, diff)
 			}
 		})
 	}
