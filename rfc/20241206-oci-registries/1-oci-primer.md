@@ -1,8 +1,8 @@
-# 1. A primer on the OCI protocol
+# A primer on the OCI protocol
 
 ---
 
-This document is part of the [OCI registries RFC](../20241206-oci-registries.md). Please leave your comments on [this pull request](https://github.com/opentofu/opentofu/pull/2163) as a review.
+This document is part of the [OCI registries RFC](../20241206-oci-registries.md).
 
 | [« Previous](../20241206-oci-registries.md) | [Up](../20241206-oci-registries.md) | [Next »](2-survey-results.md) |
 
@@ -48,7 +48,7 @@ The username/password part is optional for public registries and the response wi
 
 ### Index vs. image manifest
 
-Manifests can have two types. An index (media type of `application/vnd.oci.image.index.v1+json` or `application/vnd.docker.distribution.manifest.list.v2+json`) contains a list of image manifests. This is useful when you want to distribute your image for multiple architectures (so-called multi-platform images).
+Manifests can have two types. An index (media type of `application/vnd.oci.image.index.v1+json` or `application/vnd.docker.distribution.manifest.list.v2+json`) contains a list of image manifests. This is useful when you want to distribute your image for multiple platforms.
 
 > [!TIP]
 > Try it yourself: authenticate with a token as described above, then use the following command:
