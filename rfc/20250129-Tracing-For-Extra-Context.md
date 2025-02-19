@@ -12,11 +12,11 @@ By offering this window into OpenTofu’s internals, we aim to enable users to m
 
 ### Past Discussions
 
-https://github.com/opentofu/opentofu/pull/2028/files - Introduce OpenTelemetry to the OpenTofu codebase [RFC]
-https://github.com/opentofu/opentofu/issues/1519 - OpenTelemetry Support
-https://github.com/opentofu/opentofu/pull/1517 - A draft PR that added OpenTelemetry support to the planning process in OpenTofu as a proof of concept.
+- https://github.com/opentofu/opentofu/pull/2028/files - Introduce OpenTelemetry to the OpenTofu codebase [RFC]
+- https://github.com/opentofu/opentofu/issues/1519 - OpenTelemetry Support
+- https://github.com/opentofu/opentofu/pull/1517 - A draft PR that added OpenTelemetry support to the planning process in OpenTofu as a proof of concept.
 
-https://terragrunt.gruntwork.io/docs/features/debugging/#opentelemetry-integration - Terragrunt has a similar implementation of OpenTelemetry that we could use as a reference.  I also think that it would be amazing to enable the tracing and get traces for both Terragrunt and OpenTofu collected all at once so you have full visibility end to end as to what is happening.
+- https://terragrunt.gruntwork.io/docs/features/debugging/#opentelemetry-integration - Terragrunt has a similar implementation of OpenTelemetry that we could use as a reference. I also think that it would be amazing to enable the tracing and get traces for both Terragrunt and OpenTofu collected all at once, so you have full visibility end to end as to what is happening.
 
 ## Approach
 To provide users with actionable insights into the performance of their runs, I propose adding traces to the major entrypoints into the system. Instead of overwhelming the end users with granular details from lower-level operations, the tracing here will focus on key stages of the workflow. These stages should align with the user-facing concepts of `tofu` and add additional context to the already existing logs, allowing people to easily understand where time is spent without requiring deep technical knowledge of the inner-workings of opentofu.
@@ -37,14 +37,14 @@ Below is the proposed flow of traces for a typical `plan` + `apply` operation, w
 - **Refreshing Resources**
     - **Time Per Item**: Trace the time taken to talk to the provider to refresh each resource states or fetch each data source
 - **Change Determination**
-    - **Time Per Item**: Time taken to determine what changes need to happen and how for each item in the graph (resources, data sources etc)
+    - **Time Per Item**: Time taken to determine what changes need to happen and how for each item in the graph (resources, data sources etc.)
 - **Apply Phase**
     - **Applying Changes**: Provide high-level traces for each entity’s apply item, indicating time taken and success/failure per item.
 
 ### Other Common Traceable Events
 Alongside the actual flow of `tofu` and its execution, I propose that we also trace common events in the system such as communication with backends, time taken to handle state encryption, time taken to read/write files to/from disk.
 
-### ### Key Benefits of This Approach
+### Key Benefits of This Approach
 
 - **Actionable**: Users can immediately identify where time is being spent (e.g., slow resource refreshes or downloads).
 - **High-Level Insights**: The tracing flow aligns with user-visible operations, avoiding confusion from lower-level details.
@@ -100,4 +100,4 @@ The OpenTelemetry Enhancement Proposal [OTEP #258](https://github.com/open-telem
 ## Possible Future Expansions
 
 - **Tracing each and every call to providers**: This could be helpful for provider authors, or people who wish to understand more about what is happening. This would be easy to add but could easily add too much clutter. We should evaluate during development how informative these traces are.
-- **Expanding Trace Context to the Provider**: For our gRPC calls to the providers, we could send the `TRACEPARENT`  through to the provider. Then if a provider author wishes to provide OTEL tracing, they can do and have the full context of what is ongoing. This would be helpful but it is not needed right now due to no providers supporting this.
+- **Expanding Trace Context to the Provider**: For our gRPC calls to the providers, we could send the `TRACEPARENT` through to the provider. Then, if a provider author wishes to provide OTEL tracing, they can do and have the full context of what is ongoing. This would be helpful, however it is not needed right now due to no existing providers supporting this.
