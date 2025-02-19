@@ -10,6 +10,8 @@ This RFC proposes enhancing OpenTofu’s support for OpenTelemetry to provide en
 
 By offering this window into OpenTofu’s internals, we aim to enable users to make more informed decisions, optimize their workflows, identify regressions and ultimately achieve faster, more predictable outcomes with `tofu`.
 
+It is worth noting that OpenTelemetry is already added to the OpenTofu codebase in a very very limited manner, and this RFC is to discuss how we should extend that.
+
 ### Past Discussions
 
 - https://github.com/opentofu/opentofu/pull/2028/files - Introduce OpenTelemetry to the OpenTofu codebase [RFC]
@@ -92,6 +94,50 @@ The OpenTelemetry Enhancement Proposal [OTEP #258](https://github.com/open-telem
     - As OpenTofu interacts with provider plugins, it should propagate the trace context to these plugins.
     - This ensures that the entire operation, from the CI/CD system through OpenTofu and down to the provider plugins, is part of a single, cohesive trace.
 
+## Implementation Details and Desired End-User Configuration
+
+For our initial telemetry implementation, OpenTofu targets the widely supported OTLP exporter. The existing code (telemetry.go) already sets up OTLP exporters, so no additional exporter work is required unless future demand calls for alternative options.
+
+> [!NOTE]  
+> This feature will be purely opt-in, and users will need to set environment variables to enable tracing. This approach ensures that tracing doesn't impact performance for users who don't require it.
+
+### Example: Running Jaeger with OTLP Support
+
+Most popular tracing tools, such as Jaeger, support OTLP.
+
+**Running Jaeger with OTLP Support:**
+
+To quickly spin up a Jaeger instance with OTLP enabled using Docker, you can use the following command:
+```shell
+docker run \
+    --rm \
+    --name jaeger \
+    -e COLLECTOR_OTLP_ENABLED=true \
+    -p 16686:16686 \
+    -p 4317:4317 \
+    -p 4318:4318 \
+    jaegertracing/all-in-one:1.54.0
+```
+
+This command starts a Jaeger all-in-one container with OTLP collection enabled. The OTLP endpoint will be exposed on port 4317 (and 4318 for HTTP/JSON if needed).
+
+**Configuring OpenTofu**
+
+To direct OpenTofu to send traces to your Jaeger instance, you can set the following environment variables:
+
+```shell
+export OTEL_TRACES_EXPORTER=otlp
+export OTEL_SERVICE_NAME=opentofu
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_EXPORTER_OTLP_INSECURE=true
+```
+- `OTEL_TRACES_EXPORTER=otlp`: Instructs OpenTofu to use the OTLP exporter.
+- `OTEL_SERVICE_NAME=opentofu`: Sets the service name to “opentofu” for trace identification.
+- `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317`: Points the exporter to your Jaeger instance.
+- `OTEL_EXPORTER_OTLP_INSECURE=true`: Disables TLS since the default Jaeger setup uses an insecure connection.
+
+These settings ensure that trace data is properly exported to the Jaeger instance, offering a quick and effective way to visualize OpenTofu’s telemetry data.
+
 ## Benefits:
 - **End-to-End Observability:** By adopting environment variable-based context propagation, OpenTofu can participate in distributed traces initiated by external systems, providing a complete view of the infrastructure provisioning process.
 - **Standardization:** Aligning with OTEP #258 ensures compatibility with other tools and systems that follow the same standard, promoting interoperability.
@@ -101,3 +147,8 @@ The OpenTelemetry Enhancement Proposal [OTEP #258](https://github.com/open-telem
 
 - **Tracing each and every call to providers**: This could be helpful for provider authors, or people who wish to understand more about what is happening. This would be easy to add but could easily add too much clutter. We should evaluate during development how informative these traces are.
 - **Expanding Trace Context to the Provider**: For our gRPC calls to the providers, we could send the `TRACEPARENT` through to the provider. Then, if a provider author wishes to provide OTEL tracing, they can do and have the full context of what is ongoing. This would be helpful, however it is not needed right now due to no existing providers supporting this.
+
+## Open Questions
+- What should `tofu` do if a mal-formed `TRACEPARENT` is passed in?
+- What is the performance impact of adding tracing to `tofu`?
+- How do we find a happy medium of tracing enough to be useful but not too much to be overwhelming to maintain?
