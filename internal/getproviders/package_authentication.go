@@ -522,7 +522,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 			continue
 		}
 
-		// Success! This key verified without an expiration error.
+		// Success! This key verified without an error.
 		keyID := "n/a"
 		if entity.PrimaryKey != nil {
 			keyID = entity.PrimaryKey.KeyIdString()
