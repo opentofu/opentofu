@@ -457,7 +457,7 @@ See details: https://cs.opensource.google/go/x/net/+/refs/tags/v0.17.0:http/http
 			"use_lockfile": {
 				Type:        cty.Bool,
 				Optional:    true,
-				Description: "Manage locking with an S3 object",
+				Description: "Manage locking in the same configured S3 bucket",
 			},
 		},
 	}

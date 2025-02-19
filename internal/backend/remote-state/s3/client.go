@@ -276,38 +276,9 @@ func (c *RemoteClient) Delete() error {
 }
 
 func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
-	s3LockID, err := c.s3Lock(info)
-	if err != nil {
-		return "", err
-	}
-	dynamoLockID, err := c.dynamoDBLock(info)
-	if err != nil {
-		// when second lock fails to get acquired, release the initially acquired one
-		if uErr := c.s3Unlock(s3LockID); uErr != nil {
-			log.Printf("[WARN] failed to release the S3 lock on after failed to acquire the dynamoDD lock: %v", uErr)
-		}
-		return "", err
-	}
-	switch {
-	case c.useLockfile && c.ddbTable != "":
-		if s3LockID != dynamoLockID {
-			log.Printf("[WARN] acquiring s3 and dynamodb lock resulted in different lockIds. s3 lockId: %s; dynamodb lockId; %s", s3LockID, dynamoLockID)
-		}
-		return s3LockID, nil
-	case c.useLockfile:
-		return s3LockID, nil
-	case c.ddbTable != "":
-		return dynamoLockID, nil
-	}
-	return "", nil
-}
-
-func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) (string, error) {
-	if c.ddbTable == "" {
+	if !c.IsLockingEnabled() {
 		return "", nil
 	}
-	info.Path = c.lockPath()
-
 	if info.ID == "" {
 		lockID, err := uuid.GenerateUUID()
 		if err != nil {
@@ -316,6 +287,26 @@ func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) (string, error) {
 
 		info.ID = lockID
 	}
+
+	if err := c.s3Lock(info); err != nil {
+		return "", err
+	}
+	if err := c.dynamoDBLock(info); err != nil {
+		// when the second lock fails from getting acquired, release the initially acquired one
+		if uErr := c.s3Unlock(info.ID); uErr != nil {
+			log.Printf("[WARN] failed to release the S3 lock after failed to acquire the dynamoDD lock: %v", uErr)
+		}
+		return "", err
+	}
+	return info.ID, nil
+}
+
+// dynamoDBLock expects the statemgr.LockInfo#ID to be filled already
+func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) error {
+	if c.ddbTable == "" {
+		return nil
+	}
+	info.Path = c.lockPath()
 
 	putParams := &dynamodb.PutItemInput{
 		Item: map[string]dtypes.AttributeValue{
@@ -329,7 +320,7 @@ func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) (string, error) {
 	ctx := context.TODO()
 	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
-		lockInfo, infoErr := c.getLockInfo(ctx)
+		lockInfo, infoErr := c.getLockInfoFromDynamoDB(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
 		}
@@ -338,25 +329,18 @@ func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) (string, error) {
 			Err:  err,
 			Info: lockInfo,
 		}
-		return "", lockErr
+		return lockErr
 	}
 
-	return info.ID, nil
+	return nil
 }
 
-func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) (string, error) {
+// s3Lock expects the statemgr.LockInfo#ID to be filled already
+func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 	if !c.useLockfile {
-		return "", nil
+		return nil
 	}
 	info.Path = c.lockPath()
-
-	if info.ID == "" {
-		lockID, err := uuid.GenerateUUID()
-		if err != nil {
-			return "", err
-		}
-		info.ID = lockID
-	}
 
 	lInfo := info.Marshal()
 	putParams := &s3.PutObjectInput{
@@ -372,7 +356,7 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) (string, error) {
 	ctx, _ = attachLoggerToContext(ctx)
 	_, err := c.s3Client.PutObject(ctx, putParams)
 	if err != nil {
-		lockInfo, infoErr := c.getS3LockInfo(ctx)
+		lockInfo, infoErr := c.getLockInfoFromS3(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
 		}
@@ -381,10 +365,10 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) (string, error) {
 			Err:  err,
 			Info: lockInfo,
 		}
-		return "", lockErr
+		return lockErr
 	}
 
-	return info.ID, nil
+	return nil
 }
 
 func (c *RemoteClient) getMD5(ctx context.Context) ([]byte, error) {
@@ -464,7 +448,7 @@ func (c *RemoteClient) deleteMD5(ctx context.Context) error {
 	return nil
 }
 
-func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
+func (c *RemoteClient) getLockInfoFromDynamoDB(ctx context.Context) (*statemgr.LockInfo, error) {
 	getParams := &dynamodb.GetItemInput{
 		Key: map[string]dtypes.AttributeValue{
 			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath()},
@@ -499,7 +483,7 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 	return lockInfo, nil
 }
 
-func (c *RemoteClient) getS3LockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
+func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInfo, error) {
 	getParams := &s3.GetObjectInput{
 		Bucket: aws.String(c.bucketName),
 		Key:    aws.String(c.lockFilePath()),
@@ -539,25 +523,31 @@ func (c *RemoteClient) getS3LockInfo(ctx context.Context) (*statemgr.LockInfo, e
 }
 
 func (c *RemoteClient) Unlock(id string) error {
-	if c.useLockfile {
-		if err := c.s3Unlock(id); err != nil {
-			return err
-		}
-	}
-	if c.ddbTable != "" {
-		if err := c.dynamoDBUnlock(id); err != nil {
-			return err
-		}
+	// Attempt to release the lock from both sources.
+	// We want to do so to be sure that we are leaving no locks unhandled
+	s3Err := c.s3Unlock(id)
+	dynamoDBErr := c.dynamoDBUnlock(id)
+	switch {
+	case s3Err != nil && dynamoDBErr != nil:
+		s3Err.Err = multierror.Append(s3Err.Err, dynamoDBErr.Err)
+		return s3Err
+	case s3Err != nil:
+		return s3Err
+	case dynamoDBErr != nil:
+		return dynamoDBErr
 	}
 	return nil
 }
 
-func (c *RemoteClient) s3Unlock(id string) error {
+func (c *RemoteClient) s3Unlock(id string) *statemgr.LockError {
+	if !c.useLockfile {
+		return nil
+	}
 	lockErr := &statemgr.LockError{}
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
 
-	lockInfo, err := c.getS3LockInfo(ctx)
+	lockInfo, err := c.getLockInfoFromS3(ctx)
 	if err != nil {
 		lockErr.Err = fmt.Errorf("failed to retrieve s3 lock info: %w", err)
 		return lockErr
@@ -582,7 +572,7 @@ func (c *RemoteClient) s3Unlock(id string) error {
 	return nil
 }
 
-func (c *RemoteClient) dynamoDBUnlock(id string) error {
+func (c *RemoteClient) dynamoDBUnlock(id string) *statemgr.LockError {
 	if c.ddbTable == "" {
 		return nil
 	}
@@ -590,7 +580,7 @@ func (c *RemoteClient) dynamoDBUnlock(id string) error {
 	lockErr := &statemgr.LockError{}
 	ctx := context.TODO()
 
-	lockInfo, err := c.getLockInfo(ctx)
+	lockInfo, err := c.getLockInfoFromDynamoDB(ctx)
 	if err != nil {
 		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %w", err)
 		return lockErr
