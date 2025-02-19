@@ -22,6 +22,20 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+func EvalProviderAliasKey(value cty.Value) string {
+    switch {
+    case value.Type().Equals(cty.Bool):
+        return fmt.Sprintf("%t", value.True()) // Convert `true` -> "true", `false` -> "false"
+    case value.Type().Equals(cty.Number):
+        return fmt.Sprintf("%v", value.AsBigFloat()) // Convert number to string
+    case value.Type().Equals(cty.String):
+        return value.AsString() // Already a string
+    default:
+        panic(fmt.Sprintf("Invalid provider alias key type: %v", value.Type()))
+    }
+}
+
+
 func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *configs.Provider) hcl.Body {
 	var configBody hcl.Body
 	if config != nil {
