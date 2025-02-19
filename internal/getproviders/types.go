@@ -13,8 +13,8 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/apparentlymart/go-versions/versions/constraints"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Version represents a particular single version of a provider.
@@ -49,6 +49,48 @@ type Warnings = []string
 // acceptable. That's different than a provider being absent from the map
 // altogether, which means that it is not required at all.
 type Requirements map[addrs.Provider]VersionConstraints
+
+// ProvidersQualification is storing the implicit/explicit reference qualification of the providers.
+// This is necessary to be able to warn the user when the resources are referencing a provider that
+// is not specifically defined in a required_providers block. When the implicitly referenced
+// provider is tried to be downloaded without a specific provider requirement, it will be tried
+// from the default namespace (hashicorp), failing to download it when it does not exist in the default namespace.
+// Therefore, we want to let the user know what resources are generating this situation.
+type ProvidersQualification struct {
+	Implicit map[addrs.Provider][]ResourceRef
+	Explicit map[addrs.Provider]struct{}
+}
+
+type ResourceRef struct {
+	CfgRes            addrs.ConfigResource
+	Ref               tfdiags.SourceRange
+	ProviderAttribute bool
+}
+
+// AddImplicitProvider saves an addrs.Provider with the place in the configuration where this is generated from.
+func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, ref ResourceRef) {
+	if pq.Implicit == nil {
+		pq.Implicit = map[addrs.Provider][]ResourceRef{}
+	}
+	// This is avoiding adding the implicit reference of the provider if this is already explicitly configured.
+	// Done this way, because when collecting these qualifications, if there are at least 2 resources (A from root module and B from an imported module),
+	// root module could have no explicit definition but the module of B could have an explicit one. But in case none of the modules is having
+	// an explicit definition, we want to gather all the resources that are implicitly referencing a provider.
+	if _, ok := pq.Explicit[provider]; ok {
+		return
+	}
+	refs := pq.Implicit[provider]
+	refs = append(refs, ref)
+	pq.Implicit[provider] = refs
+}
+
+// AddExplicitProvider saves an addrs.Provider that is specifically configured in a required_providers block.
+func (pq *ProvidersQualification) AddExplicitProvider(provider addrs.Provider) {
+	if pq.Explicit == nil {
+		pq.Explicit = map[addrs.Provider]struct{}{}
+	}
+	pq.Explicit[provider] = struct{}{}
+}
 
 // Merge takes the requirements in the receiver and the requirements in the
 // other given value and produces a new set of requirements that combines

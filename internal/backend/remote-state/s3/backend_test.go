@@ -116,7 +116,7 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 				tfdiags.AttributeValue(
 					tfdiags.Error,
 					"Invalid region value",
-					`Invalid AWS Region: nonesuch`,
+					`invalid AWS Region: nonesuch`,
 					cty.Path{cty.GetAttrStep{Name: "region"}},
 				),
 			},

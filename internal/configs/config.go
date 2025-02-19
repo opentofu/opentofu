@@ -12,10 +12,10 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // A Config is a node in the tree of modules within a configuration.
@@ -230,7 +230,7 @@ func (c *Config) EntersNewPackage() bool {
 func (c *Config) VerifyDependencySelections(depLocks *depsfile.Locks) []error {
 	var errs []error
 
-	reqs, diags := c.ProviderRequirements()
+	reqs, _, diags := c.ProviderRequirements()
 	if diags.HasErrors() {
 		// It should be very unusual to get here, but unfortunately we can
 		// end up here in some edge cases where the config loader doesn't
@@ -301,11 +301,12 @@ func (c *Config) VerifyDependencySelections(depLocks *depsfile.Locks) []error {
 //
 // If the returned diagnostics includes errors then the resulting Requirements
 // may be incomplete.
-func (c *Config) ProviderRequirements() (getproviders.Requirements, hcl.Diagnostics) {
+func (c *Config) ProviderRequirements() (getproviders.Requirements, *getproviders.ProvidersQualification, hcl.Diagnostics) {
 	reqs := make(getproviders.Requirements)
-	diags := c.addProviderRequirements(reqs, true, true)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags := c.addProviderRequirements(reqs, qualifs, true, true)
 
-	return reqs, diags
+	return reqs, qualifs, diags
 }
 
 // ProviderRequirementsShallow searches only the direct receiver for explicit
@@ -315,7 +316,8 @@ func (c *Config) ProviderRequirements() (getproviders.Requirements, hcl.Diagnost
 // may be incomplete.
 func (c *Config) ProviderRequirementsShallow() (getproviders.Requirements, hcl.Diagnostics) {
 	reqs := make(getproviders.Requirements)
-	diags := c.addProviderRequirements(reqs, false, true)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags := c.addProviderRequirements(reqs, qualifs, false, true)
 
 	return reqs, diags
 }
@@ -328,7 +330,8 @@ func (c *Config) ProviderRequirementsShallow() (getproviders.Requirements, hcl.D
 // may be incomplete.
 func (c *Config) ProviderRequirementsByModule() (*ModuleRequirements, hcl.Diagnostics) {
 	reqs := make(getproviders.Requirements)
-	diags := c.addProviderRequirements(reqs, false, false)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags := c.addProviderRequirements(reqs, qualifs, false, false)
 
 	children := make(map[string]*ModuleRequirements)
 	for name, child := range c.Children {
@@ -378,7 +381,7 @@ func (c *Config) ProviderRequirementsByModule() (*ModuleRequirements, hcl.Diagno
 // implementation, gradually mutating a shared requirements object to
 // eventually return. If the recurse argument is true, the requirements will
 // include all descendant modules; otherwise, only the specified module.
-func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse, tests bool) hcl.Diagnostics {
+func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs *getproviders.ProvidersQualification, recurse, tests bool) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	// First we'll deal with the requirements directly in _our_ module...
@@ -409,6 +412,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 				})
 			}
 			reqs[fqn] = append(reqs[fqn], constraints...)
+			qualifs.AddExplicitProvider(providerReqs.Type)
 		}
 	}
 
@@ -418,17 +422,42 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 	for _, rc := range c.Module.ManagedResources {
 		fqn := rc.Provider
 		if _, exists := reqs[fqn]; exists {
+			// If this is called for a child module, and the provider was added from another implicit reference and not
+			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
+			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+				CfgRes:            rc.Addr().InModule(c.Path),
+				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+				ProviderAttribute: rc.ProviderConfigRef != nil,
+			})
 			// Explicit dependency already present
 			continue
 		}
+		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+			CfgRes:            rc.Addr().InModule(c.Path),
+			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+			ProviderAttribute: rc.ProviderConfigRef != nil,
+		})
 		reqs[fqn] = nil
 	}
 	for _, rc := range c.Module.DataResources {
 		fqn := rc.Provider
 		if _, exists := reqs[fqn]; exists {
+			// If this is called for a child module, and the provider was added from another implicit reference and not
+			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
+			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+				CfgRes:            rc.Addr().InModule(c.Path),
+				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+				ProviderAttribute: rc.ProviderConfigRef != nil,
+			})
+
 			// Explicit dependency already present
 			continue
 		}
+		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+			CfgRes:            rc.Addr().InModule(c.Path),
+			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+			ProviderAttribute: rc.ProviderConfigRef != nil,
+		})
 		reqs[fqn] = nil
 	}
 
@@ -445,6 +474,10 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 		fqn := i.Provider
 		if _, exists := reqs[fqn]; !exists {
 			reqs[fqn] = nil
+			qualifs.AddImplicitProvider(i.Provider, getproviders.ResourceRef{
+				CfgRes: i.StaticTo,
+				Ref:    tfdiags.SourceRangeFromHCL(i.DeclRange),
+			})
 		}
 
 		// TODO: This should probably be moved to provider_validation.go so that
@@ -522,7 +555,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 				// Then we'll also look for requirements in testing modules.
 				for _, run := range file.Runs {
 					if run.ConfigUnderTest != nil {
-						moreDiags := run.ConfigUnderTest.addProviderRequirements(reqs, true, false)
+						moreDiags := run.ConfigUnderTest.addProviderRequirements(reqs, qualifs, true, false)
 						diags = append(diags, moreDiags...)
 					}
 				}
@@ -532,7 +565,7 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, recurse
 
 	if recurse {
 		for _, childConfig := range c.Children {
-			moreDiags := childConfig.addProviderRequirements(reqs, true, false)
+			moreDiags := childConfig.addProviderRequirements(reqs, qualifs, true, false)
 			diags = append(diags, moreDiags...)
 		}
 	}
@@ -772,7 +805,7 @@ func (c *Config) resolveProviderTypesForTests(providers map[string]addrs.Provide
 // versions for each provider.
 func (c *Config) ProviderTypes() []addrs.Provider {
 	// Ignore diagnostics here because they relate to version constraints
-	reqs, _ := c.ProviderRequirements()
+	reqs, _, _ := c.ProviderRequirements()
 
 	ret := make([]addrs.Provider, 0, len(reqs))
 	for k := range reqs {

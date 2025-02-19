@@ -18,6 +18,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 
 	version "github.com/hashicorp/go-version"
@@ -155,7 +156,7 @@ func TestConfigProviderRequirements(t *testing.T) {
 	configuredProvider := addrs.NewDefaultProvider("configured")
 	grandchildProvider := addrs.NewDefaultProvider("grandchild")
 
-	got, diags := cfg.ProviderRequirements()
+	got, qualifs, diags := cfg.ProviderRequirements()
 	assertNoDiagnostics(t, diags)
 	want := getproviders.Requirements{
 		// the nullProvider constraints from the two modules are merged
@@ -170,9 +171,62 @@ func TestConfigProviderRequirements(t *testing.T) {
 		terraformProvider:      nil,
 		grandchildProvider:     nil,
 	}
+	wantQualifs := &getproviders.ProvidersQualification{
+		Implicit: map[addrs.Provider][]getproviders.ResourceRef{
+			grandchildProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Module: []string{"kinder", "nested"}, Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "grandchild_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/child/grandchild/provider-reqs-grandchild.tf", Start: tfdiags.SourcePos{Line: 3, Column: 1, Byte: 136}, End: tfdiags.SourcePos{Line: 3, Column: 32, Byte: 167}},
+				},
+			},
+			impliedProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "implied_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 16, Column: 1, Byte: 317}, End: tfdiags.SourcePos{Line: 16, Column: 29, Byte: 345}},
+				},
+			},
+			importexplicitProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "importimplied", Name: "targetB"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 42, Column: 1, Byte: 939}, End: tfdiags.SourcePos{Line: 42, Column: 7, Byte: 945}},
+				},
+			},
+			importimpliedProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "importimplied", Name: "targetA"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 37, Column: 1, Byte: 886}, End: tfdiags.SourcePos{Line: 37, Column: 7, Byte: 892}},
+				},
+			},
+			terraformProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "terraform_remote_state", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 27, Column: 1, Byte: 628}, End: tfdiags.SourcePos{Line: 27, Column: 36, Byte: 663}},
+				},
+			},
+		},
+		Explicit: map[addrs.Provider]struct{}{
+			happycloudProvider: {},
+			nullProvider:       {},
+			randomProvider:     {},
+			tlsProvider:        {},
+		},
+	}
+	// These 2 assertions are strictly to ensure that later the "provider" blocks are not registered into the qualifications.
+	// Technically speaking, provider blocks are indeed implicit references, but the current warning message
+	// on implicitly referenced providers could be misleading for the "provider" blocks.
+	if _, okExpl := qualifs.Explicit[configuredProvider]; okExpl {
+		t.Errorf("provider blocks shouldn't be added into the explicit qualifications")
+	}
+	if _, okImpl := qualifs.Implicit[configuredProvider]; okImpl {
+		t.Errorf("provider blocks shouldn't be added into the implicit qualifications")
+	}
 
 	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("wrong result\n%s", diff)
+		t.Errorf("wrong reqs result\n%s", diff)
+	}
+
+	if diff := cmp.Diff(wantQualifs, qualifs); diff != "" {
+		t.Errorf("wrong qualifs result\n%s", diff)
 	}
 }
 
@@ -195,7 +249,7 @@ func TestConfigProviderRequirementsInclTests(t *testing.T) {
 	terraformProvider := addrs.NewBuiltInProvider("terraform")
 	configuredProvider := addrs.NewDefaultProvider("configured")
 
-	got, diags := cfg.ProviderRequirements()
+	got, qualifs, diags := cfg.ProviderRequirements()
 	assertNoDiagnostics(t, diags)
 	want := getproviders.Requirements{
 		// the nullProvider constraints from the two modules are merged
@@ -207,8 +261,34 @@ func TestConfigProviderRequirementsInclTests(t *testing.T) {
 		terraformProvider:  nil,
 	}
 
+	wantQualifs := &getproviders.ProvidersQualification{
+		Implicit: map[addrs.Provider][]getproviders.ResourceRef{
+			impliedProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "implied_foo", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 12, Column: 1, Byte: 247}, End: tfdiags.SourcePos{Line: 12, Column: 29, Byte: 275}},
+				},
+			},
+			terraformProvider: {
+				{
+					CfgRes: addrs.ConfigResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "terraform_remote_state", Name: "bar"}},
+					Ref:    tfdiags.SourceRange{Filename: "testdata/provider-reqs-with-tests/provider-reqs-root.tf", Start: tfdiags.SourcePos{Line: 19, Column: 1, Byte: 516}, End: tfdiags.SourcePos{Line: 19, Column: 36, Byte: 551}},
+				},
+			},
+		},
+		Explicit: map[addrs.Provider]struct{}{
+			nullProvider:   {},
+			randomProvider: {},
+			tlsProvider:    {},
+		},
+	}
+
 	if diff := cmp.Diff(want, got); diff != "" {
 		t.Errorf("wrong result\n%s", diff)
+	}
+
+	if diff := cmp.Diff(wantQualifs, qualifs); diff != "" {
+		t.Errorf("wrong qualifs result\n%s", diff)
 	}
 }
 
@@ -584,7 +664,8 @@ func TestConfigAddProviderRequirements(t *testing.T) {
 	reqs := getproviders.Requirements{
 		addrs.NewDefaultProvider("null"): nil,
 	}
-	diags = cfg.addProviderRequirements(reqs, true, false)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags = cfg.addProviderRequirements(reqs, qualifs, true, false)
 	assertNoDiagnostics(t, diags)
 }
 
@@ -609,8 +690,9 @@ Use the providers argument within the module block to configure providers for al
 func TestConfigImportProviderClashesWithResources(t *testing.T) {
 	cfg, diags := testModuleConfigFromFile("testdata/invalid-import-files/import-and-resource-clash.tf")
 	assertNoDiagnostics(t, diags)
+	qualifs := new(getproviders.ProvidersQualification)
 
-	diags = cfg.addProviderRequirements(getproviders.Requirements{}, true, false)
+	diags = cfg.addProviderRequirements(getproviders.Requirements{}, qualifs, true, false)
 	assertExactDiagnostics(t, diags, []string{
 		`testdata/invalid-import-files/import-and-resource-clash.tf:9,3-19: Invalid import provider argument; The provider argument in the target resource block must match the import block.`,
 	})
@@ -620,7 +702,8 @@ func TestConfigImportProviderWithNoResourceProvider(t *testing.T) {
 	cfg, diags := testModuleConfigFromFile("testdata/invalid-import-files/import-and-no-resource.tf")
 	assertNoDiagnostics(t, diags)
 
-	diags = cfg.addProviderRequirements(getproviders.Requirements{}, true, false)
+	qualifs := new(getproviders.ProvidersQualification)
+	diags = cfg.addProviderRequirements(getproviders.Requirements{}, qualifs, true, false)
 	assertExactDiagnostics(t, diags, []string{
 		`testdata/invalid-import-files/import-and-no-resource.tf:5,3-19: Invalid import provider argument; The provider argument in the target resource block must be specified and match the import block.`,
 	})

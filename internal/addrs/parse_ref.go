@@ -98,32 +98,22 @@ func ParseRefFromTestingScope(traversal hcl.Traversal) (*Reference, tfdiags.Diag
 
 	switch root {
 	case "output":
-		name, rng, remain, outputDiags := parseSingleAttrRef(traversal)
-		reference = &Reference{
-			Subject:     OutputValue{Name: name},
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}
-		diags = outputDiags
+		reference, diags = parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return OutputValue{Name: name}
+		})
 	case "check":
-		name, rng, remain, checkDiags := parseSingleAttrRef(traversal)
-		reference = &Reference{
-			Subject:     Check{Name: name},
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}
-		diags = checkDiags
+		reference, diags = parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return Check{Name: name}
+		})
+	default:
+		// If it's not an output or a check block, then just parse it as normal.
+		return ParseRef(traversal)
 	}
 
-	if reference != nil {
-		if len(reference.Remaining) == 0 {
-			reference.Remaining = nil
-		}
-		return reference, diags
+	if reference != nil && len(reference.Remaining) == 0 {
+		reference.Remaining = nil
 	}
-
-	// If it's not an output or a check block, then just parse it as normal.
-	return ParseRef(traversal)
+	return reference, diags
 }
 
 // ParseRefStr is a helper wrapper around ParseRef that takes a string
@@ -178,23 +168,14 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 	rootRange := traversal[0].SourceRange()
 
 	switch root {
-
 	case "count":
-		name, rng, remain, diags := parseSingleAttrRef(traversal)
-		return &Reference{
-			Subject:     CountAttr{Name: name},
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}, diags
-
+		return parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return CountAttr{Name: name}
+		})
 	case "each":
-		name, rng, remain, diags := parseSingleAttrRef(traversal)
-		return &Reference{
-			Subject:     ForEachAttr{Name: name},
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}, diags
-
+		return parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return ForEachAttr{Name: name}
+		})
 	case "data":
 		if len(traversal) < 3 {
 			diags = diags.Append(&hcl.Diagnostic{
@@ -207,7 +188,6 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		}
 		remain := traversal[1:] // trim off "data" so we can use our shared resource reference parser
 		return parseResourceRef(DataResourceMode, rootRange, remain)
-
 	case "resource":
 		// This is an alias for the normal case of just using a managed resource
 		// type as a top-level symbol, which will serve as an escape mechanism
@@ -228,126 +208,34 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		}
 		remain := traversal[1:] // trim off "resource" so we can use our shared resource reference parser
 		return parseResourceRef(ManagedResourceMode, rootRange, remain)
-
 	case "local":
-		name, rng, remain, diags := parseSingleAttrRef(traversal)
-		return &Reference{
-			Subject:     LocalValue{Name: name},
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}, diags
-
-	case "module":
-		callName, callRange, remain, diags := parseSingleAttrRef(traversal)
-		if diags.HasErrors() {
-			return nil, diags
-		}
-
-		// A traversal starting with "module" can either be a reference to an
-		// entire module, or to a single output from a module instance,
-		// depending on what we find after this introducer.
-		callInstance := ModuleCallInstance{
-			Call: ModuleCall{
-				Name: callName,
-			},
-			Key: NoKey,
-		}
-
-		if len(remain) == 0 {
-			// Reference to an entire module. Might alternatively be a
-			// reference to a single instance of a particular module, but the
-			// caller will need to deal with that ambiguity since we don't have
-			// enough context here.
-			return &Reference{
-				Subject:     callInstance.Call,
-				SourceRange: tfdiags.SourceRangeFromHCL(callRange),
-				Remaining:   remain,
-			}, diags
-		}
-
-		if idxTrav, ok := remain[0].(hcl.TraverseIndex); ok {
-			var err error
-			callInstance.Key, err = ParseInstanceKey(idxTrav.Key)
-			if err != nil {
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid index key",
-					Detail:   fmt.Sprintf("Invalid index for module instance: %s.", err),
-					Subject:  &idxTrav.SrcRange,
-				})
-				return nil, diags
-			}
-			remain = remain[1:]
-
-			if len(remain) == 0 {
-				// Also a reference to an entire module instance, but we have a key
-				// now.
-				return &Reference{
-					Subject:     callInstance,
-					SourceRange: tfdiags.SourceRangeFromHCL(hcl.RangeBetween(callRange, idxTrav.SrcRange)),
-					Remaining:   remain,
-				}, diags
-			}
-		}
-
-		if attrTrav, ok := remain[0].(hcl.TraverseAttr); ok {
-			remain = remain[1:]
-			return &Reference{
-				Subject: ModuleCallInstanceOutput{
-					Name: attrTrav.Name,
-					Call: callInstance,
-				},
-				SourceRange: tfdiags.SourceRangeFromHCL(hcl.RangeBetween(callRange, attrTrav.SrcRange)),
-				Remaining:   remain,
-			}, diags
-		}
-
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Invalid reference",
-			Detail:   "Module instance objects do not support this operation.",
-			Subject:  remain[0].SourceRange().Ptr(),
+		return parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return LocalValue{Name: name}
 		})
-		return nil, diags
-
+	case "module":
+		return parseModuleCallRef(traversal)
 	case "path":
-		name, rng, remain, diags := parseSingleAttrRef(traversal)
-		return &Reference{
-			Subject:     PathAttr{Name: name},
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}, diags
-
+		return parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return PathAttr{Name: name}
+		})
 	case "self":
 		return &Reference{
 			Subject:     Self,
 			SourceRange: tfdiags.SourceRangeFromHCL(rootRange),
 			Remaining:   traversal[1:],
 		}, diags
-
 	case "terraform":
-		name, rng, remain, diags := parseSingleAttrRef(traversal)
-		return &Reference{
-			Subject:     NewTerraformAttr(IdentTerraform, name),
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}, diags
-
+		return parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return NewTerraformAttr(IdentTerraform, name)
+		})
 	case "tofu":
-		name, rng, remain, parsedDiags := parseSingleAttrRef(traversal)
-		return &Reference{
-			Subject:     NewTerraformAttr(IdentTofu, name),
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}, parsedDiags
-
+		return parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return NewTerraformAttr(IdentTofu, name)
+		})
 	case "var":
-		name, rng, remain, diags := parseSingleAttrRef(traversal)
-		return &Reference{
-			Subject:     InputVariable{Name: name},
-			SourceRange: tfdiags.SourceRangeFromHCL(rng),
-			Remaining:   remain,
-		}, diags
+		return parseSingleAttrRef(traversal, func(name string) Referenceable {
+			return InputVariable{Name: name}
+		})
 	case "template", "lazy", "arg":
 		// These names are all pre-emptively reserved in the hope of landing
 		// some version of "template values" or "lazy expressions" feature
@@ -359,7 +247,6 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 			Subject:  rootRange.Ptr(),
 		})
 		return nil, diags
-
 	default:
 		function := ParseFunction(root)
 		if function.IsNamespace(FunctionNamespaceProvider) {
@@ -475,11 +362,101 @@ func parseResourceRef(mode ResourceMode, startRange hcl.Range, traversal hcl.Tra
 	}, diags
 }
 
-func parseSingleAttrRef(traversal hcl.Traversal) (string, hcl.Range, hcl.Traversal, tfdiags.Diagnostics) {
+func parseModuleCallRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
+	// The following is a little circuitous just so we can reuse parseSingleAttrRef
+	// for this slightly-odd case while keeping it relatively simple for all of the
+	// other cases that use it: we first get the information we need wrapped up
+	// in a *Reference and then unpack it to perform further work below.
+	callRef, diags := parseSingleAttrRef(traversal, func(name string) Referenceable {
+		return ModuleCallInstance{
+			Call: ModuleCall{
+				Name: name,
+			},
+			Key: NoKey,
+		}
+	})
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	// A traversal starting with "module" can either be a reference to an
+	// entire module, or to a single output from a module instance,
+	// depending on what we find after this introducer.
+	callInstance := callRef.Subject.(ModuleCallInstance) //nolint:errcheck // This was constructed directly above by call to parseSingleAttrRef
+	callRange := callRef.SourceRange
+	remain := callRef.Remaining
+
+	if len(remain) == 0 {
+		// Reference to an entire module. Might alternatively be a
+		// reference to a single instance of a particular module, but the
+		// caller will need to deal with that ambiguity since we don't have
+		// enough context here.
+		return &Reference{
+			Subject:     callInstance.Call,
+			SourceRange: callRange,
+			Remaining:   remain,
+		}, diags
+	}
+
+	if idxTrav, ok := remain[0].(hcl.TraverseIndex); ok {
+		var err error
+		callInstance.Key, err = ParseInstanceKey(idxTrav.Key)
+		if err != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid index key",
+				Detail:   fmt.Sprintf("Invalid index for module instance: %s.", err),
+				Subject:  &idxTrav.SrcRange,
+			})
+			return nil, diags
+		}
+		remain = remain[1:]
+
+		if len(remain) == 0 {
+			// Also a reference to an entire module instance, but we have a key
+			// now.
+			return &Reference{
+				Subject:     callInstance,
+				SourceRange: tfdiags.SourceRangeFromHCL(hcl.RangeBetween(callRange.ToHCL(), idxTrav.SrcRange)),
+				Remaining:   remain,
+			}, diags
+		}
+	}
+
+	if attrTrav, ok := remain[0].(hcl.TraverseAttr); ok {
+		remain = remain[1:]
+		return &Reference{
+			Subject: ModuleCallInstanceOutput{
+				Name: attrTrav.Name,
+				Call: callInstance,
+			},
+			SourceRange: tfdiags.SourceRangeFromHCL(hcl.RangeBetween(callRange.ToHCL(), attrTrav.SrcRange)),
+			Remaining:   remain,
+		}, diags
+	}
+
+	diags = diags.Append(&hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Invalid reference",
+		Detail:   "Module instance objects do not support this operation.",
+		Subject:  remain[0].SourceRange().Ptr(),
+	})
+	return nil, diags
+}
+
+func parseSingleAttrRef(traversal hcl.Traversal, makeAddr func(name string) Referenceable) (*Reference, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	root := traversal.RootName()
 	rootRange := traversal[0].SourceRange()
+
+	// NOTE: In a previous version of this file parseSingleAttrRef only returned the component parts
+	// of a *Reference and then the callers assembled them, which caused the main parseRef function
+	// to return a non-nil result (with mostly-garbage field values) even in the error cases.
+	// We've preserved that oddity for now because our code complexity refactoring efforts should
+	// not change the externally-observable behavior, but to guarantee that we'd need to review
+	// all uses of parseRef to make sure that they aren't depending on getting a non-nil *Reference
+	// along with error diagnostics. :(
 
 	if len(traversal) < 2 {
 		diags = diags.Append(&hcl.Diagnostic{
@@ -488,10 +465,15 @@ func parseSingleAttrRef(traversal hcl.Traversal) (string, hcl.Range, hcl.Travers
 			Detail:   fmt.Sprintf("The %q object cannot be accessed directly. Instead, access one of its attributes.", root),
 			Subject:  &rootRange,
 		})
-		return "", hcl.Range{}, nil, diags
+		return &Reference{Subject: makeAddr("")}, diags
 	}
 	if attrTrav, ok := traversal[1].(hcl.TraverseAttr); ok {
-		return attrTrav.Name, hcl.RangeBetween(rootRange, attrTrav.SrcRange), traversal[2:], diags
+		subjectAddr := makeAddr(attrTrav.Name)
+		return &Reference{
+			Subject:     subjectAddr,
+			SourceRange: tfdiags.SourceRangeFromHCL(hcl.RangeBetween(rootRange, attrTrav.SrcRange)),
+			Remaining:   traversal[2:],
+		}, diags
 	}
 	diags = diags.Append(&hcl.Diagnostic{
 		Severity: hcl.DiagError,
@@ -499,5 +481,5 @@ func parseSingleAttrRef(traversal hcl.Traversal) (string, hcl.Range, hcl.Travers
 		Detail:   fmt.Sprintf("The %q object does not support this operation.", root),
 		Subject:  traversal[1].SourceRange().Ptr(),
 	})
-	return "", hcl.Range{}, nil, diags
+	return &Reference{Subject: makeAddr("")}, diags
 }
