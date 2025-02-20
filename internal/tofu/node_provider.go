@@ -54,6 +54,18 @@ func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation)
 	} else {
 		// Instances are set AND we are not validating
 		for key := range n.Config.Instances {
+			keyStr := key.String()
+			// Convert boolean-like values to string keys
+			if key == addrs.IntKey(1) {
+				  key = addrs.StringKey("true")
+			 } else if key == addrs.IntKey(0) {
+				 key = addrs.StringKey("false")
+			 } else if keyStr == "true" || keyStr == "false" {
+				 key = addrs.StringKey(keyStr) // Convert boolean-like strings
+			 } else if intVal, err := strconv.Atoi(keyStr); err == nil {
+				 key = addrs.IntKey(intVal) // Convert numeric keys
+			 }
+			
 			initKeys = append(initKeys, key)
 			instanceKeys[key] = key
 		}
