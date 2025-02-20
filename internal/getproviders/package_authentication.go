@@ -12,7 +12,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-
 	"log"
 	"os"
 	"strings"
@@ -490,42 +489,57 @@ func (s signatureAuthentication) AcceptableHashes() []Hash {
 // Note: currently the registry only returns one key, but this may change in
 // the future.
 func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
+	var expiredKey *SigningKey
+	var expiredKeyID string
+
 	for _, key := range s.Keys {
+		keyCopy := key
 		keyring, err := openpgp.ReadArmoredKeyRing(strings.NewReader(key.ASCIIArmor))
 		if err != nil {
 			return nil, "", fmt.Errorf("error decoding signing key: %w", err)
 		}
 
 		entity, err := openpgp.CheckDetachedSignature(keyring, bytes.NewReader(s.Document), bytes.NewReader(s.Signature), nil)
-		if !s.shouldEnforceGPGExpiration() && (errors.Is(err, openpgpErrors.ErrKeyExpired) || errors.Is(err, openpgpErrors.ErrSignatureExpired)) {
-			// Internally openpgp will *only* return the Expired errors if all other checks have succeeded
-			// This is currently the best way to work around expired provider keys
-			fmt.Printf("[WARN] Provider %s/%s (%v) gpg key expired, this will fail in future versions of OpenTofu\n", s.Meta.Provider.Namespace, s.Meta.Provider.Type, s.Meta.Provider.Hostname)
-			err = nil
-		}
-
-		// If the signature issuer does not match the key, keep trying the
-		// rest of the provided keys.
 		if errors.Is(err, openpgpErrors.ErrUnknownIssuer) {
 			continue
 		}
 
-		// Any other signature error is terminal.
 		if err != nil {
-			return nil, "", fmt.Errorf("error checking signature: %w", err)
+			// If in enforcing mode (or if the error isn’t related to expiry) return immediately.
+			if !errors.Is(err, openpgpErrors.ErrKeyExpired) && !errors.Is(err, openpgpErrors.ErrSignatureExpired) {
+				return nil, "", fmt.Errorf("error checking signature: %w", err)
+			}
+
+			// Else if it's an expired key then save it for later incase we don't find a non‐expired key.
+			if expiredKey == nil {
+				expiredKey = &keyCopy
+				if entity != nil && entity.PrimaryKey != nil {
+					expiredKeyID = entity.PrimaryKey.KeyIdString()
+				} else {
+					expiredKeyID = "n/a" //nolint:goconst // This is a placeholder value
+				}
+			}
+			continue
 		}
 
+		// Success! This key verified without an error.
 		keyID := "n/a"
 		if entity.PrimaryKey != nil {
 			keyID = entity.PrimaryKey.KeyIdString()
 		}
-
 		log.Printf("[DEBUG] Provider signed by %s", entityString(entity))
 		return &key, keyID, nil
 	}
 
-	// If none of the provided keys issued the signature, this package is
-	// unsigned. This is currently a terminal authentication error.
+	// Warn only once when ALL keys are expired.
+	if expiredKey != nil && !s.shouldEnforceGPGExpiration() {
+		//nolint:forbidigo // This is a warning message and is fine to be handled this way
+		fmt.Printf("[WARN] Provider %s/%s (%v) gpg key expired, this will fail in future versions of OpenTofu\n",
+			s.Meta.Provider.Namespace, s.Meta.Provider.Type, s.Meta.Provider.Hostname)
+		return expiredKey, expiredKeyID, nil
+	}
+
+	// If we got here, no candidate was acceptable.
 	return nil, "", ErrUnknownIssuer
 }
 
