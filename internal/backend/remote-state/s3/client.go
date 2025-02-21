@@ -496,11 +496,6 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 			return nil, fmt.Errorf(errS3NoSuchBucket, err)
 		}
 
-		var nk *types.NotFound
-		if errors.As(err, &nk) {
-			return &statemgr.LockInfo{}, nil
-		}
-
 		return nil, err
 	}
 
@@ -523,8 +518,14 @@ func (c *RemoteClient) Unlock(id string) error {
 		s3Err.Err = multierror.Append(s3Err.Err, dynamoDBErr.Err)
 		return s3Err
 	case s3Err != nil:
+		if c.ddbTable != "" {
+			return fmt.Errorf("dynamoDB lock released but s3 failed: %w", s3Err)
+		}
 		return s3Err
 	case dynamoDBErr != nil:
+		if c.useLockfile {
+			return fmt.Errorf("s3 lock released but dynamoDB failed: %w", dynamoDBErr)
+		}
 		return dynamoDBErr
 	}
 	return nil

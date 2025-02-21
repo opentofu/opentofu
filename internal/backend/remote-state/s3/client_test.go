@@ -491,6 +491,69 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 	}
 }
 
+// verify the way it's handled the situation when the lock is in S3 but not in DynamoDB
+func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
+	testACC(t)
+	bucketName := fmt.Sprintf("%s-force-s3-dynamo-%x", testBucketPrefix, time.Now().Unix())
+	keyName := "testState"
+
+	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
+		"bucket":         bucketName,
+		"key":            keyName,
+		"encrypt":        true,
+		"use_lockfile":   true,
+		"dynamodb_table": bucketName,
+	})).(*Backend)
+
+	ctx := context.TODO()
+	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+
+	// first create both locks: s3 and dynamo
+	s1, err := b1.StateMgr(backend.DefaultStateName)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	info := statemgr.NewLockInfo()
+	info.Operation = "test"
+	info.Who = "clientA"
+
+	lockID, err := s1.Lock(info)
+	if err != nil {
+		t.Fatal("unable to get initial lock:", err)
+	}
+
+	// Remove the dynamo lock to simulate that the lock in s3 was acquired, dynamo failed but s3 release failed in the end.
+	// Therefore, the user is left in the situation with s3 lock existing and dynamo missing.
+	deleteDynamoEntry(ctx, t, b1.dynClient, bucketName, info.Path)
+	err = s1.Unlock(lockID)
+	if err == nil {
+		t.Fatal("expected to get an error but got nil")
+	}
+	expectedErrMsg := fmt.Sprintf("s3 lock released but dynamoDB failed: failed to retrieve lock info: no lock info found for: %q within the DynamoDB table: %s", info.Path, bucketName)
+	if err.Error() != expectedErrMsg {
+		t.Fatalf("unexpected error message.\nexpected: %s\nactual:%s", expectedErrMsg, err.Error())
+	}
+
+	// Now, unlocking should fail with error on both locks
+	err = s1.Unlock(lockID)
+	if err == nil {
+		t.Fatal("expected to get an error but got nil")
+	}
+	expectedErrMsgs := []string{
+		fmt.Sprintf("failed to retrieve lock info: no lock info found for: %q within the DynamoDB table: %s", info.Path, bucketName),
+		"failed to retrieve s3 lock info: operation error S3: GetObject, https response error StatusCode: 404",
+	}
+	for _, expectedErrorMsg := range expectedErrMsgs {
+		if !strings.Contains(err.Error(), expectedErrorMsg) {
+			t.Fatalf("returned error does not contain the expected content.\nexpected: %s\nactual:%s", expectedErrorMsg, err.Error())
+		}
+	}
+}
+
 func TestRemoteClient_clientMD5(t *testing.T) {
 	testACC(t)
 

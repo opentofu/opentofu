@@ -1713,6 +1713,19 @@ func deleteDynamoDBTable(ctx context.Context, t *testing.T, dynClient *dynamodb.
 	}
 }
 
+func deleteDynamoEntry(ctx context.Context, t *testing.T, dynClient *dynamodb.Client, tableName string, lockId string) {
+	params := &dynamodb.DeleteItemInput{
+		Key: map[string]dtypes.AttributeValue{
+			"LockID": &dtypes.AttributeValueMemberS{Value: lockId},
+		},
+		TableName: aws.String(tableName),
+	}
+	_, err := dynClient.DeleteItem(ctx, params)
+	if err != nil {
+		t.Logf("WARNING: Failed to delete DynamoDB item %q from table %q. (error was %s)", lockId, tableName, err)
+	}
+}
+
 func populateSchema(t *testing.T, schema *configschema.Block, value cty.Value) cty.Value {
 	ty := schema.ImpliedType()
 	var path cty.Path
