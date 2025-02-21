@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"path"
 
-	openbao "github.com/openbao/openbao/api"
+	openbao "github.com/openbao/openbao/api/v2"
 )
 
 type client interface {
