@@ -8,13 +8,15 @@ This document is part of the [OCI registries RFC](../20241206-oci-registries.md)
 
 ---
 
-As stated in [Design Considerations](3-design-considerations.md), in this iteration we will focus on serving the provider mirroring use case.
+As stated in [Design Considerations](3-design-considerations.md), in this iteration we will focus only on the provider "mirroring" use case.
 
-This means that the first version will be focused on using an OCI registry as an alternative source for a provider whose origin is a traditional OpenTofu provider registry. It will also be technically possible to manually construct and publish provider package artifacts for in-house providers by following OpenTofu's expected conventions for the manifest formats, but we intend to support that use-case better in a subsequent release.
+This means that the first version will be focused on using an OCI registry as an alternative source for a provider whose origin is a traditional OpenTofu provider registry. It will also be technically possible to manually construct and publish provider package artifacts for in-house providers by following OpenTofu's expected conventions for the manifest formats, but we intend to support that situation better in a subsequent release.
 
-## Configuring a provider in OCI
+## Configuring an OCI-Registry-based Provider Mirror
 
-In order to configure OCI as a provider source in OpenTofu, you will have to modify your [OpenTofu CLI Configuration](https://opentofu.org/docs/cli/config/config-file/). Specifically, you will need to add a `provider_installation` block with at least one `oci_mirror` installation method:
+OpenTofu has broadly two categories of provider installation method: "direct" and "mirror". The "direct" installation strategy attempts to find a provider using the hostname portion of its source address, which currently requires that hostname to offer an OpenTofu Provider Registry. The various "mirror" methods instead use the hostname in the source address only as part of a provider's unique identifier, with the physical distribution packages hosted in a secondary location typically operated privately within an organization. For more information, refer to [Provider Installation](https://opentofu.org/docs/cli/config/config-file/#provider-installation).
+
+In order to configure an OCI registry as a provider installation method in OpenTofu, operators must change their [OpenTofu CLI Configuration](https://opentofu.org/docs/cli/config/config-file/). Specifically, they will need to write a `provider_installation` block with at least one `oci_mirror` block:
 
 ```hcl
 provider_installation {
@@ -34,13 +36,13 @@ provider_installation {
 
 In this case, provider addresses matching the `include` arguments would be redirected to the specified OCI registries. Any provider that does not belong to one of the two configured hostnames would still be installed from its origin registry as normal, due to the (optional) inclusion of the `direct` installation method.
 
-The templating is required because OCI registry addresses work differently to OpenTofu provider addresses and some registries require specific prefixes. The `repository_template` argument must include a substitution for each component of the provider source address that is a wildcard in the `include` argument:
+The templating is required because OCI registry addresses work differently to OpenTofu provider addresses and some registries require specific repository path layouts. The `repository_template` argument must include a substitution for any component of the provider source address that is written as a wildcard (`*`) in the `include` argument:
 
 * `${hostname}` represents the hostname (which defaults to `registry.opentofu.org` for source addresses that only have two parts, like `hashicorp/kubernetes`)
 * `${namespace}` represents the namespace (the `foo` in `example.net/foo/bar`)
-* `${name}` represents the provider name (the `bar` in `example.net/foo/bar`)
+* `${type}` represents the provider type (the `bar` in `example.net/foo/bar`)
 
-In practice, most commonly-used providers today belong to the `registry.opentofu.org` hostname, which the public registry run by the OpenTofu project. Therefore to support "air-gapped" systems (which cannot directly connect to `registry.opentofu.org`) an organization would need to copy the packages for providers they use from their origin locations returned by the OpenTofu registry into a systematic naming scheme under an OCI registry and then use an `oci_mirror` block that includes providers matching `registry.opentofu.org/*/*`:
+In practice, most commonly-used providers today belong to the `registry.opentofu.org` hostname, which the public registry run by the OpenTofu project. Therefore to support "air-gapped" systems (which cannot directly connect to `registry.opentofu.org`) an organization could copy the packages for providers they use from their origin locations returned by the OpenTofu registry into a systematic repository naming scheme under an OCI registry and then use an `oci_mirror` block that includes providers matching `registry.opentofu.org/*/*`:
 
 ```hcl
 provider_installation {
@@ -51,7 +53,7 @@ provider_installation {
 }
 ```
 
-With this CLI configuration, when initializing a module that depends on the `hashicorp/kubernetes` provider, OpenTofu would install the provider from the `opentofu-provider-mirror/hashicorp_kubernetes` repository in the OCI registry running at `example.com`, instead of contacting `registry.opentofu.org` directly. In this configuration, `registry.opentofu.org` is serving only as part of the provider's unique identifier and not as a physical network location. This is an OCI Distribution-compatible equivalent of OpenTofu's existing `network_mirror` installation method, which currently uses [an OpenTofu-specific protocol](https://opentofu.org/docs/internals/provider-network-mirror-protocol/).
+With this CLI configuration, when initializing a module that depends on the `hashicorp/kubernetes` provider, OpenTofu would install the provider from the `opentofu-provider-mirror/hashicorp_kubernetes` repository in the OCI registry running at `example.com`, instead of contacting `registry.opentofu.org` directly. `registry.opentofu.org` is serving only as part of the provider's unique identifier and not as a physical network location. This is an OCI Distribution-compatible equivalent of OpenTofu's existing `network_mirror` installation method, which currently uses [an OpenTofu-specific protocol](https://opentofu.org/docs/internals/provider-network-mirror-protocol/).
 
 > [!TIP]
 > For example, Amazon ECR registries have the format of *aws_account_id*.dkr.ecr.*region*.amazonaws.com/*repository*:*tag*.
@@ -71,11 +73,13 @@ With this CLI configuration, when initializing a module that depends on the `has
 
 ## Storage in OCI
 
-OpenTofu takes some inspiration from how [ORAS](1-oci-primer.md#oras) stores files, but with a few key differences. At the time of writing [ORAS is intending to add support for multi-platform index manifests](https://github.com/oras-project/oras/pull/1514), and we aim to be compatible with that proposal.
+OpenTofu takes some inspiration from how [ORAS](1-oci-primer.md#oras) stores artifacts, but at the time of writing [ORAS support for multi-platform index manifests is in progress](https://github.com/oras-project/oras/pull/1514) and so we will implement a compatible index manifest layout directly within OpenTofu:
 
-1. Each OpenTofu provider OS and architecture (e.g. linux_amd64) will be stored as a ZIP file directly in an OCI blob. OpenTofu will not use tar files as it would be typical for a classic container image.
-2. Each provider OS and architecture will have an image manifest with a single layer with the `mediaType` of `archive/zip` that is expected to be a direct copy of the provider developer's official distribution package for that platform.
-3. The main manifest of the artifact will be an index manifest, containing separate entries for each OS and architecture supported by that release of the provider. Additionally, the main manifest must declare the `artifactType` attribute as `application/vnd.opentofu.provider` in order for OpenTofu to accept it as a provider image.
+1. Each OpenTofu provider OS and architecture (e.g. linux_amd64) will be stored as a `.zip` file directly in an OCI blob. OpenTofu will not use tar files as would be typical for a container image.
+2. Each provider OS and architecture must have an image manifest with a single layer with the `mediaType` of `archive/zip` that is expected to be a direct copy of the provider developer's official distribution package for that platform.
+3. The main manifest of the artifact must be an index manifest, containing separate entries for each OS and architecture supported by the associated release of the provider. The main manifest have the `artifactType` property set to `application/vnd.opentofu.provider` in order for OpenTofu to accept it as a valid provider image.
+
+    The OCI index manifest format coincidentally uses the same operating system and CPU architecture codes as OpenTofu does, because both projects inherited that naming scheme from the toolchain of the Go programming language. Therefore, for example, the platform called `linux_amd64` in OpenTofu is represented in an OCI index manifest entry as `"os": "linux"` and `"architecture":"amd64"`.
 4. The provider artifact must be available at a tag whose name matches the upstream version number. OpenTofu will ignore any versions it cannot identify as a semver version number, including the `latest` tag.
 
     Because semver uses `+` as the delimiter for "build metadata" and that character is not allowed in an OCI tag name, any `+` characters in the version number must be replaced with `_` when naming the tag.
@@ -92,7 +96,7 @@ Currently, there is no third-party tool capable of pushing an OCI artifact in th
 
 Therefore if the ORAS multi-platform manifest proposal does not reach implementation and release before we complete implementation of provider installation from OCI mirrors then we will start by publishing instructions on how to manually write a multi-platform index manifest and push it with the lower-level ORAS manifest commands. The instructions we publish will produce the same effect as the `oras manifest index create` command proposed in [the ORAS Multi-arch Image Management proposal](https://github.com/oras-project/oras/blob/fb6e94d00e59ea6d468cbf8656cf760ef7f1751c/docs/proposals/multi-arch-image-mgmt.md).
 
-We are considering offering a built-in tool for automatically mirroring a set of providers from their origin registries into an OCI mirror, similar to the current [`tofu providers mirror`](https://opentofu.org/docs/cli/commands/providers/mirror/) automating the population of a _filesystem_ mirror directory. However, we wish to minimize the scope for the initial release to maximize our ability to respond to feedback without making breaking changes.
+We are considering offering a built-in tool for automatically mirroring a set of providers from their origin registries into an OCI mirror, similar to the current [`tofu providers mirror`](https://opentofu.org/docs/cli/commands/providers/mirror/) automating the population of a _filesystem_ mirror directory. However, we wish to minimize the scope for the initial release to maximize our ability to respond to feedback without making breaking changes, and so we are deferring that for later.
 
 ---
 

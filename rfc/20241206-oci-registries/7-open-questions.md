@@ -30,7 +30,7 @@ If we learn that this is a common situation then we may wish to introduce suppor
 
 OpenTofu's provider source address syntax allows a wide variety of Unicode characters in all three components, following the [RFC 3491 "Nameprep"](https://datatracker.ietf.org/doc/rfc3491/) rules.
 
-However, the OCI Distribution specification has a considerably more restrictive allowed character set for repository names: it supports only ASCII letters and digits along with a small set of punctuation.
+However, the OCI Distribution specification has a considerably more restrictive allowed character set for repository names: it supports only ASCII letters and digits along with a small set of punctuation characters.
 
 Because of this, there some valid OpenTofu provider source addresses that cannot be translated mechanically to valid OCI Distribution repository addresses via template substitution alone. A provider source address that, for example, has a Japanese alphabet character in its "type" portion would be projected into a syntactically-invalid OCI repository address.
 
@@ -47,7 +47,7 @@ Of course, we cannot see into every organization to know whether they have in-ho
 
 If we learn in future that supporting non-ASCII characters in provider source addresses installed from OCI registries is important, we could potentially force a specific scheme for automatically transforming those names into ones that are compatible with the OCI repository name requirements, such as applying a "[Punycode](https://en.wikipedia.org/wiki/Punycode)-like" encoding to them before rendering them into the template.
 
-However, Punycode in particular is not generally human-readable and so translation strategies like this often require some UI support to automatically transcode the data back into human-readable form for display. Any OpenTofu-specific mapping strategy we might invent is unlikely to be handled automatically by the UI associated with any general-purpose OCI registry implementation.
+However, Punycode in particular is not human-readable and so translation strategies like this often require some UI support to automatically transcode the data back into human-readable form for display. Any OpenTofu-specific mapping strategy we might invent is unlikely to be handled automatically by the UI associated with any general-purpose OCI registry implementation.
 
 ---
 
