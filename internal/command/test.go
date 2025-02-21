@@ -535,7 +535,10 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		return state, false
 	}
 
-	resetConfig, configDiags := config.TransformForTest(run.Config, file.Config)
+	evalCtx, ctxDiags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
+	run.Diagnostics = run.Diagnostics.Append(ctxDiags)
+
+	resetConfig, configDiags := config.TransformForTest(run.Config, file.Config, evalCtx)
 	defer resetConfig()
 
 	run.Diagnostics = run.Diagnostics.Append(configDiags)
@@ -1034,7 +1037,10 @@ func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File
 			runConfig = state.Run.Config.ConfigUnderTest
 		}
 
-		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config)
+		evalCtx, ctxDiags := getEvalContextForTest(runner.States, runConfig, runner.Suite.GlobalVariables)
+		diags = diags.Append(ctxDiags)
+
+		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config, evalCtx)
 		diags = diags.Append(configDiags)
 
 		updated := state.State
