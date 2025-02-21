@@ -56,11 +56,11 @@ oci_default_credentials {
 }
 ```
 
-Future versions of OpenTofu might support other kinds of "ambient" credentials. Each additional credential discovery method should have its own setting in the `oci_default_credentials` block that allows it to be disabled. If a future version of OpenTofu supports an additional discovery method that an operator wishes to use _instead of_ the Docker-style config files then that operator can disable the Docker-style method by setting `docker_style_config_files` to an empty list, and then configure their chosen alternative method as necessary.
+Future versions of OpenTofu might support other kinds of "ambient" credentials. Each additional credential discovery method must have its own setting in the `oci_default_credentials` block that allows it to be individually disabled. If a future version of OpenTofu supports an additional discovery method that an operator wishes to use _instead of_ the Docker-style config files then that operator can disable the Docker-style method by setting `docker_style_config_files` to an empty list, and then configure their chosen alternative method as necessary.
 
 ## OpenTofu-specific Explicit Configuration
 
-For those who are using OCI registries _only_ with OpenTofu, or who prefer to separate the credentials used for OpenTofu from those used by other tools, the OpenTofu CLI Configuration language will support a new block type `oci_credentials` which specifies the credentials to use for all OCI Distribution repositories matching a prefix given in the block label.
+For those who are using OCI registries _only_ with OpenTofu, or who prefer to separate the credentials used for OpenTofu from those used by other tools, the OpenTofu CLI Configuration language will support a new block type `oci_credentials` which specifies the credentials to use for all OCI Distribution repositories matching a prefix given in the block label:
 
 ```hcl
 oci_credentials "example.com/foo/bar" {
@@ -71,11 +71,11 @@ oci_credentials "example.com/foo/bar" {
 }
 ```
 
-Each `oci_credentials` block _must_ set all of the arguments in one of the following sets:
+Each `oci_credentials` block _must_ set all of the arguments in exactly one of the following mutually-exclusive groups:
 
 - `username` and `password`: for registries that use "basic-auth-style" credentials
 - `access_token` and `refresh_token`: for registries that use OAuth-style credentials
-- `docker_credentials_helper`: provides username and password _indirectly_ using a [Docker-style credential helper](https://github.com/docker/docker-credential-helpers)
+- `docker_credentials_helper` alone: provides username and password _indirectly_ using a [Docker-style credential helper](https://github.com/docker/docker-credential-helpers)
 
 > [!NOTE]
 > Using a separate top-level block for each repository, rather than grouping all of these settings together under a single block, follows the established precedent for OpenTofu-native service authentication configuration.
@@ -94,7 +94,7 @@ OpenTofu will then select the most specific match where, for example:
 * `example.com/foo` is more specific than just `example.com`.
 * Anything involving a matching domain is more specific than a global setting (and only the default Docker-style credentials helper is a "global" setting).
 
-If there is both an explicit credentials configuration and an "ambient" credentials configuration with the same repository address then the explicit `oci_credentials` block takes precedence. The CLI Configuration parser will reject any CLI configuration that includes multiple `oci_credentials` blocks for the same repository prefix. There is no such constraint on the "ambient" credentials, and so OpenTofu will prefer credentials from files earlier in the discovery sequence, or earlier in the `docker_style_config_files` setting.
+If there is both an explicit credentials configuration and an "ambient" credentials configuration with the same repository address then the explicit `oci_credentials` block takes precedence. The CLI Configuration parser will reject any CLI configuration that includes multiple `oci_credentials` blocks for the same repository prefix. There is no such constraint on the "ambient" credentials, and so OpenTofu will prefer credentials from files earlier in the automatic discovery sequence, or earlier in the `docker_style_config_files` setting.
 
 ---
 
