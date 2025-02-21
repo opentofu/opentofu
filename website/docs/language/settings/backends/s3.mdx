@@ -366,10 +366,10 @@ To migrate from DynamoDB to S3 locking, the following steps can be followed:
 1. The new attribute `use_lockfile=true` can be added alongside `dynamodb_table`:
    * With both attributes specified, OpenTofu will try to acquire the lock first in S3 and if successful, will try to acquire the lock in DynamoDB. In this case, the lock will be considered acquired only when both (S3 and DynamoDB) locks were acquired successfully.
    * Later, after a baking period with both locking mechanisms enabled, if no issues encountered, remove the `dynamodb_table` attribute. Now, you are solely on the S3 locking.
-   * **Info:** Letting both locking mechanisms enabled, ensures that nobody will acquire the lock regardless of having or not the latest configuration.
+   * **Info:** Keeping both locking mechanisms enabled, ensures that nobody will acquire the lock regardless of having or not the latest configuration.
 2. The new attribute `use_lockfile=true` can be added and `dynamodb_table` removed:
-   * This will just switch from DynamoDB to S3 locking. **Caution:** when the updated configuration is executed from multiple places (multiple machines, pipelines on PRs, etc), you might get into issues where one outdated copy of the configuration is using DynamoDB locking and the one updated is using S3 locking. This could end up in concurrent access on the same state file.
-   * Once the state is updated by using this approach, the state digest that OpenTofu was storing in DynamoDB (for data consistency checks) will get stale. If it is wanted to go back to DynamoDB locking, **the old digest needs to be cleaned up manually**.
+   * This will switch from DynamoDB to S3 locking. **Caution:** when the updated configuration is executed from multiple places (multiple machines, pipelines on PRs, etc), you might get into issues where one outdated copy of the configuration is using DynamoDB locking and the one updated is using S3 locking. This could end up in concurrent access on the same state file.
+   * Once the state is updated by using this approach, the state digest that OpenTofu was storing in DynamoDB (for data consistency checks) will get stale. If you wish to go back to DynamoDB locking, **the old digest needs to be cleaned up manually**.
 
 :::note
 Remember, any changes to the `backend` block will require to run `tofu init -reconfigure`.

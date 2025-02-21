@@ -287,6 +287,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 		info.ID = lockID
 	}
+	info.Path = c.lockPath()
 
 	if err := c.s3Lock(info); err != nil {
 		return "", err
@@ -306,7 +307,6 @@ func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) error {
 	if c.ddbTable == "" {
 		return nil
 	}
-	info.Path = c.lockPath()
 
 	putParams := &dynamodb.PutItemInput{
 		Item: map[string]dtypes.AttributeValue{
@@ -340,7 +340,6 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 	if !c.useLockfile {
 		return nil
 	}
-	info.Path = c.lockPath()
 
 	lInfo := info.Marshal()
 	putParams := &s3.PutObjectInput{
@@ -507,10 +506,10 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 
 	lockContent, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("could not read the content of the lock object: %w", err)
+		return nil, fmt.Errorf("could not read the content of the lock object %q from bucket %q: %w", c.lockFilePath(), c.bucketName, err)
 	}
 	if len(lockContent) == 0 {
-		return nil, fmt.Errorf("no lock info found for %q in the s3 bucket: %s", c.lockFilePath(), c.bucketName)
+		return nil, fmt.Errorf("empty lock info found for %q in the s3 bucket: %s", c.lockFilePath(), c.bucketName)
 	}
 
 	lockInfo := &statemgr.LockInfo{}
