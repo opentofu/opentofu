@@ -504,16 +504,8 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 		return nil, err
 	}
 
-	lockContent, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("could not read the content of the lock object %q from bucket %q: %w", c.lockFilePath(), c.bucketName, err)
-	}
-	if len(lockContent) == 0 {
-		return nil, fmt.Errorf("empty lock info found for %q in the s3 bucket: %s", c.lockFilePath(), c.bucketName)
-	}
-
 	lockInfo := &statemgr.LockInfo{}
-	err = json.Unmarshal(lockContent, lockInfo)
+	err = json.NewDecoder(resp.Body).Decode(lockInfo)
 	if err != nil {
 		return nil, fmt.Errorf("unable to json parse the lock info %q from bucket %q: %w", c.lockFilePath(), c.bucketName, err)
 	}
