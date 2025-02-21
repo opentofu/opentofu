@@ -768,20 +768,20 @@ resource "tfcoremock_simple_resource" "example" {
 		},
 	}
 	for name, tc := range tcs {
-		t.Run(name, func(tt *testing.T) {
+		t.Run(name, func(t *testing.T) {
 			err := tc.schema.InternalValidate()
 			if err != nil {
-				tt.Fatalf("schema failed InternalValidate: %s", err)
+				t.Fatalf("schema failed InternalValidate: %s", err)
 			}
 			contents, diags := GenerateResourceContents(tc.addr, tc.schema, tc.provider, tc.value)
 			if len(diags) > 0 {
-				tt.Errorf("expected no diagnostics but found %s", diags)
+				t.Errorf("expected no diagnostics but found %s", diags)
 			}
 
 			got := WrapResourceContents(tc.addr, contents)
 			want := strings.TrimSpace(tc.expected)
 			if diff := cmp.Diff(got, want); len(diff) > 0 {
-				tt.Errorf("got:\n%s\nwant:\n%s\ndiff:\n%s", got, want, diff)
+				t.Errorf("got:\n%s\nwant:\n%s\ndiff:\n%s", got, want, diff)
 			}
 		})
 	}
