@@ -9,9 +9,11 @@ import (
 	"sort"
 	"time"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/states"
@@ -196,6 +198,36 @@ func (p *Plan) ProviderAddrs() []addrs.AbsProviderConfig {
 	}
 
 	return ret
+}
+
+// Variable mapper checks that all of the provided variables match what has been provided in the plan
+// They may be sourced from the environment, from cli args, and autoloaded tfvars files
+func (plan *Plan) VariableMapper() configs.StaticModuleVariables {
+	return func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
+		var diags hcl.Diagnostics
+
+		name := variable.Name
+		v, ok := plan.VariableValues[name]
+		if !ok {
+			if variable.Required() {
+				// This should not happen...
+				return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Missing plan variable " + variable.Name,
+				})
+			}
+			return variable.Default, nil
+		}
+
+		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
+		if parsedErr != nil {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  parsedErr.Error(),
+			})
+		}
+		return parsed, diags
+	}
 }
 
 // Backend represents the backend-related configuration and other data as it
