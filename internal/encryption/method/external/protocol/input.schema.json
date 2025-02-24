@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/opentofu/opentofu/main/internal/encryption/keyprovider/externalcommand/protocol/input.schema.json",
+  "title": "OpenTofu External Encryption Method Input",
+  "description": "Input schema for the OpenTofu external encryption method protocol. The external encryption method must read the input from stdin and write the output to stdout. It may write to stderr to provide more error details.",
+  "type": "object",
+  "properties": {
+    "key": {
+      "title": "Key",
+      "description": "If present, this will contain the encryption or decryption key material. If no key is present (e.g. because no key provider is configured) this field will be missing.",
+      "type": "string",
+      "contentEncoding": "base64",
+      "contentMediaType": "application/octet-stream"
+    },
+    "payload": {
+      "title": "Payload",
+      "description": "The payload that should be encrypted/decrypted.",
+      "type": "string",
+      "contentEncoding": "base64",
+      "contentMediaType": "application/octet-stream"
+    }
+  },
+  "required": ["payload"],
+  "additionalProperties": false
+}

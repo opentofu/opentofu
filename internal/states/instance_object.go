@@ -12,6 +12,7 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 )
 
 // ResourceInstanceObject is the local representation of a specific remote
@@ -97,7 +98,15 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 	// If it contains marks, remove these marks before traversing the
 	// structure with UnknownAsNull, and save the PathValueMarks
 	// so we can save them in state.
-	val, pvm := o.Value.UnmarkDeepWithPaths()
+	val, allPVM := o.Value.UnmarkDeepWithPaths()
+
+	var sensitivePVM = make([]cty.PathValueMarks, 0, len(allPVM))
+
+	for _, pvm := range allPVM {
+		if _, ok := pvm.Marks[marks.Sensitive]; ok {
+			sensitivePVM = append(sensitivePVM, pvm)
+		}
+	}
 
 	// Our state serialization can't represent unknown values, so we convert
 	// them to nulls here. This is lossy, but nobody should be writing unknown
@@ -130,7 +139,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 	return &ResourceInstanceObjectSrc{
 		SchemaVersion:       schemaVersion,
 		AttrsJSON:           src,
-		AttrSensitivePaths:  pvm,
+		AttrSensitivePaths:  sensitivePVM,
 		Private:             o.Private,
 		Status:              o.Status,
 		Dependencies:        dependencies,

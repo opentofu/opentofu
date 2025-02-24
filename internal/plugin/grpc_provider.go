@@ -302,7 +302,7 @@ func (p *GRPCProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 
 	protoReq := &proto.UpgradeResourceState_Request{
 		TypeName: r.TypeName,
-		Version:  int64(r.Version),
+		Version:  r.Version,
 		RawState: &proto.RawState{
 			Json:    r.RawStateJSON,
 			Flatmap: r.RawStateFlatmap,
@@ -634,6 +634,53 @@ func (p *GRPCProvider) ImportResourceState(r providers.ImportResourceStateReques
 		resource.State = state
 		resp.ImportedResources = append(resp.ImportedResources, resource)
 	}
+
+	return resp
+}
+
+func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	var resp providers.MoveResourceStateResponse
+	logger.Trace("GRPCProvider: MoveResourceState")
+
+	schema := p.GetProviderSchema()
+	if schema.Diagnostics.HasErrors() {
+		resp.Diagnostics = schema.Diagnostics
+		return resp
+	}
+
+	resourceSchema, ok := schema.ResourceTypes[r.TargetTypeName]
+	if !ok {
+		schema.Diagnostics = schema.Diagnostics.Append(fmt.Errorf("unknown data source %q", r.TargetTypeName))
+		return resp
+	}
+
+	protoReq := &proto.MoveResourceState_Request{
+		SourceProviderAddress: r.SourceProviderAddress,
+		SourceTypeName:        r.SourceTypeName,
+		//nolint:gosec // this will be refactored eventually
+		SourceSchemaVersion: int64(r.SourceSchemaVersion),
+		SourceState: &proto.RawState{
+			Json:    r.SourceStateJSON,
+			Flatmap: r.SourceStateFlatmap,
+		},
+		SourcePrivate:  r.SourcePrivate,
+		TargetTypeName: r.TargetTypeName,
+	}
+
+	protoResp, err := p.client.MoveResourceState(p.ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+
+	state, err := decodeDynamicValue(protoResp.TargetState, resourceSchema.Block.ImpliedType())
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+	resp.TargetState = state
+	resp.TargetPrivate = protoResp.TargetPrivate
 
 	return resp
 }

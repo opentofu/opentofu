@@ -181,12 +181,13 @@ var Base64GzipFunc = function.New(&function.Spec{
 	},
 })
 
-// Base64GunzipFunc constructs a function that Bae64 decodes a string and decompresses the result with gunzip.
+// Base64GunzipFunc constructs a function that Base64 decodes a string and decompresses the result with gunzip.
 var Base64GunzipFunc = function.New(&function.Spec{
 	Params: []function.Parameter{
 		{
-			Name: "str",
-			Type: cty.String,
+			Name:        "str",
+			Type:        cty.String,
+			AllowMarked: true,
 		},
 	},
 	Type:         function.StaticReturnType(cty.String),
@@ -208,7 +209,7 @@ var Base64GunzipFunc = function.New(&function.Spec{
 			return cty.UnknownVal(cty.String), fmt.Errorf("failed to read gunzip raw data: %w", err)
 		}
 
-		return cty.StringVal(string(gunzip)), nil
+		return cty.StringVal(string(gunzip)).WithMarks(strMarks), nil
 	},
 })
 

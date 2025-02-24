@@ -616,8 +616,13 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 	// non-root outputs need to keep sensitive marks for evaluation, but are
 	// not serialized.
 	if n.Addr.Module.IsRoot() {
-		val, _ = val.UnmarkDeep()
-		val = cty.UnknownAsNull(val)
+		var valMarks cty.ValueMarks
+
+		val, valMarks = val.UnmarkDeep()
+
+		delete(valMarks, marks.Sensitive)
+
+		val = cty.UnknownAsNull(val).WithMarks(valMarks)
 	}
 
 	state.SetOutputValue(n.Addr, val, n.Config.Sensitive)

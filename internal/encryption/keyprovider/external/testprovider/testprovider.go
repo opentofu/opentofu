@@ -25,6 +25,8 @@ var embedFS embed.FS
 // This binary will always return []byte{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16} as a hard-coded key.
 // You may pass --hello-world to change it to []byte("Hello world! 123")
 func Go(t *testing.T) []string {
+	t.Helper()
+
 	// goMod is embedded like this because the go:embed tag doesn't like having module files in embedded paths.
 	var goMod = []byte(`module testprovider
 
@@ -62,6 +64,8 @@ go 1.22`)
 // run the Python script, including the Python interpreter.
 // This script will always return []byte{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16} as a hard-coded key.
 func Python(t *testing.T) []string {
+	t.Helper()
+
 	tempDir := t.TempDir()
 	dir := path.Join(tempDir, "testprovider-py")
 	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
@@ -78,6 +82,8 @@ func Python(t *testing.T) []string {
 // POSIXShell returns a path to a POSIX shell script acting as a key provider.
 // This script will always return []byte{1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16} as a hard-coded key.
 func POSIXShell(t *testing.T) []string {
+	t.Helper()
+
 	tempDir := t.TempDir()
 	dir := path.Join(tempDir, "testprovider-sh")
 	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid

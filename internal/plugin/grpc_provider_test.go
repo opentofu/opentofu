@@ -388,6 +388,42 @@ func TestGRPCProvider_UpgradeResourceStateJSON(t *testing.T) {
 	}
 }
 
+func TestGRPCProvider_MoveResourceState(t *testing.T) {
+	client := mockProviderClient(t)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().MoveResourceState(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.MoveResourceState_Response{
+		TargetState: &proto.DynamicValue{
+			Msgpack: []byte("\x81\xa4attr\xa3bar"),
+		},
+		TargetPrivate: []byte(`{"meta": "data"}`),
+	}, nil)
+
+	resp := p.MoveResourceState(providers.MoveResourceStateRequest{
+		SourceTypeName:      "resource_old",
+		SourceSchemaVersion: 0,
+		TargetTypeName:      "resource",
+	})
+	checkDiags(t, resp.Diagnostics)
+
+	expectedState := cty.ObjectVal(map[string]cty.Value{
+		"attr": cty.StringVal("bar"),
+	})
+	expectedPrivate := []byte(`{"meta": "data"}`)
+
+	if !cmp.Equal(expectedState, resp.TargetState, typeComparer, valueComparer, equateEmpty) {
+		t.Fatal(cmp.Diff(expectedState, resp.TargetState, typeComparer, valueComparer, equateEmpty))
+	}
+	if !bytes.Equal(expectedPrivate, resp.TargetPrivate) {
+		t.Fatalf("expected %q, got %q", expectedPrivate, resp.TargetPrivate)
+	}
+}
+
 func TestGRPCProvider_Configure(t *testing.T) {
 	client := mockProviderClient(t)
 	p := &GRPCProvider{

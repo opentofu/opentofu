@@ -70,8 +70,20 @@ func (s simple) ValidateDataResourceConfig(req providers.ValidateDataResourceCon
 	return resp
 }
 
-func (p simple) UpgradeResourceState(req providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
-	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
+func (s simple) MoveResourceState(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+	var resp providers.MoveResourceStateResponse
+	val, err := ctyjson.Unmarshal(req.SourceStateJSON, s.schema.ResourceTypes["simple_resource"].Block.ImpliedType())
+	resp.Diagnostics = resp.Diagnostics.Append(err)
+	if err != nil {
+		return resp
+	}
+	resp.TargetState = val
+	resp.TargetPrivate = req.SourcePrivate
+	return resp
+}
+func (s simple) UpgradeResourceState(req providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
+	var resp providers.UpgradeResourceStateResponse
+	ty := s.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 	val, err := ctyjson.Unmarshal(req.RawStateJSON, ty)
 	resp.Diagnostics = resp.Diagnostics.Append(err)
 	resp.UpgradedState = val

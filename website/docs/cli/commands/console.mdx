@@ -9,6 +9,11 @@ description: >-
 The `tofu console` command provides an interactive console for
 evaluating [expressions](../../language/expressions/index.mdx).
 
+:::warning
+The `tofu console` command is not designed for use in scripts. You can use it, but
+you may find that some functions don't work as intended.
+:::
+
 ## Usage
 
 Usage: `tofu console [options]`
@@ -53,23 +58,6 @@ This command also accepts the following options for tofu console:
 There are several other ways to set values for input variables in the root
 module, aside from the `-var` and `-var-file` options. Refer to
 [Assigning Values to Root Module Variables](../../language/values/variables.mdx#assigning-values-to-root-module-variables) for more information.
-
-## Scripting
-
-The `tofu console` command can be used in non-interactive scripts
-by piping newline-separated commands to it. Only the output from the
-final command is printed unless an error occurs earlier.
-
-For example:
-
-```shell
-$ echo 'split(",", "foo,bar,baz")' | tofu console
-tolist([
-  "foo",
-  "bar",
-  "baz",
-])
-```
 
 ## Remote State
 

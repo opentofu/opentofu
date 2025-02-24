@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -33,22 +34,22 @@ func TestResourceInstanceObject_encode(t *testing.T) {
 
 	// multiple instances may have been assigned the same deps slice
 	objs := []*ResourceInstanceObject{
-		&ResourceInstanceObject{
+		{
 			Value:        value,
 			Status:       ObjectPlanned,
 			Dependencies: depsOne,
 		},
-		&ResourceInstanceObject{
+		{
 			Value:        value,
 			Status:       ObjectPlanned,
 			Dependencies: depsTwo,
 		},
-		&ResourceInstanceObject{
+		{
 			Value:        value,
 			Status:       ObjectPlanned,
 			Dependencies: depsOne,
 		},
-		&ResourceInstanceObject{
+		{
 			Value:        value,
 			Status:       ObjectPlanned,
 			Dependencies: depsOne,
@@ -83,6 +84,59 @@ func TestResourceInstanceObject_encode(t *testing.T) {
 	for i := 0; i < len(encoded)-1; i++ {
 		if diff := cmp.Diff(encoded[i].Dependencies, encoded[i+1].Dependencies); diff != "" {
 			t.Errorf("identical dependencies got encoded in different orders:\n%s", diff)
+		}
+	}
+}
+
+func TestResourceInstanceObject_encode_sensitivity(t *testing.T) {
+	depsOne := []addrs.ConfigResource{
+		addrs.RootModule.Resource(addrs.ManagedResourceMode, "test", "honk"),
+		addrs.RootModule.Child("child").Resource(addrs.ManagedResourceMode, "test", "flub"),
+		addrs.RootModule.Resource(addrs.ManagedResourceMode, "test", "boop"),
+	}
+
+	tests := []struct {
+		inputObj           *ResourceInstanceObject
+		wantSensitivePaths bool
+	}{
+		{
+			inputObj: &ResourceInstanceObject{
+				Value: cty.ObjectVal(map[string]cty.Value{
+					"foo": cty.ObjectVal(map[string]cty.Value{
+						"bar": cty.BoolVal(true).Mark(marks.Sensitive),
+					}),
+				}),
+				Status:       ObjectPlanned,
+				Dependencies: depsOne,
+			},
+			wantSensitivePaths: true,
+		},
+		{
+			inputObj: &ResourceInstanceObject{
+				Value: cty.ObjectVal(map[string]cty.Value{
+					"foo": cty.ObjectVal(map[string]cty.Value{
+						"bar": cty.BoolVal(true).Mark("non-sensitive"),
+					}),
+				}),
+				Status:       ObjectPlanned,
+				Dependencies: depsOne,
+			},
+			wantSensitivePaths: false,
+		},
+	}
+
+	for _, test := range tests {
+		encoded, err := test.inputObj.Encode(test.inputObj.Value.Type(), 0)
+		if err != nil {
+			t.Fatalf("Unexpected error: %v", err)
+		}
+
+		if test.wantSensitivePaths && len(encoded.AttrSensitivePaths) == 0 {
+			t.Fatalf("No AttrSensitivePaths found")
+		}
+
+		if !test.wantSensitivePaths && len(encoded.AttrSensitivePaths) != 0 {
+			t.Fatalf("Got unexpected AttrSensitivePaths: %v", encoded.AttrSensitivePaths)
 		}
 	}
 }

@@ -169,7 +169,14 @@ func (p *Provider) ImportResourceState(req providers.ImportResourceStateRequest)
 	panic("unimplemented - terraform_remote_state has no resources")
 }
 
-// ValidateResourceConfig is used to to validate the resource configuration values.
+// MoveResourceState is called when the state loader encounters an instance state
+// that has been moved to a new type, and the state should be updated to reflect the change.
+// This is used to move the old state to the new schema.
+func (p *Provider) MoveResourceState(r providers.MoveResourceStateRequest) (resp providers.MoveResourceStateResponse) {
+	return moveDataStoreResourceState(r)
+}
+
+// ValidateResourceConfig is used to validate the resource configuration values.
 func (p *Provider) ValidateResourceConfig(req providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
 	return validateDataStoreResourceConfig(req)
 }

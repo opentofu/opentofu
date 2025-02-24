@@ -9,6 +9,8 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 
+// TODO #2386 / 1.11: consider if the external method changes and unify protocol with the external key provider.
+
 // HeaderMagic is the magic string that needs to be present in the header to identify
 // the external program as an external keyprovider for OpenTofu.
 const HeaderMagic = "OpenTofu-External-Key-Provider"

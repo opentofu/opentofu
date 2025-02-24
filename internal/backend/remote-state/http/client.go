@@ -144,7 +144,25 @@ func (c *httpClient) Unlock(id string) error {
 		return nil
 	}
 
-	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, c.jsonLockInfo, "unlock")
+	var lockInfo statemgr.LockInfo
+
+	// force unlock command does not instantiate statemgr.LockInfo
+	// which means that c.jsonLockInfo will be nil
+	if c.jsonLockInfo != nil {
+		if err := json.Unmarshal(c.jsonLockInfo, &lockInfo); err != nil { //nolint:musttag // for now add musttag until we fully adopt the linting rules
+			return fmt.Errorf("failed to unmarshal jsonLockInfo: %w", err)
+		}
+		if lockInfo.ID != id {
+			return &statemgr.LockError{
+				Info: &lockInfo,
+				Err:  fmt.Errorf("lock id %q does not match existing lock", id),
+			}
+		}
+	}
+
+	lockInfo.ID = id
+
+	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, lockInfo.Marshal(), "unlock")
 	if err != nil {
 		return err
 	}

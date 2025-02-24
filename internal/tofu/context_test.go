@@ -254,7 +254,7 @@ resource "implicit_thing" "b" {
 	}
 }
 
-func testContext2(t *testing.T, opts *ContextOpts) *Context {
+func testContext2(t testing.TB, opts *ContextOpts) *Context {
 	t.Helper()
 
 	ctx, diags := NewContext(opts)
@@ -952,7 +952,7 @@ func legacyDiffComparisonString(changes *plans.Changes) string {
 
 // assertNoDiagnostics fails the test in progress (using t.Fatal) if the given
 // diagnostics is non-empty.
-func assertNoDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
+func assertNoDiagnostics(t testing.TB, diags tfdiags.Diagnostics) {
 	t.Helper()
 	if len(diags) == 0 {
 		return
@@ -963,7 +963,7 @@ func assertNoDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
 
 // assertNoDiagnostics fails the test in progress (using t.Fatal) if the given
 // diagnostics has any errors.
-func assertNoErrors(t *testing.T, diags tfdiags.Diagnostics) {
+func assertNoErrors(t testing.TB, diags tfdiags.Diagnostics) {
 	t.Helper()
 	if !diags.HasErrors() {
 		return
@@ -980,7 +980,7 @@ func assertNoErrors(t *testing.T, diags tfdiags.Diagnostics) {
 // assertDiagnosticsMatch sorts the two sets of diagnostics in the usual way
 // before comparing them, though diagnostics only have a partial order so that
 // will not totally normalize the ordering of all diagnostics sets.
-func assertDiagnosticsMatch(t *testing.T, got, want tfdiags.Diagnostics) {
+func assertDiagnosticsMatch(t testing.TB, got, want tfdiags.Diagnostics) {
 	got = got.ForRPC()
 	want = want.ForRPC()
 	got.Sort()
@@ -995,7 +995,7 @@ func assertDiagnosticsMatch(t *testing.T, got, want tfdiags.Diagnostics) {
 // a test. It does not generate any errors or fail the test. See
 // assertNoDiagnostics and assertNoErrors for more specific helpers that can
 // also fail the test.
-func logDiagnostics(t *testing.T, diags tfdiags.Diagnostics) {
+func logDiagnostics(t testing.TB, diags tfdiags.Diagnostics) {
 	t.Helper()
 	for _, diag := range diags {
 		desc := diag.Description()
