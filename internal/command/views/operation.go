@@ -247,6 +247,8 @@ func (v *OperationJSON) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		case plans.CreateThenDelete, plans.DeleteThenCreate:
 			cs.Add++
 			cs.Remove++
+		case plans.Forget:
+			cs.Forget++
 		}
 
 		if change.Action != plans.NoOp || !change.Addr.Equal(change.PrevRunAddr) || change.Importing != nil {

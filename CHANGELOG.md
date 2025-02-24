@@ -8,13 +8,14 @@ UPGRADE NOTES:
 NEW FEATURES:
 
 - New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
-  - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
-  - `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
-  - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
+    - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
+    - `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
+    - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
 
 ENHANCEMENTS:
 * OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
 * State encryption now supports using external programs as key providers. Additionally, the PBKDF2 key provider now supports chaining via the `chain` parameter. ([#2023](https://github.com/opentofu/opentofu/pull/2023))
+* Added count of forgotten resources to plan and apply outputs. ([#1956](https://github.com/opentofu/opentofu/issues/1956))
 * The `element` function now accepts negative indices, which extends the existing "wrapping" model into the negative direction. In particular, choosing element `-1` selects the final element in the sequence. ([#2371](https://github.com/opentofu/opentofu/pull/2371))
 * `moved` now supports moving between different types ([#2370](https://github.com/opentofu/opentofu/pull/2370))
 * `moved` block can now be used to migrate from the `null_resource` to the `terraform_data` resource. ([#2481](https://github.com/opentofu/opentofu/pull/2481))
