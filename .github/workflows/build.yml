@@ -114,6 +114,7 @@ jobs:
           - {goos: "linux", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "linux", goarch: "arm", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "linux", goarch: "arm64", runson: "ubuntu-latest", cgo-enabled: "0"}
+          - {goos: "linux", goarch: "s390x", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "openbsd", goarch: "386", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "openbsd", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
           - {goos: "solaris", goarch: "amd64", runson: "ubuntu-latest", cgo-enabled: "0"}
@@ -131,7 +132,7 @@ jobs:
       - build
     strategy:
       matrix:
-        arch: ["amd64", "386", "arm", "arm64"]
+        arch: ["amd64", "386", "arm", "arm64", "s390x"]
       fail-fast: false
     env:
       repo: "opentofu"
@@ -172,6 +173,7 @@ jobs:
           - {goos: "linux", goarch: "amd64"}
           - {goos: linux, goarch: "arm"}
           - {goos: linux, goarch: "arm64"}
+          - {goos: "linux", goarch: "s390x"}
       fail-fast: false
 
     env:
@@ -224,6 +226,7 @@ jobs:
           - { runson: ubuntu-latest, goos: linux, goarch: "386" }
           - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
           - { runson: ubuntu-latest, goos: linux, goarch: "arm64" }
+          - { runson: ubuntu-latest, goos: linux, goarch: "s390x" }
           - { runson: macos-latest, goos: darwin, goarch: "amd64" }
           - { runson: windows-latest, goos: windows, goarch: "amd64" }
           - { runson: windows-latest, goos: windows, goarch: "386" }
