@@ -1098,10 +1098,11 @@ func (c *Config) getTransformAddVariablesForTest(evalCtx *hcl.EvalContext) confi
 		newVars := make(map[string]*Variable, len(c.Module.Variables)+len(file.Variables))
 		for k, v := range c.Module.Variables {
 			oldVars[k] = v
+			newVars[k] = v
 		}
 		for variableName, variableExpr := range file.Variables {
 			// Skip if variable already exists in the config.
-			if v, ok := oldVars[variableName]; ok {
+			if v, ok := newVars[variableName]; ok {
 				newVars[variableName] = v
 				continue
 			}

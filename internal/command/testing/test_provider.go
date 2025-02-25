@@ -28,6 +28,8 @@ var (
 				Attributes: map[string]*configschema.Attribute{
 					"data_prefix":     {Type: cty.String, Optional: true},
 					"resource_prefix": {Type: cty.String, Optional: true},
+					"username":        {Type: cty.String, Optional: true},
+					"password":        {Type: cty.String, Optional: true},
 				},
 			},
 		},
