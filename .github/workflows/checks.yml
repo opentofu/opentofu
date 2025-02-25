@@ -210,9 +210,9 @@ jobs:
             exit 1
           fi
       - name: "Code linting"
-        uses: golangci/golangci-lint-action@e60da84bfae8c7920a47be973d75e15710aa8bd7 # v6.3.0
+        uses: golangci/golangci-lint-action@2226d7cb06a077cd73e56eedd38eecad18e5d837 # v6.5.0
         with:
-          version: v1.62
+          version: v1.64.5
           # Only compare with changes from when we introduced linting.  Eventually we can get rid of this and lint the whole project
           args: --new-from-rev dd5f9afe8948186c76fe6b8b1193d7a8f46919d8
       
