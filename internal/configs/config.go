@@ -884,8 +884,6 @@ func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
 	return diags
 }
 
-type configTransform func(*TestRun, *TestFile) (func(), hcl.Diagnostics)
-
 // TransformForTest prepares the config to execute the given test.
 //
 // This function directly edits the config that is to be tested, and returns a
@@ -893,16 +891,15 @@ type configTransform func(*TestRun, *TestFile) (func(), hcl.Diagnostics)
 //
 // Tests will call this before they execute, and then call the deferred function
 // to reset the config before the next test.
-func (c *Config) TransformForTest(run *TestRun, file *TestFile, evalCtx *hcl.EvalContext) (func(), hcl.Diagnostics) {
+func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	// These transformation functions must be in sync of what is being transformed,
 	// currently all the functions operate on different fields of configuration.
-	transformFuncs := []configTransform{
+	transformFuncs := []func(*TestRun, *TestFile) (func(), hcl.Diagnostics){
 		c.transformProviderConfigsForTest,
 		c.transformOverriddenResourcesForTest,
 		c.transformOverriddenModulesForTest,
-		c.getTransformAddVariablesForTest(evalCtx),
 	}
 
 	var resetFuncs []func()
@@ -1087,44 +1084,6 @@ func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFil
 			res.OverrideValues = nil
 		}
 	}, diags
-}
-
-// getTransformAddVariablesForTest takes in evalCtx and gets a transformer function back.
-// The transformer adds variables from test file to the config. Needed to allow provider block to access variables defined in the test file.
-func (c *Config) getTransformAddVariablesForTest(evalCtx *hcl.EvalContext) configTransform {
-	return func(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
-		var diags hcl.Diagnostics
-		oldVars := make(map[string]*Variable, len(c.Module.Variables))
-		newVars := make(map[string]*Variable, len(c.Module.Variables)+len(file.Variables))
-		for k, v := range c.Module.Variables {
-			oldVars[k] = v
-			newVars[k] = v
-		}
-		for variableName, variableExpr := range file.Variables {
-			// Skip if variable already exists in the config.
-			if v, ok := newVars[variableName]; ok {
-				newVars[variableName] = v
-				continue
-			}
-
-			value, diag := variableExpr.Value(evalCtx)
-			diags = append(diags, diag...)
-			if diags.HasErrors() {
-				return nil, diags
-			}
-			newVars[variableName] = &Variable{
-				Name:           variableName,
-				Type:           value.Type(),
-				ConstraintType: value.Type(),
-				DeclRange:      variableExpr.Range(),
-			}
-		}
-
-		c.Module.Variables = newVars
-		return func() {
-			c.Module.Variables = oldVars
-		}, nil
-	}
 }
 
 func (c *Config) transformOverriddenModulesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {

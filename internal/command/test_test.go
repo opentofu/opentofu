@@ -170,9 +170,9 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
+		// New variables introduced in the test file should error out
 		"local_variables_in_provider_block": {
-			expected: "1 passed, 0 failed.",
-			code:     0,
+			code: 1,
 		},
 	}
 	for name, tc := range tcs {
@@ -828,6 +828,10 @@ func TestTest_Modules(t *testing.T) {
 			expected: "main.tftest.hcl... pass\n  run \"first_apply\"... pass\n  run \"second_apply\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
 		},
+		//"run_mod_output_in_provider_block": {
+		//	expected: "main.tftest.hcl... pass\n  run \"test\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
+		//	code:     0,
+		//},
 	}
 
 	for name, tc := range tcs {
