@@ -102,3 +102,84 @@ func (e *targetBuilder) setupMethod(cfg config.MethodConfig) hcl.Diagnostics {
 
 	return diags
 }
+
+// extractMethodsAddrs is preparing the values for the eval context that is used later for parsing.
+func (base *baseEncryption) extractMethodsAddrs() (map[string]cty.Value, hcl.Diagnostics) {
+	var (
+		diags hcl.Diagnostics
+
+		temp = map[string]map[string]cty.Value{}
+	)
+
+	for _, methodCfg := range base.enc.cfg.MethodConfigs {
+		if _, ok := temp[methodCfg.Type]; !ok {
+			temp[methodCfg.Type] = map[string]cty.Value{}
+		}
+		addr, diag := methodCfg.Addr()
+		diags = append(diags, diag...)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+		temp[methodCfg.Type][methodCfg.Name] = cty.StringVal(string(addr))
+	}
+	out := map[string]cty.Value{}
+	for methodType, methods := range temp {
+		out[methodType] = cty.ObjectVal(methods)
+	}
+	return out, diags
+}
+
+func (base *baseEncryption) requiredMethods(ctx *hcl.EvalContext, target *config.TargetConfig, targetName string) ([]config.MethodConfig, hcl.Diagnostics) {
+	var (
+		diags   hcl.Diagnostics
+		methods []config.MethodConfig
+	)
+	methodByAddr := func(addr string) (*config.MethodConfig, hcl.Diagnostics) {
+		for _, mc := range base.enc.cfg.MethodConfigs {
+			mAddrs, diag := mc.Addr()
+			if diag.HasErrors() {
+				return nil, diag
+			}
+			if string(mAddrs) == addr {
+				return &mc, nil
+			}
+		}
+		return nil, hcl.Diagnostics{&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Undefined encryption method",
+			Detail:   fmt.Sprintf("Can not find %q for %q", addr, targetName),
+			Subject:  target.Method.Range().Ptr(),
+		}}
+	}
+
+	var methodIdent *string
+	decodeDiags := gohcl.DecodeExpression(target.Method, ctx, &methodIdent)
+	diags = append(diags, decodeDiags...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	if methodIdent == nil {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Missing encryption method",
+			Detail:   fmt.Sprintf("undefined or null method used for %q", targetName),
+			Subject:  target.Method.Range().Ptr(),
+		})
+	}
+	met, metDiag := methodByAddr(*methodIdent)
+	diags = append(diags, metDiag...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	methods = append(methods, *met)
+
+	// Attempt to fetch the fallback method if it's been configured
+	if target.Fallback != nil {
+		fallback, fallbackDiags := base.requiredMethods(ctx, target.Fallback, targetName+".fallback")
+		diags = append(diags, fallbackDiags...)
+		methods = append(methods, fallback...)
+	}
+
+	return methods, diags
+}

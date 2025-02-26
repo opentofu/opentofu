@@ -9,6 +9,10 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
+const (
+	id = "unencrypted"
+)
+
 func New() method.Descriptor {
 	return &descriptor{}
 }
@@ -16,7 +20,7 @@ func New() method.Descriptor {
 type descriptor struct{}
 
 func (f *descriptor) ID() method.ID {
-	return "unencrypted"
+	return id
 }
 func (f *descriptor) ConfigStruct() method.Config {
 	return new(config)
@@ -40,4 +44,8 @@ func (a *unenc) Decrypt(data []byte) ([]byte, error) {
 func Is(m method.Method) bool {
 	_, ok := m.(*unenc)
 	return ok
+}
+
+func IsID(given method.ID) bool {
+	return given == id
 }
