@@ -38,9 +38,13 @@ type targetBuilder struct {
 
 func (base *baseEncryption) buildTargetMethods(inputMeta map[keyprovider.MetaStorageKey][]byte, outputMeta map[keyprovider.MetaStorageKey][]byte) ([]method.Method, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-
+	cfg, encCfgDiags := base.setupTargetEncCfg()
+	diags = append(diags, encCfgDiags...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
 	builder := &targetBuilder{
-		cfg: base.enc.cfg,
+		cfg: cfg,
 		reg: base.enc.reg,
 
 		staticEval: base.staticEval,
@@ -127,4 +131,37 @@ func (e *targetBuilder) build(target *config.TargetConfig, targetName string) (m
 	}
 
 	return methods, diags
+}
+
+func (base *baseEncryption) setupTargetEncCfg() (*config.EncryptionConfig, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	evalCtx := &hcl.EvalContext{
+		Variables: map[string]cty.Value{},
+	}
+	methodAddrs, metDiags := base.extractMethodsAddrs()
+	diags = append(diags, metDiags...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	evalCtx.Variables["method"] = cty.ObjectVal(methodAddrs)
+
+	requiredMethods, diag := base.requiredMethods(evalCtx, base.target, base.name)
+	diags = append(diags, diag...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	requiredProviders, diag := base.requiredProviders(requiredMethods)
+	diags = append(diags, diag...)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	cfg := &config.EncryptionConfig{
+		KeyProviderConfigs: requiredProviders,
+		MethodConfigs:      requiredMethods,
+		State:              base.enc.cfg.State,
+		Plan:               base.enc.cfg.Plan,
+		Remote:             base.enc.cfg.Remote,
+		DeclRange:          base.enc.cfg.DeclRange,
+	}
+	return cfg, diags
 }

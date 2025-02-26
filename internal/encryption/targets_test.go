@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -52,7 +53,7 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 					method = method.aes_gcm.example
 				}
 			`,
-			wantErr: `Test Config Source:3,25-32: Unsupported attribute; This object does not have an attribute named "static".`,
+			wantErr: `Test Config Source:2,32-4,6: Undefined key_provider; Can not find key_provider "key_provider.static.basic" referenced by method "example"`,
 		},
 		"fallback": {
 			rawConfig: `
@@ -175,6 +176,67 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 			`,
 			wantErr: "Test Config Source:3,12-34: Invalid Key Provider expression format; Expected key_provider.<type>.<name>",
 		},
+		"state-loaded-even-when-remote-alias-conflicts": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+
+				key_provider "static" "for_remote_state" {
+					key = "test"
+					encrypted_metadata_alias = "key_provider.static.basic"
+				}
+				method "external" "for_remote_state" {
+				  keys = key_provider.static.for_remote_state
+				}
+			
+				remote_state_data_sources {
+				  remote_state_data_source "r" {
+					method = method.aes_gcm.for_remote_state
+				  }
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"remote-method-loaded-even-when-alias-conflicts-state-provider": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+
+				key_provider "static" "for_remote_state" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+					encrypted_metadata_alias = "key_provider.static.basic" # this conflicts with the first key_provider
+				}
+				method "aes_gcm" "for_remote_state" {
+					keys = key_provider.static.for_remote_state
+				}
+			
+				remote_state_data_sources {
+				  remote_state_data_source "r" {
+					method = method.aes_gcm.for_remote_state
+				  }
+				}
+			`,
+			useRemoteTarget: true,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
 	}
 
 	reg := lockingencryptionregistry.New()
@@ -216,9 +278,10 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 }
 
 type btmTestCase struct {
-	rawConfig   string // must contain state target
-	wantMethods []func(method.Method) bool
-	wantErr     string
+	rawConfig       string // must contain state target
+	wantMethods     []func(method.Method) bool
+	wantErr         string
+	useRemoteTarget bool
 }
 
 func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *configs.StaticEvaluator) func(t *testing.T) {
@@ -230,12 +293,16 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 			panic(diags.Error())
 		}
 
+		target, err := selectTarget(cfg, testCase.useRemoteTarget)
+		if err != nil {
+			t.Fatalf("Error selecting the target to run with: %v", err)
+		}
 		base := &baseEncryption{
 			enc: &encryption{
 				cfg: cfg,
 				reg: reg,
 			},
-			target:        cfg.State.AsTargetConfig(),
+			target:        target,
 			enforced:      cfg.State.Enforced,
 			name:          "test",
 			inputEncMeta:  make(map[keyprovider.MetaStorageKey][]byte),
@@ -265,6 +332,19 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 			}
 		}
 	}
+}
+
+func selectTarget(encryptionConfig *config.EncryptionConfig, useRemote bool) (*config.TargetConfig, error) {
+	if !useRemote {
+		return encryptionConfig.State.AsTargetConfig(), nil
+	}
+	if encryptionConfig.Remote.Default != nil {
+		return encryptionConfig.Remote.Default, nil
+	}
+	if len(encryptionConfig.Remote.Targets) == 0 {
+		return nil, fmt.Errorf("configured to run with remote target but there is nothing configured. Check the rawConfig")
+	}
+	return encryptionConfig.Remote.Targets[0].AsTargetConfig(), nil
 }
 
 func hasDiagWithMsg(diags hcl.Diagnostics, msg string) bool {
