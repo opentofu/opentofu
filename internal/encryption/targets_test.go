@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -231,6 +232,65 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 				aesgcm.Is,
 			},
 		},
+		"state-loaded-even-when-remote-alias-conflicts": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+				key_provider "static" "for_remote_state" {
+					key = "test"
+					encrypted_metadata_alias = "key_provider.static.basic"
+				}
+				method "external" "for_remote_state" {
+				  keys = key_provider.static.for_remote_state
+				}
+
+				remote_state_data_sources {
+				  remote_state_data_source "r" {
+					method = method.aes_gcm.for_remote_state
+				  }
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"remote-method-loaded-even-when-alias-conflicts-state-provider": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+				key_provider "static" "for_remote_state" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+					encrypted_metadata_alias = "key_provider.static.basic" # this conflicts with the first key_provider
+				}
+				method "aes_gcm" "for_remote_state" {
+					keys = key_provider.static.for_remote_state
+				}
+
+				remote_state_data_sources {
+				  remote_state_data_source "r" {
+					method = method.aes_gcm.for_remote_state
+				  }
+				}
+			`,
+			useRemoteTarget: true,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
 	}
 
 	reg := lockingencryptionregistry.New()
@@ -276,9 +336,10 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 }
 
 type btmTestCase struct {
-	rawConfig   string // must contain state target
-	wantMethods []func(method.Method) bool
-	wantErr     string
+	rawConfig       string // must contain state target
+	wantMethods     []func(method.Method) bool
+	wantErr         string
+	useRemoteTarget bool
 }
 
 func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *configs.StaticEvaluator) func(t *testing.T) {
@@ -290,13 +351,18 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 			panic(diags.Error())
 		}
 
+		target, err := selectTarget(cfg, testCase.useRemoteTarget)
+		if err != nil {
+			t.Fatalf("Error selecting the target to run with: %v", err)
+		}
+
 		meta := keyProviderMetadata{
 			input:  make(map[keyprovider.MetaStorageKey][]byte),
 			output: make(map[keyprovider.MetaStorageKey][]byte),
 		}
 
 		var methods []method.Method
-		methodConfigs, diags := methodConfigsFromTarget(cfg, cfg.State.AsTargetConfig(), "test", cfg.State.Enforced)
+		methodConfigs, diags := methodConfigsFromTarget(cfg, target, "test", cfg.State.Enforced)
 		for _, methodConfig := range methodConfigs {
 			m, mDiags := setupMethod(cfg, methodConfig, meta, reg, staticEval)
 			diags = diags.Extend(mDiags)
@@ -325,6 +391,19 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 			}
 		}
 	}
+}
+
+func selectTarget(encryptionConfig *config.EncryptionConfig, useRemote bool) (*config.TargetConfig, error) {
+	if !useRemote {
+		return encryptionConfig.State.AsTargetConfig(), nil
+	}
+	if encryptionConfig.Remote.Default != nil {
+		return encryptionConfig.Remote.Default, nil
+	}
+	if len(encryptionConfig.Remote.Targets) == 0 {
+		return nil, fmt.Errorf("configured to run with remote target but there is nothing configured. Check the rawConfig")
+	}
+	return encryptionConfig.Remote.Targets[0].AsTargetConfig(), nil
 }
 
 func hasDiagWithMsg(diags hcl.Diagnostics, msg string) bool {
