@@ -108,7 +108,7 @@ func (c *dockerCLIStyleCredentialsConfig) CredentialsSourcesForRepository(_ cont
 		// names match the requested domain/repository, and return any that do
 		// as static credentials.
 		for propName, auth := range c.content.Auths {
-			spec := dockerCLIStyleAuthMatch(propName, registryDomain, repositoryPath)
+			spec := ContainersAuthPropertyNameMatch(propName, registryDomain, repositoryPath)
 			if spec == NoCredentialsSpecificity {
 				continue // doesn't match at all
 			}
@@ -171,14 +171,26 @@ type dockerCLIStyleAuth struct {
 	Auth []byte `json:"auth"`
 }
 
-// dockerCLIStyleMatch determines to what extent a property name from the "auths" object
-// in a Docker CLI-style auth config file matches the given registry domain and repository
-// path, if at all.
+// ContainersAuthPropertyNameMatch determines to what extent a property name from the "auths"
+// object in a Docker/Podman/Buildah/etc-style auth config file matches the given registry domain
+// and repository path, if at all.
+//
+// "Containers auth" in this name is a reference to the following document:
+// https://github.com/containers/image/blob/c30cc7a54783122c0168d8ad77f712c2469c496c/docs/containers-auth.json.5.md
 //
 // Returns [NoCredentialsSpecificity] if it doesn't match at all, [DomainCredentialsSpecificity]
 // if only the registry domain matches, or a greater [CredentialsSpecificity] value if both
 // the domain and at least one path segment matches.
-func dockerCLIStyleAuthMatch(authsPropertyName string, wantRegistryDomain, wantRepositoryPath string) CredentialsSpecificity {
+//
+// This "containers auth" address format is actually an extension of the original Docker CLI
+// format. Docker CLI only supports whole-registry-domain auths, while this later specification
+// extended that format to support repository-specific configurations that are matched by repository
+// path prefix, preferring the most specific match. Docker-compatible configuration files can
+// therefore produce only either [NoCredentialsSpecificity] or [DomainCredentialsSpecificity] results.
+//
+// This is exported because OpenTofu's package cliconfig uses the same syntax and matching rules
+// for its own "oci_credentials" blocks, implemented using this same function for consistency.
+func ContainersAuthPropertyNameMatch(authsPropertyName string, wantRegistryDomain, wantRepositoryPath string) CredentialsSpecificity {
 	if authsPropertyName == "" {
 		return NoCredentialsSpecificity // Invalid
 	}
