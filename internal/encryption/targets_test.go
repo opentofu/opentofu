@@ -52,7 +52,7 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 					method = method.aes_gcm.example
 				}
 			`,
-			wantErr: `Test Config Source:3,25-32: Unsupported attribute; This object does not have an attribute named "static".`,
+			wantErr: `Test Config Source:3,13-38: Undefined Key Provider; Key provider static.basic is missing from the encryption configuration.`,
 		},
 		"fallback": {
 			rawConfig: `
@@ -230,20 +230,20 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 			panic(diags.Error())
 		}
 
-		base := &baseEncryption{
-			enc: &encryption{
-				cfg: cfg,
-				reg: reg,
-			},
-			target:        cfg.State.AsTargetConfig(),
-			enforced:      cfg.State.Enforced,
-			name:          "test",
-			inputEncMeta:  make(map[keyprovider.MetaStorageKey][]byte),
-			outputEncMeta: make(map[keyprovider.MetaStorageKey][]byte),
-			staticEval:    staticEval,
+		meta := keyProviderMetadata{
+			input:  make(map[keyprovider.MetaStorageKey][]byte),
+			output: make(map[keyprovider.MetaStorageKey][]byte),
 		}
 
-		methods, diags := base.buildTargetMethods(base.inputEncMeta, base.outputEncMeta)
+		var methods []method.Method
+		methodConfigs, diags := methodConfigsFromTarget(cfg, cfg.State.AsTargetConfig(), "test", cfg.State.Enforced)
+		for _, methodConfig := range methodConfigs {
+			m, mDiags := setupMethod(cfg, methodConfig, meta, reg, staticEval)
+			diags = diags.Extend(mDiags)
+			if !mDiags.HasErrors() {
+				methods = append(methods, m)
+			}
+		}
 
 		if diags.HasErrors() {
 			if !hasDiagWithMsg(diags, testCase.wantErr) {

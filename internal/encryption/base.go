@@ -24,26 +24,21 @@ const (
 )
 
 type baseEncryption struct {
-	enc           *encryption
-	target        *config.TargetConfig
-	enforced      bool
-	name          string
-	encMethods    []method.Method
-	inputEncMeta  map[keyprovider.MetaStorageKey][]byte
-	outputEncMeta map[keyprovider.MetaStorageKey][]byte
-	staticEval    *configs.StaticEvaluator
+	enc        *encryption
+	name       string
+	methods    []config.MethodConfig
+	encMethod  method.Method
+	encMeta    keyProviderMetadata
+	staticEval *configs.StaticEvaluator
 }
 
 func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (*baseEncryption, hcl.Diagnostics) {
-	base := &baseEncryption{
-		enc:           enc,
-		target:        target,
-		enforced:      enforced,
-		name:          name,
-		inputEncMeta:  make(map[keyprovider.MetaStorageKey][]byte),
-		outputEncMeta: make(map[keyprovider.MetaStorageKey][]byte),
-		staticEval:    staticEval,
+	// Lookup method configs for the target, ordered by fallback precedence
+	methods, diags := methodConfigsFromTarget(enc.cfg, target, name, enforced)
+	if diags.HasErrors() {
+		return nil, diags
 	}
+
 	// Setup the encryptor
 	//
 	//     Instead of creating new encryption key data for each call to encrypt, we use the same encryptor for the given application (statefile or planfile).
@@ -72,8 +67,28 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	//   This performs a e2e validation run of the config -> methods flow. It serves as a validation step and allows us to return detailed
 	//   diagnostics here and simple errors in the decrypt function below.
 	//
-	methods, diags := base.buildTargetMethods(base.inputEncMeta, base.outputEncMeta)
-	base.encMethods = methods
+
+	encMeta := keyProviderMetadata{
+		input:  make(map[keyprovider.MetaStorageKey][]byte),
+		output: make(map[keyprovider.MetaStorageKey][]byte),
+	}
+
+	// methodConfigsFromTarget guarantees that there will be at least one encryption method.  They are not optional in the common target
+	// block, which is required to get to this code.
+	encMethod, encDiags := setupMethod(enc.cfg, methods[0], encMeta, enc.reg, staticEval)
+	diags = diags.Extend(encDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	base := &baseEncryption{
+		enc:        enc,
+		name:       name,
+		staticEval: staticEval,
+		methods:    methods,
+		encMethod:  encMethod,
+		encMeta:    encMeta,
+	}
 
 	return base, diags
 }
@@ -96,9 +111,7 @@ func IsEncryptionPayload(data []byte) (bool, error) {
 }
 
 func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interface{}) ([]byte, error) {
-	// buildTargetMethods above guarantees that there will be at least one encryption method.  They are not optional in the common target
-	// block, which is required to get to this code.
-	encryptor := base.encMethods[0]
+	encryptor := base.encMethod
 
 	if unencrypted.Is(encryptor) {
 		return data, nil
@@ -111,7 +124,7 @@ func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interfac
 
 	es := basedata{
 		Version: encryptionVersion,
-		Meta:    base.outputEncMeta,
+		Meta:    base.encMeta.output,
 		Data:    encd,
 	}
 	jsond, err := json.Marshal(enhance(es))
@@ -153,8 +166,8 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 
 		// Yep, it's already decrypted
 		unencryptedSupported := false
-		for _, method := range base.encMethods {
-			if unencrypted.Is(method) {
+		for _, method := range base.methods {
+			if unencrypted.IsConfig(method) {
 				unencryptedSupported = true
 				break
 			}
@@ -162,7 +175,7 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		if !unencryptedSupported {
 			return nil, StatusUnknown, fmt.Errorf("encountered unencrypted payload without unencrypted method configured")
 		}
-		if unencrypted.Is(base.encMethods[0]) {
+		if unencrypted.IsConfig(base.methods[0]) {
 			// Decrypted and no pending migration
 			return data, StatusSatisfied, nil
 		}
@@ -179,21 +192,25 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		return nil, StatusUnknown, fmt.Errorf("invalid encrypted payload version: %s != %s", inputData.Version, encryptionVersion)
 	}
 
-	// TODO Discuss if we should potentially cache this based on a json-encoded version of inputData.Meta and reduce overhead dramatically
-	methods, diags := base.buildTargetMethods(inputData.Meta, outputData.Meta)
-	if diags.HasErrors() {
-		// This cast to error here is safe as we know that at least one error exists
-		// This is also quite unlikely to happen as the constructor already has checked this code path
-		return nil, StatusUnknown, diags
-	}
-
 	errs := make([]error, 0)
-	for i, method := range methods {
-		if unencrypted.Is(method) {
+	for i, method := range base.methods {
+		if unencrypted.IsConfig(method) {
 			// Not applicable
 			continue
 		}
-		uncd, err := method.Decrypt(inputData.Data)
+
+		// TODO Discuss if we should potentially cache this based on a json-encoded version of inputData.Meta and reduce overhead dramatically
+		decMethod, diags := setupMethod(base.enc.cfg, method, keyProviderMetadata{
+			input:  inputData.Meta,
+			output: outputData.Meta,
+		}, base.enc.reg, base.staticEval)
+		if diags.HasErrors() {
+			// This cast to error here is safe as we know that at least one error exists
+			// This is also quite unlikely to happen as the constructor already has checked this code path
+			return nil, StatusUnknown, diags
+		}
+
+		uncd, err := decMethod.Decrypt(inputData.Data)
 		if err == nil {
 			// Success
 			if i == 0 {

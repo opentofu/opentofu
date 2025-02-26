@@ -10,121 +10,22 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/lang"
-	"github.com/opentofu/opentofu/internal/lang/marks"
-
-	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
+	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
 
-// setupKeyProviders sets up the key providers for encryption. It returns a list of diagnostics if any of the key providers
-// are invalid.
-func (e *targetBuilder) setupKeyProviders() hcl.Diagnostics {
+func filterKeyProviderReferences(cfg *config.EncryptionConfig, deps []hcl.Traversal) ([]config.KeyProviderConfig, []*addrs.Reference, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	e.keyValues = make(map[string]map[string]cty.Value)
-
-	kpMap := make(map[string]cty.Value)
-	for _, keyProviderConfig := range e.cfg.KeyProviderConfigs {
-		diags = append(diags, e.setupKeyProvider(keyProviderConfig, nil)...)
-		if diags.HasErrors() {
-			return diags
-		}
-		for name, kps := range e.keyValues {
-			kpMap[name] = cty.ObjectVal(kps)
-		}
-		e.ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
-	}
-
-	// Make sure that the key_provider variable is set even if no key providers are configured. This will ultimately
-	// result in an error, but we want to avoid unpredictable behavior.
-	e.ctx.Variables["key_provider"] = cty.ObjectVal(kpMap)
-
-	return diags
-}
-
-func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []config.KeyProviderConfig) hcl.Diagnostics {
-	// Ensure cfg.Type is in keyValues, if it isn't then add it in preparation for the next step
-	if _, ok := e.keyValues[cfg.Type]; !ok {
-		e.keyValues[cfg.Type] = make(map[string]cty.Value)
-	}
-
-	// Check if we have already setup this Descriptor (due to dependency loading)
-	// if we've already setup this key provider, then we don't need to do it again
-	// and we can return early
-	if _, ok := e.keyValues[cfg.Type][cfg.Name]; ok {
-		return nil
-	}
-
-	// Mark this key provider as partially handled.  This value will be replaced below once it is actually known.
-	// The goal is to allow an early return via the above if statement to prevent duplicate errors if errors are encountered in the key loading stack.
-	e.keyValues[cfg.Type][cfg.Name] = cty.UnknownVal(cty.DynamicPseudoType)
-
-	// Check for circular references, this is done by inspecting the stack of key providers
-	// that are currently being setup. If we find a key provider in the stack that matches
-	// the current key provider, then we have a circular reference and we should return an error
-	// to the user.
-	for _, s := range stack {
-		if s == cfg {
-			addr, diags := keyprovider.NewAddr(cfg.Type, cfg.Name)
-			diags = diags.Append(
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Circular reference detected",
-					// TODO add the stack trace to the detail message
-					Detail: fmt.Sprintf("Can not load %q due to circular reference", addr),
-				},
-			)
-			return diags
-		}
-	}
-	stack = append(stack, cfg)
-
-	// Pull the meta key out for error messages and meta storage
-	tmpMetaKey, diags := cfg.Addr()
-	if diags.HasErrors() {
-		return diags
-	}
-	metaKey := keyprovider.MetaStorageKey(tmpMetaKey)
-	if cfg.EncryptedMetadataAlias != "" {
-		metaKey = keyprovider.MetaStorageKey(cfg.EncryptedMetadataAlias)
-	}
-
-	// Lookup the KeyProviderDescriptor from the registry
-	id := keyprovider.ID(cfg.Type)
-	keyProviderDescriptor, err := e.reg.GetKeyProviderDescriptor(id)
-	if err != nil {
-		if errors.Is(err, &registry.KeyProviderNotFoundError{}) {
-			return diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Unknown key_provider type",
-				Detail:   fmt.Sprintf("Can not find %q", cfg.Type),
-			})
-		}
-		return diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  fmt.Sprintf("Error fetching key_provider %q", cfg.Type),
-			Detail:   err.Error(),
-		})
-	}
-
-	// Now that we know we have the correct Descriptor, we can decode the configuration
-	// and build the KeyProvider
-	keyProviderConfig := keyProviderDescriptor.ConfigStruct()
-
-	// Locate all the dependencies
-	deps, varDiags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
-	diags = append(diags, varDiags...)
-	if diags.HasErrors() {
-		return diags
-	}
-
+	var keyProviderDeps []config.KeyProviderConfig
 	// lang.References is going to fail parsing key_provider deps
 	// so we filter them out in nonKeyProviderDeps.
 	var nonKeyProviderDeps []hcl.Traversal
@@ -159,7 +60,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		depType := depTypeAttr.Name
 		depName := depNameAttr.Name
 
-		kpc, ok := e.cfg.GetKeyProvider(depType, depName)
+		kpc, ok := cfg.GetKeyProvider(depType, depName)
 		if !ok {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -170,27 +71,132 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 			continue
 		}
 
-		depDiags := e.setupKeyProvider(kpc, stack)
-		diags = append(diags, depDiags...)
+		keyProviderDeps = append(keyProviderDeps, kpc)
 	}
 	if diags.HasErrors() {
 		// We should not continue now if we have any diagnostics that are errors
 		// as we may end up in an inconsistent state.
 		// The reason we collate the diags here and then show them instead of showing them as they arise
 		// is to ensure that the end user does not have to play whack-a-mole with the errors one at a time.
-		return diags
+		return nil, nil, diags
 	}
 
 	refs, refDiags := lang.References(addrs.ParseRef, nonKeyProviderDeps)
 	diags = append(diags, refDiags.ToHCL()...)
 	if diags.HasErrors() {
+		return nil, nil, diags
+	}
+
+	return keyProviderDeps, refs, diags
+}
+
+// setupKeyProviders sets up the key providers for encryption. It returns a list of diagnostics if any of the key providers
+// are invalid.
+func setupKeyProviders(enc *config.EncryptionConfig, cfgs []config.KeyProviderConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) (*hcl.EvalContext, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
+	kpData := make(valueMap)
+
+	for _, keyProviderConfig := range cfgs {
+		diags = append(diags, setupKeyProvider(enc, keyProviderConfig, kpData, nil, meta, reg, staticEval)...)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+	}
+
+	return kpData.hclEvalContext("key_provider"), diags
+}
+
+func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig, kpData valueMap, stack []config.KeyProviderConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) hcl.Diagnostics {
+	// Check if we have already setup this Descriptor (due to dependency loading)
+	// if we've already setup this key provider, then we don't need to do it again
+	// and we can return early
+	if kpData.has(cfg.Type, cfg.Name) {
+		return nil
+	}
+
+	// Mark this key provider as partially handled.  This value will be replaced below once it is actually known.
+	// The goal is to allow an early return via the above if statement to prevent duplicate errors if errors are encountered in the key loading stack.
+	kpData.set(cfg.Type, cfg.Name, cty.UnknownVal(cty.DynamicPseudoType))
+
+	// Check for circular references, this is done by inspecting the stack of key providers
+	// that are currently being setup. If we find a key provider in the stack that matches
+	// the current key provider, then we have a circular reference and we should return an error
+	// to the user.
+	for _, s := range stack {
+		if s == cfg {
+			addr, diags := keyprovider.NewAddr(cfg.Type, cfg.Name)
+			diags = diags.Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Circular reference detected",
+					// TODO add the stack trace to the detail message
+					Detail: fmt.Sprintf("Can not load %q due to circular reference", addr),
+				},
+			)
+			return diags
+		}
+	}
+	stack = append(stack, cfg)
+
+	// Pull the meta key out for error messages and meta storage
+	tmpMetaKey, diags := cfg.Addr()
+	if diags.HasErrors() {
+		return diags
+	}
+	metaKey := keyprovider.MetaStorageKey(tmpMetaKey)
+	if cfg.EncryptedMetadataAlias != "" {
+		metaKey = keyprovider.MetaStorageKey(cfg.EncryptedMetadataAlias)
+	}
+
+	// Lookup the KeyProviderDescriptor from the registry
+	id := keyprovider.ID(cfg.Type)
+	keyProviderDescriptor, err := reg.GetKeyProviderDescriptor(id)
+	if err != nil {
+		if errors.Is(err, &registry.KeyProviderNotFoundError{}) {
+			return diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Unknown key_provider type",
+				Detail:   fmt.Sprintf("Can not find %q", cfg.Type),
+			})
+		}
+		return diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf("Error fetching key_provider %q", cfg.Type),
+			Detail:   err.Error(),
+		})
+	}
+
+	// Now that we know we have the correct Descriptor, we can decode the configuration
+	// and build the KeyProvider
+	keyProviderConfig := keyProviderDescriptor.ConfigStruct()
+
+	// Locate all the dependencies
+	deps, varDiags := gohcl.VariablesInBody(cfg.Body, keyProviderConfig)
+	diags = append(diags, varDiags...)
+	if diags.HasErrors() {
 		return diags
 	}
 
-	evalCtx, evalDiags := e.staticEval.EvalContextWithParent(e.ctx, configs.StaticIdentifier{
+	// Filter between dependent key providers and static references
+	kpConfigs, refs, filterDiags := filterKeyProviderReferences(enc, deps)
+	diags = diags.Extend(filterDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// Ensure all key provider dependencies have been initialized
+	for _, kp := range kpConfigs {
+		diags = append(diags, setupKeyProvider(enc, kp, kpData, stack, meta, reg, staticEval)...)
+	}
+	if diags.HasErrors() {
+		return diags
+	}
+
+	evalCtx, evalDiags := staticEval.EvalContextWithParent(kpData.hclEvalContext("key_provider"), configs.StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
-		DeclRange: e.cfg.DeclRange,
+		DeclRange: enc.DeclRange,
 	}, refs)
 	diags = append(diags, evalDiags...)
 	if diags.HasErrors() {
@@ -223,7 +229,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	}
 
 	// Add the metadata
-	if meta, ok := e.inputKeyProviderMetadata[metaKey]; ok {
+	if meta, ok := meta.input[metaKey]; ok {
 		err := json.Unmarshal(meta, keyMetaIn)
 		if err != nil {
 			return append(diags, &hcl.Diagnostic{
@@ -244,14 +250,14 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 	}
 
 	if keyMetaOut != nil {
-		if _, ok := e.outputKeyProviderMetadata[metaKey]; ok {
+		if _, ok := meta.output[metaKey]; ok {
 			return append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Duplicate metadata key",
 				Detail:   fmt.Sprintf("The metadata key %s is duplicated across multiple key providers for the same method; use the encrypted_metadata_alias option to specify unique metadata keys for each key provider in an encryption method", metaKey),
 			})
 		}
-		e.outputKeyProviderMetadata[metaKey], err = json.Marshal(keyMetaOut)
+		meta.output[metaKey], err = json.Marshal(keyMetaOut)
 
 		if err != nil {
 			return append(diags, &hcl.Diagnostic{
@@ -262,7 +268,7 @@ func (e *targetBuilder) setupKeyProvider(cfg config.KeyProviderConfig, stack []c
 		}
 	}
 
-	e.keyValues[cfg.Type][cfg.Name] = output.Cty()
+	kpData.set(cfg.Type, cfg.Name, output.Cty())
 
 	return nil
 
