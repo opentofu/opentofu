@@ -344,7 +344,7 @@ func TestDockerCLIStyleAuthFileSearchLocations(t *testing.T) {
 	}
 }
 
-func TestDockerCLIStyleAuthMatch(t *testing.T) {
+func TestContainersAuthPropertyNameMatch(t *testing.T) {
 	tests := []struct {
 		authsPropertyName                        string
 		matchRegistryDomain, matchRepositoryPath string
@@ -397,7 +397,7 @@ func TestDockerCLIStyleAuthMatch(t *testing.T) {
 		t.Run(testName, func(t *testing.T) {
 			t.Log(testName) // more readable without the transforming t.Run does to the name
 
-			gotSpecificity := dockerCLIStyleAuthMatch(
+			gotSpecificity := ContainersAuthPropertyNameMatch(
 				test.authsPropertyName,
 				test.matchRegistryDomain, test.matchRepositoryPath,
 			)
