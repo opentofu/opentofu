@@ -1,0 +1,11 @@
+{
+  "oci_credentials": {
+    "example.net": {
+      "docker_credentials_helper": "fake"
+    },
+    "example.net/foo": {
+      "access_token": "example.net/foo access",
+      "refresh_token": "example.net/foo refresh"
+    }
+  }
+}
