@@ -16,60 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
-	"github.com/zclconf/go-cty/cty"
 )
-
-// valueMap is a helper type for building hcl.EvalContexts for both methods and key_providers.
-type valueMap map[string]map[string]cty.Value
-
-func (v valueMap) set(first string, second string, value cty.Value) {
-	if _, ok := v[first]; !ok {
-		v[first] = make(map[string]cty.Value)
-	}
-	v[first][second] = value
-}
-
-func (v valueMap) has(first string, second string) bool {
-	s, ok := v[first]
-	if !ok {
-		return false
-	}
-	_, ok = s[second]
-	return ok
-}
-
-func (v valueMap) hclEvalContext(root string) *hcl.EvalContext {
-	mMap := make(map[string]cty.Value)
-	for name, ms := range v {
-		mMap[name] = cty.ObjectVal(ms)
-	}
-
-	return &hcl.EvalContext{
-		Variables: map[string]cty.Value{root: cty.ObjectVal(mMap)},
-	}
-}
-
-// methodContextAndConfigs returns a *hcl.EvalContext containing a method addr lookup table and corresponding config mapping
-func methodContextAndConfigs(cfg *config.EncryptionConfig) (*hcl.EvalContext, map[method.Addr]config.MethodConfig, hcl.Diagnostics) {
-	var diags hcl.Diagnostics
-
-	methodValues := make(valueMap)
-	methods := make(map[method.Addr]config.MethodConfig)
-
-	for _, method := range cfg.MethodConfigs {
-		addr, addrDiags := method.Addr()
-		diags = diags.Extend(addrDiags)
-		if addrDiags.HasErrors() {
-			continue
-		}
-
-		methodValues.set(method.Type, method.Name, cty.StringVal(string(addr)))
-
-		methods[addr] = method
-	}
-
-	return methodValues.hclEvalContext("method"), methods, diags
-}
 
 // setupMethod sets up a single method for encryption. It returns a list of diagnostics if the method is invalid.
 func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) (method.Method, hcl.Diagnostics) {

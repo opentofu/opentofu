@@ -22,6 +22,36 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// valueMap is a helper type for building hcl.EvalContexts for key_providers.
+type valueMap map[string]map[string]cty.Value
+
+func (v valueMap) set(first string, second string, value cty.Value) {
+	if _, ok := v[first]; !ok {
+		v[first] = make(map[string]cty.Value)
+	}
+	v[first][second] = value
+}
+
+func (v valueMap) has(first string, second string) bool {
+	s, ok := v[first]
+	if !ok {
+		return false
+	}
+	_, ok = s[second]
+	return ok
+}
+
+func (v valueMap) hclEvalContext(root string) *hcl.EvalContext {
+	mMap := make(map[string]cty.Value)
+	for name, ms := range v {
+		mMap[name] = cty.ObjectVal(ms)
+	}
+
+	return &hcl.EvalContext{
+		Variables: map[string]cty.Value{root: cty.ObjectVal(mMap)},
+	}
+}
+
 // Given a set of hcl.Traversals, determine the required key provider configs and non-key_provider references
 func filterKeyProviderReferences(cfg *config.EncryptionConfig, deps []hcl.Traversal) ([]config.KeyProviderConfig, []*addrs.Reference, hcl.Diagnostics) {
 	var diags hcl.Diagnostics

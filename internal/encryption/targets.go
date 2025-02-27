@@ -9,52 +9,55 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 )
 
 func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.TargetConfig, targetName string, enforced bool) ([]config.MethodConfig, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
-
-	hclCtx, methodLookup, methodDiags := methodContextAndConfigs(cfg)
-	diags = diags.Extend(methodDiags)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
 	var methods []config.MethodConfig
 
 	for target != nil {
-		// gohcl has some weirdness around attributes that are not provided, but are hcl.Expressions
-		// They will set the attribute field to a static null expression
-		// https://github.com/hashicorp/hcl/blob/main/gohcl/decode.go#L112-L118
+		traversal, travDiags := hcl.RelTraversalForExpr(target.Method)
+		diags = diags.Extend(travDiags)
+		if !travDiags.HasErrors() {
+			if len(traversal) != 3 {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid encryption method identifier",
+					Detail:   "Expected method of form method.<type>.<name>",
+					Subject:  target.Method.Range().Ptr(),
+				})
+				continue
+			}
+			mRoot, okRoot := traversal[0].(hcl.TraverseAttr)
+			mType, okType := traversal[1].(hcl.TraverseAttr)
+			mName, okName := traversal[2].(hcl.TraverseAttr)
 
-		// Descriptor referenced by this target
-		var methodIdent *string
-		decodeDiags := gohcl.DecodeExpression(target.Method, hclCtx, &methodIdent)
-		diags = append(diags, decodeDiags...)
+			if !okRoot || mRoot.Name != "method" || !okType || !okName {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid encryption method identifier",
+					Detail:   "Expected method of form method.<type>.<name>",
+					Subject:  target.Method.Range().Ptr(),
+				})
+			}
 
-		// Only attempt to fetch the method if the decoding was successful
-		if !decodeDiags.HasErrors() {
-			if methodIdent != nil {
-				if method, ok := methodLookup[method.Addr(*methodIdent)]; ok {
+			foundMethod := false
+			for _, method := range cfg.MethodConfigs {
+				if method.Type == mType.Name && method.Name == mName.Name {
+					foundMethod = true
 					methods = append(methods, method)
-				} else {
-					// We can't continue if the method is not found
-					diags = append(diags, &hcl.Diagnostic{
-						Severity: hcl.DiagError,
-						Summary:  "Undefined encryption method",
-						Detail:   fmt.Sprintf("Can not find %q for %q", *methodIdent, targetName),
-						Subject:  target.Method.Range().Ptr(),
-					})
+					break
 				}
-			} else {
+			}
+
+			if !foundMethod {
+				// We can't continue if the method is not found
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Missing encryption method",
-					Detail:   fmt.Sprintf("undefined or null method used for %q", targetName),
+					Summary:  "Undefined encryption method",
+					Detail:   fmt.Sprintf("Can not find \"%s.%s.%s\" for %s", mRoot.Name, mType.Name, mName.Name, targetName),
 					Subject:  target.Method.Range().Ptr(),
 				})
 			}
