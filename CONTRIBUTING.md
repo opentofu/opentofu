@@ -231,7 +231,7 @@ In addition to interactive debugging, you can also use [go-spew](https://github.
 
 ### Updating the changelog
 
-We are keeping track of the changes to OpenTofu in the [CHANGELOG.md](CHANGELOG.md) file. Please update it when you add features or fix bugs in OpeTofu.
+We are keeping track of the changes to OpenTofu in the [CHANGELOG.md](CHANGELOG.md) file. Please update it when you add features or fix bugs in OpenTofu.
 
 ---
 
