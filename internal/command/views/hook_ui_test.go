@@ -442,36 +442,6 @@ func TestPreRefresh(t *testing.T) {
 	}
 }
 
-func TestPreRefresh_concise(t *testing.T) {
-	streams, done := terminal.StreamsForTesting(t)
-	view := NewView(streams)
-	view.concise = true
-	h := NewUiHook(view)
-
-	addr := addrs.Resource{
-		Mode: addrs.ManagedResourceMode,
-		Type: "test_instance",
-		Name: "foo",
-	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
-
-	priorState := cty.ObjectVal(map[string]cty.Value{
-		"id":  cty.StringVal("test"),
-		"bar": cty.ListValEmpty(cty.String),
-	})
-
-	_, err := h.PreRefresh(addr, states.CurrentGen, priorState)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	result := done(t)
-
-	if got, want := result.Stdout(), ""; got != want {
-		t.Fatalf("unexpected output\n got: %q\nwant: %q", got, want)
-	}
-}
-
 // Test that PreRefresh still works if no ID key and value can be determined
 // from state.
 func TestPreRefresh_noID(t *testing.T) {

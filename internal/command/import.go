@@ -63,6 +63,9 @@ func (c *ImportCommand) Run(args []string) int {
 		return 1
 	}
 
+	// Parse and apply global view arguments
+	common, _ := arguments.ParseView(args)
+
 	var diags tfdiags.Diagnostics
 
 	// Parse the provided resource address.
@@ -204,7 +207,13 @@ func (c *ImportCommand) Run(args []string) int {
 		c.showDiagnostics(diags)
 		return 1
 	}
-	opReq.Hooks = []tofu.Hook{c.uiHook()}
+
+	if !common.Concise {
+		opReq.Hooks = []tofu.Hook{c.uiHook()}
+	} else {
+		opReq.Hooks = []tofu.Hook{}
+	}
+
 	{
 		// Setup required variables/call for operation (usually done in Meta.RunOperation)
 		var moreDiags, callDiags tfdiags.Diagnostics

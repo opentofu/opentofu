@@ -121,10 +121,11 @@ func (v *ApplyHuman) Operation() Operation {
 }
 
 func (v *ApplyHuman) Hooks() []tofu.Hook {
-	return []tofu.Hook{
-		v.countHook,
-		NewUiHook(v.view),
+	hooks := []tofu.Hook{v.countHook}
+	if !v.view.concise {
+		hooks = append(hooks, NewUiHook(v.view))
 	}
+	return hooks
 }
 
 func (v *ApplyHuman) Diagnostics(diags tfdiags.Diagnostics) {
