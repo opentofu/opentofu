@@ -14,12 +14,12 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 	"github.com/zclconf/go-cty/cty"
 )
 
+// valueMap is a helper type for building hcl.EvalContexts for both methods and key_providers.
 type valueMap map[string]map[string]cty.Value
 
 func (v valueMap) set(first string, second string, value cty.Value) {
@@ -49,15 +49,18 @@ func (v valueMap) hclEvalContext(root string) *hcl.EvalContext {
 	}
 }
 
+// methodContextAndConfigs returns a *hcl.EvalContext containing a method addr lookup table and corresponding config mapping
 func methodContextAndConfigs(cfg *config.EncryptionConfig) (*hcl.EvalContext, map[method.Addr]config.MethodConfig, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+
 	methodValues := make(valueMap)
 	methods := make(map[method.Addr]config.MethodConfig)
 
 	for _, method := range cfg.MethodConfigs {
-		addr, diags := method.Addr()
-		if diags.HasErrors() {
-			// TODO diags out of loop
-			return nil, nil, diags
+		addr, addrDiags := method.Addr()
+		diags = diags.Extend(addrDiags)
+		if addrDiags.HasErrors() {
+			continue
 		}
 
 		methodValues.set(method.Type, method.Name, cty.StringVal(string(addr)))
@@ -65,12 +68,7 @@ func methodContextAndConfigs(cfg *config.EncryptionConfig) (*hcl.EvalContext, ma
 		methods[addr] = method
 	}
 
-	return methodValues.hclEvalContext("method"), methods, nil
-}
-
-type keyProviderMetadata struct {
-	input  map[keyprovider.MetaStorageKey][]byte
-	output map[keyprovider.MetaStorageKey][]byte
+	return methodValues.hclEvalContext("method"), methods, diags
 }
 
 // setupMethod sets up a single method for encryption. It returns a list of diagnostics if the method is invalid.
@@ -118,16 +116,16 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 
 	hclCtx, evalDiags := staticEval.EvalContextWithParent(hclCtx, configs.StaticIdentifier{
 		Module:    addrs.RootModule,
-		Subject:   fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
+		Subject:   fmt.Sprintf("encryption.method.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: enc.DeclRange,
 	}, refs)
-	diags = append(diags, evalDiags...)
+	diags = diags.Extend(evalDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
 	methodDiags := gohcl.DecodeBody(cfg.Body, hclCtx, methodConfig)
-	diags = append(diags, methodDiags...)
+	diags = diags.Extend(methodDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -135,7 +133,7 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 	m, err := methodConfig.Build()
 	if err != nil {
 		// TODO this error handling could use some work
-		return nil, append(diags, &hcl.Diagnostic{
+		return nil, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Encryption method configuration failed",
 			Detail:   err.Error(),

@@ -32,6 +32,13 @@ type baseEncryption struct {
 	staticEval *configs.StaticEvaluator
 }
 
+type keyProviderMetamap map[keyprovider.MetaStorageKey][]byte
+
+type keyProviderMetadata struct {
+	input  keyProviderMetamap
+	output keyProviderMetamap
+}
+
 func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (*baseEncryption, hcl.Diagnostics) {
 	// Lookup method configs for the target, ordered by fallback precedence
 	methods, diags := methodConfigsFromTarget(enc.cfg, target, name, enforced)
@@ -64,13 +71,13 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 	//
 	// What other benefits does this provide?
 	//
-	//   This performs a e2e validation run of the config -> methods flow. It serves as a validation step and allows us to return detailed
-	//   diagnostics here and simple errors in the decrypt function below.
+	//   This performs a e2e validation run of the config -> primary method flow. It serves as a validation step and allows us to return detailed
+	//   diagnostics here and simple errors in the decrypt function below (as long as fallback is not used).
 	//
 
 	encMeta := keyProviderMetadata{
-		input:  make(map[keyprovider.MetaStorageKey][]byte),
-		output: make(map[keyprovider.MetaStorageKey][]byte),
+		input:  make(keyProviderMetamap),
+		output: make(keyProviderMetamap),
 	}
 
 	// methodConfigsFromTarget guarantees that there will be at least one encryption method.  They are not optional in the common target
@@ -94,9 +101,9 @@ func newBaseEncryption(enc *encryption, target *config.TargetConfig, enforced bo
 }
 
 type basedata struct {
-	Meta    map[keyprovider.MetaStorageKey][]byte `json:"meta"`
-	Data    []byte                                `json:"encrypted_data"`
-	Version string                                `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatibility field
+	Meta    keyProviderMetamap `json:"meta"`
+	Data    []byte             `json:"encrypted_data"`
+	Version string             `json:"encryption_version"` // This is both a sigil for a valid encrypted payload and a future compatibility field
 }
 
 func IsEncryptionPayload(data []byte) (bool, error) {
@@ -185,7 +192,7 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 	// This is not actually used, only the map inside the Meta parameter is. This is because we are passing the map
 	// around.
 	outputData := basedata{
-		Meta: make(map[keyprovider.MetaStorageKey][]byte),
+		Meta: make(keyProviderMetamap),
 	}
 
 	if inputData.Version != encryptionVersion {
@@ -206,7 +213,6 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 		}, base.enc.reg, base.staticEval)
 		if diags.HasErrors() {
 			// This cast to error here is safe as we know that at least one error exists
-			// This is also quite unlikely to happen as the constructor already has checked this code path
 			return nil, StatusUnknown, diags
 		}
 
