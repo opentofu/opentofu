@@ -32,3 +32,35 @@ type CredentialsConfig interface {
 	// is acceptable.
 	CredentialsConfigLocationForUI() string
 }
+
+// NewGlobalDockerCredentialsHelperCredentialsConfig returns a [CredentialsConfig] that
+// always returns exactly one [CredentialsSource] of specificity [GlobalCredentialsSpecificity]
+// that associates the requested registry domain with the given Docker-style credential
+// helper name.
+func NewGlobalDockerCredentialHelperCredentialsConfig(locationForUI string, helperName string) CredentialsConfig {
+	return globalDockerCredentialHelperCredentialsConfig{
+		locationForUI: locationForUI,
+		helperName:    helperName,
+	}
+}
+
+type globalDockerCredentialHelperCredentialsConfig struct {
+	locationForUI string
+	helperName    string
+}
+
+// CredentialsConfigLocationForUI implements CredentialsConfig.
+func (c globalDockerCredentialHelperCredentialsConfig) CredentialsConfigLocationForUI() string {
+	return c.locationForUI
+}
+
+// CredentialsSourcesForRepository implements CredentialsConfig.
+func (c globalDockerCredentialHelperCredentialsConfig) CredentialsSourcesForRepository(_ context.Context, registryDomain string, _ string) iter.Seq2[CredentialsSource, error] {
+	// We just unconditionally associate the previously-configured credential helper
+	// name with the domain that was requested. This source therefore serves as a
+	// fallback for any repository address that isn't matched by any more-specific
+	// credential sources coming from other configs.
+	return func(yield func(CredentialsSource, error) bool) {
+		yield(NewDockerCredentialHelperCredentialsSource(c.helperName, "https://"+registryDomain, GlobalCredentialsSpecificity), nil)
+	}
+}

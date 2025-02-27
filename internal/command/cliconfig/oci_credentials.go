@@ -6,8 +6,14 @@
 package cliconfig
 
 import (
+	"context"
 	"fmt"
+	"iter"
+	"log"
+	"os"
+	"os/user"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/hashicorp/hcl"
@@ -16,6 +22,94 @@ import (
 	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+// OCICredentialsPolicy returns an object that encapsulates the operator's configured
+// OCI credentials policy, including both the explicitly-configured credentials and
+// any automatically-discovered "ambient" credentials.
+//
+// This should be called only on a [Config] where [Config.Validate] was already called
+// and returned no error diagnostics. Calling this on an unvalidated or invalid
+// configuration produces unspecified results, possibly including panics.
+func (c *Config) OCICredentialsPolicy(ctx context.Context) (ociauthconfig.CredentialsConfigs, error) {
+	return c.ociCredentialsPolicy(ctx, ociCredentialsEnv{})
+}
+
+// ociCredentialsPolicy is the implementation of [Config.OCICredentialsPolicy], exposing
+// the discovery environment as an argument so that we can fake it for testing purposes.
+func (c *Config) ociCredentialsPolicy(ctx context.Context, discoEnv ociauthconfig.ConfigDiscoveryEnvironment) (ociauthconfig.CredentialsConfigs, error) {
+	var cfgs []ociauthconfig.CredentialsConfig
+
+	// If there are any explicitly-configured oci_credentials blocks then they always
+	// go first so that they can supersede any other configurations that cover the
+	// same repository paths with equal same precedence.
+	for _, block := range c.OCIRepositoryCredentials {
+		cfgs = append(cfgs, ociRepositoryCredentialsConfig{block})
+	}
+
+	var defaultCredentialsBlock *OCIDefaultCredentials
+	if len(c.OCIDefaultCredentials) > 0 {
+		if len(c.OCIDefaultCredentials) != 1 {
+			// [Config.Validate] requires that there must always be either zero or one
+			// blocks of this type, and this function is documented as only being callable
+			// on valid configs, so we should not get here.
+			panic("too many oci_default_credentials blocks")
+		}
+		defaultCredentialsBlock = c.OCIDefaultCredentials[0]
+	} else {
+		defaultCredentialsBlock = newDefaultOCIDefaultCredentials()
+	}
+
+	discoverAmbientCredentials := defaultCredentialsBlock.DiscoverAmbientCredentials
+	dockerStyleConfigFiles := defaultCredentialsBlock.DockerStyleConfigFiles
+	if defaultCredentialsBlock.DefaultDockerCredentialHelper != "" {
+		cfgs = append(cfgs, ociauthconfig.NewGlobalDockerCredentialHelperCredentialsConfig(
+			"oci_default_credentials block",
+			defaultCredentialsBlock.DefaultDockerCredentialHelper,
+		))
+	}
+
+	if discoverAmbientCredentials {
+		ambientCfgs, err := discoverAmbientOCICredentials(ctx, dockerStyleConfigFiles, discoEnv)
+		if err != nil {
+			return ociauthconfig.CredentialsConfigs{}, fmt.Errorf("discovering ambient OCI registry credentials: %w", err)
+		}
+		cfgs = append(cfgs, ambientCfgs...)
+	}
+	return ociauthconfig.NewCredentialsConfigs(cfgs), nil
+}
+
+func discoverAmbientOCICredentials(ctx context.Context, dockerStyleConfigFiles []string, discoEnv ociauthconfig.ConfigDiscoveryEnvironment) ([]ociauthconfig.CredentialsConfig, error) {
+	if dockerStyleConfigFiles != nil {
+		// explicit config file locations
+		// (non-nil but empty represents completely disabling our search for
+		// Docker-style configuration files.)
+		cfgs, err := ociauthconfig.FixedDockerCLIStyleCredentialsConfigs(
+			ctx,
+			dockerStyleConfigFiles,
+			discoEnv,
+		)
+		if err != nil {
+			// If the user explicitly configured search paths then we treat a failure to
+			// load any of them as an error.
+			return nil, fmt.Errorf("failed to read Docker-style config files: %w", err)
+		}
+		return cfgs, nil
+	}
+
+	// automatic discovery using default search locations
+	cfgs, err := ociauthconfig.FindDockerCLIStyleCredentialsConfigs(
+		ctx,
+		discoEnv,
+	)
+	if err != nil {
+		// If we were just probing in standard locations then we ignore errors because
+		// these files are not used exclusively by OpenTofu and an anomaly in one of them
+		// should never prevent someone from using OpenTofu.
+		log.Printf("[WARN] Problems during OCI registry ambient credentials discovery:\n%s", err.Error())
+		return nil, nil
+	}
+	return cfgs, nil
+}
 
 // OCIDefaultCredentials corresponds to one oci_default_credentials block in
 // the CLI configuration.
@@ -498,6 +592,122 @@ func decodeOCICredentialsBlockBody(label string, body *hclast.ObjectType) (*OCIR
 	}
 
 	return ret, diags
+}
+
+// ociRepositoryCredentialsConfig is an unexported wrapper around an
+// [OCIRepositoryCredentials] object that implements [ociauthconfig.CredentialsConfig]
+// for use in [Config.OCICredentialsPolicy].
+//
+// For explicitly-configured blocks we treat each individual block as a separate
+// CredentialsConfig, because that makes the config location more explicit. (Other
+// implementations potentially use this interface to represent a whole file with
+// potentially-many credentials in it.)
+type ociRepositoryCredentialsConfig struct {
+	block *OCIRepositoryCredentials
+}
+
+var _ ociauthconfig.CredentialsConfig = ociRepositoryCredentialsConfig{}
+
+// CredentialsConfigLocationForUI implements ociauthconfig.CredentialsConfig.
+func (o ociRepositoryCredentialsConfig) CredentialsConfigLocationForUI() string {
+	// HCL 1 doesn't retain particularly useful source location information, and so
+	// we'll refer to the block by its name and label rather than by its physical
+	// location on disk.
+	return fmt.Sprintf("explicit oci_credentials %q block", o.block.RepositoryPrefix)
+}
+
+// CredentialsSourcesForRepository implements ociauthconfig.CredentialsConfig.
+func (o ociRepositoryCredentialsConfig) CredentialsSourcesForRepository(_ context.Context, registryDomain string, repositoryPath string) iter.Seq2[ociauthconfig.CredentialsSource, error] {
+	spec := ociauthconfig.ContainersAuthPropertyNameMatch(o.block.RepositoryPrefix, registryDomain, repositoryPath)
+	if spec == ociauthconfig.NoCredentialsSpecificity {
+		// Does not match, so we'll return an empty sequence.
+		// TODO: Hopefully in future we can replace this with a stdlib helper function https://github.com/golang/go/issues/68947
+		return func(_ func(ociauthconfig.CredentialsSource, error) bool) {}
+	}
+
+	// If we get here then we have a match, so we'll return exactly one credentials source,
+	// which is really just this same object again implementing a different interface.
+	// TODO: Hopefully in future we can implement these 1-element sequences with a stdlib helper function https://github.com/golang/go/issues/68947
+	return func(yield func(ociauthconfig.CredentialsSource, error) bool) {
+		switch {
+		case o.block.Username != "":
+			// Validation checks that Username is always used with Password, so
+			// we can safely assume that here.
+			yield(ociauthconfig.NewStaticCredentialsSource(
+				ociauthconfig.NewBasicAuthCredentials(o.block.Username, o.block.Password),
+				spec,
+			), nil)
+		case o.block.AccessToken != "":
+			// Validation checks that AccessToken is always used with RefreshToken, so
+			// we can safely assume that here.
+			yield(ociauthconfig.NewStaticCredentialsSource(
+				ociauthconfig.NewOAuthCredentials(o.block.AccessToken, o.block.RefreshToken),
+				spec,
+			), nil)
+		case o.block.DockerCredentialHelper != "":
+			yield(ociauthconfig.NewDockerCredentialHelperCredentialsSource(
+				o.block.DockerCredentialHelper, "https://"+registryDomain, spec,
+			), nil)
+		default:
+			// There are no other credentials styles, so we should not get here.
+			yield(nil, fmt.Errorf("%s has no supported credentials arguments", o.CredentialsConfigLocationForUI()))
+		}
+	}
+}
+
+// ociCredentialsEnv implements ociauthconfig.ConfigDiscoveryEnvironment against the
+// real execution environment provided by the host operating system.
+type ociCredentialsEnv struct{}
+
+var _ ociauthconfig.ConfigDiscoveryEnvironment = ociCredentialsEnv{}
+
+// EnvironmentVariableVal implements ociauthconfig.ConfigDiscoveryEnvironment.
+func (e ociCredentialsEnv) EnvironmentVariableVal(name string) string {
+	return os.Getenv(name)
+}
+
+// OperatingSystemName implements ociauthconfig.ConfigDiscoveryEnvironment.
+func (e ociCredentialsEnv) OperatingSystemName() string {
+	return runtime.GOOS
+}
+
+// ReadFile implements ociauthconfig.ConfigDiscoveryEnvironment.
+func (e ociCredentialsEnv) ReadFile(_ context.Context, path string) ([]byte, error) {
+	log.Printf("[TRACE] OCI credentials discovery reading %s", path)
+	return os.ReadFile(path)
+}
+
+// UserHomeDirPath implements ociauthconfig.ConfigDiscoveryEnvironment.
+func (e ociCredentialsEnv) UserHomeDirPath() string {
+	// This is intentionally slightly different from the homeDir function
+	// in this package, because it's designed to better match the behavior
+	// of Podman/etc.
+	switch runtime.GOOS {
+	case "windows":
+		if envHome := os.Getenv("USERPROFILE"); envHome != "" {
+			return envHome
+		}
+		homeDir, err := os.UserHomeDir()
+		if err == nil {
+			return homeDir
+		}
+		// If we can't find information about the current user then we'll
+		// just use the nul device as a placeholder, since we're using this
+		// result only as a basedir to probe for configuration files anyway.
+		return "nul:"
+	default:
+		if envHome := os.Getenv("HOME"); envHome != "" {
+			return envHome
+		}
+		u, err := user.Current()
+		if err == nil {
+			return u.HomeDir
+		}
+		// If we can't find information about the current user then we'll
+		// just use the root directory as a placeholder, since we're using
+		// this result only as a basedir to probe for configuration files anyway.
+		return "/"
+	}
 }
 
 func validDockerCredentialHelperName(n string) bool {
