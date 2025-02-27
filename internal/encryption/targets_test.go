@@ -175,6 +175,62 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 			`,
 			wantErr: "Test Config Source:3,12-34: Invalid Key Provider expression format; Expected key_provider.<type>.<name>",
 		},
+		"unused-key-provider": {
+			rawConfig: `
+				key_provider "static" "unused" {
+					key = key_provider.static[0] # Even though this is invalid and won't function, since it's not used by another key_provider or method it should not produce an error
+				}
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"chained-key-provider": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = sha256(jsonencode(key_provider.static.source)) # This is *not recommended or secure* but serves to demonstrate the chain
+				}
+				# Since these are processed "in-order", putting the dependency after the dependent checks that the chain functions as expected
+				key_provider "static" "source" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"method-using-vars": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = var.key
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+					aad = var.aad
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
 	}
 
 	reg := lockingencryptionregistry.New()
@@ -198,6 +254,10 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 			"obj": {
 				Name:    "obj",
 				Default: cty.ListVal([]cty.Value{cty.ObjectVal(map[string]cty.Value{"key": cty.StringVal("6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169")})}),
+			},
+			"aad": {
+				Name:    "aad",
+				Default: cty.ListVal([]cty.Value{cty.NumberIntVal(4)}),
 			},
 		},
 	}
