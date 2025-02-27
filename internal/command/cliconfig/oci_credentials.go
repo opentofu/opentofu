@@ -6,7 +6,9 @@
 package cliconfig
 
 import (
+	"context"
 	"fmt"
+	"iter"
 	"path/filepath"
 	"strings"
 
@@ -17,6 +19,29 @@ import (
 	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+// OCICredentialsPolicy returns an object that encapsulates the operator's configured
+// OCI credentials policy, including both the explicitly-configured credentials and
+// any automatically-discovered "ambient" credentials.
+//
+// This should be called only on a [Config] where [Config.Validate] was already called
+// and returned no error diagnostics. Calling this on an unvalidated or invalid
+// configuration produces unspecified results, possibly including panics.
+func (c *Config) OCICredentialsPolicy() ociauthconfig.CredentialsConfigs {
+	var cfgs []ociauthconfig.CredentialsConfig
+
+	// If there are any explicitly-configured oci_credentials blocks then they always
+	// go first so that they can supersede any other configurations that cover the
+	// same repository paths with equal same precedence.
+	for _, block := range c.OCIRepositoryCredentials {
+		cfgs = append(cfgs, ociRepositoryCredentialsConfig{block})
+	}
+
+	// TODO: Analyze the OCIDefaultCredentials block, if any, and then add additional
+	// configs for whatever ambient credentials are eligible.
+
+	return ociauthconfig.NewCredentialsConfigs(cfgs)
+}
 
 // OCIDefaultCredentials corresponds to one oci_default_credentials block in
 // the CLI configuration.
@@ -482,6 +507,67 @@ func decodeOCICredentialsBlockBody(label string, body *hclast.ObjectType) (*OCIR
 	}
 
 	return ret, diags
+}
+
+// ociRepositoryCredentialsConfig is an unexported wrapper around an
+// [OCIRepositoryCredentials] object that implements [ociauthconfig.CredentialsConfig]
+// for use in [Config.OCICredentialsPolicy].
+//
+// For explicitly-configured blocks we treat each individual block as a separate
+// CredentialsConfig, because that makes the config location more explicit. (Other
+// implementations potentially use this interface to represent a whole file with
+// potentially-many credentials in it.)
+type ociRepositoryCredentialsConfig struct {
+	block *OCIRepositoryCredentials
+}
+
+var _ ociauthconfig.CredentialsConfig = ociRepositoryCredentialsConfig{}
+
+// CredentialsConfigLocationForUI implements ociauthconfig.CredentialsConfig.
+func (o ociRepositoryCredentialsConfig) CredentialsConfigLocationForUI() string {
+	// HCL 1 doesn't retain particularly useful source location information, and so
+	// we'll refer to the block by its name and label rather than by its physical
+	// location on disk.
+	return fmt.Sprintf("explicit oci_credentials %q block", o.block.RepositoryPrefix)
+}
+
+// CredentialsSourcesForRepository implements ociauthconfig.CredentialsConfig.
+func (o ociRepositoryCredentialsConfig) CredentialsSourcesForRepository(ctx context.Context, registryDomain string, repositoryPath string) iter.Seq2[ociauthconfig.CredentialsSource, error] {
+	spec := ociauthconfig.ContainersAuthPropertyNameMatch(o.block.RepositoryPrefix, registryDomain, repositoryPath)
+	if spec == ociauthconfig.NoCredentialsSpecificity {
+		// Does not match, so we'll return an empty sequence.
+		// TODO: Hopefully in future we can replace this with a stdlib helper function https://github.com/golang/go/issues/68947
+		return func(yield func(ociauthconfig.CredentialsSource, error) bool) {}
+	}
+
+	// If we get here then we have a match, so we'll return exactly one credentials source,
+	// which is really just this same object again implementing a different interface.
+	// TODO: Hopefully in future we can implement these 1-element sequences with a stdlib helper function https://github.com/golang/go/issues/68947
+	return func(yield func(ociauthconfig.CredentialsSource, error) bool) {
+		switch {
+		case o.block.Username != "":
+			// Validation checks that Username is always used with Password, so
+			// we can safely assume that here.
+			yield(ociauthconfig.NewStaticCredentialsSource(
+				ociauthconfig.NewBasicAuthCredentials(o.block.Username, o.block.Password),
+				spec,
+			), nil)
+		case o.block.AccessToken != "":
+			// Validation checks that AccessToken is always used with RefreshToken, so
+			// we can safely assume that here.
+			yield(ociauthconfig.NewStaticCredentialsSource(
+				ociauthconfig.NewOAuthCredentials(o.block.AccessToken, o.block.RefreshToken),
+				spec,
+			), nil)
+		case o.block.DockerCredentialHelper != "":
+			yield(ociauthconfig.NewDockerCredentialHelperCredentialsSource(
+				o.block.DockerCredentialHelper, "https://"+registryDomain, spec,
+			), nil)
+		default:
+			// There are no other credentials styles, so we should not get here.
+			yield(nil, fmt.Errorf("%s has no supported credentials arguments", o.CredentialsConfigLocationForUI()))
+		}
+	}
 }
 
 func validDockerCredentialHelperName(n string) bool {
