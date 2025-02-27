@@ -380,8 +380,7 @@ Options:
 
   -no-color              If specified, output won't contain any color.
 
-  -concise               Displays apply output in a concise way, skipping the
-						 progress indicator messages.
+  -concise               Disables progress-related messages in the output.
 
   -parallelism=n         Limit the number of parallel resource operations.
                          Defaults to 10.

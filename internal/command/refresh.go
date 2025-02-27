@@ -222,8 +222,7 @@ Options:
 
   -no-color              If specified, output won't contain any color.
 
-  -concise               Displays refresh output in a concise way, skipping the
-						 progress indicator messages.
+  -concise               Disables progress-related messages in the output.
 
   -parallelism=n         Limit the number of concurrent operations. Defaults to 10.
 
