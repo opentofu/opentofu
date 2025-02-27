@@ -3134,7 +3134,7 @@ func TestContext2Plan_forEachUnknownValue(t *testing.T) {
 	}
 
 	gotErrStr := diags.Err().Error()
-	wantErrStr := "Invalid for_each argument"
+	wantErrStr := "Invalid for_each set argument"
 	if !strings.Contains(gotErrStr, wantErrStr) {
 		t.Fatalf("missing expected error\ngot: %s\n\nwant: error containing %q", gotErrStr, wantErrStr)
 	}

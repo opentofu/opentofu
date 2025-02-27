@@ -121,7 +121,8 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		return nullMap, diags
 	}
 
-	forEachVal, diags = performForEachValueChecks(expr, hclCtx, allowUnknown, forEachVal, allowedTypesMessage, excludableAddr)
+	forEachVal, diags = performForEachValueChecks(expr, hclCtx, allowUnknown, allowedTypesMessage, forEachVal, excludableAddr)
+
 	if diags.HasErrors() {
 		return forEachVal, diags
 	}
@@ -130,9 +131,15 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 }
 
 // performForEachValueChecks ensures the for_each argument is valid
-func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, allowedTypesMessage string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowedTypesMessage string, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	if forEachVal.IsKnown() {
+		return performForEachValueChecksKnown(expr, hclCtx, allowUnknown, allowedTypesMessage, forEachVal, excludableAddr)
+	}
+	return performForEachValueChecksUnknown(expr, hclCtx, allowUnknown, allowedTypesMessage, forEachVal, excludableAddr)
+}
+
+func performForEachValueChecksKnown(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowedTypesMessage string, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
 	ty := forEachVal.Type()
 
 	switch {
@@ -145,39 +152,14 @@ func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 			Expression:  expr,
 			EvalContext: hclCtx,
 		})
-		return nullMap, diags
-	case !forEachVal.IsKnown():
-		if !allowUnknown {
-			var detailMsg string
-			switch {
-			case ty.IsSetType():
-				detailMsg = errInvalidUnknownDetailSet
-			default:
-				detailMsg = errInvalidUnknownDetailMap
-			}
-			detailMsg += forEachCommandLineExcludeSuggestion(excludableAddr)
-
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each argument",
-				Detail:      detailMsg,
-				Subject:     expr.Range().Ptr(),
-				Expression:  expr,
-				EvalContext: hclCtx,
-				Extra:       DiagnosticCausedByUnknown(true),
-			})
-		}
-		// ensure that we have a map, and not a DynamicValue
-		return cty.UnknownVal(cty.Map(cty.DynamicPseudoType)), diags
+		return cty.NullVal(cty.Map(cty.DynamicPseudoType)), diags
 	case markSafeLengthInt(forEachVal) == 0:
 		// If the map is empty ({}), return an empty map, because cty will
 		// return nil when representing {} AsValueMap. This also covers an empty
 		// set (toset([]))
 		return forEachVal, diags
-	}
-
-	if ty.IsSetType() {
-		setVal, setTypeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+	case ty.IsSetType():
+		setVal, setTypeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, allowedTypesMessage, forEachVal, excludableAddr)
 		diags = diags.Append(setTypeDiags)
 		if diags.HasErrors() {
 			return setVal, diags
@@ -187,10 +169,66 @@ func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 	return forEachVal, diags
 }
 
-// performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
-func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performForEachValueChecksUnknown(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowedTypesMessage string, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
+
+	if !allowUnknown {
+		var detailMsg string
+		if ty.IsSetType() {
+			detailMsg = errInvalidUnknownDetailSet
+		} else {
+			detailMsg = errInvalidUnknownDetailMap
+		}
+		detailMsg += forEachCommandLineExcludeSuggestion(excludableAddr)
+
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      detailMsg,
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByUnknown(true),
+		})
+
+		return cty.UnknownVal(cty.Map(cty.DynamicPseudoType)), diags
+	}
+
+	if ty.IsSetType() {
+		setVal, setTypeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, allowedTypesMessage, forEachVal, excludableAddr)
+		diags = diags.Append(setTypeDiags)
+		if diags.HasErrors() {
+			return setVal, diags
+		}
+		return cty.UnknownVal(cty.Set(cty.DynamicPseudoType)), diags
+	}
+
+	// ensure that we have a map, and not a DynamicValue
+	return cty.UnknownVal(cty.Map(cty.DynamicPseudoType)), diags
+}
+
+// performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
+func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowedTypesMessage string, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	ty := forEachVal.Type()
+
+	if ty.ElementType() != cty.String && ty.ElementType() != cty.DynamicPseudoType {
+		var extra interface{}
+		if !forEachVal.IsWhollyKnown() {
+			extra = DiagnosticCausedByUnknown(true)
+		}
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each set argument",
+			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the "for_each" argument must be a %s, and you have provided a value of type %s.`, allowedTypesMessage, ty.FriendlyName()),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       extra,
+		})
+		return cty.NullVal(cty.Map(cty.DynamicPseudoType)), diags
+	}
 
 	// since we can't use a set values that are unknown, we treat the
 	// entire set as unknown
@@ -198,27 +236,16 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 		if !allowUnknown {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each argument",
+				Summary:     "Invalid for_each set argument",
 				Detail:      errInvalidUnknownDetailSet + forEachCommandLineExcludeSuggestion(excludableAddr),
 				Subject:     expr.Range().Ptr(),
 				Expression:  expr,
 				EvalContext: hclCtx,
 				Extra:       DiagnosticCausedByUnknown(true),
 			})
+			return cty.UnknownVal(ty), diags
 		}
 		return cty.UnknownVal(ty), diags
-	}
-
-	if ty.ElementType() != cty.String {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid for_each set argument",
-			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing type %s.`, forEachVal.Type().ElementType().FriendlyName()),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: hclCtx,
-		})
-		return cty.NullVal(ty), diags
 	}
 
 	// A set of strings may contain null, which makes it impossible to

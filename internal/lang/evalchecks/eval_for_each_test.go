@@ -168,7 +168,16 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 			hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.BoolVal(true)})),
 			nil,
 			"Invalid for_each set argument",
-			"supports sets of strings, but you have provided a set containing type bool",
+			"must be a map, or set of strings, and you have provided a value of type set of bool.",
+			false, false,
+		},
+		"set containing objects": {
+			hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.ObjectVal(map[string]cty.Value{
+				"a": cty.StringVal("1"),
+			})})),
+			nil,
+			"Invalid for_each set argument",
+			"argument must be a map, or set of strings, and you have provided a value of type set of object.",
 			false, false,
 		},
 		"set containing null": {
@@ -181,7 +190,7 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 		"set containing unknown value": {
 			hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.UnknownVal(cty.String)})),
 			nil,
-			"Invalid for_each argument",
+			"Invalid for_each set argument",
 			"The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\nAlternatively, you could use the -target option to first apply only the resources that for_each depends on, and then apply normally to converge.",
 			true, false,
 		},
@@ -192,14 +201,14 @@ func TestEvaluateForEachExpression_errors(t *testing.T) {
 				Name: "foo",
 				Type: "bar",
 			}.Absolute(addrs.RootModuleInstance.Child("a", addrs.NoKey)),
-			"Invalid for_each argument",
+			"Invalid for_each set argument",
 			"The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\nAlternatively, you could use the planning option -exclude=module.a.bar.foo to first apply without this object, and then apply normally to converge.",
 			true, false,
 		},
 		"set containing dynamic unknown value": {
 			hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.UnknownVal(cty.DynamicPseudoType)})),
 			nil,
-			"Invalid for_each argument",
+			"Invalid for_each set argument",
 			"set includes values derived from resource attributes that cannot be determined until apply",
 			true, false,
 		},
@@ -492,6 +501,66 @@ func TestForEachCommandLineExcludeSuggestion(t *testing.T) {
 			got := forEachCommandLineExcludeSuggestionImpl(test.excludableAddr, test.goos)
 			if got != test.want {
 				t.Errorf("wrong suggestion\ngot:  %s\nwant: %s", got, test.want)
+			}
+		})
+	}
+}
+
+// The previous tests are not testing the validate phase, that is configured with
+// allowingUnknowns as true. This test deals with this special case.
+func TestForEachValidation_errors(t *testing.T) {
+	tests := map[string]struct {
+		Expr                               hcl.Expression
+		ExcludableAddr                     addrs.Targetable
+		Summary, DetailSubstring           string
+		CausedByUnknown, CausedBySensitive bool
+	}{
+		"set containing unknown values": {
+			hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{
+				"route_addrs": cty.String,
+				"cidr":        cty.String,
+			})))),
+			nil,
+			"Invalid for_each set argument",
+			"provided a value of type set of object",
+			true, false,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			allowUnknown := true
+			allowTuple := false
+			_, diags := EvaluateForEachExpressionValue(test.Expr, mockRefsFunc(), allowUnknown, allowTuple, test.ExcludableAddr)
+
+			if len(diags) != 1 {
+				t.Fatalf("got %d diagnostics; want 1", diags)
+			}
+			if got, want := diags[0].Severity(), tfdiags.Error; got != want {
+				t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+			}
+			if got, want := diags[0].Description().Summary, test.Summary; got != want {
+				t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := diags[0].Description().Detail, test.DetailSubstring; !strings.Contains(got, want) {
+				t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+			}
+			if fromExpr := diags[0].FromExpr(); fromExpr != nil {
+				if fromExpr.Expression == nil {
+					t.Errorf("diagnostic does not refer to an expression")
+				}
+				if fromExpr.EvalContext == nil {
+					t.Errorf("diagnostic does not refer to an EvalContext")
+				}
+			} else {
+				t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[0]))
+			}
+
+			if got, want := tfdiags.DiagnosticCausedByUnknown(diags[0]), test.CausedByUnknown; got != want {
+				t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown\ngot:  %#v\nwant: %#v", got, want)
+			}
+			if got, want := tfdiags.DiagnosticCausedBySensitive(diags[0]), test.CausedBySensitive; got != want {
+				t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
 			}
 		})
 	}
