@@ -297,7 +297,7 @@ Other Options:
   -no-color                  If specified, output won't contain any color.
 
   -concise                   Displays plan output in a concise way, skipping the
-							 refreshing log lines.
+							 progress indicator messages.
 
   -out=path                  Write a plan file to the given path. This can be
                              used as input to the "apply" command.
