@@ -21,7 +21,7 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 		traversal, travDiags := hcl.RelTraversalForExpr(target.Method)
 		diags = diags.Extend(travDiags)
 		if !travDiags.HasErrors() {
-			if len(traversal) != 3 {
+			if len(traversal) != 3 { //nolint:mnd // linting
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid encryption method identifier",
@@ -64,7 +64,7 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 		}
 
 		// Attempt to fetch the fallback method if it's been configured
-		targetName = targetName + ".fallback"
+		targetName += ".fallback"
 		target = target.Fallback
 	}
 
