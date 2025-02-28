@@ -24,7 +24,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestBaseEncryption_buildTargetMethods(t *testing.T) {
+func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]btmTestCase{
