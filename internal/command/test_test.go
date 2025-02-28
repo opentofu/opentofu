@@ -828,10 +828,13 @@ func TestTest_Modules(t *testing.T) {
 			expected: "main.tftest.hcl... pass\n  run \"first_apply\"... pass\n  run \"second_apply\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
 		},
-		//"run_mod_output_in_provider_block": {
-		//	expected: "main.tftest.hcl... pass\n  run \"test\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
-		//	code:     0,
-		//},
+		"run_mod_output_in_provider_block": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+		},
+		"run_mod_output_in_provider_block_undefined_ref": {
+			code: 1,
+		},
 	}
 
 	for name, tc := range tcs {
@@ -884,10 +887,12 @@ func TestTest_Modules(t *testing.T) {
 				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
 			}
 
-			actual := output.All()
-
-			if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
-				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+			// If we're not expecting a failure, we can compare the output.
+			if code != 1 {
+				actual := output.All()
+				if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
+					t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+				}
 			}
 
 			if provider.ResourceCount() > 0 {

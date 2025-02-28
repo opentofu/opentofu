@@ -3,8 +3,10 @@ variables {
 }
 
 provider "test" {
-  username = var.username
+  # Invalid ref to run.setup.username
+  username = run.setup.username
   password = run.setup.password
+
 }
 
 run "setup" {
