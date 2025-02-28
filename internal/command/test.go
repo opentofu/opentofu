@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"log"
 	"path"
 	"sort"
@@ -507,6 +508,40 @@ func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *modulet
 	}
 }
 
+// transformTestFileProviderConfigs replaces run block variable references with their literal values
+func transformTestFileProviderConfigs(file *moduletest.File, evalCtx *hcl.EvalContext) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	if !evalCtx.Variables["run"].IsNull() && len(evalCtx.Variables["run"].AsValueMap()) > 0 {
+		for _, provider := range file.Config.Providers {
+			body, ok := provider.Config.(*hclsyntax.Body)
+			if !ok {
+				break
+			}
+			attrs, diag := provider.Config.JustAttributes()
+			diags = diags.Append(diag)
+			if attrs != nil {
+				for name, attr := range attrs {
+					vars := attr.Expr.Variables()
+					if len(vars) == 0 || vars[0].RootName() != "run" {
+						continue
+					}
+					val, diag := attr.Expr.Value(evalCtx)
+					if diag.HasErrors() {
+						diags = diags.Append(diag)
+						continue
+					}
+					body.Attributes[name] = &hclsyntax.Attribute{
+						Expr: &hclsyntax.LiteralValueExpr{
+							Val: val,
+						},
+					}
+				}
+			}
+		}
+	}
+	return diags
+}
+
 func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletest.Run, file *moduletest.File, state *states.State, config *configs.Config) (*states.State, bool) {
 	log.Printf("[TRACE] TestFileRunner: executing run block %s/%s", file.Name, run.Name)
 
@@ -542,6 +577,16 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	if configDiags.HasErrors() {
 		run.Status = moduletest.Error
 		return state, false
+	}
+
+	evalCtx, evalDiags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
+	run.Diagnostics = run.Diagnostics.Append(evalDiags)
+
+	diags := transformTestFileProviderConfigs(file, evalCtx)
+	run.Diagnostics = run.Diagnostics.Append(diags)
+	if run.Diagnostics.HasErrors() {
+		run.Status = moduletest.Error
+		return state, true
 	}
 
 	validateDiags := runner.validate(ctx, config, run, file)
