@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"log"
 	"path"
 	"sort"
@@ -17,6 +16,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/exp/slices"
 
@@ -519,22 +519,20 @@ func transformTestFileProviderConfigs(file *moduletest.File, evalCtx *hcl.EvalCo
 			}
 			attrs, diag := provider.Config.JustAttributes()
 			diags = diags.Append(diag)
-			if attrs != nil {
-				for name, attr := range attrs {
-					vars := attr.Expr.Variables()
-					if len(vars) == 0 || vars[0].RootName() != "run" {
-						continue
-					}
-					val, diag := attr.Expr.Value(evalCtx)
-					if diag.HasErrors() {
-						diags = diags.Append(diag)
-						continue
-					}
-					body.Attributes[name] = &hclsyntax.Attribute{
-						Expr: &hclsyntax.LiteralValueExpr{
-							Val: val,
-						},
-					}
+			for name, attr := range attrs {
+				vars := attr.Expr.Variables()
+				if len(vars) == 0 || vars[0].RootName() != "run" {
+					continue
+				}
+				val, diag := attr.Expr.Value(evalCtx)
+				if diag.HasErrors() {
+					diags = diags.Append(diag)
+					continue
+				}
+				body.Attributes[name] = &hclsyntax.Attribute{
+					Expr: &hclsyntax.LiteralValueExpr{
+						Val: val,
+					},
 				}
 			}
 		}
