@@ -1822,6 +1822,23 @@ func TestTranspose(t *testing.T) {
 			}).WithMarks(cty.NewValueMarks("beep", "boop", "bloop")),
 			false,
 		},
+		{ // Null value must be rejected because map keys cannot be null
+			cty.MapVal(map[string]cty.Value{
+				"key1": cty.ListVal([]cty.Value{
+					cty.StringVal("a"),
+					cty.NullVal(cty.String),
+				}),
+			}),
+			cty.NilVal,
+			true,
+		},
+		{ // Null list must be rejected, too
+			cty.MapVal(map[string]cty.Value{
+				"key1": cty.NullVal(cty.List(cty.String)),
+			}),
+			cty.NilVal,
+			true,
+		},
 	}
 
 	for _, test := range tests {
