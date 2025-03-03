@@ -140,7 +140,9 @@ enough from the UX point of view to potentially be extended for other purposes. 
 OpenTofu users. Deprecation marks could help reuse parts of the implementation (evaluation checks) to handle more `deprecation`
 flags in the future.
 
-Also, we want to keep compatibility with Terraform's deprecation mechanisms.
+At the time of writing, Terraform haven't yet released deprecation mechanism for module variables and outputs, so
+we are going to mark that feature as experimental in order to tweak UX in the future if needed. That way we are
+going to keep compatibility with the upstream project.
 
 ## Potential Alternatives
 
