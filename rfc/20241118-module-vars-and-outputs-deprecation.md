@@ -86,13 +86,18 @@ deprecation warning as specified by module author:
 #### Silencing deprecation warnings for dependencies
 
 If the module is not controlled by the configuration author, it makes sense to optionally ignore deprecation warnings raised in such
-a module. This could be presented in two different ways: globally for all non-local module calls or on per-module
+a module. I will be refering to local and non-local modules, which contain module calls with deprecated variables or outputs. By local
+modules, I mean modules fetched from local filesystem and for non-local modules, it means they are fetched from remote systems. This
+separation helps with defining what module configuration users control. For example, module calls with deprecation warnings in local
+modules (even non-root ones) could be fixed by a configuration author, thus shouldn't be ignored.
+
+Silencing deprecation warnings could be presented in two different ways: globally for all non-local modules or on per-module
 basis. This setting shouldn't be a part of a module call block since there could be multiple calls for the same module and each such
 call should either produce or silence the warnings.
 
 In this RFC I suggest to allow users to control module deprecation warnings via a CLI flag: `module-deprecation-warnings`, which may
-have the following values: `all` (default) or `local` (raise deprecation warnings only from usage inside of the local modules). This
-could be extended later to include other options such as `none` to disable the deprecation warnings altogether.
+have the following values: `all` (default) or `local` (raise deprecation warnings only from module calls inside the local modules).
+This could be extended later to include other options such as `none` to disable the deprecation warnings altogether.
 
 ### Technical Approach
 
