@@ -37,13 +37,13 @@ should accept a required string value for a warning message:
 variable "this_is_my_variable" {
   type        = string
   description = "This is a variable for the old way of configuring things."
-  deprecated  = "This variable will be removed on 2024-12-31. Use that_is_my_variable instead."
+  deprecated  = "This variable will be removed on 2024-12-31. Use another_variable instead."
 }
 
 output "this_is_my_output" {
   value       = some_resource.some_name.some_field
   description = "This is an output for the old way of using things."
-  deprecated  = "This output will be removed on 2024-12-31. Use that_is_my_output instead."
+  deprecated  = "This output will be removed on 2024-12-31. Use another_output instead."
 }
 ```
 
@@ -58,7 +58,7 @@ specified by module author:
 │   on mod/main.tf line 9, in module call "mod":
 │    9:     this_is_my_variable = "something"
 │ 
-│ This variable will be removed on 2024-12-31. Use that_is_my_variable instead.
+│ This variable will be removed on 2024-12-31. Use another_variable instead.
 ```
 
 > [!NOTE]
@@ -80,7 +80,7 @@ deprecation warning as specified by module author:
 │ This value is derived from module.mod.this_is_my_output, which is
 │ deprecated with the following message:
 |
-| This output will be removed on 2024-12-31. Use that_is_my_output instead.
+| This output will be removed on 2024-12-31. Use another_output instead.
 ```
 
 #### Silencing deprecation warnings for dependencies
@@ -153,7 +153,7 @@ of functionality to be used across the OpenTofu. It would require a separate RFC
 evolve.
 
 ```hcl
-# @deprecated: This variable will be removed on 2024-12-31. Use that_is_my_variable instead.
+# @deprecated: This variable will be removed on 2024-12-31. Use another_variable instead.
 variable "this_is_my_variable" {
   type = string
   description = "This is a variable for the old way of configuring things."
@@ -175,7 +175,7 @@ variable "this_is_my_variable" {
 
 deprecation "this_is_my_variable" {
   type = "variable"
-  message = "This variable will be removed on 2024-12-31. Use that_is_my_variable instead."
+  message = "This variable will be removed on 2024-12-31. Use another_variable instead."
 }
 ```
 
@@ -191,7 +191,7 @@ variable "this_is_my_variable" {
   
   validation {
     condition     = var.this_is_my_variable != null
-    warning_message = "This variable will be removed on 2024-12-31. Use that_is_my_variable instead."
+    warning_message = "This variable will be removed on 2024-12-31. Use another_variable instead."
   }
 }
 ```
@@ -201,6 +201,6 @@ variable "this_is_my_variable" {
 ```hcl
 variable "this_is_my_variable" {
   type = string
-  description = "This is a variable for the old way of configuring things. @deprecated{ This variable will be removed on 2024-12-31. Use that_is_my_variable instead. }"
+  description = "This is a variable for the old way of configuring things. @deprecated{ This variable will be removed on 2024-12-31. Use another_variable instead. }"
 }
 ```
