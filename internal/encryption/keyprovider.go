@@ -82,7 +82,7 @@ func filterKeyProviderReferences(cfg *config.EncryptionConfig, deps []hcl.Traver
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid Key Provider expression format",
-				Detail:   "Expected key_provider.<type>.<name>",
+				Detail:   "The key_provider symbol must be followed by two more attribute names specifying the type and name of the selected key provider.",
 				Subject:  dep.SourceRange().Ptr(),
 			})
 			continue
