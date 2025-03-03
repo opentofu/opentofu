@@ -69,7 +69,6 @@ func filterKeyProviderReferences(cfg *config.EncryptionConfig, deps []hcl.Traver
 			continue
 		}
 
-		//nolint:errcheck // This will always be a TraverseRoot, panic is OK if that's not the case
 		depRoot := dep.RootName()
 		if depRoot != "key_provider" {
 			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
