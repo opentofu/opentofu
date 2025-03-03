@@ -148,7 +148,7 @@ func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig
 				Severity: hcl.DiagError,
 				Summary:  "Circular reference detected",
 				// TODO add the stack trace to the detail message
-				Detail: fmt.Sprintf("Can not load %q due to circular reference", addr),
+				Detail: fmt.Sprintf("Cannot load %s due to circular reference between key providers.", addr),
 			})
 		}
 	}
