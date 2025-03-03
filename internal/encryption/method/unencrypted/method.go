@@ -20,12 +20,12 @@ func (f *descriptor) ID() method.ID {
 	return "unencrypted"
 }
 func (f *descriptor) ConfigStruct() method.Config {
-	return new(mconfig)
+	return new(methodConfig)
 }
 
-type mconfig struct{}
+type methodConfig struct{}
 
-func (c *mconfig) Build() (method.Method, error) {
+func (c *methodConfig) Build() (method.Method, error) {
 	return new(unenc), nil
 }
 
