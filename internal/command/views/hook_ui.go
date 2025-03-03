@@ -35,6 +35,13 @@ func NewUiHook(view *View) *UiHook {
 	}
 }
 
+func NewUIOptionalHook(view *View) tofu.Hook {
+	if view.concise {
+		return &tofu.NilHook{}
+	}
+	return NewUiHook(view)
+}
+
 type UiHook struct {
 	tofu.NilHook
 
