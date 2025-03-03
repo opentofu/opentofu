@@ -95,8 +95,8 @@ func filterKeyProviderReferences(cfg *config.EncryptionConfig, deps []hcl.Traver
 		if !ok {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Undefined Key Provider",
-				Detail:   fmt.Sprintf("Key provider %s.%s is missing from the encryption configuration.", depType, depName),
+				Summary:  "Reference to undeclared key provider",
+				Detail:   fmt.Sprintf("There is no key_provider %q %q block declared in the encryption block.", depType, depName),
 				Subject:  dep.SourceRange().Ptr(),
 			})
 			continue
