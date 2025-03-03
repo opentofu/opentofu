@@ -18,7 +18,7 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 	var methods []config.MethodConfig
 
 	for target != nil {
-		traversal, travDiags := hcl.RelTraversalForExpr(target.Method)
+		traversal, travDiags := hcl.AbsTraversalForExpr(target.Method)
 		diags = diags.Extend(travDiags)
 		if !travDiags.HasErrors() {
 			if len(traversal) != 3 { //nolint:mnd // linting
@@ -30,11 +30,10 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 				})
 				continue
 			}
-			mRoot, okRoot := traversal[0].(hcl.TraverseAttr)
 			mType, okType := traversal[1].(hcl.TraverseAttr)
 			mName, okName := traversal[2].(hcl.TraverseAttr)
 
-			if !okRoot || mRoot.Name != "method" || !okType || !okName {
+			if traversal.RootName() != "method" || !okType || !okName {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid encryption method identifier",
@@ -56,8 +55,8 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 				// We can't continue if the method is not found
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Undefined encryption method",
-					Detail:   fmt.Sprintf("Can not find \"%s.%s.%s\" for %s", mRoot.Name, mType.Name, mName.Name, targetName),
+					Summary:  "Reference to undeclared encryption method",
+					Detail:   fmt.Sprintf("There is no method %q %q block declared in the encryption block.", mType.Name, mName.Name),
 					Subject:  target.Method.Range().Ptr(),
 				})
 			}
@@ -74,7 +73,8 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 				return nil, append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Unencrypted method is forbidden",
-					Detail:   "Unable to use `unencrypted` method since the `enforced` flag is used.",
+					Detail:   `Unable to use unencrypted method since the enforced flag is set.`,
+					Subject:  cfg.DeclRange.Ptr(),
 				})
 			}
 		}

@@ -53,7 +53,7 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 					method = method.aes_gcm.example
 				}
 			`,
-			wantErr: `Test Config Source:3,13-38: Undefined Key Provider; Key provider static.basic is missing from the encryption configuration.`,
+			wantErr: `Test Config Source:3,13-38: Reference to undeclared key provider; There is no key_provider "static" "basic" block declared in the encryption block.`,
 		},
 		"fallback": {
 			rawConfig: `
@@ -114,7 +114,7 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 					}
 				}
 			`,
-			wantErr: "<nil>: Unencrypted method is forbidden; Unable to use `unencrypted` method since the `enforced` flag is used.",
+			wantErr: "Test Config Source:0,0-0: Unencrypted method is forbidden; Unable to use unencrypted method since the enforced flag is set.",
 		},
 		"key-from-vars": {
 			rawConfig: `
@@ -174,7 +174,7 @@ func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 					method = method.aes_gcm.example
 				}
 			`,
-			wantErr: "Test Config Source:3,12-34: Invalid Key Provider expression format; Expected key_provider.<type>.<name>",
+			wantErr: "Test Config Source:3,12-34: Invalid Key Provider expression format; The key_provider symbol must be followed by two more attribute names specifying the type and name of the selected key provider.",
 		},
 		"unused-key-provider": {
 			rawConfig: `
