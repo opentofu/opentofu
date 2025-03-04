@@ -36,7 +36,7 @@ The Technical Steering Committee is a group comprised of people from companies a
 ### Agenda
 
 - CNCF update: all information has been shared with the board.
-- LF update: ongoing communication with FL on OpenTofu manifesto.
+- LF update: ongoing communication with FL on OpenTofu charter.
 
 ### Discussion
 
@@ -53,7 +53,7 @@ The Technical Steering Committee is a group comprised of people from companies a
 ### Agenda
 
 - Publishing OCI survey results:
-  - Vote to publish blog postwith summary of data, decisions made from the data, and gratitude to community for time and effort contrbuting and the survey and improving OpenTofu.
+  - Vote to publish blog post with summary of data, decisions made from the data, and gratitude to community for time and effort contrbuting and the survey and improving OpenTofu.
 - Release timeline:
   - Core team happier to work with a specific time period rather than a fixed number of versions.
   - e.g. "We'll support releases for at least 1 calander year".
