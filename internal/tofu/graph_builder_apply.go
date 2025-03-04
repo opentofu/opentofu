@@ -67,6 +67,8 @@ type ApplyGraphBuilder struct {
 	ExternalReferences []*addrs.Reference
 
 	ProviderFunctionTracker ProviderFunctionMapping
+
+	ModuleDeprecationWarnings DeprecatedWarningLevel
 }
 
 // See GraphBuilder
@@ -111,7 +113,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 
 		// Add dynamic values
 		&RootVariableTransformer{Config: b.Config, RawValues: b.RootVariableValues},
-		&ModuleVariableTransformer{Config: b.Config},
+		&ModuleVariableTransformer{Config: b.Config, ModuleDeprecatedWarning: b.ModuleDeprecationWarnings},
 		&LocalTransformer{Config: b.Config},
 		&OutputTransformer{
 			Config:     b.Config,

@@ -96,6 +96,12 @@ type PlanGraphBuilder struct {
 	// If empty, then config will not be generated.
 	GenerateConfigPath string
 
+	// GenerateConfig tells OpenTofu where to write and generated config for
+	// any import targets that do not already have configuration.
+	//
+	// If empty, then config will not be generated.
+	ModuleDeprecatedWarning DeprecatedWarningLevel
+
 	ProviderFunctionTracker ProviderFunctionMapping
 }
 
@@ -140,7 +146,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 
 		// Add dynamic values
 		&RootVariableTransformer{Config: b.Config, RawValues: b.RootVariableValues},
-		&ModuleVariableTransformer{Config: b.Config},
+		&ModuleVariableTransformer{Config: b.Config, ModuleDeprecatedWarning: b.ModuleDeprecatedWarning},
 		&LocalTransformer{Config: b.Config},
 		&OutputTransformer{
 			Config:      b.Config,

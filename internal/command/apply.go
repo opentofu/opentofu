@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // ApplyCommand is a Command implementation that applies a OpenTofu
@@ -122,7 +123,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
+	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, args.ModuleDeprecationWarnings, enc)
 	diags = diags.Append(opDiags)
 
 	// Before we delegate to the backend, we'll print any warning diagnostics
@@ -267,6 +268,7 @@ func (c *ApplyCommand) OperationRequest(
 	planFile *planfile.WrappedPlanFile,
 	args *arguments.Operation,
 	autoApprove bool,
+	moduleDeprecatedWarning string,
 	enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -287,6 +289,7 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.Targets = args.Targets
 	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace
+	opReq.ModuleDeprecatedWarning = tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning)
 	opReq.Type = backend.OperationTypeApply
 	opReq.View = view.Operation()
 
@@ -391,6 +394,12 @@ Options:
                          state.
 
   -show-sensitive        If specified, sensitive values will be displayed.
+
+  -deprecation-warn=all  Specify what type of warnings are shown. Accepted
+                         values: all, local. When "all" is selected, OpenTofu
+                         will show the deprecation warnings for all modules.
+                         When "local" is selected, the warns will be shown
+                         only for the local modules.
 
   -json                  Produce output in a machine-readable JSON format,
                          suitable for use in text editor integrations and 

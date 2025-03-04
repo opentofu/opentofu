@@ -27,7 +27,7 @@ import (
 // such as root module input variables. However, the Plan function includes
 // all of the same checks as Validate, in addition to the other work it does
 // to consider the previous run state and the planning options.
-func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.Diagnostics {
+func (c *Context) Validate(ctx context.Context, config *configs.Config, moduleDeprecatedWarning DeprecatedWarningLevel) tfdiags.Diagnostics {
 	defer c.acquireRun("validate")()
 
 	var diags tfdiags.Diagnostics
@@ -70,6 +70,7 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		RootVariableValues:      varValues,
 		Operation:               walkValidate,
 		ProviderFunctionTracker: providerFunctionTracker,
+		ModuleDeprecatedWarning: moduleDeprecatedWarning,
 	}).Build(addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {

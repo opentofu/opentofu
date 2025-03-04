@@ -30,9 +30,13 @@ type ConsoleCommand struct {
 func (c *ConsoleCommand) Run(args []string) int {
 	ctx := c.CommandContext()
 
+	var (
+		moduleDeprecatedWarning string
+	)
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("console")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
+	cmdFlags.StringVar(&moduleDeprecatedWarning, "deprecation-warn", "all", "all")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command line flags: %s\n", err.Error()))
@@ -135,7 +139,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		ErrorWriter: os.Stderr,
 	}
 
-	evalOpts := &tofu.EvalOpts{}
+	evalOpts := &tofu.EvalOpts{ModuleDeprecationWarnings: tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning)}
 	if lr.PlanOpts != nil {
 		// the LocalRun type is built primarily to support the main operations,
 		// so the variable values end up in the "PlanOpts" even though we're

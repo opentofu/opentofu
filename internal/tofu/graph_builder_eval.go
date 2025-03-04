@@ -45,6 +45,8 @@ type EvalGraphBuilder struct {
 	Plugins *contextPlugins
 
 	ProviderFunctionTracker ProviderFunctionMapping
+
+	ModuleDeprecationWarnings DeprecatedWarningLevel
 }
 
 // See GraphBuilder
@@ -72,7 +74,7 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 
 		// Add dynamic values
 		&RootVariableTransformer{Config: b.Config, RawValues: b.RootVariableValues},
-		&ModuleVariableTransformer{Config: b.Config},
+		&ModuleVariableTransformer{Config: b.Config, ModuleDeprecatedWarning: b.ModuleDeprecationWarnings},
 		&LocalTransformer{Config: b.Config},
 		&OutputTransformer{
 			Config:   b.Config,

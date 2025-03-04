@@ -25,12 +25,13 @@ func TestParseApply_basicValid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Apply{
-				AutoApprove:  false,
-				InputEnabled: true,
-				PlanPath:     "",
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove:               false,
+				InputEnabled:              true,
+				PlanPath:                  "",
+				ViewType:                  ViewHuman,
+				State:                     &State{Lock: true},
+				Vars:                      &Vars{},
+				ModuleDeprecationWarnings: "all",
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -41,12 +42,13 @@ func TestParseApply_basicValid(t *testing.T) {
 		"auto-approve, disabled input, and plan path": {
 			[]string{"-auto-approve", "-input=false", "saved.tfplan"},
 			&Apply{
-				AutoApprove:  true,
-				InputEnabled: false,
-				PlanPath:     "saved.tfplan",
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove:               true,
+				InputEnabled:              false,
+				PlanPath:                  "saved.tfplan",
+				ViewType:                  ViewHuman,
+				State:                     &State{Lock: true},
+				Vars:                      &Vars{},
+				ModuleDeprecationWarnings: "all",
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -57,12 +59,13 @@ func TestParseApply_basicValid(t *testing.T) {
 		"destroy mode": {
 			[]string{"-destroy"},
 			&Apply{
-				AutoApprove:  false,
-				InputEnabled: true,
-				PlanPath:     "",
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove:               false,
+				InputEnabled:              true,
+				PlanPath:                  "",
+				ViewType:                  ViewHuman,
+				State:                     &State{Lock: true},
+				Vars:                      &Vars{},
+				ModuleDeprecationWarnings: "all",
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
@@ -73,12 +76,13 @@ func TestParseApply_basicValid(t *testing.T) {
 		"JSON view disables input": {
 			[]string{"-json", "-auto-approve"},
 			&Apply{
-				AutoApprove:  true,
-				InputEnabled: false,
-				PlanPath:     "",
-				ViewType:     ViewJSON,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove:               true,
+				InputEnabled:              false,
+				PlanPath:                  "",
+				ViewType:                  ViewJSON,
+				State:                     &State{Lock: true},
+				Vars:                      &Vars{},
+				ModuleDeprecationWarnings: "all",
 				Operation: &Operation{
 					PlanMode:    plans.NormalMode,
 					Parallelism: 10,
@@ -415,11 +419,12 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Apply{
-				AutoApprove:  false,
-				InputEnabled: true,
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove:               false,
+				InputEnabled:              true,
+				ViewType:                  ViewHuman,
+				State:                     &State{Lock: true},
+				Vars:                      &Vars{},
+				ModuleDeprecationWarnings: "all",
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,
@@ -430,11 +435,12 @@ func TestParseApplyDestroy_basicValid(t *testing.T) {
 		"auto-approve and disabled input": {
 			[]string{"-auto-approve", "-input=false"},
 			&Apply{
-				AutoApprove:  true,
-				InputEnabled: false,
-				ViewType:     ViewHuman,
-				State:        &State{Lock: true},
-				Vars:         &Vars{},
+				AutoApprove:               true,
+				InputEnabled:              false,
+				ViewType:                  ViewHuman,
+				State:                     &State{Lock: true},
+				Vars:                      &Vars{},
+				ModuleDeprecationWarnings: "all",
 				Operation: &Operation{
 					PlanMode:    plans.DestroyMode,
 					Parallelism: 10,

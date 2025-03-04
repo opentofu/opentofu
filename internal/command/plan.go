@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // PlanCommand is a Command implementation that compares a OpenTofu
@@ -93,7 +94,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
+	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, args.ModuleDeprecationWarnings, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -155,6 +156,7 @@ func (c *PlanCommand) OperationRequest(
 	args *arguments.Operation,
 	planOutPath string,
 	generateConfigOut string,
+	moduleDeprecatedWarning string,
 	enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -167,6 +169,7 @@ func (c *PlanCommand) OperationRequest(
 	opReq.PlanRefresh = args.Refresh
 	opReq.PlanOutPath = planOutPath
 	opReq.GenerateConfigOut = generateConfigOut
+	opReq.ModuleDeprecatedWarning = tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning)
 	opReq.Targets = args.Targets
 	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace
@@ -310,6 +313,12 @@ Other Options:
                              information.
 
   -show-sensitive            If specified, sensitive values will be displayed.
+
+  -deprecation-warn=all      Specify what type of warnings are shown. Accepted
+                             values: all, local. When "all" is selected, OpenTofu
+                             will show the deprecation warnings for all modules.
+                             When "local" is selected, the warns will be shown
+                             only for the local modules.
 
   -json                      Produce output in a machine-readable JSON format, 
                              suitable for use in text editor integrations and 

@@ -26,6 +26,9 @@ type nodeVariableReference struct {
 	Module addrs.Module
 	Config *configs.Variable
 	Expr   hcl.Expression // Used for diagnostics only
+
+	ModuleDeprecatedWarning DeprecatedWarningLevel
+	ModuleSource            addrs.ModuleSource
 }
 
 var (
@@ -68,6 +71,9 @@ func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
 			Addr:   addr,
 			Config: n.Config,
 			Expr:   n.Expr,
+
+			ModuleDeprecatedWarning: n.ModuleDeprecatedWarning,
+			ModuleSource:            n.ModuleSource,
 		}
 		g.Add(o)
 	}
@@ -118,6 +124,9 @@ type nodeVariableReferenceInstance struct {
 	Addr   addrs.AbsInputVariableInstance
 	Config *configs.Variable // Config is the var in the config
 	Expr   hcl.Expression    // Used for diagnostics only
+
+	ModuleDeprecatedWarning DeprecatedWarningLevel
+	ModuleSource            addrs.ModuleSource
 }
 
 // Ensure that we are implementing all of the interfaces we think we are
@@ -146,7 +155,10 @@ func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
 func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
 	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
-	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, ctx))
+	// NOTE: We want to guard against panics in case nodeVariableReferenceInstance is misused
+	if n.ModuleDeprecatedWarning != nil {
+		diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, ctx, n.ModuleDeprecatedWarning, n.ModuleSource))
+	}
 
 	if op == walkValidate {
 		var filtered tfdiags.Diagnostics

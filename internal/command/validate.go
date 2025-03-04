@@ -62,7 +62,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)
 
-	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests)
+	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests, args.ModuleDeprecationWarnings)
 	diags = diags.Append(validateDiags)
 
 	// Validating with dev overrides in effect means that the result might
@@ -91,7 +91,7 @@ func (c *ValidateCommand) GatherVariables(args *arguments.Vars) {
 	c.Meta.variableArgs = rawFlags{items: &items}
 }
 
-func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool) tfdiags.Diagnostics {
+func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool, moduleDeprecatedWarning string) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	var cfg *configs.Config
 
@@ -119,7 +119,7 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 			return diags
 		}
 
-		return diags.Append(tfCtx.Validate(ctx, cfg))
+		return diags.Append(tfCtx.Validate(ctx, cfg, tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning)))
 	}
 
 	diags = diags.Append(validate(cfg))

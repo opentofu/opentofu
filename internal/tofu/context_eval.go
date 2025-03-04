@@ -18,6 +18,8 @@ import (
 
 type EvalOpts struct {
 	SetVariables InputValues
+
+	ModuleDeprecationWarnings DeprecatedWarningLevel
 }
 
 // Eval produces a scope in which expressions can be evaluated for
@@ -68,11 +70,12 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
 	graph, moreDiags := (&EvalGraphBuilder{
-		Config:                  config,
-		State:                   state,
-		RootVariableValues:      variables,
-		Plugins:                 c.plugins,
-		ProviderFunctionTracker: providerFunctionTracker,
+		Config:                    config,
+		State:                     state,
+		RootVariableValues:        variables,
+		Plugins:                   c.plugins,
+		ProviderFunctionTracker:   providerFunctionTracker,
+		ModuleDeprecationWarnings: opts.ModuleDeprecationWarnings,
 	}).Build(addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {

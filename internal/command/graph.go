@@ -32,6 +32,7 @@ func (c *GraphCommand) Run(args []string) int {
 	var moduleDepth int
 	var verbose bool
 	var planPath string
+	var moduleDeprecatedWarning string // TODO andrei update the help section
 
 	ctx := c.CommandContext()
 
@@ -43,6 +44,7 @@ func (c *GraphCommand) Run(args []string) int {
 	cmdFlags.IntVar(&moduleDepth, "module-depth", -1, "module-depth")
 	cmdFlags.BoolVar(&verbose, "verbose", false, "verbose")
 	cmdFlags.StringVar(&planPath, "plan", "", "plan")
+	cmdFlags.StringVar(&moduleDeprecatedWarning, "deprecation-warn", "all", "plan")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
@@ -201,7 +203,7 @@ func (c *GraphCommand) Run(args []string) int {
 			}
 		}
 
-		g, graphDiags = lr.Core.ApplyGraphForUI(plan, lr.Config)
+		g, graphDiags = lr.Core.ApplyGraphForUI(plan, lr.Config, tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning))
 	case "eval", "validate":
 		// Terraform v0.12 through v1.0 supported both of these, but the
 		// graph variants for "eval" and "validate" are purely implementation

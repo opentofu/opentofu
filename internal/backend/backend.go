@@ -320,6 +320,10 @@ type Operation struct {
 	// for unmatched import targets and where any generated config should be
 	// written to.
 	GenerateConfigOut string
+	// GenerateConfigOut tells the operation both that it should generate config
+	// for unmatched import targets and where any generated config should be
+	// written to.
+	ModuleDeprecatedWarning tofu.DeprecatedWarningLevel
 }
 
 // HasConfig returns true if and only if the operation has a ConfigDir value

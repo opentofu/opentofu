@@ -22,42 +22,47 @@ func TestParseValidate_valid(t *testing.T) {
 		"defaults": {
 			nil,
 			&Validate{
-				Path:          ".",
-				TestDirectory: "tests",
-				ViewType:      ViewHuman,
+				Path:                      ".",
+				TestDirectory:             "tests",
+				ViewType:                  ViewHuman,
+				ModuleDeprecationWarnings: "all",
 			},
 		},
 		"json": {
 			[]string{"-json"},
 			&Validate{
-				Path:          ".",
-				TestDirectory: "tests",
-				ViewType:      ViewJSON,
+				Path:                      ".",
+				TestDirectory:             "tests",
+				ViewType:                  ViewJSON,
+				ModuleDeprecationWarnings: "all",
 			},
 		},
 		"path": {
 			[]string{"-json", "foo"},
 			&Validate{
-				Path:          "foo",
-				TestDirectory: "tests",
-				ViewType:      ViewJSON,
+				Path:                      "foo",
+				TestDirectory:             "tests",
+				ViewType:                  ViewJSON,
+				ModuleDeprecationWarnings: "all",
 			},
 		},
 		"test-directory": {
 			[]string{"-test-directory", "other"},
 			&Validate{
-				Path:          ".",
-				TestDirectory: "other",
-				ViewType:      ViewHuman,
+				Path:                      ".",
+				TestDirectory:             "other",
+				ViewType:                  ViewHuman,
+				ModuleDeprecationWarnings: "all",
 			},
 		},
 		"no-tests": {
 			[]string{"-no-tests"},
 			&Validate{
-				Path:          ".",
-				TestDirectory: "tests",
-				ViewType:      ViewHuman,
-				NoTests:       true,
+				Path:                      ".",
+				TestDirectory:             "tests",
+				ViewType:                  ViewHuman,
+				NoTests:                   true,
+				ModuleDeprecationWarnings: "all",
 			},
 		},
 	}
@@ -85,9 +90,10 @@ func TestParseValidate_invalid(t *testing.T) {
 		"unknown flag": {
 			[]string{"-boop"},
 			&Validate{
-				Path:          ".",
-				TestDirectory: "tests",
-				ViewType:      ViewHuman,
+				Path:                      ".",
+				TestDirectory:             "tests",
+				ViewType:                  ViewHuman,
+				ModuleDeprecationWarnings: "all",
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
@@ -100,9 +106,10 @@ func TestParseValidate_invalid(t *testing.T) {
 		"too many arguments": {
 			[]string{"-json", "bar", "baz"},
 			&Validate{
-				Path:          "bar",
-				TestDirectory: "tests",
-				ViewType:      ViewJSON,
+				Path:                      "bar",
+				TestDirectory:             "tests",
+				ViewType:                  ViewJSON,
+				ModuleDeprecationWarnings: "all",
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(

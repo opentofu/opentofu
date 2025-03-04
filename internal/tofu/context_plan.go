@@ -107,6 +107,11 @@ type PlanOpts struct {
 	//
 	// If empty, then no config will be generated.
 	GenerateConfigPath string
+	// GenerateConfig tells OpenTofu where to write any generated configuration
+	// for any ImportTargets that do not have configuration already.
+	//
+	// If empty, then no config will be generated.
+	ModuleDeprecatedWarning DeprecatedWarningLevel
 }
 
 // Plan generates an execution plan by comparing the given configuration
@@ -274,7 +279,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 		return plan, diags
 	}
 
-	diags = diags.Append(c.checkApplyGraph(plan, config))
+	diags = diags.Append(c.checkApplyGraph(plan, config, opts.ModuleDeprecatedWarning))
 
 	return plan, diags
 }
@@ -283,13 +288,13 @@ The -target and -exclude options are not for routine use, and are provided only 
 // check for any errors that may arise once the planned changes are added to
 // the graph. This allows tofu to report errors (mostly cycles) during
 // plan that would otherwise only crop up during apply
-func (c *Context) checkApplyGraph(plan *plans.Plan, config *configs.Config) tfdiags.Diagnostics {
+func (c *Context) checkApplyGraph(plan *plans.Plan, config *configs.Config, moduleDeprecatedWarning DeprecatedWarningLevel) tfdiags.Diagnostics {
 	if plan.Changes.Empty() {
 		log.Println("[DEBUG] no planned changes, skipping apply graph check")
 		return nil
 	}
 	log.Println("[DEBUG] building apply graph to check for errors")
-	_, _, diags := c.applyGraph(plan, config, make(ProviderFunctionMapping))
+	_, _, diags := c.applyGraph(plan, config, make(ProviderFunctionMapping), moduleDeprecatedWarning)
 	return diags
 }
 
@@ -856,6 +861,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			ExternalReferences:      opts.ExternalReferences,
 			ImportTargets:           opts.ImportTargets,
 			GenerateConfigPath:      opts.GenerateConfigPath,
+			ModuleDeprecatedWarning: opts.ModuleDeprecatedWarning,
 			EndpointsToRemove:       opts.EndpointsToRemove,
 			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
@@ -872,6 +878,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			skipPlanChanges:         true, // this activates "refresh only" mode.
 			Operation:               walkPlan,
 			ExternalReferences:      opts.ExternalReferences,
+			ModuleDeprecatedWarning: opts.ModuleDeprecatedWarning,
 			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags
@@ -884,6 +891,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			Targets:                 opts.Targets,
 			Excludes:                opts.Excludes,
 			skipRefresh:             opts.SkipRefresh,
+			ModuleDeprecatedWarning: opts.ModuleDeprecatedWarning,
 			Operation:               walkPlanDestroy,
 			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)

@@ -32,6 +32,8 @@ type Test struct {
 	// human-readable format or JSON for each run step depending on the
 	// ViewType.
 	Verbose bool
+
+	ModuleDeprecationWarnings string
 }
 
 func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
@@ -45,6 +47,7 @@ func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
 	cmdFlags := extendedFlagSet("test", nil, nil, test.Vars)
 	cmdFlags.Var((*flagStringSlice)(&test.Filter), "filter", "filter")
 	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
+	cmdFlags.StringVar(&test.ModuleDeprecationWarnings, "deprecation-warn", "all", "deprecation-warn") // TODO andrei update help section for this one
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")
 

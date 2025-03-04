@@ -28,6 +28,8 @@ type Validate struct {
 	ViewType ViewType
 
 	Vars *Vars
+
+	ModuleDeprecationWarnings string
 }
 
 // ParseValidate processes CLI arguments, returning a Validate value and errors.
@@ -45,6 +47,7 @@ func ParseValidate(args []string) (*Validate, tfdiags.Diagnostics) {
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.StringVar(&validate.TestDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&validate.NoTests, "no-tests", false, "no-tests")
+	cmdFlags.StringVar(&validate.ModuleDeprecationWarnings, "deprecation-warn", "all", "deprecation-warn")
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
