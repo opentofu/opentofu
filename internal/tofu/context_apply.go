@@ -30,7 +30,7 @@ import (
 //
 // Even if the returned diagnostics contains errors, Apply always returns the
 // resulting state which is likely to have been partially-updated.
-func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
+func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.Config, moduleDeprecationWarnLevel DeprecationWarningLevel) (*states.State, tfdiags.Diagnostics) {
 	defer c.acquireRun("apply")()
 
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
@@ -89,7 +89,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
-	graph, operation, diags := c.applyGraph(plan, config, providerFunctionTracker)
+	graph, operation, diags := c.applyGraph(plan, config, providerFunctionTracker, moduleDeprecationWarnLevel)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -155,7 +155,7 @@ Note that the -target and -exclude options are not suitable for routine use, and
 	return newState, diags
 }
 
-func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping, moduleDeprecationWarnLevel DeprecationWarningLevel) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	variables := InputValues{}
@@ -207,17 +207,18 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerF
 	}
 
 	graph, moreDiags := (&ApplyGraphBuilder{
-		Config:                  config,
-		Changes:                 plan.Changes,
-		State:                   plan.PriorState,
-		RootVariableValues:      variables,
-		Plugins:                 c.plugins,
-		Targets:                 plan.TargetAddrs,
-		Excludes:                plan.ExcludeAddrs,
-		ForceReplace:            plan.ForceReplaceAddrs,
-		Operation:               operation,
-		ExternalReferences:      plan.ExternalReferences,
-		ProviderFunctionTracker: providerFunctionTracker,
+		Config:                     config,
+		Changes:                    plan.Changes,
+		State:                      plan.PriorState,
+		RootVariableValues:         variables,
+		Plugins:                    c.plugins,
+		Targets:                    plan.TargetAddrs,
+		Excludes:                   plan.ExcludeAddrs,
+		ForceReplace:               plan.ForceReplaceAddrs,
+		Operation:                  operation,
+		ExternalReferences:         plan.ExternalReferences,
+		ProviderFunctionTracker:    providerFunctionTracker,
+		ModuleDeprecationWarnLevel: moduleDeprecationWarnLevel,
 	}).Build(addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
@@ -236,13 +237,13 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerF
 // graph, and so may change in future in order to make the result more useful
 // in that context, even if drifts away from the physical graph that OpenTofu
 // Core currently uses as an implementation detail of planning.
-func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Graph, tfdiags.Diagnostics) {
+func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config, moduleDeprecationWarnLevel DeprecationWarningLevel) (*Graph, tfdiags.Diagnostics) {
 	// For now though, this really is just the internal graph, confusing
 	// implementation details and all.
 
 	var diags tfdiags.Diagnostics
 
-	graph, _, moreDiags := c.applyGraph(plan, config, make(ProviderFunctionMapping))
+	graph, _, moreDiags := c.applyGraph(plan, config, make(ProviderFunctionMapping), moduleDeprecationWarnLevel)
 	diags = diags.Append(moreDiags)
 	return graph, diags
 }

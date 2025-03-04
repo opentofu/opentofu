@@ -1484,9 +1484,10 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		varAddr addrs.AbsInputVariableInstance
-		varCfg  *configs.Variable
-		expr    hcl.Expression
+		varAddr   addrs.AbsInputVariableInstance
+		varCfg    *configs.Variable
+		expr      hcl.Expression
+		warnLevel DeprecationWarningLevel
 
 		expectedDiags tfdiags.Diagnostics
 	}{
@@ -1503,18 +1504,21 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 				),
 				Subject: cfg.Module.ModuleCalls["foo-call"].Source.Range().Ptr(),
 			}),
+			warnLevel: DeprecationWarningLevelAll,
 		},
 		"local-mod-called-from-root-with-no-var": {
 			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-no-var", nil)),
 			varCfg:        cfg.Children["foo-call-no-var"].Module.Variables["foo"],
 			expr:          nil,
 			expectedDiags: tfdiags.Diagnostics{},
+			warnLevel:     DeprecationWarningLevelAll,
 		},
 		"local-mod-called-from-root-with-null-var": {
 			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-null", nil)),
 			varCfg:        cfg.Children["foo-call-null"].Module.Variables["foo"],
 			expr:          nil,
 			expectedDiags: tfdiags.Diagnostics{},
+			warnLevel:     DeprecationWarningLevelAll,
 		},
 		"local-mod-called-from-direct-child": {
 			varAddr: addrs.InputVariable{Name: "bar"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil).Child("bar-call", nil)),
@@ -1529,6 +1533,7 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 				),
 				Subject: cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source.Range().Ptr(),
 			}),
+			warnLevel: DeprecationWarningLevelAll,
 		},
 	}
 	for name, tt := range tests {
@@ -1544,12 +1549,7 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			}
 
 			expr := tt.expr
-			gotDiags := evalVariableDeprecation(
-				varAddr,
-				tt.varCfg,
-				expr,
-				ctx,
-			)
+			gotDiags := evalVariableDeprecation(varAddr, tt.varCfg, expr, ctx, tt.warnLevel, nil)
 
 			if gotLen, expectedLen := len(gotDiags), len(tt.expectedDiags); gotLen != expectedLen {
 				t.Fatalf("expected %d diagnostics; got %d", expectedLen, gotLen)
@@ -1572,4 +1572,22 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			}
 		})
 	}
+	t.Run("remote-mod-called-from-root", func(t *testing.T) {
+		varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil))
+		ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+			if got, want := addr.String(), varAddr.String(); got != want {
+				t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
+			}
+			// NOTE: the value itself doesn't matter. The value itself is not part of the processing so it can be whatever value we want
+			return cty.StringVal("bar baz")
+		}
+		varCfg := cfg.Children["foo-call"].Module.Variables["foo"]
+		// NOTE: this is just to test that diags are not returned when remote are excluded
+		varCfg.DeclRange.Filename = ".terraform/modules/" + varCfg.DeclRange.Filename
+		gotDiags := evalVariableDeprecation(varAddr, varCfg, cfg.Module.ModuleCalls["foo-call"].Source, ctx, DeprecationWarningLevelLocal, nil)
+		if len(gotDiags) != 0 {
+			t.Fatalf("unexpected diags returned. %+v", gotDiags)
+		}
+	})
+
 }

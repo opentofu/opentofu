@@ -98,6 +98,9 @@ type PlanGraphBuilder struct {
 	GenerateConfigPath string
 
 	ProviderFunctionTracker ProviderFunctionMapping
+
+	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show.
+	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 // See GraphBuilder
@@ -141,7 +144,7 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 
 		// Add dynamic values
 		&RootVariableTransformer{Config: b.Config, RawValues: b.RootVariableValues},
-		&ModuleVariableTransformer{Config: b.Config},
+		&ModuleVariableTransformer{Config: b.Config, ModuleDeprecationWarnLevel: b.ModuleDeprecationWarnLevel},
 		&LocalTransformer{Config: b.Config},
 		&OutputTransformer{
 			Config:      b.Config,

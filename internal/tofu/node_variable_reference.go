@@ -27,6 +27,12 @@ type nodeVariableReference struct {
 	Module addrs.Module
 	Config *configs.Variable
 	Expr   hcl.Expression // Used for diagnostics only
+
+	// ModuleDeprecationWarnLevel controls if the deprecation warning should be shown for this variable.
+	ModuleDeprecationWarnLevel DeprecationWarningLevel
+	// ModuleSource is the source module where this variable is coming from. When a variable is from a module call whose source is a relative
+	// path, then the source is pointing to an addrs.ModuleSourceLocal.
+	ModuleSource addrs.ModuleSource
 }
 
 var (
@@ -69,6 +75,9 @@ func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
 			Addr:   addr,
 			Config: n.Config,
 			Expr:   n.Expr,
+
+			ModuleDeprecationWarnLevel: n.ModuleDeprecationWarnLevel,
+			ModuleSource:               n.ModuleSource,
 		}
 		g.Add(o)
 	}
@@ -119,6 +128,12 @@ type nodeVariableReferenceInstance struct {
 	Addr   addrs.AbsInputVariableInstance
 	Config *configs.Variable // Config is the var in the config
 	Expr   hcl.Expression    // Used for diagnostics only
+
+	// ModuleDeprecationWarnLevel controls if the deprecation warning should be shown for this variable.
+	ModuleDeprecationWarnLevel DeprecationWarningLevel
+	// ModuleSource is the source module where this variable is coming from. When a variable is from a module call whose source is a relative
+	// path, then the source is pointing to an addrs.ModuleSourceLocal.
+	ModuleSource addrs.ModuleSource
 }
 
 // Ensure that we are implementing all of the interfaces we think we are
@@ -147,7 +162,7 @@ func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
 func (n *nodeVariableReferenceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
 	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, evalCtx)
-	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, evalCtx))
+	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, evalCtx, n.ModuleDeprecationWarnLevel, n.ModuleSource))
 
 	if op == walkValidate {
 		var filtered tfdiags.Diagnostics

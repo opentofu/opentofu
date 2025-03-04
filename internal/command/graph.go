@@ -32,6 +32,7 @@ func (c *GraphCommand) Run(args []string) int {
 	var moduleDepth int
 	var verbose bool
 	var planPath string
+	var moduleDeprecationWarnLevel string // TODO andrei update the help section
 
 	ctx := c.CommandContext()
 
@@ -43,6 +44,7 @@ func (c *GraphCommand) Run(args []string) int {
 	cmdFlags.IntVar(&moduleDepth, "module-depth", -1, "module-depth")
 	cmdFlags.BoolVar(&verbose, "verbose", false, "verbose")
 	cmdFlags.StringVar(&planPath, "plan", "", "plan")
+	cmdFlags.StringVar(&moduleDeprecationWarnLevel, "deprecation-warn", "all", "plan")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))
@@ -201,7 +203,7 @@ func (c *GraphCommand) Run(args []string) int {
 			}
 		}
 
-		g, graphDiags = lr.Core.ApplyGraphForUI(plan, lr.Config)
+		g, graphDiags = lr.Core.ApplyGraphForUI(plan, lr.Config, tofu.ParseDeprecatedWarningLevel(moduleDeprecationWarnLevel))
 	case "eval", "validate":
 		// Terraform v0.12 through v1.0 supported both of these, but the
 		// graph variants for "eval" and "validate" are purely implementation
@@ -261,27 +263,33 @@ Usage: tofu [global options] graph [options]
 
 Options:
 
-  -plan=tfplan     Render graph using the specified plan file instead of the
-                   configuration in the current directory.
+  -plan=tfplan           Render graph using the specified plan file instead of the
+                         configuration in the current directory.
 
-  -draw-cycles     Highlight any cycles in the graph with colored edges.
-                   This helps when diagnosing cycle errors.
+  -draw-cycles           Highlight any cycles in the graph with colored edges.
+                         This helps when diagnosing cycle errors.
 
-  -type=plan       Type of graph to output. Can be: plan, plan-refresh-only,
-                   plan-destroy, or apply. By default OpenTofu chooses
-				   "plan", or "apply" if you also set the -plan=... option.
+  -type=plan             Type of graph to output. Can be: plan, plan-refresh-only,
+                         plan-destroy, or apply. By default OpenTofu chooses
+				         "plan", or "apply" if you also set the -plan=... option.
 
-  -module-depth=n  (deprecated) In prior versions of OpenTofu, specified the
-				   depth of modules to show in the output.
+  -module-depth=n        (deprecated) In prior versions of OpenTofu, specified the
+                         depth of modules to show in the output.
 
-  -var 'foo=bar'     Set a value for one of the input variables in the root
-                     module of the configuration. Use this option more than
-                     once to set more than one variable.
+  -var 'foo=bar'         Set a value for one of the input variables in the root
+                         module of the configuration. Use this option more than
+                         once to set more than one variable.
 
-  -var-file=filename Load variable values from the given file, in addition
-                     to the default files terraform.tfvars and *.auto.tfvars.
-                     Use this option more than once to include more than one
-                     variables file.
+  -deprecation-warn=all  Specify what type of warnings are shown. Accepted
+                         values: all, local. When "all" is selected, OpenTofu
+                         will show the deprecation warnings for all modules.
+                         When "local" is selected, the warns will be shown
+                         only for the local modules.
+
+  -var-file=filename     Load variable values from the given file, in addition
+                         to the default files terraform.tfvars and *.auto.tfvars.
+                         Use this option more than once to include more than one
+                         variables file.
 `
 	return strings.TrimSpace(helpText)
 }

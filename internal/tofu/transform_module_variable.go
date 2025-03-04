@@ -31,6 +31,9 @@ import (
 // steps for validating module blocks, separate from this transform.
 type ModuleVariableTransformer struct {
 	Config *configs.Config
+
+	// ModuleDeprecationWarnLevel is used to control if the variable deprecation warning should be shown or not.
+	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 func (t *ModuleVariableTransformer) Transform(g *Graph) error {
@@ -124,6 +127,9 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 			Module: c.Path,
 			Config: v,
 			Expr:   expr,
+
+			ModuleDeprecationWarnLevel: t.ModuleDeprecationWarnLevel,
+			ModuleSource:               callConfig.SourceAddr,
 		}
 		g.Add(ref)
 

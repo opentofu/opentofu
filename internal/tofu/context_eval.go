@@ -19,6 +19,9 @@ import (
 
 type EvalOpts struct {
 	SetVariables InputValues
+
+	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show.
+	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 // Eval produces a scope in which expressions can be evaluated for
@@ -74,11 +77,12 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
 	graph, moreDiags := (&EvalGraphBuilder{
-		Config:                  config,
-		State:                   state,
-		RootVariableValues:      variables,
-		Plugins:                 c.plugins,
-		ProviderFunctionTracker: providerFunctionTracker,
+		Config:                     config,
+		State:                      state,
+		RootVariableValues:         variables,
+		Plugins:                    c.plugins,
+		ProviderFunctionTracker:    providerFunctionTracker,
+		ModuleDeprecationWarnLevel: opts.ModuleDeprecationWarnLevel,
 	}).Build(addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {

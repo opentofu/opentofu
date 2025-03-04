@@ -1501,7 +1501,7 @@ func TestContext2Validate(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(context.Background(), m)
+	diags := c.Validate(context.Background(), m, DeprecationWarningLevelAll)
 	if len(diags) != 0 {
 		t.Fatalf("unexpected error: %#v", diags.ErrWithWarnings())
 	}

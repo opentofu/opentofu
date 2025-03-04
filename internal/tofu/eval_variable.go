@@ -489,14 +489,24 @@ You can correct this by removing references to sensitive values, or by carefully
 }
 
 // evalVariableDeprecation checks if a variable is deprecated and if so it returns a warning diagnostic to be shown to the user
-func evalVariableDeprecation(addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext) tfdiags.Diagnostics {
+func evalVariableDeprecation(
+	addr addrs.AbsInputVariableInstance,
+	config *configs.Variable,
+	expr hcl.Expression,
+	ctx EvalContext,
+	warnLevel DeprecationWarningLevel,
+	moduleSource addrs.ModuleSource) tfdiags.Diagnostics {
 	if config.Deprecated == "" {
 		log.Printf("[TRACE] evalVariableDeprecation: variable %s does not have deprecation configured", addr)
 		return nil
 	}
+	if !variableDeprecationWarnAllowed(warnLevel, moduleSource) {
+		log.Printf("[TRACE] evalVariableDeprecation: the current level excludes variable %q deprecation check. currently configured deprecation warn level: %s", addr, warnLevel)
+		return nil
+	}
 	// if the variable is not given in the module call, do not show a warning
 	if expr == nil {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %s is marked as deprecated but is not used", addr)
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is marked as deprecated but is not used", addr)
 		return nil
 	}
 	val := ctx.GetVariableValue(addr)

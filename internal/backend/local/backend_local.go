@@ -137,7 +137,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 		// If validation is enabled, validate
 		if b.OpValidation {
 			log.Printf("[TRACE] backend/local: running validation operation")
-			validateDiags := ret.Core.Validate(ctx, ret.Config)
+			validateDiags := ret.Core.Validate(ctx, ret.Config, op.ModuleDeprecationWarnLevel)
 			diags = diags.Append(validateDiags)
 		}
 	}
@@ -204,13 +204,14 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 	}
 
 	planOpts := &tofu.PlanOpts{
-		Mode:               op.PlanMode,
-		Targets:            op.Targets,
-		Excludes:           op.Excludes,
-		ForceReplace:       op.ForceReplace,
-		SetVariables:       variables,
-		SkipRefresh:        op.Type != backend.OperationTypeRefresh && !op.PlanRefresh,
-		GenerateConfigPath: op.GenerateConfigOut,
+		Mode:                       op.PlanMode,
+		Targets:                    op.Targets,
+		Excludes:                   op.Excludes,
+		ForceReplace:               op.ForceReplace,
+		SetVariables:               variables,
+		SkipRefresh:                op.Type != backend.OperationTypeRefresh && !op.PlanRefresh,
+		GenerateConfigPath:         op.GenerateConfigOut,
+		ModuleDeprecationWarnLevel: op.ModuleDeprecationWarnLevel,
 	}
 	run.PlanOpts = planOpts
 

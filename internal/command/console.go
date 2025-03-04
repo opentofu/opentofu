@@ -30,9 +30,13 @@ type ConsoleCommand struct {
 func (c *ConsoleCommand) Run(args []string) int {
 	ctx := c.CommandContext()
 
+	var (
+		moduleDeprecatedWarning string
+	)
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("console")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
+	cmdFlags.StringVar(&moduleDeprecatedWarning, "deprecation-warn", "all", "control the level of deprecation warnings")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command line flags: %s\n", err.Error()))
@@ -135,7 +139,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		ErrorWriter: os.Stderr,
 	}
 
-	evalOpts := &tofu.EvalOpts{}
+	evalOpts := &tofu.EvalOpts{ModuleDeprecationWarnLevel: tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning)}
 	if lr.PlanOpts != nil {
 		// the LocalRun type is built primarily to support the main operations,
 		// so the variable values end up in the "PlanOpts" even though we're
@@ -239,6 +243,12 @@ Options:
 
   -state=path            Legacy option for the local backend only. See the local
                          backend's documentation for more information.
+
+  -deprecation-warn=all  Specify what type of warnings are shown. Accepted
+                         values: all, local. When "all" is selected, OpenTofu
+                         will show the deprecation warnings for all modules.
+                         When "local" is selected, the warns will be shown
+                         only for the local modules.
 
   -var 'foo=bar'         Set a variable in the OpenTofu configuration. This
                          flag can be set multiple times.

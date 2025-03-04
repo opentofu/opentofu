@@ -98,6 +98,12 @@ Options:
                         Use this option more than once to include more than one
                         variables file.
 
+  -deprecation-warn=all Specify what type of warnings are shown. Accepted
+                        values: all, local. When "all" is selected, OpenTofu
+                        will show the deprecation warnings for all modules.
+                        When "local" is selected, the warns will be shown
+                        only for the local modules.
+
   -verbose              Print the plan or state for each test run block as it
                         executes.
 
@@ -288,6 +294,8 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		Stopped:   false,
 
 		Verbose: args.Verbose,
+
+		ModuleDeprecationWarnLevel: tofu.ParseDeprecatedWarningLevel(args.ModuleDeprecationWarnLevel),
 	}
 
 	view.Abstract(&suite)
@@ -378,6 +386,9 @@ type TestSuiteRunner struct {
 
 	// Verbose tells the runner to print out plan files during each test run.
 	Verbose bool
+
+	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show.
+	ModuleDeprecationWarnLevel tofu.DeprecationWarningLevel
 }
 
 func (runner *TestSuiteRunner) Start(ctx context.Context) {
@@ -716,7 +727,7 @@ func (runner *TestFileRunner) validate(ctx context.Context, config *configs.Conf
 		defer done()
 
 		log.Printf("[DEBUG] TestFileRunner: starting validate for %s/%s", file.Name, run.Name)
-		validateDiags = tfCtx.Validate(ctx, config)
+		validateDiags = tfCtx.Validate(ctx, config, runner.Suite.ModuleDeprecationWarnLevel)
 		log.Printf("[DEBUG] TestFileRunner: completed validate for  %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, nil)
@@ -904,7 +915,7 @@ func (runner *TestFileRunner) apply(ctx context.Context, plan *plans.Plan, state
 		defer panicHandler()
 		defer done()
 		log.Printf("[DEBUG] TestFileRunner: starting apply for %s/%s", file.Name, run.Name)
-		updated, applyDiags = tfCtx.Apply(ctx, plan, config)
+		updated, applyDiags = tfCtx.Apply(ctx, plan, config, runner.Suite.ModuleDeprecationWarnLevel)
 		log.Printf("[DEBUG] TestFileRunner: completed apply for %s/%s", file.Name, run.Name)
 	}()
 	waitDiags, cancelled := runner.wait(tfCtx, runningCtx, run, file, created)

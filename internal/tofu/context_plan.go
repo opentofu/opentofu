@@ -110,6 +110,9 @@ type PlanOpts struct {
 	//
 	// If empty, then no config will be generated.
 	GenerateConfigPath string
+
+	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show.
+	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 // Plan generates an execution plan by comparing the given configuration
@@ -296,7 +299,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 		return plan, diags
 	}
 
-	diags = diags.Append(c.checkApplyGraph(plan, config))
+	diags = diags.Append(c.checkApplyGraph(plan, config, opts.ModuleDeprecationWarnLevel))
 
 	return plan, diags
 }
@@ -305,13 +308,13 @@ The -target and -exclude options are not for routine use, and are provided only 
 // check for any errors that may arise once the planned changes are added to
 // the graph. This allows tofu to report errors (mostly cycles) during
 // plan that would otherwise only crop up during apply
-func (c *Context) checkApplyGraph(plan *plans.Plan, config *configs.Config) tfdiags.Diagnostics {
+func (c *Context) checkApplyGraph(plan *plans.Plan, config *configs.Config, moduleDeprecationWarnLevel DeprecationWarningLevel) tfdiags.Diagnostics {
 	if plan.Changes.Empty() {
 		log.Println("[DEBUG] no planned changes, skipping apply graph check")
 		return nil
 	}
 	log.Println("[DEBUG] building apply graph to check for errors")
-	_, _, diags := c.applyGraph(plan, config, make(ProviderFunctionMapping))
+	_, _, diags := c.applyGraph(plan, config, make(ProviderFunctionMapping), moduleDeprecationWarnLevel)
 	return diags
 }
 
@@ -865,49 +868,52 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 	switch mode := opts.Mode; mode {
 	case plans.NormalMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:                  config,
-			State:                   prevRunState,
-			RootVariableValues:      opts.SetVariables,
-			Plugins:                 c.plugins,
-			Targets:                 opts.Targets,
-			Excludes:                opts.Excludes,
-			ForceReplace:            opts.ForceReplace,
-			skipRefresh:             opts.SkipRefresh,
-			preDestroyRefresh:       opts.PreDestroyRefresh,
-			Operation:               walkPlan,
-			ExternalReferences:      opts.ExternalReferences,
-			ImportTargets:           opts.ImportTargets,
-			GenerateConfigPath:      opts.GenerateConfigPath,
-			RemoveStatements:        opts.RemoveStatements,
-			ProviderFunctionTracker: providerFunctionTracker,
+			Config:                     config,
+			State:                      prevRunState,
+			RootVariableValues:         opts.SetVariables,
+			Plugins:                    c.plugins,
+			Targets:                    opts.Targets,
+			Excludes:                   opts.Excludes,
+			ForceReplace:               opts.ForceReplace,
+			skipRefresh:                opts.SkipRefresh,
+			preDestroyRefresh:          opts.PreDestroyRefresh,
+			Operation:                  walkPlan,
+			ExternalReferences:         opts.ExternalReferences,
+			ImportTargets:              opts.ImportTargets,
+			GenerateConfigPath:         opts.GenerateConfigPath,
+			RemoveStatements:           opts.RemoveStatements,
+			ModuleDeprecationWarnLevel: opts.ModuleDeprecationWarnLevel,
+			ProviderFunctionTracker:    providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.RefreshOnlyMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:                  config,
-			State:                   prevRunState,
-			RootVariableValues:      opts.SetVariables,
-			Plugins:                 c.plugins,
-			Targets:                 opts.Targets,
-			Excludes:                opts.Excludes,
-			skipRefresh:             opts.SkipRefresh,
-			skipPlanChanges:         true, // this activates "refresh only" mode.
-			Operation:               walkPlan,
-			ExternalReferences:      opts.ExternalReferences,
-			ProviderFunctionTracker: providerFunctionTracker,
+			Config:                     config,
+			State:                      prevRunState,
+			RootVariableValues:         opts.SetVariables,
+			Plugins:                    c.plugins,
+			Targets:                    opts.Targets,
+			Excludes:                   opts.Excludes,
+			skipRefresh:                opts.SkipRefresh,
+			skipPlanChanges:            true, // this activates "refresh only" mode.
+			Operation:                  walkPlan,
+			ExternalReferences:         opts.ExternalReferences,
+			ModuleDeprecationWarnLevel: opts.ModuleDeprecationWarnLevel,
+			ProviderFunctionTracker:    providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.DestroyMode:
 		graph, diags := (&PlanGraphBuilder{
-			Config:                  config,
-			State:                   prevRunState,
-			RootVariableValues:      opts.SetVariables,
-			Plugins:                 c.plugins,
-			Targets:                 opts.Targets,
-			Excludes:                opts.Excludes,
-			skipRefresh:             opts.SkipRefresh,
-			Operation:               walkPlanDestroy,
-			ProviderFunctionTracker: providerFunctionTracker,
+			Config:                     config,
+			State:                      prevRunState,
+			RootVariableValues:         opts.SetVariables,
+			Plugins:                    c.plugins,
+			Targets:                    opts.Targets,
+			Excludes:                   opts.Excludes,
+			skipRefresh:                opts.SkipRefresh,
+			ModuleDeprecationWarnLevel: opts.ModuleDeprecationWarnLevel,
+			Operation:                  walkPlanDestroy,
+			ProviderFunctionTracker:    providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlanDestroy, diags
 	default:
