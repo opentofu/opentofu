@@ -800,9 +800,10 @@ can remove the provider configuration again.
 
 func TestTest_Modules(t *testing.T) {
 	tcs := map[string]struct {
-		expected string
-		code     int
-		skip     bool
+		expected                      string
+		code                          int
+		skip                          bool
+		expectedProviderConfigRequest *providers.ConfigureProviderRequest
 	}{
 		"pass_module_with_no_resource": {
 			expected: "main.tftest.hcl... pass\n  run \"run\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
@@ -832,8 +833,24 @@ func TestTest_Modules(t *testing.T) {
 			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
 		},
+		"run_mod_output_in_provider_block_complex": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("Password"),
+					"username":        cty.StringVal("test_user@d"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+				}),
+			},
+		},
 		"run_mod_output_in_provider_block_undefined_ref": {
 			code: 1,
+		},
+		"run_mod_output_in_another_run_assert": {
+			code:     0,
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"assert_domain\"... pass\n  run \"assert_password\"... pass\n  run \"assert_username\"... pass\n\nSuccess! 4 passed, 0 failed.\n",
 		},
 	}
 
@@ -892,6 +909,12 @@ func TestTest_Modules(t *testing.T) {
 				actual := output.All()
 				if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
 					t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+				}
+			}
+
+			if tc.expectedProviderConfigRequest != nil {
+				if !provider.Provider.ConfigureProviderRequest.Config.Equals(tc.expectedProviderConfigRequest.Config).True() {
+					t.Errorf("expected provider config request to equal %+v but got %+v", tc.expectedProviderConfigRequest.Config, provider.Provider.ConfigureProviderRequest.Config)
 				}
 			}
 
