@@ -101,6 +101,13 @@ func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, sourc
 		})
 	}
 
+	// bool and number type are converted to string
+	if keyVal.Type() == cty.Bool {
+		keyVal = cty.StringVal(fmt.Sprintf("%t", keyVal.True())) // using type to convert the bool
+	} else if keyVal.Type() == cty.Number {
+		keyVal = cty.StringVal(fmt.Sprintf("%v", keyVal.AsBigFloat())) // using value to convert the number
+	}
+
 	parsedKey, parsedErr := addrs.ParseInstanceKey(keyVal)
 	if parsedErr != nil {
 		return nil, diags.Append(&hcl.Diagnostic{
