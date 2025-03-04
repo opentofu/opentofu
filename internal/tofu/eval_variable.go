@@ -477,3 +477,33 @@ You can correct this by removing references to sensitive values, or by carefully
 		FailureMessage: errorMessage,
 	}, diags
 }
+
+// evalVariableDeprecation checks a variable "deprecated" message
+func evalVariableDeprecation(addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext, onlyLocal bool) (diags tfdiags.Diagnostics) {
+	if !config.DeprecatedSet {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %s is having no deprecation configured", addr)
+		return nil
+	}
+	if onlyLocal && strings.HasPrefix(config.DeclRange.Filename, ".terraform") {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %s is part of a remote module and was requested to ignore those", addr)
+		return nil
+	}
+	// if the variable is not given in the module call, do not show a warning
+	if expr == nil {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %s is marked as deprecated but is not used", addr)
+		return nil
+	}
+	val := ctx.GetVariableValue(addr)
+	if val.IsNull() {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %s is marked as deprecated null value given", addr)
+		return nil
+	}
+	log.Printf("[TRACE] evalVariableDeprecation: usage of deprecated variable %q detected", addr)
+	// Any deprecated
+	return diags.Append(&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  fmt.Sprintf(`The variable %q is marked as deprecated by module author`, config.Name),
+		Detail:   config.Deprecated,
+		Subject:  expr.Range().Ptr(),
+	})
+}
