@@ -1867,6 +1867,32 @@ func TestPlan_withoutShowSensitiveArg(t *testing.T) {
 	}
 }
 
+func TestPlan_concise(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan"), td)
+	defer testChdir(t, td)()
+
+	p := planFixtureProvider()
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(p),
+			View:             view,
+		},
+	}
+
+	args := []string{"-concise"}
+	code := c.Run(args)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("bad status code: \n%s", output.Stderr())
+	}
+
+	if got, want := output.Stdout(), "Reading..."; strings.Contains(got, want) {
+		t.Fatalf("got incorrect output, want %q, got:\n%s", want, got)
+	}
+}
+
 // planFixtureProvider returns a mock provider that is configured for basic
 // operation with the configuration in testdata/plan. This mock has
 // GetSchemaResponse and PlanResourceChangeFn populated, with the plan

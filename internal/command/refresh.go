@@ -222,6 +222,8 @@ Options:
 
   -no-color              If specified, output won't contain any color.
 
+  -concise               Disables progress-related messages in the output.
+
   -parallelism=n         Limit the number of concurrent operations. Defaults to 10.
 
   -target=resource       Resource to target. Operation will be limited to this

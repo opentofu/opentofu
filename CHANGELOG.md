@@ -27,6 +27,8 @@ ENHANCEMENTS:
 * `moved` block can now be used to migrate from the `null_resource` to the `terraform_data` resource. ([#2481](https://github.com/opentofu/opentofu/pull/2481))
 * Warn on implicit references of providers without a `required_providers` entry. ([#2084](https://github.com/opentofu/opentofu/issues/2084))
 * Provider instance keys now automatically converted to string ([#2378](https://github.com/opentofu/opentofu/issues/2378))
+* Remove progress messages from commands using -concise argument ([#2549](https://github.com/opentofu/opentofu/issues/2549))
+
 
 BUG FIXES:
 
