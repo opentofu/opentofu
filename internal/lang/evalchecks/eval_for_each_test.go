@@ -361,7 +361,8 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 	}
 }
 
-func TestEvaluateForEachValidatePhase(t *testing.T) {
+// These test checks if unknown values are valid when being evaluated during the validate phase
+func TestEvaluateForEachAllowUnknown(t *testing.T) {
 	tests := map[string]hcl.Expression{
 		"unknown string set":            hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
 		"unknown dynamicpseudotype set": hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.DynamicPseudoType))),
@@ -507,9 +508,8 @@ func TestForEachCommandLineExcludeSuggestion(t *testing.T) {
 	}
 }
 
-// The previous tests are not testing the validate phase errors, that is configured with
-// allowingUnknowns as true. This test deals with this special case.
-func TestForEachValidatePhase_errors(t *testing.T) {
+// These tests are checking if unknown values during the validate phase are raising the expected errors
+func TestEvaluateForEachAllowUnknown_errors(t *testing.T) {
 	tests := map[string]struct {
 		Expr                               hcl.Expression
 		ExcludableAddr                     addrs.Targetable
