@@ -186,10 +186,23 @@ For VSCode, add the following setting to `.vscode/launch.json` for easy debuggin
             // Comment out the following line and update your workdir to target
             // "args": ["-chdir=<WORKDIR>", "plan"]
             "args": ["plan"]
+        },
+        {
+            "name": "opentofu test run",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "${workspaceFolder}/internal/lang/evalchecks/eval_for_each_test.go",
+            // You can update your arguments for go test command here
+            // "args": ["-test.run", "TestName/sub_test"]
+            // or to run a whole test
+            // "args": ["-test.run", "TestName"]
+            "args": ["-test.run", "TestEvaluateForEachExpression_errors/set_containing_marked_values"]
         }
     ]
 }
 ```
+
 
 Similarly, you can add the following configurations to you `.idea/runConfigurations` folder if you use Goland/IntelliJ:
 
