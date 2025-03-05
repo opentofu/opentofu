@@ -361,12 +361,13 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 	}
 }
 
-func TestEvaluateForEachExpressionKnown(t *testing.T) {
+func TestEvaluateForEachValidatePhase(t *testing.T) {
 	tests := map[string]hcl.Expression{
-		"unknown string set":  hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
-		"unknown map":         hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.Bool))),
-		"unknown tuple":       hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.String, cty.Number, cty.Bool}))),
-		"unknown pseudo-type": hcltest.MockExprLiteral(cty.UnknownVal(cty.DynamicPseudoType)),
+		"unknown string set":            hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
+		"unknown dynamicpseudotype set": hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.DynamicPseudoType))),
+		"unknown map":                   hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.Bool))),
+		"unknown tuple":                 hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.String, cty.Number, cty.Bool}))),
+		"unknown pseudo-type":           hcltest.MockExprLiteral(cty.UnknownVal(cty.DynamicPseudoType)),
 	}
 
 	for name, expr := range tests {
@@ -506,9 +507,9 @@ func TestForEachCommandLineExcludeSuggestion(t *testing.T) {
 	}
 }
 
-// The previous tests are not testing the validate phase, that is configured with
+// The previous tests are not testing the validate phase errors, that is configured with
 // allowingUnknowns as true. This test deals with this special case.
-func TestForEachValidation_errors(t *testing.T) {
+func TestForEachValidatePhase_errors(t *testing.T) {
 	tests := map[string]struct {
 		Expr                               hcl.Expression
 		ExcludableAddr                     addrs.Targetable
