@@ -1153,7 +1153,6 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		if _, ok := gotMap["@timestamp"]; !ok {
 			t.Errorf("missing @timestamp field in log: %s", gotLines[index])
 		}
-
 		gotMap = deleteTimestampField(gotMap, "hook", "elapsed_seconds")
 		delete(gotMap, "@timestamp")
 		gotLineMaps = append(gotLineMaps, gotMap)
@@ -1177,8 +1176,8 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	}
 }
 
-func deleteTimestampField(gotMap map[string]interface{}, rootField, field string) map[string]interface{} {
-	rootMap, ok := gotMap[rootField].(map[string]interface{})
+func deleteTimestampField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
+	rootMap, ok := fieldMap[rootField].(map[string]interface{})
 	if ok {
 		for k := range rootMap {
 			if k == field {
@@ -1187,5 +1186,5 @@ func deleteTimestampField(gotMap map[string]interface{}, rootField, field string
 		}
 		return rootMap
 	}
-	return gotMap
+	return fieldMap
 }
