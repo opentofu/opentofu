@@ -103,17 +103,14 @@ func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, sourc
 	}
 
 	// bool and number type are converted to string
-	if keyVal.Type() == cty.Bool || keyVal.Type() == cty.Number {
-		keyConvert, convertErr := convert.Convert(keyVal, cty.String) // Conversion from bool or number to string
-		if convertErr != nil {
-			return nil, diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid provider instance key",
-				Detail:   fmt.Sprintf("The given instance key is unsuitable: %s.", tfdiags.FormatError(convertErr)),
-				Subject:  keyExpr.Range().Ptr(),
-			})
-		}
-		keyVal = keyConvert
+	keyVal, convertErr := convert.Convert(keyVal, cty.String) // Conversion from bool or number to string
+	if convertErr != nil {
+		return nil, diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid provider instance key",
+			Detail:   fmt.Sprintf("The given instance key is unsuitable: %s.", tfdiags.FormatError(convertErr)),
+			Subject:  keyExpr.Range().Ptr(),
+		})
 	}
 
 	// Because of the string conversion before the call of the ParseInstanceKey function,
