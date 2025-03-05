@@ -195,6 +195,8 @@ For VSCode, add the following setting to `.vscode/launch.json` for easy debuggin
             "program": "${workspaceFolder}/internal/lang/evalchecks/eval_for_each_test.go",
             // You can update your arguments for go test command here
             // "args": ["-test.run", "TestName/sub_test"]
+            // or to run a whole test
+            // "args": ["-test.run", "TestName"]
             "args": ["-test.run", "TestEvaluateForEachExpression_errors/set_containing_marked_values"]
         }
     ]
