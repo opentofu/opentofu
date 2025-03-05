@@ -188,7 +188,7 @@ For VSCode, add the following setting to `.vscode/launch.json` for easy debuggin
             "args": ["plan"]
         },
         {
-            "name": "go test",
+            "name": "opentofu test run",
             "type": "go",
             "request": "launch",
             "mode": "test",
