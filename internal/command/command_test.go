@@ -1178,13 +1178,14 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 
 func deleteTimestampField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
 	rootMap, ok := fieldMap[rootField].(map[string]interface{})
-	if ok {
-		for k := range rootMap {
-			if k == field {
-				delete(rootMap, field)
-			}
-		}
-		return rootMap
+	if !ok {
+		return fieldMap
 	}
-	return fieldMap
+	for k := range rootMap {
+		if k == field {
+			delete(rootMap, field)
+		}
+	}
+	return rootMap
+
 }
