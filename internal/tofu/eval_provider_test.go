@@ -66,22 +66,22 @@ func TestResolveProviderInstance_TypeConversion(t *testing.T) {
 	testCases := []struct {
 		name        string
 		inputValue  cty.Value
-		expectedKey string
+		expectedKey addrs.InstanceKey
 	}{
 		{
 			name:        "bool_true_to_string",
 			inputValue:  cty.BoolVal(true),
-			expectedKey: "true",
+			expectedKey: addrs.StringKey("true"),
 		},
 		{
 			name:        "bool_false_to_string",
 			inputValue:  cty.BoolVal(false),
-			expectedKey: "false",
+			expectedKey: addrs.StringKey("false"),
 		},
 		{
 			name:        "integer_to_string",
 			inputValue:  cty.NumberIntVal(1),
-			expectedKey: "1",
+			expectedKey: addrs.StringKey("1"),
 		},
 	}
 
@@ -96,9 +96,14 @@ func TestResolveProviderInstance_TypeConversion(t *testing.T) {
 				BaseDir: ".",
 			}
 			// call of the function to test
-			_, diags := resolveProviderInstance(expr, scope, "test-source")
+			actualKey, diags := resolveProviderInstance(expr, scope, "test-source")
+
 			if diags.HasErrors() {
 				t.Fatalf("Unexpected error: %s", diags.Err())
+			}
+
+			if actualKey != tc.expectedKey {
+				t.Fatalf("Incorrect instance key got:  %#v want: %#v", actualKey, tc.expectedKey)
 			}
 		})
 	}
