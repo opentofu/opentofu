@@ -103,7 +103,7 @@ func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, sourc
 	}
 
 	// bool and number type are converted to string
-	keyVal, convertErr := convert.Convert(keyVal, cty.String) // Conversion from bool or number to string
+	keyVal, convertErr := convert.Convert(keyVal, cty.String)
 	if convertErr != nil {
 		return nil, diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
