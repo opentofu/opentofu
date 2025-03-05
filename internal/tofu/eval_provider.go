@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -102,12 +103,22 @@ func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, sourc
 	}
 
 	// bool and number type are converted to string
-	if keyVal.Type() == cty.Bool {
-		keyVal = cty.StringVal(fmt.Sprintf("%t", keyVal.True())) // using type to convert the bool
-	} else if keyVal.Type() == cty.Number {
-		keyVal = cty.StringVal(fmt.Sprintf("%v", keyVal.AsBigFloat())) // using value to convert the number
+	if keyVal.Type() == cty.Bool || keyVal.Type() == cty.Number {
+		keyConvert, convertErr := convert.Convert(keyVal, cty.String) // Conversion from bool or number to string
+		if convertErr != nil {
+			return nil, diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid provider instance key",
+				Detail:   fmt.Sprintf("The given instance key is unsuitable: %s.", tfdiags.FormatError(convertErr)),
+				Subject:  keyExpr.Range().Ptr(),
+			})
+		}
+		keyVal = keyConvert
 	}
 
+	// Because of the string conversion before the call of the ParseInstanceKey function,
+	// no errors will be raised. Because keyVal is guaranteed to be a string.
+	// We can keep the error handling in case the implementation of ParseInstanceKey change in the future
 	parsedKey, parsedErr := addrs.ParseInstanceKey(keyVal)
 	if parsedErr != nil {
 		return nil, diags.Append(&hcl.Diagnostic{
