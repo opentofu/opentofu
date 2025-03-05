@@ -1184,5 +1184,4 @@ func deleteTimestampField(fieldMap map[string]interface{}, rootField, field stri
 
 	delete(rootMap, field)
 	return rootMap
-
 }
