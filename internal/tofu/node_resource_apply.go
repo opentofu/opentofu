@@ -19,6 +19,7 @@ type nodeExpandApplyableResource struct {
 }
 
 var (
+	_ GraphNodeDestroyerCBD         = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeReferenceable        = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeReferencer           = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeConfigResource       = (*nodeExpandApplyableResource)(nil)
@@ -28,6 +29,21 @@ var (
 )
 
 func (n *nodeExpandApplyableResource) expandsInstances() {
+}
+
+// CreateBeforeDestroy implementation for GraphNodeDestroyerCBD
+func (n *nodeExpandApplyableResource) CreateBeforeDestroy() bool {
+	// If we have no config, we just assume no
+	if n.Config == nil || n.Config.Managed == nil {
+		return false
+	}
+
+	return n.Config.Managed.CreateBeforeDestroy
+}
+
+// ModifyCreateBeforeDestroy implementation for GraphNodeDestroyerCBD actually does nothing for this node type.
+func (n *nodeExpandApplyableResource) ModifyCreateBeforeDestroy(_ bool) error {
+	return nil
 }
 
 func (n *nodeExpandApplyableResource) References() []*addrs.Reference {
