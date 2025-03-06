@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/2017-03-09/resources/mgmt/resources"
@@ -84,6 +85,17 @@ func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, erro
 		}
 	}
 
+	var oidcToken string
+	if config.OIDCToken != "" {
+		oidcToken = config.OIDCToken
+	} else if config.OIDCTokenFilePath != "" {
+		oidcTokenFileContent, err := os.ReadFile(config.OIDCTokenFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("reading OIDC Token %q: %v", config.OIDCTokenFilePath, err)
+		}
+		oidcToken = strings.TrimRight(string(oidcTokenFileContent), "\n")
+	}
+
 	authConfig := auth.Credentials{
 		Environment: *authEnvironment,
 
@@ -101,7 +113,7 @@ func buildArmClient(ctx context.Context, config BackendConfig) (*ArmClient, erro
 		CustomManagedIdentityEndpoint: config.MsiEndpoint,
 
 		// OIDC
-		OIDCAssertionToken:          config.OIDCToken,
+		OIDCAssertionToken:          oidcToken,
 		GitHubOIDCTokenRequestURL:   config.OIDCRequestURL,
 		GitHubOIDCTokenRequestToken: config.OIDCRequestToken,
 
