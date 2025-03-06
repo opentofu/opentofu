@@ -9,121 +9,75 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/gohcl"
-	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
-	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
-	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
-	"github.com/opentofu/opentofu/internal/encryption/registry"
-	"github.com/zclconf/go-cty/cty"
 )
 
-type targetBuilder struct {
-	cfg *config.EncryptionConfig
-	reg registry.Registry
-
-	// Used to evaluate hcl expressions
-	ctx *hcl.EvalContext
-
-	inputKeyProviderMetadata  map[keyprovider.MetaStorageKey][]byte
-	outputKeyProviderMetadata map[keyprovider.MetaStorageKey][]byte
-
-	// Used to build EvalContext (and related mappings)
-	keyValues    map[string]map[string]cty.Value
-	methodValues map[string]map[string]cty.Value
-	methods      map[method.Addr]method.Method
-	staticEval   *configs.StaticEvaluator
-}
-
-func (base *baseEncryption) buildTargetMethods(inputMeta map[keyprovider.MetaStorageKey][]byte, outputMeta map[keyprovider.MetaStorageKey][]byte) ([]method.Method, hcl.Diagnostics) {
+func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.TargetConfig, targetName string, enforced bool) ([]config.MethodConfig, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+	var methods []config.MethodConfig
 
-	builder := &targetBuilder{
-		cfg: base.enc.cfg,
-		reg: base.enc.reg,
-
-		staticEval: base.staticEval,
-		ctx: &hcl.EvalContext{
-			Variables: map[string]cty.Value{},
-		},
-
-		inputKeyProviderMetadata:  inputMeta,
-		outputKeyProviderMetadata: outputMeta,
-	}
-
-	keyDiags := append(diags, builder.setupKeyProviders()...)
-	diags = append(diags, keyDiags...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-	methodDiags := append(diags, builder.setupMethods()...)
-	diags = append(diags, methodDiags...)
-	if diags.HasErrors() {
-		return nil, diags
-	}
-
-	methods, targetDiags := builder.build(base.target, base.name)
-	diags = append(diags, targetDiags...)
-
-	if base.enforced {
-		for _, m := range methods {
-			if unencrypted.Is(m) {
-				return nil, append(diags, &hcl.Diagnostic{
+	for target != nil {
+		traversal, travDiags := hcl.AbsTraversalForExpr(target.Method)
+		diags = diags.Extend(travDiags)
+		if !travDiags.HasErrors() {
+			if len(traversal) != 3 { //nolint:mnd // linting
+				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Unencrypted method is forbidden",
-					Detail:   "Unable to use `unencrypted` method since the `enforced` flag is used.",
+					Summary:  "Invalid encryption method identifier",
+					Detail:   "Expected method of form method.<type>.<name>",
+					Subject:  target.Method.Range().Ptr(),
 				})
+				continue
 			}
-		}
-	}
+			mType, okType := traversal[1].(hcl.TraverseAttr)
+			mName, okName := traversal[2].(hcl.TraverseAttr)
 
-	return methods, diags
-}
-
-// build sets up a single target for encryption. It returns the primary and fallback methods for the target, as well
-// as a list of diagnostics if the target is invalid.
-// The targetName parameter is used for error messages only.
-func (e *targetBuilder) build(target *config.TargetConfig, targetName string) (methods []method.Method, diags hcl.Diagnostics) {
-
-	// gohcl has some weirdness around attributes that are not provided, but are hcl.Expressions
-	// They will set the attribute field to a static null expression
-	// https://github.com/hashicorp/hcl/blob/main/gohcl/decode.go#L112-L118
-
-	// Descriptor referenced by this target
-	var methodIdent *string
-	decodeDiags := gohcl.DecodeExpression(target.Method, e.ctx, &methodIdent)
-	diags = append(diags, decodeDiags...)
-
-	// Only attempt to fetch the method if the decoding was successful
-	if !decodeDiags.HasErrors() {
-		if methodIdent != nil {
-			if method, ok := e.methods[method.Addr(*methodIdent)]; ok {
-				methods = append(methods, method)
-			} else {
-				// We can't continue if the method is not found
-				diags = append(diags, &hcl.Diagnostic{
+			if traversal.RootName() != "method" || !okType || !okName {
+				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Undefined encryption method",
-					Detail:   fmt.Sprintf("Can not find %q for %q", *methodIdent, targetName),
+					Summary:  "Invalid encryption method identifier",
+					Detail:   "Expected method of form method.<type>.<name>",
 					Subject:  target.Method.Range().Ptr(),
 				})
 			}
-		} else {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Missing encryption method",
-				Detail:   fmt.Sprintf("undefined or null method used for %q", targetName),
-				Subject:  target.Method.Range().Ptr(),
-			})
+
+			foundMethod := false
+			for _, method := range cfg.MethodConfigs {
+				if method.Type == mType.Name && method.Name == mName.Name {
+					foundMethod = true
+					methods = append(methods, method)
+					break
+				}
+			}
+
+			if !foundMethod {
+				// We can't continue if the method is not found
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Reference to undeclared encryption method",
+					Detail:   fmt.Sprintf("There is no method %q %q block declared in the encryption block.", mType.Name, mName.Name),
+					Subject:  target.Method.Range().Ptr(),
+				})
+			}
 		}
+
+		// Attempt to fetch the fallback method if it's been configured
+		targetName += ".fallback"
+		target = target.Fallback
 	}
 
-	// Attempt to fetch the fallback method if it's been configured
-	if target.Fallback != nil {
-		fallback, fallbackDiags := e.build(target.Fallback, targetName+".fallback")
-		diags = append(diags, fallbackDiags...)
-		methods = append(methods, fallback...)
+	if enforced {
+		for _, m := range methods {
+			if unencrypted.IsConfig(m) {
+				return nil, append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Unencrypted method is forbidden",
+					Detail:   `Unable to use unencrypted method since the enforced flag is set.`,
+					Subject:  cfg.DeclRange.Ptr(),
+				})
+			}
+		}
 	}
 
 	return methods, diags
