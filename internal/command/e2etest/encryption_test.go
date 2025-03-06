@@ -122,14 +122,14 @@ func TestEncryptionFlow(t *testing.T) {
 
 		err := os.Rename(src, dst)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatalf("%s", err.Error())
 		}
 
 		fn()
 
 		err = os.Rename(dst, src)
 		if err != nil {
-			t.Fatalf(err.Error())
+			t.Fatalf("%s", err.Error())
 		}
 	}
 

@@ -1,12 +1,102 @@
-# Technical Steering Committee (TSC) Summary  
+# Technical Steering Committee (TSC) Summary
 
 The Technical Steering Committee is a group comprised of people from companies and projects backing OpenTofu. Its purpose is to have the final decision on any technical matters concerning the OpenTofu project, providing a model of governance that benefits the community as a whole, as opposed to being guided by any single company. The current members of the steering committee are:
 
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) representing Scalr Inc.
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople)) representing Harness Inc.
 - Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi)) representing env0
-- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12)) representing Spacelift Inc.
+- Marcin Wyszynski ([@marcinwyszynski](https://github.com/marcinwyszynski)) representing Spacelift Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
+
+## 2024-02-25
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+- Marcin Wyszynski to replace Wojciech Barczynski as Spacelift TSC representative.
+
+### Discussion
+
+- OpenTelemetry current plan: https://github.com/opentofu/opentofu/pull/2448
+- Update form core team: Progress toward alpha release.
+
+## 2024-02-18
+
+- Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+- CNCF update: all information has been shared with the board.
+- LF update: ongoing communication with FL on OpenTofu charter.
+
+### Discussion
+
+- Action followup: Core team to update RELEASES page with 1 year commitment of version support.
+- Action followup: OCI survey results blog post to be published.
+
+## 2024-02-11
+
+- Oleksandr Levchenkov ([@ollevche](https://github.com/ollevche)) (Representing Core Team)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+- Publishing OCI survey results:
+  - Vote to publish blog post with summary of data, decisions made from the data, and gratitude to community for time and effort contrbuting and the survey and improving OpenTofu.
+- Release timeline:
+  - Core team happier to work with a specific time period rather than a fixed number of versions.
+  - e.g. "We'll support releases for at least 1 calander year".
+  - Action: update the RELEASES.md file.
+- Contributions to Hashicorp-owned providers:
+  - No ill-will towards Hashicorp and so should not be treated differently than any other interactions.
+  - OpenTofu believes in promoting OpenSource IaC community.
+  - If meets criteria we are supportive.
+- CNCF Update from Emily:
+  - Action: confirm we've done everything possible to prepare the CNCF board to have all information.
+
+
+## 2024-02-04
+
+- Oleksandr Levchenkov ([@ollevche](https://github.com/ollevche)) (Representing Core Team)
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
+- Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
+- Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
+- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
+
+### Agenda
+
+- CNCF application status update
+- Updates from LF on Charter
+- Potential Product Owner role
+- Olek: Social Media presence
+- Zach: “Time to switch to OpenTofu Post”
+
+### Discussion
+
+- LF Charter: Email to LF on updates, awaiting feedback
+- Discussion on Social media:
+  - agree to start cross posting to Bluesky.
+  - agree to post to Hackernews more consistently.
+- Discussion on release policy doc:
+  - https://github.com/opentofu/opentofu/blob/main/RELEASE.md
+  - Support for 3 releases back
+  - Question if doc is clear enough on supported versions.
+  - Action: reassess with core team.
+- Discussion on End of Life Tracker:
+  - https://endoflife.date/opentofu
+  - Action: integrate to the the OpenTofu website.
+
 
 ## 2024-01-28
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
@@ -26,7 +116,7 @@ The Technical Steering Committee is a group comprised of people from companies a
  - [Make the Switch to OpenTofu](https://blog.gruntwork.io/make-the-switch-to-opentofu-6904ba95e799) published by Gruntwork
  - Discussed the status of stacks, discussed the need to gather requirements from the community on how/if OpenTofu should be doing anything here
 
-  
+
 ## 2024-01-14
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
@@ -39,13 +129,13 @@ The Technical Steering Committee is a group comprised of people from companies a
 - No formal votes.
 
 ### Discussion
-- Discussion of release process, and that we think its important for enterprise support that we provide patches for every major version going back at least 1 year.  Christian agreed to discuss w/Core team.  
+- Discussion of release process, and that we think its important for enterprise support that we provide patches for every major version going back at least 1 year.  Christian agreed to discuss w/Core team.
 - Discussion that regardless of final policy, we want to be explict about what versions are supported with e.g. an actual table on opentofu.org
 - Discussion of how much traction we're seeing, especially post-releases.  Setup a download-tracker spreadsheet to track github release download counts, we don't do much else on reddit, linkedin etc.
 - Discussion of getting feedback from TACOs for OpenTofu - "Make it Faster" - Add OpenTelemetry.
 - Discussion of CNCF application and what steps are needed to continue to advance the application and gain an exception to the apache license policy
 
-  
+
 ## 2024-01-07
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
@@ -94,7 +184,7 @@ Internal housekeeping around hiring and marketing. No voting.
 ### Discussion:
 - Shall we bring the stack concept to OpenTofu?
 https://github.com/opentofu/opentofu/issues/931
-https://github.com/gruntwork-io/terragrunt/issues/3313#issuecomment-2469025204 
+https://github.com/gruntwork-io/terragrunt/issues/3313#issuecomment-2469025204
 Action Item: observe the issues ^
 Breaking down the state is a real issue for our users.
 
@@ -235,7 +325,7 @@ The discussions included considerations like the following:
       evaluation of sensitive variables in module sources, versions, etc might
       result in sensitive values being written to disk.
     - What is the best way to tackle breaking this behavior? Should it be removed in a patch release?
-- Igor: This is an issue, but breaking behavior in a patch release is not ideal. 
+- Igor: This is an issue, but breaking behavior in a patch release is not ideal.
     - It might be best to fix it in a minor release.
     - There's risk that some users consider a breaking change like this really surprising.
 - Yousif: I agree with Igor. The behavior should be addressed in a minor release.
@@ -292,7 +382,7 @@ Vote: unanimous yes
 
 Vote: unanimous yes
 
-#### PackageCloud 
+#### PackageCloud
 
 PackageCloud provides free deb/rpm hosting for OpenTofu.
 
@@ -335,7 +425,7 @@ Christian: will write up a "case study" ([examples](https://buildkite.com/case-s
 ### Attendees
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
-- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 - Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
@@ -407,7 +497,7 @@ Additional community question: Is there a copy and pastable open source ADR on D
 ### Attendees
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
-- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
@@ -453,7 +543,7 @@ The core team has not had bandwidth to take on CDKTF, but will accept community 
 ### Attendees
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
-- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
@@ -585,7 +675,7 @@ At this point we need a decision from the TSC on which paths we should be invest
 ### Attendees
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
-- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
@@ -690,7 +780,7 @@ Core Team:
 
 TSC:
 
-- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 - Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
@@ -749,7 +839,7 @@ Do we want to prioritize different classes of potential OpenTofu adopters?  Do w
 
 [High Level Planning board on GitHub](https://github.com/orgs/opentofu/projects/9/views/1)
 
-This board will serve as a discussion hub / common view into what tasks / goals are priorities. Between releases the Tech Lead will manage updates to this board, meeting with the Core Team and TSC independently to keep this board up to date.  
+This board will serve as a discussion hub / common view into what tasks / goals are priorities. Between releases the Tech Lead will manage updates to this board, meeting with the Core Team and TSC independently to keep this board up to date.
 
 The [Top Voted Issues (GitHub)](https://github.com/opentofu/opentofu/issues/1496) should be taken into consideration when updating this board, alongside knowledge from TACOS about customer requests / roadblocks.
 
@@ -802,7 +892,7 @@ Core Team:
 
 TSC:
 
-- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 - Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
@@ -841,12 +931,12 @@ TSC:
 
 - Wojciech: The TSC should take the Product Manager role (what are customers complaining about, etc)
 
-- Zach: 
+- Zach:
 
-  1. Real World Experience w/Large enterprises — they are generally in 2 buckets - 
+  1. Real World Experience w/Large enterprises — they are generally in 2 buckets -
     1. Motivated by open source and eager for ammunition to make the case to spend $$ on moving to Tofu
     2. Cautious, in a “wait and see” position - not yet convinced tofu will be here in 5 years, don’t want to make a big bet on a direction that might not pan out for their org
-    
+
        1. Often these customers are uneducated and have **incorrect opinions or bad facts** about how OpenTofu works or what migration means
 
    2. Goal: Be the state-of-the-art defacto IaC solution:
@@ -910,7 +1000,7 @@ TSC:
 ### Attendees
 
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
-- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 
@@ -958,10 +1048,10 @@ Continuation of the discussion from 2024-05-21.
 ### Attendees
 
 - Wojciech Barczynski ([@wojciech12](https://github.com/wojciech12))
-- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) 
+- Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
 - Roni Frantchi ([@roni-frantchi](https://github.com/roni-frantchi))
-- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople)) 
+- Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 
 ### Agenda
 
@@ -993,14 +1083,14 @@ Continuation of the discussion from 2024-05-07.
 - Backends as Plugins
 
   - @Roni Frantchi - Not convinced this is the right solution or something really worth prioritizing
-  
+
   - @Igor Savchenko - it really needs an RFC for us to know what we’re voting on, it’s too abstract right now
 
   - @Roni Frantchi - if the steering committee says “OK lets see an RFC” is that actually interpreted as a green light for the community - once the RFC is up we’d move on it?
 
 ##### Decision
 
-We cannot vote without a RFC. 
+We cannot vote without a RFC.
 
 ## 2024-05-07
 
@@ -1217,12 +1307,12 @@ Yes.
       - We should be extra careful with changes to the api of modules - having different file extension may affect the way they reference one another
          - E.g., A `.tf` file with `module "foo"` and a `.otf` file with `module "foo"`. What happens if something needs to reference `module.foo`? Which module gets used? How do language servers / IDEs check this stuff? How do module authors ensure compatibility.
          - So it’s mostly about the cross-references that touch module outputs.
-      
+
       <aside>
       💡 We use the term “breaking change” here, but we don’t really mean the change is breaking. These are all opt-in features. But what we mean is that the experience may be poor: e.g., tflint/tfsec/etc will fail, IDEs won’t do syntax highlighting, etc.
-      
+
       </aside>
-      
+
       - Proposal 1: before moving on with any of the breaking changes RFC - we should choose and start to implement a solution that would allow those to coexist in IDEs/module authors and all the concerns listed above ?
          - Against: (everyone)
       - ✅ **[DECISION]** Proposal 1a: allow 1.7 to go out with state encryption as a breaking change, but block future breaking changes until we land this RFC in 1.8.
@@ -1250,7 +1340,7 @@ Yes.
    - With state encryption, and the issue below, we’re introducing new constructs to the OpenTofu language. That also goes for functions we’ve added. In practice, for module authors this might lead to complexity or artificial limitations in order to support both Terraform and OpenTofu. Janos suggests that we introduce support for the .otf extension, and if there’s both [xyz.tf](http://xyz.tf) and xyz.otf in a directory (same name), we ignore xyz.tf. Thus introducing a simple way for people to support both in a single configuration.
    - Issue: https://github.com/opentofu/opentofu/issues/1275
    - *Decision:* TSC would like to see a **holistic RFC(s) it can vote on**, gather community feedback, consider capturing use cases of divergence from HTF and OTF side, and how these will be handled by IDE etc.
-    
+
 
 3. Deprecating module variables
    - We’ve accepted an issue to introduce the mechanism of deprecating module variables. After extensive discussions we’d like the steering committees decision on which approach to go with.
@@ -1294,7 +1384,7 @@ Yes.
 ### Agenda
 
 1. Comparison Table
-   - Community members are asking for comparisons between OpenTofu and Terraform. It’s a tradeoff - on one hand it pushes us into the mindset of being a shadow-project, on the other hand it would ease the risk of migration and help those who value high levels of compatibility. It’s worth noting that the community has been creating similar tables already, like [nedinthecloud](https://nedinthecloud.com/2024/01/22/comparing-opentofu-and-terraform/).  
+   - Community members are asking for comparisons between OpenTofu and Terraform. It’s a tradeoff - on one hand it pushes us into the mindset of being a shadow-project, on the other hand it would ease the risk of migration and help those who value high levels of compatibility. It’s worth noting that the community has been creating similar tables already, like [nedinthecloud](https://nedinthecloud.com/2024/01/22/comparing-opentofu-and-terraform/).
    - ❌ Add a compatibility table to the website
       - Yes:
       - No: Unanimous
@@ -1338,18 +1428,18 @@ Yes.
 ### Agenda
 
 1. Decide on producing more specific migration paths from Terraform to OpenT
-   1. **Context** e.g. from Terraform version x.y.z to OpenTofu a.b.c. This would enable us to better describe exactly what parts of the code users need to modify and what features may not be supported between those two specific versions. 
+   1. **Context** e.g. from Terraform version x.y.z to OpenTofu a.b.c. This would enable us to better describe exactly what parts of the code users need to modify and what features may not be supported between those two specific versions.
    2. **Options**
       1. accept
       2. reject
    3. **Decision**: accept, unanimous
-   
+
 2. Decide if issue [OpenTofu-specific code override](https://github.com/opentofu/opentofu/issues/1275) should be accepted.
    1. **Context** as state encryption is a feature OpenTofu is adding which is not available to Terrafrom and we don't want to break compatibly for users trying out Tofu. This issue provides an option to create a new file type which would be used by OpenTofu but ignored by Terraform.
    2. **Decision** TSC would like to see a holistic RFC(s) in order to gather community feedback, provide alternatives and TFC to make decision on. Should consider capturing use cases of divergence from HTF to OTF and how these might be handled by IDEs etc.
-   
+
 3. Deprecating module variables.
-   1. **Context** issue accepted to introduce mechanism of deprecating module variables. Options for this are: 
+   1. **Context** issue accepted to introduce mechanism of deprecating module variables. Options for this are:
       1. Approach 1: add deprecation as part of the variable description. e.g. add something like `@deprecated: message` or `@deprecated{message}`and Tofu would raise a warning with the message.
          - *Advantages*: Modules can use this while still supporting Terraform.
          - *Disadvantages*: "Magical" and implicit solution. Introduces a new, slightly hacky, mechanism.
@@ -1358,20 +1448,20 @@ Yes.
          - *Disadvantages*: Modules using it will not work with Terraform, it will break on parsing the variable block.
       3. **Decisions**:
          1. Reject approach 1
-         2. Consider how approach 2 fits with OTF/HTF. Possibly include as part of above requested RFC on handling discrepancies. 
+         2. Consider how approach 2 fits with OTF/HTF. Possibly include as part of above requested RFC on handling discrepancies.
 
 4. Functions in providers
-   1. **Context** mostly a formality but do we agree "functions in providers" is something we want to do (without timeline or priority). 
+   1. **Context** mostly a formality but do we agree "functions in providers" is something we want to do (without timeline or priority).
       - **Note 1**: Terraform 1.8 is adding this feature and the provider sdk, including this, is already stabilized and released.
       - *Note 2*: This is not a lot of effort and could possibly make the Tofu 1.7 release, if Terraform 1.8 is released before Tofu 1.7 (to ensure API is stable).
       - *Note 3*: Full RFC will follow, this is mostly an ask from the core team to ensure everyone is in agreement with adding the feature at all.
-   2. **Decisions** 
+   2. **Decisions**
       - Agree feature should be added to the Tofu roadmap
       - Add to the Tofu 1.8 release, keep it out of 1.7 release, even if Terraform 1.8 is released wit the feature.
 
 5. Registry UI
-   1. **Context** previous decision to wait on this but community are now asking for it. 
-   2. **Decision** Please prioritise RFC of OpenTofu's own formal registry. 
+   1. **Context** previous decision to wait on this but community are now asking for it.
+   2. **Decision** Please prioritise RFC of OpenTofu's own formal registry.
 
 ## 2024-01-30
 
@@ -1390,7 +1480,7 @@ Yes.
 ### Agenda
 
 1. Decide if [Backends as Plugins](https://github.com/opentofu/opentofu/issues/382) are accepted as a roadmap item
-   1. **Context**  
+   1. **Context**
       This is about accepting it as a long-term roadmap item - ie committing ourselves to doing it at some point, not necessarily for the specific implementation described in the RFC. Reasoning: We have many community members and companies wanting to get state backends in. We’d like to be able to answer “We’re not doing this, as we’ll be doing backends as plugins to handle it.” For this, we need this accepted by the TSC as a medium/long-term roadmap item.
    1. **Options**
       1. accept;
@@ -1399,7 +1489,7 @@ Yes.
    1. **Decision**: postpone for 3 months
       Reasoning: this is not a key feature for our user base, and given that Terraform is seeing an increase in velocity, we need to churn out things that make a difference for average users.
 1. Decide if we accept the [Allow specifying input variables as unknown in tofu plan](https://github.com/opentofu/opentofu/issues/812) proposal as a feature
-   1. **Context**  
+   1. **Context**
       - OpenTofu supports unknown values very well (e.g. outputs of not-yet-applied resources). This works well, but is not supported across statefiles. OpenTofu users commonly orchestrate multiple statefiles as a single "component" leading to multi-statefile plans, and unknown values that stem from a different statefile than your own.
       - Current solutions either use placeholder values (Terragrunt I believe), which are error prone as users sometimes accidentally apply the placeholder values, or they just use the previous variable value for the planning phase, which hides the actual blast radius a change in a statefile will have.
       - The goal here is to introduce the ability to mark an input variable of a tofu config as unknown during plan-time. This way all this tooling can properly signal what is actually the case - the variable is not currently known, due to changes in dependency statefiles. Leading to no error-proneness, and no hidden blast-radius.
@@ -1423,7 +1513,7 @@ Yes.
 ### Agenda
 
 1. How many historic releases we support
-   1. **Context**  
+   1. **Context**
       HashiCorp’s approach is to introduce patches for the most recent major (which means in their lingua changes to X and Y in X.Y.Z) release, as well as up to two prior ones. Which means that there are three supported releases at any given point in time.
    1. **Discussion**
       We discussed 3 options:
@@ -1432,7 +1522,7 @@ Yes.
       1. **Three releases**. Stick with HashiCorp’s approach: patches for the most recent major release, as well as up to two prior ones. So we support up to three releases at any given point in time.
    1. **Vote**: unanimous for option 3.
 1. Certifications
-   1. **Context**  
+   1. **Context**
       Prominent community member asks us to provide some sort of certifications they can use to prove that we take security seriously.
    1. **Discussion**
       We discussed the following non-exclusive options:
@@ -1460,7 +1550,7 @@ Yes.
 ### Agenda
 
 1. Changing default registry namespace to opentofu
-   1. **Context**  
+   1. **Context**
       The namespace default change to OpenTofu had some unintended consequences and edge cases with versioning of providers and the interaction of having both hashicorp/xyz and xyz plain in a single config. See [Issue #988](https://github.com/opentofu/opentofu/issues/988) for more details.
    1. **Discussion**
       - Marcin thought a deprecation warning is acceptable
@@ -1470,7 +1560,7 @@ Yes.
    2. **Decision**: Unanimous (c)
 
 1. Launch date of GA
-   1. **Context**  
+   1. **Context**
       R&D team may be ready with a GA version as soon as December 20th. Marketing advised we should wait till after the holidays (Jan 10th) for a bigger splash.
    1. **Discussion**
       - Yevgeniy asks about engineering availability during the holiday to support early launch. Response was we have an engineering site that can support that, and Marcin mentioned other sites don’t mind jumping in some OpenTofu during the holidays as well
@@ -1522,7 +1612,7 @@ Decision: Quick unanimous yes
    - **Decision**: Not a prio right now, but as most votes actually suggested some solutions, TSC would like to see some suggested RFCs for the above options to be submitted, and then we can re-examine
 
 2. [RFC: Client-side state encryption](https://github.com/opentofu/opentofu/issues/874)
-   - **Discussion**  
+   - **Discussion**
      Everyone agrees it should be accepted to as a highly requested feature, differentiating feature. @Marcin Wyszynski felt this is not the long term solution he would have wanted to see (don’t store secrets in state), but more upsides to having that intermediate solution now than not)
    - **Vote**: Should this be accepted as a higher priority this Q?
       - Everyone: Yes
@@ -1552,7 +1642,7 @@ Decision: Quick unanimous yes
 With that, our time’s up. We’ll convene again next week to discuss more items.
 
 ## 2023-11-02
-### Attendees: 
+### Attendees:
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
 - Marcin Wyszynski ([@marcinwyszynski](https://github.com/marcinwyszynski))
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
@@ -1566,7 +1656,7 @@ With that, our time’s up. We’ll convene again next week to discuss more item
 
 #### Selecting an RFC for a registry solution for resolving providers/modules
 1. There was a **unanimous** consensus the RFC for [Homebrew-like artifact resolution registry component](https://github.com/opentofu/opentofu/issues/741) should be picked.
-1. Main drivers for the decision (each in the meeting brought at least one of the following):  
+1. Main drivers for the decision (each in the meeting brought at least one of the following):
    1. To be able to keep our word of being a drop-in replacement and innovate and win over hearts and minds we wish to have our core team focus on our CLI solution and avoid maintaining a highly available mission critical SaaS
    1. We wish to tie maximize our availability by standing on the shoulders of giants (GitHub/AWS)
    1. The transparency of the solution as a git repository, which is at the core of our competitive offering
@@ -1586,7 +1676,7 @@ With that, our time’s up. We’ll convene again next week to discuss more item
   1. Since we believe we may have some backlog of agenda items still, we will start with a weekly meeting, currently looking at Thursday 7:30PM CET (exact _time_ pending, action item [@allofthesepeople](https://github.com/allofthesepeople))
   1. Agenda suggestions for meeting will be posted no less than 24h in advance, if no items are posted we will cancel the meeting
 
-#### Personnel 
+#### Personnel
 1. Following a founders meeting decision to hire core team members under various pledging companies their payroll and donate time, rather than under direct foundation payroll -
    1. Spacelift already hired two **dedicated** maintainers
-   1. Spacelift built a profile and hiring pipeline dedicated for the Tofu effort which will be shared with companies interested in hiring Tofu dedicated personnel 
+   1. Spacelift built a profile and hiring pipeline dedicated for the Tofu effort which will be shared with companies interested in hiring Tofu dedicated personnel
