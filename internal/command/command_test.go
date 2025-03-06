@@ -1153,7 +1153,7 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		if _, ok := gotMap["@timestamp"]; !ok {
 			t.Errorf("missing @timestamp field in log: %s", gotLines[index])
 		}
-		gotMap = deleteTimestampField(gotMap, "hook", "elapsed_seconds")
+		gotMap = deleteMapField(gotMap, "hook", "elapsed_seconds")
 		delete(gotMap, "@timestamp")
 		gotLineMaps = append(gotLineMaps, gotMap)
 	}
@@ -1165,7 +1165,7 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		if err := json.Unmarshal([]byte(line), &wantMap); err != nil {
 			t.Errorf("failed to unmarshal want line %d: %s\n%s", index, err, gotLines[index])
 		}
-		wantMap = deleteTimestampField(wantMap, "hook", "elapsed_seconds")
+		wantMap = deleteMapField(wantMap, "hook", "elapsed_seconds")
 		wantLineMaps = append(wantLineMaps, wantMap)
 	}
 
@@ -1176,7 +1176,7 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	}
 }
 
-func deleteTimestampField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
+func deleteMapField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
 	rootMap, ok := fieldMap[rootField].(map[string]interface{})
 	if !ok {
 		return fieldMap
