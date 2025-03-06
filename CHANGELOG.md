@@ -44,6 +44,7 @@ BUG FIXES:
 - `pg` backend doesn't fail on workspace creation for paralel runs, when the database is shared across multiple projects. ([#2411](https://github.com/opentofu/opentofu/pull/2411))
 - Generating an OpenTofu configuration from an `import` block that is referencing a resource with nested attributes now works correctly, instead of giving an error that the nested computed attribute is required. ([#2372](https://github.com/opentofu/opentofu/issues/2372)) 
 - `base64gunzip` now doesn't expose sensitive values if it fails during the base64 decoding. ([#2503](https://github.com/opentofu/opentofu/pull/2503))
+- Fix loading only the necessary encryption key providers and methods for better `terraform_remote_state` support. ([2551](https://github.com/opentofu/opentofu/issues/2551))
 
 ## Previous Releases
 
