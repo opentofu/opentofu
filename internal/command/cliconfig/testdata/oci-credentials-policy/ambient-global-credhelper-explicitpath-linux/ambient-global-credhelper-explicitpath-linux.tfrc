@@ -1,0 +1,5 @@
+oci_default_credentials {
+  docker_style_config_files = [
+    "./explicitly-named.json"
+  ]
+}

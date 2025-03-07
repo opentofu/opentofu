@@ -1,0 +1,19 @@
+oci_default_credentials {
+  # This test fixture is focused only on explicit credentials.
+  discover_ambient_credentials = false
+}
+
+oci_credentials "example.com" {
+  username = "example.com user"
+  password = "example.com password"
+}
+
+oci_credentials "example.com/foo" {
+  username = "example.com/foo user"
+  password = "example.com/foo password"
+}
+
+oci_credentials "example.com/foo/bar" {
+  username = "example.com/foo/bar user"
+  password = "example.com/foo/bar password"
+}

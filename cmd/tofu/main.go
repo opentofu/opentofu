@@ -185,7 +185,7 @@ func realMain() int {
 	}
 	services.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
-	providerSrc, diags := providerSource(config.ProviderInstallation, services)
+	providerSrc, diags := providerSource(config.ProviderInstallation, services, config.OCICredentialsPolicy)
 	if len(diags) > 0 {
 		Ui.Error("There are some problems with the provider_installation configuration:")
 		for _, diag := range diags {

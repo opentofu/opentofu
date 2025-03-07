@@ -1,0 +1,12 @@
+oci_default_credentials {
+  # This totally disables all of the "ambient" credentials discovery
+  # behavior, making only explicit oci_credentials blocks in the CLI
+  # configuration eligible, and this test case intentionally has none
+  # of those so it effectively has no OCI credentials configs at all.
+  discover_ambient_credentials = false
+}
+
+# Note that there's also an $XDG_CONFIG_HOME/containers/auth.json file
+# in this fixture that would normally be detected as an ambient config
+# location on Linux systems, but its detection is disabled by the setting
+# above.

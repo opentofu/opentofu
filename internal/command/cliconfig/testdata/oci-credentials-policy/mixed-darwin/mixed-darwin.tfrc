@@ -1,0 +1,29 @@
+# This fixture has a combination of explicitly-configured and ambiently-detected
+# credentials, including some intentional ambiguity so that we can test that
+# our precedence rules are working correctly.
+
+oci_default_credentials {
+  # This global credentials helper should override the one configured
+  # in the Docker-style config file, because OpenTofu CLI configuration
+  # always takes priority.
+  docker_credentials_helper = "fake"
+}
+
+# NOTE: This block intentionally conflicts with the one configured in
+# the Docker-style config file, and this one should win because we
+# prioritize explicit over ambient configuration when specificity is
+# equal.
+oci_credentials "example.com" {
+  username = "example.com user"
+  password = "example.com password"
+}
+
+# the "foo" repository is configured only here, but there is also a
+# "bar" repository configured in the Docker-style file, which should
+# be able to take priority over the domain-only block above because
+# the specificity rules have higher priority than the "explicit
+# configuration wins" rule.
+oci_credentials "example.com/foo" {
+  username = "example.com/foo user"
+  password = "example.com/foo password"
+}
