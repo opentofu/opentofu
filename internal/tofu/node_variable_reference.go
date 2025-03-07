@@ -146,7 +146,7 @@ func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
 func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
 	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
-	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, ctx, false)) // TODO provide this bool from cli arg
+	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, ctx))
 
 	if op == walkValidate {
 		var filtered tfdiags.Diagnostics
