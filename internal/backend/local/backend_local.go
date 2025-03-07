@@ -468,9 +468,9 @@ func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[st
 func variableInputDescription(v *configs.Variable) string {
 	switch {
 	case v.Description != "" && v.DeprecatedSet:
-		return fmt.Sprintf("%s.\nVariable deprecated: %s", v.Description, v.Deprecated)
+		return fmt.Sprintf("%s.\nVariable is marked as deprecated with the following message: %s", v.Description, v.Deprecated)
 	case v.DeprecatedSet:
-		return fmt.Sprintf("Variable deprecated: %s", v.Deprecated)
+		return fmt.Sprintf("Variable is marked as deprecated with the following message: %s", v.Deprecated)
 	default:
 		return v.Description
 	}
