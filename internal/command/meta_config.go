@@ -163,11 +163,19 @@ func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string
 	if !m.Input() {
 		return "", fmt.Errorf("input is disabled")
 	}
+
+	varDesc := variable.Description
+	switch {
+	case variable.Description != "" && variable.DeprecatedSet:
+		varDesc = fmt.Sprintf("%s.\nVariable deprecated: %s", variable.Description, variable.Deprecated)
+	case variable.DeprecatedSet:
+		varDesc = fmt.Sprintf("Variable deprecated: %s", variable.Deprecated)
+	}
 	uiInput := m.UIInput()
 	rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
 		Id:          fmt.Sprintf("var.%s", variable.Name),
 		Query:       fmt.Sprintf("var.%s", variable.Name),
-		Description: variable.Description,
+		Description: varDesc,
 		Secret:      variable.Sensitive,
 	})
 	if err != nil {
