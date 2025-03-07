@@ -499,7 +499,7 @@ func evalVariableDeprecation(addr addrs.AbsInputVariableInstance, config *config
 	return diags.Append(&hcl.Diagnostic{
 		Severity: hcl.DiagWarning,
 		Summary:  fmt.Sprintf(`The variable %q is marked as deprecated by module author`, config.Name),
-		Detail:   config.Deprecated,
+		Detail:   fmt.Sprintf("This variable is marked as deprecated with the following message:\n%s", config.Deprecated),
 		Subject:  expr.Range().Ptr(),
 	})
 }

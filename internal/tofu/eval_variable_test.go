@@ -1497,8 +1497,11 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			expectedDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
 				Summary:  `The variable "foo" is marked as deprecated by module author`,
-				Detail:   cfg.Children["foo-call"].Module.Variables["foo"].Deprecated,
-				Subject:  cfg.Module.ModuleCalls["foo-call"].Source.Range().Ptr(),
+				Detail: fmt.Sprintf(
+					"This variable is marked as deprecated with the following message:\n%s",
+					cfg.Children["foo-call"].Module.Variables["foo"].Deprecated,
+				),
+				Subject: cfg.Module.ModuleCalls["foo-call"].Source.Range().Ptr(),
 			}),
 		},
 		"local-mod-called-from-root-with-no-var": {
@@ -1520,8 +1523,11 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			expectedDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
 				Summary:  `The variable "bar" is marked as deprecated by module author`,
-				Detail:   cfg.Children["foo-call"].Children["bar-call"].Module.Variables["bar"].Deprecated,
-				Subject:  cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source.Range().Ptr(),
+				Detail: fmt.Sprintf(
+					"This variable is marked as deprecated with the following message:\n%s",
+					cfg.Children["foo-call"].Children["bar-call"].Module.Variables["bar"].Deprecated,
+				),
+				Subject: cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source.Range().Ptr(),
 			}),
 		},
 	}
