@@ -1484,10 +1484,9 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		varAddr   addrs.AbsInputVariableInstance
-		varCfg    *configs.Variable
-		expr      hcl.Expression
-		onlyLocal bool
+		varAddr addrs.AbsInputVariableInstance
+		varCfg  *configs.Variable
+		expr    hcl.Expression
 
 		expectedDiags tfdiags.Diagnostics
 	}{
@@ -1544,7 +1543,6 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 				tt.varCfg,
 				expr,
 				ctx,
-				false,
 			)
 
 			if gotLen, expectedLen := len(gotDiags), len(tt.expectedDiags); gotLen != expectedLen {
@@ -1568,20 +1566,4 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			}
 		})
 	}
-	t.Run("remote-mod-called-from-root", func(t *testing.T) {
-		varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil))
-		varCfg := cfg.Children["foo-call"].Module.Variables["foo"]
-		// NOTE: this is just to test that diags are not returned when remote are excluded
-		varCfg.DeclRange.Filename = ".terraform/modules/" + varCfg.DeclRange.Filename
-		gotDiags := evalVariableDeprecation(
-			varAddr,
-			varCfg,
-			cfg.Module.ModuleCalls["foo-call"].Source,
-			ctx,
-			true,
-		)
-		if len(gotDiags) != 0 {
-			t.Fatalf("unexpected diags returned. %+v", gotDiags)
-		}
-	})
 }
