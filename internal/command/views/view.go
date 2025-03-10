@@ -124,7 +124,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		if useCompact {
 			msg := format.DiagnosticWarningsCompact(diags, v.colorize)
 			msg = "\n" + msg + "\nTo see the full warning notes, run OpenTofu without -compact-warnings.\n"
-			v.streams.Print(msg)
+			v.streams.Print(msg) //nolint:errcheck // ui output
 			return
 		}
 	}
@@ -132,15 +132,15 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 	for _, diag := range diags {
 		var msg string
 		if v.colorize.Disable {
-			msg = format.DiagnosticPlain(diag, v.configSources(), v.streams.Stderr.Columns())
+			msg = format.DiagnosticPlain(diag, v.configSources(), v.streams.Stderr.Columns()) //nolint:errcheck // ui output
 		} else {
-			msg = format.Diagnostic(diag, v.configSources(), v.colorize, v.streams.Stderr.Columns())
+			msg = format.Diagnostic(diag, v.configSources(), v.colorize, v.streams.Stderr.Columns()) //nolint:errcheck // ui output
 		}
 
 		if diag.Severity() == tfdiags.Error {
-			v.streams.Eprint(msg)
+			v.streams.Eprint(msg) //nolint:errcheck // ui output
 		} else {
-			v.streams.Print(msg)
+			v.streams.Print(msg) //nolint:errcheck // ui output
 		}
 	}
 }
@@ -149,7 +149,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 // of their CLI arguments successfully. It refers users to the full help output
 // rather than rendering it directly, which can be overwhelming and confusing.
 func (v *View) HelpPrompt(command string) {
-	v.streams.Eprintf(helpPrompt, command)
+	v.streams.Eprintf(helpPrompt, command) //nolint:errcheck // ui output
 }
 
 const helpPrompt = `
@@ -160,28 +160,28 @@ For more help on using this command, run:
 // outputColumns returns the number of text character cells any non-error
 // output should be wrapped to.
 //
-// This is the number of columns to use if you are calling v.streams.Print or
+// This is the number of columns to use if you are calling v.streams.Print or //nolint:errcheck // ui output
 // related functions.
 func (v *View) outputColumns() int {
-	return v.streams.Stdout.Columns()
+	return v.streams.Stdout.Columns() //nolint:errcheck // ui output
 }
 
 // errorColumns returns the number of text character cells any error
 // output should be wrapped to.
 //
-// This is the number of columns to use if you are calling v.streams.Eprint
+// This is the number of columns to use if you are calling v.streams.Eprint //nolint:errcheck // ui output
 // or related functions.
 func (v *View) errorColumns() int {
-	return v.streams.Stderr.Columns()
+	return v.streams.Stderr.Columns() //nolint:errcheck // ui output
 }
 
-// outputHorizRule will call v.streams.Println with enough horizontal line
+// outputHorizRule will call v.streams.Println with enough horizontal line //nolint:errcheck // ui output
 // characters to fill an entire row of output.
 //
 // If UI color is enabled, the rule will get a dark grey coloring to try to
 // visually de-emphasize it.
 func (v *View) outputHorizRule() {
-	v.streams.Println(format.HorizontalRule(v.colorize, v.outputColumns()))
+	v.streams.Println(format.HorizontalRule(v.colorize, v.outputColumns())) //nolint:errcheck // ui output
 }
 
 func (v *View) SetShowSensitive(showSensitive bool) {

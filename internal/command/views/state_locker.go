@@ -42,11 +42,11 @@ var _ StateLocker = (*StateLockerHuman)(nil)
 var _ StateLocker = (*StateLockerJSON)(nil)
 
 func (v *StateLockerHuman) Locking() {
-	v.view.streams.Println("Acquiring state lock. This may take a few moments...")
+	v.view.streams.Println("Acquiring state lock. This may take a few moments...") //nolint:errcheck // ui output
 }
 
 func (v *StateLockerHuman) Unlocking() {
-	v.view.streams.Println("Releasing state lock. This may take a few moments...")
+	v.view.streams.Println("Releasing state lock. This may take a few moments...") //nolint:errcheck // ui output
 }
 
 // StateLockerJSON is an implementation of StateLocker which prints the state lock status
@@ -66,7 +66,7 @@ func (v *StateLockerJSON) Locking() {
 		"type":       "state_lock_acquire"}
 
 	lock_info_message, _ := json.Marshal(json_data)
-	v.view.streams.Println(string(lock_info_message))
+	v.view.streams.Println(string(lock_info_message)) //nolint:errcheck // ui output
 }
 
 func (v *StateLockerJSON) Unlocking() {
@@ -80,5 +80,5 @@ func (v *StateLockerJSON) Unlocking() {
 		"type":       "state_lock_release"}
 
 	lock_info_message, _ := json.Marshal(json_data)
-	v.view.streams.Println(string(lock_info_message))
+	v.view.streams.Println(string(lock_info_message)) //nolint:errcheck // ui output
 }

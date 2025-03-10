@@ -100,7 +100,7 @@ func (t *TestHuman) Abstract(_ *moduletest.Suite) {
 }
 
 func (t *TestHuman) Conclusion(suite *moduletest.Suite) {
-	t.view.streams.Println()
+	t.view.streams.Println() //nolint:errcheck // ui output
 
 	counts := make(map[moduletest.Status]int)
 	for _, file := range suite.Files {
@@ -112,36 +112,36 @@ func (t *TestHuman) Conclusion(suite *moduletest.Suite) {
 
 	if suite.Status <= moduletest.Skip {
 		// Then no tests.
-		t.view.streams.Print("Executed 0 tests")
+		t.view.streams.Print("Executed 0 tests") //nolint:errcheck // ui output
 		if counts[moduletest.Skip] > 0 {
-			t.view.streams.Printf(", %d skipped.\n", counts[moduletest.Skip])
+			t.view.streams.Printf(", %d skipped.\n", counts[moduletest.Skip]) //nolint:errcheck // ui output
 		} else {
-			t.view.streams.Println(".")
+			t.view.streams.Println(".") //nolint:errcheck // ui output
 		}
 		return
 	}
 
 	if suite.Status == moduletest.Pass {
-		t.view.streams.Print(t.view.colorize.Color("[green]Success![reset]"))
+		t.view.streams.Print(t.view.colorize.Color("[green]Success![reset]")) //nolint:errcheck // ui output
 	} else {
-		t.view.streams.Print(t.view.colorize.Color("[red]Failure![reset]"))
+		t.view.streams.Print(t.view.colorize.Color("[red]Failure![reset]")) //nolint:errcheck // ui output
 	}
 
-	t.view.streams.Printf(" %d passed, %d failed", counts[moduletest.Pass], counts[moduletest.Fail]+counts[moduletest.Error])
+	t.view.streams.Printf(" %d passed, %d failed", counts[moduletest.Pass], counts[moduletest.Fail]+counts[moduletest.Error]) //nolint:errcheck // ui output
 	if counts[moduletest.Skip] > 0 {
-		t.view.streams.Printf(", %d skipped.\n", counts[moduletest.Skip])
+		t.view.streams.Printf(", %d skipped.\n", counts[moduletest.Skip]) //nolint:errcheck // ui output
 	} else {
-		t.view.streams.Println(".")
+		t.view.streams.Println(".") //nolint:errcheck // ui output
 	}
 }
 
 func (t *TestHuman) File(file *moduletest.File) {
-	t.view.streams.Printf("%s... %s\n", file.Name, colorizeTestStatus(file.Status, t.view.colorize))
+	t.view.streams.Printf("%s... %s\n", file.Name, colorizeTestStatus(file.Status, t.view.colorize)) //nolint:errcheck // ui output
 	t.Diagnostics(nil, file, file.Diagnostics)
 }
 
 func (t *TestHuman) Run(run *moduletest.Run, file *moduletest.File) {
-	t.view.streams.Printf("  run %q... %s\n", run.Name, colorizeTestStatus(run.Status, t.view.colorize))
+	t.view.streams.Printf("  run %q... %s\n", run.Name, colorizeTestStatus(run.Status, t.view.colorize)) //nolint:errcheck // ui output
 
 	if run.Verbose != nil {
 		// We're going to be more verbose about what we print, here's the plan
@@ -220,18 +220,18 @@ func (t *TestHuman) DestroySummary(diags tfdiags.Diagnostics, run *moduletest.Ru
 	}
 
 	if diags.HasErrors() {
-		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("OpenTofu encountered an error destroying resources created while executing %s.\n", identifier), t.view.errorColumns()))
+		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("OpenTofu encountered an error destroying resources created while executing %s.\n", identifier), t.view.errorColumns())) //nolint:errcheck // ui output
 	}
 	t.Diagnostics(run, file, diags)
 
 	if state.HasManagedResourceInstanceObjects() {
-		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:\n", identifier), t.view.errorColumns()))
+		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu left the following resources in state after executing %s, these left-over resources can be viewed by reading the statefile written to disk(errored_test.tfstate) and they need to be cleaned up manually:\n", identifier), t.view.errorColumns())) //nolint:errcheck // ui output
 		for _, resource := range state.AllResourceInstanceObjectAddrs() {
 			if resource.DeposedKey != states.NotDeposed {
-				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey)
+				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey) //nolint:errcheck // ui output
 				continue
 			}
-			t.view.streams.Eprintf("  - %s\n", resource.Instance)
+			t.view.streams.Eprintf("  - %s\n", resource.Instance) //nolint:errcheck // ui output
 		}
 	}
 }
@@ -241,26 +241,26 @@ func (t *TestHuman) Diagnostics(_ *moduletest.Run, _ *moduletest.File, diags tfd
 }
 
 func (t *TestHuman) Interrupted() {
-	t.view.streams.Eprintln(format.WordWrap(interrupted, t.view.errorColumns()))
+	t.view.streams.Eprintln(format.WordWrap(interrupted, t.view.errorColumns())) //nolint:errcheck // ui output
 }
 
 func (t *TestHuman) FatalInterrupt() {
-	t.view.streams.Eprintln(format.WordWrap(fatalInterrupt, t.view.errorColumns()))
+	t.view.streams.Eprintln(format.WordWrap(fatalInterrupt, t.view.errorColumns())) //nolint:errcheck // ui output
 }
 
 func (t *TestHuman) FatalInterruptSummary(run *moduletest.Run, file *moduletest.File, existingStates map[*moduletest.Run]*states.State, created []*plans.ResourceInstanceChangeSrc) {
-	t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu was interrupted while executing %s, and may not have performed the expected cleanup operations.\n", file.Name), t.view.errorColumns()))
+	t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu was interrupted while executing %s, and may not have performed the expected cleanup operations.\n", file.Name), t.view.errorColumns())) //nolint:errcheck // ui output
 
 	// Print out the main state first, this is the state that isn't associated
 	// with a run block.
 	if state, exists := existingStates[nil]; exists && !state.Empty() {
-		t.view.streams.Eprint(format.WordWrap("\nOpenTofu has already created the following resources from the module under test:\n", t.view.errorColumns()))
+		t.view.streams.Eprint(format.WordWrap("\nOpenTofu has already created the following resources from the module under test:\n", t.view.errorColumns())) //nolint:errcheck // ui output
 		for _, resource := range state.AllResourceInstanceObjectAddrs() {
 			if resource.DeposedKey != states.NotDeposed {
-				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey)
+				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey) //nolint:errcheck // ui output
 				continue
 			}
-			t.view.streams.Eprintf("  - %s\n", resource.Instance)
+			t.view.streams.Eprintf("  - %s\n", resource.Instance) //nolint:errcheck // ui output
 		}
 	}
 
@@ -271,13 +271,13 @@ func (t *TestHuman) FatalInterruptSummary(run *moduletest.Run, file *moduletest.
 			continue
 		}
 
-		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu has already created the following resources for %q from %q:\n", run.Name, run.Config.Module.Source), t.view.errorColumns()))
+		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu has already created the following resources for %q from %q:\n", run.Name, run.Config.Module.Source), t.view.errorColumns())) //nolint:errcheck // ui output
 		for _, resource := range state.AllResourceInstanceObjectAddrs() {
 			if resource.DeposedKey != states.NotDeposed {
-				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey)
+				t.view.streams.Eprintf("  - %s (%s)\n", resource.Instance, resource.DeposedKey) //nolint:errcheck // ui output
 				continue
 			}
-			t.view.streams.Eprintf("  - %s\n", resource.Instance)
+			t.view.streams.Eprintf("  - %s\n", resource.Instance) //nolint:errcheck // ui output
 		}
 	}
 
@@ -297,9 +297,9 @@ func (t *TestHuman) FatalInterruptSummary(run *moduletest.Run, file *moduletest.
 			module = fmt.Sprintf("%q", run.Config.Module.Source.String())
 		}
 
-		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu was in the process of creating the following resources for %q from %s, and they may not have been destroyed:\n", run.Name, module), t.view.errorColumns()))
+		t.view.streams.Eprint(format.WordWrap(fmt.Sprintf("\nOpenTofu was in the process of creating the following resources for %q from %s, and they may not have been destroyed:\n", run.Name, module), t.view.errorColumns())) //nolint:errcheck // ui output
 		for _, resource := range resources {
-			t.view.streams.Eprintf("  - %s\n", resource)
+			t.view.streams.Eprintf("  - %s\n", resource) //nolint:errcheck // ui output
 		}
 	}
 }
@@ -394,7 +394,7 @@ func (t *TestJSON) File(file *moduletest.File) {
 	t.view.log.Info(
 		fmt.Sprintf("%s... %s", file.Name, testStatus(file.Status)),
 		"type", json.MessageTestFile,
-		json.MessageTestFile, json.TestFileStatus{file.Name, json.ToTestStatus(file.Status)},
+		json.MessageTestFile, json.TestFileStatus{Path: file.Name, Status: json.ToTestStatus(file.Status)},
 		"@testfile", file.Name)
 	t.Diagnostics(nil, file, file.Diagnostics)
 }
@@ -403,7 +403,7 @@ func (t *TestJSON) Run(run *moduletest.Run, file *moduletest.File) {
 	t.view.log.Info(
 		fmt.Sprintf("  %q... %s", run.Name, testStatus(run.Status)),
 		"type", json.MessageTestRun,
-		json.MessageTestRun, json.TestRunStatus{file.Name, run.Name, json.ToTestStatus(run.Status)},
+		json.MessageTestRun, json.TestRunStatus{Path: file.Name, Run: run.Name, Status: json.ToTestStatus(run.Status)},
 		"@testfile", file.Name,
 		"@testrun", run.Name)
 
@@ -584,7 +584,7 @@ func SaveErroredTestStateFile(state *states.State, run *moduletest.Run, file *mo
 	switch v := view.(type) {
 	case *TestHuman:
 		op = NewOperation(arguments.ViewHuman, false, v.view)
-		v.view.streams.Eprint(format.WordWrap("\nWriting state to file: errored_test.tfstate\n", v.view.errorColumns()))
+		v.view.streams.Eprint(format.WordWrap("\nWriting state to file: errored_test.tfstate\n", v.view.errorColumns())) //nolint:errcheck // ui output
 	case *TestJSON:
 		op = &OperationJSON{
 			view: v.view,

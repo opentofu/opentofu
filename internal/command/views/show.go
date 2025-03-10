@@ -60,23 +60,23 @@ func (v *ShowHuman) Display(config *configs.Config, plan *plans.Plan, planJSON *
 	// to building one ourselves.
 	if planJSON != nil {
 		if !planJSON.Redacted {
-			v.view.streams.Eprintf("Didn't get renderable JSON plan format for human display")
+			v.view.streams.Eprintf("Didn't get renderable JSON plan format for human display") //nolint:errcheck // ui output
 			return 1
 		}
 		// The redacted json plan format can be decoded into a jsonformat.Plan
 		p := jsonformat.Plan{}
 		r := bytes.NewReader(planJSON.JSONBytes)
 		if err := json.NewDecoder(r).Decode(&p); err != nil {
-			v.view.streams.Eprintf("Couldn't decode renderable JSON plan format: %s", err)
+			v.view.streams.Eprintf("Couldn't decode renderable JSON plan format: %s", err) //nolint:errcheck // ui output
 		}
 
-		v.view.streams.Print(v.view.colorize.Color(planJSON.RunHeader + "\n"))
+		v.view.streams.Print(v.view.colorize.Color(planJSON.RunHeader + "\n")) //nolint:errcheck // ui output
 		renderer.RenderHumanPlan(p, planJSON.Mode, planJSON.Qualities...)
-		v.view.streams.Print(v.view.colorize.Color("\n" + planJSON.RunFooter + "\n"))
+		v.view.streams.Print(v.view.colorize.Color("\n" + planJSON.RunFooter + "\n")) //nolint:errcheck // ui output
 	} else if plan != nil {
 		outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas)
 		if err != nil {
-			v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
+			v.view.streams.Eprintf("Failed to marshal plan to json: %s", err) //nolint:errcheck // ui output
 			return 1
 		}
 
@@ -101,13 +101,13 @@ func (v *ShowHuman) Display(config *configs.Config, plan *plans.Plan, planJSON *
 		renderer.RenderHumanPlan(jplan, plan.UIMode, opts...)
 	} else {
 		if stateFile == nil {
-			v.view.streams.Println("No state.")
+			v.view.streams.Println("No state.") //nolint:errcheck // ui output
 			return 0
 		}
 
 		root, outputs, err := jsonstate.MarshalForRenderer(stateFile, schemas)
 		if err != nil {
-			v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
+			v.view.streams.Eprintf("Failed to marshal state to json: %s", err) //nolint:errcheck // ui output
 			return 1
 		}
 
@@ -139,27 +139,27 @@ func (v *ShowJSON) Display(config *configs.Config, plan *plans.Plan, planJSON *c
 	// to building one ourselves.
 	if planJSON != nil {
 		if planJSON.Redacted {
-			v.view.streams.Eprintf("Didn't get external JSON plan format")
+			v.view.streams.Eprintf("Didn't get external JSON plan format") //nolint:errcheck // ui output
 			return 1
 		}
-		v.view.streams.Println(string(planJSON.JSONBytes))
+		v.view.streams.Println(string(planJSON.JSONBytes)) //nolint:errcheck // ui output
 	} else if plan != nil {
 		planJSON, err := jsonplan.Marshal(config, plan, stateFile, schemas)
 
 		if err != nil {
-			v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
+			v.view.streams.Eprintf("Failed to marshal plan to json: %s", err) //nolint:errcheck // ui output
 			return 1
 		}
-		v.view.streams.Println(string(planJSON))
+		v.view.streams.Println(string(planJSON)) //nolint:errcheck // ui output
 	} else {
 		// It is possible that there is neither state nor a plan.
 		// That's ok, we'll just return an empty object.
 		jsonState, err := jsonstate.Marshal(stateFile, schemas)
 		if err != nil {
-			v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
+			v.view.streams.Eprintf("Failed to marshal state to json: %s", err) //nolint:errcheck // ui output
 			return 1
 		}
-		v.view.streams.Println(string(jsonState))
+		v.view.streams.Println(string(jsonState)) //nolint:errcheck // ui output
 	}
 	return 0
 }

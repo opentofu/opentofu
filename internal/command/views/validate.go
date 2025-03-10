@@ -50,12 +50,12 @@ func (v *ValidateHuman) Results(diags tfdiags.Diagnostics) int {
 	columns := v.view.outputColumns()
 
 	if len(diags) == 0 {
-		v.view.streams.Println(format.WordWrap(v.view.colorize.Color(validateSuccess), columns))
+		v.view.streams.Println(format.WordWrap(v.view.colorize.Color(validateSuccess), columns)) //nolint:errcheck // ui output
 	} else {
 		v.Diagnostics(diags)
 
 		if !diags.HasErrors() {
-			v.view.streams.Println(format.WordWrap(v.view.colorize.Color(validateWarnings), columns))
+			v.view.streams.Println(format.WordWrap(v.view.colorize.Color(validateWarnings), columns)) //nolint:errcheck // ui output
 		}
 	}
 
@@ -127,7 +127,7 @@ func (v *ValidateJSON) Results(diags tfdiags.Diagnostics) int {
 		// Should never happen because we fully-control the input here
 		panic(err)
 	}
-	v.view.streams.Println(string(j))
+	v.view.streams.Println(string(j)) //nolint:errcheck // ui output
 
 	if diags.HasErrors() {
 		return 1

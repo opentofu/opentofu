@@ -62,6 +62,7 @@ type ApplyHuman struct {
 
 var _ Apply = (*ApplyHuman)(nil)
 
+//nolint:errcheck // ui output
 func (v *ApplyHuman) ResourceCount(stateOutPath string) {
 	if v.destroy {
 		v.view.streams.Printf(
@@ -111,7 +112,7 @@ func (v *ApplyHuman) ResourceCount(stateOutPath string) {
 
 func (v *ApplyHuman) Outputs(outputValues map[string]*states.OutputValue) {
 	if len(outputValues) > 0 {
-		v.view.streams.Print(v.view.colorize.Color("[reset][bold][green]\nOutputs:\n\n"))
+		v.view.streams.Print(v.view.colorize.Color("[reset][bold][green]\nOutputs:\n\n")) //nolint:errcheck // ui output
 		NewOutput(arguments.ViewHuman, v.view).Output("", outputValues)
 	}
 }

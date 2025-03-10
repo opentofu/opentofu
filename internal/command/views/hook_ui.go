@@ -343,7 +343,7 @@ func (h *UiHook) PostApplyImport(addr addrs.AbsResourceInstance, importing plans
 func (h *UiHook) println(s string) {
 	h.viewLock.Lock()
 	defer h.viewLock.Unlock()
-	h.view.streams.Println(s)
+	h.view.streams.Println(s) //nolint:errcheck // nil only
 }
 
 // scanLines is basically copied from the Go standard library except

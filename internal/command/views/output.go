@@ -66,7 +66,7 @@ func (v *OutputHuman) Output(name string, outputs map[string]*states.OutputValue
 			return diags
 		}
 		result := repl.FormatValue(output.Value, 0)
-		v.view.streams.Println(result)
+		v.view.streams.Println(result) //nolint:errcheck // ui output
 		return nil
 	}
 
@@ -95,7 +95,7 @@ func (v *OutputHuman) Output(name string, outputs map[string]*states.OutputValue
 		}
 	}
 
-	v.view.streams.Println(strings.TrimSpace(outputBuf.String()))
+	v.view.streams.Println(strings.TrimSpace(outputBuf.String())) //nolint:errcheck // ui output
 
 	return nil
 }
@@ -173,7 +173,7 @@ func (v *OutputRaw) Output(name string, outputs map[string]*states.OutputValue) 
 	// If we get out here then we should have a valid string to print.
 	// We're writing it using Print here so that a shell caller will get
 	// exactly the value and no extra whitespace (including trailing newline).
-	v.view.streams.Print(strV.AsString())
+	v.view.streams.Print(strV.AsString()) //nolint:errcheck // ui output
 	return nil
 }
 
@@ -208,7 +208,7 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 			return diags
 		}
 
-		v.view.streams.Println(string(jsonOutput))
+		v.view.streams.Println(string(jsonOutput)) //nolint:errcheck // ui output
 
 		return nil
 	}
@@ -250,7 +250,7 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 		return diags
 	}
 
-	v.view.streams.Println(string(jsonOutputs))
+	v.view.streams.Println(string(jsonOutputs)) //nolint:errcheck // ui output
 
 	return nil
 }

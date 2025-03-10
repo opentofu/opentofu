@@ -58,7 +58,7 @@ var _ Refresh = (*RefreshHuman)(nil)
 
 func (v *RefreshHuman) Outputs(outputValues map[string]*states.OutputValue) {
 	if len(outputValues) > 0 {
-		v.view.streams.Print(v.view.colorize.Color("[reset][bold][green]\nOutputs:\n\n"))
+		v.view.streams.Print(v.view.colorize.Color("[reset][bold][green]\nOutputs:\n\n")) //nolint:errcheck // ui output
 		NewOutput(arguments.ViewHuman, v.view).Output("", outputValues)
 	}
 }

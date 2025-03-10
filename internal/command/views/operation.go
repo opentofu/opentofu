@@ -64,23 +64,23 @@ type OperationHuman struct {
 var _ Operation = (*OperationHuman)(nil)
 
 func (v *OperationHuman) Interrupted() {
-	v.view.streams.Println(format.WordWrap(interrupted, v.view.outputColumns()))
+	v.view.streams.Println(format.WordWrap(interrupted, v.view.outputColumns())) //nolint:errcheck // ui output
 }
 
 func (v *OperationHuman) FatalInterrupt() {
-	v.view.streams.Eprintln(format.WordWrap(fatalInterrupt, v.view.errorColumns()))
+	v.view.streams.Eprintln(format.WordWrap(fatalInterrupt, v.view.errorColumns())) //nolint:errcheck // ui output
 }
 
 func (v *OperationHuman) Stopping() {
-	v.view.streams.Println("Stopping operation...")
+	v.view.streams.Println("Stopping operation...") //nolint:errcheck // ui output
 }
 
 func (v *OperationHuman) Cancelled(planMode plans.Mode) {
 	switch planMode {
 	case plans.DestroyMode:
-		v.view.streams.Println("Destroy cancelled.")
+		v.view.streams.Println("Destroy cancelled.") //nolint:errcheck // ui output
 	default:
-		v.view.streams.Println("Apply cancelled.")
+		v.view.streams.Println("Apply cancelled.") //nolint:errcheck // ui output
 	}
 }
 
@@ -90,14 +90,14 @@ func (v *OperationHuman) EmergencyDumpState(stateFile *statefile.File, enc encry
 	if jsonErr != nil {
 		return jsonErr
 	}
-	v.view.streams.Eprintln(stateBuf)
+	v.view.streams.Eprintln(stateBuf) //nolint:errcheck // ui output
 	return nil
 }
 
 func (v *OperationHuman) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas)
 	if err != nil {
-		v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
+		v.view.streams.Eprintf("Failed to marshal plan to json: %s", err) //nolint:errcheck // ui output
 		return
 	}
 
@@ -146,6 +146,7 @@ func (v *OperationHuman) PlanNextStep(planPath string, genConfigPath string) {
 	v.view.outputHorizRule()
 
 	if genConfigPath != "" {
+		//nolint:errcheck // ui output
 		v.view.streams.Print(
 			format.WordWrap(
 				"\n"+strings.TrimSpace(fmt.Sprintf(planHeaderGenConfig, genConfigPath)),
@@ -155,6 +156,7 @@ func (v *OperationHuman) PlanNextStep(planPath string, genConfigPath string) {
 	}
 
 	if planPath == "" {
+		//nolint:errcheck // ui output
 		v.view.streams.Print(
 			format.WordWrap(
 				"\n"+strings.TrimSpace(planHeaderNoOutput),
@@ -162,6 +164,7 @@ func (v *OperationHuman) PlanNextStep(planPath string, genConfigPath string) {
 			) + "\n",
 		)
 	} else {
+		//nolint:errcheck // ui output
 		v.view.streams.Print(
 			format.WordWrap(
 				"\n"+strings.TrimSpace(fmt.Sprintf(planHeaderYesOutput, planPath, planPath)),
