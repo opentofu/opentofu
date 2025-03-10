@@ -8,7 +8,7 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Marcin Wyszynski ([@marcinwyszynski](https://github.com/marcinwyszynski)) representing Spacelift Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) representing Gruntwork, Inc.
 
-## 2024-02-25
+## 2025-02-25
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
@@ -25,7 +25,7 @@ The Technical Steering Committee is a group comprised of people from companies a
 - OpenTelemetry current plan: https://github.com/opentofu/opentofu/pull/2448
 - Update form core team: Progress toward alpha release.
 
-## 2024-02-18
+## 2025-02-18
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
@@ -43,7 +43,7 @@ The Technical Steering Committee is a group comprised of people from companies a
 - Action followup: Core team to update RELEASES page with 1 year commitment of version support.
 - Action followup: OCI survey results blog post to be published.
 
-## 2024-02-11
+## 2025-02-11
 
 - Oleksandr Levchenkov ([@ollevche](https://github.com/ollevche)) (Representing Core Team)
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
@@ -66,7 +66,7 @@ The Technical Steering Committee is a group comprised of people from companies a
   - Action: confirm we've done everything possible to prepare the CNCF board to have all information.
 
 
-## 2024-02-04
+## 2025-02-04
 
 - Oleksandr Levchenkov ([@ollevche](https://github.com/ollevche)) (Representing Core Team)
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel))
@@ -98,7 +98,7 @@ The Technical Steering Committee is a group comprised of people from companies a
   - Action: integrate to the the OpenTofu website.
 
 
-## 2024-01-28
+## 2025-01-28
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg))
@@ -117,7 +117,7 @@ The Technical Steering Committee is a group comprised of people from companies a
  - Discussed the status of stacks, discussed the need to gather requirements from the community on how/if OpenTofu should be doing anything here
 
 
-## 2024-01-14
+## 2025-01-14
 
 - Christan Mesh ([@cam72cam](https://github.com/cam72cam)) (OpenTofu Tech Lead)
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople))
