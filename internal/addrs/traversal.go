@@ -36,7 +36,6 @@ func TraversalStr(traversal hcl.Traversal) string {
 				buf.WriteString(fmt.Sprintf("%q", tStep.Key.AsString()))
 			case cty.Number:
 				bf := tStep.Key.AsBigFloat()
-				//nolint:mnd // numerical precision
 				buf.WriteString(bf.Text('g', 10))
 			default:
 				buf.WriteString("...")

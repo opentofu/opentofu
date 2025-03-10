@@ -142,7 +142,6 @@ func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interfac
 	return jsond, nil
 }
 
-//nolint:revive // this name is fine
 type EncryptionStatus int
 
 const (

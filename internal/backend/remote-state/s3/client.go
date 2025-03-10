@@ -492,7 +492,6 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
-			//nolint:stylecheck // error message already used in multiple places. Not recommended to be updated
 			return nil, fmt.Errorf(errS3NoSuchBucket, err)
 		}
 

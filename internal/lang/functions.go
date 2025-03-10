@@ -107,8 +107,6 @@ func (s *Scope) experimentalFunction(experiment experiments.Experiment, fn funct
 // This function intentionally always returns a fresh map on each call because the
 // caller is expected to modify it further before storing it as part of a
 // particular [Scope], based on the unique settings of that scope.
-//
-//nolint:funlen // The length of this function naturally scales with the number of functions in the OpenTofu language.
 func makeBaseFunctionTable(baseDir string) map[string]function.Function {
 	// Some of our functions are just directly the cty stdlib functions.
 	// Others are implemented in the subdirectory "funcs" here in this

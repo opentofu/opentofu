@@ -99,7 +99,6 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 		// to all protobuf target languages so in practice we use int64
 		// on the wire. In future we will change all of our internal
 		// representations to int64 too.
-		//nolint:gosec // this will be refactored eventually
 		Version: int64(args.objectSrc.SchemaVersion),
 	}
 

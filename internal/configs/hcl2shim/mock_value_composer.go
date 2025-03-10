@@ -21,7 +21,7 @@ type MockValueComposer struct {
 
 func NewMockValueComposer(seed int64) MockValueComposer {
 	return MockValueComposer{
-		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // It doesn't need to be secure.
+		rand: rand.New(rand.NewSource(seed)),
 	}
 }
 

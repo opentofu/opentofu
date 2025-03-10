@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-//nolint:gochecknoglobals,gocritic,govet // This file is copied from the Go codebase and intended to remain close to the original in case we need to backport changes.
 package ipaddr
 
 import (
