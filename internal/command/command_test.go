@@ -124,7 +124,7 @@ func tempWorkingDir(t *testing.T) *workdir.Dir {
 func tempWorkingDirFixture(t *testing.T, fixtureName string) *workdir.Dir {
 	t.Helper()
 
-	dirPath := testTempDir(t)
+	dirPath := t.TempDir()
 	t.Logf("temporary directory %s with fixture %q", dirPath, fixtureName)
 
 	fixturePath := testFixturePath(fixtureName)
@@ -399,7 +399,7 @@ func testStateFile(t *testing.T, s *states.State) string {
 	if err != nil {
 		t.Fatalf("failed to create temporary state file %s: %s", path, err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	err = writeStateForTesting(s, f)
 	if err != nil {
@@ -418,7 +418,7 @@ func testStateFileDefault(t *testing.T, s *states.State) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	if err := writeStateForTesting(s, f); err != nil {
 		t.Fatalf("err: %s", err)
@@ -441,7 +441,7 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	if err := writeStateForTesting(s, f); err != nil {
 		t.Fatalf("err: %s", err)
@@ -464,7 +464,7 @@ func testStateFileRemote(t *testing.T, s *legacy.State) string {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	if err := legacy.WriteState(s, f); err != nil {
 		t.Fatalf("err: %s", err)
@@ -481,7 +481,7 @@ func testStateRead(t *testing.T, path string) *states.State {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	sf, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
@@ -503,7 +503,7 @@ func testDataStateRead(t *testing.T, path string) *legacy.State {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	s, err := legacy.ReadState(f)
 	if err != nil {
@@ -544,17 +544,7 @@ func testProvider() *tofu.MockProvider {
 func testTempFile(t *testing.T) string {
 	t.Helper()
 
-	return filepath.Join(testTempDir(t), "state.tfstate")
-}
-
-func testTempDir(t *testing.T) string {
-	t.Helper()
-	d, err := filepath.EvalSymlinks(t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	return d
+	return filepath.Join(t.TempDir(), "state.tfstate")
 }
 
 // testChdir changes the directory and returns a function to defer to
@@ -622,13 +612,16 @@ func testStdinPipe(t *testing.T, src io.Reader) func() {
 
 	// Copy the data from the reader to the pipe
 	go func() {
-		defer w.Close()
-		io.Copy(w, src)
+		defer safeClose(t, w)
+		_, err := io.Copy(w, src)
+		if err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
 		// Close our read end
-		r.Close()
+		//safeClose(t, r) // This does not work, just realized now that we check errors
 
 		// Reset stdin
 		os.Stdin = old
@@ -654,14 +647,20 @@ func testStdoutCapture(t *testing.T, dst io.Writer) func() {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		defer r.Close()
-		io.Copy(dst, r)
+		defer safeClose(t, r)
+		_, err := io.Copy(dst, r)
+		if err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
 		// Close the writer end of the pipe
-		w.Sync()
-		w.Close()
+		// This does not actually work, just found out from errcheck
+		/*if err := w.Sync(); err != nil {
+			t.Fatal(err)
+		}*/
+		safeClose(t, w)
 
 		// Reset stdout
 		os.Stdout = old
@@ -756,7 +755,10 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		}
 
 		resp.Header().Set("Content-MD5", b64md5)
-		resp.Write(buf.Bytes())
+		_, err := resp.Write(buf.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// If a state was given, make sure we calculate the proper b64md5
@@ -813,7 +815,10 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 		}
 
 		resp.Header().Set("Content-MD5", b64md5)
-		resp.Write(buf.Bytes())
+		_, err := resp.Write(buf.Bytes())
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	retState := legacy.NewState()
@@ -822,7 +827,7 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 	b := &legacy.BackendState{
 		Type: "http",
 	}
-	b.SetConfig(cty.ObjectVal(map[string]cty.Value{
+	err := b.SetConfig(cty.ObjectVal(map[string]cty.Value{
 		"address": cty.StringVal(srv.URL),
 	}), &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -832,6 +837,9 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 			},
 		},
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	retState.Backend = b
 
 	if s != nil {
@@ -868,8 +876,8 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	defer pr.Close()
-	defer pw.Close()
+	defer safeClose(t, pr)
+	defer safeClose(t, pw)
 	locker.Stderr = pw
 	locker.Stdout = pw
 
@@ -877,8 +885,12 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		return nil, err
 	}
 	deferFunc := func() {
-		locker.Process.Signal(syscall.SIGTERM)
-		locker.Wait()
+		if err := locker.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Fatal(err)
+		}
+		if err := locker.Wait(); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// wait for the process to lock
@@ -1001,7 +1013,7 @@ var movedProviderNamespaces = map[string]string{
 // to shut down the test server. After you call that function, the discovery
 // object becomes useless.
 func testServices(t *testing.T) (services *disco.Disco, cleanup func()) {
-	server := httptest.NewServer(http.HandlerFunc(fakeRegistryHandler))
+	server := httptest.NewServer(fakeRegistryHandler(t))
 
 	services = disco.New()
 	services.ForceHostServices(svchost.Hostname("registry.opentofu.org"), map[string]interface{}{
@@ -1025,56 +1037,82 @@ func testRegistrySource(t *testing.T) (source *getproviders.RegistrySource, clea
 	return source, close
 }
 
-func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
-	path := req.URL.EscapedPath()
+func fakeRegistryHandler(t *testing.T) http.HandlerFunc {
+	return func(resp http.ResponseWriter, req *http.Request) {
+		path := req.URL.EscapedPath()
 
-	if !strings.HasPrefix(path, "/providers/v1/") {
-		resp.WriteHeader(404)
-		resp.Write([]byte(`not a provider registry endpoint`))
-		return
-	}
+		if !strings.HasPrefix(path, "/providers/v1/") {
+			resp.WriteHeader(404)
+			_, err := resp.Write([]byte(`not a provider registry endpoint`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
 
-	pathParts := strings.Split(path, "/")[3:]
+		pathParts := strings.Split(path, "/")[3:]
 
-	if len(pathParts) != 3 {
-		resp.WriteHeader(404)
-		resp.Write([]byte(`unrecognized path scheme`))
-		return
-	}
+		if len(pathParts) != 3 {
+			resp.WriteHeader(404)
+			_, err := resp.Write([]byte(`unrecognized path scheme`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
 
-	if pathParts[2] != "versions" {
-		resp.WriteHeader(404)
-		resp.Write([]byte(`this registry only supports legacy namespace lookup requests`))
-		return
-	}
+		if pathParts[2] != "versions" {
+			resp.WriteHeader(404)
+			_, err := resp.Write([]byte(`this registry only supports legacy namespace lookup requests`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
 
-	name := pathParts[1]
+		name := pathParts[1]
 
-	// Legacy lookup
-	if pathParts[0] == "-" {
-		if namespace, ok := legacyProviderNamespaces[name]; ok {
+		// Legacy lookup
+		if pathParts[0] == "-" {
+			if namespace, ok := legacyProviderNamespaces[name]; ok {
+				resp.Header().Set("Content-Type", "application/json")
+				resp.WriteHeader(200)
+				if movedNamespace, ok := movedProviderNamespaces[name]; ok {
+					_, err := resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)))
+					if err != nil {
+						t.Fatal(err)
+					}
+				} else {
+					_, err := resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+			} else {
+				resp.WriteHeader(404)
+				_, err := resp.Write([]byte(`provider not found`))
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			return
+		}
+
+		// Also return versions for redirect target
+		if namespace, ok := movedProviderNamespaces[name]; ok && pathParts[0] == namespace {
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			if movedNamespace, ok := movedProviderNamespaces[name]; ok {
-				resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)))
-			} else {
-				resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+			_, err := resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+			if err != nil {
+				t.Fatal(err)
 			}
 		} else {
 			resp.WriteHeader(404)
-			resp.Write([]byte(`provider not found`))
+			_, err := resp.Write([]byte(`provider not found`))
+			if err != nil {
+				t.Fatal(err)
+			}
 		}
-		return
-	}
-
-	// Also return versions for redirect target
-	if namespace, ok := movedProviderNamespaces[name]; ok && pathParts[0] == namespace {
-		resp.Header().Set("Content-Type", "application/json")
-		resp.WriteHeader(200)
-		resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
-	} else {
-		resp.WriteHeader(404)
-		resp.Write([]byte(`provider not found`))
 	}
 }
 
@@ -1096,7 +1134,7 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	if err != nil {
 		t.Fatalf("failed to open output file: %s", err)
 	}
-	defer wantFile.Close()
+	defer safeClose(t, wantFile)
 	wantBytes, err := io.ReadAll(wantFile)
 	if err != nil {
 		t.Fatalf("failed to read output file: %s", err)
@@ -1184,4 +1222,12 @@ func deleteMapField(fieldMap map[string]interface{}, rootField, field string) ma
 
 	delete(rootMap, field)
 	return rootMap
+}
+
+func safeClose(t *testing.T, c io.Closer) {
+	t.Helper()
+	err := c.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
 }

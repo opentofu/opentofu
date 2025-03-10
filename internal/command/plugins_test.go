@@ -6,14 +6,12 @@
 package command
 
 import (
-	"os"
 	"reflect"
 	"testing"
 )
 
 func TestPluginPath(t *testing.T) {
-	td := testTempDir(t)
-	defer os.RemoveAll(td)
+	td := t.TempDir()
 	defer testChdir(t, td)()
 
 	pluginPath := []string{"a", "b", "c"}

@@ -42,19 +42,19 @@ func (c *StateShowCommand) Run(args []string) int {
 	cmdFlags.BoolVar(&showSensitive, "show-sensitive", false, "displays sensitive values")
 
 	if err := cmdFlags.Parse(args); err != nil {
-		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error())
+		c.Streams.Eprintf("Error parsing command-line flags: %s\n", err.Error()) //nolint:errcheck // ui output
 		return 1
 	}
 	args = cmdFlags.Args()
 	if len(args) != 1 {
-		c.Streams.Eprint("Exactly one argument expected.\n")
+		c.Streams.Eprint("Exactly one argument expected.\n") //nolint:errcheck // ui output
 		return cli.RunResultHelp
 	}
 
 	// Check for user-supplied plugin path
 	var err error
 	if c.pluginPath, err = c.loadPluginPath(); err != nil {
-		c.Streams.Eprintf("Error loading plugin path: %\n", err)
+		c.Streams.Eprintf("Error loading plugin path: %\n", err) //nolint:errcheck // ui output
 		return 1
 	}
 
@@ -75,7 +75,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	// We require a local backend
 	local, ok := b.(backend.Local)
 	if !ok {
-		c.Streams.Eprint(ErrUnsupportedLocalOp)
+		c.Streams.Eprint(ErrUnsupportedLocalOp) //nolint:errcheck // ui output
 		return 1
 	}
 
@@ -85,14 +85,14 @@ func (c *StateShowCommand) Run(args []string) int {
 	// Check if the address can be parsed
 	addr, addrDiags := addrs.ParseAbsResourceInstanceStr(args[0])
 	if addrDiags.HasErrors() {
-		c.Streams.Eprintln(fmt.Sprintf(errParsingAddress, args[0]))
+		c.Streams.Eprintln(fmt.Sprintf(errParsingAddress, args[0])) //nolint:errcheck // ui output
 		return 1
 	}
 
 	// We expect the config dir to always be the cwd
 	cwd, err := os.Getwd()
 	if err != nil {
-		c.Streams.Eprintf("Error getting cwd: %s\n", err)
+		c.Streams.Eprintf("Error getting cwd: %s\n", err) //nolint:errcheck // ui output
 		return 1
 	}
 
@@ -109,7 +109,7 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
-		c.Streams.Eprintf("Error initializing config loader: %s\n", err)
+		c.Streams.Eprintf("Error initializing config loader: %s\n", err) //nolint:errcheck // ui output
 		return 1
 	}
 
@@ -130,22 +130,22 @@ func (c *StateShowCommand) Run(args []string) int {
 	// Get the state
 	env, err := c.Workspace()
 	if err != nil {
-		c.Streams.Eprintf("Error selecting workspace: %s\n", err)
+		c.Streams.Eprintf("Error selecting workspace: %s\n", err) //nolint:errcheck // ui output
 		return 1
 	}
 	stateMgr, err := b.StateMgr(env)
 	if err != nil {
-		c.Streams.Eprintln(fmt.Sprintf(errStateLoadingState, err))
+		c.Streams.Eprintln(fmt.Sprintf(errStateLoadingState, err)) //nolint:errcheck // ui output
 		return 1
 	}
 	if err := stateMgr.RefreshState(); err != nil {
-		c.Streams.Eprintf("Failed to refresh state: %s\n", err)
+		c.Streams.Eprintf("Failed to refresh state: %s\n", err) //nolint:errcheck // ui output
 		return 1
 	}
 
 	state := stateMgr.State()
 	if state == nil {
-		c.Streams.Eprintln(errStateNotFound)
+		c.Streams.Eprintln(errStateNotFound) //nolint:errcheck // ui output
 		return 1
 	}
 	migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(lr.Config, state)
@@ -158,7 +158,7 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	is := state.ResourceInstance(addr)
 	if !is.HasCurrent() {
-		c.Streams.Eprintln(errNoInstanceFound)
+		c.Streams.Eprintln(errNoInstanceFound) //nolint:errcheck // ui output
 		return 1
 	}
 
@@ -179,7 +179,7 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	root, outputs, err := jsonstate.MarshalForRenderer(statefile.New(singleInstance, "", 0), schemas)
 	if err != nil {
-		c.Streams.Eprintf("Failed to marshal state to json: %s", err)
+		c.Streams.Eprintf("Failed to marshal state to json: %s", err) //nolint:errcheck // ui output
 	}
 
 	jstate := jsonformat.State{

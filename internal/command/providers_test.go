@@ -6,7 +6,6 @@
 package command
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -14,14 +13,7 @@ import (
 )
 
 func TestProviders(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("providers/basic")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, testFixturePath("providers/basic"))()
 
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
@@ -50,14 +42,7 @@ func TestProviders(t *testing.T) {
 }
 
 func TestProviders_noConfigs(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, testFixturePath(""))()
 
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
@@ -133,14 +118,7 @@ func TestProviders_modules(t *testing.T) {
 }
 
 func TestProviders_state(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("providers/state")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, testFixturePath("providers/state"))()
 
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{
@@ -170,14 +148,7 @@ func TestProviders_state(t *testing.T) {
 }
 
 func TestProviders_tests(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("providers/tests")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, testFixturePath("providers/tests"))()
 
 	ui := new(cli.MockUi)
 	c := &ProvidersCommand{

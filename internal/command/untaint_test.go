@@ -316,7 +316,9 @@ func TestUntaint_defaultWorkspaceState(t *testing.T) {
 	ui := new(cli.MockUi)
 	view, _ := testView(t)
 	meta := Meta{Ui: ui, View: view}
-	meta.SetWorkspace(testWorkspace)
+	if err := meta.SetWorkspace(testWorkspace); err != nil {
+		t.Fatal(err)
+	}
 	c := &UntaintCommand{
 		Meta: meta,
 	}

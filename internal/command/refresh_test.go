@@ -77,7 +77,7 @@ func TestRefresh(t *testing.T) {
 	}
 
 	newStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -172,14 +172,7 @@ func TestRefresh_lockedState(t *testing.T) {
 }
 
 func TestRefresh_cwd(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(testFixturePath("refresh")); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, testFixturePath("refresh"))()
 
 	state := testState()
 	statePath := testStateFile(t, state)
@@ -220,7 +213,7 @@ func TestRefresh_cwd(t *testing.T) {
 	}
 
 	newStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -254,14 +247,7 @@ func TestRefresh_defaultState(t *testing.T) {
 	}
 
 	// Change to that directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(filepath.Dir(statePath)); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, filepath.Dir(statePath))()
 
 	p := testProvider()
 	view, done := testView(t)
@@ -329,8 +315,10 @@ func TestRefresh_outPath(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	outPath := outf.Name()
-	outf.Close()
-	os.Remove(outPath)
+	safeClose(t, outf)
+	if err := os.Remove(outPath); err != nil {
+		t.Fatal(err)
+	}
 
 	p := testProvider()
 	view, done := testView(t)
@@ -566,7 +554,7 @@ func TestRefresh_backup(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	outPath := outf.Name()
-	defer outf.Close()
+	defer safeClose(t, outf)
 
 	// Need to put some state content in the output file so that there's
 	// something to back up.
@@ -581,8 +569,10 @@ func TestRefresh_backup(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	backupPath := backupf.Name()
-	backupf.Close()
-	os.Remove(backupPath)
+	safeClose(t, backupf)
+	if err := os.Remove(backupPath); err != nil {
+		t.Fatal(err)
+	}
 
 	p := testProvider()
 	view, done := testView(t)
@@ -651,8 +641,10 @@ func TestRefresh_disableBackup(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	outPath := outf.Name()
-	outf.Close()
-	os.Remove(outPath)
+	safeClose(t, outf)
+	if err := os.Remove(outPath); err != nil {
+		t.Fatal(err)
+	}
 
 	p := testProvider()
 	view, done := testView(t)
@@ -821,8 +813,7 @@ func TestRefresh_targetFlagsDiags(t *testing.T) {
 
 	for target, wantDiag := range testCases {
 		t.Run(target, func(t *testing.T) {
-			td := testTempDir(t)
-			defer os.RemoveAll(td)
+			td := t.TempDir()
 			defer testChdir(t, td)()
 
 			view, done := testView(t)
@@ -915,8 +906,7 @@ func TestRefresh_excludeFlagsDiags(t *testing.T) {
 
 	for exclude, wantDiag := range testCases {
 		t.Run(exclude, func(t *testing.T) {
-			td := testTempDir(t)
-			defer os.RemoveAll(td)
+			td := t.TempDir()
 			defer testChdir(t, td)()
 
 			view, done := testView(t)

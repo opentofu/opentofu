@@ -254,7 +254,10 @@ func (m *Meta) backendMigrateState_S_s(opts *backendMigrateOpts) error {
 	opts.sourceWorkspace = currentWorkspace
 
 	// now switch back to the default env so we can access the new backend
-	m.SetWorkspace(backend.DefaultStateName)
+	err = m.SetWorkspace(backend.DefaultStateName)
+	if err != nil {
+		return err
+	}
 
 	return m.backendMigrateState_s_s(opts)
 }
@@ -494,7 +497,12 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	if err != nil {
 		return false, fmt.Errorf("Error creating temporary directory: %w", err)
 	}
-	defer os.RemoveAll(td)
+	defer func() {
+		err := os.RemoveAll(td)
+		if err != nil {
+			log.Printf("[WARN] Unable to cleanup temporary directory %s", err)
+		}
+	}()
 
 	// Helper to write the state
 	saveHelper := func(n, path string, s *states.State) error {

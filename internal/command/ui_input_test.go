@@ -73,8 +73,12 @@ func TestUIInputInput_canceled(t *testing.T) {
 	go func() {
 		// Fake input is given after 1 second.
 		time.Sleep(time.Second)
-		fmt.Fprint(w, "foo\n")
-		w.Close()
+		if _, err := fmt.Fprint(w, "foo\n"); err != nil {
+			panic(err)
+		}
+		if err := w.Close(); err != nil {
+			panic(err)
+		}
 	}()
 
 	v, err = i.Input(context.Background(), &tofu.InputOpts{})

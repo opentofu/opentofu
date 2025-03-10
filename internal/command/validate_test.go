@@ -334,7 +334,7 @@ func TestValidate_json(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to open output file: %s", err)
 			}
-			defer wantFile.Close()
+			defer safeClose(t, wantFile)
 			wantBytes, err := io.ReadAll(wantFile)
 			if err != nil {
 				t.Fatalf("failed to read output file: %s", err)

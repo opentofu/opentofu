@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 
@@ -412,7 +413,11 @@ func getStateFromPath(path string, enc encryption.Encryption) (*statefile.File, 
 	if err != nil {
 		return nil, fmt.Errorf("Error loading statefile: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Printf("[WARN] Error closing statefile: %s", err)
+		}
+	}()
 
 	var stateFile *statefile.File
 	stateFile, err = statefile.Read(file, enc.State())

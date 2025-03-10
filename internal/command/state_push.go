@@ -78,7 +78,7 @@ func (c *StatePushCommand) Run(args []string) int {
 	// Read the state
 	srcStateFile, err := statefile.Read(r, encryption.StateEncryptionDisabled()) // Assume the given statefile is not encrypted
 	if c, ok := r.(io.Closer); ok {
-		// Close the reader if possible right now since we're done with it.
+		//nolint:errcheck // Close the reader if possible right now since we're done with it.
 		c.Close()
 	}
 	if err != nil {

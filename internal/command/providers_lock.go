@@ -201,7 +201,11 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			))
 			break
 		}
-		defer os.RemoveAll(tempDir)
+		defer func() {
+			if err := os.RemoveAll(tempDir); err != nil {
+				diags = diags.Append(err)
+			}
+		}()
 
 		evts := &providercache.InstallerEvents{
 			// Our output from this command is minimal just to show that

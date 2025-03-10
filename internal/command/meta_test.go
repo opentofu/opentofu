@@ -184,7 +184,6 @@ func TestMeta_initStatePaths(t *testing.T) {
 
 func TestMeta_Env(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	defer testChdir(t, td)()
 
 	m := new(Meta)
@@ -255,7 +254,6 @@ func TestMeta_Workspace_override(t *testing.T) {
 
 func TestMeta_Workspace_invalidSelected(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	defer testChdir(t, td)()
 
 	// this is an invalid workspace name
@@ -291,7 +289,6 @@ func TestMeta_process(t *testing.T) {
 
 	// Create a temporary directory for our cwd
 	d := t.TempDir()
-	os.MkdirAll(d, 0755)
 	defer testChdir(t, d)()
 
 	// At one point it was the responsibility of this process function to

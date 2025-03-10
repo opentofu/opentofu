@@ -7,6 +7,7 @@ package command
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -102,7 +103,7 @@ func (c *FmtCommand) Run(args []string) int {
 		buf := output.(*bytes.Buffer)
 		ok := buf.Len() == 0
 		if list {
-			io.Copy(&cli.UiWriter{Ui: c.Ui}, buf)
+			io.Copy(&cli.UiWriter{Ui: c.Ui}, buf) //nolint:errcheck // ui buffer
 		}
 		if ok {
 			return 0
@@ -151,7 +152,13 @@ func (c *FmtCommand) fmt(paths []string, stdin io.Reader, stdout io.Writer) tfdi
 
 					fileDiags := c.processFile(c.normalizePath(path), f, stdout, false)
 					diags = diags.Append(fileDiags)
-					f.Close()
+					err = f.Close()
+					if err != nil {
+						// Close does not produce error messages that are end-user-appropriate,
+						// so we'll need to simplify here.
+						diags = diags.Append(fmt.Errorf("Failed to write file %s", path))
+						continue
+					}
 
 					// Take note that we processed the file.
 					fmtd = true
@@ -200,7 +207,11 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 	if !bytes.Equal(src, result) {
 		// Something was changed
 		if c.list {
-			fmt.Fprintln(w, path)
+			_, err = fmt.Fprintln(w, path)
+			if err != nil {
+				diags = diags.Append(fmt.Errorf("Failed to write contents %s", path))
+				return diags
+			}
 		}
 		if c.write {
 			err := os.WriteFile(path, result, 0644)
@@ -215,7 +226,11 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 				diags = diags.Append(fmt.Errorf("Failed to generate diff for %s: %w", path, err))
 				return diags
 			}
-			w.Write(diff)
+			_, err = w.Write(diff)
+			if err != nil {
+				diags = diags.Append(fmt.Errorf("Failed to write diff %s", path))
+				return diags
+			}
 		}
 	}
 
@@ -277,7 +292,11 @@ func (c *FmtCommand) processDir(path string, stdout io.Writer) tfdiags.Diagnosti
 
 				fileDiags := c.processFile(c.normalizePath(subPath), f, stdout, false)
 				diags = diags.Append(fileDiags)
-				f.Close()
+				err = f.Close()
+				if err != nil {
+					diags = diags.Append(fmt.Errorf("Failed to write file %s", subPath))
+					continue
+				}
 
 				// Don't need to check the remaining extensions.
 				break
@@ -596,18 +615,32 @@ func bytesDiff(b1, b2 []byte, path string) (data []byte, err error) {
 	if err != nil {
 		return
 	}
-	defer os.Remove(f1.Name())
-	defer f1.Close()
+	defer func() {
+		err = errors.Join(err, os.Remove(f1.Name()))
+	}()
+	defer func() {
+		err = errors.Join(err, f1.Close())
+	}()
 
 	f2, err := os.CreateTemp("", "")
 	if err != nil {
 		return
 	}
-	defer os.Remove(f2.Name())
-	defer f2.Close()
+	defer func() {
+		err = errors.Join(err, os.Remove(f2.Name()))
+	}()
+	defer func() {
+		err = errors.Join(err, f2.Close())
+	}()
 
-	f1.Write(b1)
-	f2.Write(b2)
+	_, err = f1.Write(b1)
+	if err != nil {
+		return
+	}
+	_, err = f2.Write(b2)
+	if err != nil {
+		return
+	}
 
 	data, err = exec.Command("diff", "--label=old/"+path, "--label=new/"+path, "-u", f1.Name(), f2.Name()).CombinedOutput()
 	if len(data) > 0 {

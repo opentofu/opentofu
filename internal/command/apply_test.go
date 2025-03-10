@@ -303,6 +303,8 @@ func TestApply_lockedStateWait(t *testing.T) {
 
 // Verify that the parallelism flag allows no more than the desired number of
 // concurrent calls to ApplyResourceChange.
+//
+//nolint:govet // complex parallelism
 func TestApply_parallelism(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
@@ -432,14 +434,7 @@ func TestApply_defaultState(t *testing.T) {
 	statePath := filepath.Join(td, DefaultStateFilename)
 
 	// Change to the temporary directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(filepath.Dir(statePath)); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, filepath.Dir(statePath))()
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
@@ -882,7 +877,7 @@ func TestApply_plan_remoteState(t *testing.T) {
 }
 
 func TestApply_planWithVarFile(t *testing.T) {
-	varFileDir := testTempDir(t)
+	varFileDir := t.TempDir()
 	varFilePath := filepath.Join(varFileDir, "terraform.tfvars")
 	if err := os.WriteFile(varFilePath, []byte(applyVarFile), 0644); err != nil {
 		t.Fatalf("err: %s", err)
@@ -891,14 +886,7 @@ func TestApply_planWithVarFile(t *testing.T) {
 	planPath := applyFixturePlanFile(t)
 	statePath := testTempFile(t)
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(varFileDir); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, varFileDir)()
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
@@ -957,9 +945,7 @@ func TestApply_planVars(t *testing.T) {
 // we should be able to apply a plan file with no other file dependencies
 func TestApply_planNoModuleFiles(t *testing.T) {
 	// temporary data directory which we can remove between commands
-	td := testTempDir(t)
-	defer os.RemoveAll(td)
-
+	td := t.TempDir()
 	defer testChdir(t, td)()
 
 	p := applyFixtureProvider()
@@ -1992,8 +1978,7 @@ func TestApply_targetFlagsDiags(t *testing.T) {
 
 	for target, wantDiag := range testCases {
 		t.Run(target, func(t *testing.T) {
-			td := testTempDir(t)
-			defer os.RemoveAll(td)
+			td := t.TempDir()
 			defer testChdir(t, td)()
 
 			view, done := testView(t)
@@ -2080,12 +2065,12 @@ func TestApply_excludeFlagsDiags(t *testing.T) {
 
 	for exclude, wantDiag := range testCases {
 		t.Run(exclude, func(t *testing.T) {
-			td := testTempDir(t)
-			defer os.RemoveAll(td)
+			td := t.TempDir()
 			defer testChdir(t, td)()
 
 			view, done := testView(t)
 			c := &ApplyCommand{
+
 				Meta: Meta{
 					View: view,
 				},

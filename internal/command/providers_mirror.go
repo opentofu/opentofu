@@ -242,7 +242,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 				}
 				c.Ui.Output(fmt.Sprintf("  - Package authenticated: %s", result))
 			}
-			os.Remove(targetPath) // okay if it fails because we're going to try to rename over it next anyway
+			os.Remove(targetPath) //nolint:errcheck // okay if it fails because we're going to try to rename over it next anyway
 			err = os.Rename(stagingPath, targetPath)
 			if err != nil {
 				diags = diags.Append(tfdiags.Sourceless(

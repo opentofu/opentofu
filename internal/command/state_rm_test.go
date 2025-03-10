@@ -465,7 +465,7 @@ func TestStateRm_backendState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create state file %s: %s", statePath, err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	err = writeStateForTesting(state, f)
 	if err != nil {

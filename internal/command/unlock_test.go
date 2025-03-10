@@ -19,7 +19,6 @@ import (
 // doesn't fail.
 func TestUnlock(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	defer testChdir(t, td)()
 
 	// Write the legacy state
@@ -30,7 +29,7 @@ func TestUnlock(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		err = legacy.WriteState(legacy.NewState(), f)
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}

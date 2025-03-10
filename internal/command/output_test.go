@@ -280,7 +280,7 @@ func TestOutput_stateDefault(t *testing.T) {
 
 	// Write the state file in a temporary directory with the
 	// default filename.
-	td := testTempDir(t)
+	td := t.TempDir()
 	statePath := filepath.Join(td, DefaultStateFilename)
 
 	f, err := os.Create(statePath)
@@ -288,20 +288,13 @@ func TestOutput_stateDefault(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	err = writeStateForTesting(originalState, f)
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	// Change to that directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(filepath.Dir(statePath)); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	defer testChdir(t, filepath.Dir(statePath))()
 
 	view, done := testView(t)
 	c := &OutputCommand{

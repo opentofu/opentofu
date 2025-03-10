@@ -274,8 +274,13 @@ func (c *LoginCommand) Run(args []string) int {
 			return 0
 		}
 
-		defer resp.Body.Close()
-		json.Unmarshal(body, &motd)
+		defer resp.Body.Close() //nolint:errcheck // low risk
+		err = json.Unmarshal(body, &motd)
+		if err != nil {
+			c.logMOTDError(err)
+			c.outputDefaultTFCLoginSuccess()
+			return 0
+		}
 
 		if motd.Errors == nil && motd.Message != "" {
 			c.Ui.Output(
@@ -451,7 +456,11 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 
 			resp.Header().Add("Content-Type", "text/html")
 			resp.WriteHeader(200)
-			resp.Write([]byte(callbackSuccessMessage))
+			_, err = resp.Write([]byte(callbackSuccessMessage))
+			if err != nil {
+				log.Printf("[ERROR] login: cannot write response: %s", err)
+				return
+			}
 		}),
 	}
 	panicHandler := logging.PanicHandlerWithTraceFn()

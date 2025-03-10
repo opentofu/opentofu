@@ -35,7 +35,7 @@ func (c *ConsoleCommand) modeInteractive(session *repl.Session, ui cli.Ui) int {
 			err))
 		return 1
 	}
-	defer l.Close()
+	defer l.Close() //nolint:errcheck // unlikely / no action
 
 	var consoleState consoleBracketState
 

@@ -25,7 +25,6 @@ func TestProvidersLock(t *testing.T) {
 		// in the most basic case, running providers lock in a directory with no configuration at all should succeed.
 		// create an empty working directory
 		td := t.TempDir()
-		os.MkdirAll(td, 0755)
 		defer testChdir(t, td)()
 
 		ui := new(cli.MockUi)

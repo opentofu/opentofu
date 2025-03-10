@@ -1539,7 +1539,7 @@ func TestStateMv_withinBackend(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	if err := writeStateForTesting(state, f); err != nil {
 		t.Fatal(err)
@@ -1612,7 +1612,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	if err := writeStateForTesting(state, f); err != nil {
 		t.Fatal(err)

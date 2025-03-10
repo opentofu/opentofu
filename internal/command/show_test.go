@@ -105,7 +105,6 @@ func TestShow_argsWithState(t *testing.T) {
 	// Create the default state
 	statePath := testStateFile(t, testState())
 	stateDir := filepath.Dir(statePath)
-	defer os.RemoveAll(stateDir)
 	defer testChdir(t, stateDir)()
 
 	view, done := testView(t)
@@ -154,7 +153,6 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 
 	statePath := testStateFile(t, testState)
 	stateDir := filepath.Dir(statePath)
-	defer os.RemoveAll(stateDir)
 	defer testChdir(t, stateDir)()
 
 	view, done := testView(t)
@@ -506,7 +504,6 @@ func TestShow_state(t *testing.T) {
 	}), false)
 
 	statePath := testStateFile(t, originalState)
-	defer os.RemoveAll(filepath.Dir(statePath))
 
 	view, done := testView(t)
 	c := &ShowCommand{
@@ -578,14 +575,16 @@ func TestShow_json_output(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
-			defer wantFile.Close()
+			defer safeClose(t, wantFile)
 			byteValue, err := io.ReadAll(wantFile)
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
 
 			var want plan
-			json.Unmarshal([]byte(byteValue), &want)
+			if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+				t.Fatal(err)
+			}
 
 			// plan
 			planView, planDone := testView(t)
@@ -629,7 +628,11 @@ func TestShow_json_output(t *testing.T) {
 				"-json",
 				"tofu.plan",
 			}
-			defer os.Remove("tofu.plan")
+			defer func() {
+				if err := os.Remove("tofu.plan"); err != nil {
+					t.Fatal(err)
+				}
+			}()
 			code = sc.Run(args)
 			showOutput := showDone(t)
 
@@ -641,7 +644,9 @@ func TestShow_json_output(t *testing.T) {
 			var got plan
 
 			gotString := showOutput.Stdout()
-			json.Unmarshal([]byte(gotString), &got)
+			if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+				t.Fatal(err)
+			}
 
 			// Disregard format version to reduce needless test fixture churn
 			want.FormatVersion = got.FormatVersion
@@ -711,7 +716,11 @@ func TestShow_json_output_sensitive(t *testing.T) {
 		"-json",
 		"tofu.plan",
 	}
-	defer os.Remove("tofu.plan")
+	defer func() {
+		if err := os.Remove("tofu.plan"); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	code = sc.Run(args)
 	showOutput := showDone(t)
 
@@ -723,18 +732,22 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	var got, want plan
 
 	gotString := showOutput.Stdout()
-	json.Unmarshal([]byte(gotString), &got)
+	if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+		t.Fatal(err)
+	}
 
 	wantFile, err := os.Open("output.json")
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	defer wantFile.Close()
+	defer safeClose(t, wantFile)
 	byteValue, err := io.ReadAll(wantFile)
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	json.Unmarshal([]byte(byteValue), &want)
+	if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+		t.Fatal(err)
+	}
 
 	// Disregard format version to reduce needless test fixture churn
 	want.FormatVersion = got.FormatVersion
@@ -807,7 +820,11 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 		"-json",
 		"tofu.plan",
 	}
-	defer os.Remove("tofu.plan")
+	defer func() {
+		if err := os.Remove("tofu.plan"); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	code = sc.Run(args)
 	showOutput := showDone(t)
 
@@ -819,18 +836,22 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	var got, want plan
 
 	gotString := showOutput.Stdout()
-	json.Unmarshal([]byte(gotString), &got)
+	if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+		t.Fatal(err)
+	}
 
 	wantFile, err := os.Open("output-refresh-only.json")
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	defer wantFile.Close()
+	defer safeClose(t, wantFile)
 	byteValue, err := io.ReadAll(wantFile)
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	json.Unmarshal([]byte(byteValue), &want)
+	if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+		t.Fatal(err)
+	}
 
 	// Disregard format version to reduce needless test fixture churn
 	want.FormatVersion = got.FormatVersion
@@ -906,18 +927,22 @@ func TestShow_json_output_state(t *testing.T) {
 			var got, want state
 
 			gotString := showOutput.Stdout()
-			json.Unmarshal([]byte(gotString), &got)
+			if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+				t.Fatal(err)
+			}
 
 			wantFile, err := os.Open("output.json")
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			defer wantFile.Close()
+			defer safeClose(t, wantFile)
 			byteValue, err := io.ReadAll(wantFile)
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
-			json.Unmarshal([]byte(byteValue), &want)
+			if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+				t.Fatal(err)
+			}
 
 			if !cmp.Equal(got, want) {
 				t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))

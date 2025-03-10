@@ -677,7 +677,9 @@ func TestPlan_stateDefault(t *testing.T) {
 	// Generate state and move it to the default path
 	originalState := testState()
 	statePath := testStateFile(t, originalState)
-	os.Rename(statePath, path.Join(td, "terraform.tfstate"))
+	if err := os.Rename(statePath, path.Join(td, "terraform.tfstate")); err != nil {
+		t.Fatal(err)
+	}
 
 	p := planFixtureProvider()
 	view, done := testView(t)
@@ -1406,8 +1408,7 @@ func TestPlan_targetFlagsDiags(t *testing.T) {
 
 	for target, wantDiag := range testCases {
 		t.Run(target, func(t *testing.T) {
-			td := testTempDir(t)
-			defer os.RemoveAll(td)
+			td := t.TempDir()
 			defer testChdir(t, td)()
 
 			view, done := testView(t)
@@ -1492,8 +1493,7 @@ func TestPlan_excludeFlagsDiags(t *testing.T) {
 
 	for exclude, wantDiag := range testCases {
 		t.Run(exclude, func(t *testing.T) {
-			td := testTempDir(t)
-			defer os.RemoveAll(td)
+			td := t.TempDir()
 			defer testChdir(t, td)()
 
 			view, done := testView(t)
@@ -1596,6 +1596,8 @@ func TestPlan_replace(t *testing.T) {
 
 // Verify that the parallelism flag allows no more than the desired number of
 // concurrent calls to PlanResourceChange.
+//
+//nolint:govet // complex parallelism
 func TestPlan_parallelism(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()

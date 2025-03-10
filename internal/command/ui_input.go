@@ -158,7 +158,9 @@ func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, erro
 		return "", errors.New(err)
 
 	case line := <-i.result:
-		fmt.Fprint(w, "\n")
+		// Print a newline so that any further output starts properly
+		// on a new line.
+		fmt.Fprintln(w) //nolint:errcheck // output spacing
 
 		if line == "" {
 			line = opts.Default
@@ -168,13 +170,13 @@ func (i *UIInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, erro
 	case <-ctx.Done():
 		// Print a newline so that any further output starts properly
 		// on a new line.
-		fmt.Fprintln(w)
+		fmt.Fprintln(w) //nolint:errcheck // output spacing
 
 		return "", ctx.Err()
 	case <-sigCh:
 		// Print a newline so that any further output starts properly
 		// on a new line.
-		fmt.Fprintln(w)
+		fmt.Fprintln(w) //nolint:errcheck // output spacing
 
 		// Mark that we were interrupted so future Ask calls fail.
 		i.interrupted = true
