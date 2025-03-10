@@ -16,6 +16,8 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 	"github.com/zclconf/go-cty/cty/function/stdlib"
 	"github.com/zclconf/go-cty/cty/gocty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 var LengthFunc = function.New(&function.Spec{
@@ -578,12 +580,21 @@ var TransposeFunc = function.New(&function.Spec{
 		outputMap := make(map[string]cty.Value)
 		tmpMap := make(map[string][]string)
 
+		path := make(cty.Path, 0, 2) // we'll append a maximum of two path steps in the loop below
 		for it := inputMap.ElementIterator(); it.Next(); {
 			inKey, inVal := it.Element()
+			keyPath := path.Index(inKey)
+			if inVal.IsNull() {
+				return cty.DynamicVal, function.NewArgErrorf(0, "cannot use null list for %s", tfdiags.FormatCtyPath(keyPath))
+			}
 			for iter := inVal.ElementIterator(); iter.Next(); {
-				_, val := iter.Element()
+				idx, val := iter.Element()
+				idxPath := keyPath.Index(idx)
 				if !val.Type().Equals(cty.String) {
 					return cty.MapValEmpty(cty.List(cty.String)), errors.New("input must be a map of lists of strings")
+				}
+				if val.IsNull() {
+					return cty.DynamicVal, function.NewArgErrorf(0, "cannot use null string for %s", tfdiags.FormatCtyPath(idxPath))
 				}
 
 				outKey := val.AsString()
