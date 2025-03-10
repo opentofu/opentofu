@@ -12,9 +12,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
@@ -371,31 +368,7 @@ func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.Sta
 		return nil, nil, nil, err
 	}
 
-	subCall := rootCall.WithVariables(func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
-		var diags hcl.Diagnostics
-
-		name := variable.Name
-		v, ok := plan.VariableValues[name]
-		if !ok {
-			if variable.Required() {
-				// This should not happen...
-				return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Missing plan variable " + variable.Name,
-				})
-			}
-			return variable.Default, nil
-		}
-
-		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
-		if parsedErr != nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  parsedErr.Error(),
-			})
-		}
-		return parsed, diags
-	})
+	subCall := rootCall.WithVariables(plan.VariableMapper())
 
 	// Get config
 	config, diags := planReader.ReadConfig(subCall)
