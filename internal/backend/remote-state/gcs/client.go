@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"strconv"
 
 	"cloud.google.com/go/storage"
@@ -41,7 +42,11 @@ func (c *remoteClient) Get() (payload *remote.Payload, err error) {
 			return nil, fmt.Errorf("Failed to open state file at %v: %w", c.stateFileURL(), err)
 		}
 	}
-	defer stateFileReader.Close()
+	defer func() {
+		if err := stateFileReader.Close(); err != nil {
+			log.Printf("[ERROR] Failed to close statefile reader: %s", err)
+		}
+	}()
 
 	stateFileContents, err := io.ReadAll(stateFileReader)
 	if err != nil {
@@ -155,7 +160,11 @@ func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Printf("[ERROR] Failed to close lockinfo reader: %s", err)
+		}
+	}()
 
 	rawData, err := io.ReadAll(r)
 	if err != nil {

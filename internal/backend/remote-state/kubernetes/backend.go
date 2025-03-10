@@ -335,27 +335,28 @@ func tryLoadingConfigFile(d *schema.ResourceData) (*restclient.Config, error) {
 	}
 
 	overrides := &clientcmd.ConfigOverrides{}
-	ctxSuffix := "; default context"
+	// Unused, found during linting.
+	//ctxSuffix := "; default context"
 
 	ctx, ctxOk := d.GetOk("config_context")
 	authInfo, authInfoOk := d.GetOk("config_context_auth_info")
 	cluster, clusterOk := d.GetOk("config_context_cluster")
 	if ctxOk || authInfoOk || clusterOk {
-		ctxSuffix = "; overridden context"
+		//ctxSuffix := "; overridden context"
 		if ctxOk {
 			overrides.CurrentContext = ctx.(string)
-			ctxSuffix += fmt.Sprintf("; config ctx: %s", overrides.CurrentContext)
+			//ctxSuffix += fmt.Sprintf("; config ctx: %s", overrides.CurrentContext)
 			log.Printf("[DEBUG] Using custom current context: %q", overrides.CurrentContext)
 		}
 
 		overrides.Context = clientcmdapi.Context{}
 		if authInfoOk {
 			overrides.Context.AuthInfo = authInfo.(string)
-			ctxSuffix += fmt.Sprintf("; auth_info: %s", overrides.Context.AuthInfo)
+			//ctxSuffix += fmt.Sprintf("; auth_info: %s", overrides.Context.AuthInfo)
 		}
 		if clusterOk {
 			overrides.Context.Cluster = cluster.(string)
-			ctxSuffix += fmt.Sprintf("; cluster: %s", overrides.Context.Cluster)
+			//ctxSuffix += fmt.Sprintf("; cluster: %s", overrides.Context.Cluster)
 		}
 		log.Printf("[DEBUG] Using overridden context: %#v", overrides.Context)
 	}
@@ -390,7 +391,7 @@ func tryLoadingConfigFile(d *schema.ResourceData) (*restclient.Config, error) {
 }
 
 func expandStringSlice(s []interface{}) []string {
-	result := make([]string, len(s), len(s))
+	result := make([]string, len(s))
 	for k, v := range s {
 		// Handle the OpenTofu parser bug which turns empty strings in lists to nil.
 		if v == nil {

@@ -100,7 +100,11 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[ERROR] LOCK, closing http response body: %s", err)
+		}
+	}()
 
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -166,7 +170,11 @@ func (c *httpClient) Unlock(id string) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[ERROR] UNLOCK, closing http response body: %s", err)
+		}
+	}()
 
 	switch resp.StatusCode {
 	case http.StatusOK:
@@ -182,7 +190,11 @@ func (c *httpClient) Get() (*remote.Payload, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[ERROR] GET STATE, closing http response body: %s", err)
+		}
+	}()
 
 	// Handle the common status codes
 	switch resp.StatusCode {
@@ -267,7 +279,11 @@ func (c *httpClient) Put(data []byte) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[ERROR] UPLOAD STATE, closing http response body: %s", err)
+		}
+	}()
 
 	// Handle the error codes
 	switch resp.StatusCode {
@@ -285,7 +301,11 @@ func (c *httpClient) Delete() error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[ERROR] DELETE STATE, closing http response body: %s", err)
+		}
+	}()
 
 	// Handle the error codes
 	switch resp.StatusCode {

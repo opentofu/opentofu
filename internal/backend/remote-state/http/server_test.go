@@ -134,7 +134,11 @@ func (h *httpServer) handleStatePOST(writer http.ResponseWriter, req *http.Reque
 	if h.httpServerCallback != nil {
 		defer h.httpServerCallback.StatePOST(req)
 	}
-	defer req.Body.Close()
+	defer func() {
+		if err := req.Body.Close(); err != nil {
+			panic(err)
+		}
+	}()
 	resource := h.getResource(req)
 
 	data, err := io.ReadAll(req.Body)
@@ -167,7 +171,11 @@ func (h *httpServer) handleStateLOCK(writer http.ResponseWriter, req *http.Reque
 	if h.httpServerCallback != nil {
 		defer h.httpServerCallback.StateLOCK(req)
 	}
-	defer req.Body.Close()
+	defer func() {
+		if err := req.Body.Close(); err != nil {
+			panic(err)
+		}
+	}()
 	resource := h.getResource(req)
 
 	data, err := io.ReadAll(req.Body)
@@ -192,7 +200,11 @@ func (h *httpServer) handleStateUNLOCK(writer http.ResponseWriter, req *http.Req
 	if h.httpServerCallback != nil {
 		defer h.httpServerCallback.StateUNLOCK(req)
 	}
-	defer req.Body.Close()
+	defer func() {
+		if err := req.Body.Close(); err != nil {
+			panic(err)
+		}
+	}()
 	resource := h.getResource(req)
 
 	data, err := io.ReadAll(req.Body)

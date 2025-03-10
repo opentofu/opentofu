@@ -663,7 +663,11 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 					t.Fatalf("unexpected error creating temporary web identity token file: %s", err)
 				}
 
-				defer os.Remove(file.Name())
+				defer func() {
+					if err := os.Remove(file.Name()); err != nil {
+						t.Fatal(err)
+					}
+				}()
 
 				err = os.WriteFile(file.Name(), []byte(servicemocks.MockWebIdentityToken), 0600)
 
@@ -696,7 +700,11 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 					t.Fatalf("unexpected error creating temporary shared configuration file: %s", err)
 				}
 
-				defer os.Remove(file.Name())
+				defer func() {
+					if err := os.Remove(file.Name()); err != nil {
+						t.Fatal(err)
+					}
+				}()
 
 				err = os.WriteFile(file.Name(), []byte(tc.SharedConfigurationFile), 0600)
 
@@ -714,7 +722,11 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 					t.Fatalf("unexpected error creating temporary shared credentials file: %s", err)
 				}
 
-				defer os.Remove(file.Name())
+				defer func() {
+					if err := os.Remove(file.Name()); err != nil {
+						t.Fatal(err)
+					}
+				}()
 
 				err = os.WriteFile(file.Name(), []byte(tc.SharedCredentialsFile), 0600)
 

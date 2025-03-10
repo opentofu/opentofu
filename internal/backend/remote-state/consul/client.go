@@ -181,6 +181,7 @@ func (c *RemoteClient) Put(data []byte) error {
 			// the user. We may end up with dangling chunks but there is no way
 			// to be sure we won't.
 			path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
+			//nolint:errcheck
 			kv.DeleteTree(path, nil)
 		}
 	}
@@ -311,6 +312,7 @@ func (c *RemoteClient) Delete() error {
 	// If there were chunks we need to remove them
 	if chunked {
 		path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
+		//nolint:errcheck // see above comment
 		kv.DeleteTree(path, nil)
 	}
 
@@ -539,7 +541,11 @@ func (c *RemoteClient) createSession() (string, error) {
 	log.Println("[INFO] created consul lock session", id)
 
 	// keep the session renewed
-	go session.RenewPeriodic(lockSessionTTL, id, nil, ctx.Done())
+	go func() {
+		if err := session.RenewPeriodic(lockSessionTTL, id, nil, ctx.Done()); err != nil {
+			log.Printf("[ERROR] Unable to renew periodic session: %s", err)
+		}
+	}()
 
 	return id, nil
 }
@@ -572,9 +578,11 @@ func (c *RemoteClient) unlock(id string) error {
 		if err != nil {
 			return err
 		}
-		// We ignore the errors that may happen during cleanup
+
 		kv := c.Client.KV()
+		//nolint:errcheck // We ignore the errors that may happen during cleanup
 		kv.Delete(c.lockPath()+lockSuffix, nil)
+		//nolint:errcheck // We ignore the errors that may happen during cleanup
 		kv.Delete(c.lockPath()+lockInfoSuffix, nil)
 
 		return nil
@@ -618,6 +626,7 @@ func (c *RemoteClient) unlock(id string) error {
 
 	// This is only cleanup, and will fail if the lock was immediately taken by
 	// another client, so we don't report an error to the user here.
+	//nolint:errcheck
 	c.consulLock.Destroy()
 
 	return errs
@@ -644,7 +653,9 @@ func uncompressState(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b.ReadFrom(gz)
+	if _, err := b.ReadFrom(gz); err != nil {
+		return nil, err
+	}
 	if err := gz.Close(); err != nil {
 		return nil, err
 	}

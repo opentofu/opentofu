@@ -84,7 +84,11 @@ func (c *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	if err != nil {
 		return "", c.lockError(err)
 	}
-	defer c.cosUnlock(c.bucket, c.lockFile)
+	defer func() {
+		if err := c.cosUnlock(c.bucket, c.lockFile); err != nil {
+			log.Printf("[ERROR] unable to unlock remote state: %s", err)
+		}
+	}()
 
 	exists, _, _, err := c.getObject(c.lockFile)
 	if err != nil {
@@ -183,7 +187,11 @@ func (c *remoteClient) getObject(cosFile string) (exists bool, data []byte, chec
 		err = fmt.Errorf("failed to open file at %v: %w", cosFile, err)
 		return
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		if err := rsp.Body.Close(); err != nil {
+			log.Printf("[ERROR] getObject %s response close failed: %s", cosFile, err)
+		}
+	}()
 
 	log.Printf("[DEBUG] getObject %s: code: %d, error: %v", cosFile, rsp.StatusCode, err)
 	if err != nil {
@@ -243,7 +251,11 @@ func (c *remoteClient) putObject(cosFile string, data []byte) error {
 		log.Printf("[DEBUG] putObject %s: error: %v", cosFile, err)
 		return fmt.Errorf("failed to save file to %v: %w", cosFile, err)
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		if err := rsp.Body.Close(); err != nil {
+			log.Printf("[ERROR] putObject %s response close failed: %s", cosFile, err)
+		}
+	}()
 
 	log.Printf("[DEBUG] putObject %s: code: %d, error: %v", cosFile, rsp.StatusCode, err)
 	if err != nil {
@@ -260,7 +272,11 @@ func (c *remoteClient) deleteObject(cosFile string) error {
 		log.Printf("[DEBUG] deleteObject %s: error: %v", cosFile, err)
 		return fmt.Errorf("failed to delete file %v: %w", cosFile, err)
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		if err := rsp.Body.Close(); err != nil {
+			log.Printf("[ERROR] deleteObject %s response close failed: %s", cosFile, err)
+		}
+	}()
 
 	log.Printf("[DEBUG] deleteObject %s: code: %d, error: %v", cosFile, rsp.StatusCode, err)
 	if rsp.StatusCode == 404 {
@@ -282,7 +298,11 @@ func (c *remoteClient) getBucket(prefix string) (obs []cos.Object, err error) {
 		err = fmt.Errorf("bucket %s not exists", c.bucket)
 		return
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		if err := rsp.Body.Close(); err != nil {
+			log.Printf("[ERROR] getBucket %s/%s response close failed: %s", c.bucket, prefix, err)
+		}
+	}()
 
 	log.Printf("[DEBUG] getBucket %s/%s: code: %d, error: %v", c.bucket, prefix, rsp.StatusCode, err)
 	if rsp.StatusCode == 404 {
@@ -304,7 +324,11 @@ func (c *remoteClient) putBucket() error {
 		log.Printf("[DEBUG] putBucket %s: error: %v", c.bucket, err)
 		return fmt.Errorf("failed to create bucket %v: %w", c.bucket, err)
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		if err := rsp.Body.Close(); err != nil {
+			log.Printf("[ERROR] putBucket %s response close failed: %s", c.bucket, err)
+		}
+	}()
 
 	log.Printf("[DEBUG] putBucket %s: code: %d, error: %v", c.bucket, rsp.StatusCode, err)
 	if rsp.StatusCode == 409 {
@@ -330,7 +354,10 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 			return fmt.Errorf("failed to empty bucket %v: %w", c.bucket, err)
 		}
 		for _, v := range obs {
-			c.deleteObject(v.Key)
+			if err := c.deleteObject(v.Key); err != nil {
+				// Not sure if this should return an error or not, historically it just silently fails
+				log.Printf("[ERROR] deleteBucket %s delete object failed: %s", c.bucket, err)
+			}
 		}
 	}
 
@@ -339,7 +366,11 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 		log.Printf("[DEBUG] deleteBucket %s: error: %v", c.bucket, err)
 		return fmt.Errorf("failed to delete bucket %v: %w", c.bucket, err)
 	}
-	defer rsp.Body.Close()
+	defer func() {
+		if err := rsp.Body.Close(); err != nil {
+			log.Printf("[ERROR] deleteBucket %s response close failed: %s", c.bucket, err)
+		}
+	}()
 
 	log.Printf("[DEBUG] deleteBucket %s: code: %d, error: %v", c.bucket, rsp.StatusCode, err)
 	if rsp.StatusCode == 404 {

@@ -371,7 +371,9 @@ func uncompressState(data string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b.ReadFrom(gz)
+	if _, err := b.ReadFrom(gz); err != nil {
+		return nil, err
+	}
 	if err := gz.Close(); err != nil {
 		return nil, err
 	}

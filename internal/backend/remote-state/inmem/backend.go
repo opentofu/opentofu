@@ -86,7 +86,8 @@ func (b *Backend) configure(ctx context.Context) error {
 		info.Operation = "test"
 		info.Info = "test config"
 
-		locks.lock(backend.DefaultStateName, info)
+		_, err := locks.lock(backend.DefaultStateName, info)
+		return err
 	}
 
 	return nil
@@ -140,14 +141,16 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock inmem state: %w", err)
 		}
-		defer s.Unlock(lockID)
+		defer func() {
+			err = errors.Join(err, s.Unlock(lockID))
+		}()
 
 		// If we have no state, we have to create an empty state
 		if v := s.State(); v == nil {
-			if err := s.WriteState(statespkg.NewState()); err != nil {
+			if err = s.WriteState(statespkg.NewState()); err != nil {
 				return nil, err
 			}
-			if err := s.PersistState(nil); err != nil {
+			if err = s.PersistState(nil); err != nil {
 				return nil, err
 			}
 		}

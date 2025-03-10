@@ -498,6 +498,7 @@ func (u *unreliableConns) Kill() {
 	defer u.Unlock()
 
 	for _, conn := range u.conns {
+		//nolint:errcheck
 		conn.(*net.TCPConn).SetDeadline(time.Now())
 	}
 	u.conns = nil

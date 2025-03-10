@@ -469,7 +469,7 @@ func getAssumeRoleAK(accessKey, secretKey, stsToken, region, roleArn, sessionNam
 		return "", "", "", err
 	}
 	if stsEndpoint != "" {
-		endpoints.AddEndpointMapping(region, "STS", stsEndpoint)
+		endpoints.AddEndpointMapping(region, "STS", stsEndpoint) //nolint:errcheck // always nil
 	}
 	response, err := client.AssumeRole(request)
 	if err != nil {

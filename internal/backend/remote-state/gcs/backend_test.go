@@ -16,6 +16,7 @@ import (
 	"time"
 
 	kms "cloud.google.com/go/kms/apiv1"
+	"cloud.google.com/go/kms/apiv1/kmspb"
 	"cloud.google.com/go/storage"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -23,7 +24,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/version"
 	"google.golang.org/api/option"
-	kmspb "google.golang.org/genproto/googleapis/cloud/kms/v1"
 )
 
 const (
@@ -286,7 +286,11 @@ func setupKmsKey(t *testing.T, keyDetails map[string]string) string {
 		e := fmt.Errorf("kms.NewKeyManagementClient() failed: %w", err)
 		t.Fatal(e)
 	}
-	defer c.Close()
+	defer func() {
+		if err := c.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	// Get KMS key ring, create if doesn't exist
 	reqGetKeyRing := &kmspb.GetKeyRingRequest{
@@ -351,7 +355,11 @@ func setupKmsKey(t *testing.T, keyDetails map[string]string) string {
 		e := fmt.Errorf("storage.NewClient() failed: %w", err)
 		t.Fatal(e)
 	}
-	defer sc.Close()
+	defer func() {
+		if err := sc.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	gcsServiceAccount, err := sc.ServiceAccount(ctx, keyDetails["project"])
 	if err != nil {
 		t.Fatal(err)

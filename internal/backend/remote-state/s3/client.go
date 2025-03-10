@@ -173,7 +173,12 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 		return nil, err
 	}
 
-	defer output.Body.Close()
+	defer func() {
+
+		if err := output.Body.Close(); err != nil {
+			log.Printf("[WARN] Failed to close S3 output: %s", err)
+		}
+	}()
 
 	buf := bytes.NewBuffer(nil)
 	if _, err := io.Copy(buf, output.Body); err != nil {
