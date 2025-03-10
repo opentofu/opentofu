@@ -312,7 +312,6 @@ func (b *Cloud) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Ope
 			b.CLI.Output("\n------------------------------------------------------------------------")
 			return nil
 		case tfe.CostEstimateCanceled:
-			//nolint:revive,stylecheck // Caller UI relies on this non-idiomatic error string form
 			return fmt.Errorf("%s canceled.", msgPrefix)
 		default:
 			return fmt.Errorf("Unknown or unexpected cost estimate state: %s", ce.Status)
@@ -390,10 +389,8 @@ func (b *Cloud) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Oper
 			}
 			continue
 		case tfe.PolicyErrored:
-			//nolint:revive,stylecheck // Caller UI relies on this non-idiomatic error string form
 			return fmt.Errorf("%s errored.", msgPrefix)
 		case tfe.PolicyHardFailed:
-			//nolint:revive,stylecheck // Caller UI relies on this non-idiomatic error string form
 			return fmt.Errorf("%s hard failed.", msgPrefix)
 		case tfe.PolicySoftFailed:
 			runUrl := fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID)
@@ -417,7 +414,6 @@ func (b *Cloud) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Oper
 				}
 				err = b.confirm(stopCtx, op, opts, r, "override")
 				if err != nil && err != errRunOverridden {
-					//nolint:revive,stylecheck // Caller UI relies on this non-idiomatic error string form
 					return fmt.Errorf("Failed to override: %s\n%s\n", err.Error(), runUrl)
 				}
 

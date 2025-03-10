@@ -5,7 +5,6 @@
 // Simple file i/o and string manipulation, to avoid
 // depending on strconv and bufio and strings.
 
-//nolint:nonamedreturns,mnd // This file is copied from the Go codebase and intended to remain close to the original in case we need to backport changes.
 package ipaddr
 
 // Bigger than we need, not too big to worry about overflow

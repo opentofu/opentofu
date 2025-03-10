@@ -21,7 +21,7 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 		traversal, travDiags := hcl.AbsTraversalForExpr(target.Method)
 		diags = diags.Extend(travDiags)
 		if !travDiags.HasErrors() {
-			if len(traversal) != 3 { //nolint:mnd // linting
+			if len(traversal) != 3 {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid encryption method identifier",
