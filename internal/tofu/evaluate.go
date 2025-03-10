@@ -311,6 +311,83 @@ func (d *evaluationStateData) GetInputVariable(addr addrs.InputVariable, rng tfd
 	return val, diags
 }
 
+// TODO add docs and name suggestion
+func (d *evaluationStateData) GetTestRunOutputForProviderConfigs(addr addrs.TestRunOutputRef, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	// First we'll make sure the requested value is declared in configuration,
+	// so we can produce a nice message if not.
+	moduleConfig := d.Evaluator.Config.DescendentForInstance(d.ModulePath)
+	if moduleConfig == nil {
+		// should never happen, since we can't be evaluating in a module
+		// that wasn't mentioned in configuration.
+		panic(fmt.Sprintf("test run output read from %s, which has no configuration", d.ModulePath))
+	}
+
+	file, ok := moduleConfig.Module.Tests[rng.Filename]
+	if !ok {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Reference to undeclared test file`,
+			Detail:   fmt.Sprintf(`A test file with the name %q not found.`, rng.Filename),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
+	}
+	runBlockOutput, ok := file.RunBlockOutputs[addr.RunBlockName]
+	if !ok {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Reference to undeclared run block output`,
+			Detail:   fmt.Sprintf(`A run block output with the name %q not found.`, addr.RunBlockName),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
+	}
+	output, ok := runBlockOutput.AsValueMap()[addr.Name]
+	if !ok {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Reference to undeclared run block output`,
+			Detail:   fmt.Sprintf(`A run block output with the name %q not found.`, addr.Name),
+			Subject:  rng.ToHCL().Ptr(),
+		})
+		return cty.DynamicVal, diags
+	}
+
+	return output, diags
+
+	//for filename, testFile := range moduleConfig.Module.Tests {
+	//	if filename == rng.Filename {
+	//		break
+	//	}
+	//
+	//	fmt.Println(f, test, rng.Filename)
+	//}
+	//
+	//config := moduleConfig.Module.Locals[addr.Name]
+	//if config == nil {
+	//	var suggestions []string
+	//	for k := range moduleConfig.Module.Locals {
+	//		suggestions = append(suggestions, k)
+	//	}
+	//	suggestion := didyoumean.NameSuggestion(addr.Name, suggestions)
+	//	if suggestion != "" {
+	//		suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
+	//	}
+	//
+	//	diags = diags.Append(&hcl.Diagnostic{
+	//		Severity: hcl.DiagError,
+	//		Summary:  `Reference to undeclared local value`,
+	//		Detail:   fmt.Sprintf(`A local value with the name %q has not been declared.%s`, addr.Name, suggestion),
+	//		Subject:  rng.ToHCL().Ptr(),
+	//	})
+	//	return cty.DynamicVal, diags
+	//}
+	//
+	//return cty.Value{}, diags
+}
+
 func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
