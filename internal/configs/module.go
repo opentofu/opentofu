@@ -136,7 +136,7 @@ func (s SelectiveLoader) filter(input []*File) []*File {
 			Locals:    inFile.Locals,
 		}
 
-		switch s { //nolint:exhaustive // SelectiveLoadAll handled above
+		switch s {
 		case SelectiveLoadBackend:
 			outFile.Backends = inFile.Backends
 			outFile.CloudConfigs = inFile.CloudConfigs

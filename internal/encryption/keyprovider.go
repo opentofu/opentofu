@@ -64,7 +64,7 @@ func filterKeyProviderReferences(cfg *config.EncryptionConfig, deps []hcl.Traver
 	// Setting up key providers from deps.
 	for _, dep := range deps {
 		// Key Provider references should be in the form key_provider.type.name
-		if len(dep) != 3 { //nolint:mnd // linting
+		if len(dep) != 3 {
 			nonKeyProviderDeps = append(nonKeyProviderDeps, dep)
 			continue
 		}

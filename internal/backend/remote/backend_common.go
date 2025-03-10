@@ -340,7 +340,6 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 			b.CLI.Output("\n------------------------------------------------------------------------")
 			return nil
 		case tfe.CostEstimateCanceled:
-			//nolint:revive,stylecheck // Caller UI relies on this non-idiomatic error string form
 			return fmt.Errorf("%s canceled.", msgPrefix)
 		default:
 			return fmt.Errorf("Unknown or unexpected cost estimate state: %s", ce.Status)
@@ -418,10 +417,8 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 			}
 			continue
 		case tfe.PolicyErrored:
-			//nolint:revive,stylecheck // Caller UI relies on this non-idiomatic error string form
 			return fmt.Errorf("%s errored.", msgPrefix)
 		case tfe.PolicyHardFailed:
-			//nolint:revive,stylecheck // Caller UI relies on this non-idiomatic error string form
 			return fmt.Errorf("%s hard failed.", msgPrefix)
 		case tfe.PolicySoftFailed:
 			runUrl := fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID)
