@@ -25,6 +25,7 @@ func TestCompliancePython(t *testing.T) {
 }
 
 func runTest(t *testing.T, cmd []string) {
+	cmd = slices.Clip(cmd) // Make sure that the following appends are forced to allocate capacity
 	encryptCommand := append(cmd, "--encrypt")
 	decryptCommand := append(cmd, "--decrypt")
 
