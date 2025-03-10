@@ -98,7 +98,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	instDir := filepath.Join(rootDir, ".terraform/init-from-module")
 	inst := NewModuleInstaller(instDir, loader, reg)
 	log.Printf("[DEBUG] installing modules in %s to initialize working directory from %q", instDir, sourceAddrStr)
-	os.RemoveAll(instDir) // if this fails then we'll fail on MkdirAll below too
+	os.RemoveAll(instDir) //nolint:errcheck // if this fails then we'll fail on MkdirAll below too
 	err := os.MkdirAll(instDir, os.ModePerm)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -376,7 +376,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		hooks.Install(newRecord.Key, newRecord.Version, newRecord.Dir)
 	}
 
-	retManifest.WriteSnapshotToDir(modulesDir)
+	err = retManifest.WriteSnapshotToDir(modulesDir)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -388,6 +388,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	if !diags.HasErrors() {
 		// Try to clean up our temporary directory, but don't worry if we don't
 		// succeed since it shouldn't hurt anything.
+		//nolint:errcheck
 		os.RemoveAll(instDir)
 	}
 

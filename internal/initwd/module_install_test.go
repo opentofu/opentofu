@@ -987,7 +987,9 @@ func tempChdir(t *testing.T, sourceDir string) (string, func()) {
 	}
 
 	// Most of the tests need this, so we'll make it just in case.
-	os.MkdirAll(filepath.Join(tmpDir, ".terraform/modules"), os.ModePerm)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".terraform/modules"), os.ModePerm); err != nil {
+		t.Fatal(err)
+	}
 
 	t.Logf("tempChdir switched to %s after copying from %s", tmpDir, sourceDir)
 
@@ -998,7 +1000,9 @@ func tempChdir(t *testing.T, sourceDir string) (string, func()) {
 		}
 
 		if os.Getenv("TF_CONFIGLOAD_TEST_KEEP_TMP") == "" {
-			os.RemoveAll(tmpDir)
+			if err := os.RemoveAll(tmpDir); err != nil {
+				t.Fatal(err)
+			}
 		}
 	}
 }
