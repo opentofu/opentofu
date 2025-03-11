@@ -17,7 +17,6 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
-	ociDigest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	orasContent "oras.land/oras-go/v2/content"
 	orasMemoryStore "oras.land/oras-go/v2/content/memory"
@@ -38,18 +37,8 @@ func TestPackageOCIBlobArchive(t *testing.T) {
 	// Unfortunately we need to first construct our blob in a separate RAM
 	// buffer here because we need to calculate a checksum for it in order
 	// to "push" it into the store.
-	blobBytes := makePlaceholderProviderPackageZip(t)
-	blobDigest := ociDigest.SHA256.FromBytes(blobBytes)
-	desc := ociv1.Descriptor{
-		MediaType:    "archive/zip",
-		ArtifactType: "application/vnd.opentofu.providerpkg",
-		Digest:       blobDigest,
-		Size:         int64(len(blobBytes)),
-	}
-	err := store.Push(t.Context(), desc, bytes.NewReader(blobBytes))
-	if err != nil {
-		t.Fatal(err)
-	}
+	blobBytes := makePlaceholderProviderPackageZip(t, "not a real executable; just a placeholder")
+	desc := pushOCIBlob(t, "archive/zip", "application/vnd.opentofu.providerpkg", blobBytes, store)
 
 	t.Run("happy path", func(t *testing.T) {
 		// The in-memory OCI repository contains just the blob represented
@@ -257,10 +246,12 @@ func TestPackageOCIBlobArchive(t *testing.T) {
 // a placeholder for a provider plugin package.
 //
 // The zip archive includes files named "terraform-provider-foo" and
-// "README", with no guarantee made about their size or content. This is
-// intended as a general-purpose placeholder for when the content doesn't
-// actually matter since we're not going to actually execute the plugin.
-func makePlaceholderProviderPackageZip(t *testing.T) []byte {
+// "README". The "terraform-provider-foo" file is generated with the
+// content given in fakeExeContent, while the "README" content is
+// unspecified since it's just here to act as additional baggage that
+// a real provider could hypothetically make use of but OpenTofu itself
+// doesn't care about.
+func makePlaceholderProviderPackageZip(t *testing.T, fakeExeContent string) []byte {
 	t.Helper()
 
 	buf := bytes.NewBuffer(nil)
@@ -269,7 +260,7 @@ func makePlaceholderProviderPackageZip(t *testing.T) []byte {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = io.WriteString(exeW, "not a real executable; just a placeholder")
+	_, err = io.WriteString(exeW, fakeExeContent)
 	if err != nil {
 		t.Fatal(err)
 	}
