@@ -117,6 +117,7 @@ func buildSasToken(accountName, accessKey string) (*string, error) {
 	signedProtocol := "https,http"
 	signedIp := ""
 	signedVersion := sasSignedVersion
+	signedEncryptionScope := ""
 
 	utcNow := time.Now().UTC()
 
@@ -125,7 +126,7 @@ func buildSasToken(accountName, accessKey string) (*string, error) {
 	endDate := utcNow.Add(time.Hour * 24).Format(time.RFC3339)
 
 	sasToken, err := sasStorage.ComputeAccountSASToken(accountName, accessKey, permissions, services, resourceTypes,
-		startDate, endDate, signedProtocol, signedIp, signedVersion)
+		startDate, endDate, signedProtocol, signedIp, signedVersion, signedEncryptionScope)
 	if err != nil {
 		return nil, fmt.Errorf("Error computing SAS Token: %w", err)
 	}
