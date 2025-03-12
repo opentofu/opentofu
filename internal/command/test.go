@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/lang"
 	"log"
 	"path"
 	"sort"
@@ -468,15 +469,6 @@ func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *modulet
 			}
 		}
 
-		evalCtx, diags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
-		run.Diagnostics = run.Diagnostics.Append(diags)
-
-		// Store run block outputs
-		runOutputs := evalCtx.Variables["run"].AsValueMap()
-		for blockName, output := range runOutputs {
-			file.Config.RunBlockOutputs[blockName] = output
-		}
-
 		state, updatedState := runner.ExecuteTestRun(ctx, run, file, runner.States[key].State, config)
 		if updatedState {
 			var err error
@@ -516,48 +508,6 @@ func (runner *TestFileRunner) ExecuteTestFile(ctx context.Context, file *modulet
 	}
 }
 
-// transformTestFileProviderConfigs replaces run block variable references with their literal values
-//func transformTestFileProviderConfigs(file *moduletest.File, evalCtx *hcl.EvalContext) tfdiags.Diagnostics {
-//	var diags tfdiags.Diagnostics
-//	if !evalCtx.Variables["run"].IsNull() && len(evalCtx.Variables["run"].AsValueMap()) > 0 {
-//		for _, provider := range file.Config.Providers {
-//			body, ok := provider.Config.(*hclsyntax.Body)
-//			if !ok {
-//				break
-//			}
-//			attrs, diag := provider.Config.JustAttributes()
-//			diags = diags.Append(diag)
-//			for name, attr := range attrs {
-//				vars := attr.Expr.Variables()
-//				if len(vars) == 0 || vars[0].RootName() != "run" {
-//					continue
-//				}
-//				body.Attributes[name] = &hclsyntax.Attribute{
-//					Expr: &testRunExpression{
-//						ScopeTraversalExpr: hclsyntax.ScopeTraversalExpr{
-//							Traversal: vars[0],
-//							SrcRange:  vars[0].SourceRange(),
-//						},
-//						testEvalCtx: evalCtx,
-//					},
-//				}
-//			}
-//		}
-//	}
-//	return diags
-//}
-//
-//var _ hcl.Expression = (*testRunExpression)(nil)
-//
-//type testRunExpression struct {
-//	hclsyntax.ScopeTraversalExpr
-//	testEvalCtx *hcl.EvalContext
-//}
-//
-//func (e *testRunExpression) Value(_ *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
-//	return e.ScopeTraversalExpr.Value(e.testEvalCtx)
-//}
-
 func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletest.Run, file *moduletest.File, state *states.State, config *configs.Config) (*states.State, bool) {
 	log.Printf("[TRACE] TestFileRunner: executing run block %s/%s", file.Name, run.Name)
 
@@ -586,7 +536,14 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		return state, false
 	}
 
-	resetConfig, configDiags := config.TransformForTest(run.Config, file.Config)
+	evalCtx, evalDiags := buildEvalContextForProviderConfigTransform(runner.States, run, file, config, runner.Suite.GlobalVariables)
+	run.Diagnostics = run.Diagnostics.Append(evalDiags)
+	if evalDiags.HasErrors() {
+		run.Status = moduletest.Error
+		return state, false
+	}
+
+	resetConfig, configDiags := config.TransformForTest(run.Config, file.Config, evalCtx)
 	defer resetConfig()
 
 	run.Diagnostics = run.Diagnostics.Append(configDiags)
@@ -594,16 +551,6 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		run.Status = moduletest.Error
 		return state, false
 	}
-
-	//evalCtx, evalDiags := getEvalContextForTest(runner.States, config, runner.Suite.GlobalVariables)
-	//run.Diagnostics = run.Diagnostics.Append(evalDiags)
-
-	//diags := transformTestFileProviderConfigs(file, evalCtx)
-	//run.Diagnostics = run.Diagnostics.Append(diags)
-	//if run.Diagnostics.HasErrors() {
-	//	run.Status = moduletest.Error
-	//	return state, true
-	//}
 
 	validateDiags := runner.validate(ctx, config, run, file)
 	run.Diagnostics = run.Diagnostics.Append(validateDiags)
@@ -1095,7 +1042,10 @@ func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File
 			runConfig = state.Run.Config.ConfigUnderTest
 		}
 
-		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config)
+		evalCtx, ctxDiags := getEvalContextForTest(runner.States, runConfig, runner.Suite.GlobalVariables)
+		diags = diags.Append(ctxDiags)
+
+		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config, evalCtx)
 		diags = diags.Append(configDiags)
 
 		updated := state.State
@@ -1114,6 +1064,40 @@ func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File
 }
 
 // helper functions
+
+// buildEvalContextForProviderConfigTransform constructs a hcl.EvalContext based on the provided map of
+// TestFileState instances, configuration and global variables. Also, creates a tofu.InputValues mapping for
+// variable values that are relevant to the config being tested. And merges the variables into the evalCtx.
+// This is required to transform provider configs defined inside the test file, which are using run block output.
+//
+// Variable pre-evaluation and merging into the context is required, to evaluate more complex expressions involving both
+// run outputs and var (For example, as a function arguments). Without this step the test file won't be able to overwrite
+// input variables with `variables` block.
+//
+// The evalCtx returned from this, contains built-in functions for the same reason.
+func buildEvalContextForProviderConfigTransform(states map[string]*TestFileState, run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	evalCtx, diags := getEvalContextForTest(states, config, globals)
+	vars, varDiags := buildInputVariablesForTest(run, file, config, globals, evalCtx)
+	diags = diags.Append(varDiags)
+	if diags.HasErrors() {
+		return evalCtx, diags
+	}
+	for name, val := range vars {
+		if val == nil {
+			continue
+		}
+		varMap := evalCtx.Variables["var"].AsValueMap()
+		if varMap == nil {
+			varMap = make(map[string]cty.Value)
+		}
+		varMap[name] = val.Value
+		evalCtx.Variables["var"] = cty.ObjectVal(varMap)
+	}
+
+	scope := &lang.Scope{}
+	evalCtx.Functions = scope.Functions()
+	return evalCtx, diags
+}
 
 // buildInputVariablesForTest creates a tofu.InputValues mapping for
 // variable values that are relevant to the config being tested.

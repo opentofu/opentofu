@@ -48,19 +48,6 @@ func (d *dataForTests) GetInputVariable(addr addrs.InputVariable, rng tfdiags.So
 	return d.InputVariables[addr.Name], nil
 }
 
-func (d *dataForTests) GetTestRunOutputForProviderConfigs(addr addrs.TestRunOutputRef, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
-	block, ok := d.TestRunOutputs[addr.RunBlockName]
-	if ok {
-		v, ok := block.AsValueMap()[addr.Name]
-		if ok {
-			return v, nil
-		}
-	}
-	return cty.NilVal, tfdiags.Diagnostics{
-		tfdiags.Sourceless(tfdiags.Error, "test run output not found", ""),
-	}
-}
-
 func (d *dataForTests) GetLocalValue(addr addrs.LocalValue, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	return d.LocalValues[addr.Name], nil
 }

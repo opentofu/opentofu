@@ -832,6 +832,14 @@ func TestTest_Modules(t *testing.T) {
 		"run_mod_output_in_provider_block": {
 			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("p"),
+					"username":        cty.StringVal("test_user"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+				}),
+			},
 		},
 		"run_mod_output_in_provider_block_complex": {
 			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
@@ -847,10 +855,6 @@ func TestTest_Modules(t *testing.T) {
 		},
 		"run_mod_output_in_provider_block_undefined_ref": {
 			code: 1,
-		},
-		"run_mod_output_in_another_run_assert": {
-			code:     0,
-			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"assert_domain\"... pass\n  run \"assert_password\"... pass\n  run \"assert_username\"... pass\n\nSuccess! 4 passed, 0 failed.\n",
 		},
 	}
 

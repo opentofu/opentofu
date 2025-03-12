@@ -393,9 +393,7 @@ type evalVarBuilder struct {
 	countAttrs       map[string]cty.Value
 	forEachAttrs     map[string]cty.Value
 	checkBlocks      map[string]cty.Value
-	// run block outputs of tests
-	runBlockOutputs map[string]cty.Value
-	self            cty.Value
+	self             cty.Value
 }
 
 func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
@@ -408,7 +406,6 @@ func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
 		inputVariables:   map[string]cty.Value{},
 		localValues:      map[string]cty.Value{},
 		outputValues:     map[string]cty.Value{},
-		runBlockOutputs:  map[string]cty.Value{},
 		pathAttrs:        map[string]cty.Value{},
 		terraformAttrs:   map[string]cty.Value{},
 		countAttrs:       map[string]cty.Value{},
@@ -497,22 +494,6 @@ func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnos
 	case addrs.InputVariable:
 		b.inputVariables[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetInputVariable(subj, rng))
 
-	case addrs.TestRunOutputRef:
-		//TODO move this into a separate method
-		var value cty.Value
-		value, normDiags = normalizeRefValue(b.s.Data.GetTestRunOutputForProviderConfigs(subj, rng))
-		if block, exists := b.runBlockOutputs[subj.RunBlockName]; exists {
-			blockMap := block.AsValueMap()
-			blockMap[subj.Name] = value
-			b.runBlockOutputs[subj.RunBlockName] = cty.ObjectVal(blockMap)
-		} else {
-			// This is the first time we've seen this run block, so we can
-			// just set it directly.
-			b.runBlockOutputs[subj.RunBlockName] = cty.ObjectVal(map[string]cty.Value{
-				subj.Name: value,
-			})
-		}
-
 	case addrs.LocalValue:
 		b.localValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetLocalValue(subj, rng))
 
@@ -582,7 +563,6 @@ func (b *evalVarBuilder) buildAllVariablesInto(vals map[string]cty.Value) {
 	vals["data"] = cty.ObjectVal(buildResourceObjects(b.dataResources))
 	vals["module"] = cty.ObjectVal(b.wholeModules)
 	vals["var"] = cty.ObjectVal(b.inputVariables)
-	vals["run"] = cty.ObjectVal(b.runBlockOutputs)
 	vals["local"] = cty.ObjectVal(b.localValues)
 	vals["path"] = cty.ObjectVal(b.pathAttrs)
 	vals["terraform"] = cty.ObjectVal(b.terraformAttrs)
