@@ -93,7 +93,11 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 		}
 		return nil, fmt.Errorf("%s: %w", getproviders.HostFromRequest(req.Request), err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("[ERROR] unable to close response for provider download: %s", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unsuccessful request to %s: %s", url, resp.Status)
@@ -103,8 +107,16 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	if err != nil {
 		return nil, fmt.Errorf("failed to open temporary file to download from %s: %w", url, err)
 	}
-	defer f.Close()
-	defer os.Remove(f.Name())
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("[ERROR] unable to close temp file for provider download: %s", err)
+		}
+	}()
+	defer func() {
+		if err := os.Remove(f.Name()); err != nil {
+			log.Printf("[ERROR] unable to remove temp file for provider download: %s", err)
+		}
+	}()
 
 	// We'll borrow go-getter's "cancelable copy" implementation here so that
 	// the download can potentially be interrupted partway through.

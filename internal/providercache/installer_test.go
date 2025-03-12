@@ -2507,6 +2507,12 @@ func testRegistrySource(t *testing.T) (source *getproviders.RegistrySource, base
 
 func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	path := req.URL.EscapedPath()
+	respWrite := func(data []byte) {
+		if _, err := resp.Write(data); err != nil {
+			panic(err)
+		}
+	}
+
 	if strings.HasPrefix(path, "/fails-immediately/") {
 		// Here we take over the socket and just close it immediately, to
 		// simulate one possible way a server might not be an HTTP server.
@@ -2515,44 +2521,46 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			// Not hijackable, so we'll just fail normally.
 			// If this happens, tests relying on this will fail.
 			resp.WriteHeader(500)
-			resp.Write([]byte(`cannot hijack`))
+			respWrite([]byte(`cannot hijack`))
 			return
 		}
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
 			resp.WriteHeader(500)
-			resp.Write([]byte(`hijack failed`))
+			respWrite([]byte(`hijack failed`))
 			return
 		}
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			panic(err)
+		}
 		return
 	}
 
 	if strings.HasPrefix(path, "/pkg/") {
 		switch path {
 		case "/pkg/awesomesauce/happycloud_1.2.0.zip":
-			resp.Write([]byte("some zip file"))
+			respWrite([]byte("some zip file"))
 		case "/pkg/awesomesauce/happycloud_1.2.0_SHA256SUMS":
-			resp.Write([]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n"))
+			respWrite([]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n"))
 		case "/pkg/awesomesauce/happycloud_1.2.0_SHA256SUMS.sig":
-			resp.Write([]byte("GPG signature"))
+			respWrite([]byte("GPG signature"))
 		default:
 			resp.WriteHeader(404)
-			resp.Write([]byte("unknown package file download"))
+			respWrite([]byte("unknown package file download"))
 		}
 		return
 	}
 
 	if !strings.HasPrefix(path, "/providers/v1/") {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`not a provider registry endpoint`))
+		respWrite([]byte(`not a provider registry endpoint`))
 		return
 	}
 
 	pathParts := strings.Split(path, "/")[3:]
 	if len(pathParts) < 2 {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`unexpected number of path parts`))
+		respWrite([]byte(`unexpected number of path parts`))
 		return
 	}
 	log.Printf("[TRACE] fake provider registry request for %#v", pathParts)
@@ -2565,24 +2573,24 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			// registry host.
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write([]byte(`{"namespace":"legacycorp"}`))
+			respWrite([]byte(`{"namespace":"legacycorp"}`))
 
 		default:
 			resp.WriteHeader(404)
-			resp.Write([]byte(`unknown namespace or provider type for direct lookup`))
+			respWrite([]byte(`unknown namespace or provider type for direct lookup`))
 		}
 	}
 
 	if len(pathParts) < 3 {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`unexpected number of path parts`))
+		respWrite([]byte(`unexpected number of path parts`))
 		return
 	}
 
 	if pathParts[2] == "versions" {
 		if len(pathParts) != 3 {
 			resp.WriteHeader(404)
-			resp.Write([]byte(`extraneous path parts`))
+			respWrite([]byte(`extraneous path parts`))
 			return
 		}
 
@@ -2593,18 +2601,18 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			// Note that these version numbers are intentionally misordered
 			// so we can test that the client-side code places them in the
 			// correct order (lowest precedence first).
-			resp.Write([]byte(`{"versions":[{"version":"0.1.0","protocols":["1.0"]},{"version":"2.0.0","protocols":["99.0"]},{"version":"1.2.0","protocols":["5.0"]}, {"version":"1.0.0","protocols":["5.0"]}]}`))
+			respWrite([]byte(`{"versions":[{"version":"0.1.0","protocols":["1.0"]},{"version":"2.0.0","protocols":["99.0"]},{"version":"1.2.0","protocols":["5.0"]}, {"version":"1.0.0","protocols":["5.0"]}]}`))
 		case "weaksauce/unsupported-protocol":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write([]byte(`{"versions":[{"version":"0.1.0","protocols":["0.1"]}]}`))
+			respWrite([]byte(`{"versions":[{"version":"0.1.0","protocols":["0.1"]}]}`))
 		case "weaksauce/no-versions":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write([]byte(`{"versions":[]}`))
+			respWrite([]byte(`{"versions":[]}`))
 		default:
 			resp.WriteHeader(404)
-			resp.Write([]byte(`unknown namespace or provider type`))
+			respWrite([]byte(`unknown namespace or provider type`))
 		}
 		return
 	}
@@ -2614,7 +2622,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 		case "awesomesauce/happycloud":
 			if pathParts[4] == "nonexist" {
 				resp.WriteHeader(404)
-				resp.Write([]byte(`unsupported OS`))
+				respWrite([]byte(`unsupported OS`))
 				return
 			}
 			version := pathParts[2]
@@ -2638,11 +2646,11 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			enc, err := json.Marshal(body)
 			if err != nil {
 				resp.WriteHeader(500)
-				resp.Write([]byte("failed to encode body"))
+				respWrite([]byte("failed to encode body"))
 			}
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write(enc)
+			respWrite(enc)
 		case "weaksauce/unsupported-protocol":
 			var protocols []string
 			version := pathParts[2]
@@ -2675,20 +2683,20 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			enc, err := json.Marshal(body)
 			if err != nil {
 				resp.WriteHeader(500)
-				resp.Write([]byte("failed to encode body"))
+				respWrite([]byte("failed to encode body"))
 			}
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write(enc)
+			respWrite(enc)
 		default:
 			resp.WriteHeader(404)
-			resp.Write([]byte(`unknown namespace/provider/version/architecture`))
+			respWrite([]byte(`unknown namespace/provider/version/architecture`))
 		}
 		return
 	}
 
 	resp.WriteHeader(404)
-	resp.Write([]byte(`unrecognized path scheme`))
+	respWrite([]byte(`unrecognized path scheme`))
 }
 
 // In order to be able to compare the recorded temp dir paths, we need to
