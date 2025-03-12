@@ -22,67 +22,67 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 	tests := []struct {
 		description           string
 		nodeAddress           string
-		nodeEndpointsToRemove []addrs.ConfigRemovable
+		nodeEndpointsToRemove []addrs.DestroyableConfigRemovable
 		wantAction            plans.Action
 	}{
 		{
 			nodeAddress:           "test_instance.foo",
-			nodeEndpointsToRemove: make([]addrs.ConfigRemovable, 0),
+			nodeEndpointsToRemove: make([]addrs.DestroyableConfigRemovable, 0),
 			wantAction:            plans.Delete,
 		},
 		{
 			nodeAddress: "test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("test_instance.bar")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []addrs.DestroyableConfigRemovable{
+				{ConfigRemovable: interface{}(mustConfigResourceAddr("test_instance.bar")).(addrs.ConfigRemovable)},
 			},
 			wantAction: plans.Delete,
 		},
 		{
 			nodeAddress: "test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []addrs.DestroyableConfigRemovable{
+				{ConfigRemovable: interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable)},
 			},
 			wantAction: plans.Delete,
 		},
 		{
 			nodeAddress: "test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("test_instance.foo")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []addrs.DestroyableConfigRemovable{
+				{ConfigRemovable: interface{}(mustConfigResourceAddr("test_instance.foo")).(addrs.ConfigRemovable)},
 			},
 			wantAction: plans.Forget,
 		},
 		{
 			nodeAddress: "test_instance.foo[1]",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("test_instance.foo")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []addrs.DestroyableConfigRemovable{
+				{ConfigRemovable: interface{}(mustConfigResourceAddr("test_instance.foo")).(addrs.ConfigRemovable)},
 			},
 			wantAction: plans.Forget,
 		},
 		{
 			nodeAddress: "module.boop.test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("module.boop.test_instance.foo")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []addrs.DestroyableConfigRemovable{
+				{ConfigRemovable: interface{}(mustConfigResourceAddr("module.boop.test_instance.foo")).(addrs.ConfigRemovable)},
 			},
 			wantAction: plans.Forget,
 		},
 		{
 			nodeAddress: "module.boop[1].test_instance.foo[1]",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("module.boop.test_instance.foo")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []addrs.DestroyableConfigRemovable{
+				{ConfigRemovable: interface{}(mustConfigResourceAddr("module.boop.test_instance.foo")).(addrs.ConfigRemovable)},
 			},
 			wantAction: plans.Forget,
 		},
 		{
 			nodeAddress: "module.boop.test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []addrs.DestroyableConfigRemovable{
+				{ConfigRemovable: interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable)},
 			},
 			wantAction: plans.Forget,
 		},
 		{
 			nodeAddress: "module.boop[1].test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []addrs.DestroyableConfigRemovable{
+				{ConfigRemovable: interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable)},
 			},
 			wantAction: plans.Forget,
 		},

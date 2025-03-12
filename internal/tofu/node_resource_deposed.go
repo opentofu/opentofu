@@ -48,7 +48,7 @@ type NodePlanDeposedResourceInstanceObject struct {
 	// forget from the state. This set isn't pre-filtered, so
 	// it might contain addresses that have nothing to do with the resource
 	// that this node represents, which the node itself must therefore ignore.
-	EndpointsToRemove []addrs.ConfigRemovable
+	EndpointsToRemove []addrs.DestroyableConfigRemovable
 }
 
 var (
@@ -146,15 +146,21 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 		var planDiags tfdiags.Diagnostics
 
 		shouldForget := false
+		shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that other systems have.
 
 		for _, etf := range n.EndpointsToRemove {
 			if etf.TargetContains(n.Addr) {
 				shouldForget = true
+				shouldDestroy = etf.Destroy
 			}
 		}
 
 		if shouldForget {
-			change = n.planForget(ctx, state, n.DeposedKey)
+			if shouldDestroy {
+				change, planDiags = n.planDestroy(ctx, state, n.DeposedKey)
+			} else {
+				change = n.planForget(ctx, state, n.DeposedKey)
+			}
 		} else {
 			change, planDiags = n.planDestroy(ctx, state, n.DeposedKey)
 		}
