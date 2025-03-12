@@ -32,6 +32,13 @@ func TestState_impl(t *testing.T) {
 	var _ statemgr.Locker = new(State)
 }
 
+func assertNoError(t *testing.T, err error) {
+	t.Helper()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestStateRace(t *testing.T) {
 	s := NewState(nilClient{}, encryption.StateEncryptionDisabled())
 
@@ -43,9 +50,9 @@ func TestStateRace(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.WriteState(current)
-			s.PersistState(nil)
-			s.RefreshState()
+			assertNoError(t, s.WriteState(current))
+			assertNoError(t, s.PersistState(nil))
+			assertNoError(t, s.RefreshState())
 		}()
 	}
 	wg.Wait()
@@ -561,8 +568,8 @@ func TestWriteStateForMigration(t *testing.T) {
 
 			// At this point we should just do a normal write and persist
 			// as would happen from the CLI
-			mgr.WriteState(mgr.State())
-			mgr.PersistState(nil)
+			assertNoError(t, mgr.WriteState(mgr.State()))
+			assertNoError(t, mgr.PersistState(nil))
 
 			if logIdx >= len(mockClient.log) {
 				t.Fatalf("request lock and index are out of sync on %q: idx=%d len=%d", tc.name, logIdx, len(mockClient.log))
@@ -728,8 +735,8 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 
 			// At this point we should just do a normal write and persist
 			// as would happen from the CLI
-			mgr.WriteState(mgr.State())
-			mgr.PersistState(nil)
+			assertNoError(t, mgr.WriteState(mgr.State()))
+			assertNoError(t, mgr.PersistState(nil))
 
 			if logIdx >= len(mockClient.log) {
 				t.Fatalf("request lock and index are out of sync on %q: idx=%d len=%d", tc.name, logIdx, len(mockClient.log))

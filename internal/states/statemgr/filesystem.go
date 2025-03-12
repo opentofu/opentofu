@@ -172,7 +172,12 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 			return nil
 		}
 	}
-	defer s.stateFileOut.Sync()
+	defer func() {
+		if err := s.stateFileOut.Sync(); err != nil {
+			// TODO this should probably return an error, for legacy reasons we are not changing this functionality at the moment
+			log.Printf("[WARN] statemgr.Filesystem: unable to sync changes")
+		}
+	}()
 
 	if s.file == nil {
 		s.file = NewStateFile()
@@ -188,7 +193,12 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 			if err != nil {
 				return fmt.Errorf("failed to create local state backup file: %w", err)
 			}
-			defer bfh.Close()
+			defer func() {
+				if err := bfh.Close(); err != nil {
+					log.Printf("[TRACE] statemgr.Filesystem: error backup snapshot at %s: %s", s.backupPath, err)
+
+				}
+			}()
 
 			err = statefile.Write(s.backupFile, bfh, s.encryption)
 			if err != nil {
@@ -288,7 +298,11 @@ func (s *Filesystem) refreshState() error {
 			reader = bytes.NewBuffer(nil)
 
 		} else {
-			defer f.Close()
+			defer func() {
+				if err := f.Close(); err != nil {
+					log.Printf("[ERROR] statemgr.Filesystem: reading initial snapshot from %s (close): %s", s.readPath, err)
+				}
+			}()
 			reader = f
 		}
 	} else {
@@ -393,7 +407,9 @@ func (s *Filesystem) Unlock(id string) error {
 
 	unlockErr := s.unlock()
 
-	s.stateFileOut.Close()
+	if err := s.stateFileOut.Close(); err != nil {
+		log.Printf("[ERROR] stagemgr.Filesystem: error closing state file %q: %s", fileName, err)
+	}
 	s.stateFileOut = nil
 	s.lockID = ""
 

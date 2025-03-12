@@ -6,6 +6,7 @@
 package statemgr
 
 import (
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -24,17 +25,29 @@ import (
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
+func safeRemove(t *testing.T, path string) {
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func safeClose(t *testing.T, f io.Closer) {
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFilesystem(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
 	ls := testFilesystem(t)
-	defer os.Remove(ls.readPath)
+	defer safeRemove(t, ls.readPath)
 	TestFull(t, ls)
 }
 
 func TestFilesystemRace(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
 	ls := testFilesystem(t)
-	defer os.Remove(ls.readPath)
+	defer safeRemove(t, ls.readPath)
 
 	current := TestFullInitialState()
 
@@ -43,7 +56,9 @@ func TestFilesystemRace(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ls.WriteState(current)
+			if err := ls.WriteState(current); err != nil {
+				panic(err)
+			}
 		}()
 	}
 	wg.Wait()
@@ -52,7 +67,7 @@ func TestFilesystemRace(t *testing.T) {
 func TestFilesystemLocks(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
 	s := testFilesystem(t)
-	defer os.Remove(s.readPath)
+	defer safeRemove(t, s.readPath)
 
 	// lock first
 	info := NewLockInfo()
@@ -113,7 +128,7 @@ func TestFilesystemLocks(t *testing.T) {
 func TestFilesystem_writeWhileLocked(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
 	s := testFilesystem(t)
-	defer os.Remove(s.readPath)
+	defer safeRemove(t, s.readPath)
 
 	// lock first
 	info := NewLockInfo()
@@ -139,12 +154,12 @@ func TestFilesystem_pathOut(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	f.Close()
-	defer os.Remove(f.Name())
+	safeClose(t, f)
+	defer safeRemove(t, f.Name())
 
 	ls := testFilesystem(t)
 	ls.path = f.Name()
-	defer os.Remove(ls.path)
+	defer safeRemove(t, ls.path)
 
 	TestFull(t, ls)
 }
@@ -155,8 +170,8 @@ func TestFilesystem_backup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	f.Close()
-	defer os.Remove(f.Name())
+	safeClose(t, f)
+	defer safeRemove(t, f.Name())
 
 	ls := testFilesystem(t)
 	backupPath := f.Name()
@@ -206,7 +221,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temporary outFile %s", err)
 	}
-	defer outFile.Close()
+	defer safeClose(t, outFile)
 	err = statefile.Write(&statefile.File{
 		Lineage:          "-",
 		Serial:           0,
@@ -228,7 +243,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temporary inFile %s", err)
 	}
-	defer inFile.Close()
+	defer safeClose(t, inFile)
 	err = statefile.Write(&statefile.File{
 		Lineage:          "-",
 		Serial:           0,
@@ -273,7 +288,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer bfh.Close()
+		defer safeClose(t, bfh)
 		bf, err := statefile.Read(bfh, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatal(err)
@@ -288,7 +303,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer ofh.Close()
+		defer safeClose(t, ofh)
 		of, err := statefile.Read(ofh, encryption.StateEncryptionDisabled())
 		if err != nil {
 			t.Fatal(err)
@@ -319,7 +334,7 @@ func TestFilesystem_lockUnlockWithoutWrite(t *testing.T) {
 	ls := testFilesystem(t)
 
 	// Delete the just-created tempfile so that Lock recreates it
-	os.Remove(ls.path)
+	safeRemove(t, ls.path)
 
 	// Lock the state, and in doing so recreate the tempfile
 	lockID, err := ls.Lock(info)
@@ -342,7 +357,7 @@ func TestFilesystem_lockUnlockWithoutWrite(t *testing.T) {
 	} else if err != nil {
 		t.Fatalf("unexpected error from os.Stat: %s", err)
 	} else {
-		os.Remove(ls.readPath)
+		safeRemove(t, ls.readPath)
 		t.Fatal("should have removed path, but exists")
 	}
 }
@@ -373,7 +388,7 @@ func testFilesystem(t *testing.T) *Filesystem {
 	if err != nil {
 		t.Fatalf("failed to write initial state to %s: %s", f.Name(), err)
 	}
-	f.Close()
+	safeClose(t, f)
 
 	ls := NewFilesystem(f.Name(), encryption.StateEncryptionDisabled())
 	if err := ls.RefreshState(); err != nil {
@@ -400,10 +415,10 @@ func TestFilesystem_refreshWhileLocked(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	f.Close()
+	safeClose(t, f)
 
 	s := NewFilesystem(f.Name(), encryption.StateEncryptionDisabled())
-	defer os.Remove(s.path)
+	defer safeRemove(t, s.path)
 
 	// lock first
 	info := NewLockInfo()
