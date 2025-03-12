@@ -257,10 +257,10 @@ type Meta struct {
 	// compactWarnings (-compact-warnings) selects a more compact presentation
 	// of warnings in the output when they are not accompanied by errors.
 	//
-	// consolidateWarnings (-consolidate-warnings=false) disables consolodation
+	// consolidateWarnings (-consolidate-warnings=false) disables consolidation
 	// of warnings in the output, printing all instances of a particular warning.
 	//
-	// consolidateErrors (-consolidate-errors=true) enables consolodation
+	// consolidateErrors (-consolidate-errors=true) enables consolidation
 	// of errors in the output, printing a single instances of a particular warning.
 	statePath           string
 	stateOutPath        string
