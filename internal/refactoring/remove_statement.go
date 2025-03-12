@@ -16,21 +16,18 @@ import (
 
 type RemoveStatement struct {
 	From      addrs.ConfigRemovable
+	Destroy   bool
 	DeclRange tfdiags.SourceRange
 }
 
-// GetEndpointsToRemove recurses through the modules of the given configuration
+// FindRemoveStatements recurses through the modules of the given configuration
 // and returns an array of all "removed" addresses within, in a
 // deterministic but undefined order.
 // We also validate that the removed modules/resources configuration blocks were removed.
-func GetEndpointsToRemove(rootCfg *configs.Config) ([]addrs.ConfigRemovable, tfdiags.Diagnostics) {
+func FindRemoveStatements(rootCfg *configs.Config) ([]*RemoveStatement, tfdiags.Diagnostics) {
 	rm := findRemoveStatements(rootCfg, nil)
 	diags := validateRemoveStatements(rootCfg, rm)
-	removedAddresses := make([]addrs.ConfigRemovable, len(rm))
-	for i, rs := range rm {
-		removedAddresses[i] = rs.From
-	}
-	return removedAddresses, diags
+	return rm, diags
 }
 
 func findRemoveStatements(cfg *configs.Config, into []*RemoveStatement) []*RemoveStatement {
@@ -51,7 +48,7 @@ func findRemoveStatements(cfg *configs.Config, into []*RemoveStatement) []*Remov
 				Module:   absModule,
 			}
 
-			removedEndpoint = &RemoveStatement{From: absConfigResource, DeclRange: tfdiags.SourceRangeFromHCL(rc.DeclRange)}
+			removedEndpoint = &RemoveStatement{From: absConfigResource, Destroy: rc.Destroy, DeclRange: tfdiags.SourceRangeFromHCL(rc.DeclRange)}
 
 		case addrs.Module:
 			// Get the absolute address of the module by appending the module config address
@@ -59,7 +56,7 @@ func findRemoveStatements(cfg *configs.Config, into []*RemoveStatement) []*Remov
 			var absModule = make(addrs.Module, 0, len(modAddr)+len(FromAddress))
 			absModule = append(absModule, modAddr...)
 			absModule = append(absModule, FromAddress...)
-			removedEndpoint = &RemoveStatement{From: absModule, DeclRange: tfdiags.SourceRangeFromHCL(rc.DeclRange)}
+			removedEndpoint = &RemoveStatement{From: absModule, Destroy: rc.Destroy, DeclRange: tfdiags.SourceRangeFromHCL(rc.DeclRange)}
 
 		default:
 			panic(fmt.Sprintf("unhandled address type %T", FromAddress))

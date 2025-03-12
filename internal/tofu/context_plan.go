@@ -98,9 +98,9 @@ type PlanOpts struct {
 	// will be added to the plan graph.
 	ImportTargets []*ImportTarget
 
-	// EndpointsToRemove are the list of resources and modules to forget from
+	// RemoveStatements are the list of resources and modules to forget from
 	// the state.
-	EndpointsToRemove []addrs.ConfigRemovable
+	RemoveStatements []*refactoring.RemoveStatement
 
 	// GenerateConfig tells OpenTofu where to write any generated configuration
 	// for any ImportTargets that do not have configuration already.
@@ -331,7 +331,7 @@ func (c *Context) plan(ctx context.Context, config *configs.Config, prevRunState
 	}
 
 	var endpointsToRemoveDiags tfdiags.Diagnostics
-	opts.EndpointsToRemove, endpointsToRemoveDiags = refactoring.GetEndpointsToRemove(config)
+	opts.RemoveStatements, endpointsToRemoveDiags = refactoring.FindRemoveStatements(config)
 	diags = diags.Append(endpointsToRemoveDiags)
 
 	if diags.HasErrors() {
@@ -856,7 +856,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			ExternalReferences:      opts.ExternalReferences,
 			ImportTargets:           opts.ImportTargets,
 			GenerateConfigPath:      opts.GenerateConfigPath,
-			EndpointsToRemove:       opts.EndpointsToRemove,
+			RemoveStatements:        opts.RemoveStatements,
 			ProviderFunctionTracker: providerFunctionTracker,
 		}).Build(addrs.RootModuleInstance)
 		return graph, walkPlan, diags

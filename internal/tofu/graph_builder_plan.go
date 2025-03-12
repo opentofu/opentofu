@@ -11,6 +11,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -86,9 +87,9 @@ type PlanGraphBuilder struct {
 	// ImportTargets are the list of resources to import.
 	ImportTargets []*ImportTarget
 
-	// EndpointsToRemove are the list of resources and modules to forget from
+	// RemoveStatements are the list of resources and modules to forget from
 	// the state.
-	EndpointsToRemove []addrs.ConfigRemovable
+	RemoveStatements []*refactoring.RemoveStatement
 
 	// GenerateConfig tells OpenTofu where to write and generated config for
 	// any import targets that do not already have configuration.
@@ -283,7 +284,7 @@ func (b *PlanGraphBuilder) initPlan() {
 			NodeAbstractResourceInstance: a,
 			skipRefresh:                  b.skipRefresh,
 			skipPlanChanges:              b.skipPlanChanges,
-			EndpointsToRemove:            b.EndpointsToRemove,
+			RemoveStatements:             b.RemoveStatements,
 		}
 	}
 
@@ -292,9 +293,9 @@ func (b *PlanGraphBuilder) initPlan() {
 			NodeAbstractResourceInstance: a,
 			DeposedKey:                   key,
 
-			skipRefresh:       b.skipRefresh,
-			skipPlanChanges:   b.skipPlanChanges,
-			EndpointsToRemove: b.EndpointsToRemove,
+			skipRefresh:      b.skipRefresh,
+			skipPlanChanges:  b.skipPlanChanges,
+			RemoveStatements: b.RemoveStatements,
 		}
 	}
 }

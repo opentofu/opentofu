@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -44,11 +45,11 @@ type NodePlanDeposedResourceInstanceObject struct {
 	// for any instances.
 	skipPlanChanges bool
 
-	// EndpointsToRemove are resource instance addresses where the user wants to
+	// RemoveStatements contains resource instance addresses where the user wants to
 	// forget from the state. This set isn't pre-filtered, so
 	// it might contain addresses that have nothing to do with the resource
 	// that this node represents, which the node itself must therefore ignore.
-	EndpointsToRemove []addrs.ConfigRemovable
+	RemoveStatements []*refactoring.RemoveStatement
 }
 
 var (
@@ -146,15 +147,21 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 		var planDiags tfdiags.Diagnostics
 
 		shouldForget := false
+		shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
 
-		for _, etf := range n.EndpointsToRemove {
-			if etf.TargetContains(n.Addr) {
+		for _, rs := range n.RemoveStatements {
+			if rs.From.TargetContains(n.Addr) {
 				shouldForget = true
+				shouldDestroy = rs.Destroy
 			}
 		}
 
 		if shouldForget {
-			change = n.planForget(ctx, state, n.DeposedKey)
+			if shouldDestroy {
+				change, planDiags = n.planDestroy(ctx, state, n.DeposedKey)
+			} else {
+				change = n.planForget(ctx, state, n.DeposedKey)
+			}
 		} else {
 			change, planDiags = n.planDestroy(ctx, state, n.DeposedKey)
 		}
