@@ -8,8 +8,10 @@ package clistate
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"sync"
@@ -76,7 +78,11 @@ func (s *LocalState) WriteState(state *tofu.State) error {
 			return nil
 		}
 	}
-	defer s.stateFileOut.Sync()
+	defer func() {
+		if err := s.stateFileOut.Sync(); err != nil {
+			log.Printf("[WARN] unable to sync state: %s", err)
+		}
+	}()
 
 	s.state = state.DeepCopy() // don't want mutations before we actually get this written to disk
 
@@ -150,7 +156,11 @@ func (s *LocalState) RefreshState() error {
 			reader = bytes.NewBuffer(nil)
 
 		} else {
-			defer f.Close()
+			defer func() {
+				if err := f.Close(); err != nil {
+					log.Printf("[ERROR] RefreshState: unable to close file: %s", err)
+				}
+			}()
 			reader = f
 		}
 	} else {
@@ -160,7 +170,9 @@ func (s *LocalState) RefreshState() error {
 		}
 
 		// we have a state file, make sure we're at the start
-		s.stateFileOut.Seek(0, io.SeekStart)
+		if _, err := s.stateFileOut.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
 		reader = s.stateFileOut
 	}
 
@@ -229,20 +241,26 @@ func (s *LocalState) Unlock(id string) error {
 		}
 	}
 
-	os.Remove(s.lockInfoPath())
+	if err := os.Remove(s.lockInfoPath()); err != nil {
+		return fmt.Errorf("unable to remove lock info: %w", err)
+	}
 
 	fileName := s.stateFileOut.Name()
 
 	unlockErr := s.unlock()
 
-	s.stateFileOut.Close()
+	if err := s.stateFileOut.Close(); err != nil {
+		unlockErr = errors.Join(unlockErr, fmt.Errorf("unable to close statefile handle: %w", err))
+	}
 	s.stateFileOut = nil
 	s.lockID = ""
 
 	// clean up the state file if we created it an never wrote to it
 	stat, err := os.Stat(fileName)
 	if err == nil && stat.Size() == 0 && s.created {
-		os.Remove(fileName)
+		if err := os.Remove(fileName); err != nil {
+			unlockErr = errors.Join(unlockErr, fmt.Errorf("unable to remove unused state file: %w", err))
+		}
 	}
 
 	return unlockErr
