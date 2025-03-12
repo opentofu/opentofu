@@ -1082,17 +1082,18 @@ func buildEvalContextForProviderConfigTransform(states map[string]*TestFileState
 	if diags.HasErrors() {
 		return evalCtx, diags
 	}
+
+	varMap := evalCtx.Variables["var"].AsValueMap()
+	if varMap == nil {
+		varMap = make(map[string]cty.Value)
+	}
 	for name, val := range vars {
 		if val == nil {
 			continue
 		}
-		varMap := evalCtx.Variables["var"].AsValueMap()
-		if varMap == nil {
-			varMap = make(map[string]cty.Value)
-		}
 		varMap[name] = val.Value
-		evalCtx.Variables["var"] = cty.ObjectVal(varMap)
 	}
+	evalCtx.Variables["var"] = cty.ObjectVal(varMap)
 
 	scope := &lang.Scope{}
 	evalCtx.Functions = scope.Functions()
