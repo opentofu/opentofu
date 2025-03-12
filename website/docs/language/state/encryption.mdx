@@ -211,7 +211,7 @@ The following example illustrates a minimal configuration:
 
 <CodeBlock language="hcl">{GCPKMS}</CodeBlock>
 
-### OpenBao (experimental)
+### OpenBao
 
 This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/docs/secrets/transit) to generate data keys. You can configure it as follows:
 
@@ -227,12 +227,6 @@ This key provider uses the [OpenBao Transit Secret Engine](https://openbao.org/d
 The following example illustrates a possible configuration:
 
 <CodeBlock language="hcl">{OpenBao}</CodeBlock>
-
-:::warning
-
-The OpenBao key provider is currently experimental because there was no stable release of OpenBao available at the time the OpenTofu release was made.
-
-:::
 
 :::info
 

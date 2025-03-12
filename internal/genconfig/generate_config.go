@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	hclsyntax "github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hclwrite"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/json"
@@ -90,6 +91,10 @@ func writeConfigAttributes(addr addrs.AbsResourceInstance, buf *strings.Builder,
 		}
 		if attrS.Required {
 			buf.WriteString(strings.Repeat(" ", indent))
+			// Handle cases where the name should be contained in quotes
+			if !hclsyntax.ValidIdentifier(name) {
+				name = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
+			}
 			buf.WriteString(fmt.Sprintf("%s = ", name))
 			tok := hclwrite.TokensForValue(attrS.EmptyValue())
 			if _, err := tok.WriteTo(buf); err != nil {
@@ -104,6 +109,10 @@ func writeConfigAttributes(addr addrs.AbsResourceInstance, buf *strings.Builder,
 			writeAttrTypeConstraint(buf, attrS)
 		} else if attrS.Optional {
 			buf.WriteString(strings.Repeat(" ", indent))
+			// Handle cases where the name should be contained in quotes
+			if !hclsyntax.ValidIdentifier(name) {
+				name = string(hclwrite.TokensForValue(cty.StringVal(name)).Bytes())
+			}
 			buf.WriteString(fmt.Sprintf("%s = ", name))
 			tok := hclwrite.TokensForValue(attrS.EmptyValue())
 			if _, err := tok.WriteTo(buf); err != nil {

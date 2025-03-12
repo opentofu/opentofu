@@ -1,5 +1,11 @@
 # A Pragmatic Approach to Linting for Code Complexity
 
+> [!NOTE]
+>
+> This RFC was later superseded by [Linter Policy](20230303-linter-policy.md), which proposed reducing to a smaller set of linters and prioritizing making that entire set pass rather than singling out complexity linters for special treatment.
+>
+> That other proposal takes all of the complexity-related linters out of scope for now, making this proposal obsolete. The OpenTofu project still aims to write code that is relatively easy to read and understand, but will rely primarily on human reviewers leaving comments during code review whenever they find some new code hard to follow for any reason, since that approach allows us to address concerns on a case-by-case basis rather than trying to devise a set of broad rules to enforce globally for all code.
+
 We currently have a set of aspirational linting rules in the project's `golangci-lint` configuration, but this codebase was derived from a much older codebase that was not written under those lint rules and so we made the pragmatic decision that only code that has changed since the addition of the lint rules is subjected to those lint rules.
 
 That approach aims to make the compromise of encouraging us to gradually improve code "while we're in the area" working on other changes, while avoiding the need for a huge retrofit of existing code.

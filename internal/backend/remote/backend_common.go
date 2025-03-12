@@ -340,7 +340,7 @@ func (b *Remote) costEstimate(stopCtx, cancelCtx context.Context, op *backend.Op
 			b.CLI.Output("\n------------------------------------------------------------------------")
 			return nil
 		case tfe.CostEstimateCanceled:
-			return fmt.Errorf(msgPrefix + " canceled.")
+			return fmt.Errorf("%s canceled.", msgPrefix)
 		default:
 			return fmt.Errorf("Unknown or unexpected cost estimate state: %s", ce.Status)
 		}
@@ -417,15 +417,15 @@ func (b *Remote) checkPolicy(stopCtx, cancelCtx context.Context, op *backend.Ope
 			}
 			continue
 		case tfe.PolicyErrored:
-			return fmt.Errorf(msgPrefix + " errored.")
+			return fmt.Errorf("%s errored.", msgPrefix)
 		case tfe.PolicyHardFailed:
-			return fmt.Errorf(msgPrefix + " hard failed.")
+			return fmt.Errorf("%s hard failed.", msgPrefix)
 		case tfe.PolicySoftFailed:
 			runUrl := fmt.Sprintf(runHeader, b.hostname, b.organization, op.Workspace, r.ID)
 
 			if op.Type == backend.OperationTypePlan || op.UIOut == nil || op.UIIn == nil ||
 				!pc.Actions.IsOverridable || !pc.Permissions.CanOverride {
-				return fmt.Errorf(msgPrefix + " soft failed.\n" + runUrl)
+				return fmt.Errorf("%s soft failed.\n%s", msgPrefix, runUrl)
 			}
 
 			if op.AutoApprove {

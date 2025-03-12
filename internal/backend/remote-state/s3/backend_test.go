@@ -1713,6 +1713,19 @@ func deleteDynamoDBTable(ctx context.Context, t *testing.T, dynClient *dynamodb.
 	}
 }
 
+func deleteDynamoEntry(ctx context.Context, t *testing.T, dynClient *dynamodb.Client, tableName string, lockId string) {
+	params := &dynamodb.DeleteItemInput{
+		Key: map[string]dtypes.AttributeValue{
+			"LockID": &dtypes.AttributeValueMemberS{Value: lockId},
+		},
+		TableName: aws.String(tableName),
+	}
+	_, err := dynClient.DeleteItem(ctx, params)
+	if err != nil {
+		t.Logf("WARNING: Failed to delete DynamoDB item %q from table %q. (error was %s)", lockId, tableName, err)
+	}
+}
+
 func populateSchema(t *testing.T, schema *configschema.Block, value cty.Value) cty.Value {
 	ty := schema.ImpliedType()
 	var path cty.Path
@@ -1808,6 +1821,14 @@ func unmarshalObject(dec cty.Value, atys map[string]cty.Type, path cty.Path) (ct
 	}
 
 	return cty.ObjectVal(vals), nil
+}
+
+func numberOfObjectsInBucket(t *testing.T, ctx context.Context, s3Client *s3.Client, bucketName string) int {
+	resp, err := s3Client.ListObjects(ctx, &s3.ListObjectsInput{Bucket: &bucketName})
+	if err != nil {
+		t.Fatalf("error getting objects from bucket %s: %v", bucketName, err)
+	}
+	return len(resp.Contents)
 }
 
 func must[T any](v T, err error) T {

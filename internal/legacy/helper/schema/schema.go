@@ -14,8 +14,6 @@
 // everything else is meant to just work.
 //
 // A good starting point is to view the Provider structure.
-//
-//nolint:cyclop,funlen,gocognit,gocyclo,nestif // This legacy code is frozen from an older version of the codebase and will not be updated to pass any linters.
 package schema
 
 import (

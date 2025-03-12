@@ -380,7 +380,7 @@ func (p *GRPCProvider) ReadResource(r providers.ReadResourceRequest) (resp provi
 
 	resSchema, ok := schema.ResourceTypes[r.TypeName]
 	if !ok {
-		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("unknown resource type " + r.TypeName))
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("unknown resource type %s", r.TypeName))
 		return resp
 	}
 
@@ -646,8 +646,7 @@ func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) p
 	protoReq := &proto6.MoveResourceState_Request{
 		SourceProviderAddress: r.SourceProviderAddress,
 		SourceTypeName:        r.SourceTypeName,
-		//nolint:gosec // this will be refactored eventually
-		SourceSchemaVersion: int64(r.SourceSchemaVersion),
+		SourceSchemaVersion:   int64(r.SourceSchemaVersion),
 		SourceState: &proto6.RawState{
 			Json:    r.SourceStateJSON,
 			Flatmap: r.SourceStateFlatmap,

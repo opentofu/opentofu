@@ -21,7 +21,7 @@ type MockValueComposer struct {
 
 func NewMockValueComposer(seed int64) MockValueComposer {
 	return MockValueComposer{
-		rand: rand.New(rand.NewSource(seed)), //nolint:gosec // It doesn't need to be secure.
+		rand: rand.New(rand.NewSource(seed)),
 	}
 }
 
@@ -244,9 +244,8 @@ func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 
 		if targetType.ListElementType() != nil {
 			return cty.ListVal(mockBlockVals), diags
-		} else {
-			return cty.SetVal(mockBlockVals), diags
 		}
+		return cty.SetVal(mockBlockVals), diags
 
 	case targetType.MapElementType() != nil:
 		var mockBlockVals = make(map[string]cty.Value)

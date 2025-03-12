@@ -145,6 +145,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 		kmsKeyID:              b.kmsKeyID,
 		ddbTable:              b.ddbTable,
 		skipS3Checksum:        b.skipS3Checksum,
+		useLockfile:           b.useLockfile,
 	}
 
 	return client, nil

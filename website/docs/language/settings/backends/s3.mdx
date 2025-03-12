@@ -7,8 +7,9 @@ description: OpenTofu can store state remotely in S3 and lock that state with Dy
 
 Stores the state as a given key in a given bucket on
 [Amazon S3](https://aws.amazon.com/s3/).
-This backend also supports state locking and consistency checking via
-[Dynamo DB](https://aws.amazon.com/dynamodb/), which can be enabled by setting
+This backend supports multiple locking mechanisms. The preferred one is a native S3 locking via
+conditional writes with `If-None-Match` header. This can be enabled by setting `use_lockfile=true`.
+Another option is to use [Dynamo DB](https://aws.amazon.com/dynamodb/) locking, which can be enabled by setting
 the `dynamodb_table` field to an existing DynamoDB table name.
 A single DynamoDB table can be used to lock multiple remote state files. OpenTofu generates key names that include the values of the `bucket` and `key` variables.
 
@@ -16,6 +17,10 @@ A single DynamoDB table can be used to lock multiple remote state files. OpenTof
 It is highly recommended that you enable
 [Bucket Versioning](https://docs.aws.amazon.com/AmazonS3/latest/userguide/manage-versioning-examples.html)
 on the S3 bucket to allow for state recovery in the case of accidental deletions and human error.
+:::
+
+:::info
+For a smooth transition to the S3 locking, please read the [dedicated section](#s3-state-locking).
 :::
 
 ## Example Configuration
@@ -351,6 +356,32 @@ The following configuration is optional:
 
 * `dynamodb_endpoint` - (Optional) **Deprecated** Custom endpoint for the AWS DynamoDB API. This can also be sourced from the `AWS_DYNAMODB_ENDPOINT` environment variable.
 * `dynamodb_table` - (Optional) Name of DynamoDB Table to use for state locking and consistency. The table must have a partition key named `LockID` with type of `String`. If not configured, state locking will be disabled.
+
+### S3 State Locking
+
+* `use_lockfile` - (Optional) Enable locking directly into the configured bucket for the state.
+
+To migrate from DynamoDB to S3 locking, the following steps can be followed:
+1. The new attribute `use_lockfile=true` can be added alongside `dynamodb_table`:
+   * With both attributes specified, OpenTofu will try to acquire the lock first in S3 and if successful, will try to acquire the lock in DynamoDB. In this case, the lock will be considered acquired only when both (S3 and DynamoDB) locks were acquired successfully.
+   * Later, after a baking period with both locking mechanisms enabled, if no issues encountered, remove the `dynamodb_table` attribute. Now, you are solely on the S3 locking.
+   * **Info:** Keeping both locking mechanisms enabled, ensures that nobody will acquire the lock regardless of having or not the latest configuration.
+2. The new attribute `use_lockfile=true` can be added and `dynamodb_table` removed:
+   * This will switch from DynamoDB to S3 locking. **Caution:** when the updated configuration is executed from multiple places (multiple machines, pipelines on PRs, etc), you might get into issues where one outdated copy of the configuration is using DynamoDB locking and the one updated is using S3 locking. This could end up in concurrent access on the same state file.
+   * Once the state is updated by using this approach, the state digest that OpenTofu was storing in DynamoDB (for data consistency checks) will get stale. If you wish to go back to DynamoDB locking, **the old digest needs to be cleaned up manually**.
+
+:::note
+Remember, any changes to the `backend` block will require to run `tofu init -reconfigure`.
+:::
+
+:::note
+As mentioned in the beginning of this page, OpenTofu recommends to have versioning enabled on the S3 bucket where state file(s) are stored.
+By setting `use_lockfile=true`, acquiring and releasing locks will add a good amount of writes and reads to the bucket.
+Therefore, for a versioning-enabled bucket, the number of versions for that object could grow significantly.
+Even though the cost should be negligible for the locking objects, a lifecycle configuration of the S3 bucket to limit the number of versions of an object would be advised.
+:::
+
+When it comes to the workspace usage, the S3 locking will behave normally, storing the lock file right next to its related state object.
 
 ## Multi-account AWS Architecture
 

@@ -68,10 +68,7 @@ func (v *RefreshHuman) Operation() Operation {
 }
 
 func (v *RefreshHuman) Hooks() []tofu.Hook {
-	return []tofu.Hook{
-		v.countHook,
-		NewUiHook(v.view),
-	}
+	return []tofu.Hook{v.countHook, NewUIOptionalHook(v.view)}
 }
 
 func (v *RefreshHuman) Diagnostics(diags tfdiags.Diagnostics) {

@@ -108,9 +108,8 @@ func assertNestedBlockCompatible(plannedV, actualV cty.Value, blockS *configsche
 		// but both have similar goals.
 		if plannedV.Type().IsObjectType() {
 			return assertNestedBlockCompatibleMapAsObject(plannedV, actualV, blockS, path)
-		} else {
-			return assertNestedBlockCompatibleMapAsMap(plannedV, actualV, blockS, path)
 		}
+		return assertNestedBlockCompatibleMapAsMap(plannedV, actualV, blockS, path)
 	case configschema.NestingSet:
 		return assertNestedBlockCompatibleSet(plannedV, actualV, blockS, path)
 	default:

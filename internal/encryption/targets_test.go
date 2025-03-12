@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -23,7 +24,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
-func TestBaseEncryption_buildTargetMethods(t *testing.T) {
+func TestBaseEncryption_methodConfigsFromTargetAndSetup(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]btmTestCase{
@@ -52,7 +53,7 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 					method = method.aes_gcm.example
 				}
 			`,
-			wantErr: `Test Config Source:3,25-32: Unsupported attribute; This object does not have an attribute named "static".`,
+			wantErr: `Test Config Source:3,13-38: Reference to undeclared key provider; There is no key_provider "static" "basic" block declared in the encryption block.`,
 		},
 		"fallback": {
 			rawConfig: `
@@ -113,7 +114,7 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 					}
 				}
 			`,
-			wantErr: "<nil>: Unencrypted method is forbidden; Unable to use `unencrypted` method since the `enforced` flag is used.",
+			wantErr: "Test Config Source:0,0-0: Unencrypted method is forbidden; Unable to use unencrypted method since the enforced flag is set.",
 		},
 		"key-from-vars": {
 			rawConfig: `
@@ -173,7 +174,122 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 					method = method.aes_gcm.example
 				}
 			`,
-			wantErr: "Test Config Source:3,12-34: Invalid Key Provider expression format; Expected key_provider.<type>.<name>",
+			wantErr: "Test Config Source:3,12-34: Invalid Key Provider expression format; The key_provider symbol must be followed by two more attribute names specifying the type and name of the selected key provider.",
+		},
+		"unused-key-provider": {
+			rawConfig: `
+				key_provider "static" "unused" {
+					key = key_provider.static[0] # Even though this is invalid and won't function, since it's not used by another key_provider or method it should not produce an error
+				}
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"chained-key-provider": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = sha256(jsonencode(key_provider.static.source)) # This is *not recommended or secure* but serves to demonstrate the chain
+				}
+				# Since these are processed "in-order", putting the dependency after the dependent checks that the chain functions as expected
+				key_provider "static" "source" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"method-using-vars": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = var.key
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+					aad = var.aad
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"state-loaded-even-when-remote-alias-conflicts": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+				key_provider "static" "for_remote_state" {
+					key = "test"
+					encrypted_metadata_alias = "key_provider.static.basic"
+				}
+				method "external" "for_remote_state" {
+				  keys = key_provider.static.for_remote_state
+				}
+
+				remote_state_data_sources {
+				  remote_state_data_source "r" {
+					method = method.aes_gcm.for_remote_state
+				  }
+				}
+			`,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
+		},
+		"remote-method-loaded-even-when-alias-conflicts-state-provider": {
+			rawConfig: `
+				key_provider "static" "basic" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+				}
+				method "aes_gcm" "example" {
+					keys = key_provider.static.basic
+				}
+				state {
+					method = method.aes_gcm.example
+				}
+				key_provider "static" "for_remote_state" {
+					key = "6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169"
+					encrypted_metadata_alias = "key_provider.static.basic" # this conflicts with the first key_provider
+				}
+				method "aes_gcm" "for_remote_state" {
+					keys = key_provider.static.for_remote_state
+				}
+
+				remote_state_data_sources {
+				  remote_state_data_source "r" {
+					method = method.aes_gcm.for_remote_state
+				  }
+				}
+			`,
+			useRemoteTarget: true,
+			wantMethods: []func(method.Method) bool{
+				aesgcm.Is,
+			},
 		},
 	}
 
@@ -199,6 +315,10 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 				Name:    "obj",
 				Default: cty.ListVal([]cty.Value{cty.ObjectVal(map[string]cty.Value{"key": cty.StringVal("6f6f706830656f67686f6834616872756f3751756165686565796f6f72653169")})}),
 			},
+			"aad": {
+				Name:    "aad",
+				Default: cty.ListVal([]cty.Value{cty.NumberIntVal(4)}),
+			},
 		},
 	}
 
@@ -216,9 +336,10 @@ func TestBaseEncryption_buildTargetMethods(t *testing.T) {
 }
 
 type btmTestCase struct {
-	rawConfig   string // must contain state target
-	wantMethods []func(method.Method) bool
-	wantErr     string
+	rawConfig       string // must contain state target
+	wantMethods     []func(method.Method) bool
+	wantErr         string
+	useRemoteTarget bool
 }
 
 func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *configs.StaticEvaluator) func(t *testing.T) {
@@ -230,20 +351,25 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 			panic(diags.Error())
 		}
 
-		base := &baseEncryption{
-			enc: &encryption{
-				cfg: cfg,
-				reg: reg,
-			},
-			target:        cfg.State.AsTargetConfig(),
-			enforced:      cfg.State.Enforced,
-			name:          "test",
-			inputEncMeta:  make(map[keyprovider.MetaStorageKey][]byte),
-			outputEncMeta: make(map[keyprovider.MetaStorageKey][]byte),
-			staticEval:    staticEval,
+		target, err := selectTarget(cfg, testCase.useRemoteTarget)
+		if err != nil {
+			t.Fatalf("Error selecting the target to run with: %v", err)
 		}
 
-		methods, diags := base.buildTargetMethods(base.inputEncMeta, base.outputEncMeta)
+		meta := keyProviderMetadata{
+			input:  make(map[keyprovider.MetaStorageKey][]byte),
+			output: make(map[keyprovider.MetaStorageKey][]byte),
+		}
+
+		var methods []method.Method
+		methodConfigs, diags := methodConfigsFromTarget(cfg, target, "test", cfg.State.Enforced)
+		for _, methodConfig := range methodConfigs {
+			m, mDiags := setupMethod(cfg, methodConfig, meta, reg, staticEval)
+			diags = diags.Extend(mDiags)
+			if !mDiags.HasErrors() {
+				methods = append(methods, m)
+			}
+		}
 
 		if diags.HasErrors() {
 			if !hasDiagWithMsg(diags, testCase.wantErr) {
@@ -265,6 +391,19 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 			}
 		}
 	}
+}
+
+func selectTarget(encryptionConfig *config.EncryptionConfig, useRemote bool) (*config.TargetConfig, error) {
+	if !useRemote {
+		return encryptionConfig.State.AsTargetConfig(), nil
+	}
+	if encryptionConfig.Remote.Default != nil {
+		return encryptionConfig.Remote.Default, nil
+	}
+	if len(encryptionConfig.Remote.Targets) == 0 {
+		return nil, fmt.Errorf("configured to run with remote target but there is nothing configured. Check the rawConfig")
+	}
+	return encryptionConfig.Remote.Targets[0].AsTargetConfig(), nil
 }
 
 func hasDiagWithMsg(diags hcl.Diagnostics, msg string) bool {

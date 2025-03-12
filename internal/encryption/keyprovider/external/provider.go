@@ -45,7 +45,7 @@ func (k keyProvider) Provide(rawMeta keyprovider.KeyMeta) (keyprovider.Output, k
 
 	stderr := &bytes.Buffer{}
 
-	cmd := exec.CommandContext(ctx, k.command[0], k.command[1:]...) //nolint:gosec //Launching external commands here is the entire point.
+	cmd := exec.CommandContext(ctx, k.command[0], k.command[1:]...)
 
 	handler := &ioHandler{
 		false,
@@ -107,7 +107,7 @@ func (i *ioHandler) Write(p []byte) (int, error) {
 		return n, nil
 	}
 	// Check if the full header is present.
-	parts := strings.SplitN(string(i.output), "\n", 2) //nolint:mnd //This rule is dumb.
+	parts := strings.SplitN(string(i.output), "\n", 2)
 	if len(parts) == 1 {
 		return n, nil
 	}

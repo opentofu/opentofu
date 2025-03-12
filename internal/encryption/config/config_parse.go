@@ -15,7 +15,6 @@ import (
 // DecodeConfig takes a hcl.Body and decodes it into a Config struct.
 // This method is here as an example for how someone using this library might want to decode a configuration.
 // if they were not using gohcl directly.
-// Right now for real world use this is only intended to be used in tests, until we publish this publicly.
 func DecodeConfig(body hcl.Body, rng hcl.Range) (*EncryptionConfig, hcl.Diagnostics) {
 	cfg := &EncryptionConfig{DeclRange: rng}
 
@@ -36,6 +35,10 @@ func DecodeConfig(body hcl.Body, rng hcl.Range) (*EncryptionConfig, hcl.Diagnost
 				break
 			}
 		}
+
+		// Ensure that the key_provider address is valid
+		_, kpDiags := kp.Addr()
+		diags = diags.Extend(kpDiags)
 	}
 
 	for i, m := range cfg.MethodConfigs {
@@ -50,6 +53,10 @@ func DecodeConfig(body hcl.Body, rng hcl.Range) (*EncryptionConfig, hcl.Diagnost
 				break
 			}
 		}
+
+		// Ensure that the method address is valid
+		_, mDiags := m.Addr()
+		diags = diags.Extend(mDiags)
 	}
 
 	if cfg.Remote != nil {

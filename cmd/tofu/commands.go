@@ -443,14 +443,6 @@ func initCommands(
 		},
 	}
 
-	if meta.AllowExperimentalFeatures {
-		commands["cloud"] = func() (cli.Command, error) {
-			return &command.CloudCommand{
-				Meta: meta,
-			}, nil
-		}
-	}
-
 	primaryCommands = []string{
 		"init",
 		"validate",

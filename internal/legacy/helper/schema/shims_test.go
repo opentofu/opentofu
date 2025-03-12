@@ -3,7 +3,6 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-//nolint:cyclop,gocognit // This legacy code is frozen from an older version of the codebase and will not be updated to pass any linters.
 package schema
 
 import (
@@ -81,7 +80,7 @@ func testApplyDiff(t *testing.T,
 	}
 
 	if !cmp.Equal(expectedState, newState, equateEmpty, typeComparer, valueComparer) {
-		t.Fatalf(cmp.Diff(expectedState, newState, equateEmpty, typeComparer, valueComparer))
+		t.Fatalf("state diff (-expected +got):\n%s", cmp.Diff(expectedState, newState, equateEmpty, typeComparer, valueComparer))
 	}
 }
 

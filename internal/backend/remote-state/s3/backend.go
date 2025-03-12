@@ -53,6 +53,7 @@ type Backend struct {
 	ddbTable              string
 	workspaceKeyPrefix    string
 	skipS3Checksum        bool
+	useLockfile           bool
 }
 
 // ConfigSchema returns a description of the expected configuration
@@ -453,6 +454,11 @@ See details: https://cs.opensource.google/go/x/net/+/refs/tags/v0.17.0:http/http
 				Optional:    true,
 				Description: "Do not include checksum when uploading S3 Objects. Useful for some S3-Compatible APIs as some of them do not support checksum checks.",
 			},
+			"use_lockfile": {
+				Type:        cty.Bool,
+				Optional:    true,
+				Description: "Manage locking in the same configured S3 bucket",
+			},
 		},
 	}
 }
@@ -671,6 +677,7 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 	b.serverSideEncryption = boolAttr(obj, "encrypt")
 	b.kmsKeyID = stringAttr(obj, "kms_key_id")
 	b.ddbTable = stringAttr(obj, "dynamodb_table")
+	b.useLockfile = boolAttr(obj, "use_lockfile")
 	b.skipS3Checksum = boolAttr(obj, "skip_s3_checksum")
 
 	if customerKey, ok := stringAttrOk(obj, "sse_customer_key"); ok {

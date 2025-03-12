@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption/config"
+	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 	"github.com/opentofu/opentofu/internal/encryption/registry"
 )
 
@@ -43,13 +44,26 @@ func New(reg registry.Registry, cfg *config.EncryptionConfig, staticEval *config
 		return Disabled(), nil
 	}
 
+	var diags hcl.Diagnostics
+
+	// Early check for unencrypted, so we can warn about it
+	for _, mc := range cfg.MethodConfigs {
+		if unencrypted.IsConfig(mc) {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Unencrypted method configured",
+				Detail:   "Method unencrypted is present in configuration. This is a security risk and should only be enabled during migrations.",
+				Subject:  cfg.DeclRange.Ptr(),
+			})
+		}
+	}
+
 	enc := &encryption{
 		cfg: cfg,
 		reg: reg,
 
 		remotes: make(map[string]StateEncryption),
 	}
-	var diags hcl.Diagnostics
 	var encDiags hcl.Diagnostics
 
 	if cfg.State != nil {
