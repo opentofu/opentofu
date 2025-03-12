@@ -111,7 +111,7 @@ func copyFile(dst, src string, mode os.FileMode) error {
 	if err != nil {
 		return fmt.Errorf("failed to open source file %q: %w", src, err)
 	}
-	defer srcF.Close()
+	defer srcF.Close() //nolint:errcheck // This file handle will be released when the program terminates. If something else tries to remove this file, it will error.
 
 	dstF, err := os.Create(dst)
 	if err != nil {
@@ -119,7 +119,7 @@ func copyFile(dst, src string, mode os.FileMode) error {
 	}
 
 	if _, err := io.Copy(dstF, srcF); err != nil {
-		dstF.Close() // Ignore error from Close since io.Copy already failed
+		dstF.Close() //nolint:errcheck // Ignore error from Close since io.Copy already failed
 		return fmt.Errorf("failed to copy contents from %q to %q: %w", src, dst, err)
 	}
 

@@ -6,6 +6,7 @@
 package copy
 
 import (
+	"errors"
 	"io"
 	"os"
 )
@@ -22,16 +23,16 @@ func CopyFile(src, dst string) (err error) {
 	if err != nil {
 		return
 	}
-	defer in.Close()
+	defer func() {
+		err = errors.Join(err, in.Close())
+	}()
 
 	out, err := os.Create(dst)
 	if err != nil {
 		return
 	}
 	defer func() {
-		if e := out.Close(); e != nil {
-			err = e
-		}
+		err = errors.Join(err, out.Close())
 	}()
 
 	_, err = io.Copy(out, in)
