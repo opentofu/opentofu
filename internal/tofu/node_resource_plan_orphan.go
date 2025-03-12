@@ -31,7 +31,7 @@ type NodePlannableResourceInstanceOrphan struct {
 	// forget from the state. This set isn't pre-filtered, so
 	// it might contain addresses that have nothing to do with the resource
 	// that this node represents, which the node itself must therefore ignore.
-	EndpointsToRemove []addrs.ConfigRemovable
+	EndpointsToRemove []addrs.DestroyableConfigRemovable
 }
 
 var (
@@ -148,15 +148,21 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 	var planDiags tfdiags.Diagnostics
 
 	shouldForget := false
+	shouldDestroy := false
 
 	for _, etf := range n.EndpointsToRemove {
 		if etf.TargetContains(n.Addr) {
 			shouldForget = true
+			shouldDestroy = etf.Destroy
 		}
 	}
 
 	if shouldForget {
-		change = n.planForget(ctx, oldState, "")
+		if shouldDestroy {
+			change, planDiags = n.planDestroy(ctx, oldState, "")
+		} else {
+			change = n.planForget(ctx, oldState, "")
+		}
 	} else {
 		change, planDiags = n.planDestroy(ctx, oldState, "")
 	}

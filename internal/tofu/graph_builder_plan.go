@@ -88,7 +88,7 @@ type PlanGraphBuilder struct {
 
 	// EndpointsToRemove are the list of resources and modules to forget from
 	// the state.
-	EndpointsToRemove []addrs.ConfigRemovable
+	EndpointsToRemove []addrs.DestroyableConfigRemovable
 
 	// GenerateConfig tells OpenTofu where to write and generated config for
 	// any import targets that do not already have configuration.

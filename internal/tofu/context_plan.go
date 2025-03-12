@@ -100,7 +100,7 @@ type PlanOpts struct {
 
 	// EndpointsToRemove are the list of resources and modules to forget from
 	// the state.
-	EndpointsToRemove []addrs.ConfigRemovable
+	EndpointsToRemove []addrs.DestroyableConfigRemovable
 
 	// GenerateConfig tells OpenTofu where to write any generated configuration
 	// for any ImportTargets that do not have configuration already.
