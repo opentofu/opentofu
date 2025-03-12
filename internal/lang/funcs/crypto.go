@@ -14,6 +14,7 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -259,7 +260,9 @@ func makeFileHashFunction(baseDir string, hf func() hash.Hash, enc func([]byte) 
 			if err != nil {
 				return cty.UnknownVal(cty.String), err
 			}
-			defer f.Close()
+			defer func() {
+				err = errors.Join(err, f.Close())
+			}()
 
 			h := hf()
 			_, err = io.Copy(h, f)

@@ -7,6 +7,7 @@ package funcs
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -434,7 +435,7 @@ func openFile(baseDir, path string) (*os.File, error) {
 	return os.Open(path)
 }
 
-func readFileBytes(baseDir, path string, marks cty.ValueMarks) ([]byte, error) {
+func readFileBytes(baseDir, path string, marks cty.ValueMarks) (src []byte, err error) {
 	f, err := openFile(baseDir, path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -443,9 +444,11 @@ func readFileBytes(baseDir, path string, marks cty.ValueMarks) ([]byte, error) {
 		}
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		err = errors.Join(err, f.Close())
+	}()
 
-	src, err := io.ReadAll(f)
+	src, err = io.ReadAll(f)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file: %w", err)
 	}
