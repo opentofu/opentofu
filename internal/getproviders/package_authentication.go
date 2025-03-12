@@ -516,7 +516,7 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 				if entity != nil && entity.PrimaryKey != nil {
 					expiredKeyID = entity.PrimaryKey.KeyIdString()
 				} else {
-					expiredKeyID = "n/a" //nolint:goconst // This is a placeholder value
+					expiredKeyID = "n/a"
 				}
 			}
 			continue
@@ -533,7 +533,6 @@ func (s signatureAuthentication) findSigningKey() (*SigningKey, string, error) {
 
 	// Warn only once when ALL keys are expired.
 	if expiredKey != nil && !s.shouldEnforceGPGExpiration() {
-		//nolint:forbidigo // This is a warning message and is fine to be handled this way
 		fmt.Printf("[WARN] Provider %s/%s (%v) gpg key expired, this will fail in future versions of OpenTofu\n",
 			s.Meta.Provider.Namespace, s.Meta.Provider.Type, s.Meta.Provider.Hostname)
 		return expiredKey, expiredKeyID, nil

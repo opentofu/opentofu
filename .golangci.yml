@@ -6,119 +6,12 @@
 run:
   timeout: 30m
 
-linters-settings:
-  errcheck:
-    check-type-assertions: true
-
-  exhaustive:
-    check:
-      - switch
-      - map
-
-  funlen:
-    lines: 100
-    statements: 50
-    ignore-comments: true
-
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment # rule is too strict
-
-  nolintlint:
-    require-explanation: true
-    require-specific: true
-
-  cyclop:
-    max-complexity: 20
-
-  gocognit:
-    min-complexity: 50
-
-  goconst:
-    ignore-tests: true # Is documented to be the default behaviour, but that doesn't seem to be the case
-
-  gocritic:
-    settings:
-      ifElseChain:
-        minThreshold: 4
-
-  nestif:
-    min-complexity: 6
-
 issues:
-  exclude-rules:
-    - path: (.+)_test.go
-      linters:
-        - funlen
-        - dupl
-        - revive
-        - gocognit
-        - cyclop
-    - path: (.+)_test.go
-      text: "ST1003"
-    - path: (.+)_test.go
-      text: "var-naming: don't use underscores in Go names"
-
-linters:
-  disable-all: true
-  enable:
-    - asasalint
-    - asciicheck
-    - bidichk
-    - bodyclose
-    #- cyclop # (refer to .golangci-complexity.yml)
-    - dupl
-    - durationcheck
-    - errcheck
-    - errname
-    - errorlint
-    - exhaustive
-    - forbidigo
-    #- funlen # (refer to .golangci-complexity.yml)
-    - gocheckcompilerdirectives
-    - gochecknoglobals
-    - gochecknoinits
-    #- gocognit # (refer to .golangci-complexity.yml)
-    - goconst
-    - gocritic
-    #- gocyclo # (refer to .golangci-complexity.yml)
-    - goimports
-    #- gomoddirectives Disabled while we deal with the HCL fork
-    - gomodguard
-    - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - loggercheck
-    - makezero
-    - mirror
-    - mnd
-    - musttag
-    - nakedret
-    #- nestif # (refer to .golangci-complexity.yml)
-    - nilerr
-    - nilnil
-    - noctx
-    - nolintlint
-    - nonamedreturns
-    - nosprintfhostport
-    - predeclared
-    - promlinter
-    - reassign
-    - revive
-    - rowserrcheck
-    - sqlclosecheck
-    - staticcheck
-    - stylecheck
-    - tenv
-    - testableexamples
-    - tparallel
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - usestdlibvars
-    - wastedassign
-    - whitespace
+  exclude-files:
+    # We have a few patterns that are excluded from linting completely because
+    # they contain effectively-frozen code that we're preserving for backward
+    # compatibility, where changes would be risky and that risk isn't warranted
+    # since we don't expect to be doing any significant maintenence on these.
+    - "^internal/ipaddr/"
+    - "^internal/legacy/"
+    - "^internal/states/statefile/version\\d+_upgrade\\.go$"

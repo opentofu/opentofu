@@ -646,8 +646,7 @@ func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) p
 	protoReq := &proto6.MoveResourceState_Request{
 		SourceProviderAddress: r.SourceProviderAddress,
 		SourceTypeName:        r.SourceTypeName,
-		//nolint:gosec // this will be refactored eventually
-		SourceSchemaVersion: int64(r.SourceSchemaVersion),
+		SourceSchemaVersion:   int64(r.SourceSchemaVersion),
 		SourceState: &proto6.RawState{
 			Json:    r.SourceStateJSON,
 			Flatmap: r.SourceStateFlatmap,
