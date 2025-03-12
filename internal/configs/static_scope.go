@@ -237,9 +237,7 @@ func (s staticScopeData) GetTerraformAttr(addr addrs.TerraformAttr, rng tfdiags.
 		return cty.DynamicVal, diags
 	}
 }
-func (s staticScopeData) GetTestRunOutputForProviderConfigs(addr addrs.TestRunOutputRef, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
-	panic("Not Available in Static Context")
-}
+
 func (s staticScopeData) GetInputVariable(ident addrs.InputVariable, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 

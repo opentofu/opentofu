@@ -63,8 +63,6 @@ type TestFile struct {
 	// order.
 	Runs []*TestRun
 
-	RunBlockOutputs map[string]cty.Value
-
 	// OverrideResources is a list of resources to be overridden with static values.
 	// Underlying providers shouldn't be called for overridden resources.
 	OverrideResources []*OverrideResource
@@ -418,9 +416,8 @@ func loadTestFile(body hcl.Body) (*TestFile, hcl.Diagnostics) {
 	diags = append(diags, contentDiags...)
 
 	tf := TestFile{
-		Providers:       make(map[string]*Provider),
-		RunBlockOutputs: make(map[string]cty.Value),
-		MockProviders:   make(map[string]*MockProvider),
+		Providers:     make(map[string]*Provider),
+		MockProviders: make(map[string]*MockProvider),
 	}
 
 	for _, block := range content.Blocks {

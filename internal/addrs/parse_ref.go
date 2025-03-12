@@ -236,41 +236,6 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		return parseSingleAttrRef(traversal, func(name string) Referenceable {
 			return InputVariable{Name: name}
 		})
-	case "run":
-		//TODO move to a separate function
-		if len(traversal) < 3 {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid reference",
-				Detail:   `Invalid "run" block reference, "run" must be followed by a run block name and an output name.`,
-				Subject:  traversal.SourceRange().Ptr(),
-			})
-			return nil, diags
-		}
-
-		name := ""
-		blockName := ""
-		if attrTrav, ok := traversal[1].(hcl.TraverseAttr); ok {
-			blockName = attrTrav.Name
-		}
-		if attrTrav, ok := traversal[2].(hcl.TraverseAttr); ok {
-			name = attrTrav.Name
-		}
-
-		if name == "" || blockName == "" {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid reference",
-				Detail:   `Invalid "run" block reference, "run" must be followed by a run block name and an output name.`,
-			})
-			return nil, diags
-		}
-
-		return &Reference{
-			Subject:     TestRunOutputRef{Name: name, RunBlockName: blockName},
-			SourceRange: tfdiags.SourceRangeFromHCL(hcl.RangeBetween(rootRange, rootRange)),
-			Remaining:   traversal,
-		}, diags
 
 	case "template", "lazy", "arg":
 		// These names are all pre-emptively reserved in the hope of landing
