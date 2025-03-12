@@ -88,7 +88,11 @@ func (cp *contextPlugins) ProviderSchema(addr addrs.Provider) (providers.Provide
 	if err != nil {
 		return schemas, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err)
 	}
-	defer provider.Close()
+	defer func() {
+		if err := provider.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	resp := provider.GetProviderSchema()
 	if resp.Diagnostics.HasErrors() {
@@ -170,7 +174,11 @@ func (cp *contextPlugins) ProvisionerSchema(typ string) (*configschema.Block, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to instantiate provisioner %q to obtain schema: %w", typ, err)
 	}
-	defer provisioner.Close()
+	defer func() {
+		if err := provisioner.Close(); err != nil {
+			panic(err)
+		}
+	}()
 
 	resp := provisioner.GetSchema()
 	if resp.Diagnostics.HasErrors() {

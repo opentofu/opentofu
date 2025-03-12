@@ -110,7 +110,9 @@ func testModuleInline(t testing.TB, sources map[string]string) *configs.Config {
 		}
 
 		_, err = io.Copy(cfgF, strings.NewReader(configStr))
-		cfgF.Close()
+		if ferr := cfgF.Close(); ferr != nil {
+			t.Fatal(ferr)
+		}
 		if err != nil {
 			t.Fatalf("Error creating temporary file for config: %s", err)
 		}

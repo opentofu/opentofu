@@ -107,7 +107,9 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 	defer func() {
 		for addr, inst := range providerInstances {
 			log.Printf("[INFO] Shutting down test provider %s", addr)
-			inst.Close()
+			if err := inst.Close(); err != nil {
+				log.Printf("[WARN] Unable to shut down provider %s in test context: %s", addr, err)
+			}
 		}
 	}()
 

@@ -1458,7 +1458,7 @@ output "out" {
 	_, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 	return
-	// TODO: unreachable code
+	//nolint:govet // TODO: unreachable code
 	otherProvider.ConfigureProviderCalled = false
 	otherProvider.ConfigureProviderFn = func(req providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
 		// check that our config is complete, even during a destroy plan

@@ -58,7 +58,9 @@ func TestModuleTransformAttachConfigTransformer(t *testing.T) {
 		for _, attr := range attrs {
 			val, _ := attr.Expr.Value(nil)
 			var target int
-			gocty.FromCtyValue(val, &target)
+			if err := gocty.FromCtyValue(val, &target); err != nil {
+				t.Fatal(err)
+			}
 			values[attr.Name] = target
 		}
 
