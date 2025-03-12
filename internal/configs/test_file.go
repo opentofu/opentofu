@@ -1136,7 +1136,6 @@ var testRunModuleBlockSchema = &hcl.BodySchema{
 	},
 }
 
-//nolint:gochecknoglobals // To follow existing code style.
 var overrideResourceBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{
@@ -1150,7 +1149,6 @@ var overrideResourceBlockSchema = &hcl.BodySchema{
 	},
 }
 
-//nolint:gochecknoglobals // To follow existing code style.
 var overrideModuleBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{
@@ -1164,7 +1162,6 @@ var overrideModuleBlockSchema = &hcl.BodySchema{
 	},
 }
 
-//nolint:gochecknoglobals // To follow existing code style.
 var mockProviderBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{
@@ -1190,7 +1187,6 @@ var mockProviderBlockSchema = &hcl.BodySchema{
 	},
 }
 
-//nolint:gochecknoglobals // To follow existing code style.
 var mockResourceBlockSchema = &hcl.BodySchema{
 	Attributes: []hcl.AttributeSchema{
 		{

@@ -186,8 +186,6 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string]*hcl.File) *Diagn
 // ensure that the whole of an expression gets included in the snippet even if
 // the problem is just one operand of the expression and the expression is wrapped
 // over multiple lines.
-//
-//nolint:nonamedreturns // These names are for documentation purposes, to differentiate two results that have the same type
 func prepareDiagnosticRanges(subject, context *tfdiags.SourceRange) (highlight, snippet *tfdiags.SourceRange) {
 	if subject == nil {
 		// If we don't even have a "subject" then we have no ranges to report at all.

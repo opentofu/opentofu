@@ -127,8 +127,6 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 
 // ParseAbsProviderConfigInstance behaves identically to ParseAbsProviderConfig, but additionally
 // allows an instance key after the alias.
-//
-//nolint:mnd // traversals with specific indices
 func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig, InstanceKey, tfdiags.Diagnostics) {
 	modInst, remain, diags := parseModuleInstancePrefix(traversal)
 	var ret AbsProviderConfig

@@ -17,7 +17,6 @@ import (
 // configuration in error messages.
 // This method serves as an example for how someone using this library might want to load a configuration.
 // if they were not using gohcl directly.
-// However! Right now, this method should only be used in tests, as OpenTofu should be using gohcl to parse the configuration.
 func LoadConfigFromString(sourceName string, rawInput string) (*EncryptionConfig, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	var file *hcl.File

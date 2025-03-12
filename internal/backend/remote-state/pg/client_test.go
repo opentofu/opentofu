@@ -165,7 +165,7 @@ func TestConcurrentCreationLocksInDifferentSchemas(t *testing.T) {
 	// during the same session.
 	if _, err = thirdClient.Lock(lock); err == nil {
 		t.Fatal("Expected an error to be thrown on a second lock attempt")
-	} else if lockErr := err.(*statemgr.LockError); lockErr.Info != lock && //nolint:errcheck,errorlint // this is a test, I am fine with panic here
+	} else if lockErr := err.(*statemgr.LockError); lockErr.Info != lock && //nolint:errcheck // this is a test, I am fine with panic here
 		lockErr.Err.Error() != "Already locked for workspace creation: default" {
 		t.Fatalf("Unexpected error thrown on a second lock attempt: %v", err)
 	}

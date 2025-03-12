@@ -94,7 +94,6 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	creationLockID := c.composeCreationLockID()
 
 	// Try to acquire locks for the existing row `id` and the creation lock.
-	//nolint:gosec // we only parameterize user passed values
 	query := fmt.Sprintf(`SELECT %s.id, pg_try_advisory_lock(%s.id), pg_try_advisory_lock(%s) FROM %s.%s WHERE %s.name = $1`,
 		statesTableName, statesTableName, creationLockID, c.SchemaName, statesTableName, statesTableName)
 

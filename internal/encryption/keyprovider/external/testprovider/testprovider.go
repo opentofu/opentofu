@@ -34,11 +34,11 @@ go 1.22`)
 
 	tempDir := t.TempDir()
 	dir := path.Join(tempDir, "testprovider-go")
-	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 
-	if err := os.WriteFile(path.Join(dir, "go.mod"), goMod, 0600); err != nil { //nolint:mnd // This check is stupid
+	if err := os.WriteFile(path.Join(dir, "go.mod"), goMod, 0600); err != nil {
 		t.Errorf("%v", err)
 	}
 	if err := ejectFile("testprovider.go", path.Join(dir, "testprovider.go")); err != nil {
@@ -68,7 +68,7 @@ func Python(t *testing.T) []string {
 
 	tempDir := t.TempDir()
 	dir := path.Join(tempDir, "testprovider-py")
-	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 	target := path.Join(dir, "testprovider.py")
@@ -86,7 +86,7 @@ func POSIXShell(t *testing.T) []string {
 
 	tempDir := t.TempDir()
 	dir := path.Join(tempDir, "testprovider-sh")
-	if err := os.MkdirAll(dir, 0700); err != nil { //nolint:mnd // This check is stupid
+	if err := os.MkdirAll(dir, 0700); err != nil {
 		t.Errorf("Failed to create temporary directory (%v)", err)
 	}
 	target := path.Join(dir, "testprovider.sh")
@@ -102,7 +102,7 @@ func ejectFile(file string, target string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read %s file from embedded dataset (%w)", file, err)
 	}
-	if err := os.WriteFile(target, contents, 0600); err != nil { //nolint:mnd // This check is stupid
+	if err := os.WriteFile(target, contents, 0600); err != nil {
 		return fmt.Errorf("failed to create %s file at %s (%w)", file, target, err)
 	}
 	return nil

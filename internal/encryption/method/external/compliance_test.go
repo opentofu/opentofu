@@ -25,8 +25,9 @@ func TestCompliancePython(t *testing.T) {
 }
 
 func runTest(t *testing.T, cmd []string) {
-	encryptCommand := append(cmd, "--encrypt") //nolint:gocritic //It's intentionally a different slice.
-	decryptCommand := append(cmd, "--decrypt") //nolint:gocritic //It's intentionally a different slice.
+	cmd = slices.Clip(cmd) // Make sure that the following appends are forced to allocate capacity
+	encryptCommand := append(cmd, "--encrypt")
+	decryptCommand := append(cmd, "--decrypt")
 
 	compliancetest.ComplianceTest(t, compliancetest.TestConfiguration[*descriptor, *Config, *command]{
 		Descriptor: New().(*descriptor), //nolint:errcheck //This is safe.

@@ -8,12 +8,15 @@ package tofu
 import (
 	"testing"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang"
 )
 
 func TestBuildProviderConfig(t *testing.T) {
@@ -56,5 +59,52 @@ func TestBuildProviderConfig(t *testing.T) {
 	})
 	if !got.RawEquals(want) {
 		t.Fatalf("incorrect merged config\ngot:  %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestResolveProviderInstance_TypeConversion(t *testing.T) {
+	testCases := []struct {
+		name        string
+		inputValue  cty.Value
+		expectedKey addrs.InstanceKey
+	}{
+		{
+			name:        "bool_true_to_string",
+			inputValue:  cty.BoolVal(true),
+			expectedKey: addrs.StringKey("true"),
+		},
+		{
+			name:        "bool_false_to_string",
+			inputValue:  cty.BoolVal(false),
+			expectedKey: addrs.StringKey("false"),
+		},
+		{
+			name:        "integer_to_string",
+			inputValue:  cty.NumberIntVal(1),
+			expectedKey: addrs.StringKey("1"),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			expr := hcl.StaticExpr(tc.inputValue, hcl.Range{})
+			scope := &lang.Scope{
+				Data: &evaluationStateData{
+					ModulePath:      addrs.RootModuleInstance,
+					InstanceKeyData: instances.RepetitionData{},
+				},
+				BaseDir: ".",
+			}
+			// call of the function to test
+			actualKey, diags := resolveProviderInstance(expr, scope, "test-source")
+
+			if diags.HasErrors() {
+				t.Fatalf("Unexpected error: %s", diags.Err())
+			}
+
+			if actualKey != tc.expectedKey {
+				t.Fatalf("Incorrect instance key got:  %#v want: %#v", actualKey, tc.expectedKey)
+			}
+		})
 	}
 }

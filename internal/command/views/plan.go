@@ -54,9 +54,7 @@ func (v *PlanHuman) Operation() Operation {
 }
 
 func (v *PlanHuman) Hooks() []tofu.Hook {
-	return []tofu.Hook{
-		NewUiHook(v.view),
-	}
+	return []tofu.Hook{NewUIOptionalHook(v.view)}
 }
 
 func (v *PlanHuman) Diagnostics(diags tfdiags.Diagnostics) {

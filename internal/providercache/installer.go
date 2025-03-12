@@ -675,8 +675,6 @@ func (i *Installer) ensureProviderVersionsInstall(
 // If sourceDir has a package that appears to be for the selected provider
 // version but there are any problems with that package that prevent it from
 // being installed then it returns a non-nil error describing the problem.
-//
-//nolint:nonamedreturns // The "installed" name explains what this bool represents as part of the signature
 func tryInstallPackageFromCacheDir(
 	ctx context.Context,
 	sourceDir *Dir,

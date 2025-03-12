@@ -202,7 +202,7 @@ func (c Config) Build() (keyprovider.KeyProvider, keyprovider.KeyMeta, error) {
 			out += "\n" + diag.Summary() + " : " + diag.Detail()
 		}
 
-		return nil, nil, fmt.Errorf(out)
+		return nil, nil, fmt.Errorf("%s", out)
 	}
 
 	return &keyProvider{

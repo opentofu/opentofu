@@ -3,7 +3,7 @@ package openbao
 import (
 	"context"
 
-	openbao "github.com/openbao/openbao/api"
+	openbao "github.com/openbao/openbao/api/v2"
 )
 
 type mockClientFunc func(ctx context.Context, path string, data map[string]interface{}) (*openbao.Secret, error)

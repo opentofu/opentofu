@@ -70,7 +70,7 @@ func (c *consoleBracketState) UpdateState(line string) (string, int) {
 
 	tokens, _ := hclsyntax.LexConfig([]byte(line), "<console-input>", hcl.Pos{Line: 1, Column: 1})
 	for _, token := range tokens {
-		switch token.Type { //nolint:exhaustive // we only care about these specific types
+		switch token.Type { // we only care about these specific types
 		case hclsyntax.TokenOBrace:
 			c.brace++
 		case hclsyntax.TokenCBrace:

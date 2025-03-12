@@ -157,6 +157,20 @@ func (h *testHook) PostApplyImport(addr addrs.AbsResourceInstance, importing pla
 	return HookActionContinue, nil
 }
 
+func (h *testHook) PreApplyForget(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"PreApplyForget", addr.String()})
+	return HookActionContinue, nil
+}
+
+func (h *testHook) PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"PostApplyForget", addr.String()})
+	return HookActionContinue, nil
+}
+
 func (h *testHook) Stopping() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
