@@ -18,25 +18,10 @@ type testProviderBody struct {
 	evalCtx      *hcl.EvalContext
 }
 
-func (c testProviderBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diagnostics) {
-	content, diags := c.originalBody.Content(schema)
-	if diags.HasErrors() {
-		return nil, diags
-	}
+func (c testProviderBody) evaluateBodyContent(content *hcl.BodyContent) (*hcl.BodyContent, hcl.Diagnostics) {
 	attrs := content.Attributes
+	var diags hcl.Diagnostics
 	for name, attr := range attrs {
-		vars := attr.Expr.Variables()
-		containsRunRef := false
-		for _, v := range vars {
-			if v.RootName() == "run" {
-				containsRunRef = true
-				break
-			}
-		}
-		if !containsRunRef {
-			continue
-		}
-
 		attr, valueDiags := c.getLiteralAttr(attr)
 		diags = append(diags, valueDiags...)
 		if diags.HasErrors() {
@@ -45,6 +30,14 @@ func (c testProviderBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl
 		attrs[name] = attr
 	}
 	return content, diags
+}
+
+func (c testProviderBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diagnostics) {
+	content, diags := c.originalBody.Content(schema)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+	return c.evaluateBodyContent(content)
 }
 
 func (c testProviderBody) PartialContent(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Body, hcl.Diagnostics) {
@@ -56,25 +49,7 @@ func (c testProviderBody) PartialContent(schema *hcl.BodySchema) (*hcl.BodyConte
 		return nil, nil, diags
 	}
 
-	for name, attr := range partialContent.Attributes {
-		vars := attr.Expr.Variables()
-		containsRunRef := false
-		for _, v := range vars {
-			if v.RootName() == "run" {
-				containsRunRef = true
-				break
-			}
-		}
-		if !containsRunRef {
-			continue
-		}
-		attr, valueDiags := c.getLiteralAttr(attr)
-		diags = append(diags, valueDiags...)
-		if diags.HasErrors() {
-			continue
-		}
-		partialContent.Attributes[name] = attr
-	}
+	partialContent, diags = c.evaluateBodyContent(partialContent)
 
 	return partialContent, testProviderBody{originalBody: remain, evalCtx: c.evalCtx}, diags
 
