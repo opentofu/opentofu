@@ -236,7 +236,6 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		return parseSingleAttrRef(traversal, func(name string) Referenceable {
 			return InputVariable{Name: name}
 		})
-
 	case "template", "lazy", "arg":
 		// These names are all pre-emptively reserved in the hope of landing
 		// some version of "template values" or "lazy expressions" feature
