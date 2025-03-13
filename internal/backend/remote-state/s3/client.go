@@ -17,6 +17,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -24,6 +26,8 @@ import (
 	dtypes "github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	types "github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go/middleware"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	multierror "github.com/hashicorp/go-multierror"
 	uuid "github.com/hashicorp/go-uuid"
 
@@ -68,6 +72,26 @@ var (
 
 // test hook called when checksums don't match
 var testChecksumHook func()
+
+// TODO temp
+func s3opts() []func(*s3.Options) {
+	exclude, _ := strconv.ParseBool(os.Getenv("S3_BACKEND_EXCLUDE_DEFAULT_CHECKSUM"))
+	if exclude {
+		return []func(*s3.Options){withContentMD5}
+	}
+	return nil
+}
+
+func withContentMD5(o *s3.Options) {
+	o.APIOptions = append(o.APIOptions, func(stack *middleware.Stack) error {
+		stack.Initialize.Remove("AWSChecksum:SetupInputContext")
+		stack.Initialize.Remove("AWSChecksum:SetupOutputContext")
+		stack.Build.Remove("AWSChecksum:RequestMetricsTracking")
+		stack.Finalize.Remove("AWSChecksum:ComputeInputPayloadChecksum")
+		stack.Finalize.Remove("addInputChecksumTrailer")
+		return smithyhttp.AddContentChecksumMiddleware(stack)
+	})
+}
 
 func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
 	ctx := context.TODO()
@@ -132,7 +156,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	}
 
 	// Head works around some s3 compatible backends not handling missing GetObject requests correctly (ex: minio Get returns Missing Bucket)
-	_, err = c.s3Client.HeadObject(ctx, inputHead)
+	_, err = c.s3Client.HeadObject(ctx, inputHead, s3opts()...)
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
@@ -158,7 +182,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 		input.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
 	}
 
-	output, err = c.s3Client.GetObject(ctx, input)
+	output, err = c.s3Client.GetObject(ctx, input, s3opts()...)
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
@@ -239,7 +263,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
 
-	_, err := c.s3Client.PutObject(ctx, i)
+	_, err := c.s3Client.PutObject(ctx, i, s3opts()...)
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
 	}
@@ -262,7 +286,7 @@ func (c *RemoteClient) Delete() error {
 	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
 		Key:    &c.path,
-	})
+	}, s3opts()...)
 
 	if err != nil {
 		return err
@@ -353,7 +377,7 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
-	_, err := c.s3Client.PutObject(ctx, putParams)
+	_, err := c.s3Client.PutObject(ctx, putParams, s3opts()...)
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfoFromS3(ctx)
 		if infoErr != nil {
@@ -488,7 +512,7 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 		Key:    aws.String(c.lockFilePath()),
 	}
 
-	resp, err := c.s3Client.GetObject(ctx, getParams)
+	resp, err := c.s3Client.GetObject(ctx, getParams, s3opts()...)
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
@@ -555,7 +579,7 @@ func (c *RemoteClient) s3Unlock(id string) *statemgr.LockError {
 		Key:    aws.String(c.lockFilePath()),
 	}
 
-	_, err = c.s3Client.DeleteObject(ctx, params)
+	_, err = c.s3Client.DeleteObject(ctx, params, s3opts()...)
 	if err != nil {
 		lockErr.Err = err
 		return lockErr
