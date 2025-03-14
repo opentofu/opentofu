@@ -5,6 +5,8 @@
 
 package method
 
+import "github.com/hashicorp/hcl/v2"
+
 // Config describes a configuration struct for setting up an encryption Method. You should always implement this
 // interface with a struct, and you should tag the fields with HCL tags so the encryption implementation can read
 // the .tf code into it. For example:
@@ -17,5 +19,5 @@ package method
 type Config interface {
 	// Build takes the configuration and builds an encryption method.
 	// TODO this may be better changed to return hcl.Diagnostics so warnings can be issued?
-	Build() (Method, error)
+	Build() (Method, hcl.Diagnostics)
 }
