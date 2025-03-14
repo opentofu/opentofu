@@ -1,0 +1,3 @@
+oci_default_credentials {
+  docker_credentials_helper = "fake"
+}
