@@ -783,7 +783,7 @@ func TestRemoteClient_IsLockingEnabled(t *testing.T) {
 // More details in https://github.com/opentofu/opentofu/issues/2570.
 func TestS3PutObjectSkipS3Checksum(t *testing.T) {
 	// Configured the aws config the same way it is done for the backend to ensure a similar setup as the actual main logic.
-	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{})
+	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{Region: "us-east-1", AccessKey: "test", SecretKey: "key"})
 	httpCl := &mockHttpClient{resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}}
 	s3Cl := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
 		options.HTTPClient = httpCl
