@@ -4966,3 +4966,84 @@ variable "res_data" {
 		t.Fatalf("Expected: %q, got %q", want, got)
 	}
 }
+
+// Test if check block is being expanded right when module count is zero
+func TestContext2Apply_moduleCountZeroChecks(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "check_module" {
+  count  = 0
+  source = "./check-module"
+}
+`,
+		"check-module/main.tf": `
+check "http_check" {
+  data "http" "tofu" {
+    url = "https://opentofu.org/"
+  }
+
+  assert {
+    condition     = data.http.tofu.status_code == 200
+    error_message = "${data.http.tofu.url} returned an unhealthy status code"
+  }
+}
+`,
+	})
+
+	provider := testProvider("test")
+	provider.PlanResourceChangeFn = testDiffFn
+	provider.ApplyResourceChangeFn = testApplyFn
+	ps := map[addrs.Provider]providers.Factory{
+		addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+		addrs.NewDefaultProvider("http"): testProviderFuncFixed(provider),
+	}
+
+	apply := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.NormalMode,
+		})
+		if diags.HasErrors() {
+			return nil, diags
+		}
+
+		return ctx.Apply(context.Background(), plan, m)
+	}
+
+	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
+		ctx := testContext2(t, &ContextOpts{
+			Providers: ps,
+		})
+
+		plan, diags := ctx.Plan(context.Background(), m, prevState, &PlanOpts{
+			Mode: plans.DestroyMode,
+		})
+		if diags.HasErrors() {
+			return diags
+		}
+
+		_, diags = ctx.Apply(context.Background(), plan, m)
+		return diags
+	}
+
+	// Valid validation condition
+	state, diags := apply(t, m, states.NewState())
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Make sure subsequent applies are happy
+	state, diags = apply(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+
+	// Succesful Destroy
+	diags = destroy(t, m, state)
+	if diags.HasErrors() {
+		t.Fatal(diags.Err())
+	}
+}
