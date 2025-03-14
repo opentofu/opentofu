@@ -5364,12 +5364,8 @@ module "check_module" {
   source = "./check-module"
 }
 `,
-		"check-module/test.sh": `
-#!/bin/sh
-echo 1
-`,
 		"check-module/main.tf": `
-check "kafka_cluster_health" {
+check "http_check" {
   data "http" "tofu" {
     url = "https://opentofu.org/"
   }
