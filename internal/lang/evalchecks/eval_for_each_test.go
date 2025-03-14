@@ -496,3 +496,62 @@ func TestForEachCommandLineExcludeSuggestion(t *testing.T) {
 		})
 	}
 }
+
+// These tests are checking if unknown values during the validate phase are raising the expected errors
+func TestEvaluateForEachAllowUnknown_errors(t *testing.T) {
+	tests := map[string]struct {
+		Expr                               hcl.Expression
+		ExcludableAddr                     addrs.Targetable
+		Summary, DetailSubstring           string
+		CausedByUnknown, CausedBySensitive bool
+	}{
+		"set_containing_unknown_values": {
+			hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{
+				"route_addrs": cty.String,
+				"cidr":        cty.String,
+			})))),
+			nil,
+			"Invalid for_each set argument",
+			"provided a value of type set of object",
+			true, false,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			allowUnknown := true
+			allowTuple := false
+			_, diags := EvaluateForEachExpressionValue(test.Expr, mockRefsFunc(), allowUnknown, allowTuple, test.ExcludableAddr)
+
+			if len(diags) != 1 {
+				t.Fatalf("got %d diagnostics; want 1", diags)
+			}
+			if got, want := diags[0].Severity(), tfdiags.Error; got != want {
+				t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+			}
+			if got, want := diags[0].Description().Summary, test.Summary; got != want {
+				t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := diags[0].Description().Detail, test.DetailSubstring; !strings.Contains(got, want) {
+				t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+			}
+			if fromExpr := diags[0].FromExpr(); fromExpr != nil {
+				if fromExpr.Expression == nil {
+					t.Errorf("diagnostic does not refer to an expression")
+				}
+				if fromExpr.EvalContext == nil {
+					t.Errorf("diagnostic does not refer to an EvalContext")
+				}
+			} else {
+				t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[0]))
+			}
+
+			if got, want := tfdiags.DiagnosticCausedByUnknown(diags[0]), test.CausedByUnknown; got != want {
+				t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown\ngot:  %#v\nwant: %#v", got, want)
+			}
+			if got, want := tfdiags.DiagnosticCausedBySensitive(diags[0]), test.CausedBySensitive; got != want {
+				t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
+			}
+		})
+	}
+}
