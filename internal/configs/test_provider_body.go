@@ -29,6 +29,12 @@ func (c testProviderBody) evaluateBodyContent(content *hcl.BodyContent) (*hcl.Bo
 		}
 		attrs[name] = attr
 	}
+
+	// Recursively evaluate nested blocks
+	for name, block := range content.Blocks {
+		block.Body = testProviderBody{originalBody: block.Body, evalCtx: c.evalCtx}
+		content.Blocks[name] = block
+	}
 	return content, diags
 }
 
