@@ -829,7 +829,7 @@ func TestTest_Modules(t *testing.T) {
 			expected: "main.tftest.hcl... pass\n  run \"first_apply\"... pass\n  run \"second_apply\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
 		},
-		"run_mod_output_in_provider_block": {
+		"run_mod_output_in_provider": {
 			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
 			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
@@ -838,10 +838,13 @@ func TestTest_Modules(t *testing.T) {
 					"username":        cty.StringVal("test_user"),
 					"data_prefix":     cty.StringVal("test"),
 					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.NullVal(cty.Object(map[string]cty.Type{
+						"string_attr": cty.String,
+					})),
 				}),
 			},
 		},
-		"run_mod_output_in_provider_block_complex": {
+		"run_mod_output_in_provider_complex": {
 			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
 			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
@@ -850,10 +853,28 @@ func TestTest_Modules(t *testing.T) {
 					"username":        cty.StringVal("test_user@d"),
 					"data_prefix":     cty.StringVal("test"),
 					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.NullVal(cty.Object(map[string]cty.Type{
+						"string_attr": cty.String,
+					})),
 				}),
 			},
 		},
-		"run_mod_output_in_provider_block_undefined_ref": {
+		"run_mod_output_in_provider_with_blocks": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("p"),
+					"username":        cty.StringVal("test_user"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.ObjectVal(map[string]cty.Value{
+						"string_attr": cty.StringVal("r"),
+					}),
+				}),
+			},
+		},
+		"run_mod_output_in_provider_undefined_ref": {
 			code: 1,
 		},
 	}
