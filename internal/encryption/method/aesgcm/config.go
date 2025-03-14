@@ -8,6 +8,7 @@ package aesgcm
 import (
 	"fmt"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 
 	"github.com/opentofu/opentofu/internal/collections"
@@ -32,28 +33,32 @@ type Config struct {
 }
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
-func (c *Config) Build() (method.Method, error) {
+func (c *Config) Build() (method.Method, hcl.Diagnostics) {
 	encryptionKey := c.Keys.EncryptionKey
 	decryptionKey := c.Keys.DecryptionKey
 
 	if !validKeyLengths.Has(len(encryptionKey)) {
-		return nil, &method.ErrInvalidConfiguration{
-			Cause: fmt.Errorf(
-				"AES-GCM requires the key length to be one of: %s, received %d bytes in the encryption key",
-				validKeyLengths.String(),
-				len(encryptionKey),
-			),
+		return nil, hcl.Diagnostics{
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid configuration for AES-GCM encryption",
+				Detail: fmt.Sprintf("AES-GCM requires the key length to be one of: %s, received %d bytes in the decryption key",
+					validKeyLengths.String(),
+					len(decryptionKey)),
+			},
 		}
 	}
 
 	if len(decryptionKey) > 0 {
 		if !validKeyLengths.Has(len(decryptionKey)) {
-			return nil, &method.ErrInvalidConfiguration{
-				Cause: fmt.Errorf(
-					"AES-GCM requires the key length to be one of: %s, received %d bytes in the decryption key",
-					validKeyLengths.String(),
-					len(decryptionKey),
-				),
+			return nil, hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid configuration for AES-GCM encryption",
+					Detail: fmt.Sprintf("AES-GCM requires the key length to be one of: %s, received %d bytes in the decryption key",
+						validKeyLengths.String(),
+						len(decryptionKey)),
+				},
 			}
 		}
 	}
