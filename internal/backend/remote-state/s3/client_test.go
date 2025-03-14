@@ -10,10 +10,15 @@ import (
 	"context"
 	"crypto/md5"
 	"fmt"
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -769,4 +774,153 @@ func TestRemoteClient_IsLockingEnabled(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestS3PutObjectSkipS3Checksum is testing the compatibility with aws-sdk when it comes to the defaults baked inside the sdk
+// related to checksums.
+// This test was introduced during upgrading the version of the sdk including a breaking change that could
+// impact the usage of the 3rd party s3 providers.
+// More details in https://github.com/opentofu/opentofu/issues/2570.
+func TestS3PutObjectSkipS3Checksum(t *testing.T) {
+	// Configured the aws config the same way it is done for the backend to ensure a similar setup as the actual main logic.
+	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{})
+	httpCl := &mockHttpClient{resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}}
+	s3Cl := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+		options.HTTPClient = httpCl
+	})
+	t.Run("s3.putObject", func(t *testing.T) {
+		// When configured to calculate checksums, the aws-sdk should include the corresponding x-amz-checksum-* header for the selected
+		// checksum algorithm
+		t.Run("with skip_s3_checksum=false sdk includes the required headers", func(t *testing.T) {
+			rc := RemoteClient{
+				s3Client:       s3Cl,
+				bucketName:     "test-bucket",
+				path:           "state-file",
+				skipS3Checksum: false,
+			}
+			err := rc.Put([]byte("test"))
+			if err != nil {
+				t.Fatalf("expected to have no error but got one: %s", err)
+			}
+			if httpCl.receivedReq == nil {
+				t.Fatal("request didn't reach the mock http client")
+			}
+			if httpCl.receivedReq.Header.Get("X-Amz-Checksum-Sha256") == "" {
+				t.Error("expected to have the X-Amz-Checksum-Sha256 header in the request. None found")
+			}
+			expectedChecksumAlg := "SHA256"
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Sdk-Checksum-Algorithm"); got != expectedChecksumAlg {
+				t.Errorf("wrong value for the X-Amz-Sdk-Checksum-Algorithm header. expected %s; got: %s", expectedChecksumAlg, got)
+			}
+			// UNSIGNED-PAYLOAD - same with github.com/aws/aws-sdk-go-v2/aws/signer/internal/v4/const.go#UnsignedPayload
+			expectedAmzContentSha256Val := "UNSIGNED-PAYLOAD"
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Content-Sha256"); got != expectedAmzContentSha256Val {
+				t.Errorf("wrong value for the X-Amz-Content-Sha256 header. expected %s; got: %s", expectedAmzContentSha256Val, got)
+			}
+		})
+		// When configured to skip computing checksums, the aws-sdk should not include any x-amz-checksum-* header in the request
+		t.Run("with skip_s3_checksum=true skips the headers unsupported by other s3 providers", func(t *testing.T) {
+			rc := RemoteClient{
+				s3Client:       s3Cl,
+				bucketName:     "test-bucket",
+				path:           "state-file",
+				skipS3Checksum: true,
+			}
+			err := rc.Put([]byte("test"))
+			if err != nil {
+				t.Fatalf("expected to have no error but got one: %s", err)
+			}
+			if httpCl.receivedReq == nil {
+				t.Fatal("request didn't reach the mock http client")
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Checksum-Mode"); got != "" {
+				t.Errorf("expected missing X-Amz-Checksum-Mode header from the request. got: %s", got)
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Checksum-Sha256"); got != "" {
+				t.Errorf("expected missing X-Amz-Checksum-Sha256 header from the request. got: %s", got)
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Sdk-Checksum-Algorithm"); got != "" {
+				t.Errorf("expected missing X-Amz-Sdk-Checksum-Algorithm header. got: %s", got)
+			}
+			// expected only this header to exist
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Content-Sha256"); got == "" {
+				t.Error("missing value for the X-Amz-Content-Sha256 header. expected a checksum but got empty")
+			}
+		})
+	})
+
+	t.Run("s3.headObject and s3.getObject", func(t *testing.T) {
+		// When configured to calculate checksums, the aws-sdk should include the corresponding x-amz-checksum-* header for the selected
+		// checksum algorithm
+		t.Run("with skip_s3_checksum=false sdk includes the required headers", func(t *testing.T) {
+			rc := RemoteClient{
+				s3Client:       s3Cl,
+				bucketName:     "test-bucket",
+				path:           "state-file",
+				skipS3Checksum: false,
+			}
+			_, err := rc.Get()
+			if err != nil {
+				t.Fatalf("expected to have no error but got one: %s", err)
+			}
+			if httpCl.receivedReq == nil {
+				t.Fatal("request didn't reach the mock http client")
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Checksum-Sha256"); got != "" {
+				t.Errorf("expected empty X-Amz-Checksum-Sha256 header in the request. got: %s", got)
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Sdk-Checksum-Algorithm"); got != "" {
+				t.Errorf("expected empty X-Amz-Sdk-Checksum-Algorithm header. got: %s", got)
+			}
+			expectedChecksumMode := string(types.ChecksumModeEnabled)
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Checksum-Mode"); got != expectedChecksumMode {
+				t.Errorf("invalid value for the X-Amz-Checksum-Mode header from the request. expected: %s got: %s", expectedChecksumMode, got)
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Content-Sha256"); got == "" {
+				t.Error("expected the content checksum in the X-Amz-Checksum-Sha256 header; got empty instead")
+			}
+		})
+		// When configured to skip computing checksums, the aws-sdk should not include any x-amz-checksum-* header in the request
+		t.Run("with skip_s3_checksum=true skips the headers unsupported by other s3 providers", func(t *testing.T) {
+			rc := RemoteClient{
+				s3Client:       s3Cl,
+				bucketName:     "test-bucket",
+				path:           "state-file",
+				skipS3Checksum: true,
+			}
+			_, err := rc.Get()
+			if err != nil {
+				t.Fatalf("expected to have no error but got one: %s", err)
+			}
+			if httpCl.receivedReq == nil {
+				t.Fatal("request didn't reach the mock http client")
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Checksum-Mode"); got != "" {
+				t.Errorf("expected missing X-Amz-Checksum-Mode header from the request. got: %s", got)
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Checksum-Sha256"); got != "" {
+				t.Errorf("expected missing X-Amz-Checksum-Sha256 header from the request. got: %s", got)
+			}
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Sdk-Checksum-Algorithm"); got != "" {
+				t.Errorf("expected missing X-Amz-Sdk-Checksum-Algorithm header. got: %s", got)
+			}
+			// expected only this header to exist
+			if got := httpCl.receivedReq.Header.Get("X-Amz-Content-Sha256"); got == "" {
+				t.Error("missing value for the X-Amz-Checksum-Sha256 header. expected a checksum but got empty")
+			}
+		})
+	})
+}
+
+// mockHttpClient is used to test the interaction of the s3 backend with the aws-sdk.
+// This is meant to be configured with a response that will be returned to the aws-sdk.
+// The receivedReq is going to contain the last request received by it.
+type mockHttpClient struct {
+	receivedReq *http.Request
+	resp        *http.Response
+}
+
+func (m *mockHttpClient) Do(r *http.Request) (*http.Response, error) {
+	m.receivedReq = r
+	return m.resp, nil
 }
