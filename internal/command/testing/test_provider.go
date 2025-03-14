@@ -28,6 +28,18 @@ var (
 				Attributes: map[string]*configschema.Attribute{
 					"data_prefix":     {Type: cty.String, Optional: true},
 					"resource_prefix": {Type: cty.String, Optional: true},
+					"username":        {Type: cty.String, Optional: true},
+					"password":        {Type: cty.String, Optional: true},
+				},
+				BlockTypes: map[string]*configschema.NestedBlock{
+					"block_single": {
+						Block: configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"string_attr": {Type: cty.String, Optional: true},
+							},
+						},
+						Nesting: configschema.NestingSingle,
+					},
 				},
 			},
 		},

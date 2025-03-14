@@ -22,6 +22,7 @@ type dataForTests struct {
 	PathAttrs      map[string]cty.Value
 	TerraformAttrs map[string]cty.Value
 	InputVariables map[string]cty.Value
+	TestRunOutputs map[string]cty.Value
 	CheckBlocks    map[string]cty.Value
 }
 
