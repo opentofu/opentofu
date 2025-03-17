@@ -545,7 +545,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.SetValEmpty(cty.String),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"set_of_strings": {
@@ -553,7 +553,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.SetVal([]cty.Value{cty.StringVal("a")}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.StringVal("a")},
 			ExcludableAddr:      nil,
 		},
 		"set_of_bool": {
@@ -566,7 +566,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Set(cty.Bool)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"set_of_null": {
@@ -579,7 +579,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Set(cty.String)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"set_of_unknown_strings": {
@@ -587,7 +587,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.SetVal([]cty.Value{cty.UnknownVal(cty.String)}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"set_of_unknown_dynamic": {
@@ -595,7 +595,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.SetVal([]cty.Value{cty.DynamicVal}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		// # Tuples
@@ -604,7 +604,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.SetValEmpty(cty.String),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"tuple_of_strings": {
@@ -617,7 +617,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"tuple_of_bool": {
@@ -630,7 +630,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"tuple_of_null": {
@@ -643,7 +643,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"tuple_of_unknown_strings": {
@@ -656,7 +656,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"tuple_of_unknown_dynamic": {
@@ -669,7 +669,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"empty_map": {
@@ -677,47 +677,47 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.MapValEmpty(cty.String),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
-		"map_with_null_values": {
+		"map_of_null": {
 			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.NullVal(cty.String)})),
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.MapVal(map[string]cty.Value{"a": cty.NullVal(cty.String)}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.NullVal(cty.String)},
 			ExcludableAddr:      nil,
 		},
-		"map_with_unknown_string_values": {
+		"map_of_unknown_string": {
 			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)})),
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.UnknownVal(cty.String)},
 			ExcludableAddr:      nil,
 		},
-		"map_with_bool_values": {
+		"map_of_bool": {
 			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.BoolVal(true)})),
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.MapVal(map[string]cty.Value{"a": cty.True}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.True},
 			ExcludableAddr:      nil,
 		},
-		"map_with_unknown_bool_values": {
+		"map_of_unknown_bool": {
 			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)})),
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)},
 			ExcludableAddr:      nil,
 		},
-		"map_with_string_values": {
+		"map_of_string": {
 			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.StringVal("b")})),
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.MapVal(map[string]cty.Value{"a": cty.StringVal("b")}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.StringVal("b")},
 			ExcludableAddr:      nil,
 		},
 		"empty_object": {
@@ -725,7 +725,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.EmptyObjectVal,
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"object_with_null_values": {
@@ -733,7 +733,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.ObjectVal(map[string]cty.Value{"a": cty.NullVal(cty.String)}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.NullVal(cty.String)},
 			ExcludableAddr:      nil,
 		},
 		"object_with_unknown_string_values": {
@@ -741,7 +741,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.ObjectVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.UnknownVal(cty.String)},
 			ExcludableAddr:      nil,
 		},
 		"object_with_bool_values": {
@@ -749,7 +749,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.ObjectVal(map[string]cty.Value{"a": cty.True}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.True},
 			ExcludableAddr:      nil,
 		},
 		"object_with_unknown_bool_values": {
@@ -757,7 +757,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.ObjectVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)},
 			ExcludableAddr:      nil,
 		},
 		"object_with_string_values": {
@@ -765,7 +765,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.ObjectVal(map[string]cty.Value{"a": cty.StringVal("b")}),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{"a": cty.StringVal("b")},
 			ExcludableAddr:      nil,
 		},
 		// # Other
@@ -779,7 +779,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"null_tuple": {
@@ -792,7 +792,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"sensitive_tuple": {
@@ -805,7 +805,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"string": {
@@ -818,7 +818,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"number": {
@@ -831,7 +831,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"bool": {
@@ -844,7 +844,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"list": {
@@ -857,7 +857,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		// Top-Level Unknowns (basically all the above with unknown on the top-level)
@@ -866,7 +866,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_set_of_strings": {
@@ -874,7 +874,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_set_of_bool": {
@@ -882,15 +882,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
-			ExcludableAddr:      nil,
-		},
-		"unknown_set_of_string": {
-			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
-			ValidateExpectedErr: nil,
-			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
-			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_set_of_dynamic": {
@@ -898,7 +890,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_empty_map": {
@@ -906,7 +898,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_map_of_strings": {
@@ -914,7 +906,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_map_of_bool": {
@@ -922,7 +914,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_tuple_of_bools": {
@@ -930,7 +922,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_tuple_of_strings": {
@@ -938,7 +930,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_tuple_of_dynamic": {
@@ -946,7 +938,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_tuple_of_bool": {
@@ -954,7 +946,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_tuple_of_string": {
@@ -962,7 +954,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErr: nil,
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 		"unknown_set_of_object": {
@@ -978,7 +970,7 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErr:     nil,
-			PlanReturnValue:     nil,
+			PlanReturnValue:     map[string]cty.Value{},
 			ExcludableAddr:      nil,
 		},
 	}
@@ -1010,15 +1002,15 @@ func TestEvaluateForEach(t *testing.T) {
 			// }
 
 			// Plan Phase
-			// planReturn, planDiags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), test.ExcludableAddr)
+			planReturn, planDiags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), test.ExcludableAddr)
 
-			// if eq := planReturn.Equals(test.PlanReturnValue); eq == cty.NilVal {
-			// 	t.Fatalf("got %#v in validate phase; want %#v", validateReturn, test.ValidateReturnValue)
-			// }
+			if !reflect.DeepEqual(planReturn, test.PlanReturnValue) {
+				t.Fatalf("got %#v in plan phase; want %#v", planReturn, test.PlanReturnValue)
+			}
 
-			// if test.PlanExpectedErr != nil {
-			// 	evaluateErrors(t, planDiags, test.PlanExpectedErr)
-			// }
+			if test.PlanExpectedErr != nil {
+				evaluateErrors(t, planDiags, test.PlanExpectedErr)
+			}
 
 			// 	if planReturn == test.PlanReturnValue {
 			// 		t.Fatalf("got %#v in plan phase; want %#v", planReturn, test.PlanReturnValue)
