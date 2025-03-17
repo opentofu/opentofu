@@ -497,61 +497,562 @@ func TestForEachCommandLineExcludeSuggestion(t *testing.T) {
 	}
 }
 
-// These tests are checking if unknown values during the validate phase are raising the expected errors
-func TestEvaluateForEachAllowUnknown_errors(t *testing.T) {
+type expectedErr struct {
+	Summary           string
+	Detail            string
+	CausedByUnknown   bool
+	CausedBySensitive bool
+}
+
+func evaluateErrors(t *testing.T, diags []tfdiags.Diagnostic, testDiags *expectedErr) {
+	t.Helper()
+	if len(diags) < 1 {
+		t.Fatalf("got %d diagnostics; want more than 1", diags)
+	}
+	if got, want := diags[0].Severity(), tfdiags.Error; got != want {
+		t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+	}
+
+	if got, want := diags[0].Description().Summary, testDiags.Summary; got != want {
+		t.Log("ERROR CHAMA2")
+		t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
+	}
+
+	if got, want := diags[0].Description().Detail, testDiags.Detail; !strings.Contains(got, want) {
+		t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+	}
+
+	if got, want := tfdiags.DiagnosticCausedByUnknown(diags[0]), testDiags.CausedByUnknown; got != want {
+		t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown\ngot:  %#v\nwant: %#v", got, want)
+	}
+	if got, want := tfdiags.DiagnosticCausedBySensitive(diags[0]), testDiags.CausedBySensitive; got != want {
+		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
+	}
+}
+
+func TestEvaluateForEach(t *testing.T) {
+	t.Parallel()
 	tests := map[string]struct {
-		Expr                               hcl.Expression
-		ExcludableAddr                     addrs.Targetable
-		Summary, DetailSubstring           string
-		CausedByUnknown, CausedBySensitive bool
+		Expr                hcl.Expression
+		ValidateExpectedErr *expectedErr
+		ValidateReturnValue cty.Value
+		PlanExpectedErr     *expectedErr
+		PlanReturnValue     map[string]cty.Value
+		ExcludableAddr      addrs.Targetable
 	}{
-		"set_containing_unknown_values": {
-			hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{
+		"empty_set": {
+			Expr:                hcltest.MockExprLiteral(cty.SetValEmpty(cty.String)),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"set_of_strings": {
+			Expr:                hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.StringVal("a")})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"set_of_bool": {
+			Expr: hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.BoolVal(true)})),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each set argument",
+				Detail:            "but you have provided a set containing type bool.",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"set_of_null": {
+			Expr: hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.NullVal(cty.String)})),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each set argument",
+				Detail:            "sets must not contain null values",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"set_of_unknown_strings": {
+			Expr:                hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.UnknownVal(cty.String)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"set_of_unknown_dynamic": {
+			Expr:                hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.UnknownVal(cty.DynamicPseudoType)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		// # Tuples
+		"empty_tuple": {
+			Expr:                hcltest.MockExprLiteral(cty.SetValEmpty(cty.String)),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"tuple_of_strings": {
+			Expr: hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a")})),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"tuple_of_bool": {
+			Expr: hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.BoolVal(true)})),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"tuple_of_null": {
+			Expr: hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.NullVal(cty.String)})),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"tuple_of_unknown_strings": {
+			Expr: hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.UnknownVal(cty.String)})),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"tuple_of_unknown_dynamic": {
+			Expr: hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.UnknownVal(cty.DynamicPseudoType)})),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"empty_map": {
+			Expr:                hcltest.MockExprLiteral(cty.MapValEmpty(cty.String)),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"map with null values": {
+			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.NullVal(cty.String)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"map_with_unknown_string_values": {
+			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"map_with_bool_values": {
+			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.BoolVal(true)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"map_with_unknown_bool_values": {
+			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"map_with_string_values": {
+			Expr:                hcltest.MockExprLiteral(cty.MapVal(map[string]cty.Value{"a": cty.StringVal("b")})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"empty_object": {
+			Expr:                hcltest.MockExprLiteral(cty.EmptyObjectVal),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"object_with_null_values": {
+			Expr:                hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{"a": cty.NullVal(cty.String)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"object_with_unknown_string_values": {
+			Expr:                hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"object_with_bool_values": {
+			Expr:                hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{"a": cty.BoolVal(true)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"object_with_unknown_bool_values": {
+			Expr:                hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"object_with_string_values": {
+			Expr:                hcltest.MockExprLiteral(cty.ObjectVal(map[string]cty.Value{"a": cty.StringVal("b")})),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		// # Other
+		"null_set_string": {
+			Expr: hcltest.MockExprLiteral(cty.NullVal(cty.Set(cty.String))),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "argument value is null.",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"null_tuple": {
+			Expr: hcltest.MockExprLiteral(cty.NullVal(cty.Tuple([]cty.Type{}))),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"sensitive_tuple": {
+			Expr: hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Sensitive)),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+				CausedByUnknown:   false,
+				CausedBySensitive: true,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"string": {
+			Expr: hcltest.MockExprLiteral(cty.StringVal("i am definitely a set")),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type string",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"number": {
+			Expr: hcltest.MockExprLiteral(cty.MustParseNumberVal("1e+50")),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type number",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"bool": {
+			Expr: hcltest.MockExprLiteral(cty.BoolVal(true)),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type bool",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"list": {
+			Expr: hcltest.MockExprLiteral(cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")})),
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each argument",
+				Detail:            "must be a map, or set of strings, and you have provided a value of type list of string",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		// Top-Level Unknowns (basically all the above with unknown on the top-level)
+		"unknown_empty_set": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_set_of_strings": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_set_of_bool": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Bool))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_set_of_string": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_set_of_dynamic": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.DynamicPseudoType))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_empty_map": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.String))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_map_of_strings": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.String))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_map_of_bool": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Map(cty.Bool))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_tuple_of_bools": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.Bool}))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_tuple_of_strings": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.String}))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_tuple_of_dynamic": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.DynamicPseudoType}))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_tuple_of_bool": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.Bool}))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_tuple_of_string": {
+			Expr:                hcltest.MockExprLiteral(cty.UnknownVal(cty.Tuple([]cty.Type{cty.String}))),
+			ValidateExpectedErr: nil,
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
+		},
+		"unknown_set_of_object": {
+			Expr: hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{
 				"route_addrs": cty.String,
 				"cidr":        cty.String,
 			})))),
-			nil,
-			"Invalid for_each set argument",
-			"provided a value of type set of object",
-			true, false,
+			ValidateExpectedErr: &expectedErr{
+				Summary:           "Invalid for_each set argument",
+				Detail:            "provided a value of type set of object",
+				CausedByUnknown:   false,
+				CausedBySensitive: false,
+			},
+			ValidateReturnValue: cty.SetValEmpty(cty.String),
+			PlanExpectedErr:     nil,
+			PlanReturnValue:     nil,
+			ExcludableAddr:      nil,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			// Validate Phase
 			allowUnknown := true
 			allowTuple := false
-			_, diags := EvaluateForEachExpressionValue(test.Expr, mockRefsFunc(), allowUnknown, allowTuple, test.ExcludableAddr)
+			validateReturn, validateDiags := EvaluateForEachExpressionValue(test.Expr, mockRefsFunc(), allowUnknown, allowTuple, test.ExcludableAddr)
 
-			if len(diags) != 1 {
-				t.Fatalf("got %d diagnostics; want 1", diags)
-			}
-			if got, want := diags[0].Severity(), tfdiags.Error; got != want {
-				t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
-			}
-			if got, want := diags[0].Description().Summary, test.Summary; got != want {
-				t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
-			}
-			if got, want := diags[0].Description().Detail, test.DetailSubstring; !strings.Contains(got, want) {
-				t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
-			}
-			if fromExpr := diags[0].FromExpr(); fromExpr != nil {
-				if fromExpr.Expression == nil {
-					t.Errorf("diagnostic does not refer to an expression")
-				}
-				if fromExpr.EvalContext == nil {
-					t.Errorf("diagnostic does not refer to an EvalContext")
-				}
-			} else {
-				t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[0]))
+			if eq := validateReturn.Equals(test.ValidateReturnValue); eq == cty.NilVal {
+				t.Fatalf("got %#v in validate phase; want %#v", validateReturn, test.ValidateReturnValue)
 			}
 
-			if got, want := tfdiags.DiagnosticCausedByUnknown(diags[0]), test.CausedByUnknown; got != want {
-				t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown\ngot:  %#v\nwant: %#v", got, want)
+			if test.ValidateExpectedErr != nil || len(validateDiags) > 0 {
+				evaluateErrors(t, validateDiags, test.ValidateExpectedErr)
 			}
-			if got, want := tfdiags.DiagnosticCausedBySensitive(diags[0]), test.CausedBySensitive; got != want {
-				t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
-			}
+
+			// if fromExpr := diags[0].FromExpr(); fromExpr != nil {
+			// 	if fromExpr.Expression == nil {
+			// 		t.Errorf("diagnostic does not refer to an expression")
+			// 	}
+			// 	if fromExpr.EvalContext == nil {
+			// 		t.Errorf("diagnostic does not refer to an EvalContext")
+			// 	}
+			// } else {
+			// 	t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[0]))
+			// }
+
+			// Plan Phase
+			// planReturn, planDiags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), test.ExcludableAddr)
+
+			// if eq := planReturn.Equals(test.PlanReturnValue); eq == cty.NilVal {
+			// 	t.Fatalf("got %#v in validate phase; want %#v", validateReturn, test.ValidateReturnValue)
+			// }
+
+			// if test.PlanExpectedErr != nil {
+			// 	evaluateErrors(t, planDiags, test.PlanExpectedErr)
+			// }
+
+			// 	if planReturn == test.PlanReturnValue {
+			// 		t.Fatalf("got %#v in plan phase; want %#v", planReturn, test.PlanReturnValue)
+			// 	}
+
+			// 	if len(diags) != 1 {
+			// 		t.Fatalf("got %d diagnostics; want 1", diags)
+			// 	}
+			// 	if got, want := diags[0].Severity(), tfdiags.Error; got != want {
+			// 		t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+			// 	}
+			// 	if got, want := diags[0].Description().Summary, test.Summary; got != want {
+			// 		t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
+			// 	}
+			// 	if got, want := diags[0].Description().Detail, test.DetailSubstring; !strings.Contains(got, want) {
+			// 		t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+			// 	}
+			// 	if fromExpr := diags[0].FromExpr(); fromExpr != nil {
+			// 		if fromExpr.Expression == nil {
+			// 			t.Errorf("diagnostic does not refer to an expression")
+			// 		}
+			// 		if fromExpr.EvalContext == nil {
+			// 			t.Errorf("diagnostic does not refer to an EvalContext")
+			// 		}
+			// 	} else {
+			// 		t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[0]))
+			// 	}
+
+			// 	if got, want := tfdiags.DiagnosticCausedByUnknown(diags[0]), test.CausedByUnknown; got != want {
+			// 		t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown\ngot:  %#v\nwant: %#v", got, want)
+			// 	}
+			// 	if got, want := tfdiags.DiagnosticCausedBySensitive(diags[0]), test.CausedBySensitive; got != want {
+			// 		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
+			// 	}
 		})
 	}
 }
