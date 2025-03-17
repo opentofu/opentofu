@@ -527,6 +527,17 @@ func evaluateErrors(t *testing.T, diags []tfdiags.Diagnostic, testDiags *expecte
 	if got, want := tfdiags.DiagnosticCausedBySensitive(diags[0]), testDiags.CausedBySensitive; got != want {
 		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
 	}
+
+	if fromExpr := diags[0].FromExpr(); fromExpr != nil {
+		if fromExpr.Expression == nil {
+			t.Errorf("diagnostic does not refer to an expression")
+		}
+		if fromExpr.EvalContext == nil {
+			t.Errorf("diagnostic does not refer to an EvalContext")
+		}
+	} else {
+		t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[0]))
+	}
 }
 
 func TestEvaluateForEach(t *testing.T) {
@@ -1117,17 +1128,6 @@ func TestEvaluateForEach(t *testing.T) {
 				evaluateErrors(t, validateDiags, test.ValidateExpectedErr)
 			}
 
-			// if fromExpr := diags[0].FromExpr(); fromExpr != nil {
-			// 	if fromExpr.Expression == nil {
-			// 		t.Errorf("diagnostic does not refer to an expression")
-			// 	}
-			// 	if fromExpr.EvalContext == nil {
-			// 		t.Errorf("diagnostic does not refer to an EvalContext")
-			// 	}
-			// } else {
-			// 	t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[0]))
-			// }
-
 			// Plan Phase
 			planReturn, planDiags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), test.ExcludableAddr)
 
@@ -1138,40 +1138,6 @@ func TestEvaluateForEach(t *testing.T) {
 			if test.PlanExpectedErr != nil || len(planDiags) > 0 {
 				evaluateErrors(t, planDiags, test.PlanExpectedErr)
 			}
-
-			// 	if planReturn == test.PlanReturnValue {
-			// 		t.Fatalf("got %#v in plan phase; want %#v", planReturn, test.PlanReturnValue)
-			// 	}
-
-			// 	if len(diags) != 1 {
-			// 		t.Fatalf("got %d diagnostics; want 1", diags)
-			// 	}
-			// 	if got, want := diags[0].Severity(), tfdiags.Error; got != want {
-			// 		t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
-			// 	}
-			// 	if got, want := diags[0].Description().Summary, test.Summary; got != want {
-			// 		t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
-			// 	}
-			// 	if got, want := diags[0].Description().Detail, test.DetailSubstring; !strings.Contains(got, want) {
-			// 		t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
-			// 	}
-			// 	if fromExpr := diags[0].FromExpr(); fromExpr != nil {
-			// 		if fromExpr.Expression == nil {
-			// 			t.Errorf("diagnostic does not refer to an expression")
-			// 		}
-			// 		if fromExpr.EvalContext == nil {
-			// 			t.Errorf("diagnostic does not refer to an EvalContext")
-			// 		}
-			// 	} else {
-			// 		t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[0]))
-			// 	}
-
-			// 	if got, want := tfdiags.DiagnosticCausedByUnknown(diags[0]), test.CausedByUnknown; got != want {
-			// 		t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown\ngot:  %#v\nwant: %#v", got, want)
-			// 	}
-			// 	if got, want := tfdiags.DiagnosticCausedBySensitive(diags[0]), test.CausedBySensitive; got != want {
-			// 		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
-			// 	}
 		})
 	}
 }
