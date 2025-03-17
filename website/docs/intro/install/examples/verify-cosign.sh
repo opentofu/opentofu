@@ -4,7 +4,7 @@ IDENTITY="https://github.com/opentofu/opentofu/.github/workflows/release.yml@ref
 cosign \
     verify-blob \
     --certificate-identity "${IDENTITY}" \
-    --signature "tofu_*.sig" \
-    --certificate "tofu_*.pem" \
+    --signature tofu_*.sig \
+    --certificate tofu_*.pem \
     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-    "tofu_*_SHA256SUMS"
+    tofu_*_SHA256SUMS
