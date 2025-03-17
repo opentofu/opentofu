@@ -624,8 +624,8 @@ func (c *RemoteClient) lockFilePath() string {
 // of the aws-sdk introduced default checksum calculations and validations for all s3 objects.
 // This function is meant to disable this new default behavior when used against 3rd party S3 providers.
 // More details about the feature: https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html
-func s3optDisableDefaultChecksum(include bool) func(*s3.Options) {
-	if include {
+func s3optDisableDefaultChecksum(skipS3Checksum bool) func(*s3.Options) {
+	if skipS3Checksum {
 		return func(o *s3.Options) {
 			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
 			o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
