@@ -430,7 +430,7 @@ of the file.
 
 #### References to `run` module outputs and variables in `provider` blocks
 
-You can reference `var` (variables) and the `run` block module outputs in `provider` blocks to set provider configuration values.
+You can reference `var` (variables) and the `run` block module outputs in `provider` blocks to set up test providers based on dynamic configuration.
 
 ```hcl
 variables {
@@ -448,7 +448,9 @@ run "setup" {
   module {
     source = "./mod"
   }
+# Actual run block behavior, such as asserts, are skipped for simplicity
 }
+
 ```
 
 ### The `mock_provider` blocks
