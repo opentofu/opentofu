@@ -884,7 +884,7 @@ func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
 	return diags
 }
 
-type configTransformFunc func(*TestRun, *TestFile) (func(), hcl.Diagnostics)
+type testConfigTransformFunc func(*TestRun, *TestFile) (func(), hcl.Diagnostics)
 
 // TransformForTest prepares the config to execute the given test.
 //
@@ -898,7 +898,7 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile, evalCtx *hcl.Eva
 
 	// These transformation functions must be in sync of what is being transformed,
 	// currently all the functions operate on different fields of configuration.
-	transformFuncs := []configTransformFunc{
+	transformFuncs := []testConfigTransformFunc{
 		c.getProviderConfigTransformForTest(evalCtx),
 		c.transformOverriddenResourcesForTest,
 		c.transformOverriddenModulesForTest,
@@ -923,7 +923,7 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile, evalCtx *hcl.Eva
 	}, diags
 }
 
-func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) configTransformFunc {
+func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) testConfigTransformFunc {
 	return func(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
 		var diags hcl.Diagnostics
 
