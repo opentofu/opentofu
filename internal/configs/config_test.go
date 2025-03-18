@@ -916,7 +916,13 @@ func TestTransformForTest(t *testing.T) {
 				Providers: tc.runProviders,
 			}
 
-			reset, diags := config.TransformForTest(run, file)
+			evalCtx := &hcl.EvalContext{
+				Variables: map[string]cty.Value{
+					"run": cty.ObjectVal(map[string]cty.Value{}),
+					"var": cty.ObjectVal(map[string]cty.Value{}),
+				},
+			}
+			reset, diags := config.TransformForTest(run, file, evalCtx)
 
 			var actualErrs []string
 			for _, err := range diags.Errs() {

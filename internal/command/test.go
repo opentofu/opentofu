@@ -9,6 +9,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/opentofu/opentofu/internal/lang"
 	"log"
 	"path"
 	"sort"
@@ -535,7 +536,14 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		return state, false
 	}
 
-	resetConfig, configDiags := config.TransformForTest(run.Config, file.Config)
+	evalCtx, evalDiags := buildEvalContextForProviderConfigTransform(runner.States, run, file, config, runner.Suite.GlobalVariables)
+	run.Diagnostics = run.Diagnostics.Append(evalDiags)
+	if evalDiags.HasErrors() {
+		run.Status = moduletest.Error
+		return state, false
+	}
+
+	resetConfig, configDiags := config.TransformForTest(run.Config, file.Config, evalCtx)
 	defer resetConfig()
 
 	run.Diagnostics = run.Diagnostics.Append(configDiags)
@@ -1034,7 +1042,10 @@ func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File
 			runConfig = state.Run.Config.ConfigUnderTest
 		}
 
-		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config)
+		evalCtx, ctxDiags := getEvalContextForTest(runner.States, runConfig, runner.Suite.GlobalVariables)
+		diags = diags.Append(ctxDiags)
+
+		reset, configDiags := runConfig.TransformForTest(state.Run.Config, file.Config, evalCtx)
 		diags = diags.Append(configDiags)
 
 		updated := state.State
@@ -1053,6 +1064,41 @@ func (runner *TestFileRunner) Cleanup(ctx context.Context, file *moduletest.File
 }
 
 // helper functions
+
+// buildEvalContextForProviderConfigTransform constructs a hcl.EvalContext based on the provided map of
+// TestFileState instances, configuration and global variables. Also, creates a tofu.InputValues mapping for
+// variable values that are relevant to the config being tested. And merges the variables into the evalCtx.
+// This is required to transform provider configs defined inside the test file, which are using run block output.
+//
+// Variable pre-evaluation and merging into the context is required, to evaluate more complex expressions involving both
+// run outputs and var (For example, as a function arguments). Without this step the test file won't be able to overwrite
+// input variables with `variables` block.
+//
+// The evalCtx returned from this, contains built-in functions for the same reason.
+func buildEvalContextForProviderConfigTransform(states map[string]*TestFileState, run *moduletest.Run, file *moduletest.File, config *configs.Config, globals map[string]backend.UnparsedVariableValue) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	evalCtx, diags := getEvalContextForTest(states, config, globals)
+	vars, varDiags := buildInputVariablesForTest(run, file, config, globals, evalCtx)
+	diags = diags.Append(varDiags)
+	if diags.HasErrors() {
+		return evalCtx, diags
+	}
+
+	varMap := evalCtx.Variables["var"].AsValueMap()
+	if varMap == nil {
+		varMap = make(map[string]cty.Value)
+	}
+	for name, val := range vars {
+		if val == nil {
+			continue
+		}
+		varMap[name] = val.Value
+	}
+	evalCtx.Variables["var"] = cty.ObjectVal(varMap)
+
+	scope := &lang.Scope{}
+	evalCtx.Functions = scope.Functions()
+	return evalCtx, diags
+}
 
 // buildInputVariablesForTest creates a tofu.InputValues mapping for
 // variable values that are relevant to the config being tested.

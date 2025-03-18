@@ -884,6 +884,8 @@ func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
 	return diags
 }
 
+type testConfigTransformFunc func(*TestRun, *TestFile) (func(), hcl.Diagnostics)
+
 // TransformForTest prepares the config to execute the given test.
 //
 // This function directly edits the config that is to be tested, and returns a
@@ -891,13 +893,13 @@ func (c *Config) CheckCoreVersionRequirements() hcl.Diagnostics {
 //
 // Tests will call this before they execute, and then call the deferred function
 // to reset the config before the next test.
-func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+func (c *Config) TransformForTest(run *TestRun, file *TestFile, evalCtx *hcl.EvalContext) (func(), hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	// These transformation functions must be in sync of what is being transformed,
 	// currently all the functions operate on different fields of configuration.
-	transformFuncs := []func(*TestRun, *TestFile) (func(), hcl.Diagnostics){
-		c.transformProviderConfigsForTest,
+	transformFuncs := []testConfigTransformFunc{
+		c.getProviderConfigTransformForTest(evalCtx),
 		c.transformOverriddenResourcesForTest,
 		c.transformOverriddenModulesForTest,
 	}
@@ -921,104 +923,120 @@ func (c *Config) TransformForTest(run *TestRun, file *TestFile) (func(), hcl.Dia
 	}, diags
 }
 
-func (c *Config) transformProviderConfigsForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
-	var diags hcl.Diagnostics
+func (c *Config) getProviderConfigTransformForTest(evalCtx *hcl.EvalContext) testConfigTransformFunc {
+	return func(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {
+		var diags hcl.Diagnostics
 
-	// We need to override the provider settings.
-	//
-	// We can have a set of providers defined within the config, we can also
-	// have a set of providers defined within the test file. Then the run can
-	// also specify a set of overrides that tell OpenTofu exactly which
-	// providers from the test file to apply into the config.
-	//
-	// The process here is as follows:
-	//   1. Take all the providers in the original config keyed by name.alias,
-	//      we call this `previous`
-	//   2. Copy them all into a new map, we call this `next`.
-	//   3a. If the run has configuration specifying provider overrides, we copy
-	//       only the specified providers from the test file into `next`. While
-	//       doing this we ensure to preserve the name and alias from the
-	//       original config.
-	//   3b. If the run has no override configuration, we copy all the providers
-	//       (including mocks) from the test file into `next`, overriding all providers
-	//       with name collisions from the original config.
-	//   4. We then modify the original configuration so that the providers it
-	//      holds are the combination specified by the original config, the test
-	//      file and the run file.
-	//   5. We then return a function that resets the original config back to
-	//      its original state. This can be called by the surrounding test once
-	//      completed so future run blocks can safely execute.
+		// We need to override the provider settings.
+		//
+		// We can have a set of providers defined within the config, we can also
+		// have a set of providers defined within the test file. Then the run can
+		// also specify a set of overrides that tell OpenTofu exactly which
+		// providers from the test file to apply into the config.
+		//
+		// The process here is as follows:
+		//   1. Take all the providers in the original config keyed by name.alias,
+		//      we call this `previous`
+		//   2. Copy them all into a new map, we call this `next`.
+		//   3a. If the run has configuration specifying provider overrides, we copy
+		//       only the specified providers from the test file into `next`. While
+		//       doing this we ensure to preserve the name and alias from the
+		//       original config.
+		//   3b. If the run has no override configuration, we copy all the providers
+		//       (including mocks) from the test file into `next`, overriding all providers
+		//       with name collisions from the original config.
+		//   4. We then modify the original configuration so that the providers it
+		//      holds are the combination specified by the original config, the test
+		//      file and the run file.
+		//   5. We then return a function that resets the original config back to
+		//      its original state. This can be called by the surrounding test once
+		//      completed so future run blocks can safely execute.
 
-	// First, initialise `previous` and `next`. `previous` contains a backup of
-	// the providers from the original config. `next` contains the set of
-	// providers that will be used by the test. `next` starts with the set of
-	// providers from the original config.
-	previous := c.Module.ProviderConfigs
-	next := make(map[string]*Provider)
-	for key, value := range previous {
-		next[key] = value
+		// First, initialise `previous` and `next`. `previous` contains a backup of
+		// the providers from the original config. `next` contains the set of
+		// providers that will be used by the test. `next` starts with the set of
+		// providers from the original config.
+		previous := c.Module.ProviderConfigs
+		next := make(map[string]*Provider)
+		for key, value := range previous {
+			next[key] = value
+		}
+
+		ctxRunOutputExists := !evalCtx.Variables["run"].IsNull() && len(evalCtx.Variables["run"].AsValueMap()) > 0
+
+		if run != nil && len(run.Providers) > 0 {
+			// Then we'll only copy over and overwrite the specific providers asked
+			// for by this run block.
+
+			for _, ref := range run.Providers {
+
+				testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
+				if !ok {
+					// Then this reference was invalid as we didn't have the
+					// specified provider in the parent. This should have been
+					// caught earlier in validation anyway so is unlikely to happen.
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
+						Detail:   "This provider block references a provider definition that does not exist.",
+						Subject:  ref.InParent.NameRange.Ptr(),
+					})
+					continue
+				}
+
+				providerConfig := testProvider.Config
+				// If we have test run block output and provider config exists we can use testProviderBody to wrap it.
+				// It can be used to evaluate run block expressions inside provider config with prepared evalCtx.
+				if ctxRunOutputExists && providerConfig != nil {
+					providerConfig = testProviderBody{originalBody: providerConfig, evalCtx: evalCtx}
+				}
+
+				next[ref.InChild.String()] = &Provider{
+					Name:              ref.InChild.Name,
+					NameRange:         ref.InChild.NameRange,
+					Alias:             ref.InChild.Alias,
+					AliasRange:        ref.InChild.AliasRange,
+					Version:           testProvider.Version,
+					Config:            providerConfig,
+					DeclRange:         testProvider.DeclRange,
+					IsMocked:          testProvider.IsMocked,
+					MockResources:     testProvider.MockResources,
+					OverrideResources: testProvider.OverrideResources,
+				}
+
+			}
+		} else {
+			// Otherwise, let's copy over and overwrite all providers specified by
+			// the test file itself.
+			for key, provider := range file.Providers {
+				// If we have test run block output and provider config exists we can use testProviderBody to wrap it.
+				// It can be used to evaluate run block expressions inside provider config with prepared evalCtx.
+				if ctxRunOutputExists && provider.Config != nil {
+					provider.Config = testProviderBody{originalBody: provider.Config, evalCtx: evalCtx}
+				}
+				next[key] = provider
+			}
+			for _, mp := range file.MockProviders {
+				next[mp.moduleUniqueKey()] = &Provider{
+					Name:              mp.Name,
+					NameRange:         mp.NameRange,
+					Alias:             mp.Alias,
+					AliasRange:        mp.AliasRange,
+					DeclRange:         mp.DeclRange,
+					IsMocked:          true,
+					MockResources:     mp.MockResources,
+					OverrideResources: mp.OverrideResources,
+				}
+			}
+		}
+
+		c.Module.ProviderConfigs = next
+
+		return func() {
+			// Reset the original config within the returned function.
+			c.Module.ProviderConfigs = previous
+		}, diags
 	}
-
-	if run != nil && len(run.Providers) > 0 {
-		// Then we'll only copy over and overwrite the specific providers asked
-		// for by this run block.
-
-		for _, ref := range run.Providers {
-
-			testProvider, ok := file.getTestProviderOrMock(ref.InParent.String())
-			if !ok {
-				// Then this reference was invalid as we didn't have the
-				// specified provider in the parent. This should have been
-				// caught earlier in validation anyway so is unlikely to happen.
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  fmt.Sprintf("Missing provider definition for %s", ref.InParent.String()),
-					Detail:   "This provider block references a provider definition that does not exist.",
-					Subject:  ref.InParent.NameRange.Ptr(),
-				})
-				continue
-			}
-
-			next[ref.InChild.String()] = &Provider{
-				Name:              ref.InChild.Name,
-				NameRange:         ref.InChild.NameRange,
-				Alias:             ref.InChild.Alias,
-				AliasRange:        ref.InChild.AliasRange,
-				Version:           testProvider.Version,
-				Config:            testProvider.Config,
-				DeclRange:         testProvider.DeclRange,
-				IsMocked:          testProvider.IsMocked,
-				MockResources:     testProvider.MockResources,
-				OverrideResources: testProvider.OverrideResources,
-			}
-
-		}
-	} else {
-		// Otherwise, let's copy over and overwrite all providers specified by
-		// the test file itself.
-		for key, provider := range file.Providers {
-			next[key] = provider
-		}
-		for _, mp := range file.MockProviders {
-			next[mp.moduleUniqueKey()] = &Provider{
-				Name:              mp.Name,
-				NameRange:         mp.NameRange,
-				Alias:             mp.Alias,
-				AliasRange:        mp.AliasRange,
-				DeclRange:         mp.DeclRange,
-				IsMocked:          true,
-				MockResources:     mp.MockResources,
-				OverrideResources: mp.OverrideResources,
-			}
-		}
-	}
-
-	c.Module.ProviderConfigs = next
-
-	return func() {
-		// Reset the original config within the returned function.
-		c.Module.ProviderConfigs = previous
-	}, diags
 }
 
 func (c *Config) transformOverriddenResourcesForTest(run *TestRun, file *TestFile) (func(), hcl.Diagnostics) {

@@ -170,6 +170,10 @@ func TestTest(t *testing.T) {
 			expected: "1 passed, 0 failed.",
 			code:     0,
 		},
+		// New variables introduced in the test file should error out
+		"local_variables_in_provider_block": {
+			code: 1,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
@@ -796,9 +800,10 @@ can remove the provider configuration again.
 
 func TestTest_Modules(t *testing.T) {
 	tcs := map[string]struct {
-		expected string
-		code     int
-		skip     bool
+		expected                      string
+		code                          int
+		skip                          bool
+		expectedProviderConfigRequest *providers.ConfigureProviderRequest
 	}{
 		"pass_module_with_no_resource": {
 			expected: "main.tftest.hcl... pass\n  run \"run\"... pass\n\nSuccess! 1 passed, 0 failed.\n",
@@ -823,6 +828,54 @@ func TestTest_Modules(t *testing.T) {
 		"destroyed_mod_outputs": {
 			expected: "main.tftest.hcl... pass\n  run \"first_apply\"... pass\n  run \"second_apply\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
 			code:     0,
+		},
+		"run_mod_output_in_provider": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("p"),
+					"username":        cty.StringVal("test_user"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.NullVal(cty.Object(map[string]cty.Type{
+						"string_attr": cty.String,
+					})),
+				}),
+			},
+		},
+		"run_mod_output_in_provider_complex": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("Password"),
+					"username":        cty.StringVal("test_user@d"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.NullVal(cty.Object(map[string]cty.Type{
+						"string_attr": cty.String,
+					})),
+				}),
+			},
+		},
+		"run_mod_output_in_provider_with_blocks": {
+			expected: "main.tftest.hcl... pass\n  run \"setup\"... pass\n  run \"validate\"... pass\n\nSuccess! 2 passed, 0 failed.\n",
+			code:     0,
+			expectedProviderConfigRequest: &providers.ConfigureProviderRequest{
+				Config: cty.ObjectVal(map[string]cty.Value{
+					"password":        cty.StringVal("p"),
+					"username":        cty.StringVal("test_user"),
+					"data_prefix":     cty.StringVal("test"),
+					"resource_prefix": cty.StringVal("test"),
+					"block_single": cty.ObjectVal(map[string]cty.Value{
+						"string_attr": cty.StringVal("r"),
+					}),
+				}),
+			},
+		},
+		"run_mod_output_in_provider_undefined_ref": {
+			code: 1,
 		},
 	}
 
@@ -876,10 +929,18 @@ func TestTest_Modules(t *testing.T) {
 				t.Errorf("expected status code %d but got %d: %s", tc.code, code, output.All())
 			}
 
-			actual := output.All()
+			// If we're not expecting a failure, we can compare the output.
+			if code != 1 {
+				actual := output.All()
+				if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
+					t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+				}
+			}
 
-			if diff := cmp.Diff(actual, tc.expected); len(diff) > 0 {
-				t.Errorf("output didn't match expected:\nexpected:\n%s\nactual:\n%s\ndiff:\n%s", tc.expected, actual, diff)
+			if tc.expectedProviderConfigRequest != nil {
+				if !provider.Provider.ConfigureProviderRequest.Config.Equals(tc.expectedProviderConfigRequest.Config).True() {
+					t.Errorf("expected provider config request to equal %+v but got %+v", tc.expectedProviderConfigRequest.Config, provider.Provider.ConfigureProviderRequest.Config)
+				}
 			}
 
 			if provider.ResourceCount() > 0 {
