@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -124,6 +125,21 @@ func setupKeyProviders(enc *config.EncryptionConfig, cfgs []config.KeyProviderCo
 	return kpData.hclEvalContext("key_provider"), diags
 }
 
+func keyProvidersStack(stack []config.KeyProviderConfig) ([]string, hcl.Diagnostics) {
+	res := make([]string, len(stack))
+	var diags hcl.Diagnostics
+	for i, cfg := range stack {
+		addr, diag := cfg.Addr()
+		diags = diags.Extend(diag)
+		if diag.HasErrors() {
+			res[i] = "<unknown>"
+			continue
+		}
+		res[i] = string(addr)
+	}
+	return res, diags
+}
+
 func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig, kpData valueMap, stack []config.KeyProviderConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) hcl.Diagnostics {
 	// Check if we have already setup this Descriptor (due to dependency loading)
 	// if we've already setup this key provider, then we don't need to do it again
@@ -143,12 +159,12 @@ func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig
 	for _, s := range stack {
 		if s == cfg {
 			addr, diags := keyprovider.NewAddr(cfg.Type, cfg.Name)
+			stackAddrs, diag := keyProvidersStack(append(stack, cfg))
+			diags = diags.Extend(diag)
 			return diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Circular reference detected",
-				// TODO add the stack trace to the detail message
-				// not sure at all, couldn't test the circular dep stack was always empty
-				Detail: fmt.Sprintf("Cannot load %s due to circular reference between key providers. Stack trace %s", addr, stack),
+				Detail:   fmt.Sprintf("Cannot load %s due to circular reference between key providers. Stack trace %s", addr, strings.Join(stackAddrs, " -> ")),
 			})
 		}
 	}
