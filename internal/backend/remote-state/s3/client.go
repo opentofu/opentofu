@@ -132,7 +132,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	}
 
 	// Head works around some s3 compatible backends not handling missing GetObject requests correctly (ex: minio Get returns Missing Bucket)
-	_, err = c.s3Client.HeadObject(ctx, inputHead)
+	_, err = c.s3Client.HeadObject(ctx, inputHead, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
@@ -158,7 +158,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 		input.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
 	}
 
-	output, err = c.s3Client.GetObject(ctx, input)
+	output, err = c.s3Client.GetObject(ctx, input, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
@@ -239,7 +239,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
 
-	_, err := c.s3Client.PutObject(ctx, i)
+	_, err := c.s3Client.PutObject(ctx, i, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
 	}
@@ -262,7 +262,7 @@ func (c *RemoteClient) Delete() error {
 	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
 		Key:    &c.path,
-	})
+	}, s3optDisableDefaultChecksum(c.skipS3Checksum))
 
 	if err != nil {
 		return err
@@ -353,7 +353,7 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
-	_, err := c.s3Client.PutObject(ctx, putParams)
+	_, err := c.s3Client.PutObject(ctx, putParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfoFromS3(ctx)
 		if infoErr != nil {
@@ -488,7 +488,7 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 		Key:    aws.String(c.lockFilePath()),
 	}
 
-	resp, err := c.s3Client.GetObject(ctx, getParams)
+	resp, err := c.s3Client.GetObject(ctx, getParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
@@ -555,7 +555,7 @@ func (c *RemoteClient) s3Unlock(id string) *statemgr.LockError {
 		Key:    aws.String(c.lockFilePath()),
 	}
 
-	_, err = c.s3Client.DeleteObject(ctx, params)
+	_, err = c.s3Client.DeleteObject(ctx, params, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		lockErr.Err = err
 		return lockErr
@@ -618,6 +618,20 @@ func (c *RemoteClient) IsLockingEnabled() bool {
 
 func (c *RemoteClient) lockFilePath() string {
 	return fmt.Sprintf("%s%s", c.path, lockFileSuffix)
+}
+
+// According to the announcement done here (https://github.com/aws/aws-sdk-go-v2/discussions/2960), a recent version
+// of the aws-sdk introduced default checksum calculations and validations for all s3 objects.
+// This function is meant to disable this new default behavior when used against 3rd party S3 providers.
+// More details about the feature: https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html
+func s3optDisableDefaultChecksum(skipS3Checksum bool) func(*s3.Options) {
+	if skipS3Checksum {
+		return func(o *s3.Options) {
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+			o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+		}
+	}
+	return func(o *s3.Options) {}
 }
 
 const errBadChecksumFmt = `state data in S3 does not have the expected content.
