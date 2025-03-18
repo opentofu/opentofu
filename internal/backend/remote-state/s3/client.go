@@ -351,6 +351,23 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 		IfNoneMatch:   aws.String("*"),
 	}
 
+	if !c.skipS3Checksum {
+		putParams.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
+
+		// There is a conflict in the aws-go-sdk-v2 that prevents it from working with many s3 compatible services
+		// Since we can pre-compute the hash here, we can work around it.
+		// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
+		algo := sha256.New()
+		algo.Write(lInfo)
+		sum64str := base64.StdEncoding.EncodeToString(algo.Sum(nil))
+		putParams.ChecksumSHA256 = &sum64str
+	}
+
+	if c.acl != "" {
+		putParams.ACL = types.ObjectCannedACL(c.acl)
+	}
+
+	log.Printf("[DEBUG] Uploading s3 locking object: %#v", putParams)
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
 	_, err := c.s3Client.PutObject(ctx, putParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
