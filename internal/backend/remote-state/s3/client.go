@@ -341,6 +341,23 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 		return nil
 	}
 
+	ctx := context.TODO()
+	ctx, _ = attachLoggerToContext(ctx)
+
+	headParams := &s3.HeadObjectInput{
+		Bucket:  aws.String(c.bucketName),
+		Key:     aws.String(c.lockFilePath()),
+		IfMatch: aws.String("*"),
+	}
+	log.Printf("[DEBUG] Check existence of s3 locking object: %#v", headParams)
+	_, err := c.s3Client.HeadObject(ctx, headParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
+	if err == nil {
+		lockErr := &statemgr.LockError{
+			Err:  errors.New("State is locked by other process. Please try again later"),
+			Info: info,
+		}
+		return lockErr
+	}
 	lInfo := info.Marshal()
 	putParams := &s3.PutObjectInput{
 		ContentType:   aws.String(contentTypeJSON),
@@ -368,9 +385,7 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 	}
 
 	log.Printf("[DEBUG] Uploading s3 locking object: %#v", putParams)
-	ctx := context.TODO()
-	ctx, _ = attachLoggerToContext(ctx)
-	_, err := c.s3Client.PutObject(ctx, putParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
+	_, err = c.s3Client.PutObject(ctx, putParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfoFromS3(ctx)
 		if infoErr != nil {
