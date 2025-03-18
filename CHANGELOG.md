@@ -49,10 +49,10 @@ BUG FIXES:
 - `base64gunzip` now doesn't expose sensitive values if it fails during the base64 decoding. ([#2503](https://github.com/opentofu/opentofu/pull/2503))
 - Fix loading only the necessary encryption key providers and methods for better `terraform_remote_state` support. ([2551](https://github.com/opentofu/opentofu/issues/2551))
 - Better error messages when using `null` in invalid positions in the argument to the `transpose` function. ([#2553](https://github.com/opentofu/opentofu/pull/2553))
-- S3 based state locking now works also with 3rd party providers that support SHA256 checksums. ([#2606](https://github.com/opentofu/opentofu/pull/2606))
 
 INTERNAL CHANGES:
 - `skip_s3_checksum=true` now blocks the [aws-sdk new default S3 integrity checks](https://github.com/aws/aws-sdk-go-v2/discussions/2960) ([#2596](https://github.com/opentofu/opentofu/pull/2596))
+
 ## Previous Releases
 
 For information on prior major and minor releases, see their changelogs:
