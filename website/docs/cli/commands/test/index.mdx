@@ -23,6 +23,8 @@ import ProviderAliasMain from '!!raw-loader!./examples/provider_alias/main.tf'
 import ProviderAliasTest from '!!raw-loader!./examples/provider_alias/main.tftest.hcl'
 import VariablesMain from '!!raw-loader!./examples/variables/main.tf'
 import VariablesTest from '!!raw-loader!./examples/variables/main.tftest.hcl'
+import RunInVariablesMain from '!!raw-loader!./examples/run_in_variables/mod/main.tf'
+import RunInVariablesTest from '!!raw-loader!./examples/run_in_variables/main.tftest.hcl'
 import ExpectFailureVariablesMain from '!!raw-loader!./examples/expect_failures_variables/main.tf'
 import ExpectFailureVariablesTest from '!!raw-loader!./examples/expect_failures_variables/main.tftest.hcl'
 import ExpectFailureResourcesMain from '!!raw-loader!./examples/expect_failures_resources/main.tf'
@@ -298,6 +300,19 @@ For example:
     <TabItem value="main" label="main.tf"><CodeBlock language={"hcl"}>{VariablesMain}</CodeBlock></TabItem>
 </Tabs>
 
+#### The `run` block outputs for variables
+
+It is also possible to use the earlier-executed `run` block module outputs to set another `run` block `variables` values.
+
+This can be useful when you need to pass values between different test cases.
+
+<Tabs>
+    <TabItem value="test" label="main.tftest.hcl" default>
+        <CodeBlock language={"hcl"}>{RunInVariablesTest}</CodeBlock>
+    </TabItem>
+    <TabItem value="main" label="mod/main.tf"><CodeBlock language={"hcl"}>{RunInVariablesMain}</CodeBlock></TabItem>
+</Tabs>
+
 ### The `run.expect_failures` list
 
 In some cases you may want to test deliberate failures of your code, for example to ensure your validation is working.
@@ -412,6 +427,33 @@ of the file.
         <CodeBlock language={"hcl"}>{ProviderAliasMain}</CodeBlock>
     </TabItem>
 </Tabs>
+
+#### References to `run` module outputs and variables in `provider` blocks
+
+You can reference `var` (variables) and the `run` block module outputs in `provider` blocks to set up test providers based on dynamic configuration.
+
+```hcl
+variables {
+  region = "us-west-2"
+}
+
+provider "aws" {
+  region = var.region
+  access_key = run.setup.access_key
+  secret_key = run.setup.secret_key
+}
+
+run "setup" {
+  # `mod` module has outputs access_key and secret_key
+  module {
+    source = "./mod"
+  }
+
+# Actual run block behavior, such as asserts, are skipped for simplicity
+
+}
+
+```
 
 ### The `mock_provider` blocks
 
