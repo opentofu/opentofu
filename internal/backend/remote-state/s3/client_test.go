@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -897,6 +898,68 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestS3LockingWritingHeaders is double-checking that the configuration for writing the lock object is the same
+// with the state writing configuration
+func TestS3LockingWritingHeaders(t *testing.T) {
+	ignoredValues := []string{"Amz-Sdk-Invocation-Id", "Authorization", "X-Amz-Checksum-Sha256"}
+	// Configured the aws config the same way it is done for the backend to ensure a similar setup as the actual main logic.
+	_, awsCfg, _ := awsbase.GetAwsConfig(context.Background(), &awsbase.Config{Region: "us-east-1", AccessKey: "test", SecretKey: "key"})
+	httpCl := &mockHttpClient{resp: &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(""))}}
+	s3Cl := s3.NewFromConfig(awsCfg, func(options *s3.Options) {
+		options.HTTPClient = httpCl
+	})
+	rc := RemoteClient{
+		s3Client:    s3Cl,
+		bucketName:  "test-bucket",
+		path:        "state-file",
+		useLockfile: true,
+	}
+	var (
+		stateWritingReq, lockWritingReq *http.Request
+	)
+	// get the request from state writing
+	{
+		err := rc.Put([]byte("test"))
+		if err != nil {
+			t.Fatalf("expected to have no error writing the state object but got one: %s", err)
+		}
+		if httpCl.receivedReq == nil {
+			t.Fatal("request didn't reach the mock http client")
+		}
+		stateWritingReq = httpCl.receivedReq
+	}
+	// get the request from lock object writing
+	{
+		err := rc.s3Lock(&statemgr.LockInfo{Info: "test"})
+		if err != nil {
+			t.Fatalf("expected to have no error writing the lock object but got one: %s", err)
+		}
+		if httpCl.receivedReq == nil {
+			t.Fatal("request didn't reach the mock http client")
+		}
+		lockWritingReq = httpCl.receivedReq
+	}
+
+	// compare headers
+	for k, v := range stateWritingReq.Header {
+		got := lockWritingReq.Header.Values(k)
+		if len(got) == 0 {
+			t.Errorf("found a header that is missing from the request for locking: %s", k)
+			continue
+		}
+		// do not compare header values that are meant to be different since are generated but ensure that there are values in those
+		if slices.Contains(ignoredValues, k) {
+			if len(got[0]) == 0 {
+				t.Errorf("header %q from lock request is having an empty value: %#v", k, got)
+			}
+			continue
+		}
+		if !slices.Equal(got, v) {
+			t.Errorf("found a header %q in lock request that is having a different value from the state one\nin-state-req: %#v\nin-lock-req: %#v", k, v, got)
+		}
 	}
 }
 
