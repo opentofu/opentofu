@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"log"
 	"os"
 
@@ -64,8 +65,8 @@ func (m *Meta) lockedDependencies() (*depsfile.Locks, tfdiags.Diagnostics) {
 // replaceLockedDependencies creates or overwrites the lock file in the
 // current working directory to contain the information recorded in the given
 // locks object.
-func (m *Meta) replaceLockedDependencies(new *depsfile.Locks) tfdiags.Diagnostics {
-	return depsfile.SaveLocksToFile(new, dependencyLockFilename)
+func (m *Meta) replaceLockedDependencies(ctx context.Context, new *depsfile.Locks) tfdiags.Diagnostics {
+	return depsfile.SaveLocksToFile(ctx, new, dependencyLockFilename)
 }
 
 // annotateDependencyLocksWithOverrides modifies the given Locks object in-place

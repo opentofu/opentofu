@@ -10,6 +10,9 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/go-getter"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from
@@ -31,7 +34,10 @@ var _ PackageLocation = PackageLocalArchive("")
 
 func (p PackageLocalArchive) String() string { return string(p) }
 
-func (p PackageLocalArchive) InstallProviderPackage(_ context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
+func (p PackageLocalArchive) InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
+	_, span := tracing.Tracer().Start(ctx, "Decompress (local archive)")
+	defer span.End()
+
 	var authResult *PackageAuthenticationResult
 	if meta.Authentication != nil {
 		var err error
@@ -42,19 +48,24 @@ func (p PackageLocalArchive) InstallProviderPackage(_ context.Context, meta Pack
 
 	if len(allowedHashes) > 0 {
 		if matches, err := meta.MatchesAnyHash(allowedHashes); err != nil {
-			return authResult, fmt.Errorf(
+			err := fmt.Errorf(
 				"failed to calculate checksum for %s %s package at %s: %w",
 				meta.Provider, meta.Version, meta.Location, err,
 			)
+			tracing.SetSpanError(span, err)
+			return authResult, err
 		} else if !matches {
-			return authResult, fmt.Errorf(
+			err := fmt.Errorf(
 				"the current package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file; for more information: https://opentofu.org/docs/language/files/dependency-lock/#checksum-verification",
 				meta.Provider, meta.Version,
 			)
+			tracing.SetSpanError(span, err)
+			return authResult, err
 		}
 	}
 
 	filename := meta.Location.String()
+	span.SetAttributes(semconv.FilePath(filename))
 
 	// NOTE: We're not checking whether there's already a directory at
 	// targetDir with some files in it. Packages are supposed to be immutable
@@ -67,6 +78,7 @@ func (p PackageLocalArchive) InstallProviderPackage(_ context.Context, meta Pack
 	//nolint:mnd // magic number predates us using this linter
 	err := unzip.Decompress(targetDir, filename, true, 0000)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return authResult, err
 	}
 

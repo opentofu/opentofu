@@ -15,8 +15,13 @@ import (
 
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/go-retryablehttp"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // PackageHTTPURL is a provider package location accessible via HTTP.
@@ -33,6 +38,11 @@ func (p PackageHTTPURL) String() string { return string(p) }
 func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
 	url := meta.Location.String()
 
+	ctx, span := tracing.Tracer().Start(ctx, "Install (http)", trace.WithAttributes(
+		semconv.URLFull(url),
+	))
+	defer span.End()
+
 	// When we're installing from an HTTP URL we expect the URL to refer to
 	// a zip file. We'll fetch that into a temporary file here and then
 	// delegate to installFromLocalArchive below to actually extract it.
@@ -43,6 +53,7 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 
 	retryableClient := retryablehttp.NewClient()
 	retryableClient.HTTPClient = httpclient.New()
+	retryableClient.HTTPClient.Transport = otelhttp.NewTransport(retryableClient.HTTPClient.Transport)
 	retryableClient.RetryMax = maxHTTPPackageRetryCount
 	retryableClient.RequestLogHook = func(logger retryablehttp.Logger, _ *http.Request, i int) {
 		if i > 0 {

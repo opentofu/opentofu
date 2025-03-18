@@ -15,13 +15,14 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
-	"github.com/apparentlymart/go-shquot/shquot"
 	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/format"
@@ -29,8 +30,8 @@ import (
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/terminal"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/version"
-	"go.opentelemetry.io/otel/trace"
 
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 )
@@ -69,25 +70,22 @@ func main() {
 func realMain() int {
 	defer logging.PanicHandler()
 
-	var err error
-
-	err = openTelemetryInit()
+	err := tracing.OpenTelemetryInit()
 	if err != nil {
 		// openTelemetryInit can only fail if OpenTofu was run with an
 		// explicit environment variable to enable telemetry collection,
 		// so in typical use we cannot get here.
 		Ui.Error(fmt.Sprintf("Could not initialize telemetry: %s", err))
-		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", openTelemetryExporterEnvVar))
+		Ui.Error(fmt.Sprintf("Unset environment variable %s if you don't intend to collect telemetry from OpenTofu.", tracing.OTELExporterEnvVar))
+
 		return 1
 	}
-	var ctx context.Context
-	var otelSpan trace.Span
-	{
-		// At minimum we emit a span covering the entire command execution.
-		_, displayArgs := shquot.POSIXShellSplit(os.Args)
-		ctx, otelSpan = tracer.Start(context.Background(), fmt.Sprintf("tofu %s", displayArgs))
-		defer otelSpan.End()
-	}
+	defer tracing.ForceFlush(5 * time.Second)
+	ctx := context.Background()
+
+	// At minimum, we emit a span covering the entire command execution.
+	ctx, span := tracing.Tracer().Start(ctx, "tofu")
+	defer span.End()
 
 	tmpLogPath := os.Getenv(envTmpLogPath)
 	if tmpLogPath != "" {
@@ -102,9 +100,7 @@ func realMain() int {
 		}
 	}
 
-	log.Printf(
-		"[INFO] OpenTofu version: %s %s",
-		Version, VersionPrerelease)
+	log.Printf("[INFO] OpenTofu version: %s %s", Version, VersionPrerelease)
 	for _, depMod := range version.InterestingDependencies() {
 		log.Printf("[DEBUG] using %s %s", depMod.Path, depMod.Version)
 	}
@@ -117,6 +113,7 @@ func realMain() int {
 	streams, err := terminal.Init()
 	if err != nil {
 		Ui.Error(fmt.Sprintf("Failed to configure the terminal: %s", err))
+
 		return 1
 	}
 	if streams.Stdout.IsTerminal() {
@@ -140,7 +137,7 @@ func realMain() int {
 	// path in the TERRAFORM_CONFIG_FILE environment variable (though probably
 	// ill-advised) will be resolved relative to the true working directory,
 	// not the overridden one.
-	config, diags := cliconfig.LoadConfig()
+	config, diags := cliconfig.LoadConfig(ctx)
 
 	if len(diags) > 0 {
 		// Since we haven't instantiated a command.Meta yet, we need to do
