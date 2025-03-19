@@ -121,7 +121,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		return nullMap, diags
 	}
 
-	forEachVal, diags = performForEachValueChecks(expr, hclCtx, allowUnknown, forEachVal, isAllowedType, allowedTypesMessage, excludableAddr)
+	forEachVal, diags = performForEachValueChecks(expr, hclCtx, allowUnknown, forEachVal, allowedTypesMessage, excludableAddr)
 	if diags.HasErrors() {
 		return forEachVal, diags
 	}
@@ -130,7 +130,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 }
 
 // performForEachValueChecks ensures the for_each argument is valid
-func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, isAllowedType bool, allowedTypesMessage string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, allowedTypesMessage string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
 	ty := forEachVal.Type()
