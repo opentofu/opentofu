@@ -260,10 +260,10 @@ type expectedErr struct {
 	CausedBySensitive bool
 }
 
-func evaluateErrors(t *testing.T, diags []tfdiags.Diagnostic, testDiags []expectedErr) {
+func evaluateErrors(t *testing.T, diags []tfdiags.Diagnostic, testDiags []expectedErr, phase string) {
 	t.Helper()
 	if len(diags) != len(testDiags) {
-		t.Fatalf("got %d errors; expected %d", len(diags), len(testDiags))
+		t.Fatalf("got %d errors in %s phase; expected %d", len(diags), phase, len(testDiags))
 	}
 
 	for i := range diags {
@@ -336,7 +336,7 @@ func TestEvaluateForEach(t *testing.T) {
 			Expr: hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.BoolVal(true)})),
 			ValidateExpectedErrs: []expectedErr{
 				{
-					Summary:           "Invalid for_each set argument",
+					Summary:           "Invalid for_each argument",
 					Detail:            "but you have provided a set containing type bool.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
@@ -345,7 +345,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateReturnValue: cty.NullVal(cty.Set(cty.Bool)),
 			PlanExpectedErrs: []expectedErr{
 				{
-					Summary:           "Invalid for_each set argument",
+					Summary:           "Invalid for_each argument",
 					Detail:            "but you have provided a set containing type bool.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
@@ -358,7 +358,7 @@ func TestEvaluateForEach(t *testing.T) {
 			Expr: hcltest.MockExprLiteral(cty.SetVal([]cty.Value{cty.NullVal(cty.String)})),
 			ValidateExpectedErrs: []expectedErr{
 				{
-					Summary:           "Invalid for_each set argument",
+					Summary:           "Invalid for_each argument",
 					Detail:            "sets must not contain null values",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
@@ -367,7 +367,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateReturnValue: cty.NullVal(cty.Set(cty.String)),
 			PlanExpectedErrs: []expectedErr{
 				{
-					Summary:           "Invalid for_each set argument",
+					Summary:           "Invalid for_each argument",
 					Detail:            "sets must not contain null values.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
@@ -804,6 +804,31 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanReturnValue: map[string]cty.Value{},
 			ExcludableAddr:  nil,
 		},
+		"unknown_set_of_object": {
+			Expr: hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{
+				"route_addrs": cty.String,
+				"cidr":        cty.String,
+			})))),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "set containing a object",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{"cidr": cty.String, "route_addrs": cty.String}))),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "includes values derived from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
+					CausedBySensitive: false,
+				},
+			},
+			PlanReturnValue: map[string]cty.Value{},
+			ExcludableAddr:  nil,
+		},
 		"unknown_set_of_strings": {
 			Expr:                 hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.String))),
 			ValidateExpectedErrs: nil,
@@ -820,9 +845,16 @@ func TestEvaluateForEach(t *testing.T) {
 			ExcludableAddr:  nil,
 		},
 		"unknown_set_of_bool": {
-			Expr:                 hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Bool))),
-			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			Expr: hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Bool))),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "set containing a bool",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.UnknownVal(cty.Set(cty.Bool)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -968,7 +1000,7 @@ func TestEvaluateForEach(t *testing.T) {
 			}
 
 			if test.ValidateExpectedErrs != nil || len(validateDiags) > 0 {
-				evaluateErrors(t, validateDiags, test.ValidateExpectedErrs)
+				evaluateErrors(t, validateDiags, test.ValidateExpectedErrs, "validate")
 			}
 
 			// Plan Phase
@@ -979,7 +1011,7 @@ func TestEvaluateForEach(t *testing.T) {
 			}
 
 			if test.PlanExpectedErrs != nil || len(planDiags) > 0 {
-				evaluateErrors(t, planDiags, test.PlanExpectedErrs)
+				evaluateErrors(t, planDiags, test.PlanExpectedErrs, "plan")
 			}
 		})
 	}
