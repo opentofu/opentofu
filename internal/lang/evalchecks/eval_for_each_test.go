@@ -392,7 +392,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ExcludableAddr:  nil,
 		},
 		"set_of_unknown_dynamic": {
-			Input:                cty.SetVal([]cty.Value{cty.UnknownVal(cty.DynamicPseudoType)}),
+			Input:                cty.SetVal([]cty.Value{cty.DynamicVal}),
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.SetVal([]cty.Value{cty.DynamicVal}),
 			PlanExpectedErrs: []expectedErr{
@@ -518,7 +518,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ExcludableAddr:  nil,
 		},
 		"tuple_of_unknown_dynamic": {
-			Input: cty.TupleVal([]cty.Value{cty.UnknownVal(cty.DynamicPseudoType)}),
+			Input: cty.TupleVal([]cty.Value{cty.DynamicVal}),
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -912,6 +912,21 @@ func TestEvaluateForEach(t *testing.T) {
 		},
 		"unknown_map_of_strings": {
 			Input:                cty.UnknownVal(cty.Map(cty.String)),
+			ValidateExpectedErrs: nil,
+			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
+					CausedBySensitive: false,
+				},
+			},
+			PlanReturnValue: map[string]cty.Value{},
+			ExcludableAddr:  nil,
+		},
+		"unknown_of_unknowns": {
+			Input:                cty.DynamicVal,
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
 			PlanExpectedErrs: []expectedErr{
