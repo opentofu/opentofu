@@ -408,12 +408,26 @@ func TestEvaluateForEach(t *testing.T) {
 		},
 		// # Tuples
 		"empty_tuple": {
-			Input:                cty.SetValEmpty(cty.String),
-			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.SetValEmpty(cty.String),
-			PlanExpectedErrs:     nil,
-			PlanReturnValue:      map[string]cty.Value{},
-			ExcludableAddr:       nil,
+			Input: cty.EmptyTupleVal,
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			PlanReturnValue: map[string]cty.Value{},
+			ExcludableAddr:  nil,
 		},
 		"tuple_of_strings": {
 			Input: cty.TupleVal([]cty.Value{cty.StringVal("a")}),
