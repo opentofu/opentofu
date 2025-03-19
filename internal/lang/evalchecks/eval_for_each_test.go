@@ -260,18 +260,18 @@ type expectedErr struct {
 	CausedBySensitive bool
 }
 
-func evaluateErrors(t *testing.T, diags []tfdiags.Diagnostic, testDiags []expectedErr, phase string) {
+func assertDiagnosticsMatch(t *testing.T, diags []tfdiags.Diagnostic, testDiags []expectedErr, phase string) {
 	t.Helper()
 	if len(diags) != len(testDiags) {
 		t.Fatalf("got %d errors in %s phase; expected %d", len(diags), phase, len(testDiags))
 	}
 
 	for i := range diags {
-		evaluateError(t, diags[i], testDiags[i])
+		assertDiagnosticMatch(t, diags[i], testDiags[i])
 	}
 }
 
-func evaluateError(t *testing.T, diag tfdiags.Diagnostic, testDiags expectedErr) {
+func assertDiagnosticMatch(t *testing.T, diag tfdiags.Diagnostic, testDiags expectedErr) {
 	t.Helper()
 
 	if got, want := diag.Severity(), tfdiags.Error; got != want {
@@ -1015,7 +1015,7 @@ func TestEvaluateForEach(t *testing.T) {
 			}
 
 			if test.ValidateExpectedErrs != nil || len(validateDiags) > 0 {
-				evaluateErrors(t, validateDiags, test.ValidateExpectedErrs, "validate")
+				assertDiagnosticsMatch(t, validateDiags, test.ValidateExpectedErrs, "validate")
 			}
 
 			// Plan Phase
@@ -1026,7 +1026,7 @@ func TestEvaluateForEach(t *testing.T) {
 			}
 
 			if test.PlanExpectedErrs != nil || len(planDiags) > 0 {
-				evaluateErrors(t, planDiags, test.PlanExpectedErrs, "plan")
+				assertDiagnosticsMatch(t, planDiags, test.PlanExpectedErrs, "plan")
 			}
 		})
 	}
