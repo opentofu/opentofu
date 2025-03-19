@@ -30,6 +30,7 @@ ENHANCEMENTS:
 * The test `run` outputs can now be used in the test `provider` blocks defined in test files. ([#2543](https://github.com/opentofu/opentofu/pull/2543))
 * Provider instance keys now automatically converted to string ([#2378](https://github.com/opentofu/opentofu/issues/2378))
 * Remove progress messages from commands using -concise argument ([#2549](https://github.com/opentofu/opentofu/issues/2549))
+* Upgrade aws-sdk version to include `mx-central-1` region. ([#2596](https://github.com/opentofu/opentofu/pull/2596))
 
 
 BUG FIXES:
@@ -48,6 +49,9 @@ BUG FIXES:
 - `base64gunzip` now doesn't expose sensitive values if it fails during the base64 decoding. ([#2503](https://github.com/opentofu/opentofu/pull/2503))
 - Fix loading only the necessary encryption key providers and methods for better `terraform_remote_state` support. ([2551](https://github.com/opentofu/opentofu/issues/2551))
 - Better error messages when using `null` in invalid positions in the argument to the `transpose` function. ([#2553](https://github.com/opentofu/opentofu/pull/2553))
+
+INTERNAL CHANGES:
+- `skip_s3_checksum=true` now blocks the [aws-sdk new default S3 integrity checks](https://github.com/aws/aws-sdk-go-v2/discussions/2960) ([#2596](https://github.com/opentofu/opentofu/pull/2596))
 
 ## Previous Releases
 
