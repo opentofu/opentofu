@@ -1,0 +1,8 @@
+provider_installation {
+  oci_mirror {
+    # The following is invalid in a way that we should be able to detect
+    # in the first round of template type checking because hostname is
+    # a string and the index operator is never valid for a string.
+    repository_template = "example.com/${hostname[1]}/${namespace}/${type}"
+  }
+}

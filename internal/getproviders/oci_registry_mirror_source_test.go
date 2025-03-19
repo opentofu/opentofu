@@ -101,7 +101,7 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 	// Each tag refers to manifests representing a provider that supports the platforms amigaos_m68k and tos_m68k.
 	// We'll set up our source to interact with the fake local repository we just set up.
 	source := &OCIRegistryMirrorSource{
-		resolveOCIRepositoryAddr: func(ctx context.Context, addr addrs.Provider) (registryDomain string, repositoryName string, err error) {
+		resolveOCIRepositoryAddr: func(addr addrs.Provider) (registryDomain string, repositoryName string, err error) {
 			if addr.Hostname != svchost.Hostname("example.com") {
 				// We'll return [ErrProviderNotFound] here to satisfy the documented contract
 				// that the source will return that error type in particular when asked for

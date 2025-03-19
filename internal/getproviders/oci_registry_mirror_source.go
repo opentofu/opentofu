@@ -109,7 +109,7 @@ type OCIRegistryMirrorSource struct {
 	// _at all_ MUST return an instance of [ErrProviderNotFound] so
 	// that a [MultiSource] can successfully blend the results from
 	// this and other sources.
-	resolveOCIRepositoryAddr func(ctx context.Context, addr addrs.Provider) (registryDomain, repositoryName string, err error)
+	resolveOCIRepositoryAddr func(addr addrs.Provider) (registryDomain, repositoryName string, err error)
 
 	// getOCIRepositoryStore is the dependency inversion adapter for
 	// obtaining a suitably-configured client for the given repository
@@ -142,6 +142,16 @@ type OCIRegistryMirrorSource struct {
 }
 
 var _ Source = (*OCIRegistryMirrorSource)(nil)
+
+func NewOCIRegistryMirrorSource(
+	resolveRepositoryAddr func(addr addrs.Provider) (registryDomain, repositoryName string, err error),
+	getRepositoryStore func(ctx context.Context, registryDomain, repositoryName string) (OCIRepositoryStore, error),
+) *OCIRegistryMirrorSource {
+	return &OCIRegistryMirrorSource{
+		resolveOCIRepositoryAddr: resolveRepositoryAddr,
+		getOCIRepositoryStore:    getRepositoryStore,
+	}
+}
 
 // AvailableVersions implements Source.
 func (o *OCIRegistryMirrorSource) AvailableVersions(ctx context.Context, provider addrs.Provider) (VersionList, Warnings, error) {
@@ -309,7 +319,7 @@ func (o *OCIRegistryMirrorSource) getRepositoryStore(ctx context.Context, provid
 	}
 
 	// Otherwise we'll instantiate a new one and overwrite our cache with it.
-	registryDomain, repositoryName, err = o.resolveOCIRepositoryAddr(ctx, provider)
+	registryDomain, repositoryName, err = o.resolveOCIRepositoryAddr(provider)
 	if err != nil {
 		if notFoundErr, ok := err.(ErrProviderNotFound); ok {
 			// [MultiSource] relies on this particular error type being returned
