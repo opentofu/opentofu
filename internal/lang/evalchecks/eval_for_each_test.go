@@ -333,7 +333,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ExcludableAddr:       nil,
 		},
 		"set_of_bool": {
-			Input: cty.SetVal([]cty.Value{cty.BoolVal(true)}),
+			Input: cty.SetVal([]cty.Value{cty.True}),
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -452,7 +452,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ExcludableAddr:  nil,
 		},
 		"tuple_of_bool": {
-			Input: cty.TupleVal([]cty.Value{cty.BoolVal(true)}),
+			Input: cty.TupleVal([]cty.Value{cty.True}),
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -564,7 +564,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ExcludableAddr:       nil,
 		},
 		"map_of_bool": {
-			Input:                cty.MapVal(map[string]cty.Value{"a": cty.BoolVal(true)}),
+			Input:                cty.MapVal(map[string]cty.Value{"a": cty.True}),
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.MapVal(map[string]cty.Value{"a": cty.True}),
 			PlanExpectedErrs:     nil,
@@ -759,7 +759,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ExcludableAddr:  nil,
 		},
 		"bool": {
-			Input: cty.BoolVal(true),
+			Input: cty.True,
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
