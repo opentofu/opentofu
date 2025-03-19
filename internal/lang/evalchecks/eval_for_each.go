@@ -220,6 +220,7 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 				Expression:  expr,
 				EvalContext: hclCtx,
 			})
+			return cty.NullVal(ty), diags
 		}
 		return cty.UnknownVal(ty), diags
 	}
