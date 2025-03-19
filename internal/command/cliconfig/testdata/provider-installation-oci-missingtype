@@ -1,0 +1,5 @@
+provider_installation {
+  oci_mirror {
+    repository_template = "example.com/${hostname}/${namespace}"
+  }
+}
