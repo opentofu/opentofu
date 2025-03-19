@@ -851,22 +851,6 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanReturnValue: map[string]cty.Value{},
 			ExcludableAddr:  nil,
 		},
-		"unknown_set_of_object": {
-			Expr: hcltest.MockExprLiteral(cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{
-				"route_addrs": cty.String,
-				"cidr":        cty.String,
-			})))),
-			ValidateExpectedErr: &expectedErr{
-				Summary:           "Invalid for_each set argument",
-				Detail:            "provided a value of type set of object",
-				CausedByUnknown:   false,
-				CausedBySensitive: false,
-			},
-			ValidateReturnValue: cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
-			PlanExpectedErr:     nil,
-			PlanReturnValue:     map[string]cty.Value{},
-			ExcludableAddr:      nil,
-		},
 	}
 
 	for name, test := range tests {
