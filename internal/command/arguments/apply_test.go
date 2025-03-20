@@ -192,9 +192,19 @@ func TestParseApply_targets(t *testing.T) {
 
 		// New
 		// Focus here
+		//
 		"target file valid": {
-			args: []string{"-target-file=@foo_bar.json"},
+			// todo: get unconfused by Martin's comment on the file suffix
+			// I can't tell if he means that there is no suffix at all
+			// or if it's just .tf or .tfvars
+			args: []string{"-target-file=foo_file"},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		// See Spec
+		"invalid target file and exclude": {
+			args:    []string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
+			want:    nil,
+			wantErr: "Cannot combine both target and exclude flags. Please only target or exclude resource.",
 		},
 
 		// End new
