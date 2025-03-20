@@ -158,6 +158,7 @@ func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Ta
 func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
+	// Looks like I'll need to do some work here. Thanks Martin!
 	var parseDiags tfdiags.Diagnostics
 	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw)
 	diags = diags.Append(parseDiags)
