@@ -133,6 +133,20 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
+
+	// TODO: The actual task of parsing the damn file.
+	// 1. find the damn file and make all the errors for
+	//   tracking it down
+	// 2. line by line for loo
+	// 3. read each target out of the file as a string and
+	//   add into a slice of strings
+	//
+	//
+	// 4. call parseDirectTargetables on overall slice
+	var rawTargetables []string
+	targetables, directDiags := parseDirectTargetables(rawTargetables, flag)
+	diags = diags.Append(directDiags)
+
 	return targetables, diags
 }
 
