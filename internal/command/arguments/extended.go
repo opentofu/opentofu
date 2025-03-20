@@ -100,8 +100,7 @@ type Operation struct {
 // parseTargetables gets a list of strings, each representing a targetable object, and returns a list of
 // addrs.Targetable
 // This is used for parsing the input of -target and -exclude flags
-func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
-	// spew.Dump(rawTargetables)
+func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
@@ -131,17 +130,18 @@ func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable,
 	return targetables, diags
 }
 
+func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+	var targetables []addrs.Targetable
+	var diags tfdiags.Diagnostics
+	return targetables, diags
+}
+
 func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
 	var parsedTargets []addrs.Targetable
 	var parsedExcludes []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
-	// "Any number of -target and -target-file options can be combined for a
-	// single command, and likewise any number of -exclude and -exclude-file
-	// options, but the target options are mutually-exclusive with the exclude
-	// options." -from Martin Atkins spec
-	// TODO: add a test for this
-	// TODO: delete this comment
+	// Cannot exclude and target in same command
 	if (len(targetsDirect) > 0 || targetFile != "") && (len(excludesDirect) > 0 || excludeFile != "") {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -150,13 +150,19 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 		))
 		return parsedTargets, parsedExcludes, diags
 	}
-	//end spec criteria application.
 
+	// TODO: this is kinda gross, probably some better coding practices could be applied
+	// Get a review. Potentially just merging the whole damn thing into one, where
+	// parseTargetables accepts all 4 (targetsDirect, excludesDirect, targetFile, excludeFile)
 	var parseDiags tfdiags.Diagnostics
-	parsedTargets, parseDiags = parseTargetables(targetsDirect, "target")
+	parsedTargets, parseDiags = parseDirectTargetables(targetsDirect, "target")
+	diags = diags.Append(parseDiags)
+	parsedTargets, parseDiags = parseFileTargetables(targetFile, "target")
 	diags = diags.Append(parseDiags)
 
-	parsedExcludes, parseDiags = parseTargetables(excludesDirect, "exclude")
+	parsedExcludes, parseDiags = parseDirectTargetables(excludesDirect, "exclude")
+	diags = diags.Append(parseDiags)
+	parsedExcludes, parseDiags = parseFileTargetables(excludeFile, "exclude")
 	diags = diags.Append(parseDiags)
 
 	return parsedTargets, parsedExcludes, diags
