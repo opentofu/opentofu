@@ -155,6 +155,15 @@ func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Ta
 // Parse must be called on Operation after initial flag parse. This processes
 // the raw target flags into addrs.Targetable values, returning diagnostics if
 // invalid.
+//
+// Note to self: I wonder why this doesn't have a unit test. Investigate
+// the reason behind this, and potentially add one.
+// Many tests fail though, if this method is fucked up.
+//
+// "Parse must be called on Operation after initial flag parse"
+// So I believe this means that I need to parse the inital flags earlier than this.
+// By the time it reaches Parse() here, I should have o.targetsRaw, o.excludesRaw
+// or an equivalent o.targetFileRaw, o.excludeFileRaw with content.
 func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
