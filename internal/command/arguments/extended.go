@@ -131,25 +131,32 @@ func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable,
 	return targetables, diags
 }
 
-func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
+func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
 	var parsedTargets []addrs.Targetable
 	var parsedExcludes []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
-	if len(targets) > 0 && len(excludes) > 0 {
+	// "Any number of -target and -target-file options can be combined for a
+	// single command, and likewise any number of -exclude and -exclude-file
+	// options, but the target options are mutually-exclusive with the exclude
+	// options." -from Martin Atkins spec
+	// TODO: add a test for this
+	// TODO: delete this comment
+	if (len(targetsDirect) > 0 || targetFile != "") && (len(excludesDirect) > 0 || excludeFile != "") {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
-			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+			"Cannot combine both target and exclude flags. Please only target or exclude resources",
 		))
 		return parsedTargets, parsedExcludes, diags
 	}
+	//end spec criteria application.
 
 	var parseDiags tfdiags.Diagnostics
-	parsedTargets, parseDiags = parseTargetables(targets, "target")
+	parsedTargets, parseDiags = parseTargetables(targetsDirect, "target")
 	diags = diags.Append(parseDiags)
 
-	parsedExcludes, parseDiags = parseTargetables(excludes, "exclude")
+	parsedExcludes, parseDiags = parseTargetables(excludesDirect, "exclude")
 	diags = diags.Append(parseDiags)
 
 	return parsedTargets, parsedExcludes, diags
@@ -174,7 +181,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 
 	// Looks like I'll need to do some work here. Thanks Martin!
 	var parseDiags tfdiags.Diagnostics
-	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw)
+	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw, o.targetsFileRaw, o.excludesFileRaw)
 	diags = diags.Append(parseDiags)
 
 	for _, raw := range o.forceReplaceRaw {
@@ -284,7 +291,7 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 		f.BoolVar(&operation.Refresh, "refresh", true, "refresh")
 		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
 		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
-		f.StringVar(&operation.targetsFileRaw, "target-file", "target-file", "target-file")
+		f.StringVar(&operation.targetsFileRaw, "target-file", "", "target-file")
 		f.Var((*flagStringSlice)(&operation.targetsRaw), "target", "target")
 		f.Var((*flagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
 		f.Var((*flagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
