@@ -8,7 +8,6 @@ package arguments
 import (
 	"fmt"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -63,13 +62,13 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 			err.Error(),
 		))
 	}
-	spew.Dump(cmdFlags)
 
 	args = cmdFlags.Args()
 	if len(args) > 0 {
 		apply.PlanPath = args[0]
 		args = args[1:]
 	}
+
 	if len(args) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
