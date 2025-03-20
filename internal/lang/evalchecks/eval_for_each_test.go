@@ -260,40 +260,40 @@ type expectedErr struct {
 	CausedBySensitive bool
 }
 
-func assertDiagnosticsMatch(t *testing.T, diags []tfdiags.Diagnostic, testDiags []expectedErr, phase string) {
+func assertDiagnosticsMatch(t *testing.T, gotDiags []tfdiags.Diagnostic, wantDiags []expectedErr, phase string) {
 	t.Helper()
-	if len(diags) != len(testDiags) {
-		t.Fatalf("got %d errors in %s phase; expected %d", len(diags), phase, len(testDiags))
+	if len(gotDiags) != len(wantDiags) {
+		t.Fatalf("got %d errors in %s phase; expected %d", len(gotDiags), phase, len(wantDiags))
 	}
 
-	for i := range diags {
-		assertDiagnosticMatch(t, diags[i], testDiags[i])
+	for i := range gotDiags {
+		assertDiagnosticMatch(t, gotDiags[i], wantDiags[i])
 	}
 }
 
-func assertDiagnosticMatch(t *testing.T, diag tfdiags.Diagnostic, testDiags expectedErr) {
+func assertDiagnosticMatch(t *testing.T, gotDiag tfdiags.Diagnostic, wantDiag expectedErr) {
 	t.Helper()
 
-	if got, want := diag.Severity(), tfdiags.Error; got != want {
+	if got, want := gotDiag.Severity(), tfdiags.Error; got != want {
 		t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
 	}
 
-	if got, want := diag.Description().Summary, testDiags.Summary; got != want {
+	if got, want := gotDiag.Description().Summary, wantDiag.Summary; got != want {
 		t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
 	}
 
-	if got, want := diag.Description().Detail, testDiags.Detail; !strings.Contains(got, want) {
+	if got, want := gotDiag.Description().Detail, wantDiag.Detail; !strings.Contains(got, want) {
 		t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
 	}
 
-	if got, want := tfdiags.DiagnosticCausedByUnknown(diag), testDiags.CausedByUnknown; got != want {
+	if got, want := tfdiags.DiagnosticCausedByUnknown(gotDiag), wantDiag.CausedByUnknown; got != want {
 		t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown\ngot:  %#v\nwant: %#v", got, want)
 	}
-	if got, want := tfdiags.DiagnosticCausedBySensitive(diag), testDiags.CausedBySensitive; got != want {
+	if got, want := tfdiags.DiagnosticCausedBySensitive(gotDiag), wantDiag.CausedBySensitive; got != want {
 		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
 	}
 
-	if fromExpr := diag.FromExpr(); fromExpr != nil {
+	if fromExpr := gotDiag.FromExpr(); fromExpr != nil {
 		if fromExpr.Expression == nil {
 			t.Errorf("diagnostic does not refer to an expression")
 		}
@@ -301,7 +301,7 @@ func assertDiagnosticMatch(t *testing.T, diag tfdiags.Diagnostic, testDiags expe
 			t.Errorf("diagnostic does not refer to an EvalContext")
 		}
 	} else {
-		t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diag))
+		t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(gotDiag))
 	}
 }
 
