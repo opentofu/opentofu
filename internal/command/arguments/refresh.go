@@ -49,9 +49,6 @@ func ParseRefresh(args []string) (*Refresh, tfdiags.Diagnostics) {
 		))
 	}
 
-	// Returns only the non-flag arguments (eg. refresh, plan, etc.) so
-	// there should only be one. I don't understand why we're checking for
-	// more than 0 though. todo.
 	args = cmdFlags.Args()
 	if len(args) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(

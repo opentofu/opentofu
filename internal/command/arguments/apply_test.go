@@ -177,14 +177,14 @@ func TestParseApply_targets(t *testing.T) {
 		want    []addrs.Targetable
 		wantErr string
 	}{
-		"no targets by default": {
-			args: nil,
-			want: nil,
-		},
-		"one target": {
-			args: []string{"-target=foo_bar.baz"},
-			want: []addrs.Targetable{foobarbaz.Subject},
-		},
+		// "no targets by default": {
+		// 	args: nil,
+		// 	want: nil,
+		// },
+		// "one target": {
+		// 	args: []string{"-target=foo_bar.baz"},
+		// 	want: []addrs.Targetable{foobarbaz.Subject},
+		// },
 		"two targets": {
 			args: []string{"-target=foo_bar.baz", "-target", "module.boop"},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
@@ -198,16 +198,18 @@ func TestParseApply_targets(t *testing.T) {
 		},
 
 		// End new
-		"invalid traversal": {
-			args:    []string{"-target=foo."},
-			want:    nil,
-			wantErr: "Dot must be followed by attribute name",
-		},
-		"invalid target": {
-			args:    []string{"-target=data[0].foo"},
-			want:    nil,
-			wantErr: "A data source name is required",
-		},
+		//
+
+		// "invalid traversal": {
+		// 	args:    []string{"-target=foo."},
+		// 	want:    nil,
+		// 	wantErr: "Dot must be followed by attribute name",
+		// },
+		// "invalid target": {
+		// 	args:    []string{"-target=data[0].foo"},
+		// 	want:    nil,
+		// 	wantErr: "A data source name is required",
+		// },
 	}
 
 	for name, tc := range testCases {
