@@ -91,7 +91,7 @@ type Operation struct {
 	targetsRaw      []string
 	targetsFileRaw  string
 	excludesRaw     []string
-	excludesFileRaw []string
+	excludesFileRaw string
 	forceReplaceRaw []string
 	destroyRaw      bool
 	refreshOnlyRaw  bool
@@ -284,6 +284,7 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 		f.BoolVar(&operation.Refresh, "refresh", true, "refresh")
 		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
 		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
+		f.StringVar(&operation.targetsFileRaw, "target-file", "target-file", "target-file")
 		f.Var((*flagStringSlice)(&operation.targetsRaw), "target", "target")
 		f.Var((*flagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
 		f.Var((*flagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
