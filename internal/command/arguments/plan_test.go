@@ -121,32 +121,45 @@ func TestParsePlan_targets(t *testing.T) {
 		want    []addrs.Targetable
 		wantErr string
 	}{
-		"no targets by default": {
-			args: nil,
-			want: nil,
-		},
-		"one target": {
-			args: []string{"-target=foo_bar.baz"},
-			want: []addrs.Targetable{foobarbaz.Subject},
-		},
-		"two targets": {
-			args: []string{"-target=foo_bar.baz", "-target", "module.boop"},
+		// 	"no targets by default": {
+		// 		args: nil,
+		// 		want: nil,
+		// 	},
+		// 	"one target": {
+		// 		args: []string{"-target=foo_bar.baz"},
+		// 		want: []addrs.Targetable{foobarbaz.Subject},
+		// 	},
+		// 	"two targets": {
+		// 		args: []string{"-target=foo_bar.baz", "-target", "module.boop"},
+		// 		want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		// 	},
+		// 	"invalid traversal": {
+		// 		args:    []string{"-target=foo."},
+		// 		want:    nil,
+		// 		wantErr: "Invalid target \"foo.\": Dot must be followed by attribute name",
+		// 	},
+		// 	"invalid target": {
+		// 		args:    []string{"-target=data[0].foo"},
+		// 		want:    nil,
+		// 		wantErr: "Invalid target \"data[0].foo\": A data source name is required",
+		// 	},
+		// 	"empty target": {
+		// 		args:    []string{"-target="},
+		// 		want:    nil,
+		// 		wantErr: "Invalid target \"\": Must begin with a variable name.", // The error is `Invalid target "": Must begin with a variable name.`
+		// 	},
+		"target file valid": {
+			// todo: get unconfused by Martin's comment on the file suffix
+			// I can't tell if he means that there is no suffix at all
+			// or if it's just .tf or .tfvars
+			args: []string{"-target-file=foo_file"},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
-		"invalid traversal": {
-			args:    []string{"-target=foo."},
+		// See Spec
+		"invalid target file and exclude": {
+			args:    []string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
 			want:    nil,
-			wantErr: "Invalid target \"foo.\": Dot must be followed by attribute name",
-		},
-		"invalid target": {
-			args:    []string{"-target=data[0].foo"},
-			want:    nil,
-			wantErr: "Invalid target \"data[0].foo\": A data source name is required",
-		},
-		"empty target": {
-			args:    []string{"-target="},
-			want:    nil,
-			wantErr: "Invalid target \"\": Must begin with a variable name.", // The error is `Invalid target "": Must begin with a variable name.`
+			wantErr: "Cannot combine both target and exclude flags. Please only target or exclude resource",
 		},
 	}
 

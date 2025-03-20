@@ -204,7 +204,7 @@ func TestParseApply_targets(t *testing.T) {
 		"invalid target file and exclude": {
 			args:    []string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
 			want:    nil,
-			wantErr: "Cannot combine both target and exclude flags. Please only target or exclude resource.",
+			wantErr: "Cannot combine both target and exclude flags. Please only target or exclude resource",
 		},
 
 		// End new
