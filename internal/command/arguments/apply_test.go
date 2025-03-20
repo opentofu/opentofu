@@ -189,6 +189,14 @@ func TestParseApply_targets(t *testing.T) {
 			args: []string{"-target=foo_bar.baz", "-target", "module.boop"},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
+		"target file valid": {
+			args: []string{"-target-file=@foo_bar.json"},
+			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		// "exclude file valid": {
+		// 	args: []string{"-exclude-file=@bar.json"},
+		// 	want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		// },
 		"invalid traversal": {
 			args:    []string{"-target=foo."},
 			want:    nil,
