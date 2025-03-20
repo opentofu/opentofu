@@ -89,7 +89,9 @@ type Operation struct {
 	// method Parse to populate the exported fields from these, validating
 	// the raw values in the process.
 	targetsRaw      []string
+	targetsFileRaw  string
 	excludesRaw     []string
+	excludesFileRaw []string
 	forceReplaceRaw []string
 	destroyRaw      bool
 	refreshOnlyRaw  bool
@@ -99,6 +101,7 @@ type Operation struct {
 // addrs.Targetable
 // This is used for parsing the input of -target and -exclude flags
 func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+	// spew.Dump(rawTargetables)
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
@@ -164,6 +167,8 @@ func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Ta
 // So I believe this means that I need to parse the inital flags earlier than this.
 // By the time it reaches Parse() here, I should have o.targetsRaw, o.excludesRaw
 // or an equivalent o.targetFileRaw, o.excludeFileRaw with content.
+// * `plan.go`, `refresh.go`, `apply` are all the files that call Parse(), so
+// likely I need to work on those.
 func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
