@@ -387,7 +387,13 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 	if err != nil {
 		return ociv1.Descriptor{}, fmt.Errorf("resolving tag %q: %w", tagName, err)
 	}
-	if desc.ArtifactType != ociIndexManifestArtifactType {
+	// Not all store implementations can return the manifest's artifact type as part
+	// of the tag-resolution response, so we'll check this early if we can, but
+	// if not then we'll check it after we've fetched the manifest instead.
+	// (Doing this early if possible saves us one request and allows us to return
+	// a better error message, but we'll still catch a mismatched artifact type
+	// one way or another.)
+	if desc.ArtifactType != "" && desc.ArtifactType != ociIndexManifestArtifactType {
 		switch desc.ArtifactType {
 		case "application/vnd.opentofu.provider-target":
 			// We'll get here for an incorrectly-constructed artifact layout where
@@ -399,14 +405,6 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 			// we'll return a specialized error, since confusion between providers
 			// and modules is common for those new to OpenTofu terminology.
 			return desc, fmt.Errorf("selected OCI artifact is an OpenTofu module package, not a provider package")
-		case "":
-			// Prior to there being an explicit way to represent artifact types earlier
-			// attempts to adapt OCI Distribution to non-container-image stuff used
-			// custom layer media types instead. This case also deals with container images
-			// themselves, which are essentially the "default" kind of artifact. We
-			// haven't yet fetched the full manifest so we can't actually distinguish
-			// these from the descriptor alone, and so this error message is generic.
-			return desc, fmt.Errorf("unsupported OCI artifact type; is this a container image, rather than an OpenTofu provider?")
 		default:
 			// For any other artifact type we'll just mention it in the error message
 			// and hope the reader can figure out what that artifact type represents.
@@ -423,6 +421,10 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 			return desc, fmt.Errorf("unsupported media type %q for OCI index manifest", desc.MediaType)
 		}
 	}
+	// If the server didn't tell us the artifact type it has, then we'll populate
+	// the artifact type we _want_ and then the manifest fetch will fail if this
+	// doesn't match.
+	desc.ArtifactType = ociIndexManifestArtifactType
 	return desc, nil
 }
 
