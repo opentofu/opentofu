@@ -7,7 +7,7 @@ package compliancetest
 
 import (
 	"errors"
-	"fmt"
+	"github.com/hashicorp/hcl/v2"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"
@@ -131,8 +131,11 @@ func (t testMethodDescriptor) ConfigStruct() method.Config {
 type testMethodConfig struct {
 }
 
-func (t testMethodConfig) Build() (method.Method, error) {
-	return nil, method.ErrInvalidConfiguration{
-		Cause: fmt.Errorf("build not implemented for test method"),
+func (t testMethodConfig) Build() (method.Method, hcl.Diagnostics) {
+	return nil, hcl.Diagnostics{
+		&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Detail:   "Build not implemented for test method",
+		},
 	}
 }

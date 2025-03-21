@@ -134,6 +134,7 @@ func (base *baseEncryption) encrypt(data []byte, enhance func(basedata) interfac
 		Meta:    base.encMeta.output,
 		Data:    encd,
 	}
+
 	jsond, err := json.Marshal(enhance(es))
 	if err != nil {
 		return nil, fmt.Errorf("unable to encode encrypted data as json: %w", err)
@@ -237,7 +238,7 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 	//	sep = "\n"
 	//}
 
-       	errs = append([]error{fmt.Errorf("decryption failed for all provided methods")}, errs...)
+	errs = append([]error{fmt.Errorf("decryption failed for all provided methods")}, errs...)
 	errMessage := errors.Join(errs...).Error()
 
 	return nil, StatusUnknown, errors.New(errMessage)

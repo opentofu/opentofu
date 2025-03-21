@@ -8,6 +8,7 @@ package compliancetest
 import (
 	"bytes"
 	"errors"
+	"github.com/hashicorp/hcl/v2"
 	"reflect"
 	"testing"
 
@@ -310,7 +311,7 @@ func buildConfigAndValidate[TMethod method.Method, TConfig method.Config](
 			compliancetest.Log(t, "Build() correctly returned an error: %v", err)
 		}
 
-		var typedError *method.ErrInvalidConfiguration
+		var typedError hcl.Diagnostics
 		if !errors.As(err, &typedError) {
 			compliancetest.Fail(
 				t,
