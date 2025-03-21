@@ -1,0 +1,13 @@
+provider_installation {
+  oci_mirror {
+    # This is a particularly-annoying case where the template is
+    # invalid only for a specific provider source address and so
+    # we can't detect it until that specific source address is
+    # used to attempt installation.
+    # This is a contrived example that is highly unlikely to be
+    # written by anyone in practice, but this test is covering
+    # just the general idea of templates that fail only for
+    # some of their inputs.
+    repository_template = "example.com/${ {"example.com": "okay"}[hostname] }/${namespace}/${type}"
+  }
+}
