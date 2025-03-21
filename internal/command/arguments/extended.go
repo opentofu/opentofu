@@ -160,7 +160,7 @@ func parseTraversal() {
 }
 
 func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
-	var totalParsedTargets, totalParsedExcludes, parsedTargets []addrs.Targetable
+	var allParsedTargets, allParsedExcludes, parsedTargets []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
 	// Cannot exclude and target in same command
@@ -170,7 +170,7 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 			"Invalid combination of arguments",
 			"Cannot combine both target and exclude flags. Please only target or exclude resources",
 		))
-		return totalParsedTargets, totalParsedExcludes, diags
+		return allParsedTargets, allParsedExcludes, diags
 	}
 
 	// TODO: this is kinda gross, probably some better coding practices could be applied
@@ -178,20 +178,20 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 	// parseTargetables accepts all 4 (targetsDirect, excludesDirect, targetFile, excludeFile)
 	var parseDiags tfdiags.Diagnostics
 	parsedTargets, parseDiags = parseDirectTargetables(targetsDirect, "target")
-	totalParsedTargets = append(totalParsedTargets, parsedTargets...)
+	allParsedTargets = append(allParsedTargets, parsedTargets...)
 	diags = diags.Append(parseDiags)
 	parsedTargets, parseDiags = parseFileTargetables(targetFile, "target")
-	totalParsedTargets = append(totalParsedTargets, parsedTargets...)
+	allParsedTargets = append(allParsedTargets, parsedTargets...)
 	diags = diags.Append(parseDiags)
 
 	parsedTargets, parseDiags = parseDirectTargetables(excludesDirect, "exclude")
 	diags = diags.Append(parseDiags)
-	totalParsedExcludes = append(totalParsedExcludes, parsedTargets...)
+	allParsedExcludes = append(allParsedExcludes, parsedTargets...)
 	parsedTargets, parseDiags = parseFileTargetables(excludeFile, "exclude")
 	diags = diags.Append(parseDiags)
-	totalParsedExcludes = append(totalParsedExcludes, parsedTargets...)
+	allParsedExcludes = append(allParsedExcludes, parsedTargets...)
 
-	return totalParsedTargets, totalParsedExcludes, diags
+	return allParsedTargets, allParsedExcludes, diags
 }
 
 // Parse must be called on Operation after initial flag parse. This processes
