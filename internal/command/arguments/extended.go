@@ -105,7 +105,9 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 	var diags tfdiags.Diagnostics
 
 	for _, tr := range rawTargetables {
+		// spew.Dump(tr) //(string) (len=11) "foo_bar.baz"
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
+		// spew.Dump(traversal)
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -133,21 +135,27 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
-
-	// TODO: The actual task of parsing the damn file.
-	// 1. find the damn file and make all the errors for
-	//   tracking it down
-	// 2. line by line for loo
-	// 3. read each target out of the file as a string and
-	//   add into a slice of strings
-	//
-	//
-	// 4. call parseDirectTargetables on overall slice
-	var rawTargetables []string
-	targetables, directDiags := parseDirectTargetables(rawTargetables, flag)
-	diags = diags.Append(directDiags)
-
+	/*
+		But when we are taking these addresses from a file, we should be able to take a
+		[]byte covering just the part of the file content containing the address and pass that
+		as the first argument to ParseTraversalAbs, and then we can populate the second and
+		third arguments with the name of the file the bytes came from and the position in the file
+		where those bytes were found, which will then cause HCL to calculate correct source locations
+		for all of the different components of the address based on that starting reference point.
+	*/
 	return targetables, diags
+}
+
+func parseTraversal() {
+	/*
+		A slightly different variant of that idea would be to have your shared
+		code function take a []hcl.Traversal instead of a []string -- that is,
+		to do the first level of parsing from source code to traversal separately
+		for files vs. direct options, but then have everything else be shared --
+		since hcl.Traversal can "remember" the source location where the address
+		was parsed from, and thus addrs.ParseTarget can return errors with useful
+		source location information attached to them.
+	*/
 }
 
 func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {

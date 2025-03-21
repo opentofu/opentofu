@@ -125,10 +125,10 @@ func TestParsePlan_targets(t *testing.T) {
 		// 		args: nil,
 		// 		want: nil,
 		// 	},
-		// 	"one target": {
-		// 		args: []string{"-target=foo_bar.baz"},
-		// 		want: []addrs.Targetable{foobarbaz.Subject},
-		// 	},
+		"one target": {
+			args: []string{"-target=foo_bar.baz"},
+			want: []addrs.Targetable{foobarbaz.Subject},
+		},
 		// 	"two targets": {
 		// 		args: []string{"-target=foo_bar.baz", "-target", "module.boop"},
 		// 		want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
