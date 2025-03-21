@@ -6,6 +6,10 @@
 package arguments
 
 import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
 	"strings"
 	"testing"
 
@@ -143,6 +147,11 @@ func TestParsePlan_targets(t *testing.T) {
 			want:    nil,
 			wantErr: "Invalid target \"data[0].foo\": A data source name is required",
 		},
+		"invalid target file and exclude": {
+			args:    []string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
+			want:    nil,
+			wantErr: "Cannot combine both target and exclude flags. Please only target or exclude resource",
+		},
 		"empty target": {
 			args:    []string{"-target="},
 			want:    nil,
@@ -153,6 +162,53 @@ func TestParsePlan_targets(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, diags := ParsePlan(tc.args)
+			if tc.wantErr == "" && len(diags) > 0 {
+				t.Fatalf("unexpected diags: %v", diags)
+			} else if tc.wantErr != "" {
+				if len(diags) == 0 {
+					t.Fatalf("expected diags but got none")
+				} else if got := diags.Err().Error(); !strings.Contains(got, tc.wantErr) {
+					t.Fatalf("wrong diags\n got: %s\nwant: %s", got, tc.wantErr)
+				}
+			}
+
+			if !cmp.Equal(got.Operation.Targets, tc.want) {
+				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Targets, tc.want))
+			}
+		})
+	}
+}
+
+func TestParsePlan_targetFile(t *testing.T) {
+	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	testCases := map[string]struct {
+		fileContent string
+		want        []addrs.Targetable
+		wantErr     string
+	}{
+		"target file valid": {
+			fileContent: "foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file invalid": {
+			fileContent: "foo.",
+			want:        nil,
+			wantErr:     "Invalid target \"foo.\": Dot must be followed by attribute name",
+		},
+		//	Other required tests
+		//		* First character is `#` is invalid, comments not allowed
+		//		* Has lines that start with spaces and tabs on lines that contain
+		//			errors so that we can make sure the error diagnostics report
+		//			correct positions for the invalid tokens in those cases
+		//		* Empty file
+		//		* File with many valid lines
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			file := tempFileWriter(tc.fileContent)
+			defer os.Remove(file.Name())
+			got, diags := ParsePlan([]string{"-target-file=" + file.Name()})
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -299,4 +355,26 @@ func TestParsePlan_vars(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Don't forget to os.Remove(file) after calling this function
+func tempFileWriter(fileContent string) *os.File {
+	file, err := os.CreateTemp("", "opentofu-test-arguments")
+	if err != nil {
+		log.Fatal(err)
+	}
+	file.WriteString(fileContent)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	file.Seek(0, 0)
+	s := bufio.NewScanner(file)
+	for s.Scan() {
+		fmt.Println("tempFileWriter function printLin", s.Text())
+	}
+	if err = s.Err(); err != nil {
+		log.Fatal("error reading temp file", err)
+	}
+	return file
 }

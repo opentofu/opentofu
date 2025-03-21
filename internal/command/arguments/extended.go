@@ -6,10 +6,13 @@
 package arguments
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
@@ -89,7 +92,9 @@ type Operation struct {
 	// method Parse to populate the exported fields from these, validating
 	// the raw values in the process.
 	targetsRaw      []string
+	targetsFileRaw  string
 	excludesRaw     []string
+	excludesFileRaw string
 	forceReplaceRaw []string
 	destroyRaw      bool
 	refreshOnlyRaw  bool
@@ -98,12 +103,14 @@ type Operation struct {
 // parseTargetables gets a list of strings, each representing a targetable object, and returns a list of
 // addrs.Targetable
 // This is used for parsing the input of -target and -exclude flags
-func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
 	for _, tr := range rawTargetables {
+		spew.Dump(tr) //(string) (len=11) "foo_bar.baz"
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
+		spew.Dump(traversal)
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -128,28 +135,120 @@ func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable,
 	return targetables, diags
 }
 
-func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
-	var parsedTargets []addrs.Targetable
-	var parsedExcludes []addrs.Targetable
+// func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+
+	// If no file passed, no targets
+	if filePath == "" {
+		return nil, nil
+	}
+	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
-	if len(targets) > 0 && len(excludes) > 0 {
+	/* My plan:
+	1. Find the file
+	2. read line by line of the file
+	3. parse each line of the file into a addrs.Targetable
+	4. append the addrs.Targetable to the targetables slice
+	5. return the targetables slice
+
+	*/
+
+	// 1. Find the file
+	b, err := os.ReadFile(filePath)
+	diags = diags.Append(err)
+	// spew.Dump("b bytes is ", b)
+	fmt.Printf("filepath is %s\n", filePath)
+	fmt.Printf("flag is %s\n", flag)
+	fmt.Printf("b is %s\n", string(b))
+
+	// 2. read line by line of the file
+	sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
+	for sc.Scan() {
+		lineBytes := sc.Bytes()
+		lineRange := sc.Range()
+		fmt.Printf("Line %q is at %#v\n", lineBytes, lineRange)
+		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, "", hcl.Pos{Line: 1, Column: 1})
+		if syntaxDiags.HasErrors() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				fmt.Sprintf("Invalid %s %q", flag, lineBytes),
+				syntaxDiags[0].Detail,
+			))
+			continue
+		}
+
+		target, targetDiags := addrs.ParseTarget(traversal)
+		if targetDiags.HasErrors() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				fmt.Sprintf("Invalid %s %q", flag, lineBytes),
+				targetDiags[0].Description().Detail,
+			))
+			continue
+		}
+
+		targetables = append(targetables, target.Subject)
+	}
+	return targetables, diags
+	/*
+		But when we are taking these addresses from a file, we should be able to take a
+		[]byte covering just the part of the file content containing the address and pass that
+		as the first argument to ParseTraversalAbs, and then we can populate the second and
+		third arguments with the name of the file the bytes came from and the position in the file
+		where those bytes were found, which will then cause HCL to calculate correct source locations
+		for all of the different components of the address based on that starting reference point.
+	*/
+}
+
+func sharedCodeTraversalThing([]hcl.Traversal) ([]addrs.Targetable, tfdiags.Diagnostics) {
+	var targetables []addrs.Targetable
+	var diags tfdiags.Diagnostics
+	return targetables, diags
+	/*
+		A slightly different variant of that idea would be to have your shared
+		code function take a []hcl.Traversal instead of a []string -- that is,
+		to do the first level of parsing from source code to traversal separately
+		for files vs. direct options, but then have everything else be shared --
+		since hcl.Traversal can "remember" the source location where the address
+		was parsed from, and thus addrs.ParseTarget can return errors with useful
+		source location information attached to them.
+	*/
+}
+
+func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
+	var allParsedTargets, allParsedExcludes, parsedTargets []addrs.Targetable
+	var diags tfdiags.Diagnostics
+
+	// Cannot exclude and target in same command
+	if (len(targetsDirect) > 0 || targetFile != "") && (len(excludesDirect) > 0 || excludeFile != "") {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
-			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+			"Cannot combine both target and exclude flags. Please only target or exclude resources",
 		))
-		return parsedTargets, parsedExcludes, diags
+		return allParsedTargets, allParsedExcludes, diags
 	}
 
+	// TODO: this is kinda gross, probably some better coding practices could be applied
+	// Get a review. Potentially just merging the whole damn thing into one, where
+	// parseTargetables accepts all 4 (targetsDirect, excludesDirect, targetFile, excludeFile)
 	var parseDiags tfdiags.Diagnostics
-	parsedTargets, parseDiags = parseTargetables(targets, "target")
+	parsedTargets, parseDiags = parseDirectTargetables(targetsDirect, "target")
+	allParsedTargets = append(allParsedTargets, parsedTargets...)
+	diags = diags.Append(parseDiags)
+	parsedTargets, parseDiags = parseFileTargetables(targetFile, "target")
+	allParsedTargets = append(allParsedTargets, parsedTargets...)
 	diags = diags.Append(parseDiags)
 
-	parsedExcludes, parseDiags = parseTargetables(excludes, "exclude")
+	parsedTargets, parseDiags = parseDirectTargetables(excludesDirect, "exclude")
 	diags = diags.Append(parseDiags)
+	allParsedExcludes = append(allParsedExcludes, parsedTargets...)
+	parsedTargets, parseDiags = parseFileTargetables(excludeFile, "exclude")
+	diags = diags.Append(parseDiags)
+	allParsedExcludes = append(allParsedExcludes, parsedTargets...)
 
-	return parsedTargets, parsedExcludes, diags
+	return allParsedTargets, allParsedExcludes, diags
 }
 
 // Parse must be called on Operation after initial flag parse. This processes
@@ -159,7 +258,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	var parseDiags tfdiags.Diagnostics
-	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw)
+	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw, o.targetsFileRaw, o.excludesFileRaw)
 	diags = diags.Append(parseDiags)
 
 	for _, raw := range o.forceReplaceRaw {
@@ -269,6 +368,7 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 		f.BoolVar(&operation.Refresh, "refresh", true, "refresh")
 		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
 		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
+		f.StringVar(&operation.targetsFileRaw, "target-file", "", "target-file")
 		f.Var((*flagStringSlice)(&operation.targetsRaw), "target", "target")
 		f.Var((*flagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
 		f.Var((*flagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
