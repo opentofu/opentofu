@@ -195,13 +195,20 @@ func TestParsePlan_targetFile(t *testing.T) {
 			want:        nil,
 			wantErr:     "Invalid target \"foo.\": Dot must be followed by attribute name",
 		},
+		//	Other required tests
+		//		* First character is `#` is invalid, comments not allowed
+		//		* Has lines that start with spaces and tabs on lines that contain
+		//			errors so that we can make sure the error diagnostics report
+		//			correct positions for the invalid tokens in those cases
+		//		* Empty file
+		//		* File with many valid lines
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			file := tempFileWriter(tc.fileContent)
-			got, diags := ParsePlan([]string{"-target-file=" + file.Name()})
 			defer os.Remove(file.Name())
+			got, diags := ParsePlan([]string{"-target-file=" + file.Name()})
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -350,13 +357,12 @@ func TestParsePlan_vars(t *testing.T) {
 	}
 }
 
+// Don't forget to os.Remove(file) after calling this function
 func tempFileWriter(fileContent string) *os.File {
-	file, err := os.CreateTemp("", "prefix")
+	file, err := os.CreateTemp("", "opentofu-test-arguments")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer os.Remove(file.Name())
-
 	file.WriteString(fileContent)
 	if err != nil {
 		log.Fatal(err)
@@ -365,7 +371,7 @@ func tempFileWriter(fileContent string) *os.File {
 	file.Seek(0, 0)
 	s := bufio.NewScanner(file)
 	for s.Scan() {
-		fmt.Println(s.Text())
+		fmt.Println("tempFileWriter function printLin", s.Text())
 	}
 	if err = s.Err(); err != nil {
 		log.Fatal("error reading temp file", err)
