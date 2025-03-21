@@ -6,8 +6,10 @@
 package arguments
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -135,8 +137,60 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 
 // func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+
+	// If no file passed, no targets
+	if filePath == "" {
+		return nil, nil
+	}
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
+
+	/* My plan:
+	1. Find the file
+	2. read line by line of the file
+	3. parse each line of the file into a addrs.Targetable
+	4. append the addrs.Targetable to the targetables slice
+	5. return the targetables slice
+
+	*/
+
+	// 1. Find the file
+	b, err := os.ReadFile(filePath)
+	diags = diags.Append(err)
+	// spew.Dump("b bytes is ", b)
+	fmt.Printf("filepath is %s\n", filePath)
+	fmt.Printf("flag is %s\n", flag)
+	fmt.Printf("b is %s\n", string(b))
+
+	// 2. read line by line of the file
+	sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
+	for sc.Scan() {
+		lineBytes := sc.Bytes()
+		lineRange := sc.Range()
+		fmt.Printf("Line %q is at %#v\n", lineBytes, lineRange)
+		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, "", hcl.Pos{Line: 1, Column: 1})
+		if syntaxDiags.HasErrors() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				fmt.Sprintf("Invalid %s %q", flag, lineBytes),
+				syntaxDiags[0].Detail,
+			))
+			continue
+		}
+
+		target, targetDiags := addrs.ParseTarget(traversal)
+		if targetDiags.HasErrors() {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				fmt.Sprintf("Invalid %s %q", flag, lineBytes),
+				targetDiags[0].Description().Detail,
+			))
+			continue
+		}
+
+		targetables = append(targetables, target.Subject)
+	}
+	return targetables, diags
 	/*
 		But when we are taking these addresses from a file, we should be able to take a
 		[]byte covering just the part of the file content containing the address and pass that
@@ -145,10 +199,12 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 		where those bytes were found, which will then cause HCL to calculate correct source locations
 		for all of the different components of the address based on that starting reference point.
 	*/
-	return targetables, diags
 }
 
-func parseTraversal() {
+func sharedCodeTraversalThing([]hcl.Traversal) ([]addrs.Targetable, tfdiags.Diagnostics) {
+	var targetables []addrs.Targetable
+	var diags tfdiags.Diagnostics
+	return targetables, diags
 	/*
 		A slightly different variant of that idea would be to have your shared
 		code function take a []hcl.Traversal instead of a []string -- that is,
@@ -201,7 +257,6 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	// Looks like I'll need to do some work here. Thanks Martin!
 	var parseDiags tfdiags.Diagnostics
 	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw, o.targetsFileRaw, o.excludesFileRaw)
 	diags = diags.Append(parseDiags)
