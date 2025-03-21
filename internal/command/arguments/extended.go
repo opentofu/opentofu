@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
@@ -105,9 +106,9 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 	var diags tfdiags.Diagnostics
 
 	for _, tr := range rawTargetables {
-		// spew.Dump(tr) //(string) (len=11) "foo_bar.baz"
+		spew.Dump(tr) //(string) (len=11) "foo_bar.baz"
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
-		// spew.Dump(traversal)
+		spew.Dump(traversal)
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
