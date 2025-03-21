@@ -29,6 +29,8 @@ func TestRemoteClient(t *testing.T) {
 	testACC(t)
 	connStr := getDatabaseUrl()
 	schemaName := fmt.Sprintf("terraform_%s", t.Name())
+	tableName := fmt.Sprintf("terraform_%s", t.Name())
+	indexName := fmt.Sprintf("terraform_%s", t.Name())
 	dbCleaner, err := sql.Open("postgres", connStr)
 	if err != nil {
 		t.Fatal(err)
@@ -38,6 +40,8 @@ func TestRemoteClient(t *testing.T) {
 	config := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": schemaName,
+		"table_name":  tableName,
+		"index_name":  indexName,
 	})
 	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
 
@@ -57,6 +61,8 @@ func TestRemoteLocks(t *testing.T) {
 	testACC(t)
 	connStr := getDatabaseUrl()
 	schemaName := fmt.Sprintf("terraform_%s", t.Name())
+	tableName := fmt.Sprintf("terraform_%s", t.Name())
+	indexName := fmt.Sprintf("terraform_%s", t.Name())
 	dbCleaner, err := sql.Open("postgres", connStr)
 	if err != nil {
 		t.Fatal(err)
@@ -66,6 +72,8 @@ func TestRemoteLocks(t *testing.T) {
 	config := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": schemaName,
+		"table_name":  tableName,
+		"index_name":  indexName,
 	})
 
 	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
@@ -94,7 +102,12 @@ func TestConcurrentCreationLocksInDifferentSchemas(t *testing.T) {
 	}
 
 	firstSchema := fmt.Sprintf("terraform_%s_1", t.Name())
+	firstTable := fmt.Sprintf("terraform_%s_1", t.Name())
+	firstIndex := fmt.Sprintf("terraform_%s_1", t.Name())
+
 	secondSchema := fmt.Sprintf("terraform_%s_2", t.Name())
+	secondTable := fmt.Sprintf("terraform_%s_2", t.Name())
+	secondIndex := fmt.Sprintf("terraform_%s_2", t.Name())
 
 	defer dropSchema(t, dbCleaner, firstSchema)
 	defer dropSchema(t, dbCleaner, secondSchema)
@@ -102,11 +115,15 @@ func TestConcurrentCreationLocksInDifferentSchemas(t *testing.T) {
 	firstConfig := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": firstSchema,
+		"table_name":  firstTable,
+		"index_name":  firstIndex,
 	})
 
 	secondConfig := backend.TestWrapConfig(map[string]interface{}{
 		"conn_str":    connStr,
 		"schema_name": secondSchema,
+		"table_name":  secondTable,
+		"index_name":  secondIndex,
 	})
 
 	//nolint:errcheck // this is a test, I am fine with panic here
@@ -125,18 +142,126 @@ func TestConcurrentCreationLocksInDifferentSchemas(t *testing.T) {
 		Client:     firstBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: firstBackend.schemaName,
+		TableName:  firstBackend.tableName,
+		IndexName:  firstBackend.indexName,
 	}
 
 	secondClient := &RemoteClient{
 		Client:     secondBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: secondBackend.schemaName,
+		TableName:  secondBackend.tableName,
+		IndexName:  secondBackend.indexName,
 	}
 
 	thirdClient := &RemoteClient{
 		Client:     thirdBackend.db,
 		Name:       backend.DefaultStateName,
 		SchemaName: thirdBackend.schemaName,
+		TableName:  thirdBackend.tableName,
+		IndexName:  thirdBackend.indexName,
+	}
+
+	// It doesn't matter what lock info to supply for workspace creation.
+	lock := &statemgr.LockInfo{
+		ID:        "1",
+		Operation: "test",
+		Info:      "This needs to lock for workspace creation",
+		Who:       "me",
+		Version:   "1",
+		Created:   time.Date(1999, 8, 19, 0, 0, 0, 0, time.UTC),
+	}
+
+	// Those calls with empty database must think they are locking
+	// for workspace creation, both of them must succeed since they
+	// are operating on different schemas.
+	if _, err = firstClient.Lock(lock); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = secondClient.Lock(lock); err != nil {
+		t.Fatal(err)
+	}
+
+	// This call must fail since we are trying to acquire the same
+	// lock as the first client. We need to make this call from a
+	// separate session, since advisory locks are okay to be re-acquired
+	// during the same session.
+	if _, err = thirdClient.Lock(lock); err == nil {
+		t.Fatal("Expected an error to be thrown on a second lock attempt")
+	} else if lockErr := err.(*statemgr.LockError); lockErr.Info != lock && //nolint:errcheck,errorlint // this is a test, I am fine with panic here
+		lockErr.Err.Error() != "Already locked for workspace creation: default" {
+		t.Fatalf("Unexpected error thrown on a second lock attempt: %v", err)
+	}
+}
+
+// TestConcurrentCreationLocksInDifferentTables tests whether backends with different tables
+// affect each other while taking global workspace creation locks.
+func TestConcurrentCreationLocksInDifferentTables(t *testing.T) {
+	testACC(t)
+	connStr := getDatabaseUrl()
+	dbCleaner, err := sql.Open("postgres", connStr)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	schema := fmt.Sprintf("terraform_%s", t.Name())
+
+	firstTable := fmt.Sprintf("terraform_%s_1", t.Name())
+	firstIndex := fmt.Sprintf("terraform_%s_1", t.Name())
+
+	secondTable := fmt.Sprintf("terraform_%s_2", t.Name())
+	secondIndex := fmt.Sprintf("terraform_%s_2", t.Name())
+
+	defer dropSchema(t, dbCleaner, schema)
+
+	firstConfig := backend.TestWrapConfig(map[string]interface{}{
+		"conn_str":    connStr,
+		"schema_name": schema,
+		"table_name":  firstTable,
+		"index_name":  firstIndex,
+	})
+
+	secondConfig := backend.TestWrapConfig(map[string]interface{}{
+		"conn_str":    connStr,
+		"schema_name": schema,
+		"table_name":  secondTable,
+		"index_name":  secondIndex,
+	})
+
+	//nolint:errcheck // this is a test, I am fine with panic here
+	firstBackend := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), firstConfig).(*Backend)
+
+	//nolint:errcheck // this is a test, I am fine with panic here
+	secondBackend := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), secondConfig).(*Backend)
+
+	//nolint:errcheck // this is a test, I am fine with panic here
+	thirdBackend := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), secondConfig).(*Backend)
+
+	// We operate on remote clients instead of state managers to simulate the
+	// first call to backend.StateMgr(), which creates an empty state in default
+	// workspace.
+	firstClient := &RemoteClient{
+		Client:     firstBackend.db,
+		Name:       backend.DefaultStateName,
+		SchemaName: firstBackend.schemaName,
+		TableName:  firstBackend.tableName,
+		IndexName:  firstBackend.indexName,
+	}
+
+	secondClient := &RemoteClient{
+		Client:     secondBackend.db,
+		Name:       backend.DefaultStateName,
+		SchemaName: secondBackend.schemaName,
+		TableName:  secondBackend.tableName,
+		IndexName:  secondBackend.indexName,
+	}
+
+	thirdClient := &RemoteClient{
+		Client:     thirdBackend.db,
+		Name:       backend.DefaultStateName,
+		SchemaName: thirdBackend.schemaName,
+		TableName:  thirdBackend.tableName,
+		IndexName:  thirdBackend.indexName,
 	}
 
 	// It doesn't matter what lock info to supply for workspace creation.
