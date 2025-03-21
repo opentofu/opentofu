@@ -7,6 +7,11 @@ package jsonconfig
 
 import (
 	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 func TestFindSourceProviderConfig(t *testing.T) {
@@ -102,4 +107,41 @@ func TestFindSourceProviderConfig(t *testing.T) {
 			t.Errorf("wrong result:\nGot: %#v\nWant: %#v\n", got, test.Want)
 		}
 	}
+}
+
+func TestMarshalModule(t *testing.T) {
+	t.Run("validate variables marshalling with all the required fields", func(t *testing.T) {
+		varCfg := &configs.Variable{
+			Name:        "myvar",
+			Description: "myvar description",
+			Deprecated:  "myvar deprecated message",
+		}
+		modCfg := configs.Config{
+			Module: &configs.Module{
+				Variables: map[string]*configs.Variable{
+					"myvar": varCfg,
+				},
+			},
+		}
+		modCfg.Root = &modCfg
+
+		out, err := marshalModule(&modCfg, &tofu.Schemas{}, addrs.RootModule.String())
+		if err != nil {
+			t.Fatalf("unexpected error during marshalling module: %s", err)
+		}
+
+		expected := module{
+			Outputs:     map[string]output{},
+			ModuleCalls: map[string]moduleCall{},
+			Variables: map[string]*variable{
+				"myvar": {
+					Description: varCfg.Description,
+					Deprecated:  varCfg.Deprecated,
+				},
+			},
+		}
+		if diff := cmp.Diff(expected, out); diff != "" {
+			t.Errorf("unexpected diff: \n%s", diff)
+		}
+	})
 }
