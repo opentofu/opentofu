@@ -6,6 +6,10 @@
 package arguments
 
 import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
 	"strings"
 	"testing"
 
@@ -121,51 +125,83 @@ func TestParsePlan_targets(t *testing.T) {
 		want    []addrs.Targetable
 		wantErr string
 	}{
-		// 	"no targets by default": {
-		// 		args: nil,
-		// 		want: nil,
-		// 	},
+		"no targets by default": {
+			args: nil,
+			want: nil,
+		},
 		"one target": {
 			args: []string{"-target=foo_bar.baz"},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
-		// 	"two targets": {
-		// 		args: []string{"-target=foo_bar.baz", "-target", "module.boop"},
-		// 		want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
-		// 	},
-		// 	"invalid traversal": {
-		// 		args:    []string{"-target=foo."},
-		// 		want:    nil,
-		// 		wantErr: "Invalid target \"foo.\": Dot must be followed by attribute name",
-		// 	},
-		// 	"invalid target": {
-		// 		args:    []string{"-target=data[0].foo"},
-		// 		want:    nil,
-		// 		wantErr: "Invalid target \"data[0].foo\": A data source name is required",
-		// 	},
-		// 	"empty target": {
-		// 		args:    []string{"-target="},
-		// 		want:    nil,
-		// 		wantErr: "Invalid target \"\": Must begin with a variable name.", // The error is `Invalid target "": Must begin with a variable name.`
-		// 	},
-		"target file valid": {
-			// todo: get unconfused by Martin's comment on the file suffix
-			// I can't tell if he means that there is no suffix at all
-			// or if it's just .tf or .tfvars
-			args: []string{"-target-file=foo_file"},
+		"two targets": {
+			args: []string{"-target=foo_bar.baz", "-target", "module.boop"},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
-		// See Spec
+		"invalid traversal": {
+			args:    []string{"-target=foo."},
+			want:    nil,
+			wantErr: "Invalid target \"foo.\": Dot must be followed by attribute name",
+		},
+		"invalid target": {
+			args:    []string{"-target=data[0].foo"},
+			want:    nil,
+			wantErr: "Invalid target \"data[0].foo\": A data source name is required",
+		},
 		"invalid target file and exclude": {
 			args:    []string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
 			want:    nil,
 			wantErr: "Cannot combine both target and exclude flags. Please only target or exclude resource",
+		},
+		"empty target": {
+			args:    []string{"-target="},
+			want:    nil,
+			wantErr: "Invalid target \"\": Must begin with a variable name.", // The error is `Invalid target "": Must begin with a variable name.`
 		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			got, diags := ParsePlan(tc.args)
+			if tc.wantErr == "" && len(diags) > 0 {
+				t.Fatalf("unexpected diags: %v", diags)
+			} else if tc.wantErr != "" {
+				if len(diags) == 0 {
+					t.Fatalf("expected diags but got none")
+				} else if got := diags.Err().Error(); !strings.Contains(got, tc.wantErr) {
+					t.Fatalf("wrong diags\n got: %s\nwant: %s", got, tc.wantErr)
+				}
+			}
+
+			if !cmp.Equal(got.Operation.Targets, tc.want) {
+				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Targets, tc.want))
+			}
+		})
+	}
+}
+
+func TestParsePlan_targetFile(t *testing.T) {
+	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	testCases := map[string]struct {
+		fileContent string
+		want        []addrs.Targetable
+		wantErr     string
+	}{
+		"target file valid": {
+			fileContent: "foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file invalid": {
+			fileContent: "foo.",
+			want:        nil,
+			wantErr:     "Invalid target \"foo.\": Dot must be followed by attribute name",
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			file := tempFileWriter(tc.fileContent)
+			got, diags := ParsePlan([]string{"-target-file=" + file.Name()})
+			defer os.Remove(file.Name())
 			if tc.wantErr == "" && len(diags) > 0 {
 				t.Fatalf("unexpected diags: %v", diags)
 			} else if tc.wantErr != "" {
@@ -312,4 +348,27 @@ func TestParsePlan_vars(t *testing.T) {
 			}
 		})
 	}
+}
+
+func tempFileWriter(fileContent string) *os.File {
+	file, err := os.CreateTemp("", "prefix")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.Remove(file.Name())
+
+	file.WriteString(fileContent)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	file.Seek(0, 0)
+	s := bufio.NewScanner(file)
+	for s.Scan() {
+		fmt.Println(s.Text())
+	}
+	if err = s.Err(); err != nil {
+		log.Fatal("error reading temp file", err)
+	}
+	return file
 }
