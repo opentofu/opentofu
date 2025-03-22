@@ -1778,6 +1778,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.4"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI="),
+				getproviders.HashSchemeZip.New("ec7c3fd6eb575c06f0e6957e1ee8531a588805c4eeb8abb5e4156911e080eb31"),
 			},
 		),
 		addrs.NewDefaultProvider("test"): depsfile.NewProviderLock(
@@ -1786,6 +1787,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI="),
+				getproviders.HashSchemeZip.New("6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2"),
 			},
 		),
 		addrs.NewDefaultProvider("source"): depsfile.NewProviderLock(
@@ -1794,6 +1796,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0="),
+				getproviders.HashSchemeZip.New("69f700dbf9eda586abef22ab08e3a3896760e01885f6cbda4460ceeca4e3c0ba"),
 			},
 		),
 	}
@@ -1805,6 +1808,10 @@ func TestInit_providerSource(t *testing.T) {
 	if got, want := ui.OutputWriter.String(), "Installed hashicorp/test v1.2.3 (verified checksum)"; !strings.Contains(got, want) {
 		t.Fatalf("unexpected output: %s\nexpected to include %q", got, want)
 	}
+	// On stderr we should've written a warning about the dependency lock file
+	// entry being incomplete for these three providers, because we installed
+	// from a non-origin-registry source and so registry-promised hashes
+	// are not available.
 	if got, want := ui.ErrorWriter.String(), "\n  - hashicorp/source\n  - hashicorp/test\n  - hashicorp/test-beta"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
@@ -1994,6 +2001,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints("> 1.0.0, < 3.0.0"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk="),
+				getproviders.HashSchemeZip.New("29e1045215056680ac59fe95554f0eb1323534a3d411aae2a7a04495ac884258"),
 			},
 		),
 		addrs.NewDefaultProvider("exact"): depsfile.NewProviderLock(
@@ -2002,6 +2010,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU="),
+				getproviders.HashSchemeZip.New("9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870"),
 			},
 		),
 		addrs.NewDefaultProvider("greater-than"): depsfile.NewProviderLock(
@@ -2010,6 +2019,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints(">= 2.3.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4="),
+				getproviders.HashSchemeZip.New("bfb683ee94027efb191986484352ada8219cd45e856d25c2ddcb489e100a9a02"),
 			},
 		),
 	}
@@ -2176,8 +2186,8 @@ func TestInit_providerLockFile(t *testing.T) {
 		t.Fatalf("failed to read dependency lock file %s: %s", lockFile, err)
 	}
 	buf = bytes.TrimSpace(buf)
-	// The hash in here is for the fake package that newMockProviderSource produces
-	// (so it'll change if newMockProviderSource starts producing different contents)
+	// The hashes in here are for the fake package that newMockProviderSource produces
+	// (so they'll change if newMockProviderSource starts producing different contents)
 	wantLockFile := strings.TrimSpace(`
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
@@ -2187,6 +2197,7 @@ provider "registry.opentofu.org/hashicorp/test" {
   constraints = "1.2.3"
   hashes = [
     "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
   ]
 }
 `)

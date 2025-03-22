@@ -10,35 +10,110 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"slices"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	openpgpErrors "github.com/ProtonMail/go-crypto/openpgp/errors"
-	tfaddr "github.com/opentofu/registry-address"
-
 	"github.com/google/go-cmp/cmp"
 
-	"github.com/ProtonMail/go-crypto/openpgp"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
 )
 
 func TestPackageAuthenticationResult(t *testing.T) {
-	tests := []struct {
+	tests := map[string]struct {
 		result *PackageAuthenticationResult
 		want   string
 	}{
-		{
+		"nil": {
 			nil,
 			"unauthenticated",
 		},
-		{
-			&PackageAuthenticationResult{result: signed},
+		"SignedByGPGKeyIDs": {
+			&PackageAuthenticationResult{
+				hashes: HashDispositions{
+					Hash("test:placeholder"): {
+						SignedByGPGKeyIDs: collections.NewSet("abc123"),
+					},
+				},
+			},
+			"signed",
+		},
+		"VerifiedLocally": {
+			&PackageAuthenticationResult{
+				hashes: HashDispositions{
+					Hash("test:placeholder"): {
+						VerifiedLocally: true,
+					},
+				},
+			},
+			"verified checksum",
+		},
+		"ReportedByRegistry": {
+			&PackageAuthenticationResult{
+				hashes: HashDispositions{
+					Hash("test:placeholder"): {
+						ReportedByRegistry: true,
+					},
+				},
+			},
+			"signing skipped",
+		},
+		"SignedByGPGKeyIDs+VerifiedLocally": {
+			&PackageAuthenticationResult{
+				hashes: HashDispositions{
+					Hash("test:placeholder"): {
+						SignedByGPGKeyIDs: collections.NewSet("abc123"),
+						VerifiedLocally:   true,
+					},
+				},
+			},
+			"signed",
+		},
+		"SignedByGPGKeyIDs+ReportedByRegistry": {
+			&PackageAuthenticationResult{
+				hashes: HashDispositions{
+					Hash("test:placeholder"): {
+						SignedByGPGKeyIDs:  collections.NewSet("abc123"),
+						ReportedByRegistry: true,
+					},
+				},
+			},
+			"signed",
+		},
+		"ReportedByRegistry+VerifiedLocally": {
+			&PackageAuthenticationResult{
+				hashes: HashDispositions{
+					Hash("test:placeholder"): {
+						ReportedByRegistry: true,
+						VerifiedLocally:    true,
+					},
+				},
+			},
+			"signing skipped",
+		},
+		"SignedByGPGKeyIDs+ReportedByRegistry+VerifiedLocally": {
+			&PackageAuthenticationResult{
+				hashes: HashDispositions{
+					Hash("test:placeholder"): {
+						SignedByGPGKeyIDs:  collections.NewSet("abc123"),
+						ReportedByRegistry: true,
+						VerifiedLocally:    true,
+					},
+				},
+			},
 			"signed",
 		},
 	}
-	for _, test := range tests {
-		if got := test.result.String(); got != test.want {
-			t.Errorf("wrong value: got %q, want %q", got, test.want)
-		}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			if got := test.result.String(); got != test.want {
+				t.Errorf("wrong value\ngot:  %q\nwant: %q", got, test.want)
+			}
+		})
 	}
 }
 
@@ -46,13 +121,13 @@ func TestPackageAuthenticationResult(t *testing.T) {
 // interface which returns fixed values. This is used to test the combining
 // logic of PackageAuthenticationAll.
 type mockAuthentication struct {
-	result packageAuthenticationResult
+	hashes HashDispositions
 	err    error
 }
 
 func (m mockAuthentication) AuthenticatePackage(localLocation PackageLocation) (*PackageAuthenticationResult, error) {
 	if m.err == nil {
-		return &PackageAuthenticationResult{result: m.result}, nil
+		return &PackageAuthenticationResult{hashes: m.hashes}, nil
 	} else {
 		return nil, m.err
 	}
@@ -60,20 +135,27 @@ func (m mockAuthentication) AuthenticatePackage(localLocation PackageLocation) (
 
 var _ PackageAuthentication = (*mockAuthentication)(nil)
 
-// If all authentications succeed, the returned result should come from the
-// last authentication.
+// If all authentications succeed, the returned result is based on the merger
+// of all of the individual results.
 func TestPackageAuthenticationAll_success(t *testing.T) {
 	result, err := PackageAuthenticationAll(
-		&mockAuthentication{result: verifiedChecksum},
-		&mockAuthentication{result: signed},
+		&mockAuthentication{hashes: HashDispositions{
+			Hash("test:a"): {
+				VerifiedLocally: true,
+			},
+		}},
+		&mockAuthentication{hashes: HashDispositions{
+			Hash("test:a"): {
+				SignedByGPGKeyIDs: collections.NewSet("abc123"),
+			},
+		}},
 	).AuthenticatePackage(nil)
-
-	want := PackageAuthenticationResult{result: signed}
-	if result == nil || *result != want {
-		t.Errorf("wrong result: want %#v, got %#v", want, result)
-	}
 	if err != nil {
-		t.Errorf("wrong err: got %#v, want nil", err)
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if got, want := result.String(), "signed"; got != want {
+		t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
 	}
 }
 
@@ -82,16 +164,24 @@ func TestPackageAuthenticationAll_success(t *testing.T) {
 func TestPackageAuthenticationAll_failure(t *testing.T) {
 	someError := errors.New("some error")
 	result, err := PackageAuthenticationAll(
-		&mockAuthentication{result: verifiedChecksum},
+		&mockAuthentication{hashes: HashDispositions{
+			Hash("test:a"): {
+				VerifiedLocally: true,
+			},
+		}},
 		&mockAuthentication{err: someError},
-		&mockAuthentication{result: signed},
+		&mockAuthentication{hashes: HashDispositions{
+			Hash("test:a"): {
+				SignedByGPGKeyIDs: collections.NewSet("abc123"),
+			},
+		}},
 	).AuthenticatePackage(nil)
 
 	if result != nil {
 		t.Errorf("wrong result: got %#v, want nil", result)
 	}
 	if err != someError {
-		t.Errorf("wrong err: got %#v, want %#v", err, someError)
+		t.Errorf("wrong error\ngot:  %s\nwant %s", err, someError)
 	}
 }
 
@@ -109,13 +199,12 @@ func TestPackageHashAuthentication_success(t *testing.T) {
 
 	auth := NewPackageHashAuthentication(Platform{"linux", "amd64"}, wantHashes)
 	result, err := auth.AuthenticatePackage(location)
-
-	wantResult := PackageAuthenticationResult{result: verifiedChecksum}
-	if result == nil || *result != wantResult {
-		t.Errorf("wrong result: got %#v, want %#v", result, wantResult)
-	}
 	if err != nil {
-		t.Errorf("wrong err: got %s, want nil", err)
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if got, want := result.String(), "verified checksum"; got != want {
+		t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
 	}
 }
 
@@ -172,13 +261,12 @@ func TestArchiveChecksumAuthentication_success(t *testing.T) {
 
 	auth := NewArchiveChecksumAuthentication(Platform{"linux", "amd64"}, wantSHA256Sum)
 	result, err := auth.AuthenticatePackage(location)
-
-	wantResult := PackageAuthenticationResult{result: verifiedChecksum}
-	if result == nil || *result != wantResult {
-		t.Errorf("wrong result: got %#v, want %#v", result, wantResult)
-	}
 	if err != nil {
-		t.Errorf("wrong err: got %s, want nil", err)
+		t.Fatalf("unexpected error: %s", err)
+	}
+
+	if got, want := result.String(), "verified checksum"; got != want {
+		t.Errorf("wrong result summary\ngot:  %s\nwant: %s", got, want)
 	}
 }
 
@@ -318,63 +406,94 @@ func TestMatchingChecksumAuthentication_failure(t *testing.T) {
 // authentication is successful. The value of the result depends on the signing
 // key.
 func TestSignatureAuthentication_success(t *testing.T) {
+	// To make it easier for us to make changes to the constants we use
+	// to test this process we hard-code only the data that is to be signed
+	// and then dynamically generate a signing key and associated signature
+	// on each test run. In realistic use the signature would be generated
+	// in the provider's release process and OpenTofu would have access only
+	// to the public part of the GPG key.
+	pgpEntity := pgpTestEntity(t, "TestSignatureAuthentication_success")
+	publicKeyArmor, keyID := pgpPublicKeyForTestEntity(t, pgpEntity)
+	signature := pgpSignForTesting(t, []byte(testShaSumsRealistic), pgpEntity)
+	t.Logf("generated PGP key %s\n%s", keyID, publicKeyArmor)
+	t.Logf("generated signature\n%x", signature)
+
+	// The following are the hashes included in testShaSumsRealistic, which
+	// should therefore be reported in a successful result based on that input.
+	wantHashes := []Hash{
+		Hash("zh:086119a26576d06b8281a97e8644380da89ce16197cd955f74ea5ee664e9358b"),
+		Hash("zh:0e9fd0f3e2254b526a0e81e0cfdfc82583b0cd343778c53ead21aa7d52f776d7"),
+		Hash("zh:17e0b496022bc4e4137be15e96d2b051c8acd6e14cb48d9b13b262330464f6cc"),
+		Hash("zh:1e5f7a5f3ade7b8b1d1d59c5cea2e1a2f8d2f8c3f41962dbbe8647e222be8239"),
+		Hash("zh:2696c86228f491bc5425561c45904c9ce39b1c676b1e17734cb2ee6b578c4bcd"),
+		Hash("zh:48f1826ec31d6f104e46cc2022b41f30cd1019ef48eaec9697654ef9ec37a879"),
+		Hash("zh:66a947e7de1c74caf9f584c3ed4e91d2cb1af6fe5ce8abaf1cf8f7ff626a09d1"),
+		Hash("zh:7d7e888fdd28abfe00894f9055209b9eec785153641de98e6852aa071008d4ee"),
+		Hash("zh:a5ba9945606bb7bfb821ba303957eeb40dd9ee4e706ba8da1eaf7cbeb0356e63"),
+		Hash("zh:def1b73849bec0dc57a04405847921bf9206c75b52ae9de195476facb26bd85e"),
+		Hash("zh:df3a5a8d6ffff7bacf19c92d10d0d500f98169ea17b3764b01a789f563d1aad7"),
+		Hash("zh:f8b6cf9ade087c17826d49d89cef21261cdc22bd27065bbc5b27d7dbf7fbbf6c"),
+	}
+
 	tests := map[string]struct {
-		signature string
-		keys      []SigningKey
-		result    PackageAuthenticationResult
+		signature  []byte
+		keys       []SigningKey
+		wantResult string
+		wantKeyID  string
+		wantHashes []Hash
 	}{
-		"community provider": {
-			testAuthorSignatureGoodBase64,
+		"validly-signed provider": {
+			signature,
 			[]SigningKey{
-				{
-					ASCIIArmor: testAuthorKeyArmor,
-				},
+				{ASCIIArmor: string(publicKeyArmor)},
 			},
-			PackageAuthenticationResult{
-				result: signed,
-				KeyID:  testAuthorKeyID,
-			},
+			"signed",
+			keyID,
+			wantHashes,
 		},
 		"multiple signing keys": {
-			testAuthorSignatureGoodBase64,
+			signature,
 			[]SigningKey{
-				{
-					ASCIIArmor: anotherPublicKey,
-				},
-				{
-					ASCIIArmor: testAuthorKeyArmor,
-				},
+				{ASCIIArmor: anotherPublicKey},
+				{ASCIIArmor: string(publicKeyArmor)},
 			},
-			PackageAuthenticationResult{
-				result: signed,
-				KeyID:  testAuthorKeyID,
-			},
+			"signed",
+			keyID,
+			wantHashes,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			// Location is unused
 			location := PackageLocalArchive("testdata/my-package.zip")
-			//
-			//providerSource, err := tfaddr.ParseProviderSource("testdata/my-package.zip")
-			//if err != nil {
-			//	t.Fatal(err)
-			//}
 
-			signature, err := base64.StdEncoding.DecodeString(test.signature)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testShaSumsPlaceholder), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(
+				PackageMeta{Location: location},
+				[]byte(testShaSumsRealistic),
+				test.signature,
+				test.keys,
+				addrs.NewDefaultProvider("test"),
+			)
 			result, err := auth.AuthenticatePackage(location)
-
-			if result == nil || *result != test.result {
-				t.Errorf("wrong result: got %#v, want %#v", result, test.result)
-			}
 			if err != nil {
-				t.Errorf("wrong err: got %s, want nil", err)
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if got, want := result.String(), test.wantResult; got != want {
+				t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := result.GPGKeyIDsString(), test.wantKeyID; got != want {
+				t.Errorf("wrong GPG key IDs string\ngot:  %s\nwant: %s", got, want)
+			}
+
+			gotHashes := slices.Collect(result.HashesWithDisposition(func(hd *HashDisposition) bool {
+				return hd.SignedByGPGKeyIDs.Has(test.wantKeyID)
+			}))
+			sort.Slice(gotHashes, func(i, j int) bool {
+				return gotHashes[i].String() < gotHashes[j].String()
+			})
+			if diff := cmp.Diff(test.wantHashes, gotHashes); diff != "" {
+				t.Error("wrong hashes\n" + diff)
 			}
 		})
 	}
@@ -382,9 +501,10 @@ func TestSignatureAuthentication_success(t *testing.T) {
 
 func TestNewSignatureAuthentication_success(t *testing.T) {
 	tests := map[string]struct {
-		signature string
-		keys      []SigningKey
-		result    PackageAuthenticationResult
+		signature  string
+		keys       []SigningKey
+		wantResult string
+		wantKeyID  string
 	}{
 		"official provider": {
 			testHashicorpSignatureGoodBase64,
@@ -393,10 +513,8 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 					ASCIIArmor: TestingPublicKey,
 				},
 			},
-			PackageAuthenticationResult{
-				result: signed,
-				KeyID:  testHashiCorpPublicKeyID,
-			},
+			"signed",
+			testHashiCorpPublicKeyID,
 		},
 	}
 
@@ -410,14 +528,23 @@ func TestNewSignatureAuthentication_success(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testProviderShaSums), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(
+				PackageMeta{Location: location},
+				[]byte(testProviderShaSums),
+				signature,
+				test.keys,
+				addrs.NewDefaultProvider("test"),
+			)
 			result, err := auth.AuthenticatePackage(location)
-
-			if result == nil || *result != test.result {
-				t.Errorf("wrong result: got %#v, want %#v", result, test.result)
-			}
 			if err != nil {
-				t.Errorf("wrong err: got %s, want nil", err)
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			if got, want := result.String(), test.wantResult; got != want {
+				t.Errorf("wrong result\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := result.GPGKeyIDsString(), test.wantKeyID; got != want {
+				t.Errorf("wrong GPG key IDs string\ngot:  %s\nwant: %s", got, want)
 			}
 		})
 	}
@@ -448,7 +575,13 @@ func TestNewSignatureAuthentication_expired(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testProviderShaSums), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(
+				PackageMeta{Location: location},
+				[]byte(testProviderShaSums),
+				signature,
+				test.keys,
+				addrs.NewDefaultProvider("test"),
+			)
 			_, err = auth.AuthenticatePackage(location)
 
 			if err == nil {
@@ -511,7 +644,13 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			auth := NewSignatureAuthentication(PackageMeta{Location: location}, []byte(testShaSumsPlaceholder), signature, test.keys, nil)
+			auth := NewSignatureAuthentication(
+				PackageMeta{Location: location},
+				[]byte(testShaSumsPlaceholder),
+				signature,
+				test.keys,
+				addrs.NewDefaultProvider("test"),
+			)
 			result, err := auth.AuthenticatePackage(location)
 
 			if result != nil {
@@ -534,33 +673,6 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-func TestSignatureAuthentication_acceptableHashes(t *testing.T) {
-	auth := NewSignatureAuthentication(PackageMeta{}, []byte(testShaSumsRealistic), nil, nil, nil)
-	authWithHashes, ok := auth.(PackageAuthenticationHashes)
-	if !ok {
-		t.Fatalf("%T does not implement PackageAuthenticationHashes", auth)
-	}
-	got := authWithHashes.AcceptableHashes()
-	want := []Hash{
-		// These are the hashes encoded in constant testShaSumsRealistic
-		"zh:7d7e888fdd28abfe00894f9055209b9eec785153641de98e6852aa071008d4ee",
-		"zh:f8b6cf9ade087c17826d49d89cef21261cdc22bd27065bbc5b27d7dbf7fbbf6c",
-		"zh:a5ba9945606bb7bfb821ba303957eeb40dd9ee4e706ba8da1eaf7cbeb0356e63",
-		"zh:df3a5a8d6ffff7bacf19c92d10d0d500f98169ea17b3764b01a789f563d1aad7",
-		"zh:086119a26576d06b8281a97e8644380da89ce16197cd955f74ea5ee664e9358b",
-		"zh:1e5f7a5f3ade7b8b1d1d59c5cea2e1a2f8d2f8c3f41962dbbe8647e222be8239",
-		"zh:0e9fd0f3e2254b526a0e81e0cfdfc82583b0cd343778c53ead21aa7d52f776d7",
-		"zh:66a947e7de1c74caf9f584c3ed4e91d2cb1af6fe5ce8abaf1cf8f7ff626a09d1",
-		"zh:def1b73849bec0dc57a04405847921bf9206c75b52ae9de195476facb26bd85e",
-		"zh:48f1826ec31d6f104e46cc2022b41f30cd1019ef48eaec9697654ef9ec37a879",
-		"zh:17e0b496022bc4e4137be15e96d2b051c8acd6e14cb48d9b13b262330464f6cc",
-		"zh:2696c86228f491bc5425561c45904c9ce39b1c676b1e17734cb2ee6b578c4bcd",
-	}
-	if diff := cmp.Diff(want, got); diff != "" {
-		t.Errorf("wrong result\n%s", diff)
 	}
 }
 
@@ -746,15 +858,15 @@ func testReadArmoredEntity(t *testing.T, armor string) *openpgp.Entity {
 func TestShouldEnforceGPGValidation(t *testing.T) {
 	tests := []struct {
 		name           string
-		providerSource *tfaddr.Provider
+		providerSource addrs.Provider
 		keys           []SigningKey
 		envVarValue    string
 		expected       bool
 	}{
 		{
 			name: "default provider registry, no keys",
-			providerSource: &tfaddr.Provider{
-				Hostname: tfaddr.DefaultProviderRegistryHost,
+			providerSource: addrs.Provider{
+				Hostname: addrs.DefaultProviderRegistryHost,
 			},
 			keys:        []SigningKey{},
 			envVarValue: "",
@@ -762,8 +874,8 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		},
 		{
 			name: "default provider registry, some keys",
-			providerSource: &tfaddr.Provider{
-				Hostname: tfaddr.DefaultProviderRegistryHost,
+			providerSource: addrs.Provider{
+				Hostname: addrs.DefaultProviderRegistryHost,
 			},
 			keys: []SigningKey{
 				{
@@ -775,7 +887,7 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		},
 		{
 			name: "non-default provider registry, no keys",
-			providerSource: &tfaddr.Provider{
+			providerSource: addrs.Provider{
 				Hostname: "my-registry.com",
 			},
 			keys:        []SigningKey{},
@@ -784,7 +896,7 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		},
 		{
 			name: "non-default provider registry, some keys",
-			providerSource: &tfaddr.Provider{
+			providerSource: addrs.Provider{
 				Hostname: "my-registry.com",
 			},
 			keys: []SigningKey{
@@ -798,8 +910,8 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		// env var "true"
 		{
 			name: "default provider registry, no keys, env var true",
-			providerSource: &tfaddr.Provider{
-				Hostname: tfaddr.DefaultProviderRegistryHost,
+			providerSource: addrs.Provider{
+				Hostname: addrs.DefaultProviderRegistryHost,
 			},
 			keys:        []SigningKey{},
 			envVarValue: "true",
@@ -807,8 +919,8 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		},
 		{
 			name: "default provider registry, some keys, env var true",
-			providerSource: &tfaddr.Provider{
-				Hostname: tfaddr.DefaultProviderRegistryHost,
+			providerSource: addrs.Provider{
+				Hostname: addrs.DefaultProviderRegistryHost,
 			},
 			keys: []SigningKey{
 				{
@@ -819,7 +931,7 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 			expected:    true,
 		}, {
 			name: "non-default provider registry, no keys, env var true",
-			providerSource: &tfaddr.Provider{
+			providerSource: addrs.Provider{
 				Hostname: "my-registry.com",
 			},
 			keys:        []SigningKey{},
@@ -828,7 +940,7 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		},
 		{
 			name: "non-default provider registry, some keys, env var true",
-			providerSource: &tfaddr.Provider{
+			providerSource: addrs.Provider{
 				Hostname: "my-registry.com",
 			},
 			keys: []SigningKey{
@@ -842,8 +954,8 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		// env var "false"
 		{
 			name: "default provider registry, no keys, env var false",
-			providerSource: &tfaddr.Provider{
-				Hostname: tfaddr.DefaultProviderRegistryHost,
+			providerSource: addrs.Provider{
+				Hostname: addrs.DefaultProviderRegistryHost,
 			},
 			keys:        []SigningKey{},
 			envVarValue: "false",
@@ -851,8 +963,8 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		},
 		{
 			name: "default provider registry, some keys, env var false",
-			providerSource: &tfaddr.Provider{
-				Hostname: tfaddr.DefaultProviderRegistryHost,
+			providerSource: addrs.Provider{
+				Hostname: addrs.DefaultProviderRegistryHost,
 			},
 			keys: []SigningKey{
 				{
@@ -863,7 +975,7 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 			expected:    true,
 		}, {
 			name: "non-default provider registry, no keys, env var false",
-			providerSource: &tfaddr.Provider{
+			providerSource: addrs.Provider{
 				Hostname: "my-registry.com",
 			},
 			keys:        []SigningKey{},
@@ -872,7 +984,7 @@ func TestShouldEnforceGPGValidation(t *testing.T) {
 		},
 		{
 			name: "non-default provider registry, some keys, env var false",
-			providerSource: &tfaddr.Provider{
+			providerSource: addrs.Provider{
 				Hostname: "my-registry.com",
 			},
 			keys: []SigningKey{
