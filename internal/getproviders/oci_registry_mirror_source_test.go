@@ -192,7 +192,7 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, want := authResult.result, verifiedChecksum; got != want {
+		if got, want := authResult.summaryResult(), verifiedChecksum; got != want {
 			t.Errorf("wrong authentication result\ngot:  %#v\nwant: %#v", got, want)
 		}
 		exeContent, err := os.ReadFile(filepath.Join(pkgDir, "terraform-provider-foo"))
