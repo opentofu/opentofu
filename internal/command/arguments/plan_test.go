@@ -181,22 +181,43 @@ func TestParsePlan_targets(t *testing.T) {
 
 func TestParsePlan_targetFile(t *testing.T) {
 	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	boop, _ := addrs.ParseTargetStr("module.boop")
 	testCases := map[string]struct {
 		fileContent string
 		want        []addrs.Targetable
 		wantErr     string
 	}{
-		"target file valid": {
+		"target file valid single target": {
 			fileContent: "foo_bar.baz",
 			want:        []addrs.Targetable{foobarbaz.Subject},
 		},
-		"target file invalid": {
+		"target file valid multiple targets": {
+			fileContent: "foo_bar.baz\nmodule.boop",
+			want:        []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		"target file invalid target": {
 			fileContent: "foo.",
 			want:        nil,
 			wantErr:     "Invalid target \"foo.\": Dot must be followed by attribute name",
 		},
+		"target file valid comment": {
+			fileContent: "#foo_bar.baz",
+			want:        []addrs.Targetable{},
+			// From spec:After trimming spaces, if the line starts with our typical comment
+			// character # or is an empty string then the line is completely ignored and
+			// parsing continues with the next line. (The other comment variants of //
+			// and /* ... */ would not be supported here, to keep this new format relatively simple.)
+		},
+		"target file valid spaces": {
+			fileContent: "   foo.bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+			// From spec: Each line is subjected to bytes.TrimSpace (or equivalent)
+			// before attempting to parse it. Along with removing leading and
+			// trailing spaces/tabs, this should also remove any trailing carriage return
+			// character that might be included if the file was written on a Windows
+			// system using the typical Windows line-ending convention.
+		},
 		//	Other required tests
-		//		* First character is `#` is invalid, comments not allowed
 		//		* Has lines that start with spaces and tabs on lines that contain
 		//			errors so that we can make sure the error diagnostics report
 		//			correct positions for the invalid tokens in those cases
