@@ -135,7 +135,6 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 	return targetables, diags
 }
 
-// func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 
 	// If no file passed, no targets
@@ -145,30 +144,18 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
-	/* My plan:
-	1. Find the file
-	2. read line by line of the file
-	3. parse each line of the file into a addrs.Targetable
-	4. append the addrs.Targetable to the targetables slice
-	5. return the targetables slice
-
-	*/
-
-	// 1. Find the file
 	b, err := os.ReadFile(filePath)
 	diags = diags.Append(err)
-	// spew.Dump("b bytes is ", b)
 	fmt.Printf("filepath is %s\n", filePath)
 	fmt.Printf("flag is %s\n", flag)
 	fmt.Printf("b is %s\n", string(b))
 
-	// 2. read line by line of the file
 	sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
 	for sc.Scan() {
 		lineBytes := sc.Bytes()
 		lineRange := sc.Range()
 		fmt.Printf("Line %q is at %#v\n", lineBytes, lineRange)
-		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, "", hcl.Pos{Line: 1, Column: 1})
+		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, lineRange.Filename, lineRange.Start)
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
