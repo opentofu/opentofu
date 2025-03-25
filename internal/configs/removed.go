@@ -27,7 +27,7 @@ func decodeRemovedBlock(block *hcl.Block) (*Removed, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	removed := &Removed{
 		DeclRange: block.DefRange,
-		Destroy:   false, // NOTE: false for backwards compatibility. This is not the same behavior that other systems have.
+		Destroy:   false, // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
 	}
 
 	content, moreDiags := block.Body.Content(removedBlockSchema)

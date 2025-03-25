@@ -146,7 +146,7 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 		var planDiags tfdiags.Diagnostics
 
 		shouldForget := false
-		shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that other systems have.
+		shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
 
 		for _, etf := range n.EndpointsToRemove {
 			if etf.TargetContains(n.Addr) {
