@@ -7,8 +7,9 @@ package compliancetest
 
 import (
 	"errors"
-	"github.com/hashicorp/hcl/v2"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/encryption/method"
 	"github.com/opentofu/opentofu/internal/encryption/registry"

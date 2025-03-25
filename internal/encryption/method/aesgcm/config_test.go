@@ -8,8 +8,9 @@ package aesgcm
 import (
 	"bytes"
 	"errors"
-	"github.com/hashicorp/hcl/v2"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2"
 
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )

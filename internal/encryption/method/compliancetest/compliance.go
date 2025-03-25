@@ -8,9 +8,10 @@ package compliancetest
 import (
 	"bytes"
 	"errors"
-	"github.com/hashicorp/hcl/v2"
 	"reflect"
 	"testing"
+
+	"github.com/hashicorp/hcl/v2"
 
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/compliancetest"
