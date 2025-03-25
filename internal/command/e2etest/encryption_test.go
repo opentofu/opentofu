@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -46,23 +45,24 @@ func (r tofuResult) Failure() tofuResult {
 	return r
 }
 
-func (r tofuResult) StderrContains(msg string) tofuResult {
-	if !strings.Contains(r.stderr, msg) {
-		debug.PrintStack()
-		r.t.Fatalf("expected stderr output %q:\n%s", msg, r.stderr)
-	}
-	return r
-}
-
-func SanitizeStderr(result *tofuResult) {
+func SanitizeStderr(msg string) string {
 	// ANSI escape sequence regex for removing terminal color codes and control characters
-	var ansiRegex = regexp.MustCompile("[\u001B\u009B][[\\]()#;?]*(?:(?:(?:[a-zA-Z\\d]*(?:;[a-zA-Z\\d]*)*)?\u0007)|(?:(?:\\d{1,4}(?:;\\d{0,4})*)?[\\dA-PRZcf-ntqry=><~]))")
-	result.stderr = ansiRegex.ReplaceAllString(result.stderr, "")
+	msg = stripAnsi(msg)
 	//Pipe and carriage return replacement in order to correctly sanitze the stderr output
-	result.stderr = strings.ReplaceAll(
-		strings.ReplaceAll(result.stderr, "│", ""),
+	msg = strings.ReplaceAll(
+		strings.ReplaceAll(msg, "│", ""),
 		"\n", "",
 	)
+	return msg
+}
+
+func (r tofuResult) StderrContains(msg string) tofuResult {
+	stdErrSanitized := SanitizeStderr(r.stderr)
+	if !strings.Contains(stdErrSanitized, msg) {
+		debug.PrintStack()
+		r.t.Fatalf("expected stderr output %q:\n%s", msg, stdErrSanitized)
+	}
+	return r
 }
 
 func (r tofuResult) Contains(msg string) tofuResult {
@@ -215,9 +215,7 @@ func TestEncryptionFlow(t *testing.T) {
 		apply().Failure().StderrContains("decryption failed for state")
 		requireEncryptedState()
 
-		tofuResultError := applyPlan(encryptedPlan).Failure()
-		SanitizeStderr(&tofuResultError)
-		tofuResultError.StderrContains("decryption failed: cipher: message authentication failed")
+		applyPlan(encryptedPlan).Failure().StderrContains("decryption failed: cipher: message authentication failed")
 
 		requireEncryptedState()
 	})
