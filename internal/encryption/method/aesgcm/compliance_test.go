@@ -168,7 +168,7 @@ func TestCompliance(t *testing.T) {
 					return nil
 				},
 			},
-			"build-error-type": {
+			"encryption-key-len-fail-on-build": {
 				HCL: `method "aes_gcm" "foo" {
 						keys = {
 							encryption_key = []

@@ -231,12 +231,6 @@ func (base *baseEncryption) decrypt(data []byte, validator func([]byte) error) (
 	}
 
 	// This is good enough for now until we have better/distinct errors
-	//errMessage := "decryption failed for all provided methods: "
-	//sep := ""
-	//for _, err := range errs {
-	//	errMessage += err.Error() + sep
-	//	sep = "\n"
-	//}
 
 	errs = append([]error{fmt.Errorf("decryption failed for all provided methods")}, errs...)
 	errMessage := errors.Join(errs...).Error()
