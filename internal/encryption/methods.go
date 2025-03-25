@@ -79,8 +79,6 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 
 	m, methodConfigDiags := methodConfig.Build()
 	diags = diags.Extend(methodConfigDiags)
-
-
 	if diags.HasErrors() {
 		return nil, diags
 	}
