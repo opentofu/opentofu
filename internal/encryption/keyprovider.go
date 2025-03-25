@@ -125,21 +125,6 @@ func setupKeyProviders(enc *config.EncryptionConfig, cfgs []config.KeyProviderCo
 	return kpData.hclEvalContext("key_provider"), diags
 }
 
-func keyProvidersStack(stack []config.KeyProviderConfig) ([]string, hcl.Diagnostics) {
-	res := make([]string, len(stack))
-	var diags hcl.Diagnostics
-	for i, cfg := range stack {
-		addr, diag := cfg.Addr()
-		diags = diags.Extend(diag)
-		if diag.HasErrors() {
-			res[i] = "<unknown>"
-			continue
-		}
-		res[i] = string(addr)
-	}
-	return res, diags
-}
-
 func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig, kpData valueMap, stack []config.KeyProviderConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) hcl.Diagnostics {
 	// Check if we have already setup this Descriptor (due to dependency loading)
 	// if we've already setup this key provider, then we don't need to do it again
@@ -303,4 +288,19 @@ func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig
 
 	return nil
 
+}
+
+func keyProvidersStack(stack []config.KeyProviderConfig) ([]string, hcl.Diagnostics) {
+	res := make([]string, len(stack))
+	var diags hcl.Diagnostics
+	for i, cfg := range stack {
+		addr, diag := cfg.Addr()
+		diags = diags.Extend(diag)
+		if diag.HasErrors() {
+			res[i] = "<unknown>"
+			continue
+		}
+		res[i] = string(addr)
+	}
+	return res, diags
 }
