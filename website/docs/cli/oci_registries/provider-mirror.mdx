@@ -1,0 +1,310 @@
+---
+description: >-
+  Use OCI registries as an alternative installation source for OpenTofu providers
+---
+
+# Provider Mirrors in OCI Registries
+
+A "provider mirror" is a secondary location hosting a copy of a provider to be used instead
+of accessing the provider's primary OpenTofu Provider Registry. Creating a local mirror of some
+or all of the providers you use can reduce data transfer costs and can help with running
+OpenTofu in "air-gapped" environments that cannot access any services over the public internet.
+
+Alternative provider installation methods are configured as part of
+[the OpenTofu CLI Configuration](../config/config-file.mdx). You can configure installation
+from OCI Registries using an `oci_mirror` block as part of your
+[Explicit Installation Method Configuration](../config/config-file.mdx#explicit-installation-method-configuration).
+
+```hcl
+provider_installation {
+  oci_mirror {
+    repository_template = "example.com/opentofu-providers/${namespace}/${type}"
+    include             = ["registry.opentofu.org/*/*"]
+  }
+}
+```
+
+The above example specifies that any provider that belongs to the primary OpenTofu Registry
+should instead be installed from a repository in an OCI registry, constructing the
+repository address dynamically using the components of the provider source address.
+
+For example, the provider source address `hashicorp/tls` is a shorthand for
+`registry.opentofu.org/hashicorp/tls`, and so it matches the installation method rule
+configured above, with `hashicorp` as the "namespace" and `tls` as the "type".
+Therefore this configuration calls for the provider to be installed from the
+repository named `opentofu-providers/hashicorp/tls` in the OCI registry running at
+`example.com`.
+
+## `oci_mirror` installation method arguments
+
+- `repository_template`: A HCL-style template string that evaluates to an OCI repository
+  address to use for a given provider.
+
+    The following symbols are available for interpolation in the template:
+
+    - `hostname`: The hostname of the primary registry that the provider belongs to,
+      such as `registry.opentofu.org`.
+    - `namespace`: The namespace that the provider belongs to within its origin registry,
+      such as `hashicorp` in the above example.
+    - `type`: The provider's "type" name, which is the final portion of the source address
+      that's unique within a particular namespace, such as `tls` in the above example.
+
+    The template **must** include an interpolation for any component of the provider source
+    address that is not constrained exactly by the `include` argument. For example,
+    setting `include = ["registry.opentofu.org/*/*"]` constrains to exactly one hostname
+    but leaves the namespace and type wildcarded, and so the template must include
+    an interpolation of each of `namespace` and `type`, but does not need to use `hostname`.
+
+- `include` and `exclude`: Lists of provider source address patterns that together specify
+  what subset of providers are to be handled by this installation method, as described
+  in [Explicit Installation Method Configuration](../config/config-file.mdx#explicit-installation-method-configuration).
+
+## Required OCI Repository Content
+
+The OCI repository selected by `repository_template` must contain content following a
+specific structure that allows OpenTofu to recognize the metadata for all of the
+available provider versions and their associated distribution packages.
+
+### Tag Names
+
+OpenTofu begins by listing all of the tags in the repository. A valid tag name must
+be a version number formatted using the syntax of
+[Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html), except that
+the tag name must use the underscore character (`_`) instead of the plus
+character (`+`) to delimit the optional "build metadata" portion.
+
+OpenTofu ignores all tags that cannot be parsed as version numbers, and then selects
+the greatest available version that matches all of the version constraints for this
+provider specified across all modules in the current OpenTofu configuration.
+
+### Manifest Structure
+
+OpenTofu providers use separate distribution packages for each supported operating
+system and CPU architecture, and so each tag in an OCI repository used as an
+OpenTofu provider mirror must refer to an [Image Index](https://github.com/opencontainers/image-spec/blob/v1.1.1/image-index.md)
+manifest that lists a separate manifest for each platform the provider has been
+compiled for.
+
+The index manifest **must** have its `artifactType` property set to
+`application/vnd.opentofu.provider` so that OpenTofu can recognize is as a
+representing a provider release.
+
+OpenTofu then searches the `manifests` array for a manifest descriptor
+whose `artifactType` is `application/vnd.opentofu.provider-target`
+and whose `platform` property matches the operating system and architecture
+that OpenTofu itself was compiled for.
+
+The selected descriptor is then used to retrieve an [Image Manifest](https://github.com/opencontainers/image-spec/blob/v1.1.1/manifest.md)
+representing the files and metadata needed to install the selected provider
+version for the current platform. This manifest must again have
+its `artifactType` set to `application/vnd.opentofu.provider-target`, to
+match the descriptor used to retrieve it.
+
+The image manifest's `layers` array must include exactly one descriptor
+whose `mediaType` is `archive/zip`, referring to a blob containing exactly
+the same `.zip` package that would be returned for the same version of
+the provider on the same platform if installed from the provider's origin
+registry.
+
+OpenTofu than finally retrieves the indicated blob and extracts the `.zip`
+archive into the provider cache directory so that it's available for use
+by subsequent workflow commands like [`tofu apply`](../commands/apply.mdx).
+
+## Assembling and Pushing Provider Manifests
+
+:::note
+This section currently describes a very manual process for constructing the
+required manifest structure as described in the previous section.
+
+We intend to replace this with a more automated approach in a later OpenTofu
+release, but hope that the following will suffice for now to allow early
+experimentation with OCI Registry provider mirrors in the OpenTofu v1.10 prereleases.
+:::
+
+### Install and Configure ORAS
+
+We recommend assembling and pushing the manifests and blobs for a provider
+using the CLI tool offered by [the ORAS project](https://oras.land/).
+At the time of writing, multi-platform index support is not yet finalized
+in ORAS and so unfortunately the index manifest must be constructed manually.
+
+If you are installing and using ORAS for the first time, and you intend to
+push to an OCI registry that requires authentication, you will need to first
+obtain credentials for that repository using [`oras login`](https://oras.land/docs/commands/oras_login).
+
+### Local OCI Image Layout
+
+The process of assembling OpenTofu provider manifests with ORAS requires
+multiple steps, and so we recommend pushing the various artifacts first
+to a local filesystem directory -- known as an
+[OCI Image Layout](https://github.com/opencontainers/image-spec/blob/v1.1.1/image-layout.md) --
+and then pushing the resulting objects all at once to your target repository,
+to avoid making the intermediate steps visible to other users of the
+remote repository.
+
+The command line examples in the following sections use the ORAS option
+`--oci-layout` to specify that the target of each operation is a local
+filesystem directory called `tmp-layout`, in the current working directory.
+You can change the name `tmp-layout` to whatever path you wish, as long
+as you use a consistent pathname across all of the commands.
+
+### Single-platform Image Manifests
+
+The top-level index manifest will eventually refer to the manifests for
+each of the platform-specific artifacts, and so the platform-specific
+artifacts must be pushed first in order to construct their manifests
+and determine the digests used to refer to them.
+
+First you must obtain the official `.zip` distribution packages for
+the provider you are intending to re-publish. For providers in the
+official OpenTofu Registry you can find a link to the provider's
+GitHub repository and retrieve the `.zip` artifacts from one of its
+releases.
+
+For example, to prepare to re-package the `hashicorp/tls` provider:
+
+1. Access [the `hashicorp/tls` provider's registry index page](https://search.opentofu.org/provider/hashicorp/tls/latest).
+2. Follow the "Repository" link in the navigation bar to [the provider's GitHub repository](https://github.com/opentofu/terraform-provider-tls).
+3. Find the "Releases" heading in the repository's own navigation bar and select the latest release, such which at the time of writing was [v4.0.6](https://github.com/opentofu/terraform-provider-tls/releases/tag/v4.0.6).
+4. Download the `.zip` assets for each platform you intend to include in your mirror into a new, empty directory on your local computer.
+
+After switching to that directory in your shell, you should be able to list all of the packages you downloaded:
+
+```shellsession
+$ ls -1
+terraform-provider-tls_4.0.6_darwin_amd64.zip
+terraform-provider-tls_4.0.6_linux_386.zip
+terraform-provider-tls_4.0.6_linux_amd64.zip
+terraform-provider-tls_4.0.6_linux_arm.zip
+terraform-provider-tls_4.0.6_linux_arm64.zip
+terraform-provider-tls_4.0.6_windows_386.zip
+terraform-provider-tls_4.0.6_windows_amd64.zip
+terraform-provider-tls_4.0.6_windows_arm.zip
+terraform-provider-tls_4.0.6_windows_arm64.zip
+```
+
+Use `oras push` for each package in turn to copy the `.zip` archive into your local OCI Image Layout and generate its manifest:
+
+```shellsession
+$ oras push \
+    --artifact-type application/vnd.opentofu.provider-target \
+    --artifact-platform linux/amd64 \
+    --oci-layout tmp-layout:linux_amd64 \
+    terraform-provider-tls_4.0.6_linux_amd64.zip:archive/zip
+
+✓ Uploaded  terraform-provider-tls_4.0.6_linux_amd64.zip
+  └─ sha256:5f12d51fa9e87b6d29275fa58d1cd8681c0177a1d3a71a4e6c78ad7b011fa065
+✓ Uploaded  application/vnd.oci.image.config.v1+json
+  └─ sha256:9d99a75171aea000c711b34c0e5e3f28d3d537dd99d110eafbfbc2bd8e52c2bf
+✓ Uploaded  application/vnd.oci.image.manifest.v1+json
+  └─ sha256:01d3ccf9747dd604ebaa314efbacf12e18a248f8bf1c783f5cbb220754954e67
+Pushed [oci-layout] tmp-layout:linux_amd64
+ArtifactType: application/vnd.opentofu.provider-target
+Digest: sha256:01d3ccf9747dd604ebaa314efbacf12e18a248f8bf1c783f5cbb220754954e67
+```
+
+The `Digest` returned at the end of the output is the identifier for the platform-specific manifest.
+The digest in the above example is a placeholder; your result will vary for each distinct
+provider package.
+
+Repeat the above command for each combination of operating system and CPU architecture
+that you want to include in your mirror distribution. Once you've pushed all of the
+packages you want to include, you can confirm all of the platform-specific tags you've
+created:
+
+```shellsession
+$ oras repo tags --oci-layout tmp-layout
+darwin_amd64
+linux_386
+linux_amd64
+linux_arm
+linux_arm64
+windows_386
+windows_amd64
+windows_arm
+windows_arm64
+```
+
+### Multi-platform Index Manifest
+
+The current stable release of ORAS cannot construct and push an index manifest
+directly, but the "OCI Image Layout" that you constructed in the previous step
+includes its own index manifest that can be adapted to make it suitable for
+pushing to a remote repository.
+
+First, copy the Image Layout's index file to another file so that you can edit
+it without damaging the Image Layout directory:
+
+```shellsession
+$ cp tmp-layout/index.json terraform-provider-tls_4.0.6.json
+```
+
+Open the new `terraform-provider-tls_4.0.6.json` file in your favorite text
+editor. The JSON document is likely to be "minified", so you may wish to ask
+your text editor to reformat it for readability before continuing.
+
+The file should include a JSON property `"mediaType" : "application/vnd.oci.image.index.v1+json"`
+representing that this is an OCI Index Manifest. After that property, add a new
+JSON property `"artifactType":"application/vnd.opentofu.provider"` to represent
+that this is an index for an OpenTofu provider artifact.
+
+You can then push this new index manifest into the OCI layout, along with all
+of the single-platform artifacts pushed in the previous section:
+
+```shellsession
+$ oras manifest push --oci-layout tmp-layout:4.0.6 terraform-provider-tls_4.0.6.json 
+Uploading da13ebaa32ba application/vnd.oci.image.index.v1+json
+Uploaded  da13ebaa32ba application/vnd.oci.image.index.v1+json
+Pushed: [oci-layout] tmp-layout:4.0.6
+Digest: sha256:da13ebaa32ba856d75da18e38daabc7a65ac8853230dfcc817f8ccbac15b639a
+```
+
+Notice that the provider version 4.0.6 appears twice in this command line. The
+first is the name of the tag to create in the OCI layout, while the second is
+part of the filename of the index manifest saved in the previous step.
+
+The OCI Image Layout now contains individual tags for the platform-specific
+arfacts and also a version number tag representing the index manifest:
+
+```shellsession
+$ oras repo tags --oci-layout tmp-layout
+4.0.6
+darwin_amd64
+linux_386
+linux_amd64
+linux_arm
+linux_arm64
+windows_386
+windows_amd64
+windows_arm
+windows_arm64
+```
+
+### Push the Artifacts to a Remote Repository
+
+The local image layout now contains all of the information required to push
+this provider release to a remote repository.
+
+```shellsession
+$ oras cp \
+   --from-oci-layout tmp-layout:4.0.6 \
+   example.com/opentofu-providers/hashicorp/tls:4.0.6
+
+✓ Copied  terraform-provider-tls_4.0.6_linux_amd64.zip
+  └─ sha256:5f12d51fa9e87b6d29275fa58d1cd8681c0177a1d3a71a4e6c78ad7b011fa065
+[...]
+✓ Copied  application/vnd.oci.image.config.v1+json
+  └─ sha256:9d99a75171aea000c711b34c0e5e3f28d3d537dd99d110eafbfbc2bd8e52c2bf
+✓ Copied  application/vnd.oci.image.manifest.v1+json
+  └─ sha256:01d3ccf9747dd604ebaa314efbacf12e18a248f8bf1c783f5cbb220754954e67
+✓ Copied  application/vnd.oci.image.index.v1+json
+  └─ sha256:da13ebaa32ba856d75da18e38daabc7a65ac8853230dfcc817f8ccbac15b639a
+Copied [oci-layout] tmp-layout:4.0.6 => [registry] example.com/opentofu-providers/hashicorp/tls:4.0.6
+Digest: sha256:da13ebaa32ba856d75da18e38daabc7a65ac8853230dfcc817f8ccbac15b639a
+```
+
+ORAS copies everything that the local 4.0.6 tag refers to into the remote registry,
+and then creates a remote tag 4.0.6 referring to the same content.
+
+This provider is now available for use using an `oci_mirror` installation
+block configured as in the example at the start of this page.
