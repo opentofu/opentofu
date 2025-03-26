@@ -12,7 +12,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
@@ -108,9 +107,7 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 	var diags tfdiags.Diagnostics
 
 	for _, tr := range rawTargetables {
-		spew.Dump(tr) //(string) (len=11) "foo_bar.baz"
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs([]byte(tr), "", hcl.Pos{Line: 1, Column: 1})
-		spew.Dump(traversal)
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -146,22 +143,29 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 
 	b, err := os.ReadFile(filePath)
 	diags = diags.Append(err)
-	fmt.Printf("filepath is %s\n", filePath)
-	fmt.Printf("flag is %s\n", flag)
-	fmt.Printf("b is %s\n", string(b))
+	// fmt.Printf("filepath is %s\n", filePath)
+	// fmt.Printf("flag is %s\n", flag)
+	// fmt.Printf("b is %s\n", string(b))
 
 	sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
 	for sc.Scan() {
 		lineBytes := sc.Bytes()
 		lineRange := sc.Range()
-		fmt.Printf("Line %q is at %#v\n", lineBytes, lineRange)
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, lineRange.Filename, lineRange.Start)
 		if syntaxDiags.HasErrors() {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid %s %q", flag, lineBytes),
-				syntaxDiags[0].Detail,
-			))
+			diags = diags.Append(nil).Append(
+				&hcl.Diagnostic{
+					Severity: tfdiags.Error.ToHCL(),
+					Summary:  "Invalid syntax",
+					// Detail:   "Whatever shall we do?",
+					Detail: fmt.Sprintf("For %s %q: %v", flag, lineBytes, syntaxDiags[0].Detail),
+					Subject: &hcl.Range{
+						Filename: lineRange.Filename,
+						Start:    lineRange.Start,
+						End:      lineRange.End,
+					},
+				},
+			)
 			continue
 		}
 
@@ -169,8 +173,8 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 		if targetDiags.HasErrors() {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
-				fmt.Sprintf("Invalid %s %q", flag, lineBytes),
-				targetDiags[0].Description().Detail,
+				fmt.Sprintf("Invalid %s address", flag),
+				fmt.Sprintf("my detail: %v %s %q", targetDiags[0].Description().Detail, flag, lineBytes),
 			))
 			continue
 		}

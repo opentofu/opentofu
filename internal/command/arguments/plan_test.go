@@ -7,7 +7,6 @@ package arguments
 
 import (
 	"bufio"
-	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -181,55 +180,55 @@ func TestParsePlan_targets(t *testing.T) {
 }
 
 func TestParsePlan_targetFile(t *testing.T) {
-	// foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
-	// boop, _ := addrs.ParseTargetStr("module.boop")
+	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	boop, _ := addrs.ParseTargetStr("module.boop")
 	testCases := map[string]struct {
 		fileContent string
 		want        []addrs.Targetable
 		wantDiags   tfdiags.Diagnostics
 	}{
-		// "target file valid single target": {
-		// 	fileContent: "foo_bar.baz",
-		// 	want:        []addrs.Targetable{foobarbaz.Subject},
-		// },
-		// "target file valid multiple targets": {
-		// 	fileContent: "foo_bar.baz\nmodule.boop",
-		// 	want:        []addrs.Targetable{foobarbaz.Subject, boop.Subject},
-		// },
-		// "target file invalid target": {
-		// 	fileContent: "foo.",
-		// 	want:        nil,
-		// 	// wantDiags:   "Invalid target \"foo.\": Dot must be followed by attribute name",
-		// },
-		// "target file valid comment": {
-		// 	fileContent: "#foo_bar.baz",
-		// 	want:        []addrs.Targetable{},
-		// 	// From spec:After trimming spaces, if the line starts with our typical comment
-		// 	// character # or is an empty string then the line is completely ignored and
-		// 	// parsing continues with the next line. (The other comment variants of //
-		// 	// and /* ... */ would not be supported here, to keep this new format relatively simple.)
-		// },
-		// "target file valid spaces": {
-		// 	fileContent: "   foo_bar.baz",
-		// 	want:        []addrs.Targetable{foobarbaz.Subject},
-		// 	// From spec: Each line is subjected to bytes.TrimSpace (or equivalent)
-		// 	// before attempting to parse it. Along with removing leading and
-		// 	// trailing spaces/tabs, this should also remove any trailing carriage return
-		// 	// character that might be included if the file was written on a Windows
-		// 	// system using the typical Windows line-ending convention.
-		// },
+		"target file valid single target": {
+			fileContent: "foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file valid multiple targets": {
+			fileContent: "foo_bar.baz\nmodule.boop",
+			want:        []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		"target file invalid target": {
+			fileContent: "foo.",
+			want:        nil,
+			// wantDiags:   "Invalid target \"foo.\": Dot must be followed by attribute name",
+		},
+		"target file valid comment": {
+			fileContent: "#foo_bar.baz",
+			want:        nil,
+			// From spec:After trimming spaces, if the line starts with our typical comment
+			// character # or is an empty string then the line is completely ignored and
+			// parsing continues with the next line. (The other comment variants of //
+			// and /* ... */ would not be supported here, to keep this new format relatively simple.)
+		},
+		"target file valid spaces": {
+			fileContent: "   foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+			// From spec: Each line is subjected to bytes.TrimSpace (or equivalent)
+			// before attempting to parse it. Along with removing leading and
+			// trailing spaces/tabs, this should also remove any trailing carriage return
+			// character that might be included if the file was written on a Windows
+			// system using the typical Windows line-ending convention.
+		},
 		"target file invalid bracket with spaces": {
-			fileContent: "   [boop]",
+			fileContent: `    [boop]`,
 			want:        nil,
 			wantDiags: tfdiags.Diagnostics(nil).Append(
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Bad bad bad",
-					Detail:   "Whatever shall we do?",
+					Summary:  "Invalid syntax",
+					Detail:   `For target "    [boop]": Must begin with a variable name.`,
 					Subject: &hcl.Range{
-						Filename: "test.tf",
-						Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
-						End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+						// Filename set once tempFile created
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
 					},
 				},
 			),
@@ -246,15 +245,20 @@ func TestParsePlan_targetFile(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			file := tempFileWriter(tc.fileContent)
 			defer os.Remove(file.Name())
-			got, gotDiags := ParsePlan([]string{"-target-file=" + file.Name()})
-			gotDiagsExported := gotDiags.ForRPC()
-			wantDiagsExported := tc.wantDiags.ForRPC()
-			gotDiagsExported.Sort()
-			wantDiagsExported.Sort()
 
-			// if godDiags := gotDiags.ForRPC(); !cmp.Equal(godDiags, tc.wantDiags.ForRPC()) {
-			if diff := cmp.Diff(tc.wantDiags, gotDiags); diff != "" {
-				t.Error("wrong diagnostics\n" + diff)
+			got, gotDiags := ParsePlan([]string{"-target-file=" + file.Name()})
+			if len(tc.wantDiags) != 0 {
+				if len(gotDiags) == 0 {
+					t.Fatalf("expected diags but got none")
+				}
+				gotDiagsExported := gotDiags.ForRPC()
+				wantDiagsExported := tc.wantDiags.ForRPC()
+				wantDiagsExported[0].Source().Subject.Filename = file.Name()
+				gotDiagsExported.Sort()
+				wantDiagsExported.Sort()
+				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
+					t.Error("wrong diagnostics\n" + diff)
+				}
 			}
 			if !cmp.Equal(got.Operation.Targets, tc.want) {
 				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Targets, tc.want))
@@ -407,9 +411,9 @@ func tempFileWriter(fileContent string) *os.File {
 
 	file.Seek(0, 0)
 	s := bufio.NewScanner(file)
-	for s.Scan() {
-		fmt.Println("tempFileWriter function printLin", s.Text())
-	}
+	// for s.Scan() {
+	// 	fmt.Println("tempFileWriter function printLin", s.Text())
+	// }
 	if err = s.Err(); err != nil {
 		log.Fatal("error reading temp file", err)
 	}
