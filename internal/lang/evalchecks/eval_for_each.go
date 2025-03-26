@@ -17,8 +17,10 @@ import (
 )
 
 const (
-	errInvalidUnknownDetailMap = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
-	errInvalidUnknownDetailSet = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailMap     = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
+	errInvalidUnknownDetailSet     = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailTuple   = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full tuple of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailDynamic = "The \"for_each\" expression includes keys or values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full value that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
 )
 
 type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics)
@@ -78,6 +80,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	forEachVal, forEachDiags := expr.Value(hclCtx)
 	diags = diags.Append(forEachDiags)
 
+	ty := forEachVal.Type()
 	// If a whole map is marked, or a set contains marked values (which means the set is then marked)
 	// give an error diagnostic as this value cannot be used in for_each
 	if forEachVal.HasMark(marks.Sensitive) {
@@ -90,10 +93,10 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 			EvalContext: hclCtx,
 			Extra:       DiagnosticCausedBySensitive(true),
 		})
-		return nullMap, diags
+		// TODO: See if it breaks integration tests
+		// return cty.NullVal(ty), diags
 	}
 
-	ty := forEachVal.Type()
 	retVal := forEachVal
 	var retDiags tfdiags.Diagnostics
 	var allowedTypesMessage string
@@ -113,7 +116,6 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 			Expression:  expr,
 			EvalContext: hclCtx,
 		})
-		return nullMap, diags
 	}
 
 	// Type Checks
@@ -121,19 +123,19 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	case ty.IsSetType():
 		retVal, retDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty.IsObjectType() || ty.IsMapType():
-		// no-op since the value does not matter for objects and maps
+		retVal, retDiags = performMapTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty.IsTupleType() && allowTuple:
 		// tuples are allowed for imports
-	case ty.HasDynamicTypes():
-		// Dynamic types are types not yet known, so we accept them
-		retVal = cty.DynamicVal
+		retVal, retDiags = performTupleTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+	case ty == cty.DynamicPseudoType:
+		retVal, retDiags = performDynamicTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty.IsCollectionType() && markSafeLengthInt(forEachVal) == 0:
 		// If the map is empty ({}), return an empty map, because cty will
 		// return nil when representing {} AsValueMap. This also covers an empty
 		// set (toset([]))
 		return retVal, diags
 	default:
-		retVal = nullMap
+		retVal = cty.NullVal(ty)
 		retDiags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -144,31 +146,6 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		})
 	}
 
-	// Behavior checks
-	switch {
-	case !forEachVal.IsKnown():
-		if !allowUnknown {
-			var detailMsg string
-			switch {
-			case ty.IsSetType():
-				detailMsg = errInvalidUnknownDetailSet
-			default:
-				detailMsg = errInvalidUnknownDetailMap
-			}
-			detailMsg += forEachCommandLineExcludeSuggestion(excludableAddr)
-
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each argument",
-				Detail:      detailMsg,
-				Subject:     expr.Range().Ptr(),
-				Expression:  expr,
-				EvalContext: hclCtx,
-				Extra:       DiagnosticCausedByUnknown(true),
-			})
-		}
-	}
-
 	diags = diags.Append(retDiags)
 
 	if diags.HasErrors() {
@@ -177,11 +154,72 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	return retVal, nil
 }
 
+func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	if !forEachVal.IsWhollyKnown() && !allowUnknown {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      errInvalidUnknownDetailTuple + forEachCommandLineExcludeSuggestion(excludableAddr),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByUnknown(true),
+		})
+		return forEachVal, diags
+	}
+
+	return forEachVal, nil
+}
+
+func performDynamicTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	if !forEachVal.IsWhollyKnown() && !allowUnknown {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      errInvalidUnknownDetailDynamic + forEachCommandLineExcludeSuggestion(excludableAddr),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByUnknown(true),
+		})
+		return forEachVal, diags
+	}
+
+	return forEachVal, nil
+}
+
+func performMapTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	if !forEachVal.IsWhollyKnown() && !allowUnknown {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      errInvalidUnknownDetailMap + forEachCommandLineExcludeSuggestion(excludableAddr),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByUnknown(true),
+		})
+		return forEachVal, diags
+	}
+
+	return forEachVal, nil
+}
+
 // performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
 func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
 
+	// Since we are using a multi-error approach, we add the null error above, and we do not test here, just return
+	if forEachVal.IsNull() {
+		return forEachVal, nil
+	}
 	// since we can't use a set values that are unknown, we treat the
 	// entire set as unknown
 	if !forEachVal.IsWhollyKnown() {
