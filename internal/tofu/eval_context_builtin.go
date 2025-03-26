@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -309,12 +310,36 @@ func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(body, schema)
 	diags = diags.Append(evalDiags)
+	if marks.ContainsDeprecated(val) {
+		for _, cause := range marks.ListDeprecationCauses(val) {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Value derived from a deprecated source",
+				Detail:   fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
+				// TODO/Oleksandr: It would be better to check individual block entries to warn about deprecation including
+				// their specific source range. Currently, EvalBlock uses EvalContext internally which makes it harder to
+				// inject custom check before accessing a specific value by its reference.
+			})
+		}
+	}
 	return val, body, diags
 }
 
 func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
-	return scope.EvalExpr(expr, wantType)
+	v, diags := scope.EvalExpr(expr, wantType)
+	if marks.ContainsDeprecated(v) {
+		for _, cause := range marks.ListDeprecationCauses(v) {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity:   hcl.DiagWarning,
+				Summary:    "Value derived from a deprecated source",
+				Detail:     fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
+				Subject:    expr.Range().Ptr(),
+				Expression: expr,
+			})
+		}
+	}
+	return v, diags
 }
 
 func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {

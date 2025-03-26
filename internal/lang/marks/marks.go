@@ -6,6 +6,7 @@
 package marks
 
 import (
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -45,3 +46,79 @@ const Sensitive = valueMark("Sensitive")
 // another value's type. This is part of the implementation of the console-only
 // `type` function.
 const TypeType = valueMark("TypeType")
+
+type DeprecationCause struct {
+	By      addrs.Referenceable
+	Message string
+}
+
+type deprecationMark struct {
+	Cause DeprecationCause
+}
+
+func (m deprecationMark) GoString() string {
+	return "marks." + string("Deprecated")
+}
+
+// Deprecated marks a given value as deprecated with specified DeprecationCause.
+func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
+	for m := range v.Marks() {
+		dm, ok := m.(deprecationMark)
+		if !ok {
+			continue
+		}
+
+		// Already marked as deprecated for this cause.
+		if addrs.Equivalent(dm.Cause.By, cause.By) {
+			return v
+		}
+	}
+
+	return v.Mark(deprecationMark{
+		Cause: cause,
+	})
+}
+
+// DeprecatedOutput marks a given values as deprecated constructing a DeprecationCause
+// from module output specific data.
+func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Value {
+	_, callOutAddr := addr.ModuleCallOutput()
+	return Deprecated(v, DeprecationCause{
+		By:      callOutAddr,
+		Message: msg,
+	})
+}
+
+// ContainsDeprecated returns true if the cty.Value or any any value within it
+// contains the deprecation mark.
+func ContainsDeprecated(v cty.Value) bool {
+	_, marks := v.UnmarkDeep()
+
+	for m := range marks {
+		if _, ok := m.(deprecationMark); ok {
+			return true
+		}
+	}
+
+	return false
+}
+
+// ListDeprecationCauses iterates over all the marks for a given value to
+// extract all the DeprecationCauses. A single cty.Value could be constructed
+// from a multiple references to deprecated values, so this is a list.
+func ListDeprecationCauses(v cty.Value) []DeprecationCause {
+	var causes []DeprecationCause
+
+	_, marks := v.UnmarkDeep()
+
+	for m := range marks {
+		dm, ok := m.(deprecationMark)
+		if !ok {
+			continue
+		}
+
+		causes = append(causes, dm.Cause)
+	}
+
+	return causes
+}
