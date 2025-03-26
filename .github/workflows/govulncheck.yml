@@ -1,0 +1,100 @@
+# This workflow is meant to run govulncheck on all the branches
+# that are containing a maintained version of OpenTofu.
+# For more considerations about this, check this PR: https://github.com/opentofu/opentofu/pull/2600
+#
+# This will attempt to create an issue with the results for each scanned version
+# in case any vulnerability is found. If the issue for the scanned branch already exists
+# the run will just print the scan output and will leave the issue untouched.
+#
+# This is meant to run _only_ from the main branch, on a scheduled manner.
+# All the other branches will be scanned directly by the run triggered from the main branch.
+
+name: Govulncheck
+
+on:
+  schedule:
+    - cron: '42 3 * * SUN'
+  workflow_dispatch: {}
+
+jobs:
+  gather-branches:
+    name: Collect the branches that needs to be scanned
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      branches: ${{ steps.branches.outputs.branches }}
+    steps:
+      - id: branches
+        run: |
+          ## This is using GitHub API and we manually filter out the versions that are not supported anymore
+          # gh api "repos/opentofu/opentofu/branches?protected=true" --paginate | tee out 
+          # cat out | jq '.[] | select(.name != "v1.6") | [.name]' | jq -sc 'add' | tee branches
+          # echo "branches=$(cat branches)">> "$GITHUB_OUTPUT"
+          
+          ## This is using https://endoflife.date since there 1.6 is already marked as it reached EOL
+          ## This is adding manually the main branch to scan it as well
+          curl https://endoflife.date/api/opentofu.json | tee out 
+          cat out | jq '.[] | select(.eol == false) | [.cycle]' | jq -sc 'add' | jq -c '["main"] + .' | tee branches
+          echo "branches=$(cat branches)">> "$GITHUB_OUTPUT"
+  govulncheck:
+    name: Run govulncheck for ${{ matrix.branch }}
+    needs: gather-branches
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      GH_TOKEN: ${{ github.token }}
+    strategy:
+      matrix:
+        branch: ${{ fromJSON(needs.gather-branches.outputs.branches )}}
+      fail-fast: false
+# Or we can configure this manually here, since this workflow will be executed on a schedule only from the main branch
+#    strategy:
+#      matrix:
+#        include:
+#          - { branch: main }
+#          - { branch: v1.9 }
+#          - { branch: v1.8 }
+#          - { branch: v1.7 }
+#      fail-fast: false
+    steps:
+      - name: Checkout branch to be scanned
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{matrix.branch}}
+
+      - name: Determine Go version
+        id: go
+        uses: ./.github/actions/go-version
+
+      - name: Install Go toolchain
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version: ${{steps.go.outputs.version}}
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+        shell: bash
+
+      - name: Run and report govulncheck findings
+        run: |
+          if govulncheck ./... > ./results; then
+            echo "No vulnerabilities found for ${{matrix.branch}}"
+            exit 0
+          fi
+          
+          ticket_title="Vulnerabilities found for ${{matrix.branch}}"
+          reported_issues="$(gh issue -R opentofu/opentofu list --search "\"${ticket_title}\" state:open" --json number)"
+          no_of_issues="$(echo ${reported_issues} | jq -r '. | length')"
+          reported_issues="$(echo $reported_issues| jq -r '.[] | .number' | xargs)"
+          
+          [[ ${no_of_issues} -ge 1 ]] && echo "Vulnerabilties found but already reported for ${{matrix.branch}} in: ${reported_issues}" && exit 0
+          
+          # echo "\`\`\`\n$(cat results)\n\`\`\`" > ticket_content
+          # gh issue create --repo opentofu/opentofu --title "${ticket_title}" --body-file out_prepared
+          printf "Create issue.\nTitle: %s Content:\n%s" "${ticket_title}" "$(cat results)"
+
+        shell: bash
+
+
