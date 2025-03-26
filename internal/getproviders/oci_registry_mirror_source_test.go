@@ -57,7 +57,7 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 			// version/platform combination so that once installation is complete
 			// we can check that we actually installed the correct one.
 			fakePackageBytes := makePlaceholderProviderPackageZip(t, fmt.Sprintf("placeholder executable for v%s on %s", version, platform))
-			packageDesc := pushOCIBlob(t, "archive/zip", "application/vnd.opentofu.providerpkg", fakePackageBytes, store)
+			packageDesc := pushOCIBlob(t, "archive/zip", "", fakePackageBytes, store)
 			manifestDesc := pushOCIImageManifest(t, &ociv1.Manifest{
 				Versioned:    ociSpecs.Versioned{SchemaVersion: 2},
 				MediaType:    ociv1.MediaTypeImageManifest,
@@ -312,7 +312,7 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 		if err == nil {
 			t.Fatal("unexpected success; want error")
 		}
-		if got, want := err.Error(), `image manifest contains no "application/vnd.opentofu.providerpkg" layers of type "archive/zip", but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu`; got != want {
+		if got, want := err.Error(), `image manifest contains no layers of type "archive/zip", but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu`; got != want {
 			t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
 		}
 	})
@@ -469,7 +469,6 @@ func makeFakeOCIRepositoryWithNonProviderContent(t *testing.T) (OCIRepositorySto
 	{
 		// a manifest for a single provider package lacking the required index manifest
 		archiveDesc := blobDesc // shallow copy
-		archiveDesc.ArtifactType = ociPackageArtifactType
 		archiveDesc.MediaType = ociPackageMediaType
 		manifestDesc := pushOCIImageManifest(t, &ociv1.Manifest{
 			Versioned:    ociSpecs.Versioned{SchemaVersion: 2},
@@ -486,7 +485,6 @@ func makeFakeOCIRepositoryWithNonProviderContent(t *testing.T) (OCIRepositorySto
 		// a manifest for a provider that is valid except for using an as-yet-unsupported
 		// archive format for the leaf provider package.
 		archiveDesc := blobDesc                                // shallow copy
-		archiveDesc.ArtifactType = ociPackageArtifactType      // correct artifact type
 		archiveDesc.MediaType = "application/x-lzh-compressed" // unsupported media type
 		manifestDesc := pushOCIImageManifest(t, &ociv1.Manifest{
 			Versioned:    ociSpecs.Versioned{SchemaVersion: 2},
