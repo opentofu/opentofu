@@ -19,17 +19,6 @@ import (
 	orasContent "oras.land/oras-go/v2/content"
 )
 
-// ociPackageArtifactType is the specific artifact type we're expecting for the
-// blob representing a final distribution package that we'll fetch and extract, after
-// we've dug through all of the manifests.
-//
-// We silently ignore blobs that don't have this artifact type both so that future
-// OpenTofu versions can potentially introduce new blobs with different purposes and
-// so that a manifest can have other blobs listed in it for purposes that are
-// irrelevant to OpenTofu's interests, in case that becomes useful in the broader
-// OCI ecosystem.
-const ociPackageArtifactType = "application/vnd.opentofu.providerpkg"
-
 // ociPackageMediaType is the specific media type we're expecting for the blob
 // representing a final distribution package that we'll fetch and extract, after
 // we've dug through all of the manifests.
@@ -273,16 +262,6 @@ func hashFromOCIDigest(digest ociDigest.Digest) (Hash, error) {
 }
 
 func checkOCIBlobDescriptor(desc ociv1.Descriptor, meta PackageMeta) error {
-	if desc.ArtifactType != ociPackageArtifactType {
-		if desc.ArtifactType == "application/vnd.opentofu.modulepkg" {
-			// Seems like someone has tried to use a module package where a
-			// provider package was expected. Confusion beween modules and
-			// providers is common for those new to OpenTofu, so we'll
-			// use a more specific diagnosis for this.
-			return fmt.Errorf("selected OCI artifact is a module package rather than a provider package")
-		}
-		return fmt.Errorf("selected OCI artifact has unexpected type %q", desc.ArtifactType)
-	}
 	if desc.MediaType != ociPackageMediaType {
 		return fmt.Errorf("selected OCI artifact manifest has unexpected media type %q", desc.MediaType)
 	}

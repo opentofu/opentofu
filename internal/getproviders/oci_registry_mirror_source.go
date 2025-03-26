@@ -583,9 +583,6 @@ func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 	foundWrongMediaTypeBlobs := 0
 	var selected ociv1.Descriptor
 	for _, desc := range descs {
-		if desc.ArtifactType != ociPackageArtifactType {
-			continue
-		}
 		if desc.MediaType != ociPackageMediaType {
 			// We silently ignore any "layer" that doesn't have both our expected
 			// artifact type and media type so that future versions of OpenTofu
@@ -601,9 +598,9 @@ func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 	}
 	if foundBlobs == 0 {
 		if foundWrongMediaTypeBlobs > 0 {
-			return selected, fmt.Errorf("image manifest contains no %q layers of type %q, but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu", ociPackageArtifactType, ociPackageMediaType)
+			return selected, fmt.Errorf("image manifest contains no layers of type %q, but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu", ociPackageMediaType)
 		}
-		return selected, fmt.Errorf("image manifest contains no %q layers of type %q", ociPackageArtifactType, ociPackageMediaType)
+		return selected, fmt.Errorf("image manifest contains no layers of type %q", ociPackageMediaType)
 	}
 	if foundBlobs > 1 {
 		// There must be exactly one eligible blob, to avoid ambiguity.
