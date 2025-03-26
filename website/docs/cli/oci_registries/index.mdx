@@ -1,0 +1,43 @@
+---
+description: >-
+  OpenTofu features that integrate with registries implementing the OCI Distribution protocol.
+---
+
+# OCI Registry Integrations
+
+Some of OpenTofu's features can be configured to interact with OCI Registries.
+
+:::note
+This section contains very early draft content for features that are still in development.
+
+We've included it to support prerelease testing, but the information here may be incomplete and
+anything documented in this section is subject to change before the final release.
+:::
+
+## OCI Registry Credentials
+
+By default, OpenTofu searches for OCI Registry credentials in the same locations as other
+tools in the OCI ecosystem, such as Docker CLI, Podman, Buildah, ORAS, etc. If you have
+already logged in to the registry you intend to use with the login facility from one of
+these programs then OpenTofu should discover and use the configured credentials
+automatically.
+
+If you need more control over the behavior, refer to [OCI Registry Credentials](credentials.mdx).
+
+## OpenTofu Modules in OCI Registries
+
+OpenTofu does not yet support distributing modules from OCI Registries, but we are intending
+to add support for this prior to the final v1.10.0 release. More information will appear here
+in a later prerelease.
+
+## OpenTofu Providers in OCI Registries
+
+OpenTofu supports OCI Registries as a secondary installation source for provider plugin
+packages. You can configure OpenTofu to retrieve some or all providers from an OCI
+Registry instead of from each provider's primary OpenTofu Provider Registry.
+
+For more information, refer to [Provider Mirrors in OCI Registries](provider-mirror.mdx).
+
+OpenTofu does not yet support using an OCI Registry as the _primary_ installation source
+for a provider, but we are hoping to allow that in a future version.
+
