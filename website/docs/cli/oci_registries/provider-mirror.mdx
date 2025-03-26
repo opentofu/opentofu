@@ -248,6 +248,28 @@ representing that this is an OCI Index Manifest. After that property, add a new
 JSON property `"artifactType":"application/vnd.opentofu.provider"` to represent
 that this is an index for an OpenTofu provider artifact.
 
+The file also includes a `"manifests"` property that describes each of the
+platform-specific manifests previously created. Each of these descriptor
+objects must contain a `"platform"` property specifying the platform that
+the manifest is for. For example:
+
+```json
+{
+  "artifactType": "application/vnd.opentofu.provider-target",
+  "mediaType": "application/vnd.oci.image.manifest.v1+json",
+  "digest": "sha256:01d3ccf9747dd604ebaa314efbacf12e18a248f8bf1c783f5cbb220754954e67",
+  "size": 606,
+  "platform": {
+    "os": "linux",
+    "architecture": "amd64"
+  }
+}
+```
+
+Make sure that each of the manifest descriptors includes a `"platform"` property
+specifying the correct operating system and CPU architecture for the associated
+manifest.
+
 You can then push this new index manifest into the OCI layout, along with all
 of the single-platform artifacts pushed in the previous section:
 
