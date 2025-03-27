@@ -177,49 +177,28 @@ func TestParseApply_targets(t *testing.T) {
 		want    []addrs.Targetable
 		wantErr string
 	}{
-		// "no targets by default": {
-		// 	args: nil,
-		// 	want: nil,
-		// },
-		// "one target": {
-		// 	args: []string{"-target=foo_bar.baz"},
-		// 	want: []addrs.Targetable{foobarbaz.Subject},
-		// },
+		"no targets by default": {
+			args: nil,
+			want: nil,
+		},
+		"one target": {
+			args: []string{"-target=foo_bar.baz"},
+			want: []addrs.Targetable{foobarbaz.Subject},
+		},
 		"two targets": {
 			args: []string{"-target=foo_bar.baz", "-target", "module.boop"},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
-
-		// New
-		// Focus here
-		//
-		"target file valid": {
-			// todo: get unconfused by Martin's comment on the file suffix
-			// I can't tell if he means that there is no suffix at all
-			// or if it's just .tf or .tfvars
-			args: []string{"-target-file=foo_file"},
-			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
-		},
-		// See Spec
-		"invalid target file and exclude": {
-			args:    []string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
+		"invalid traversal": {
+			args:    []string{"-target=foo."},
 			want:    nil,
-			wantErr: "Cannot combine both target and exclude flags. Please only target or exclude resource",
+			wantErr: "Dot must be followed by attribute name",
 		},
-
-		// End new
-		//
-
-		// "invalid traversal": {
-		// 	args:    []string{"-target=foo."},
-		// 	want:    nil,
-		// 	wantErr: "Dot must be followed by attribute name",
-		// },
-		// "invalid target": {
-		// 	args:    []string{"-target=data[0].foo"},
-		// 	want:    nil,
-		// 	wantErr: "A data source name is required",
-		// },
+		"invalid target": {
+			args:    []string{"-target=data[0].foo"},
+			want:    nil,
+			wantErr: "A data source name is required",
+		},
 	}
 
 	for name, tc := range testCases {
@@ -302,7 +281,7 @@ func TestParseApply_excludeAndTarget(t *testing.T) {
 		tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
-			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+			"Cannot combine both target and exclude flags. Please only target or exclude resources",
 		),
 	}
 	if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {

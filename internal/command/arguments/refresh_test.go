@@ -199,7 +199,7 @@ func TestParseRefresh_excludeAndTarget(t *testing.T) {
 		tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
-			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+			"Cannot combine both target and exclude flags. Please only target or exclude resources",
 		),
 	}
 	if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
