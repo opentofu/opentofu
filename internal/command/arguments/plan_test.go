@@ -241,11 +241,6 @@ func TestParsePlan_targetFile(t *testing.T) {
 				},
 			),
 		},
-		//	Other required tests
-		//		* Has lines that start with spaces and tabs on lines that contain
-		//			errors so that we can make sure the error diagnostics report
-		//			correct positions for the invalid tokens in those cases
-		//		* File with many valid lines
 	}
 
 	for name, tc := range testCases {
@@ -343,7 +338,7 @@ func TestParsePlan_excludeAndTarget(t *testing.T) {
 		tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
-			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+			"Cannot combine both target and exclude flags. Please only target or exclude resources",
 		),
 	}
 	if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
