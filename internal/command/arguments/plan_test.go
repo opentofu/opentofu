@@ -332,7 +332,7 @@ func TestParsePlan_excludeAndTarget(t *testing.T) {
 	testCases := [][]string{
 		[]string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
 		[]string{"-target=foo.bar", "-exclude=module.baz"},
-		// []string{"-target=foo.bar", "-exclude-file=foo_file"},
+		[]string{"-exclude-file=foo_exclude_file", "-target=foo.targetdirect"},
 	}
 	for _, tc := range testCases {
 		got, gotDiags := ParsePlan(tc)
