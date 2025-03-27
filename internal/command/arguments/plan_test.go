@@ -221,11 +221,10 @@ func TestParsePlan_targetFile(t *testing.T) {
 		"target file valid spaces": {
 			fileContent: "   foo_bar.baz",
 			want:        []addrs.Targetable{foobarbaz.Subject},
-			// From spec: Each line is subjected to bytes.TrimSpace (or equivalent)
-			// before attempting to parse it. Along with removing leading and
-			// trailing spaces/tabs, this should also remove any trailing carriage return
-			// character that might be included if the file was written on a Windows
-			// system using the typical Windows line-ending convention.
+		},
+		"target file valid tab": {
+			fileContent: "\tfoo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file invalid bracket with spaces": {
 			fileContent: `    [boop]`,
