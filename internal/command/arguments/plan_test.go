@@ -328,6 +328,104 @@ func TestParsePlan_excludes(t *testing.T) {
 	}
 }
 
+func TestParsePlan_excludeFile(t *testing.T) {
+	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	boop, _ := addrs.ParseTargetStr("module.boop")
+	wow, _ := addrs.ParseTargetStr("wow.ham")
+	testCases := map[string]struct {
+		fileContent string
+		want        []addrs.Targetable
+		wantDiags   tfdiags.Diagnostics
+	}{
+		"exclude file no targets": {
+			fileContent: "",
+			want:        nil,
+		},
+		"exclude file valid single target": {
+			fileContent: "foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"exclude file valid multiple targets": {
+			fileContent: "foo_bar.baz\nmodule.boop",
+			want:        []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		"exclude file invalid target": {
+			fileContent: "foo.",
+			want:        nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For exclude "foo.": Dot must be followed by attribute name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
+				},
+			),
+		},
+		"exclude file valid comment": {
+			fileContent: "#foo_bar.baz",
+			want:        nil,
+		},
+		"exclude file valid spaces": {
+			fileContent: "   foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"exclude file valid tab": {
+			fileContent: "\tfoo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"exclude file complicated": {
+			fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham",
+			want:        []addrs.Targetable{boop.Subject, wow.Subject},
+		},
+		"exclude file invalid bracket with spaces": {
+			fileContent: `    [boop]`,
+			want:        nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For exclude "    [boop]": Must begin with a variable name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
+					},
+				},
+			),
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			file := tempFileWriter(tc.fileContent)
+			defer os.Remove(file.Name())
+
+			got, gotDiags := ParsePlan([]string{"-exclude-file=" + file.Name()})
+			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
+				if len(gotDiags) == 0 {
+					t.Fatalf("expected diags but got none")
+				}
+				if len(tc.wantDiags) == 0 {
+					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
+				}
+				gotDiagsExported := gotDiags.ForRPC()
+				wantDiagsExported := tc.wantDiags.ForRPC()
+				wantDiagsExported[0].Source().Subject.Filename = file.Name()
+				gotDiagsExported.Sort()
+				wantDiagsExported.Sort()
+				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
+					t.Error("wrong diagnostics\n" + diff)
+				}
+			}
+			if !cmp.Equal(got.Operation.Excludes, tc.want) {
+				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Excludes, tc.want))
+			}
+		})
+	}
+}
+
 func TestParsePlan_excludeAndTarget(t *testing.T) {
 	testCases := [][]string{
 		[]string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
