@@ -147,11 +147,6 @@ func TestParsePlan_targets(t *testing.T) {
 			want:    nil,
 			wantErr: "Invalid target \"data[0].foo\": A data source name is required",
 		},
-		"invalid target file and exclude": {
-			args:    []string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
-			want:    nil,
-			wantErr: "Cannot combine both target and exclude flags. Please only target or exclude resource",
-		},
 		"empty target": {
 			args:    []string{"-target="},
 			want:    nil,
@@ -334,26 +329,33 @@ func TestParsePlan_excludes(t *testing.T) {
 }
 
 func TestParsePlan_excludeAndTarget(t *testing.T) {
-	got, gotDiags := ParsePlan([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
-	if len(gotDiags) == 0 {
-		t.Fatalf("expected error, but there was none")
+	testCases := [][]string{
+		[]string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
+		[]string{"-target=foo.bar", "-exclude=module.baz"},
+		// []string{"-target=foo.bar", "-exclude-file=foo_file"},
 	}
+	for _, tc := range testCases {
+		got, gotDiags := ParsePlan(tc)
+		if len(gotDiags) == 0 {
+			t.Fatalf("expected error, but there was none")
+		}
 
-	wantDiags := tfdiags.Diagnostics{
-		tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid combination of arguments",
-			"Cannot combine both target and exclude flags. Please only target or exclude resources",
-		),
-	}
-	if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
-		t.Errorf("wrong diagnostics\n%s", diff)
-	}
-	if len(got.Operation.Targets) > 0 {
-		t.Errorf("Did not expect operation to parse targets, but it parsed %d targets", len(got.Operation.Targets))
-	}
-	if len(got.Operation.Excludes) > 0 {
-		t.Errorf("Did not expect operation to parse excludes, but it parsed %d targets", len(got.Operation.Excludes))
+		wantDiags := tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid combination of arguments",
+				"Cannot combine both target and exclude flags. Please only target or exclude resources",
+			),
+		}
+		if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+		if len(got.Operation.Targets) > 0 {
+			t.Errorf("Did not expect operation to parse targets, but it parsed %d targets", len(got.Operation.Targets))
+		}
+		if len(got.Operation.Excludes) > 0 {
+			t.Errorf("Did not expect operation to parse excludes, but it parsed %d targets", len(got.Operation.Excludes))
+		}
 	}
 }
 
