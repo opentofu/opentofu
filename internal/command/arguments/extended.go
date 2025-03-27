@@ -182,14 +182,6 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 		targetables = append(targetables, target.Subject)
 	}
 	return targetables, diags
-	/*
-		But when we are taking these addresses from a file, we should be able to take a
-		[]byte covering just the part of the file content containing the address and pass that
-		as the first argument to ParseTraversalAbs, and then we can populate the second and
-		third arguments with the name of the file the bytes came from and the position in the file
-		where those bytes were found, which will then cause HCL to calculate correct source locations
-		for all of the different components of the address based on that starting reference point.
-	*/
 }
 
 func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
@@ -206,9 +198,6 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 		return allParsedTargets, allParsedExcludes, diags
 	}
 
-	// TODO: this is kinda gross, probably some better coding practices could be applied
-	// Get a review. Potentially just merging the whole damn thing into one, where
-	// parseTargetables accepts all 4 (targetsDirect, excludesDirect, targetFile, excludeFile)
 	var parseDiags tfdiags.Diagnostics
 	parsedTargets, parseDiags = parseDirectTargetables(targetsDirect, "target")
 	allParsedTargets = append(allParsedTargets, parsedTargets...)
