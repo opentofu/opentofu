@@ -187,6 +187,10 @@ func TestParsePlan_targetFile(t *testing.T) {
 		want        []addrs.Targetable
 		wantDiags   tfdiags.Diagnostics
 	}{
+		"target file no targets": {
+			fileContent: "",
+			want:        nil,
+		},
 		"target file valid single target": {
 			fileContent: "foo_bar.baz",
 			want:        []addrs.Targetable{foobarbaz.Subject},
@@ -232,7 +236,6 @@ func TestParsePlan_targetFile(t *testing.T) {
 					Summary:  "Invalid syntax",
 					Detail:   `For target "    [boop]": Must begin with a variable name.`,
 					Subject: &hcl.Range{
-						// Filename set once tempFile created
 						Start: hcl.Pos{Line: 1, Column: 1},
 						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
 					},
