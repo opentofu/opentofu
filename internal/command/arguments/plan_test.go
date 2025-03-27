@@ -246,7 +246,6 @@ func TestParsePlan_targetFile(t *testing.T) {
 		//		* Has lines that start with spaces and tabs on lines that contain
 		//			errors so that we can make sure the error diagnostics report
 		//			correct positions for the invalid tokens in those cases
-		//		* Empty file
 		//		* File with many valid lines
 	}
 
@@ -256,9 +255,12 @@ func TestParsePlan_targetFile(t *testing.T) {
 			defer os.Remove(file.Name())
 
 			got, gotDiags := ParsePlan([]string{"-target-file=" + file.Name()})
-			if len(tc.wantDiags) != 0 {
+			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
 				if len(gotDiags) == 0 {
 					t.Fatalf("expected diags but got none")
+				}
+				if len(tc.wantDiags) == 0 {
+					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
 				}
 				gotDiagsExported := gotDiags.ForRPC()
 				wantDiagsExported := tc.wantDiags.ForRPC()

@@ -10,6 +10,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
@@ -152,6 +153,9 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 	for sc.Scan() {
 		lineBytes := sc.Bytes()
 		lineRange := sc.Range()
+		if isComment(lineBytes) {
+			continue
+		}
 		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, lineRange.Filename, lineRange.Start)
 		if syntaxDiags.HasErrors() {
 			diags = diags.Append(nil).Append(
@@ -182,6 +186,13 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 		targetables = append(targetables, target.Subject)
 	}
 	return targetables, diags
+}
+
+func isComment(b []byte) bool {
+	if strings.HasPrefix(string(b), "#") {
+		return true
+	}
+	return false
 }
 
 func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
