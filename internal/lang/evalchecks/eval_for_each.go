@@ -17,10 +17,9 @@ import (
 )
 
 const (
-	errInvalidUnknownDetailMap     = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
-	errInvalidUnknownDetailSet     = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
-	errInvalidUnknownDetailTuple   = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full tuple of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
-	errInvalidUnknownDetailDynamic = "The \"for_each\" expression includes keys or values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full value that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailMap   = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
+	errInvalidUnknownDetailSet   = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailTuple = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full tuple of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
 )
 
 type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics)
@@ -93,8 +92,6 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 			EvalContext: hclCtx,
 			Extra:       DiagnosticCausedBySensitive(true),
 		})
-		// TODO: See if it breaks integration tests
-		// return cty.NullVal(ty), diags
 	}
 
 	retVal := forEachVal
@@ -157,7 +154,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	if !forEachVal.IsWhollyKnown() && !allowUnknown {
+	if !forEachVal.IsKnown() && !allowUnknown {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -176,11 +173,11 @@ func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowU
 func performDynamicTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	if !forEachVal.IsWhollyKnown() && !allowUnknown {
+	if !forEachVal.IsKnown() && !allowUnknown {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
-			Detail:      errInvalidUnknownDetailDynamic + forEachCommandLineExcludeSuggestion(excludableAddr),
+			Detail:      errInvalidUnknownDetailMap + forEachCommandLineExcludeSuggestion(excludableAddr),
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
@@ -195,7 +192,7 @@ func performDynamicTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allo
 func performMapTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	if !forEachVal.IsWhollyKnown() && !allowUnknown {
+	if !forEachVal.IsKnown() && !allowUnknown {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -216,10 +213,19 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
 
-	// Since we are using a multi-error approach, we add the null error above, and we do not test here, just return
-	if forEachVal.IsNull() {
-		return forEachVal, nil
+	// We do not accept sets containing other type than strings or if it can't be determined, we do accept it
+	if ty.ElementType() != cty.String && ty.ElementType() != cty.DynamicPseudoType {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing type %s.`, forEachVal.Type().ElementType().FriendlyName()),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+		})
+		return cty.NullVal(ty), diags
 	}
+
 	// since we can't use a set values that are unknown, we treat the
 	// entire set as unknown
 	if !forEachVal.IsWhollyKnown() {
@@ -233,30 +239,13 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 				EvalContext: hclCtx,
 				Extra:       DiagnosticCausedByUnknown(true),
 			})
-		} else if ty.ElementType() != cty.String && ty.ElementType() != cty.DynamicPseudoType {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each argument",
-				Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing a %s.`, forEachVal.Type().ElementType().FriendlyName()),
-				Subject:     expr.Range().Ptr(),
-				Expression:  expr,
-				EvalContext: hclCtx,
-			})
-			return cty.NullVal(ty), diags
 		}
 		return cty.UnknownVal(ty), diags
 	}
 
-	if ty.ElementType() != cty.String && ty.ElementType() != cty.DynamicPseudoType {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid for_each argument",
-			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing type %s.`, forEachVal.Type().ElementType().FriendlyName()),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: hclCtx,
-		})
-		return cty.NullVal(ty), diags
+	// Since we're using a multi-error approach, we do test the nulliness here because ElementIterator above can't iterate on null values. We do that to make sure we append type errors together with nulliness errors.
+	if forEachVal.IsNull() {
+		return forEachVal, nil
 	}
 
 	// A set of strings may contain null, which makes it impossible to

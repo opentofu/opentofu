@@ -328,6 +328,13 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs:     nil,
 			PlanReturnValue:      map[string]cty.Value{},
 		},
+		"empty_set_dynamic": {
+			Input:                cty.SetValEmpty(cty.DynamicPseudoType),
+			ValidateExpectedErrs: nil,
+			ValidateReturnValue:  cty.SetValEmpty(cty.DynamicPseudoType),
+			PlanExpectedErrs:     nil,
+			PlanReturnValue:      map[string]cty.Value{},
+		},
 		"set_of_strings": {
 			Input:                cty.SetVal([]cty.Value{cty.StringVal("a")}),
 			ValidateExpectedErrs: nil,
@@ -550,15 +557,8 @@ func TestEvaluateForEach(t *testing.T) {
 			Input:                cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)}),
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)}),
-			PlanExpectedErrs: []expectedErr{
-				{
-					Summary:           "Invalid for_each argument",
-					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.",
-					CausedByUnknown:   true,
-					CausedBySensitive: false,
-				},
-			},
-			PlanReturnValue: map[string]cty.Value{"a": cty.UnknownVal(cty.String)},
+			PlanExpectedErrs:     nil,
+			PlanReturnValue:      map[string]cty.Value{"a": cty.UnknownVal(cty.String)},
 		},
 		"map_of_bool": {
 			Input:                cty.MapVal(map[string]cty.Value{"a": cty.True}),
@@ -571,15 +571,8 @@ func TestEvaluateForEach(t *testing.T) {
 			Input:                cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)}),
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.MapVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)}),
-			PlanExpectedErrs: []expectedErr{
-				{
-					Summary:           "Invalid for_each argument",
-					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.",
-					CausedByUnknown:   true,
-					CausedBySensitive: false,
-				},
-			},
-			PlanReturnValue: map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)},
+			PlanExpectedErrs:     nil,
+			PlanReturnValue:      map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)},
 		},
 		"map_of_string": {
 			Input:                cty.MapVal(map[string]cty.Value{"a": cty.StringVal("b")}),
@@ -606,15 +599,8 @@ func TestEvaluateForEach(t *testing.T) {
 			Input:                cty.ObjectVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)}),
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.ObjectVal(map[string]cty.Value{"a": cty.UnknownVal(cty.String)}),
-			PlanExpectedErrs: []expectedErr{
-				{
-					Summary:           "Invalid for_each argument",
-					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.",
-					CausedByUnknown:   true,
-					CausedBySensitive: false,
-				},
-			},
-			PlanReturnValue: map[string]cty.Value{"a": cty.UnknownVal(cty.String)},
+			PlanExpectedErrs:     nil,
+			PlanReturnValue:      map[string]cty.Value{"a": cty.UnknownVal(cty.String)},
 		},
 		"object_with_bool_values": {
 			Input:                cty.ObjectVal(map[string]cty.Value{"a": cty.BoolVal(true)}),
@@ -627,15 +613,8 @@ func TestEvaluateForEach(t *testing.T) {
 			Input:                cty.ObjectVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)}),
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.ObjectVal(map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)}),
-			PlanExpectedErrs: []expectedErr{
-				{
-					Summary:           "Invalid for_each argument",
-					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.",
-					CausedByUnknown:   true,
-					CausedBySensitive: false,
-				},
-			},
-			PlanReturnValue: map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)},
+			PlanExpectedErrs:     nil,
+			PlanReturnValue:      map[string]cty.Value{"a": cty.UnknownVal(cty.Bool)},
 		},
 		"object_with_string_values": {
 			Input:                cty.ObjectVal(map[string]cty.Value{"a": cty.StringVal("b")}),
@@ -644,7 +623,7 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs:     nil,
 			PlanReturnValue:      map[string]cty.Value{"a": cty.StringVal("b")},
 		},
-		// # Other
+		// Other
 		"null_set_string": {
 			Input: cty.NullVal(cty.Set(cty.String)),
 			ValidateExpectedErrs: []expectedErr{
@@ -656,6 +635,30 @@ func TestEvaluateForEach(t *testing.T) {
 				},
 			},
 			ValidateReturnValue: cty.NullVal(cty.Set(cty.String)),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument value is null.",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			PlanReturnValue: map[string]cty.Value{},
+		},
+		"null_object": {
+			Input: cty.NullVal(cty.Object(map[string]cty.Type{
+				"route_addrs": cty.String,
+				"cidr":        cty.String,
+			})),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument value is null.",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.NullVal(cty.Object(map[string]cty.Type{"cidr": cty.String, "route_addrs": cty.String})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -865,7 +868,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set containing a object",
+					Detail:            "set containing type object.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
@@ -874,8 +877,8 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "includes values derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "set containing type object.",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
@@ -900,7 +903,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set containing a bool",
+					Detail:            "set containing type bool.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
@@ -909,8 +912,8 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set includes values derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "set containing type bool.",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
@@ -965,7 +968,7 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "expression includes keys or values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full value that will identify the instances of this resource.",
+					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.",
 					CausedByUnknown:   true,
 					CausedBySensitive: false,
 				},
