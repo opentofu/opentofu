@@ -198,15 +198,21 @@ func TestParsePlan_targetFile(t *testing.T) {
 		"target file invalid target": {
 			fileContent: "foo.",
 			want:        nil,
-			// wantDiags:   "Invalid target \"foo.\": Dot must be followed by attribute name",
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "foo.": Dot must be followed by attribute name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
+				},
+			),
 		},
 		"target file valid comment": {
 			fileContent: "#foo_bar.baz",
 			want:        nil,
-			// From spec:After trimming spaces, if the line starts with our typical comment
-			// character # or is an empty string then the line is completely ignored and
-			// parsing continues with the next line. (The other comment variants of //
-			// and /* ... */ would not be supported here, to keep this new format relatively simple.)
 		},
 		"target file valid spaces": {
 			fileContent: "   foo_bar.baz",
