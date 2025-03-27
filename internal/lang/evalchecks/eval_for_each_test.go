@@ -28,108 +28,108 @@ func mockRefsFunc() ContextFunc {
 	}
 }
 
-// func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
-// 	tests := map[string]struct {
-// 		Expr   hcl.Expression
-// 		Wanted []struct {
-// 			Summary           string
-// 			DetailSubstring   string
-// 			CausedBySensitive bool
-// 		}
-// 	}{
-// 		"marked list": {
-// 			hcltest.MockExprLiteral(cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Sensitive)),
-// 			[]struct {
-// 				Summary           string
-// 				DetailSubstring   string
-// 				CausedBySensitive bool
-// 			}{
-// 				{
-// 					"Invalid for_each argument",
-// 					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
-// 					true,
-// 				},
-// 				{
-// 					"Invalid for_each argument",
-// 					"must be a map, or set of strings, and you have provided a value of type list",
-// 					false,
-// 				},
-// 			},
-// 		},
-// 		"marked tuple": {
-// 			hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Sensitive)),
-// 			[]struct {
-// 				Summary           string
-// 				DetailSubstring   string
-// 				CausedBySensitive bool
-// 			}{
-// 				{
-// 					"Invalid for_each argument",
-// 					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
-// 					true,
-// 				},
-// 				{
-// 					"Invalid for_each argument",
-// 					"must be a map, or set of strings, and you have provided a value of type tuple",
-// 					false,
-// 				},
-// 			},
-// 		},
-// 		"marked string": {
-// 			hcltest.MockExprLiteral(cty.StringVal("a").Mark(marks.Sensitive)),
-// 			[]struct {
-// 				Summary           string
-// 				DetailSubstring   string
-// 				CausedBySensitive bool
-// 			}{
-// 				{
-// 					"Invalid for_each argument",
-// 					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
-// 					true,
-// 				},
-// 				{
-// 					"Invalid for_each argument",
-// 					"must be a map, or set of strings, and you have provided a value of type string",
-// 					false,
-// 				},
-// 			},
-// 		},
-// 	}
+func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
+	tests := map[string]struct {
+		Expr   hcl.Expression
+		Wanted []struct {
+			Summary           string
+			DetailSubstring   string
+			CausedBySensitive bool
+		}
+	}{
+		"marked list": {
+			hcltest.MockExprLiteral(cty.ListVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Sensitive)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type list",
+					false,
+				},
+			},
+		},
+		"marked tuple": {
+			hcltest.MockExprLiteral(cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("a")}).Mark(marks.Sensitive)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type tuple",
+					false,
+				},
+			},
+		},
+		"marked string": {
+			hcltest.MockExprLiteral(cty.StringVal("a").Mark(marks.Sensitive)),
+			[]struct {
+				Summary           string
+				DetailSubstring   string
+				CausedBySensitive bool
+			}{
+				{
+					"Invalid for_each argument",
+					"Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.",
+					true,
+				},
+				{
+					"Invalid for_each argument",
+					"must be a map, or set of strings, and you have provided a value of type string",
+					false,
+				},
+			},
+		},
+	}
 
-// 	for name, test := range tests {
-// 		t.Run(name, func(t *testing.T) {
-// 			_, diags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), nil)
-// 			if len(diags) != len(test.Wanted) {
-// 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
-// 			}
-// 			for idx := range test.Wanted {
-// 				if got, want := diags[idx].Severity(), tfdiags.Error; got != want {
-// 					t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
-// 				}
-// 				if got, want := diags[idx].Description().Summary, test.Wanted[idx].Summary; got != want {
-// 					t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
-// 				}
-// 				if got, want := diags[idx].Description().Detail, test.Wanted[idx].DetailSubstring; !strings.Contains(got, want) {
-// 					t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
-// 				}
-// 				if fromExpr := diags[idx].FromExpr(); fromExpr != nil {
-// 					if fromExpr.Expression == nil {
-// 						t.Errorf("diagnostic does not refer to an expression")
-// 					}
-// 					if fromExpr.EvalContext == nil {
-// 						t.Errorf("diagnostic does not refer to an EvalContext")
-// 					}
-// 				} else {
-// 					t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[idx]))
-// 				}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			_, diags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), nil)
+			if len(diags) != len(test.Wanted) {
+				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+			}
+			for idx := range test.Wanted {
+				if got, want := diags[idx].Severity(), tfdiags.Error; got != want {
+					t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+				}
+				if got, want := diags[idx].Description().Summary, test.Wanted[idx].Summary; got != want {
+					t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
+				}
+				if got, want := diags[idx].Description().Detail, test.Wanted[idx].DetailSubstring; !strings.Contains(got, want) {
+					t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+				}
+				if fromExpr := diags[idx].FromExpr(); fromExpr != nil {
+					if fromExpr.Expression == nil {
+						t.Errorf("diagnostic does not refer to an expression")
+					}
+					if fromExpr.EvalContext == nil {
+						t.Errorf("diagnostic does not refer to an EvalContext")
+					}
+				} else {
+					t.Errorf("diagnostic does not support FromExpr\ngot: %s", spew.Sdump(diags[idx]))
+				}
 
-// 				if got, want := tfdiags.DiagnosticCausedBySensitive(diags[idx]), test.Wanted[idx].CausedBySensitive; got != want {
-// 					t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
-// 				}
-// 			}
-// 		})
-// 	}
-// }
+				if got, want := tfdiags.DiagnosticCausedBySensitive(diags[idx]), test.Wanted[idx].CausedBySensitive; got != want {
+					t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
+				}
+			}
+		})
+	}
+}
 
 func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 	tests := map[string]struct {
@@ -678,13 +678,6 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
-				// TODO: Discover why this is doubled
-				{
-					Summary:           "Invalid for_each argument",
-					Detail:            "argument value is null. A map, or set of strings is allowed.",
-					CausedByUnknown:   false,
-					CausedBySensitive: false,
-				},
 				{
 					Summary:           "Invalid for_each argument",
 					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple.",
@@ -694,13 +687,6 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{})),
 			PlanExpectedErrs: []expectedErr{
-				{
-					Summary:           "Invalid for_each argument",
-					Detail:            "argument value is null. A map, or set of strings is allowed.",
-					CausedByUnknown:   false,
-					CausedBySensitive: false,
-				},
-				// TODO: Discover why this is doubled
 				{
 					Summary:           "Invalid for_each argument",
 					Detail:            "argument value is null. A map, or set of strings is allowed.",
@@ -727,12 +713,6 @@ func TestEvaluateForEach(t *testing.T) {
 				},
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
-					CausedByUnknown:   false,
-					CausedBySensitive: true,
-				},
-				{
-					Summary:           "Invalid for_each argument",
 					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
@@ -740,12 +720,6 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.String, cty.String})),
 			PlanExpectedErrs: []expectedErr{
-				{
-					Summary:           "Invalid for_each argument",
-					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments.",
-					CausedByUnknown:   false,
-					CausedBySensitive: true,
-				},
 				{
 					Summary:           "Invalid for_each argument",
 					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
