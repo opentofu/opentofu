@@ -99,8 +99,8 @@ type Operation struct {
 	refreshOnlyRaw  bool
 }
 
-// parseTargetables gets a list of strings, each representing a targetable object, and returns a list of
-// addrs.Targetable
+// parseDirectTargetables gets a list of strings passed from directly from the CLI
+// with each representing a targetable object, and returns a list of addrs.Targetable
 // This is used for parsing the input of -target and -exclude flags
 func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 	var targetables []addrs.Targetable
@@ -132,6 +132,10 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 	return targetables, diags
 }
 
+// parseFile gets a filePath and reads the file, which contains a list of targets
+// with each line in the file representating a targeted object, and returns
+// a list of addrs.Targetable. This is used for parsing the input of -target-file
+// and -exclude-file flags
 func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 
 	// If no file passed, no targets
@@ -143,9 +147,6 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 
 	b, err := os.ReadFile(filePath)
 	diags = diags.Append(err)
-	// fmt.Printf("filepath is %s\n", filePath)
-	// fmt.Printf("flag is %s\n", flag)
-	// fmt.Printf("b is %s\n", string(b))
 
 	sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
 	for sc.Scan() {
@@ -157,8 +158,7 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 				&hcl.Diagnostic{
 					Severity: tfdiags.Error.ToHCL(),
 					Summary:  "Invalid syntax",
-					// Detail:   "Whatever shall we do?",
-					Detail: fmt.Sprintf("For %s %q: %v", flag, lineBytes, syntaxDiags[0].Detail),
+					Detail:   fmt.Sprintf("For %s %q: %v", flag, lineBytes, syntaxDiags[0].Detail),
 					Subject: &hcl.Range{
 						Filename: lineRange.Filename,
 						Start:    lineRange.Start,
@@ -189,21 +189,6 @@ func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Di
 		third arguments with the name of the file the bytes came from and the position in the file
 		where those bytes were found, which will then cause HCL to calculate correct source locations
 		for all of the different components of the address based on that starting reference point.
-	*/
-}
-
-func sharedCodeTraversalThing([]hcl.Traversal) ([]addrs.Targetable, tfdiags.Diagnostics) {
-	var targetables []addrs.Targetable
-	var diags tfdiags.Diagnostics
-	return targetables, diags
-	/*
-		A slightly different variant of that idea would be to have your shared
-		code function take a []hcl.Traversal instead of a []string -- that is,
-		to do the first level of parsing from source code to traversal separately
-		for files vs. direct options, but then have everything else be shared --
-		since hcl.Traversal can "remember" the source location where the address
-		was parsed from, and thus addrs.ParseTarget can return errors with useful
-		source location information attached to them.
 	*/
 }
 
