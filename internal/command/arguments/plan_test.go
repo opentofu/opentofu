@@ -182,6 +182,7 @@ func TestParsePlan_targets(t *testing.T) {
 func TestParsePlan_targetFile(t *testing.T) {
 	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
 	boop, _ := addrs.ParseTargetStr("module.boop")
+	wow, _ := addrs.ParseTargetStr("wow.ham")
 	testCases := map[string]struct {
 		fileContent string
 		want        []addrs.Targetable
@@ -225,6 +226,10 @@ func TestParsePlan_targetFile(t *testing.T) {
 		"target file valid tab": {
 			fileContent: "\tfoo_bar.baz",
 			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file complicated": {
+			fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham",
+			want:        []addrs.Targetable{boop.Subject, wow.Subject},
 		},
 		"target file invalid bracket with spaces": {
 			fileContent: `    [boop]`,
