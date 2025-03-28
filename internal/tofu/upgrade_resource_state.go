@@ -111,7 +111,7 @@ func upgradeResourceStateTransform(args stateTransformArgs) (cty.Value, []byte, 
 	}
 
 	resp := args.provider.UpgradeResourceState(context.TODO(), req)
-	diags := resp.Diagnostics
+	diags := maybeImproveResourceInstanceDiagnostics(resp.Diagnostics, args.currentAddr)
 	if diags.HasErrors() {
 		log.Printf("[TRACE] upgradeResourceStateTransform: failed - address: %s", args.currentAddr)
 		return cty.NilVal, nil, diags
