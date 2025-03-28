@@ -1,0 +1,32 @@
+---
+sidebar_position: 8
+sidebar_label: Windows
+description: |-
+  Install OpenTofu on Windows.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import CodeBlock from '@theme/CodeBlock';
+import ScoopScript from '!!raw-loader!./examples/scoop-install.ps1'
+import VerifyScript from '!!raw-loader!./examples/verify-installation.sh'
+import WingetScript from '!!raw-loader!./examples/winget-install.ps1'
+import Admonition from '@theme/Admonition';
+
+# Installing OpenTofu from GitHub Releases
+
+<Tabs>
+    <TabItem value="winget" label="winget">
+        OpenTofu is available on [the winget repository](https://github.com/microsoft/winget-pkgs/tree/master/manifests/o/OpenTofu/Tofu/) and you can install it by running:
+        <CodeBlock language="powershell">{WingetScript}</CodeBlock>
+        Verify installation:
+        <CodeBlock language="bash">{VerifyScript}</CodeBlock>
+        <Admonition type="info">If you run into issues when installing with winget, please make sure that <code>%LOCALAPPDATA%\Microsoft\WinGet\Links</code> is in your PATH environment variable.</Admonition>
+    </TabItem>
+    <TabItem value="scoop" label="scoop">
+        OpenTofu is available on [the scoop repository](https://github.com/ScoopInstaller/Main/blob/master/bucket/opentofu.json) and you can install it by running:
+        <CodeBlock language="powershell">{ScoopScript}</CodeBlock>
+        Verify installation:
+        <CodeBlock language="bash">{VerifyScript}</CodeBlock>
+    </TabItem>
+</Tabs>

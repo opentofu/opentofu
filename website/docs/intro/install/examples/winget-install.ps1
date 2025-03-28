@@ -1,0 +1,1 @@
+winget install --exact --id=OpenTofu.Tofu
