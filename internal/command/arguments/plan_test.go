@@ -6,6 +6,9 @@
 package arguments
 
 import (
+	"bufio"
+	"log"
+	"os"
 	"strings"
 	"testing"
 
@@ -13,6 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
 )
@@ -170,6 +174,104 @@ func TestParsePlan_targets(t *testing.T) {
 	}
 }
 
+func TestParsePlan_targetFile(t *testing.T) {
+	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	boop, _ := addrs.ParseTargetStr("module.boop")
+	wow, _ := addrs.ParseTargetStr("wow.ham")
+	testCases := map[string]struct {
+		fileContent string
+		want        []addrs.Targetable
+		wantDiags   tfdiags.Diagnostics
+	}{
+		"target file no targets": {
+			fileContent: "",
+			want:        nil,
+		},
+		"target file valid single target": {
+			fileContent: "foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file valid multiple targets": {
+			fileContent: "foo_bar.baz\nmodule.boop",
+			want:        []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		"target file invalid target": {
+			fileContent: "foo.",
+			want:        nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "foo.": Dot must be followed by attribute name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
+				},
+			),
+		},
+		"target file valid comment": {
+			fileContent: "#foo_bar.baz",
+			want:        nil,
+		},
+		"target file valid spaces": {
+			fileContent: "   foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file valid tab": {
+			fileContent: "\tfoo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file complicated": {
+			fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham",
+			want:        []addrs.Targetable{boop.Subject, wow.Subject},
+		},
+		"target file invalid bracket with spaces": {
+			fileContent: `    [boop]`,
+			want:        nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "    [boop]": Must begin with a variable name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
+					},
+				},
+			),
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			file := tempFileWriter(tc.fileContent)
+			defer os.Remove(file.Name())
+
+			got, gotDiags := ParsePlan([]string{"-target-file=" + file.Name()})
+			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
+				if len(gotDiags) == 0 {
+					t.Fatalf("expected diags but got none")
+				}
+				if len(tc.wantDiags) == 0 {
+					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
+				}
+				gotDiagsExported := gotDiags.ForRPC()
+				wantDiagsExported := tc.wantDiags.ForRPC()
+				wantDiagsExported[0].Source().Subject.Filename = file.Name()
+				gotDiagsExported.Sort()
+				wantDiagsExported.Sort()
+				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
+					t.Error("wrong diagnostics\n" + diff)
+				}
+			}
+			if !cmp.Equal(got.Operation.Targets, tc.want) {
+				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Targets, tc.want))
+			}
+		})
+	}
+}
+
 func TestParsePlan_excludes(t *testing.T) {
 	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
 	boop, _ := addrs.ParseTargetStr("module.boop")
@@ -226,27 +328,132 @@ func TestParsePlan_excludes(t *testing.T) {
 	}
 }
 
-func TestParsePlan_excludeAndTarget(t *testing.T) {
-	got, gotDiags := ParsePlan([]string{"-exclude=foo_bar.baz", "-target=foo_bar.bar"})
-	if len(gotDiags) == 0 {
-		t.Fatalf("expected error, but there was none")
+func TestParsePlan_excludeFile(t *testing.T) {
+	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	boop, _ := addrs.ParseTargetStr("module.boop")
+	wow, _ := addrs.ParseTargetStr("wow.ham")
+	testCases := map[string]struct {
+		fileContent string
+		want        []addrs.Targetable
+		wantDiags   tfdiags.Diagnostics
+	}{
+		"exclude file no targets": {
+			fileContent: "",
+			want:        nil,
+		},
+		"exclude file valid single target": {
+			fileContent: "foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"exclude file valid multiple targets": {
+			fileContent: "foo_bar.baz\nmodule.boop",
+			want:        []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		"exclude file invalid target": {
+			fileContent: "foo.",
+			want:        nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For exclude "foo.": Dot must be followed by attribute name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
+				},
+			),
+		},
+		"exclude file valid comment": {
+			fileContent: "#foo_bar.baz",
+			want:        nil,
+		},
+		"exclude file valid spaces": {
+			fileContent: "   foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"exclude file valid tab": {
+			fileContent: "\tfoo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"exclude file complicated": {
+			fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham",
+			want:        []addrs.Targetable{boop.Subject, wow.Subject},
+		},
+		"exclude file invalid bracket with spaces": {
+			fileContent: `    [boop]`,
+			want:        nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For exclude "    [boop]": Must begin with a variable name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
+					},
+				},
+			),
+		},
 	}
 
-	wantDiags := tfdiags.Diagnostics{
-		tfdiags.Sourceless(
-			tfdiags.Error,
-			"Invalid combination of arguments",
-			"-target and -exclude flags cannot be used together. Please remove one of the flags",
-		),
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			file := tempFileWriter(tc.fileContent)
+			defer os.Remove(file.Name())
+
+			got, gotDiags := ParsePlan([]string{"-exclude-file=" + file.Name()})
+			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
+				if len(gotDiags) == 0 {
+					t.Fatalf("expected diags but got none")
+				}
+				if len(tc.wantDiags) == 0 {
+					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
+				}
+				gotDiagsExported := gotDiags.ForRPC()
+				wantDiagsExported := tc.wantDiags.ForRPC()
+				wantDiagsExported[0].Source().Subject.Filename = file.Name()
+				gotDiagsExported.Sort()
+				wantDiagsExported.Sort()
+				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
+					t.Error("wrong diagnostics\n" + diff)
+				}
+			}
+			if !cmp.Equal(got.Operation.Excludes, tc.want) {
+				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Excludes, tc.want))
+			}
+		})
 	}
-	if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
-		t.Errorf("wrong diagnostics\n%s", diff)
+}
+
+func TestParsePlan_excludeAndTarget(t *testing.T) {
+	testCases := [][]string{
+		[]string{"-target-file=foo_file", "-exclude=foo_bar.baz"},
+		[]string{"-target=foo.bar", "-exclude=module.baz"},
+		[]string{"-exclude-file=foo_exclude_file", "-target=foo.targetdirect"},
 	}
-	if len(got.Operation.Targets) > 0 {
-		t.Errorf("Did not expect operation to parse targets, but it parsed %d targets", len(got.Operation.Targets))
-	}
-	if len(got.Operation.Excludes) > 0 {
-		t.Errorf("Did not expect operation to parse excludes, but it parsed %d targets", len(got.Operation.Excludes))
+	for _, tc := range testCases {
+		got, gotDiags := ParsePlan(tc)
+		if len(gotDiags) == 0 {
+			t.Fatalf("expected error, but there was none")
+		}
+
+		wantDiags := tfdiags.Diagnostics{
+			tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid combination of arguments",
+				"Cannot combine both target and exclude flags. Please only target or exclude resources",
+			),
+		}
+		if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
+			t.Errorf("wrong diagnostics\n%s", diff)
+		}
+		if len(got.Operation.Targets) > 0 {
+			t.Errorf("Did not expect operation to parse targets, but it parsed %d targets", len(got.Operation.Targets))
+		}
+		if len(got.Operation.Excludes) > 0 {
+			t.Errorf("Did not expect operation to parse excludes, but it parsed %d targets", len(got.Operation.Excludes))
+		}
 	}
 }
 
@@ -299,4 +506,26 @@ func TestParsePlan_vars(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Don't forget to os.Remove(file) after calling this function
+func tempFileWriter(fileContent string) *os.File {
+	file, err := os.CreateTemp("", "opentofu-test-arguments")
+	if err != nil {
+		log.Fatal(err)
+	}
+	file.WriteString(fileContent)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	file.Seek(0, 0)
+	s := bufio.NewScanner(file)
+	// for s.Scan() {
+	// 	fmt.Println("tempFileWriter function printLin", s.Text())
+	// }
+	if err = s.Err(); err != nil {
+		log.Fatal("error reading temp file", err)
+	}
+	return file
 }
