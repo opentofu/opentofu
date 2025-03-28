@@ -9,18 +9,13 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	"os"
 	"strconv"
 
-	"github.com/lib/pq"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/legacy/helper/schema"
-)
-
-const (
-	statesTableName = "states"
-	statesIndexName = "states_by_name"
 )
 
 func defaultBoolFunc(k string, dv bool) schema.SchemaDefaultFunc {
@@ -58,11 +53,25 @@ func New(enc encryption.StateEncryption) backend.Backend {
 				DefaultFunc: defaultBoolFunc("PG_SKIP_SCHEMA_CREATION", false),
 			},
 
+			"table_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Name of the automatically managed Postgres table to store state",
+				DefaultFunc: schema.EnvDefaultFunc("PG_TABLE_NAME", "states"),
+			},
+
 			"skip_table_creation": {
 				Type:        schema.TypeBool,
 				Optional:    true,
 				Description: "If set to `true`, OpenTofu won't try to create the Postgres table",
 				DefaultFunc: defaultBoolFunc("PG_SKIP_TABLE_CREATION", false),
+			},
+
+			"index_name": {
+				Type:        schema.TypeString,
+				Optional:    true,
+				Description: "Name of the automatically managed Postgres index used for stored state",
+				DefaultFunc: schema.EnvDefaultFunc("PG_INDEX_NAME", "states_by_name"),
 			},
 
 			"skip_index_creation": {
@@ -88,6 +97,8 @@ type Backend struct {
 	configData *schema.ResourceData
 	connStr    string
 	schemaName string
+	tableName  string
+	indexName  string
 }
 
 func (b *Backend) configure(ctx context.Context) error {
@@ -96,7 +107,12 @@ func (b *Backend) configure(ctx context.Context) error {
 	data := b.configData
 
 	b.connStr = data.Get("conn_str").(string)
-	b.schemaName = pq.QuoteIdentifier(data.Get("schema_name").(string))
+	b.schemaName = data.Get("schema_name").(string)
+	b.tableName = data.Get("table_name").(string)
+	b.indexName = data.Get("index_name").(string)
+	skipSchemaCreation := data.Get("skip_schema_creation").(bool)
+	skipTableCreation := data.Get("skip_table_creation").(bool)
+	skipIndexCreation := data.Get("skip_index_creation").(bool)
 
 	db, err := sql.Open("postgres", b.connStr)
 	if err != nil {
@@ -106,11 +122,11 @@ func (b *Backend) configure(ctx context.Context) error {
 	// Prepare database schema, tables, & indexes.
 	var query string
 
-	if !data.Get("skip_schema_creation").(bool) {
+	if !skipSchemaCreation {
 		// list all schemas to see if it exists
 		var count int
 		query = `select count(1) from information_schema.schemata where schema_name = $1`
-		if err := db.QueryRow(query, data.Get("schema_name").(string)).Scan(&count); err != nil {
+		if err = db.QueryRow(query, b.schemaName).Scan(&count); err != nil {
 			return err
 		}
 
@@ -119,31 +135,33 @@ func (b *Backend) configure(ctx context.Context) error {
 		// a user hasn't been granted the `CREATE SCHEMA` privilege
 		if count < 1 {
 			// tries to create the schema
-			query = `CREATE SCHEMA IF NOT EXISTS %s`
-			if _, err := db.Exec(fmt.Sprintf(query, b.schemaName)); err != nil {
+			query = fmt.Sprintf(`CREATE SCHEMA IF NOT EXISTS %s`, pq.QuoteIdentifier(b.schemaName))
+			if _, err = db.Exec(query); err != nil {
 				return err
 			}
 		}
 	}
 
-	if !data.Get("skip_table_creation").(bool) {
-		if _, err := db.Exec("CREATE SEQUENCE IF NOT EXISTS public.global_states_id_seq AS bigint"); err != nil {
+	if !skipTableCreation {
+		query = "CREATE SEQUENCE IF NOT EXISTS public.global_states_id_seq AS bigint"
+		if _, err = db.Exec(query); err != nil {
 			return err
 		}
 
-		query = `CREATE TABLE IF NOT EXISTS %s.%s (
+		query = fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s.%s (
 			id bigint NOT NULL DEFAULT nextval('public.global_states_id_seq') PRIMARY KEY,
 			name text UNIQUE,
 			data text
-			)`
-		if _, err := db.Exec(fmt.Sprintf(query, b.schemaName, statesTableName)); err != nil {
+			)`, pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName))
+
+		if _, err = db.Exec(query); err != nil {
 			return err
 		}
 	}
 
-	if !data.Get("skip_index_creation").(bool) {
-		query = `CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s.%s (name)`
-		if _, err := db.Exec(fmt.Sprintf(query, statesIndexName, b.schemaName, statesTableName)); err != nil {
+	if !skipIndexCreation {
+		query = fmt.Sprintf(`CREATE UNIQUE INDEX IF NOT EXISTS %s ON %s.%s (name)`, pq.QuoteIdentifier(b.indexName), pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName))
+		if _, err = db.Exec(query); err != nil {
 			return err
 		}
 	}
