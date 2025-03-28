@@ -392,6 +392,10 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 			val = val.Mark(marks.Sensitive)
 		}
 
+		if cfg := outputConfigs[output.Addr.OutputValue.Name]; cfg != nil && cfg.Deprecated != "" {
+			val = marks.DeprecatedOutput(val, output.Addr, cfg.Deprecated)
+		}
+
 		_, callInstance := output.Addr.Module.CallInstance()
 		instance, ok := stateMap[callInstance.Key]
 		if !ok {
@@ -471,6 +475,10 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 
 			if change.Sensitive {
 				instance[cfg.Name] = change.After.Mark(marks.Sensitive)
+			}
+
+			if cfg.Deprecated != "" {
+				instance[cfg.Name] = marks.DeprecatedOutput(change.After, change.Addr, cfg.Deprecated)
 			}
 		}
 	}
@@ -994,6 +1002,10 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 
 		if output.Sensitive {
 			val = val.Mark(marks.Sensitive)
+		}
+
+		if config.Deprecated != "" {
+			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated)
 		}
 
 		return val, diags
