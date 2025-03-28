@@ -263,34 +263,40 @@ type expectedErr struct {
 func assertDiagnosticsMatch(t *testing.T, gotDiags []tfdiags.Diagnostic, wantDiags []expectedErr, phase string) {
 	t.Helper()
 	if len(gotDiags) != len(wantDiags) {
-		t.Fatalf("got %d errors in %s phase; expected %d", len(gotDiags), phase, len(wantDiags))
+		t.Errorf("got %d errors in %s phase; expected %d", len(gotDiags), phase, len(wantDiags))
 	}
 
-	for i := range gotDiags {
-		assertDiagnosticMatch(t, gotDiags[i], wantDiags[i])
+	for i := range max(len(gotDiags), len(wantDiags)) {
+		if i >= len(gotDiags) {
+			t.Errorf("on %s phase, got no error on position %d, while expecting error:\n%s\n%s", phase, i, wantDiags[i].Summary, wantDiags[i].Detail)
+		} else if i >= len(wantDiags) {
+			t.Errorf("on %s phase on position %d, while expecting no error, got:\n%s\n%s", phase, i, gotDiags[i].Description().Summary, gotDiags[i].Description().Detail)
+		} else {
+			assertDiagnosticMatch(t, phase, gotDiags[i], wantDiags[i])
+		}
 	}
 }
 
-func assertDiagnosticMatch(t *testing.T, gotDiag tfdiags.Diagnostic, wantDiag expectedErr) {
+func assertDiagnosticMatch(t *testing.T, phase string, gotDiag tfdiags.Diagnostic, wantDiag expectedErr) {
 	t.Helper()
 
 	if got, want := gotDiag.Severity(), tfdiags.Error; got != want {
-		t.Errorf("wrong diagnostic severity %#v; want %#v", got, want)
+		t.Errorf("wrong diagnostic severity on %s phase %#v; want %#v", phase, got, want)
 	}
 
 	if got, want := gotDiag.Description().Summary, wantDiag.Summary; got != want {
-		t.Errorf("wrong diagnostic summary\ngot:  %s\nwant: %s", got, want)
+		t.Errorf("wrong diagnostic summary on %s phase\ngot:  %s\nwant: %s", phase, got, want)
 	}
 
 	if got, want := gotDiag.Description().Detail, wantDiag.Detail; !strings.Contains(got, want) {
-		t.Errorf("wrong diagnostic detail\ngot: %s\nwant substring: %s", got, want)
+		t.Errorf("wrong diagnostic detail on %s phase, \ngot: %s\nwant substring: %s", phase, got, want)
 	}
 
 	if got, want := tfdiags.DiagnosticCausedByUnknown(gotDiag), wantDiag.CausedByUnknown; got != want {
-		t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown\ngot:  %#v\nwant: %#v", got, want)
+		t.Errorf("wrong result from tfdiags.DiagnosticCausedByUnknown on %s phase\ngot:  %#v\nwant: %#v", phase, got, want)
 	}
 	if got, want := tfdiags.DiagnosticCausedBySensitive(gotDiag), wantDiag.CausedBySensitive; got != want {
-		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive\ngot:  %#v\nwant: %#v", got, want)
+		t.Errorf("wrong result from tfdiags.DiagnosticCausedBySensitive on %s phase\ngot:  %#v\nwant: %#v", phase, got, want)
 	}
 
 	if fromExpr := gotDiag.FromExpr(); fromExpr != nil {
@@ -319,6 +325,13 @@ func TestEvaluateForEach(t *testing.T) {
 			Input:                cty.SetValEmpty(cty.String),
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.SetValEmpty(cty.String),
+			PlanExpectedErrs:     nil,
+			PlanReturnValue:      map[string]cty.Value{},
+		},
+		"empty_set_dynamic": {
+			Input:                cty.SetValEmpty(cty.DynamicPseudoType),
+			ValidateExpectedErrs: nil,
+			ValidateReturnValue:  cty.SetValEmpty(cty.DynamicPseudoType),
 			PlanExpectedErrs:     nil,
 			PlanReturnValue:      map[string]cty.Value{},
 		},
@@ -374,7 +387,7 @@ func TestEvaluateForEach(t *testing.T) {
 		"set_of_unknown_strings": {
 			Input:                cty.SetVal([]cty.Value{cty.UnknownVal(cty.String)}),
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.SetVal([]cty.Value{cty.UnknownVal(cty.String)}),
+			ValidateReturnValue:  cty.UnknownVal(cty.Set(cty.String)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -386,9 +399,9 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanReturnValue: map[string]cty.Value{},
 		},
 		"set_of_unknown_dynamic": {
-			Input:                cty.SetVal([]cty.Value{cty.DynamicVal}),
+			Input:                cty.UnknownVal(cty.Set(cty.DynamicPseudoType)),
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.SetVal([]cty.Value{cty.DynamicVal}),
+			ValidateReturnValue:  cty.UnknownVal(cty.Set(cty.DynamicPseudoType)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -410,7 +423,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.EmptyTuple),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -431,7 +444,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.String})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -452,7 +465,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.Bool})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -473,7 +486,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.String})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -494,7 +507,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.String})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -515,7 +528,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.DynamicPseudoType})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -610,7 +623,7 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs:     nil,
 			PlanReturnValue:      map[string]cty.Value{"a": cty.StringVal("b")},
 		},
-		// # Other
+		// Other
 		"null_set_string": {
 			Input: cty.NullVal(cty.Set(cty.String)),
 			ValidateExpectedErrs: []expectedErr{
@@ -621,7 +634,31 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Set(cty.String)),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument value is null.",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			PlanReturnValue: map[string]cty.Value{},
+		},
+		"null_object": {
+			Input: cty.NullVal(cty.Object(map[string]cty.Type{
+				"route_addrs": cty.String,
+				"cidr":        cty.String,
+			})),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument value is null.",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.NullVal(cty.Object(map[string]cty.Type{"cidr": cty.String, "route_addrs": cty.String})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -637,16 +674,28 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+					Detail:            "argument value is null. A map, or set of strings is allowed.",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "must be a map, or set of strings, and you have provided a value of type tuple",
+					Detail:            "argument value is null. A map, or set of strings is allowed.",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
@@ -669,11 +718,11 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.String, cty.String})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments.",
+					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
 					CausedByUnknown:   false,
 					CausedBySensitive: true,
 				},
@@ -696,7 +745,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.String),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -717,7 +766,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Number),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -738,7 +787,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.Bool),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -759,7 +808,7 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue: cty.NullVal(cty.List(cty.String)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -774,7 +823,7 @@ func TestEvaluateForEach(t *testing.T) {
 		"unknown_empty_set": {
 			Input:                cty.UnknownVal(cty.Set(cty.String)),
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue:  cty.UnknownVal(cty.Set(cty.String)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -793,7 +842,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set containing a object",
+					Detail:            "set containing type object.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
@@ -802,8 +851,8 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "includes values derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "set containing type object.",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
@@ -812,7 +861,7 @@ func TestEvaluateForEach(t *testing.T) {
 		"unknown_set_of_strings": {
 			Input:                cty.UnknownVal(cty.Set(cty.String)),
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue:  cty.UnknownVal(cty.Set(cty.String)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -828,7 +877,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set containing a bool",
+					Detail:            "set containing type bool.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
@@ -837,8 +886,8 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set includes values derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "set containing type bool.",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
@@ -847,7 +896,7 @@ func TestEvaluateForEach(t *testing.T) {
 		"unknown_set_of_dynamic": {
 			Input:                cty.UnknownVal(cty.Set(cty.DynamicPseudoType)),
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue:  cty.UnknownVal(cty.Set(cty.DynamicPseudoType)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -861,7 +910,7 @@ func TestEvaluateForEach(t *testing.T) {
 		"unknown_empty_map": {
 			Input:                cty.UnknownVal(cty.Map(cty.String)),
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.String)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -875,7 +924,7 @@ func TestEvaluateForEach(t *testing.T) {
 		"unknown_map_of_strings": {
 			Input:                cty.UnknownVal(cty.Map(cty.String)),
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.String)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -889,11 +938,11 @@ func TestEvaluateForEach(t *testing.T) {
 		"unknown_of_unknowns": {
 			Input:                cty.DynamicVal,
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue:  cty.DynamicVal,
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply",
+					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.",
 					CausedByUnknown:   true,
 					CausedBySensitive: false,
 				},
@@ -903,21 +952,7 @@ func TestEvaluateForEach(t *testing.T) {
 		"unknown_map_of_bool": {
 			Input:                cty.UnknownVal(cty.Map(cty.Bool)),
 			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
-			PlanExpectedErrs: []expectedErr{
-				{
-					Summary:           "Invalid for_each argument",
-					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
-					CausedBySensitive: false,
-				},
-			},
-			PlanReturnValue: map[string]cty.Value{},
-		},
-		"unknown_tuple_of_bools": {
-			Input:                cty.UnknownVal(cty.Tuple([]cty.Type{cty.Bool})),
-			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.Bool)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -929,42 +964,63 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanReturnValue: map[string]cty.Value{},
 		},
 		"unknown_tuple_of_strings": {
-			Input:                cty.UnknownVal(cty.Tuple([]cty.Type{cty.String})),
-			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			Input: cty.UnknownVal(cty.Tuple([]cty.Type{cty.String})),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.String})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
 			PlanReturnValue: map[string]cty.Value{},
 		},
 		"unknown_tuple_of_dynamic": {
-			Input:                cty.UnknownVal(cty.Tuple([]cty.Type{cty.DynamicPseudoType})),
-			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			Input: cty.UnknownVal(cty.Tuple([]cty.Type{cty.DynamicPseudoType})),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.DynamicPseudoType})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "keys derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
 			PlanReturnValue: map[string]cty.Value{},
 		},
 		"unknown_tuple_of_bool": {
-			Input:                cty.UnknownVal(cty.Tuple([]cty.Type{cty.Bool})),
-			ValidateExpectedErrs: nil,
-			ValidateReturnValue:  cty.UnknownVal(cty.Map(cty.DynamicPseudoType)),
+			Input: cty.UnknownVal(cty.Tuple([]cty.Type{cty.Bool})),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",
+					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+			},
+			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.Bool})),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "keys derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},

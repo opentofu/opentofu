@@ -17,8 +17,9 @@ import (
 )
 
 const (
-	errInvalidUnknownDetailMap = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
-	errInvalidUnknownDetailSet = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailMap   = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
+	errInvalidUnknownDetailSet   = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailTuple = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full tuple of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
 )
 
 type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics)
@@ -78,6 +79,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	forEachVal, forEachDiags := expr.Value(hclCtx)
 	diags = diags.Append(forEachDiags)
 
+	ty := forEachVal.Type()
 	// If a whole map is marked, or a set contains marked values (which means the set is then marked)
 	// give an error diagnostic as this value cannot be used in for_each
 	if forEachVal.HasMark(marks.Sensitive) {
@@ -92,20 +94,45 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		})
 	}
 
-	ty := forEachVal.Type()
-
-	var isAllowedType bool
+	retVal := forEachVal
+	var retDiags tfdiags.Diagnostics
 	var allowedTypesMessage string
+
 	if allowTuple {
-		isAllowedType = ty.IsMapType() || ty.IsSetType() || ty.IsObjectType() || ty.IsTupleType()
 		allowedTypesMessage = "map, set of strings, or a tuple"
 	} else {
-		isAllowedType = ty.IsMapType() || ty.IsSetType() || ty.IsObjectType()
 		allowedTypesMessage = "map, or set of strings"
 	}
 
-	// Check if the type is allowed whether the value is marked or not
-	if forEachVal.IsKnown() && !isAllowedType {
+	if forEachVal.IsNull() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A %s is allowed.`, allowedTypesMessage),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+		})
+	}
+
+	// Type Checks
+	switch {
+	case ty.IsSetType():
+		retVal, retDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+	case ty.IsObjectType() || ty.IsMapType():
+		retVal, retDiags = performMapTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+	case ty.IsTupleType() && allowTuple:
+		// tuples are allowed for imports
+		retVal, retDiags = performTupleTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+	case ty == cty.DynamicPseudoType:
+		retVal, retDiags = performDynamicTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+	case ty.IsCollectionType() && markSafeLengthInt(forEachVal) == 0:
+		// If the map is empty ({}), return an empty map, because cty will
+		// return nil when representing {} AsValueMap. This also covers an empty
+		// set (toset([]))
+		return retVal, diags
+	default:
+		retVal = cty.NullVal(ty)
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -116,87 +143,88 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		})
 	}
 
-	// Return it to avoid expose sensitive value by further check
-	if diags.HasErrors() {
-		return nullMap, diags
-	}
+	diags = diags.Append(retDiags)
 
-	forEachVal, diags = performForEachValueChecks(expr, hclCtx, allowUnknown, forEachVal, allowedTypesMessage, excludableAddr)
 	if diags.HasErrors() {
+		return retVal, diags
+	}
+	return retVal, nil
+}
+
+func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	if !forEachVal.IsKnown() && !allowUnknown {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      errInvalidUnknownDetailTuple + forEachCommandLineExcludeSuggestion(excludableAddr),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByUnknown(true),
+		})
 		return forEachVal, diags
 	}
 
 	return forEachVal, nil
 }
 
-// performForEachValueChecks ensures the for_each argument is valid
-func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, allowedTypesMessage string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performDynamicTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
-	ty := forEachVal.Type()
 
-	switch {
-	case forEachVal.IsNull():
+	if !forEachVal.IsKnown() && !allowUnknown {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
-			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A %s is allowed.`, allowedTypesMessage),
+			Detail:      errInvalidUnknownDetailMap + forEachCommandLineExcludeSuggestion(excludableAddr),
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByUnknown(true),
 		})
-		return nullMap, diags
-	case !forEachVal.IsKnown():
-		if !allowUnknown {
-			var detailMsg string
-			switch {
-			case ty.IsSetType():
-				detailMsg = errInvalidUnknownDetailSet
-			default:
-				detailMsg = errInvalidUnknownDetailMap
-			}
-			detailMsg += forEachCommandLineExcludeSuggestion(excludableAddr)
-
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each argument",
-				Detail:      detailMsg,
-				Subject:     expr.Range().Ptr(),
-				Expression:  expr,
-				EvalContext: hclCtx,
-				Extra:       DiagnosticCausedByUnknown(true),
-			})
-		} else if ty.IsSetType() {
-			setVal, setTypeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
-			diags = diags.Append(setTypeDiags)
-			if diags.HasErrors() {
-				return setVal, diags
-			}
-		}
-		// ensure that we have a map, and not a DynamicValue
-		return cty.UnknownVal(cty.Map(cty.DynamicPseudoType)), diags
-	case markSafeLengthInt(forEachVal) == 0:
-		// If the map is empty ({}), return an empty map, because cty will
-		// return nil when representing {} AsValueMap. This also covers an empty
-		// set (toset([]))
 		return forEachVal, diags
 	}
 
-	if ty.IsSetType() {
-		setVal, setTypeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
-		diags = diags.Append(setTypeDiags)
-		if diags.HasErrors() {
-			return setVal, diags
-		}
+	return forEachVal, nil
+}
+
+func performMapTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	if !forEachVal.IsKnown() && !allowUnknown {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      errInvalidUnknownDetailMap + forEachCommandLineExcludeSuggestion(excludableAddr),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+			Extra:       DiagnosticCausedByUnknown(true),
+		})
+		return forEachVal, diags
 	}
 
-	return forEachVal, diags
+	return forEachVal, nil
 }
 
 // performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
 func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
+
+	// We do not accept sets containing other type than strings or if it can't be determined, we do accept it
+	if ty.ElementType() != cty.String && ty.ElementType() != cty.DynamicPseudoType {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     "Invalid for_each argument",
+			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing type %s.`, forEachVal.Type().ElementType().FriendlyName()),
+			Subject:     expr.Range().Ptr(),
+			Expression:  expr,
+			EvalContext: hclCtx,
+		})
+		return cty.NullVal(ty), diags
+	}
 
 	// since we can't use a set values that are unknown, we treat the
 	// entire set as unknown
@@ -211,30 +239,13 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 				EvalContext: hclCtx,
 				Extra:       DiagnosticCausedByUnknown(true),
 			})
-		} else if ty.ElementType() != cty.String && ty.ElementType() != cty.DynamicPseudoType {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each argument",
-				Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing a %s.`, forEachVal.Type().ElementType().FriendlyName()),
-				Subject:     expr.Range().Ptr(),
-				Expression:  expr,
-				EvalContext: hclCtx,
-			})
-			return cty.NullVal(ty), diags
 		}
 		return cty.UnknownVal(ty), diags
 	}
 
-	if ty.ElementType() != cty.String {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid for_each argument",
-			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing type %s.`, forEachVal.Type().ElementType().FriendlyName()),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: hclCtx,
-		})
-		return cty.NullVal(ty), diags
+	// Since we're using a multi-error approach, we do test the nulliness here because ElementIterator above can't iterate on null values. We do that to make sure we append type errors together with nulliness errors.
+	if forEachVal.IsNull() {
+		return forEachVal, nil
 	}
 
 	// A set of strings may contain null, which makes it impossible to
