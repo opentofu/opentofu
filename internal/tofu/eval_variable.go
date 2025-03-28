@@ -291,6 +291,16 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 	const errInvalidValue = "Invalid value for variable"
 	var diags tfdiags.Diagnostics
 
+	if validation.ErrorMessages != nil {
+		// This is a new-style validation rule with just a single error_messages expression
+		// that returns a list of zero or more problems, instead of the separate condition
+		// and error_message arguments.
+		// FIXME: This implementation approach is just for prototyping to minimize changes
+		// to the existing code. If we decide to implement this feature for real then
+		// we'll probably want to arrange things differently for better readability.
+		return evalVariableValidationWithErrorMessages(validation, hclCtx, addr, config, expr, ix)
+	}
+
 	result, moreDiags := validation.Condition.Value(hclCtx)
 	diags = diags.Append(moreDiags)
 	errorValue, errorDiags := validation.ErrorMessage.Value(hclCtx)
@@ -476,4 +486,113 @@ You can correct this by removing references to sensitive values, or by carefully
 		Status:         status,
 		FailureMessage: errorMessage,
 	}, diags
+}
+
+func evalVariableValidationWithErrorMessages(validation *configs.CheckRule, hclCtx *hcl.EvalContext, addr addrs.AbsInputVariableInstance, _ *configs.Variable, _ hcl.Expression, _ int) (checkResult, tfdiags.Diagnostics) {
+	const invalidMessagesSummary = "Invalid variable validation error messages"
+	const invalidMessageSummary = "Invalid variable validation error message"
+	var diags tfdiags.Diagnostics
+
+	// GENERAL FIXME: At least some of the diagnostics returned from this function
+	// ought to be annotated with Extra: &addrs.CheckRuleDiagnosticExtra{ ... }
+	// to cooperate with the expectations of the "tofu test" harness.
+
+	messagesVal, moreDiags := validation.ErrorMessages.Value(hclCtx)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		return checkResult{Status: checks.StatusError}, diags
+	}
+
+	// FIXME: Need to do something about sensitive values here.
+	// Perhaps we just have a single check for whether there's any sensitivity
+	// anywhere in messagesVal, since that's invalid, or perhaps we'd prefer
+	// to try to render each error message individually and thus still return
+	// any of them that aren't sensitive, as long as the list as a whole isn't
+	// sensitive.
+
+	var convertErr error
+	messagesVal, convertErr = convert.Convert(messagesVal, cty.List(cty.String))
+	if convertErr != nil {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     invalidMessagesSummary,
+			Detail:      fmt.Sprintf("Invalid result from error_messages expression: %s.", tfdiags.FormatError(convertErr)),
+			Subject:     validation.ErrorMessages.Range().Ptr(),
+			Expression:  validation.ErrorMessages,
+			EvalContext: hclCtx,
+		})
+		return checkResult{Status: checks.StatusError}, diags
+	}
+	if messagesVal.IsNull() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity:    hcl.DiagError,
+			Summary:     invalidMessagesSummary,
+			Detail:      "Invalid result from error_messages expression: must not be null. Use an empty list to represent a valid value.",
+			Subject:     validation.ErrorMessages.Range().Ptr(),
+			Expression:  validation.ErrorMessages,
+			EvalContext: hclCtx,
+		})
+		return checkResult{Status: checks.StatusError}, diags
+	}
+
+	haveErrors := messagesVal.Length().NotEqual(cty.Zero)
+	if !haveErrors.IsKnown() {
+		log.Printf("[TRACE] evalVariableValidations: %s rule %s error_messages length is unknown, so skipping validation for now", addr, validation.DeclRange)
+		return checkResult{Status: checks.StatusUnknown}, diags // We'll wait until we've learned more, then.
+	}
+	if haveErrors.True() {
+		var errorMessages []string
+		for it := messagesVal.ElementIterator(); it.Next(); {
+			_, msgVal := it.Element()
+			if msgVal.IsNull() {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity:    hcl.DiagError,
+					Summary:     invalidMessageSummary,
+					Detail:      "Unsuitable value for error message: must not be null.",
+					Subject:     validation.ErrorMessages.Range().Ptr(),
+					Expression:  validation.ErrorMessages,
+					EvalContext: hclCtx,
+				})
+				continue
+			}
+			if !msgVal.IsKnown() {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity:    hcl.DiagError,
+					Summary:     "Invalid error message",
+					Detail:      "A value used in one of the error messages will not be known until the apply phase and so cannot be shown.",
+					Subject:     validation.ErrorMessages.Range().Ptr(),
+					Expression:  validation.ErrorMessages,
+					EvalContext: hclCtx,
+					Extra:       evalchecks.DiagnosticCausedByUnknown(true),
+				})
+				continue
+			}
+			// We've eliminated the null or unknown possibilities here.
+			// FIXME: We might need to deal with sensitive here if we don't decide
+			// to check for it across the entire list before we start above.
+			// That means we should definitely be holding a known, non-null string.
+			errorMessage := msgVal.AsString()
+			errorMessages = append(errorMessages, errorMessage)
+
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity:    hcl.DiagError,
+				Summary:     "Invalid value for variable",
+				Detail:      fmt.Sprintf("%s\n\nThis was checked by the validation rule at %s.", errorMessage, validation.DeclRange.String()),
+				Subject:     validation.ErrorMessages.Range().Ptr(),
+				Expression:  validation.ErrorMessages,
+				EvalContext: hclCtx,
+			})
+		}
+		return checkResult{
+			Status: checks.StatusFail,
+			// Since each check can only have one status and one failure message,
+			// we combine all of the error messages together here meaning that
+			// they'll get reported all together as a single failure in
+			// "tofu test" results, and in anything else that makes use of
+			// check results.
+			FailureMessage: strings.Join(errorMessages, "\n"),
+		}, diags
+	}
+
+	return checkResult{Status: checks.StatusPass}, diags
 }
