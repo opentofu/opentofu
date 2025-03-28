@@ -259,7 +259,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 	// The import process handles its own refresh
 	if !n.skipRefresh && !importing {
 		s, refreshDiags := n.refresh(ctx, states.NotDeposed, instanceRefreshState)
-		diags = diags.Append(refreshDiags)
+		diags = diags.Append(maybeImproveResourceInstanceDiagnostics(refreshDiags, addr))
 		if diags.HasErrors() {
 			return diags
 		}
@@ -303,7 +303,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		change, instancePlanState, repeatData, planDiags := n.plan(
 			ctx, nil, instanceRefreshState, n.ForceCreateBeforeDestroy, n.forceReplace,
 		)
-		diags = diags.Append(planDiags)
+		diags = diags.Append(maybeImproveResourceInstanceDiagnostics(planDiags, addr))
 		if diags.HasErrors() {
 			// If we are importing and generating a configuration, we need to
 			// ensure the change is written out so the configuration can be
