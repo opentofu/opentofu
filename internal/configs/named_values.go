@@ -38,9 +38,11 @@ type Variable struct {
 	ParsingMode VariableParsingMode
 	Validations []*CheckRule
 	Sensitive   bool
+	Deprecated  string
 
 	DescriptionSet bool
 	SensitiveSet   bool
+	DeprecatedSet  bool
 
 	// Nullable indicates that null is a valid value for this variable. Setting
 	// Nullable to false means that the module can expect this variable to
@@ -121,6 +123,12 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Sensitive)
 		diags = append(diags, valDiags...)
 		v.SensitiveSet = true
+	}
+
+	if attr, exists := content.Attributes["deprecated"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Deprecated)
+		diags = append(diags, valDiags...)
+		v.DeprecatedSet = true
 	}
 
 	if attr, exists := content.Attributes["nullable"]; exists {
@@ -534,6 +542,9 @@ var variableBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "sensitive",
+		},
+		{
+			Name: "deprecated",
 		},
 		{
 			Name: "nullable",
