@@ -77,14 +77,10 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 		return nil, diags
 	}
 
-	m, err := methodConfig.Build()
-	if err != nil {
-		// TODO this error handling could use some work
-		return nil, diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Encryption method configuration failed",
-			Detail:   err.Error(),
-		})
+	m, methodConfigDiags := methodConfig.Build()
+	diags = diags.Extend(methodConfigDiags)
+	if diags.HasErrors() {
+		return nil, diags
 	}
 
 	return m, diags
