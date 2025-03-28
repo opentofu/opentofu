@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/zclconf/go-cty/cty"
@@ -625,6 +626,52 @@ func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 
 	if !bytes.Equal(expectedPrivate, resp.PlannedPrivate) {
 		t.Fatalf("expected %q, got %q", expectedPrivate, resp.PlannedPrivate)
+	}
+}
+
+func TestGRPCProvider_PlanResourceChange_deferred(t *testing.T) {
+	client := mockProviderClient(t)
+	p := &GRPCProvider{
+		client: client,
+	}
+
+	client.EXPECT().PlanResourceChange(
+		gomock.Any(),
+		gomock.Any(),
+	).Return(&proto.PlanResourceChange_Response{
+		PlannedState: &proto.DynamicValue{
+			Msgpack: []byte("\x81\xa4attr\xa3bar"),
+		},
+		Deferred: &proto.Deferred{
+			Reason: proto.Deferred_PROVIDER_CONFIG_UNKNOWN,
+		},
+	}, nil)
+
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
+		TypeName: "resource",
+		PriorState: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("foo"),
+		}),
+		ProposedNewState: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("bar"),
+		}),
+		Config: cty.ObjectVal(map[string]cty.Value{
+			"attr": cty.StringVal("bar"),
+		}),
+	})
+
+	if len(resp.Diagnostics) != 1 {
+		t.Fatal("wrong number of diagnostics; want one\n" + spew.Sdump(resp.Diagnostics))
+	}
+	desc := resp.Diagnostics[0].Description()
+	if got, want := desc.Summary, `Provider configuration is incomplete`; got != want {
+		t.Errorf("wrong error summary\ngot:  %s\nwant: %s", got, want)
+	}
+	if got, want := desc.Detail, `The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.`; got != want {
+		t.Errorf("wrong error detail\ngot:  %s\nwant: %s", got, want)
+	}
+	if !providers.IsDeferralDiagnostic(resp.Diagnostics[0]) {
+		t.Errorf("diagnostic is not marked as being a \"deferral diagnostic\"")
 	}
 }
 

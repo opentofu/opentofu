@@ -2821,3 +2821,60 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx 
 
 	return provider, schema, nil
 }
+
+func maybeImproveResourceInstanceDiagnostics(diags tfdiags.Diagnostics, excludeAddr addrs.Targetable) tfdiags.Diagnostics {
+	// We defer allocating a new diagnostics array until we know we need to
+	// change something, because most of the time we'll just be returning
+	// the given diagnostics verbatim.
+	var ret tfdiags.Diagnostics
+	for i, diag := range diags {
+		if excludeAddr != nil && providers.IsDeferralDiagnostic(diag) {
+			// We've found a diagnostic we want to change, so we'll allocate
+			// a new diagnostics array if we didn't already.
+			if ret == nil {
+				ret = make(tfdiags.Diagnostics, len(diags))
+				copy(ret, diags)
+			}
+			// FIXME: The following is a hack to slightly modify the diagnostic
+			// with an extra paragraph of detail content. If this becomes a
+			// more common need elsewhere then we should find a less clunky way
+			// to do this, probably with a new feature in tfdiags.
+			desc := diag.Description()
+			src := diag.Source()
+			extraDetail := fmt.Sprintf(
+				// FIXME: This should use a technique similar to evalchecks.commandLineArgumentsSuggestion
+				// to generate appropriate quoting/escaping of the address for the current platform.
+				"\n\nTo work around this, use the planning option -exclude=%q to first apply without this object, and then apply normally to converge.",
+				excludeAddr.String(),
+			)
+			newDiag := &hcl.Diagnostic{
+				Severity: diag.Severity().ToHCL(),
+				Summary:  desc.Summary,
+				Detail:   desc.Detail + extraDetail,
+			}
+			if src.Subject != nil {
+				newDiag.Subject = src.Subject.ToHCL().Ptr()
+			}
+			if src.Context != nil {
+				newDiag.Context = src.Context.ToHCL().Ptr()
+			}
+			// The following is a little awkward because of how tfdiags is
+			// designed: we need to "append" a new diagnostic over the
+			// one we're trying to replace so that tfdiags has an opportunity
+			// to transform it, so we'll make a zero-length slice whose
+			// capacity covers the one element we're trying to replace.
+			appendTo := ret[i : i : i+1]
+			appendTo = appendTo.Append(newDiag)
+			// appendTo.Append isn't _actually_ required to use the
+			// capacity we gave it (that's an implementation detail)
+			// so just to make sure we'll copy from what was returned
+			// into the final slot. This is likely to be a no-op in most
+			// cases.
+			ret[i] = appendTo[0]
+		}
+	}
+	if ret == nil { // We didn't change anything
+		return diags
+	}
+	return ret
+}

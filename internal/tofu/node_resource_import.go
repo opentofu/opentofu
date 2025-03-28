@@ -121,7 +121,7 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 		TypeName: n.Addr.Resource.Resource.Type,
 		ID:       n.ID,
 	})
-	diags = diags.Append(resp.Diagnostics)
+	diags = diags.Append(maybeImproveResourceInstanceDiagnostics(resp.Diagnostics, n.Addr))
 	if diags.HasErrors() {
 		return diags
 	}
