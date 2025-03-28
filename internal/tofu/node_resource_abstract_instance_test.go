@@ -15,7 +15,9 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
@@ -265,4 +267,73 @@ func TestFilterResourceProvisioners(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMaybeImproveResourceInstanceDiagnostics(t *testing.T) {
+	// This test is focused mainly on whether
+	// maybeImproveResourceInstanceDiagnostics is able to correctly identify
+	// deferral-related diagnostics and transform them, while keeping
+	// other unrelated diagnostics intact and unmodified.
+	// TestContext2Plan_providerDefersPlanning tests that the effect of
+	// this function is exposed externally when a provider's PlanResourceChange
+	// method returns a suitable diagnostic.
+
+	var input tfdiags.Diagnostics
+	input = input.Append(tfdiags.Sourceless(
+		tfdiags.Warning,
+		"This is not a deferral-related diagnostic",
+		"This one should not be modified at all.",
+	))
+	input = input.Append(providers.NewDeferralDiagnostic(providers.DeferredBecauseProviderConfigUnknown))
+	input = input.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"This is not a deferral-related diagnostic",
+		"This one should not be modified at all.",
+	))
+	input = input.Append(providers.NewDeferralDiagnostic(providers.DeferredBecauseResourceConfigUnknown))
+	input = input.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"This is not a deferral-related diagnostic either",
+		"Leave this one alone too.",
+	))
+
+	// We'll use ForRPC here just to make the diagnostics easier to compare,
+	// since we care primarily about their description test here.
+	got := maybeImproveResourceInstanceDiagnostics(input, mustAbsResourceAddr("foo.bar").Instance(addrs.IntKey(1))).ForRPC()
+	var want tfdiags.Diagnostics
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Warning,
+		"This is not a deferral-related diagnostic",
+		"This one should not be modified at all.",
+	))
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Provider configuration is incomplete",
+		`The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.
+
+To work around this, use the planning option -exclude="foo.bar[1]" to first apply without this object, and then apply normally to converge.`,
+	))
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"This is not a deferral-related diagnostic",
+		"This one should not be modified at all.",
+	))
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"Resource configuration is incomplete",
+		`The provider was unable to act on this resource configuration because it makes use of values from other resources that will not be known until after apply.
+
+To work around this, use the planning option -exclude="foo.bar[1]" to first apply without this object, and then apply normally to converge.`,
+	))
+	want = want.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"This is not a deferral-related diagnostic either",
+		"Leave this one alone too.",
+	))
+	want = want.ForRPC()
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result\n" + diff)
+	}
+
 }
