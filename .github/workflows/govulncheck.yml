@@ -32,7 +32,7 @@ jobs:
         run: |
           ## This is using https://endoflife.date since there 1.6 is already marked as it reached EOL
           ## This is adding manually the main branch to scan it as well
-          curl https://endoflife.date/api/opentofux.json | tee out 
+          curl https://endoflife.date/api/opentofu.json | tee out 
           cat out | jq '.[] | select(.eol == false) | ["v" + .cycle]' | jq -sc 'add' | jq -c '["main"] + .' | tee branches
           echo "branches=$(cat branches)">> "$GITHUB_OUTPUT"
         shell: bash
