@@ -9,6 +9,7 @@ BUG FIXES:
 - Changing Go version to 1.22.11 in order to fix [CVE-2024-45336](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45336) and [CVE-2024-45341](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45341) ([#2438](https://github.com/opentofu/opentofu/pull/2438))
 - Fix the way OpenTofu downloads a module that is sourced from a GitHub branch containing slashes in the name. ([2396](https://github.com/opentofu/opentofu/issues/2396))
 - Fix vulnerability [GO-2024-2947](https://pkg.go.dev/vuln/GO-2024-2947)
+- Fix vulnerability [GO-2024-2948](https://pkg.go.dev/vuln/GO-2024-2948)
 
 ## 1.7.7
 
