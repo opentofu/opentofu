@@ -46,7 +46,7 @@ require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hashicorp/go-plugin v1.4.3
-	github.com/hashicorp/go-retryablehttp v0.7.4
+	github.com/hashicorp/go-retryablehttp v0.7.7
 	github.com/hashicorp/go-tfe v1.36.0
 	github.com/hashicorp/go-uuid v1.0.3
 	github.com/hashicorp/go-version v1.6.0
@@ -59,7 +59,7 @@ require (
 	github.com/lib/pq v1.10.3
 	github.com/manicminer/hamilton v0.44.0
 	github.com/masterzen/winrm v0.0.0-20200615185753-c42b5136ff88
-	github.com/mattn/go-isatty v0.0.17
+	github.com/mattn/go-isatty v0.0.20
 	github.com/mattn/go-shellwords v1.0.4
 	github.com/mitchellh/cli v1.1.5
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db
@@ -95,7 +95,7 @@ require (
 	golang.org/x/mod v0.12.0
 	golang.org/x/net v0.23.0
 	golang.org/x/oauth2 v0.16.0
-	golang.org/x/sys v0.18.0
+	golang.org/x/sys v0.20.0
 	golang.org/x/term v0.18.0
 	golang.org/x/text v0.14.0
 	golang.org/x/tools v0.13.0
@@ -167,7 +167,7 @@ require (
 	github.com/creack/pty v1.1.18 // indirect
 	github.com/dimchansky/utfbom v1.1.1 // indirect
 	github.com/dylanmei/iso8601 v0.1.0 // indirect
-	github.com/fatih/color v1.15.0 // indirect
+	github.com/fatih/color v1.16.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
