@@ -8,7 +8,8 @@ BUG FIXES:
 - Fix the error message when default value of a complex variable is containing a wrong type ([2394](https://github.com/opentofu/opentofu/issues/2394))
 - Changing Go version to 1.22.11 in order to fix [CVE-2024-45336](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45336) and [CVE-2024-45341](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45341) ([#2438](https://github.com/opentofu/opentofu/pull/2438))
 - Fix the way OpenTofu downloads a module that is sourced from a GitHub branch containing slashes in the name. ([2396](https://github.com/opentofu/opentofu/issues/2396))
-
+- OpenTofu builds now use Go version 1.23 ([#2629](https://github.com/opentofu/opentofu/issues/2629))
+  - This updates also more dependencies to fix vulnerability ([GO-2025-3487](https://pkg.go.dev/vuln/GO-2025-3487))
 ## 1.7.7
 
 BUG FIXES:
