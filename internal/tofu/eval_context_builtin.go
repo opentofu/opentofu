@@ -12,7 +12,6 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
-	"github.com/hashicorp/hcl/v2/ext/transform"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -309,10 +308,7 @@ func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema
 	scope := ctx.EvaluationScope(self, nil, keyData)
 	body, evalDiags := scope.ExpandBlock(body, schema)
 	diags = diags.Append(evalDiags)
-	body = transform.Deep(body, transform.TransformerFunc(func(b hcl.Body) hcl.Body {
-		return deprecatableBody{body}
-	}))
-	val, evalDiags := scope.EvalBlock(body, schema)
+	val, evalDiags := scope.EvalBlock(deprecatableBody{body}, schema)
 	diags = diags.Append(evalDiags)
 	return val, body, diags
 }
