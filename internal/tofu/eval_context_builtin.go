@@ -306,9 +306,9 @@ func (ctx *BuiltinEvalContext) CloseProvisioners() error {
 func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	scope := ctx.EvaluationScope(self, nil, keyData)
-	body, evalDiags := scope.ExpandBlock(body, schema)
+	body, evalDiags := scope.ExpandBlock(deprecatableBody{body}, schema)
 	diags = diags.Append(evalDiags)
-	val, evalDiags := scope.EvalBlock(deprecatableBody{body}, schema)
+	val, evalDiags := scope.EvalBlock(body, schema)
 	diags = diags.Append(evalDiags)
 	return val, body, diags
 }
@@ -594,11 +594,11 @@ func (ctx *BuiltinEvalContext) GetEncryption() encryption.Encryption {
 // TODO/Oleksandr: comments for deprecatableExpression and deprecatableBody
 
 type deprecatableExpression struct {
-	internal hcl.Expression
+	hcl.Expression
 }
 
 func (e deprecatableExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
-	v, diags := e.internal.Value(ctx)
+	v, diags := e.Expression.Value(ctx)
 	if diags.HasErrors() {
 		return v, diags
 	}
@@ -609,8 +609,8 @@ func (e deprecatableExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diag
 				Severity:   hcl.DiagWarning,
 				Summary:    "Value derived from a deprecated source",
 				Detail:     fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
-				Subject:    e.Range().Ptr(),
-				Expression: e,
+				Subject:    e.Expression.Range().Ptr(),
+				Expression: e.Expression,
 			})
 		}
 	}
@@ -618,24 +618,12 @@ func (e deprecatableExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diag
 	return v, diags
 }
 
-func (e deprecatableExpression) Variables() []hcl.Traversal {
-	return e.internal.Variables()
-}
-
-func (e deprecatableExpression) Range() hcl.Range {
-	return e.internal.Range()
-}
-
-func (e deprecatableExpression) StartRange() hcl.Range {
-	return e.internal.StartRange()
-}
-
 type deprecatableBody struct {
-	internal hcl.Body
+	hcl.Body
 }
 
 func (b deprecatableBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diagnostics) {
-	content, diags := b.internal.Content(schema)
+	content, diags := b.Body.Content(schema)
 	if diags.HasErrors() {
 		return content, diags
 	}
@@ -652,7 +640,7 @@ func (b deprecatableBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl
 }
 
 func (b deprecatableBody) PartialContent(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Body, hcl.Diagnostics) {
-	content, body, diags := b.internal.PartialContent(schema)
+	content, body, diags := b.Body.PartialContent(schema)
 
 	for _, attr := range content.Attributes {
 		attr.Expr = deprecatableExpression{attr.Expr}
@@ -666,7 +654,7 @@ func (b deprecatableBody) PartialContent(schema *hcl.BodySchema) (*hcl.BodyConte
 }
 
 func (b deprecatableBody) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
-	attrs, diags := b.internal.JustAttributes()
+	attrs, diags := b.Body.JustAttributes()
 	if diags.HasErrors() {
 		return attrs, diags
 	}
@@ -676,8 +664,4 @@ func (b deprecatableBody) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
 	}
 
 	return attrs, diags
-}
-
-func (b deprecatableBody) MissingItemRange() hcl.Range {
-	return b.internal.MissingItemRange()
 }
