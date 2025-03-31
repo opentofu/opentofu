@@ -157,9 +157,8 @@ type TestRun struct {
 	// Module defines an address of another module that should be loaded and
 	// executed as part of this run block instead of the module under test.
 	//
-	// In the current version of the testing framework we will only support
-	// loading alternate modules from local directories, registry or from generic
-	// git repositories.
+	// We support loading from all the module sources, like local directories, registry,
+	// generic git repos, github, bitbucket, s3 and gcs repositories.
 	Module *TestRunModuleCall
 
 	// ConfigUnderTest describes the configuration this run block should execute
