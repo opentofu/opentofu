@@ -157,8 +157,9 @@ type TestRun struct {
 	// Module defines an address of another module that should be loaded and
 	// executed as part of this run block instead of the module under test.
 	//
-	// In the initial version of the testing framework we will only support
-	// loading alternate modules from local directories or the registry.
+	// In the current version of the testing framework we will only support
+	// loading alternate modules from local directories, registry or from generic
+	// git repositories.
 	Module *TestRunModuleCall
 
 	// ConfigUnderTest describes the configuration this run block should execute
@@ -715,19 +716,6 @@ func decodeTestRunModuleBlock(block *hcl.Block) (*TestRunModuleCall, hcl.Diagnos
 						})
 					}
 				}
-			}
-
-			switch module.Source.(type) {
-			case addrs.ModuleSourceRemote:
-				// We only support local or registry modules when loading
-				// modules directly from alternate sources during a test
-				// execution.
-				diags = append(diags, &hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid module source address",
-					Detail:   "Only local or registry module sources are currently supported from within test run blocks.",
-					Subject:  module.SourceDeclRange.Ptr(),
-				})
 			}
 		}
 	} else {
