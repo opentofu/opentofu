@@ -30,30 +30,16 @@ jobs:
     steps:
       - id: branches
         run: |
-          ## This is using GitHub API and we manually filter out the versions that are not supported anymore
-          # gh api "repos/opentofu/opentofu/branches?protected=true" --paginate | tee out 
-          # cat out | jq '.[] | select(.name != "v1.6") | [.name]' | jq -sc 'add' | tee branches
-          # echo "branches=$(cat branches)">> "$GITHUB_OUTPUT"
-          
           ## This is using https://endoflife.date since there 1.6 is already marked as it reached EOL
           ## This is adding manually the main branch to scan it as well
-          curl https://endoflife.date/api/opentofu.json | tee out 
+          curl https://endoflife.date/api/opentofux.json | tee out 
           cat out | jq '.[] | select(.eol == false) | ["v" + .cycle]' | jq -sc 'add' | jq -c '["main"] + .' | tee branches
           echo "branches=$(cat branches)">> "$GITHUB_OUTPUT"
+        shell: bash
   govulncheck:
     name: Run govulncheck for ${{ matrix.branch }}
     needs: gather-branches
     runs-on: ubuntu-latest
-    #if: github.ref == 'refs/heads/main'
-    # Or we can configure this manually here, since this workflow will be executed on a schedule, only from the main branch
-    #    strategy:
-    #      matrix:
-    #        include:
-    #          - { branch: main }
-    #          - { branch: v1.9 }
-    #          - { branch: v1.8 }
-    #          - { branch: v1.7 }
-    #      fail-fast: false
     strategy:
       matrix:
         branch: ${{ fromJSON(needs.gather-branches.outputs.branches )}}
