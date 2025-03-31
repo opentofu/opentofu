@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/ext/transform"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
@@ -308,37 +309,17 @@ func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema
 	scope := ctx.EvaluationScope(self, nil, keyData)
 	body, evalDiags := scope.ExpandBlock(body, schema)
 	diags = diags.Append(evalDiags)
+	body = transform.Deep(body, transform.TransformerFunc(func(b hcl.Body) hcl.Body {
+		return deprecatableBody{body}
+	}))
 	val, evalDiags := scope.EvalBlock(body, schema)
 	diags = diags.Append(evalDiags)
-	if marks.ContainsDeprecated(val) {
-		for _, cause := range marks.ListDeprecationCauses(val) {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagWarning,
-				Summary:  "Value derived from a deprecated source",
-				Detail:   fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
-				// TODO/Oleksandr: It would be better to check individual block entries to warn about deprecation including
-				// their specific source range. Currently, EvalBlock uses EvalContext internally which makes it harder to
-				// inject custom check before accessing a specific value by its reference.
-			})
-		}
-	}
 	return val, body, diags
 }
 
 func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
-	v, diags := scope.EvalExpr(expr, wantType)
-	if marks.ContainsDeprecated(v) {
-		for _, cause := range marks.ListDeprecationCauses(v) {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity:   hcl.DiagWarning,
-				Summary:    "Value derived from a deprecated source",
-				Detail:     fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
-				Subject:    expr.Range().Ptr(),
-				Expression: expr,
-			})
-		}
-	}
+	v, diags := scope.EvalExpr(deprecatableExpression{expr}, wantType)
 	return v, diags
 }
 
@@ -612,4 +593,95 @@ func (ctx *BuiltinEvalContext) ImportResolver() *ImportResolver {
 
 func (ctx *BuiltinEvalContext) GetEncryption() encryption.Encryption {
 	return ctx.Encryption
+}
+
+// TODO/Oleksandr: comments for deprecatableExpression and deprecatableBody
+
+type deprecatableExpression struct {
+	internal hcl.Expression
+}
+
+func (e deprecatableExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
+	v, diags := e.internal.Value(ctx)
+	if diags.HasErrors() {
+		return v, diags
+	}
+
+	if marks.ContainsDeprecated(v) {
+		for _, cause := range marks.ListDeprecationCauses(v) {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity:   hcl.DiagWarning,
+				Summary:    "Value derived from a deprecated source",
+				Detail:     fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
+				Subject:    e.Range().Ptr(),
+				Expression: e,
+			})
+		}
+	}
+
+	return v, diags
+}
+
+func (e deprecatableExpression) Variables() []hcl.Traversal {
+	return e.internal.Variables()
+}
+
+func (e deprecatableExpression) Range() hcl.Range {
+	return e.internal.Range()
+}
+
+func (e deprecatableExpression) StartRange() hcl.Range {
+	return e.internal.StartRange()
+}
+
+type deprecatableBody struct {
+	internal hcl.Body
+}
+
+func (b deprecatableBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diagnostics) {
+	content, diags := b.internal.Content(schema)
+	if diags.HasErrors() {
+		return content, diags
+	}
+
+	for _, attr := range content.Attributes {
+		attr.Expr = deprecatableExpression{attr.Expr}
+	}
+
+	for _, block := range content.Blocks {
+		block.Body = deprecatableBody{block.Body}
+	}
+
+	return content, diags
+}
+
+func (b deprecatableBody) PartialContent(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Body, hcl.Diagnostics) {
+	content, body, diags := b.internal.PartialContent(schema)
+
+	for _, attr := range content.Attributes {
+		attr.Expr = deprecatableExpression{attr.Expr}
+	}
+
+	for _, block := range content.Blocks {
+		block.Body = deprecatableBody{block.Body}
+	}
+
+	return content, deprecatableBody{body}, diags
+}
+
+func (b deprecatableBody) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
+	attrs, diags := b.internal.JustAttributes()
+	if diags.HasErrors() {
+		return attrs, diags
+	}
+
+	for _, attr := range attrs {
+		attr.Expr = deprecatableExpression{attr.Expr}
+	}
+
+	return attrs, diags
+}
+
+func (b deprecatableBody) MissingItemRange() hcl.Range {
+	return b.internal.MissingItemRange()
 }
