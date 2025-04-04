@@ -32,7 +32,7 @@ ENHANCEMENTS:
 * Provider instance keys now automatically converted to string ([#2378](https://github.com/opentofu/opentofu/issues/2378))
 * Remove progress messages from commands using -concise argument ([#2549](https://github.com/opentofu/opentofu/issues/2549))
 * Upgrade aws-sdk version to include `mx-central-1` region. ([#2596](https://github.com/opentofu/opentofu/pull/2596))
-
+* Remove restriction on test module sources now allowing all source types for modules during tests ([#2651]https://github.com/opentofu/opentofu/pull/2651)
 
 BUG FIXES:
 
