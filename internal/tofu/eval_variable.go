@@ -490,8 +490,8 @@ func evalVariableDeprecation(addr addrs.AbsInputVariableInstance, config *config
 		return nil
 	}
 	val := ctx.GetVariableValue(addr)
-	if val == cty.NilVal || val.IsNull() {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %s is marked as deprecated null value given", addr)
+	if val == cty.NilVal {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %s is marked as deprecated but no value given", addr)
 		return nil
 	}
 	log.Printf("[TRACE] evalVariableDeprecation: usage of deprecated variable %q detected", addr)
