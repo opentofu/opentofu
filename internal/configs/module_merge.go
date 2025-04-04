@@ -51,6 +51,9 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 		v.Sensitive = ov.Sensitive
 		v.SensitiveSet = ov.SensitiveSet
 	}
+	if ov.Deprecated != "" {
+		v.Deprecated = ov.Deprecated
+	}
 	if ov.Default != cty.NilVal {
 		v.Default = ov.Default
 	}
