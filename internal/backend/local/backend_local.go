@@ -446,7 +446,7 @@ func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[st
 		rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
 			Id:          fmt.Sprintf("var.%s", name),
 			Query:       fmt.Sprintf("var.%s", name),
-			Description: variableInputDescription(vc),
+			Description: vc.InputPrompt(),
 			Secret:      vc.Sensitive,
 		})
 		if err != nil {
@@ -459,21 +459,6 @@ func (b *Local) interactiveCollectVariables(ctx context.Context, existing map[st
 		ret[name] = unparsedInteractiveVariableValue{Name: name, RawValue: rawValue}
 	}
 	return ret
-}
-
-// variableInputDescription compiles a message for the description when the variable input is needed.
-// This is returning only the configs.Variable#Description if the variable is not deprecated,
-// or it returns both, the description and the deprecation message in one string to be able to
-// notify the user about the deprecation of the variable.
-func variableInputDescription(v *configs.Variable) string {
-	switch {
-	case v.Description != "" && v.DeprecatedSet:
-		return fmt.Sprintf("%s.\nVariable is marked as deprecated with the following message: %s", v.Description, v.Deprecated)
-	case v.DeprecatedSet:
-		return fmt.Sprintf("Variable is marked as deprecated with the following message: %s", v.Deprecated)
-	default:
-		return v.Description
-	}
 }
 
 // stubUnsetVariables ensures that all required variables defined in the

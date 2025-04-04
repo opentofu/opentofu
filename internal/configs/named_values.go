@@ -7,6 +7,7 @@ package configs
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
@@ -42,7 +43,6 @@ type Variable struct {
 
 	DescriptionSet bool
 	SensitiveSet   bool
-	DeprecatedSet  bool
 
 	// Nullable indicates that null is a valid value for this variable. Setting
 	// Nullable to false means that the module can expect this variable to
@@ -127,8 +127,15 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 
 	if attr, exists := content.Attributes["deprecated"]; exists {
 		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Deprecated)
+		if strings.TrimSpace(v.Deprecated) == "" {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid deprecated value",
+				Detail:   fmt.Sprintf("The variable name %q 'deprecated' field is defined but is empty.", v.Name),
+				Subject:  &block.LabelRanges[0],
+			})
+		}
 		diags = append(diags, valDiags...)
-		v.DeprecatedSet = true
 	}
 
 	if attr, exists := content.Attributes["nullable"]; exists {
@@ -286,6 +293,22 @@ func (v *Variable) Addr() addrs.InputVariable {
 // or false if there is a default value that will be used when it isn't set.
 func (v *Variable) Required() bool {
 	return v.Default == cty.NilVal
+}
+
+// InputPrompt returns the text that will be shown during prompting for the variable input when required but on value given.
+// This method is meant to return also the deprecated message together with the description when both exists or only the
+// deprecated info when the description is missing.
+// Other than these 2 cases, the method is keeping the default behavior in case of both (deprecated and description missing),
+// by returning the description. This will keep the previous behavior where during prompting will be shown only the
+// variable name.
+func (v *Variable) InputPrompt() string {
+	switch {
+	case v.Description != "" && v.Deprecated != "":
+		return fmt.Sprintf("%s.\nVariable is marked as deprecated with the following message: %s", v.Description, v.Deprecated)
+	case v.Deprecated != "":
+		return fmt.Sprintf("Variable is marked as deprecated with the following message: %s", v.Deprecated)
+	}
+	return v.Description
 }
 
 // VariableParsingMode defines how values of a particular variable given by
