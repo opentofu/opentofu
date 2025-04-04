@@ -103,7 +103,7 @@ func parseTraversal(t *testing.T, addr string) hcl.Traversal {
 func assertDiagnosticsMatch(t *testing.T, want hcl.Diagnostics, got hcl.Diagnostics) {
 	t.Helper()
 
-	for i := range(want) {
+	for i := range want {
 		if want[i].Summary != got[i].Summary {
 			t.Errorf("wanted %s as summary, got %s instead", want[i].Summary, got[i].Summary)
 		}
