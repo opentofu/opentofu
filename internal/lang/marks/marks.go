@@ -6,7 +6,11 @@
 package marks
 
 import (
+	"fmt"
+
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -121,4 +125,86 @@ func ListDeprecationCauses(v cty.Value) []DeprecationCause {
 	}
 
 	return causes
+}
+
+func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	unmarked, pathMarks := val.UnmarkDeepWithPaths()
+
+	// Locate deprecationMarks and filter them out
+	for _, pm := range pathMarks {
+		for m := range pm.Marks {
+			dm, ok := m.(deprecationMark)
+			if !ok {
+				continue
+			}
+
+			// Remove mark
+			delete(pm.Marks, m)
+
+			cause := dm.Cause
+			diags = diags.Append(tfdiags.AttributeValue(
+				tfdiags.Warning,
+				"Value derived from a deprecated source",
+				fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
+				pm.Path,
+			))
+		}
+		// TODO If all marks are removed, should we remove it from pathMarks?
+	}
+
+	return unmarked.MarkWithPaths(pathMarks), diags.InConfigBody(body, "")
+}
+
+func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	unmarked, pathMarks := val.UnmarkDeepWithPaths()
+
+	// Locate deprecationMarks and filter them out
+	for _, pm := range pathMarks {
+		for m := range pm.Marks {
+			dm, ok := m.(deprecationMark)
+			if !ok {
+				continue
+			}
+
+			// Remove mark
+			delete(pm.Marks, m)
+
+			attr := ""
+			// Assumes AttrStep is always first
+			for _, p := range pm.Path {
+				switch pv := p.(type) {
+				case cty.IndexStep:
+					attr += fmt.Sprintf("[%v]", pv.Key.GoString())
+				case cty.GetAttrStep:
+					if attr == "" {
+						attr = pv.Name
+					} else {
+						attr += fmt.Sprintf(".%s", pv.Name)
+					}
+				}
+			}
+
+			source := "This value"
+			if attr != "" {
+				source += "'s field " + attr
+			}
+
+			cause := dm.Cause
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity:   hcl.DiagWarning,
+				Summary:    "Value derived from a deprecated source",
+				Detail:     fmt.Sprintf("%s is derived from %v, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message),
+				Subject:    expr.Range().Ptr(),
+				Expression: expr,
+			})
+
+		}
+		// TODO If all marks are removed, should we remove it from pathMarks?
+	}
+
+	return unmarked.MarkWithPaths(pathMarks), diags
 }

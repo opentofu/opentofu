@@ -306,16 +306,20 @@ func (ctx *BuiltinEvalContext) CloseProvisioners() error {
 func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	scope := ctx.EvaluationScope(self, nil, keyData)
-	body, evalDiags := scope.ExpandBlock(deprecatableBody{body}, schema)
+	body, evalDiags := scope.ExpandBlock(body, schema)
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(body, schema)
 	diags = diags.Append(evalDiags)
+	val, depDiags := marks.DeprecatedDiagnosticsInBody(val, body)
+	diags = diags.Append(depDiags)
 	return val, body, diags
 }
 
 func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
-	v, diags := scope.EvalExpr(deprecatableExpression{expr}, wantType)
+	v, diags := scope.EvalExpr(expr, wantType)
+	v, depDiags := marks.DeprecatedDiagnosticsInExpr(v, expr)
+	diags = diags.Append(depDiags)
 	return v, diags
 }
 
@@ -589,79 +593,4 @@ func (ctx *BuiltinEvalContext) ImportResolver() *ImportResolver {
 
 func (ctx *BuiltinEvalContext) GetEncryption() encryption.Encryption {
 	return ctx.Encryption
-}
-
-// TODO/Oleksandr: comments for deprecatableExpression and deprecatableBody
-
-type deprecatableExpression struct {
-	hcl.Expression
-}
-
-func (e deprecatableExpression) Value(ctx *hcl.EvalContext) (cty.Value, hcl.Diagnostics) {
-	v, diags := e.Expression.Value(ctx)
-	if diags.HasErrors() {
-		return v, diags
-	}
-
-	if marks.ContainsDeprecated(v) {
-		for _, cause := range marks.ListDeprecationCauses(v) {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity:   hcl.DiagWarning,
-				Summary:    "Value derived from a deprecated source",
-				Detail:     fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
-				Subject:    e.Expression.Range().Ptr(),
-				Expression: e.Expression,
-			})
-		}
-	}
-
-	return v, diags
-}
-
-type deprecatableBody struct {
-	hcl.Body
-}
-
-func (b deprecatableBody) Content(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Diagnostics) {
-	content, diags := b.Body.Content(schema)
-	if diags.HasErrors() {
-		return content, diags
-	}
-
-	for _, attr := range content.Attributes {
-		attr.Expr = deprecatableExpression{attr.Expr}
-	}
-
-	for _, block := range content.Blocks {
-		block.Body = deprecatableBody{block.Body}
-	}
-
-	return content, diags
-}
-
-func (b deprecatableBody) PartialContent(schema *hcl.BodySchema) (*hcl.BodyContent, hcl.Body, hcl.Diagnostics) {
-	content, body, diags := b.Body.PartialContent(schema)
-
-	for _, attr := range content.Attributes {
-		attr.Expr = deprecatableExpression{attr.Expr}
-	}
-
-	for _, block := range content.Blocks {
-		block.Body = deprecatableBody{block.Body}
-	}
-
-	return content, deprecatableBody{body}, diags
-}
-
-func (b deprecatableBody) JustAttributes() (hcl.Attributes, hcl.Diagnostics) {
-	attrs, diags := b.Body.JustAttributes()
-	if diags.HasErrors() {
-		return attrs, diags
-	}
-
-	for _, attr := range attrs {
-		attr.Expr = deprecatableExpression{attr.Expr}
-	}
-
-	return attrs, diags
 }
