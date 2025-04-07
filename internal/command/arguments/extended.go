@@ -197,7 +197,7 @@ func isComment(b []byte) bool {
 
 func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
 	var allParsedTargets, allParsedExcludes, parsedTargets []addrs.Targetable
-	var diags tfdiags.Diagnostics
+	var parseDiags, diags tfdiags.Diagnostics
 
 	// Cannot exclude and target in same command
 	if (len(targetsDirect) > 0 || targetFile != "") && (len(excludesDirect) > 0 || excludeFile != "") {
@@ -209,14 +209,12 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 		return allParsedTargets, allParsedExcludes, diags
 	}
 
-	var parseDiags tfdiags.Diagnostics
-
 	parsedTargets, parseDiags = parseDirectTargetables(targetsDirect, "target")
-	allParsedTargets = append(allParsedTargets, parsedTargets...)
 	diags = diags.Append(parseDiags)
+	allParsedTargets = append(allParsedTargets, parsedTargets...)
 	parsedTargets, parseDiags = parseFileTargetables(targetFile, "target")
-	allParsedTargets = append(allParsedTargets, parsedTargets...)
 	diags = diags.Append(parseDiags)
+	allParsedTargets = append(allParsedTargets, parsedTargets...)
 
 	parsedTargets, parseDiags = parseDirectTargetables(excludesDirect, "exclude")
 	diags = diags.Append(parseDiags)
