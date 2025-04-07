@@ -100,7 +100,7 @@ func parseTraversal(t *testing.T, addr string) hcl.Traversal {
 	return traversal
 }
 
-func assertDiagnosticsMatch(t *testing.T, want hcl.Diagnostics, got hcl.Diagnostics) {
+func assertDiagsSummaryMatch(t *testing.T, want hcl.Diagnostics, got hcl.Diagnostics) {
 	t.Helper()
 
 	for i := range want {
@@ -159,7 +159,7 @@ func TestDecodeTestRunModuleBlock(t *testing.T) {
 			trcm, diags := decodeTestRunModuleBlock(block)
 
 			if tc.expectedDiags != nil || diags != nil {
-				assertDiagnosticsMatch(t, tc.expectedDiags, diags)
+				assertDiagsSummaryMatch(t, tc.expectedDiags, diags)
 				return
 			}
 
