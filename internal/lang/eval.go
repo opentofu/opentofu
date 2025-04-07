@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -76,6 +77,9 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 
 	val, evalDiags := hcldec.Decode(body, spec, ctx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
+
+	val, depDiags := marks.DeprecatedDiagnosticsInBody(val, body)
+	diags = diags.Append(depDiags)
 
 	return val, diags
 }
@@ -182,6 +186,9 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 
 	val, evalDiags := expr.Value(ctx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
+
+	val, depDiags := marks.DeprecatedDiagnosticsInExpr(val, expr, ctx)
+	diags = diags.Append(depDiags)
 
 	if wantType != cty.DynamicPseudoType {
 		var convErr error

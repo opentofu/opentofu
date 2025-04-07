@@ -157,7 +157,7 @@ func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdia
 	return unmarked.MarkWithPaths(pathMarks), diags.InConfigBody(body, "")
 }
 
-func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
+func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression, hclCtx *hcl.EvalContext) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	unmarked, pathMarks := val.UnmarkDeepWithPaths()
@@ -195,11 +195,12 @@ func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value,
 
 			cause := dm.Cause
 			diags = diags.Append(&hcl.Diagnostic{
-				Severity:   hcl.DiagWarning,
-				Summary:    "Value derived from a deprecated source",
-				Detail:     fmt.Sprintf("%s is derived from %v, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message),
-				Subject:    expr.Range().Ptr(),
-				Expression: expr,
+				Severity:    hcl.DiagWarning,
+				Summary:     "Value derived from a deprecated source",
+				Detail:      fmt.Sprintf("%s is derived from %v, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message),
+				Subject:     expr.Range().Ptr(),
+				Expression:  expr,
+				EvalContext: hclCtx,
 			})
 
 		}
