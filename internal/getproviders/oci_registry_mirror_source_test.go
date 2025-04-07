@@ -57,7 +57,7 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 			// version/platform combination so that once installation is complete
 			// we can check that we actually installed the correct one.
 			fakePackageBytes := makePlaceholderProviderPackageZip(t, fmt.Sprintf("placeholder executable for v%s on %s", version, platform))
-			packageDesc := pushOCIBlob(t, "archive/zip", "application/vnd.opentofu.providerpkg", fakePackageBytes, store)
+			packageDesc := pushOCIBlob(t, "archive/zip", "", fakePackageBytes, store)
 			manifestDesc := pushOCIImageManifest(t, &ociv1.Manifest{
 				Versioned:    ociSpecs.Versioned{SchemaVersion: 2},
 				MediaType:    ociv1.MediaTypeImageManifest,
@@ -101,7 +101,7 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 	// Each tag refers to manifests representing a provider that supports the platforms amigaos_m68k and tos_m68k.
 	// We'll set up our source to interact with the fake local repository we just set up.
 	source := &OCIRegistryMirrorSource{
-		resolveOCIRepositoryAddr: func(ctx context.Context, addr addrs.Provider) (registryDomain string, repositoryName string, err error) {
+		resolveOCIRepositoryAddr: func(addr addrs.Provider) (registryDomain string, repositoryName string, err error) {
 			if addr.Hostname != svchost.Hostname("example.com") {
 				// We'll return [ErrProviderNotFound] here to satisfy the documented contract
 				// that the source will return that error type in particular when asked for
@@ -268,7 +268,14 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 		if err == nil {
 			t.Fatal("unexpected success; want error")
 		}
-		if got, want := err.Error(), `unsupported OCI artifact type; is this a container image, rather than an OpenTofu provider?`; got != want {
+		// Ideally we'd like to return a more helpful error message diagnosing that this
+		// might be a container image, but we can't really distinguish this case from
+		// a server that declines to include "artifactType" in a tag resolution response,
+		// and so we unfortunately end up treating this the same as an incorrectly-constructed
+		// provider layout with a missing index manifest. Maybe we can find a way to do better
+		// in future if we find that folks are often confused by this, but we'll be pragmatic
+		// about it for now.
+		if got, want := err.Error(), `selected an OCI image manifest directly, but providers must be selected through a multi-platform index manifest`; got != want {
 			t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
 		}
 	})
@@ -278,14 +285,14 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 		if err == nil {
 			t.Fatal("unexpected success; want error")
 		}
-		// Note that the answer to the in the error message is "no" in this case:
-		// it's not an OpenTofu provider, but it's not a container image either.
-		// We can't differentiate these cases using only the information available
-		// in the manifest descriptor, so we assume that accidentally selecting
-		// a container image is more likely than accidentally selecting a Helm
-		// chart, but phrase it as a question to hopefully communicate that
-		// OpenTofu isn't actually sure what the artifact type is.
-		if got, want := err.Error(), `unsupported OCI artifact type; is this a container image, rather than an OpenTofu provider?`; got != want {
+		// Ideally we'd like to return a more helpful error message diagnosing that this
+		// might be a Helm chart artifact, but we can't really distinguish this case from
+		// a server that declines to include "artifactType" in a tag resolution response,
+		// and so we unfortunately end up treating this the same as an incorrectly-constructed
+		// provider layout with a missing index manifest. Maybe we can find a way to do better
+		// in future if we find that folks are often confused by this, but we'll be pragmatic
+		// about it for now.
+		if got, want := err.Error(), `selected an OCI image manifest directly, but providers must be selected through a multi-platform index manifest`; got != want {
 			t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
 		}
 	})
@@ -305,7 +312,7 @@ func TestOCIRegistryMirrorSource(t *testing.T) {
 		if err == nil {
 			t.Fatal("unexpected success; want error")
 		}
-		if got, want := err.Error(), `image manifest contains no "application/vnd.opentofu.providerpkg" layers of type "archive/zip", but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu`; got != want {
+		if got, want := err.Error(), `image manifest contains no layers of type "archive/zip", but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu`; got != want {
 			t.Errorf("wrong error\ngot:  %s\nwant: %s", got, want)
 		}
 	})
@@ -462,7 +469,6 @@ func makeFakeOCIRepositoryWithNonProviderContent(t *testing.T) (OCIRepositorySto
 	{
 		// a manifest for a single provider package lacking the required index manifest
 		archiveDesc := blobDesc // shallow copy
-		archiveDesc.ArtifactType = ociPackageArtifactType
 		archiveDesc.MediaType = ociPackageMediaType
 		manifestDesc := pushOCIImageManifest(t, &ociv1.Manifest{
 			Versioned:    ociSpecs.Versioned{SchemaVersion: 2},
@@ -479,7 +485,6 @@ func makeFakeOCIRepositoryWithNonProviderContent(t *testing.T) (OCIRepositorySto
 		// a manifest for a provider that is valid except for using an as-yet-unsupported
 		// archive format for the leaf provider package.
 		archiveDesc := blobDesc                                // shallow copy
-		archiveDesc.ArtifactType = ociPackageArtifactType      // correct artifact type
 		archiveDesc.MediaType = "application/x-lzh-compressed" // unsupported media type
 		manifestDesc := pushOCIImageManifest(t, &ociv1.Manifest{
 			Versioned:    ociSpecs.Versioned{SchemaVersion: 2},

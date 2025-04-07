@@ -109,7 +109,7 @@ type OCIRegistryMirrorSource struct {
 	// _at all_ MUST return an instance of [ErrProviderNotFound] so
 	// that a [MultiSource] can successfully blend the results from
 	// this and other sources.
-	resolveOCIRepositoryAddr func(ctx context.Context, addr addrs.Provider) (registryDomain, repositoryName string, err error)
+	resolveOCIRepositoryAddr func(addr addrs.Provider) (registryDomain, repositoryName string, err error)
 
 	// getOCIRepositoryStore is the dependency inversion adapter for
 	// obtaining a suitably-configured client for the given repository
@@ -142,6 +142,16 @@ type OCIRegistryMirrorSource struct {
 }
 
 var _ Source = (*OCIRegistryMirrorSource)(nil)
+
+func NewOCIRegistryMirrorSource(
+	resolveRepositoryAddr func(addr addrs.Provider) (registryDomain, repositoryName string, err error),
+	getRepositoryStore func(ctx context.Context, registryDomain, repositoryName string) (OCIRepositoryStore, error),
+) *OCIRegistryMirrorSource {
+	return &OCIRegistryMirrorSource{
+		resolveOCIRepositoryAddr: resolveRepositoryAddr,
+		getOCIRepositoryStore:    getRepositoryStore,
+	}
+}
 
 // AvailableVersions implements Source.
 func (o *OCIRegistryMirrorSource) AvailableVersions(ctx context.Context, provider addrs.Provider) (VersionList, Warnings, error) {
@@ -309,7 +319,7 @@ func (o *OCIRegistryMirrorSource) getRepositoryStore(ctx context.Context, provid
 	}
 
 	// Otherwise we'll instantiate a new one and overwrite our cache with it.
-	registryDomain, repositoryName, err = o.resolveOCIRepositoryAddr(ctx, provider)
+	registryDomain, repositoryName, err = o.resolveOCIRepositoryAddr(provider)
 	if err != nil {
 		if notFoundErr, ok := err.(ErrProviderNotFound); ok {
 			// [MultiSource] relies on this particular error type being returned
@@ -387,7 +397,13 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 	if err != nil {
 		return ociv1.Descriptor{}, fmt.Errorf("resolving tag %q: %w", tagName, err)
 	}
-	if desc.ArtifactType != ociIndexManifestArtifactType {
+	// Not all store implementations can return the manifest's artifact type as part
+	// of the tag-resolution response, so we'll check this early if we can, but
+	// if not then we'll check it after we've fetched the manifest instead.
+	// (Doing this early if possible saves us one request and allows us to return
+	// a better error message, but we'll still catch a mismatched artifact type
+	// one way or another.)
+	if desc.ArtifactType != "" && desc.ArtifactType != ociIndexManifestArtifactType {
 		switch desc.ArtifactType {
 		case "application/vnd.opentofu.provider-target":
 			// We'll get here for an incorrectly-constructed artifact layout where
@@ -399,14 +415,6 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 			// we'll return a specialized error, since confusion between providers
 			// and modules is common for those new to OpenTofu terminology.
 			return desc, fmt.Errorf("selected OCI artifact is an OpenTofu module package, not a provider package")
-		case "":
-			// Prior to there being an explicit way to represent artifact types earlier
-			// attempts to adapt OCI Distribution to non-container-image stuff used
-			// custom layer media types instead. This case also deals with container images
-			// themselves, which are essentially the "default" kind of artifact. We
-			// haven't yet fetched the full manifest so we can't actually distinguish
-			// these from the descriptor alone, and so this error message is generic.
-			return desc, fmt.Errorf("unsupported OCI artifact type; is this a container image, rather than an OpenTofu provider?")
 		default:
 			// For any other artifact type we'll just mention it in the error message
 			// and hope the reader can figure out what that artifact type represents.
@@ -423,6 +431,10 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 			return desc, fmt.Errorf("unsupported media type %q for OCI index manifest", desc.MediaType)
 		}
 	}
+	// If the server didn't tell us the artifact type it has, then we'll populate
+	// the artifact type we _want_ and then the manifest fetch will fail if this
+	// doesn't match.
+	desc.ArtifactType = ociIndexManifestArtifactType
 	return desc, nil
 }
 
@@ -571,9 +583,6 @@ func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 	foundWrongMediaTypeBlobs := 0
 	var selected ociv1.Descriptor
 	for _, desc := range descs {
-		if desc.ArtifactType != ociPackageArtifactType {
-			continue
-		}
 		if desc.MediaType != ociPackageMediaType {
 			// We silently ignore any "layer" that doesn't have both our expected
 			// artifact type and media type so that future versions of OpenTofu
@@ -589,9 +598,9 @@ func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 	}
 	if foundBlobs == 0 {
 		if foundWrongMediaTypeBlobs > 0 {
-			return selected, fmt.Errorf("image manifest contains no %q layers of type %q, but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu", ociPackageArtifactType, ociPackageMediaType)
+			return selected, fmt.Errorf("image manifest contains no layers of type %q, but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu", ociPackageMediaType)
 		}
-		return selected, fmt.Errorf("image manifest contains no %q layers of type %q", ociPackageArtifactType, ociPackageMediaType)
+		return selected, fmt.Errorf("image manifest contains no layers of type %q", ociPackageMediaType)
 	}
 	if foundBlobs > 1 {
 		// There must be exactly one eligible blob, to avoid ambiguity.
