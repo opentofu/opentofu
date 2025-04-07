@@ -1,5 +1,10 @@
 module github.com/opentofu/opentofu
 
+// At the time of adding this configuration, the new Go feature introduced here https://github.com/golang/go/issues/67061,
+// was having a good amount of issues linked to, affecting AWS Firewall, GCP various services and a lot more.
+// In go1.23 the godebug flag for this was named 'tlskyber', renamed in go1.24 to 'tlsmlkem'. https://tip.golang.org/doc/godebug#go-124
+godebug tlsmlkem=0
+
 require (
 	cloud.google.com/go/kms v1.15.5
 	cloud.google.com/go/storage v1.36.0
@@ -95,7 +100,7 @@ require (
 	golang.org/x/crypto v0.35.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/mod v0.21.0
-	golang.org/x/net v0.34.0
+	golang.org/x/net v0.36.0
 	golang.org/x/oauth2 v0.16.0
 	golang.org/x/sys v0.30.0
 	golang.org/x/term v0.29.0
@@ -180,7 +185,7 @@ require (
 	github.com/go-openapi/strfmt v0.21.3 // indirect
 	github.com/gofrs/uuid v4.0.0+incompatible // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang-jwt/jwt/v4 v4.5.1 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/google/go-github/v45 v45.2.0 // indirect

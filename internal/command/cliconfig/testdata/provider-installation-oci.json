@@ -1,0 +1,21 @@
+{
+    "provider_installation": {
+        "oci_mirror": [
+            {
+                "repository_template": "example.com/${hostname}/${namespace}/${type}"
+            },
+            {
+                "repository_template": "example.net/opentofu-registry/${namespace}/${type}",
+                "include": ["registry.opentofu.org/*/*"]
+            },
+            {
+                "repository_template": "example.net/opentofu-registry/opentofu-namespace/${type}",
+                "include": ["registry.opentofu.org/opentofu/*"]
+            },
+            {
+                "repository_template": "example.net/opentofu-registry/opentofu-namespace/foo-type",
+                "include": ["registry.opentofu.org/opentofu/foo"]
+            }
+        ]
+    }
+}
