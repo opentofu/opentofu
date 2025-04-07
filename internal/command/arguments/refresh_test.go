@@ -8,9 +8,10 @@ package arguments
 import (
 	"strings"
 	"testing"
+	"os"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
-
+	"github.com/hashicorp/hcl/v2"
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -212,6 +213,106 @@ func TestParseRefresh_excludeAndTarget(t *testing.T) {
 		t.Errorf("Did not expect operation to parse excludes, but it parsed %d targets", len(got.Operation.Excludes))
 	}
 }
+
+func ParseRefresh_targetFile(t *testing.T) {
+	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
+	boop, _ := addrs.ParseTargetStr("module.boop")
+	wow, _ := addrs.ParseTargetStr("wow.ham")
+	testCases := map[string]struct {
+		fileContent string
+		want        []addrs.Targetable
+		wantDiags   tfdiags.Diagnostics
+	}{
+		"target file no targets": {
+			fileContent: "",
+			want:        nil,
+		},
+		"target file valid single target": {
+			fileContent: "foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file valid multiple targets": {
+			fileContent: "foo_bar.baz\nmodule.boop",
+			want:        []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		"target file invalid target": {
+			fileContent: "foo.",
+			want:        nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "foo.": Dot must be followed by attribute name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
+				},
+			),
+		},
+		"target file valid comment": {
+			fileContent: "#foo_bar.baz",
+			want:        nil,
+		},
+		"target file valid spaces": {
+			fileContent: "   foo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file valid tab": {
+			fileContent: "\tfoo_bar.baz",
+			want:        []addrs.Targetable{foobarbaz.Subject},
+		},
+		"target file complicated": {
+			fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham",
+			want:        []addrs.Targetable{boop.Subject, wow.Subject},
+		},
+		"target file invalid bracket with spaces": {
+			fileContent: `    [boop]`,
+			want:        nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "    [boop]": Must begin with a variable name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
+					},
+				},
+			),
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			file := tempFileWriter(tc.fileContent)
+			defer os.Remove(file.Name())
+
+			got, gotDiags := ParsePlan([]string{"-target-file=" + file.Name()})
+			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
+				if len(gotDiags) == 0 {
+					t.Fatalf("expected diags but got none")
+				}
+				if len(tc.wantDiags) == 0 {
+					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
+				}
+				gotDiagsExported := gotDiags.ForRPC()
+				wantDiagsExported := tc.wantDiags.ForRPC()
+				wantDiagsExported[0].Source().Subject.Filename = file.Name()
+				gotDiagsExported.Sort()
+				wantDiagsExported.Sort()
+				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
+					t.Error("wrong diagnostics\n" + diff)
+				}
+			}
+			if !cmp.Equal(got.Operation.Targets, tc.want) {
+				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Targets, tc.want))
+			}
+		})
+	}
+}
+
+
 func TestParseRefresh_vars(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
