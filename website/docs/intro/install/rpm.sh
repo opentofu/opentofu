@@ -25,4 +25,4 @@ else
   fi
 fi
 
-tofu --version
+tofu -version

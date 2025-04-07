@@ -1,1 +1,1 @@
-tofu --version
+tofu -version

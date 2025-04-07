@@ -17,4 +17,4 @@ eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
 bash -x examples/brew-install.sh
 
-tofu --version
+tofu -version
