@@ -19,30 +19,16 @@ on:
       - govulncheck-action
 
 jobs:
-  gather-branches:
-    name: Collect the branches that needs to be scanned
-    runs-on: ubuntu-latest
-    #if: github.ref == 'refs/heads/main'
-    env:
-      GH_TOKEN: ${{ github.token }}
-    outputs:
-      branches: ${{ steps.branches.outputs.branches }}
-    steps:
-      - id: branches
-        run: |
-          ## This is using https://endoflife.date since there 1.6 is already marked as it reached EOL
-          ## This is adding manually the main branch to scan it as well
-          curl https://endoflife.date/api/opentofu.json | tee out 
-          cat out | jq '.[] | select(.eol == false) | ["v" + .cycle]' | jq -sc 'add' | jq -c '["main"] + .' | tee branches
-          echo "branches=$(cat branches)">> "$GITHUB_OUTPUT"
-        shell: bash
   govulncheck:
     name: Run govulncheck for ${{ matrix.branch }}
-    needs: gather-branches
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        branch: ${{ fromJSON(needs.gather-branches.outputs.branches )}}
+        include:
+          - { branch: main }
+          - { branch: v1.9 }
+          - { branch: v1.8 }
+          - { branch: v1.7 }
       fail-fast: false
     steps:
       - name: Checkout branch to be scanned
@@ -60,7 +46,7 @@ jobs:
           go-version: ${{steps.go.outputs.version}}
 
       - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
+        run: go install golang.org/x/vuln/cmd/govulncheck@d1f380186385b4f64e00313f31743df8e4b89a77 # v1.1.4
         shell: bash
 
       - name: Run and report govulncheck findings
@@ -101,7 +87,7 @@ jobs:
       # will gather all the files generated in the job(s) above into a single directory flattening the file tree.
       # Eg: Instead of writing the results into "results/main-results/main" it will write the results into "results/main"
       - name: Download vulns results
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
         with:
           path: results
           merge-multiple: true
