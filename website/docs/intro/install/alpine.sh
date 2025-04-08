@@ -15,4 +15,4 @@ else
   sh -x examples/alpine-manual.sh
 fi
 
-tofu --version
+tofu -version
