@@ -127,7 +127,8 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 
 	if attr, exists := content.Attributes["deprecated"]; exists {
 		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Deprecated)
-		if strings.TrimSpace(v.Deprecated) == "" {
+		diags = append(diags, valDiags...)
+		if !valDiags.HasErrors() && strings.TrimSpace(v.Deprecated) == "" {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid deprecated value",
@@ -135,7 +136,6 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 				Subject:  &block.LabelRanges[0],
 			})
 		}
-		diags = append(diags, valDiags...)
 	}
 
 	if attr, exists := content.Attributes["nullable"]; exists {
