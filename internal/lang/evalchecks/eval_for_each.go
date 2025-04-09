@@ -132,7 +132,6 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		// set (toset([]))
 		return retVal, diags
 	default:
-		retVal = cty.NullVal(ty)
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -141,6 +140,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 			Expression:  expr,
 			EvalContext: hclCtx,
 		})
+		return cty.NullVal(ty), diags
 	}
 
 	diags = diags.Append(retDiags)
