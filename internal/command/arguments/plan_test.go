@@ -11,11 +11,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
 )
@@ -179,7 +179,7 @@ func TestParsePlan_targets(t *testing.T) {
 
 func TestParsePlan_targetFile(t *testing.T) {
 	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
-	// boop, _ := addrs.ParseTargetStr("module.boop")
+	boop, _ := addrs.ParseTargetStr("module.boop")
 	// wow, _ := addrs.ParseTargetStr("wow.ham")
 	testCases := map[string]struct {
 		files     []testFile
@@ -187,36 +187,45 @@ func TestParsePlan_targetFile(t *testing.T) {
 		wantDiags tfdiags.Diagnostics
 	}{
 		"target file no targets": {
-			files: []testFile{
-				{fileContent: "nil"},
-			},
-			want: nil,
+			files: []testFile{},
+			want:  nil,
 		},
 		"target file valid single target": {
 			files: []testFile{
-				{fileContent: "foo_bar.bazzz"},
+				{fileContent: "foo_bar.baz"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
-		// "target file valid multiple targets": {
-		// 	fileContent: "foo_bar.baz\nmodule.boop",
-		// 	want:        []addrs.Targetable{foobarbaz.Subject, boop.Subject},
-		// },
-		// "target file invalid target": {
-		// 	fileContent: "foo.",
-		// 	want:        nil,
-		// 	wantDiags: tfdiags.Diagnostics(nil).Append(
-		// 		&hcl.Diagnostic{
-		// 			Severity: hcl.DiagError,
-		// 			Summary:  "Invalid syntax",
-		// 			Detail:   `For target "foo.": Dot must be followed by attribute name.`,
-		// 			Subject: &hcl.Range{
-		// 				Start: hcl.Pos{Line: 1, Column: 1},
-		// 				End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
-		// 			},
-		// 		},
-		// 	),
-		// },
+		"target file valid multiple targets": {
+			files: []testFile{
+				{fileContent: "foo_bar.baz\nmodule.boop"},
+			},
+			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
+		"target file invalid target": {
+			files: []testFile{
+				{fileContent: "foo."},
+			},
+			want: nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "foo.": Dot must be followed by attribute name.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
+				},
+			),
+		},
+		"multiple files valid targets": {
+			files: []testFile{
+				{fileContent: "foo_bar.baz"},
+				{fileContent: "module.boop"},
+			},
+			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+		},
 		// "target file valid comment": {
 		// 	fileContent: "#foo_bar.baz",
 		// 	want:        nil,
@@ -254,12 +263,10 @@ func TestParsePlan_targetFile(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			files := tempFileWriter(tc.files)
 			targetFileNames := []string{}
-			spew.Println("HIII")
 			for _, file := range *files {
 				defer os.Remove(file.Name())
 				targetFileNames = append(targetFileNames, "-target-file="+file.Name())
 			}
-			spew.Println(targetFileNames)
 			got, gotDiags := ParsePlan(targetFileNames)
 			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
 				if len(gotDiags) == 0 {
@@ -270,7 +277,9 @@ func TestParsePlan_targetFile(t *testing.T) {
 				}
 				gotDiagsExported := gotDiags.ForRPC()
 				wantDiagsExported := tc.wantDiags.ForRPC()
-				// wantDiagsExported[0].Source().Subject.Filename = file.Name()
+
+				wantDiagsExported[0].Source().Subject.Filename = (*files)[0].Name()
+
 				gotDiagsExported.Sort()
 				wantDiagsExported.Sort()
 				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
@@ -533,6 +542,7 @@ func tempFileWriter(files []testFile) *[]os.File {
 		if err != nil {
 			log.Fatal(err)
 		}
+		*tempFiles = append(*tempFiles, *tempFile)
 
 		// tempFile.Seek(0, 0)
 		// s := bufio.NewScanner(tempFile)
