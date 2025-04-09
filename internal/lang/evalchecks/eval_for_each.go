@@ -210,6 +210,7 @@ func performMapTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 
 // performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
 func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	typeVal := forEachVal
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
 
@@ -223,7 +224,7 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 			Expression:  expr,
 			EvalContext: hclCtx,
 		})
-		return cty.NullVal(ty), diags
+		typeVal = cty.NullVal(ty)
 	}
 
 	// since we can't use a set values that are unknown, we treat the
@@ -240,12 +241,12 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 				Extra:       DiagnosticCausedByUnknown(true),
 			})
 		}
-		return cty.UnknownVal(ty), diags
+		typeVal = cty.UnknownVal(ty)
 	}
 
-	// Since we're using a multi-error approach, we do test the nulliness here because ElementIterator above can't iterate on null values. We do that to make sure we append type errors together with nulliness errors.
-	if forEachVal.IsNull() {
-		return forEachVal, nil
+	// Since we're using a multi-error approach, we try to add as much of information as possible. The ElementIterator code below can't iterate on null or unknown values, that's why we are returning earlier.
+	if typeVal.IsNull() || diags.HasErrors() || !typeVal.IsWhollyKnown() {
+		return typeVal, diags
 	}
 
 	// A set of strings may contain null, which makes it impossible to
@@ -265,7 +266,7 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 			return cty.NullVal(ty), diags
 		}
 	}
-	return forEachVal, diags
+	return typeVal, diags
 }
 
 // markSafeLengthInt allows calling LengthInt on marked values safely

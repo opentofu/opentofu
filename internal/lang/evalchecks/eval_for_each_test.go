@@ -847,12 +847,18 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Set(cty.Object(map[string]cty.Type{"cidr": cty.String, "route_addrs": cty.String}))),
+			ValidateReturnValue: cty.UnknownVal(cty.Set(cty.Object(map[string]cty.Type{"cidr": cty.String, "route_addrs": cty.String}))),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
 					Detail:            "set containing type object.",
 					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "set includes values derived from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
 					CausedBySensitive: false,
 				},
 			},
@@ -882,12 +888,18 @@ func TestEvaluateForEach(t *testing.T) {
 					CausedBySensitive: false,
 				},
 			},
-			ValidateReturnValue: cty.NullVal(cty.Set(cty.Bool)),
+			ValidateReturnValue: cty.UnknownVal(cty.Set(cty.Bool)),
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
 					Detail:            "set containing type bool.",
 					CausedByUnknown:   false,
+					CausedBySensitive: false,
+				},
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "set includes values derived from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
 					CausedBySensitive: false,
 				},
 			},
