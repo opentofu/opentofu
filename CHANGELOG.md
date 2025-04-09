@@ -34,7 +34,6 @@ ENHANCEMENTS:
 * Remove progress messages from commands using -concise argument ([#2549](https://github.com/opentofu/opentofu/issues/2549))
 * Upgrade aws-sdk version to include `mx-central-1` region. ([#2596](https://github.com/opentofu/opentofu/pull/2596))
 
-
 BUG FIXES:
 
 - Fixed an issue where an invalid provider name in the `provider_meta` block would crash OpenTofu rather than report an error ([#2347](https://github.com/opentofu/opentofu/pull/2347))
@@ -51,6 +50,7 @@ BUG FIXES:
 - `base64gunzip` now doesn't expose sensitive values if it fails during the base64 decoding. ([#2503](https://github.com/opentofu/opentofu/pull/2503))
 - Fix loading only the necessary encryption key providers and methods for better `terraform_remote_state` support. ([2551](https://github.com/opentofu/opentofu/issues/2551))
 - Better error messages when using `null` in invalid positions in the argument to the `transpose` function. ([#2553](https://github.com/opentofu/opentofu/pull/2553))
+- Provider GPG Expiration warnings no longer show when only one of the keys have expired. Only once all are expired or invalid. ([#2475](https://github.com/opentofu/opentofu/issues/2475)
 
 INTERNAL CHANGES:
 - `skip_s3_checksum=true` now blocks the [aws-sdk new default S3 integrity checks](https://github.com/aws/aws-sdk-go-v2/discussions/2960) ([#2596](https://github.com/opentofu/opentofu/pull/2596))
