@@ -9,6 +9,7 @@ import (
 	"crypto/md5"
 	"database/sql"
 	"fmt"
+	"github.com/lib/pq"
 	"hash/fnv"
 
 	uuid "github.com/hashicorp/go-uuid"
@@ -22,13 +23,15 @@ type RemoteClient struct {
 	Client     *sql.DB
 	Name       string
 	SchemaName string
+	TableName  string
+	IndexName  string
 
 	info *statemgr.LockInfo
 }
 
 func (c *RemoteClient) Get() (*remote.Payload, error) {
-	query := `SELECT data FROM %s.%s WHERE name = $1`
-	row := c.Client.QueryRow(fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
+	query := fmt.Sprintf(`SELECT data FROM %s.%s WHERE name = $1`, pq.QuoteIdentifier(c.SchemaName), pq.QuoteIdentifier(c.TableName))
+	row := c.Client.QueryRow(query, c.Name)
 	var data []byte
 	err := row.Scan(&data)
 	switch {
@@ -47,10 +50,10 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 }
 
 func (c *RemoteClient) Put(data []byte) error {
-	query := `INSERT INTO %s.%s (name, data) VALUES ($1, $2)
+	query := fmt.Sprintf(`INSERT INTO %s.%s (name, data) VALUES ($1, $2)
 		ON CONFLICT (name) DO UPDATE
-		SET data = $2 WHERE %s.name = $1`
-	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, statesTableName, statesTableName), c.Name, data)
+		SET data = $2 WHERE %s.name = $1`, pq.QuoteIdentifier(c.SchemaName), pq.QuoteIdentifier(c.TableName), pq.QuoteIdentifier(c.TableName))
+	_, err := c.Client.Exec(query, c.Name, data)
 	if err != nil {
 		return err
 	}
@@ -58,8 +61,8 @@ func (c *RemoteClient) Put(data []byte) error {
 }
 
 func (c *RemoteClient) Delete() error {
-	query := `DELETE FROM %s.%s WHERE name = $1`
-	_, err := c.Client.Exec(fmt.Sprintf(query, c.SchemaName, statesTableName), c.Name)
+	query := fmt.Sprintf(`DELETE FROM %s.%s WHERE name = $1`, pq.QuoteIdentifier(c.SchemaName), pq.QuoteIdentifier(c.TableName))
+	_, err := c.Client.Exec(query, c.Name)
 	if err != nil {
 		return err
 	}
@@ -81,8 +84,8 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	// Local helper function so we can call it multiple places
 	//
 	lockUnlock := func(pgLockId string) error {
-		query := `SELECT pg_advisory_unlock(%s)`
-		row := c.Client.QueryRow(fmt.Sprintf(query, pgLockId))
+		query := `SELECT pg_advisory_unlock($1)`
+		row := c.Client.QueryRow(query, pgLockId)
 		var didUnlock []byte
 		err := row.Scan(&didUnlock)
 		if err != nil {
@@ -94,16 +97,17 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	creationLockID := c.composeCreationLockID()
 
 	// Try to acquire locks for the existing row `id` and the creation lock.
-	query := fmt.Sprintf(`SELECT %s.id, pg_try_advisory_lock(%s.id), pg_try_advisory_lock(%s) FROM %s.%s WHERE %s.name = $1`,
-		statesTableName, statesTableName, creationLockID, c.SchemaName, statesTableName, statesTableName)
+	query := fmt.Sprintf(`SELECT %s.id, pg_try_advisory_lock(%s.id), pg_try_advisory_lock($1) FROM %s.%s WHERE %s.name = $2`,
+		pq.QuoteIdentifier(c.TableName), pq.QuoteIdentifier(c.TableName), pq.QuoteIdentifier(c.SchemaName), pq.QuoteIdentifier(c.TableName), pq.QuoteIdentifier(c.TableName))
 
-	row := c.Client.QueryRow(query, c.Name)
+	row := c.Client.QueryRow(query, creationLockID, c.Name)
 	var pgLockId, didLock, didLockForCreate []byte
 	err = row.Scan(&pgLockId, &didLock, &didLockForCreate)
 	switch {
 	case err == sql.ErrNoRows:
 		// No rows means we're creating the workspace. Take the creation lock.
-		innerRow := c.Client.QueryRow(fmt.Sprintf(`SELECT pg_try_advisory_lock(%s)`, creationLockID))
+		query = `SELECT pg_try_advisory_lock($1)`
+		innerRow := c.Client.QueryRow(query, creationLockID)
 		var innerDidLock []byte
 		err := innerRow.Scan(&innerDidLock)
 		if err != nil {
@@ -135,8 +139,8 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 
 func (c *RemoteClient) Unlock(id string) error {
 	if c.info != nil && c.info.Path != "" {
-		query := `SELECT pg_advisory_unlock(%s)`
-		row := c.Client.QueryRow(fmt.Sprintf(query, c.info.Path))
+		query := `SELECT pg_advisory_unlock($1)`
+		row := c.Client.QueryRow(query, c.info.Path)
 		var didUnlock []byte
 		err := row.Scan(&didUnlock)
 		if err != nil {
@@ -149,6 +153,6 @@ func (c *RemoteClient) Unlock(id string) error {
 
 func (c *RemoteClient) composeCreationLockID() string {
 	hash := fnv.New32()
-	hash.Write([]byte(c.SchemaName))
+	hash.Write([]byte(c.SchemaName + "\x00" + c.TableName))
 	return fmt.Sprintf("%d", int64(hash.Sum32())*-1)
 }
