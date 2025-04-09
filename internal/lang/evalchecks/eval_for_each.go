@@ -93,8 +93,6 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		})
 	}
 
-	retVal := forEachVal
-	var retDiags tfdiags.Diagnostics
 	var allowedTypesMessage string
 
 	if allowTuple {
@@ -116,21 +114,23 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 
 	// Type Checks
 	ty := forEachVal.Type()
+	var typeCheckVal cty.Value
+	var typeCheckDiags tfdiags.Diagnostics
 	switch {
 	case ty.IsSetType():
-		retVal, retDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		typeCheckVal, typeCheckDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty.IsObjectType() || ty.IsMapType():
-		retVal, retDiags = performMapTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		typeCheckVal, typeCheckDiags = performMapTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty.IsTupleType() && allowTuple:
 		// tuples are allowed for imports
-		retVal, retDiags = performTupleTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		typeCheckVal, typeCheckDiags = performTupleTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty == cty.DynamicPseudoType:
-		retVal, retDiags = performDynamicTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		typeCheckVal, typeCheckDiags = performDynamicTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty.IsCollectionType() && markSafeLengthInt(forEachVal) == 0:
 		// If the map is empty ({}), return an empty map, because cty will
 		// return nil when representing {} AsValueMap. This also covers an empty
 		// set (toset([]))
-		return retVal, diags
+		return forEachVal, diags
 	default:
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
@@ -143,12 +143,12 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		return cty.NullVal(ty), diags
 	}
 
-	diags = diags.Append(retDiags)
+	diags = diags.Append(typeCheckDiags)
 
 	if diags.HasErrors() {
-		return retVal, diags
+		return typeCheckVal, diags
 	}
-	return retVal, nil
+	return typeCheckVal, nil
 }
 
 func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
