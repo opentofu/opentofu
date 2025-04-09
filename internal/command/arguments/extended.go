@@ -91,13 +91,13 @@ type Operation struct {
 	// These private fields are used only temporarily during decoding. Use
 	// method Parse to populate the exported fields from these, validating
 	// the raw values in the process.
-	targetsRaw      []string
-	targetsFileRaw  string
-	excludesRaw     []string
-	excludesFileRaw string
-	forceReplaceRaw []string
-	destroyRaw      bool
-	refreshOnlyRaw  bool
+	targetsRaw       []string
+	targetsFilesRaw  []string
+	excludesRaw      []string
+	excludesFilesRaw []string
+	forceReplaceRaw  []string
+	destroyRaw       bool
+	refreshOnlyRaw   bool
 }
 
 // parseDirectTargetables gets a list of strings passed from directly from the CLI
@@ -137,53 +137,55 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 // with each line in the file representating a targeted object, and returns
 // a list of addrs.Targetable. This is used for parsing the input of -target-file
 // and -exclude-file flags
-func parseFileTargetables(filePath, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 
 	// If no file passed, no targets
-	if filePath == "" {
+	if len(filePaths) >= 0 {
 		return nil, nil
 	}
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
-	b, err := os.ReadFile(filePath)
-	diags = diags.Append(err)
+	for _, filePath := range filePaths {
+		b, err := os.ReadFile(filePath)
+		diags = diags.Append(err)
 
-	sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
-	for sc.Scan() {
-		lineBytes := sc.Bytes()
-		lineRange := sc.Range()
-		if isComment(lineBytes) {
-			continue
-		}
-		traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, lineRange.Filename, lineRange.Start)
-		if syntaxDiags.HasErrors() {
-			diags = diags.Append(nil).Append(
-				&hcl.Diagnostic{
-					Severity: tfdiags.Error.ToHCL(),
-					Summary:  "Invalid syntax",
-					Detail:   fmt.Sprintf("For %s %q: %v", flag, lineBytes, syntaxDiags[0].Detail),
-					Subject: &hcl.Range{
-						Filename: lineRange.Filename,
-						Start:    lineRange.Start,
-						End:      lineRange.End,
+		sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
+		for sc.Scan() {
+			lineBytes := sc.Bytes()
+			lineRange := sc.Range()
+			if isComment(lineBytes) {
+				continue
+			}
+			traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, lineRange.Filename, lineRange.Start)
+			if syntaxDiags.HasErrors() {
+				diags = diags.Append(nil).Append(
+					&hcl.Diagnostic{
+						Severity: tfdiags.Error.ToHCL(),
+						Summary:  "Invalid syntax",
+						Detail:   fmt.Sprintf("For %s %q: %v", flag, lineBytes, syntaxDiags[0].Detail),
+						Subject: &hcl.Range{
+							Filename: lineRange.Filename,
+							Start:    lineRange.Start,
+							End:      lineRange.End,
+						},
 					},
-				},
-			)
-			continue
+				)
+				continue
+			}
+
+			target, targetDiags := addrs.ParseTarget(traversal)
+			if targetDiags.HasErrors() {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					fmt.Sprintf("Invalid %s address", flag),
+					fmt.Sprintf("my detail: %v %s %q", targetDiags[0].Description().Detail, flag, lineBytes),
+				))
+				continue
+			}
+			targetables = append(targetables, target.Subject)
 		}
 
-		target, targetDiags := addrs.ParseTarget(traversal)
-		if targetDiags.HasErrors() {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				fmt.Sprintf("Invalid %s address", flag),
-				fmt.Sprintf("my detail: %v %s %q", targetDiags[0].Description().Detail, flag, lineBytes),
-			))
-			continue
-		}
-
-		targetables = append(targetables, target.Subject)
 	}
 	return targetables, diags
 }
@@ -195,12 +197,12 @@ func isComment(b []byte) bool {
 	return false
 }
 
-func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFile, excludeFile string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
+func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFiles, excludeFiles []string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
 	var allParsedTargets, allParsedExcludes, parsedTargets []addrs.Targetable
 	var parseDiags, diags tfdiags.Diagnostics
 
 	// Cannot exclude and target in same command
-	if (len(targetsDirect) > 0 || targetFile != "") && (len(excludesDirect) > 0 || excludeFile != "") {
+	if (len(targetsDirect) > 0 || len(targetFiles) > 0) && (len(excludesDirect) > 0 || len(excludeFiles) > 0) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
@@ -212,14 +214,14 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 	parsedTargets, parseDiags = parseDirectTargetables(targetsDirect, "target")
 	diags = diags.Append(parseDiags)
 	allParsedTargets = append(allParsedTargets, parsedTargets...)
-	parsedTargets, parseDiags = parseFileTargetables(targetFile, "target")
+	parsedTargets, parseDiags = parseFileTargetables(targetFiles, "target")
 	diags = diags.Append(parseDiags)
 	allParsedTargets = append(allParsedTargets, parsedTargets...)
 
 	parsedTargets, parseDiags = parseDirectTargetables(excludesDirect, "exclude")
 	diags = diags.Append(parseDiags)
 	allParsedExcludes = append(allParsedExcludes, parsedTargets...)
-	parsedTargets, parseDiags = parseFileTargetables(excludeFile, "exclude")
+	parsedTargets, parseDiags = parseFileTargetables(excludeFiles, "exclude")
 	diags = diags.Append(parseDiags)
 	allParsedExcludes = append(allParsedExcludes, parsedTargets...)
 
@@ -233,7 +235,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	var parseDiags tfdiags.Diagnostics
-	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw, o.targetsFileRaw, o.excludesFileRaw)
+	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw, o.targetsFilesRaw, o.excludesFilesRaw)
 	diags = diags.Append(parseDiags)
 
 	for _, raw := range o.forceReplaceRaw {
@@ -344,9 +346,9 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
 		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
 		f.Var((*flagStringSlice)(&operation.targetsRaw), "target", "target")
-		f.StringVar(&operation.targetsFileRaw, "target-file", "", "target-file")
+		f.Var((*flagStringSlice)(&operation.targetsFilesRaw), "target-file", "target-file")
 		f.Var((*flagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
-		f.StringVar(&operation.excludesFileRaw, "exclude-file", "", "exclude-file")
+		f.Var((*flagStringSlice)(&operation.excludesFilesRaw), "exclude-file", "exclude-file")
 		f.Var((*flagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
 	}
 
