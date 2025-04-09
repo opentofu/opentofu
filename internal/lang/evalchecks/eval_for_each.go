@@ -79,7 +79,6 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	forEachVal, forEachDiags := expr.Value(hclCtx)
 	diags = diags.Append(forEachDiags)
 
-	ty := forEachVal.Type()
 	// If a whole map is marked, or a set contains marked values (which means the set is then marked)
 	// give an error diagnostic as this value cannot be used in for_each
 	if forEachVal.HasMark(marks.Sensitive) {
@@ -116,6 +115,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	}
 
 	// Type Checks
+	ty := forEachVal.Type()
 	switch {
 	case ty.IsSetType():
 		retVal, retDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
