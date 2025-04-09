@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
@@ -140,7 +141,7 @@ func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targe
 func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 
 	// If no file passed, no targets
-	if len(filePaths) >= 0 {
+	if len(filePaths) <= 0 {
 		return nil, nil
 	}
 	var targetables []addrs.Targetable
@@ -184,6 +185,7 @@ func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, 
 				continue
 			}
 			targetables = append(targetables, target.Subject)
+			spew.Dump(targetables)
 		}
 
 	}

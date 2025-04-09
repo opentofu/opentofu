@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
@@ -267,6 +268,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 				defer os.Remove(file.Name())
 				targetFileNames = append(targetFileNames, "-target-file="+file.Name())
 			}
+			spew.Dump(targetFileNames)
 			got, gotDiags := ParsePlan(targetFileNames)
 			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
 				if len(gotDiags) == 0 {
