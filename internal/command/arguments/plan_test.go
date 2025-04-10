@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
@@ -21,6 +22,7 @@ import (
 )
 
 type testFile struct {
+	filePath    string
 	fileContent string
 	hasError    bool
 }
@@ -245,19 +247,15 @@ func TestParsePlan_targetFile(t *testing.T) {
 		"multiple files invalid target": {
 			files: []testFile{
 				{
-					fileContent: "modu(le.boop",
-					hasError:    true,
-				},
-				{
 					fileContent: "foo_bar.baz",
 					hasError:    false,
 				},
-				// {
-				// 	fileContent: "modu(le.boop",
-				// 	hasError:    true,
-				// },
+				{
+					fileContent: "modu(le.boop",
+					hasError:    true,
+				},
 			},
-			want: nil,
+			want: []addrs.Targetable{foobarbaz.Subject},
 			wantDiags: tfdiags.Diagnostics(nil).Append(
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -330,13 +328,40 @@ func TestParsePlan_targetFile(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			files := tempFileWriter(tc.files)
-			targetFileNames := []string{}
-			for _, file := range *files {
-				defer os.Remove(file.Name())
-				targetFileNames = append(targetFileNames, "-target-file="+file.Name())
+
+			/*
+
+				1. Write temp files to storage
+					* store filenames
+				2. Create argument list from filenames, with `-target-file`
+				3. Pass argument list to ParsePlan()
+				4. Get diagnostics from ParsePlan()
+				5. Compare returned diagnostics to expected diagnostics
+					* Error if diff
+				6. Compare returned Plan to expected Plan
+					* Error if diff
+			*/
+
+			targetFileArguments := []string{}
+			wantDiagsExported := tc.wantDiags.ForRPC()
+
+			/*
+				1. For each testFile struct
+				2. Write the testFile.fileContents to a temp
+				3. Does the testfile struct have an error?
+					If yes, find the diag within the testcase that corresponds to that testfile
+			*/
+			for _, testFile := range tc.files {
+				testFile.tempFileWriter()
+				defer os.Remove(testFile.filePath)
+				targetFileArguments = append(targetFileArguments, "-target-file="+testFile.filePath)
+
+				if testFile.hasError {
+					wantDiagsExported[0].Source().Subject.Filename = testFile.filePath
+				}
 			}
-			got, gotDiags := ParsePlan(targetFileNames)
+
+			got, gotDiags := ParsePlan(targetFileArguments)
 			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
 				if len(gotDiags) == 0 {
 					t.Fatalf("expected diags but got none")
@@ -345,11 +370,6 @@ func TestParsePlan_targetFile(t *testing.T) {
 					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
 				}
 				gotDiagsExported := gotDiags.ForRPC()
-				wantDiagsExported := tc.wantDiags.ForRPC()
-
-				// Focus here. How do  Imake this work?
-				wantDiagsExported[0].Source().Subject.Filename = (*files)[0].Name()
-
 				gotDiagsExported.Sort()
 				wantDiagsExported.Sort()
 
@@ -514,12 +534,13 @@ func TestParsePlan_excludeFile(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			files := tempFileWriter(tc.files)
+			files := tempFileWriter(&tc.files)
 			targetFileNames := []string{}
 			for _, file := range *files {
-				defer os.Remove(file.Name())
+				// defer os.Remove(file.Name())
 				targetFileNames = append(targetFileNames, "-target-file="+file.Name())
 			}
+			spew.Dump(targetFileNames)
 
 			got, gotDiags := ParsePlan(targetFileNames)
 			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
@@ -531,6 +552,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 				}
 				gotDiagsExported := gotDiags.ForRPC()
 				wantDiagsExported := tc.wantDiags.ForRPC()
+
 				wantDiagsExported[0].Source().Subject.Filename = (*files)[0].Name()
 				gotDiagsExported.Sort()
 				wantDiagsExported.Sort()
@@ -628,14 +650,15 @@ func TestParsePlan_vars(t *testing.T) {
 }
 
 // Don't forget to os.Remove(file) for each file after calling this function
-func tempFileWriter(files []testFile) *[]os.File {
+func tempFileWriter(files *[]testFile) *[]os.File {
 	tempFiles := &[]os.File{}
-	for _, file := range files {
+	for _, file := range *files {
 
 		tempFile, err := os.CreateTemp("", "opentofu-test-files")
 		if err != nil {
 			log.Fatal(err)
 		}
+		file.filePath = tempFile.Name()
 		tempFile.WriteString(file.fileContent)
 		if err != nil {
 			log.Fatal(err)
@@ -643,4 +666,16 @@ func tempFileWriter(files []testFile) *[]os.File {
 		*tempFiles = append(*tempFiles, *tempFile)
 	}
 	return tempFiles
+}
+
+func (t *testFile) tempFileWriter() {
+	tempFile, err := os.CreateTemp("", "opentofu-test-files")
+	if err != nil {
+		log.Fatal(err)
+	}
+	t.filePath = tempFile.Name()
+	tempFile.WriteString(t.fileContent)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
