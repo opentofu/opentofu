@@ -329,28 +329,9 @@ func TestParsePlan_targetFile(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 
-			/*
-
-				1. Write temp files to storage
-					* store filenames
-				2. Create argument list from filenames, with `-target-file`
-				3. Pass argument list to ParsePlan()
-				4. Get diagnostics from ParsePlan()
-				5. Compare returned diagnostics to expected diagnostics
-					* Error if diff
-				6. Compare returned Plan to expected Plan
-					* Error if diff
-			*/
-
 			targetFileArguments := []string{}
 			wantDiagsExported := tc.wantDiags.ForRPC()
 
-			/*
-				1. For each testFile struct
-				2. Write the testFile.fileContents to a temp
-				3. Does the testfile struct have an error?
-					If yes, find the diag within the testcase that corresponds to that testfile
-			*/
 			for _, testFile := range tc.files {
 				testFile.tempFileWriter()
 				defer os.Remove(testFile.filePath)
