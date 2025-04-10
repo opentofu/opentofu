@@ -709,6 +709,25 @@ func TestConfigImportProviderWithNoResourceProvider(t *testing.T) {
 	})
 }
 
+func TestConfigWithDeprecatedVariables(t *testing.T) {
+	src, err := os.ReadFile("testdata/variable-empty-deprecated/main.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parser := testParser(map[string]string{
+		"main.tf": string(src),
+	})
+
+	_, diags := parser.LoadConfigFile("main.tf")
+	// The lack of a diagnostic for the "without_deprecated" variable validates also that a variable without any "deprecated" field specified
+	// is parsed correctly
+	assertExactDiagnostics(t, diags, []string{
+		`main.tf:1,10-33: Invalid deprecated value; The variable name "with_empty_deprecated" 'deprecated' field is defined but is empty.`,
+		`main.tf:7,10-39: Invalid deprecated value; The variable name "with_deprecated_only_spaces" 'deprecated' field is defined but is empty.`,
+	})
+}
+
 func TestTransformForTest(t *testing.T) {
 
 	str := func(providers map[string]string) string {
