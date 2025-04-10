@@ -1058,7 +1058,7 @@ func TestEvaluateForEach(t *testing.T) {
 			validateReturn, validateDiags := EvaluateForEachExpressionValue(expr, mockRefsFunc(), allowUnknown, allowTuple, nil)
 
 			if !validateReturn.RawEquals(test.ValidateReturnValue) {
-				t.Fatalf("got %#v in validate phase; want %#v", validateReturn, test.ValidateReturnValue)
+				t.Errorf("got %#v in validate phase; want %#v", validateReturn, test.ValidateReturnValue)
 			}
 
 			if test.ValidateExpectedErrs != nil || len(validateDiags) > 0 {
@@ -1069,7 +1069,7 @@ func TestEvaluateForEach(t *testing.T) {
 			planReturn, planDiags := EvaluateForEachExpression(expr, mockRefsFunc(), nil)
 
 			if !reflect.DeepEqual(planReturn, test.PlanReturnValue) {
-				t.Fatalf("got %#v in plan phase; want %#v", planReturn, test.PlanReturnValue)
+				t.Errorf("got %#v in plan phase; want %#v", planReturn, test.PlanReturnValue)
 			}
 
 			if test.PlanExpectedErrs != nil || len(planDiags) > 0 {

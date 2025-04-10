@@ -93,15 +93,6 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 			Extra:       DiagnosticCausedBySensitive(true),
 		})
 	}
-
-	var allowedTypesMessage string
-
-	if allowTuple {
-		allowedTypesMessage = "map, set of strings, or a tuple"
-	} else {
-		allowedTypesMessage = "map, or set of strings"
-	}
-
 	if forEachVal.IsNull() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
@@ -113,20 +104,25 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		})
 	}
 
+	var allowedTypesMessage string
+	if allowTuple {
+		allowedTypesMessage = "map, set of strings, or a tuple"
+	} else {
+		allowedTypesMessage = "map, or set of strings"
+	}
+
 	// Type Checks
 	ty := forEachVal.Type()
-	var typeCheckVal cty.Value
 	var typeCheckDiags tfdiags.Diagnostics
 	switch {
 	case ty.IsSetType():
-		typeCheckVal, typeCheckDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		forEachVal, typeCheckDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty.IsObjectType() || ty.IsMapType():
-		typeCheckVal, typeCheckDiags = performMapTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		// all values are accepted for object and maps, so there's no need to do extra checking
 	case ty.IsTupleType() && allowTuple:
 		// tuples are allowed for imports
-		typeCheckVal, typeCheckDiags = performTupleTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty == cty.DynamicPseudoType:
-		typeCheckVal, typeCheckDiags = performDynamicTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		// type is not known, so we accept we do not give type errors, but we check it later on the unknown checker
 	default:
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
@@ -141,17 +137,38 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 
 	diags = diags.Append(typeCheckDiags)
 
-	return typeCheckVal, diags
+	// Testing unknown values later so we return the UnknownVal and with the type check errors from the switch case above. We purposely do not check sets with unknown values here, since they are handled differently.
+	if (!forEachVal.IsKnown()) {
+		unknownVal, unknownDiags := performUnknownValueChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		diags = diags.Append(unknownDiags)
+		return unknownVal, diags
+	}
+
+	return forEachVal, diags
 }
 
-func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performUnknownValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+	ty := forEachVal.Type()
 	var diags tfdiags.Diagnostics
+	var msg string
 
-	if !forEachVal.IsKnown() && !allowUnknown {
+	switch {
+	case ty.IsTupleType():
+		msg = errInvalidUnknownDetailTuple
+	case ty == cty.DynamicPseudoType:
+		msg = errInvalidUnknownDetailDynamic
+	case ty.IsMapType() || ty.IsObjectType():
+		msg = errInvalidUnknownDetailMap
+	default:
+		// Other types shouldn't return these errors
+		return forEachVal, diags
+	}
+
+	if !allowUnknown {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
-			Detail:      errInvalidUnknownDetailTuple + forEachCommandLineExcludeSuggestion(excludableAddr),
+			Detail:      msg + forEachCommandLineExcludeSuggestion(excludableAddr),
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
@@ -159,43 +176,7 @@ func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowU
 		})
 	}
 
-	return forEachVal, diags
-}
-
-func performDynamicTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	if !forEachVal.IsKnown() && !allowUnknown {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid for_each argument",
-			Detail:      errInvalidUnknownDetailDynamic + forEachCommandLineExcludeSuggestion(excludableAddr),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: hclCtx,
-			Extra:       DiagnosticCausedByUnknown(true),
-		})
-	}
-	
-	return forEachVal, diags
-}
-
-func performMapTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	if !forEachVal.IsKnown() && !allowUnknown {
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity:    hcl.DiagError,
-			Summary:     "Invalid for_each argument",
-			Detail:      errInvalidUnknownDetailMap + forEachCommandLineExcludeSuggestion(excludableAddr),
-			Subject:     expr.Range().Ptr(),
-			Expression:  expr,
-			EvalContext: hclCtx,
-			Extra:       DiagnosticCausedByUnknown(true),
-		})
-	}
-
-	return forEachVal, diags
+	return cty.UnknownVal(ty), diags
 }
 
 // performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
@@ -217,16 +198,13 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 		typeVal = cty.NullVal(ty)
 	}
 
-	// since we can't use a set values that are unknown, we treat the
-	// entire set as unknown
+	// since we can't use a set values that are unknown, we treat theentire set as unknown
 	if !forEachVal.IsWhollyKnown() {
 		if !allowUnknown {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each argument",
-				Detail:      errInvalidUnknownDetailSet + forEachCommandLineExcludeSuggestion(excludableAddr),
-				Subject:     expr.Range().Ptr(),
-				Expression:  expr,
+				Summary:     "Invalid for_each argument",                     Detail:      errInvalidUnknownDetailSet + forEachCommandLineExcludeSuggestion(excludableAddr),
+				Subject:     expr.Range().Ptr(),                              Expression:  expr,
 				EvalContext: hclCtx,
 				Extra:       DiagnosticCausedByUnknown(true),
 			})
