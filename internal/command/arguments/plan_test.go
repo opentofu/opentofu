@@ -22,6 +22,7 @@ import (
 
 type testFile struct {
 	fileContent string
+	hasError    bool
 }
 
 func TestParsePlan_basicValid(t *testing.T) {
@@ -192,19 +193,28 @@ func TestParsePlan_targetFile(t *testing.T) {
 		},
 		"target file valid single target": {
 			files: []testFile{
-				{fileContent: "foo_bar.baz"},
+				{
+					fileContent: "foo_bar.baz",
+					hasError:    false,
+				},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid multiple targets": {
 			files: []testFile{
-				{fileContent: "foo_bar.baz\nmodule.boop"},
+				{
+					fileContent: "foo_bar.baz\nmodule.boop",
+					hasError:    false,
+				},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
 		"target file invalid target": {
 			files: []testFile{
-				{fileContent: "foo."},
+				{
+					fileContent: "foo.",
+					hasError:    true,
+				},
 			},
 			want: nil,
 			wantDiags: tfdiags.Diagnostics(nil).Append(
@@ -221,38 +231,87 @@ func TestParsePlan_targetFile(t *testing.T) {
 		},
 		"multiple files valid targets": {
 			files: []testFile{
-				{fileContent: "foo_bar.baz"},
-				{fileContent: "module.boop"},
+				{
+					fileContent: "foo_bar.baz",
+					hasError:    false,
+				},
+				{
+					fileContent: "module.boop",
+					hasError:    false,
+				},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
+		"multiple files invalid target": {
+			files: []testFile{
+				{
+					fileContent: "modu(le.boop",
+					hasError:    true,
+				},
+				{
+					fileContent: "foo_bar.baz",
+					hasError:    false,
+				},
+				// {
+				// 	fileContent: "modu(le.boop",
+				// 	hasError:    true,
+				// },
+			},
+			want: nil,
+			wantDiags: tfdiags.Diagnostics(nil).Append(
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "modu(le.boop": Expected an attribute access or an index operator.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 13, Byte: 12},
+					},
+				},
+			),
+		},
 		"target file valid comment": {
 			files: []testFile{
-				{fileContent: "#foo_bar.baz"},
+				{
+					fileContent: "#foo_bar.baz",
+					hasError:    false,
+				},
 			},
 			want: nil,
 		},
 		"target file valid spaces": {
 			files: []testFile{
-				{fileContent: "   foo_bar.baz"},
+				{
+					fileContent: "   foo_bar.baz",
+					hasError:    false,
+				},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid tab": {
 			files: []testFile{
-				{fileContent: "\tfoo_bar.baz"},
+				{
+					fileContent: "\tfoo_bar.baz",
+					hasError:    false,
+				},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
-		"target file complicated": {
+		"target file valid complicated": {
 			files: []testFile{
-				{fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham"},
+				{
+					fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham",
+					hasError:    false,
+				},
 			},
 			want: []addrs.Targetable{boop.Subject, wow.Subject},
 		},
 		"target file invalid bracket with spaces": {
 			files: []testFile{
-				{fileContent: `    [boop]`},
+				{
+					fileContent: `    [boop]`,
+					hasError:    true,
+				},
 			},
 			want: nil,
 			wantDiags: tfdiags.Diagnostics(nil).Append(
@@ -287,11 +346,15 @@ func TestParsePlan_targetFile(t *testing.T) {
 				}
 				gotDiagsExported := gotDiags.ForRPC()
 				wantDiagsExported := tc.wantDiags.ForRPC()
+
+				// Focus here. How do  Imake this work?
 				wantDiagsExported[0].Source().Subject.Filename = (*files)[0].Name()
+
 				gotDiagsExported.Sort()
 				wantDiagsExported.Sort()
+
 				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
-					t.Error("wrong diagnostics\n" + diff)
+					t.Fatalf("wrong diagnostics\n%s", diff)
 				}
 			}
 			if !cmp.Equal(got.Operation.Targets, tc.want) {
