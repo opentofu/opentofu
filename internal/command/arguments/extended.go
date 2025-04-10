@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
@@ -185,7 +184,6 @@ func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, 
 				continue
 			}
 			targetables = append(targetables, target.Subject)
-			spew.Dump(targetables)
 		}
 
 	}
