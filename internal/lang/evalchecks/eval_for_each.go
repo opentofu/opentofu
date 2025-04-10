@@ -126,11 +126,6 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		typeCheckVal, typeCheckDiags = performTupleTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 	case ty == cty.DynamicPseudoType:
 		typeCheckVal, typeCheckDiags = performDynamicTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
-	case ty.IsCollectionType() && markSafeLengthInt(forEachVal) == 0:
-		// If the map is empty ({}), return an empty map, because cty will
-		// return nil when representing {} AsValueMap. This also covers an empty
-		// set (toset([]))
-		return forEachVal, diags
 	default:
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
