@@ -55,7 +55,7 @@ do
   echo "" >> ticket_content
   echo "*Vulnerability info:* https://pkg.go.dev/vuln/${vuln_key}" >> ticket_content
   echo "*Pipeline run:* ${github_run_url}" >> ticket_content
-  # gh issue create --repo opentofu/opentofu --title "${ticket_title}" --body-file ticket_content
+  # gh issue create --repo opentofu/opentofu --label "govulncheck" --title "${ticket_title}" --body-file ticket_content
   echo "Create issue..."
   echo "Title: ${ticket_title}"
   echo "Content:"
