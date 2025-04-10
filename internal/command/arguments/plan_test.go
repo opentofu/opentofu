@@ -351,8 +351,6 @@ func TestParsePlan_targetFile(t *testing.T) {
 					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
 				}
 				gotDiagsExported := gotDiags.ForRPC()
-				gotDiagsExported.Sort()
-				wantDiagsExported.Sort()
 
 				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
 					t.Fatalf("wrong diagnostics\n%s", diff)
