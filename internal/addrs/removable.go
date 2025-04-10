@@ -19,6 +19,13 @@ type ConfigRemovable interface {
 	String() string
 }
 
+// DestroyableConfigRemovable wraps the ConfigRemovable and provides a new option, Destroy, that is indicating
+// if the resource that will be removed from the state should be destroyed too or not.
+type DestroyableConfigRemovable struct {
+	ConfigRemovable
+	Destroy bool
+}
+
 // The following are all the possible ConfigRemovable address types:
 var (
 	_ ConfigRemovable = ConfigResource{}
