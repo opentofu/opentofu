@@ -683,7 +683,7 @@ func TestEvaluateForEach(t *testing.T) {
 			ValidateExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "argument value is null. A map, or set of strings is allowed.",
+					Detail:            "argument value is null.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
@@ -698,7 +698,7 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "argument value is null. A map, or set of strings is allowed.",
+					Detail:            "argument value is null.",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
@@ -963,7 +963,7 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.",
+					Detail:            "includes keys or set values that cannot be determined until apply",
 					CausedByUnknown:   true,
 					CausedBySensitive: false,
 				},

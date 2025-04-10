@@ -5780,7 +5780,7 @@ import {
 		},
 		{
 			Description:   "for_each expression is null",
-			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A map, set of strings, or a tuple is allowed.`,
+			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 variable "map" {

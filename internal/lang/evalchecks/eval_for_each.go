@@ -20,6 +20,7 @@ const (
 	errInvalidUnknownDetailMap   = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
 	errInvalidUnknownDetailSet   = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
 	errInvalidUnknownDetailTuple = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full tuple of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailDynamic = "The \"for_each\" value includes keys or set values that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results\n\n"
 )
 
 type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics)
@@ -168,7 +169,7 @@ func performDynamicTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allo
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
-			Detail:      errInvalidUnknownDetailMap + forEachCommandLineExcludeSuggestion(excludableAddr),
+			Detail:      errInvalidUnknownDetailDynamic + forEachCommandLineExcludeSuggestion(excludableAddr),
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
