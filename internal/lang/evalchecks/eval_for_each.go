@@ -105,7 +105,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
-			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the given "for_each" argument value is null. A %s is allowed.`, allowedTypesMessage),
+			Detail:      `The given "for_each" argument value is unsuitable: the given "for_each" argument value is null.`,
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
 			EvalContext: hclCtx,
@@ -156,10 +156,9 @@ func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowU
 			EvalContext: hclCtx,
 			Extra:       DiagnosticCausedByUnknown(true),
 		})
-		return forEachVal, diags
 	}
 
-	return forEachVal, nil
+	return forEachVal, diags
 }
 
 func performDynamicTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
@@ -175,10 +174,9 @@ func performDynamicTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allo
 			EvalContext: hclCtx,
 			Extra:       DiagnosticCausedByUnknown(true),
 		})
-		return forEachVal, diags
 	}
-
-	return forEachVal, nil
+	
+	return forEachVal, diags
 }
 
 func performMapTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
@@ -194,10 +192,9 @@ func performMapTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 			EvalContext: hclCtx,
 			Extra:       DiagnosticCausedByUnknown(true),
 		})
-		return forEachVal, diags
 	}
 
-	return forEachVal, nil
+	return forEachVal, diags
 }
 
 // performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
@@ -236,7 +233,7 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 		typeVal = cty.UnknownVal(ty)
 	}
 
-	// Since we're using a multi-error approach, we try to add as much of information as possible. The ElementIterator code below can't iterate on null or unknown values, that's why we are returning earlier.
+	// Since we're using a multi-error approach, we try to add as much of information as possible. The ElementIterator code below can't iterate on null or unknown values, that's why we test if these conditions are present and return earlier.
 	if typeVal.IsNull() || diags.HasErrors() || !typeVal.IsWhollyKnown() {
 		return typeVal, diags
 	}
