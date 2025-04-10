@@ -145,10 +145,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 
 	diags = diags.Append(typeCheckDiags)
 
-	if diags.HasErrors() {
-		return typeCheckVal, diags
-	}
-	return typeCheckVal, nil
+	return typeCheckVal, diags
 }
 
 func performTupleTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
