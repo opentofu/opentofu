@@ -69,6 +69,15 @@ func decodeRemovedBlock(block *hcl.Block) (*Removed, hcl.Diagnostics) {
 		}
 	}
 
+	if !diags.HasErrors() && !removed.DestroySet {
+		// This warning is necessary because of a difference in the default behavior of the removed block compared with other .tf files runners.
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  "Missing lifecycle from the removed block",
+			Detail:   fmt.Sprintf("It is recommended for each 'removed' block configured to have also the 'lifecycle' block defined. By not specifying if the resource should be destroyed or not, could lead to unwanted behavior."),
+			Subject:  &block.DefRange,
+		})
+	}
 	return removed, diags
 }
 
