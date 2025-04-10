@@ -172,7 +172,16 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 			return nil
 		}
 	}
-	defer s.stateFileOut.Sync()
+
+	// Sync and close the file handle after all operations are complete
+	defer func() {
+		if err := s.stateFileOut.Sync(); err != nil {
+			log.Printf("Error syncing statefile: %s", err)
+		}
+
+		s.stateFileOut.Close()
+		s.stateFileOut = nil
+	}()
 
 	if s.file == nil {
 		s.file = NewStateFile()
@@ -389,23 +398,25 @@ func (s *Filesystem) Unlock(id string) error {
 	} else {
 		log.Printf("[TRACE] statemgr.Filesystem: removed lock metadata file %s", lockInfoPath)
 	}
-	fileName := s.stateFileOut.Name()
-
 	unlockErr := s.unlock()
+	// Perform cleanup if stateFileOut is not nil.
+	if s.stateFileOut != nil {
+		fileName := s.stateFileOut.Name()
 
-	s.stateFileOut.Close()
-	s.stateFileOut = nil
-	s.lockID = ""
+		s.stateFileOut.Close()
+		s.stateFileOut = nil
+		s.lockID = ""
 
-	// clean up the state file if we created it an never wrote to it
-	stat, err := os.Stat(fileName)
-	if err == nil && stat.Size() == 0 && s.created {
-		err = os.Remove(fileName)
-		if err != nil {
-			log.Printf("[ERROR] stagemgr.Filesystem: error removing empty state file %q: %s", fileName, err)
+		// Clean up the state file if we created it and never wrote to it
+		stat, err := os.Stat(fileName)
+		if err == nil && stat.Size() == 0 && s.created {
+			err = os.Remove(fileName)
+			if err != nil {
+				log.Printf("[ERROR] stagemgr.Filesystem: error removing empty state file %q: %s", fileName, err)
+			}
 		}
 	}
-
+	s.lockID = ""
 	return unlockErr
 }
 

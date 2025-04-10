@@ -8,7 +8,9 @@ package backend
 import (
 	"io"
 	"os"
+	"os/exec"
 	"os/user"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -76,12 +78,19 @@ func TestRead_PathNoPermission(t *testing.T) {
 	}
 	f.Close()
 
-	if err := os.Chmod(f.Name(), 0); err != nil {
-		t.Fatalf("err: %s", err)
+	if runtime.GOOS == "windows" {
+		// Use cacls to remove all permissions for this file on Windows
+		cmd := exec.Command("cmd", "/c", "cacls", f.Name(), "/E", "/R", os.Getenv("USERNAME")) // #nosec G204
+		if err := cmd.Run(); err != nil {
+			t.Fatalf("Failed to set file permissions with cacls: %s", err)
+		}
+	} else {
+		if err := os.Chmod(f.Name(), 0); err != nil {
+			t.Fatalf("Failed to chmod file: %s", err)
+		}
 	}
 
 	contents, err := ReadPathOrContents(f.Name())
-
 	if err == nil {
 		t.Fatal("Expected error, got none!")
 	}
