@@ -128,10 +128,10 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	}
 
 	// Set is treated differently from other types, like not allowing null or different types than string, so extra checks should be made
-	var setCheckDiags tfdiags.Diagnostics
 	if ty.IsSetType() {
-		forEachVal, setCheckDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		setVal, setCheckDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 		diags = diags.Append(setCheckDiags)
+		forEachVal = setVal
 	}
 
 	// Testing unknown values later so we return the UnknownVal and with the type check errors from the switch case above. We purposely do not check sets with unknown values here, since they are handled differently.
