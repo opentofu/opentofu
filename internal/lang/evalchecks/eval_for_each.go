@@ -157,7 +157,7 @@ func performUnknownValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 	case ty.IsMapType() || ty.IsObjectType():
 		msg = errInvalidUnknownDetailMap
 	default:
-		// Other types shouldn't return these errors
+		// Other types shouldn't return these error messages, and set type isn't treated here
 		return forEachVal, diags
 	}
 

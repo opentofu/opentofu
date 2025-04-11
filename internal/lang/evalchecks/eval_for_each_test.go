@@ -408,7 +408,7 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanReturnValue: map[string]cty.Value{},
 		},
 		"set_of_unknown_dynamic": {
-			Input:                cty.UnknownVal(cty.Set(cty.DynamicPseudoType)),
+			Input:                cty.SetVal([]cty.Value{cty.DynamicVal}),
 			ValidateExpectedErrs: nil,
 			ValidateReturnValue:  cty.UnknownVal(cty.Set(cty.DynamicPseudoType)),
 			PlanExpectedErrs: []expectedErr{
