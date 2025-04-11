@@ -105,25 +105,17 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	}
 
 	var allowedTypesMessage string
+	ty := forEachVal.Type()
+	isAllowedType := ty == cty.DynamicPseudoType || ty.IsMapType() || ty.IsSetType() || ty.IsObjectType()
+
 	if allowTuple {
+		isAllowedType = isAllowedType || ty.IsTupleType()
 		allowedTypesMessage = "map, set of strings, or a tuple"
 	} else {
 		allowedTypesMessage = "map, or set of strings"
 	}
 
-	// Type Checks
-	ty := forEachVal.Type()
-	var typeCheckDiags tfdiags.Diagnostics
-	switch {
-	case ty.IsSetType():
-		forEachVal, typeCheckDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
-	case ty.IsObjectType() || ty.IsMapType():
-		// all values are accepted for object and maps, so there's no need to do extra checking
-	case ty.IsTupleType() && allowTuple:
-		// tuples are allowed for imports
-	case ty == cty.DynamicPseudoType:
-		// type is not known, so we accept we do not give type errors, but we check it later on the unknown checker
-	default:
+	if !isAllowedType {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -135,7 +127,12 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		return cty.NullVal(ty), diags
 	}
 
-	diags = diags.Append(typeCheckDiags)
+	// Set is treated differently from other types, like not allowing null or different types than string, so extra checks should be made
+	var setCheckDiags tfdiags.Diagnostics
+	if ty.IsSetType() {
+		forEachVal, setCheckDiags = performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+		diags = diags.Append(setCheckDiags)
+	}
 
 	// Testing unknown values later so we return the UnknownVal and with the type check errors from the switch case above. We purposely do not check sets with unknown values here, since they are handled differently.
 	if (!forEachVal.IsKnown()) {
