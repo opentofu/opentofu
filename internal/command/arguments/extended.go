@@ -7,10 +7,10 @@ package arguments
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
@@ -191,7 +191,7 @@ func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, 
 }
 
 func isComment(b []byte) bool {
-	if strings.HasPrefix(string(b), "#") {
+	if bytes.HasPrefix(bytes.TrimSpace(b), []byte("#")) {
 		return true
 	}
 	return false
