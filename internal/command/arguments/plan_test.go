@@ -184,9 +184,8 @@ func TestParsePlan_targetFile(t *testing.T) {
 	boop, _ := addrs.ParseTargetStr("module.boop")
 	wow, _ := addrs.ParseTargetStr("wow.ham")
 	testCases := map[string]struct {
-		files []testFile
-		want  []addrs.Targetable
-		// wantDiags tfdiags.Diagnostics
+		files     []testFile
+		want      []addrs.Targetable
 		wantDiags hcl.Diagnostics
 	}{
 		"target file no targets": {
@@ -195,28 +194,19 @@ func TestParsePlan_targetFile(t *testing.T) {
 		},
 		"target file valid single target": {
 			files: []testFile{
-				{
-					fileContent: "foo_bar.baz",
-					hasError:    false,
-				},
-			},
+				{fileContent: "foo_bar.baz"}},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid multiple targets": {
 			files: []testFile{
-				{
-					fileContent: "foo_bar.baz\nmodule.boop",
-					hasError:    false,
-				},
+				{fileContent: "foo_bar.baz\nmodule.boop"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
 		"target file invalid target": {
 			files: []testFile{
-				{
-					fileContent: "foo.",
-					hasError:    true,
-				},
+				{fileContent: "foo.",
+					hasError: true},
 			},
 			want: nil,
 			wantDiags: hcl.Diagnostics{
@@ -233,27 +223,16 @@ func TestParsePlan_targetFile(t *testing.T) {
 		},
 		"multiple files valid targets": {
 			files: []testFile{
-				{
-					fileContent: "foo_bar.baz",
-					hasError:    false,
-				},
-				{
-					fileContent: "module.boop",
-					hasError:    false,
-				},
+				{fileContent: "foo_bar.baz"},
+				{fileContent: "module.boop"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
 		"multiple files invalid target": {
 			files: []testFile{
-				{
-					fileContent: "foo_bar.baz",
-					hasError:    false,
-				},
-				{
-					fileContent: "modu(le.boop",
-					hasError:    true,
-				},
+				{fileContent: "foo_bar.baz"},
+				{fileContent: "modu(le.boop",
+					hasError: true},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 			wantDiags: hcl.Diagnostics{
@@ -268,48 +247,64 @@ func TestParsePlan_targetFile(t *testing.T) {
 				},
 			},
 		},
+		"multiple files multiple invalid targets": {
+			files: []testFile{
+				{fileContent: "modu(le.boop",
+					hasError: true},
+				{fileContent: "foo_bar.baz"},
+				{fileContent: "wow^.ham",
+					hasError: true},
+			},
+			want: []addrs.Targetable{foobarbaz.Subject},
+			wantDiags: hcl.Diagnostics{
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "modu(le.boop": Expected an attribute access or an index operator.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 13, Byte: 12},
+					},
+				},
+				&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid syntax",
+					Detail:   `For target "wow^.ham": Bitwise operators are not supported.`,
+					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 9, Byte: 8},
+					},
+				},
+			},
+		},
 		"target file valid comment": {
 			files: []testFile{
-				{
-					fileContent: "#foo_bar.baz",
-					hasError:    false,
-				},
+				{fileContent: "#foo_bar.baz"},
 			},
 			want: nil,
 		},
 		"target file valid spaces": {
 			files: []testFile{
-				{
-					fileContent: "   foo_bar.baz",
-					hasError:    false,
-				},
+				{fileContent: "   foo_bar.baz"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid tab": {
 			files: []testFile{
-				{
-					fileContent: "\tfoo_bar.baz",
-					hasError:    false,
-				},
+				{fileContent: "\tfoo_bar.baz"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid complicated": {
 			files: []testFile{
-				{
-					fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham",
-					hasError:    false,
-				},
+				{fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham"},
 			},
 			want: []addrs.Targetable{boop.Subject, wow.Subject},
 		},
 		"target file invalid bracket with spaces": {
 			files: []testFile{
-				{
-					fileContent: `    [boop]`,
-					hasError:    true,
-				},
+				{fileContent: `    [boop]`,
+					hasError: true},
 			},
 			want: nil,
 			wantDiags: hcl.Diagnostics{
@@ -335,13 +330,16 @@ func TestParsePlan_targetFile(t *testing.T) {
 				testFile.tempFileWriter()
 				defer os.Remove(testFile.filePath)
 				targetFileArguments = append(targetFileArguments, "-target-file="+testFile.filePath)
-
-				for _, diag := range tc.wantDiags {
-					if diag.Subject != nil {
-						diag.Subject.Filename = testFile.filePath
+				if testFile.hasError {
+					for _, diag := range tc.wantDiags {
+						if diag.Subject.Filename == "" {
+							diag.Subject.Filename = testFile.filePath
+							break
+						}
 					}
 				}
 			}
+
 			wantDiagsExported := tfdiags.Diagnostics(nil).Append(tc.wantDiags).ForRPC()
 
 			got, gotDiags := ParsePlan(targetFileArguments)
@@ -455,10 +453,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 		},
 		"exclude file invalid target": {
 			files: []testFile{
-				{
-					fileContent: "foo.",
-					hasError:    true,
-				},
+				{fileContent: "foo."},
 			},
 			want: nil,
 			wantDiags: hcl.Diagnostics{
@@ -499,10 +494,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 		},
 		"exclude file invalid bracket with spaces": {
 			files: []testFile{
-				{
-					fileContent: `    [boop]`,
-					hasError:    true,
-				},
+				{fileContent: `    [boop]`},
 			},
 			want: nil,
 			wantDiags: hcl.Diagnostics{
