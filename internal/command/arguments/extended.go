@@ -206,7 +206,7 @@ func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFi
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
-			"Cannot combine both target and exclude flags. Please only target or exclude resources",
+			"The target and exclude planning options are mutually-exclusive. Each plan must use either only the target options or only the exclude options",
 		))
 		return allParsedTargets, allParsedExcludes, diags
 	}
