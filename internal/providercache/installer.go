@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"sort"
 	"strings"
 
@@ -624,34 +625,50 @@ func (i *Installer) ensureProviderVersionsInstall(
 			continue
 		}
 
-		var signedHashes []getproviders.Hash
-		// For now, we will temporarily trust the hashes returned by the
-		// installation process that are "SigningSkipped" or "Signed".
-		// This is only intended to be temporary, see https://github.com/opentofu/opentofu/issues/266 for more information
-		if authResult.Signed() || authResult.SigningSkipped() {
-			// We'll trust new hashes from upstream only if they were verified
-			// as signed by a suitable key or if the signing validation was skipped.
-			// Otherwise, we'd record only
-			// a new hash we just calculated ourselves from the bytes on disk,
-			// and so the hashes would cover only the current platform.
-			signedHashes = append(signedHashes, meta.AcceptableHashes()...)
-		}
+		// localHashes is the set of hashes that we were able to verify locally
+		// based on the data we downloaded.
+		localHashes := slices.Collect(authResult.HashesWithDisposition(func(hd *getproviders.HashDisposition) bool {
+			return hd.VerifiedLocally
+		}))
+		localHashes = append(localHashes, newHash) // the hash we calculated above was _also_ verified locally
+
+		// We have different rules for what subset of hashes we track in
+		// the dependency lock file depending on the provider. Refer to
+		// the documentation of the following function for more information.
+		signingRequired := getproviders.ShouldEnforceGPGValidationForProvider(provider)
+		signedHashes := slices.Collect(authResult.HashesWithDisposition(func(hd *getproviders.HashDisposition) bool {
+			if !signingRequired {
+				// When signing isn't required, we pretend that anything
+				// that was reported by the origin registry was "signed",
+				// just for the purposes of updating the lock file and
+				// reporting that lock file update to the UI layer through
+				// the evts object.
+				// Note that the "tofu init" UI relies on us pretending
+				// that these are "signed" to avoid generating its warning
+				// that the dependency lock file might be incomplete.
+				return hd.ReportedByRegistry
+			}
+			return hd.SignedByAnyGPGKeys()
+		}))
 
 		var newHashes []getproviders.Hash
 		newHashes = append(newHashes, newHash)
 		newHashes = append(newHashes, priorHashes...)
+		newHashes = append(newHashes, localHashes...)
 		newHashes = append(newHashes, signedHashes...)
 
 		locks.SetProvider(provider, version, reqs[provider], newHashes)
 		if cb := evts.ProvidersLockUpdated; cb != nil {
-			// newHash and priorHashes are already sorted.
-			// But we do need to sort signedHashes so we can reason about it
-			// sensibly.
+			// priorHashes is already sorted, but we do need to sort
+			// the newly-generated localHashes and signedHashes.
+			sort.Slice(localHashes, func(i, j int) bool {
+				return localHashes[i].String() < localHashes[j].String()
+			})
 			sort.Slice(signedHashes, func(i, j int) bool {
-				return string(signedHashes[i]) < string(signedHashes[j])
+				return signedHashes[i].String() < signedHashes[j].String()
 			})
 
-			cb(provider, version, []getproviders.Hash{newHash}, signedHashes, priorHashes)
+			cb(provider, version, localHashes, signedHashes, priorHashes)
 		}
 
 		if cb := evts.FetchPackageSuccess; cb != nil {

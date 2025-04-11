@@ -137,12 +137,6 @@ func TestHTTPMirrorSource(t *testing.T) {
 		if diff := cmp.Diff(want, got); diff != "" {
 			t.Errorf("wrong result\n%s", diff)
 		}
-
-		gotHashes := got.AcceptableHashes()
-		wantHashes := []Hash{"h1:placeholder-hash", "h0:unacceptable-hash"}
-		if diff := cmp.Diff(wantHashes, gotHashes); diff != "" {
-			t.Errorf("wrong acceptable hashes\n%s", diff)
-		}
 	})
 	t.Run("PackageMeta for a version that exists and has no hash", func(t *testing.T) {
 		version := MustParseVersion("1.0.1")

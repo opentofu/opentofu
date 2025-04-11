@@ -359,7 +359,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	ret.Authentication = PackageAuthenticationAll(
 		NewMatchingChecksumAuthentication(document, body.Filename, checksum),
 		NewArchiveChecksumAuthentication(ret.TargetPlatform, checksum),
-		NewSignatureAuthentication(ret, document, signature, keys, &provider),
+		NewSignatureAuthentication(ret, document, signature, keys, provider),
 	)
 
 	return ret, nil

@@ -880,7 +880,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		FetchPackageSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string, authResult *getproviders.PackageAuthenticationResult) {
 			var keyID string
 			if authResult != nil && authResult.Signed() {
-				keyID = authResult.KeyID
+				keyID = authResult.GPGKeyIDsString()
 			}
 			if keyID != "" {
 				keyID = c.Colorize().Color(fmt.Sprintf(", key ID [reset][bold]%s[reset]", keyID))

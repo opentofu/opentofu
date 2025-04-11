@@ -22,6 +22,7 @@ import (
 	orasMemoryStore "oras.land/oras-go/v2/content/memory"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
 )
 
 func TestPackageOCIBlobArchive(t *testing.T) {
@@ -57,7 +58,11 @@ func TestPackageOCIBlobArchive(t *testing.T) {
 			TargetPlatform: CurrentPlatform,
 			Location:       loc,
 			Authentication: &mockAuthentication{
-				result: signed,
+				hashes: HashDispositions{
+					Hash("test:placeholder"): {
+						SignedByGPGKeyIDs: collections.NewSet("abc123"),
+					},
+				},
 			},
 		}
 		targetDir := t.TempDir()
