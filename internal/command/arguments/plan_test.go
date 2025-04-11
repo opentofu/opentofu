@@ -11,7 +11,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/google/go-cmp/cmp"
@@ -453,7 +452,10 @@ func TestParsePlan_excludeFile(t *testing.T) {
 		},
 		"exclude file invalid target": {
 			files: []testFile{
-				{fileContent: "foo."},
+				{
+					fileContent: "foo.",
+					hasError:    true,
+				},
 			},
 			want: nil,
 			wantDiags: tfdiags.Diagnostics(nil).Append(
@@ -494,7 +496,10 @@ func TestParsePlan_excludeFile(t *testing.T) {
 		},
 		"exclude file invalid bracket with spaces": {
 			files: []testFile{
-				{fileContent: `    [boop]`},
+				{
+					fileContent: `    [boop]`,
+					hasError:    true,
+				},
 			},
 			want: nil,
 			wantDiags: tfdiags.Diagnostics(nil).Append(
@@ -513,15 +518,21 @@ func TestParsePlan_excludeFile(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-			files := tempFileWriter(&tc.files)
-			targetFileNames := []string{}
-			for _, file := range *files {
-				// defer os.Remove(file.Name())
-				targetFileNames = append(targetFileNames, "-target-file="+file.Name())
-			}
-			spew.Dump(targetFileNames)
+			targetFileArguments := []string{}
+			wantDiagsExported := tc.wantDiags.ForRPC()
 
-			got, gotDiags := ParsePlan(targetFileNames)
+			for _, testFile := range tc.files {
+
+				testFile.tempFileWriter()
+				defer os.Remove(testFile.filePath)
+				targetFileArguments = append(targetFileArguments, "-exclude-file="+testFile.filePath)
+
+				if testFile.hasError {
+					wantDiagsExported[0].Source().Subject.Filename = testFile.filePath
+				}
+			}
+
+			got, gotDiags := ParsePlan(targetFileArguments)
 			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
 				if len(gotDiags) == 0 {
 					t.Fatalf("expected diags but got none")
@@ -530,11 +541,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
 				}
 				gotDiagsExported := gotDiags.ForRPC()
-				wantDiagsExported := tc.wantDiags.ForRPC()
 
-				wantDiagsExported[0].Source().Subject.Filename = (*files)[0].Name()
-				gotDiagsExported.Sort()
-				wantDiagsExported.Sort()
 				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
 					t.Error("wrong diagnostics\n" + diff)
 				}
@@ -629,24 +636,6 @@ func TestParsePlan_vars(t *testing.T) {
 }
 
 // Don't forget to os.Remove(file) for each file after calling this function
-func tempFileWriter(files *[]testFile) *[]os.File {
-	tempFiles := &[]os.File{}
-	for _, file := range *files {
-
-		tempFile, err := os.CreateTemp("", "opentofu-test-files")
-		if err != nil {
-			log.Fatal(err)
-		}
-		file.filePath = tempFile.Name()
-		tempFile.WriteString(file.fileContent)
-		if err != nil {
-			log.Fatal(err)
-		}
-		*tempFiles = append(*tempFiles, *tempFile)
-	}
-	return tempFiles
-}
-
 func (t *testFile) tempFileWriter() {
 	tempFile, err := os.CreateTemp("", "opentofu-test-files")
 	if err != nil {
