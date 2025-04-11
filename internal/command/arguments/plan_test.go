@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -327,7 +326,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 			targetFileArguments := []string{}
 
 			for _, testFile := range tc.files {
-				testFile.tempFileWriter()
+				testFile.tempFileWriter(t)
 				defer os.Remove(testFile.filePath)
 				targetFileArguments = append(targetFileArguments, "-target-file="+testFile.filePath)
 				if testFile.hasError {
@@ -517,8 +516,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 
 			for _, testFile := range tc.files {
 
-				testFile.tempFileWriter()
-				defer os.Remove(testFile.filePath)
+				testFile.tempFileWriter(t)
 				targetFileArguments = append(targetFileArguments, "-exclude-file="+testFile.filePath)
 
 				for _, diag := range tc.wantDiags {
@@ -632,15 +630,18 @@ func TestParsePlan_vars(t *testing.T) {
 	}
 }
 
-// Don't forget to os.Remove(file) for each file after calling this function
-func (t *testFile) tempFileWriter() {
-	tempFile, err := os.CreateTemp("", "opentofu-test-files")
+func (t *testFile) tempFileWriter(tt *testing.T) {
+	tt.Helper()
+	tempFile, err := os.CreateTemp(tt.TempDir(), "opentofu-test-files")
 	if err != nil {
-		log.Fatal(err)
+		tt.Fatal(err)
 	}
 	t.filePath = tempFile.Name()
 	tempFile.WriteString(t.fileContent)
 	if err != nil {
-		log.Fatal(err)
+		tt.Fatal(err)
+	}
+	if err := tempFile.Close(); err != nil {
+		tt.Fatal(err)
 	}
 }
