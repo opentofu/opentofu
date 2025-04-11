@@ -184,9 +184,10 @@ func TestParsePlan_targetFile(t *testing.T) {
 	boop, _ := addrs.ParseTargetStr("module.boop")
 	wow, _ := addrs.ParseTargetStr("wow.ham")
 	testCases := map[string]struct {
-		files     []testFile
-		want      []addrs.Targetable
-		wantDiags tfdiags.Diagnostics
+		files []testFile
+		want  []addrs.Targetable
+		// wantDiags tfdiags.Diagnostics
+		wantDiags hcl.Diagnostics
 	}{
 		"target file no targets": {
 			files: []testFile{},
@@ -218,7 +219,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 				},
 			},
 			want: nil,
-			wantDiags: tfdiags.Diagnostics(nil).Append(
+			wantDiags: hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid syntax",
@@ -228,7 +229,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
 					},
 				},
-			),
+			},
 		},
 		"multiple files valid targets": {
 			files: []testFile{
@@ -255,7 +256,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 				},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
-			wantDiags: tfdiags.Diagnostics(nil).Append(
+			wantDiags: hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid syntax",
@@ -265,7 +266,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 						End:   hcl.Pos{Line: 1, Column: 13, Byte: 12},
 					},
 				},
-			),
+			},
 		},
 		"target file valid comment": {
 			files: []testFile{
@@ -311,7 +312,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 				},
 			},
 			want: nil,
-			wantDiags: tfdiags.Diagnostics(nil).Append(
+			wantDiags: hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid syntax",
@@ -321,7 +322,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
 					},
 				},
-			),
+			},
 		},
 	}
 
@@ -329,17 +330,19 @@ func TestParsePlan_targetFile(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 
 			targetFileArguments := []string{}
-			wantDiagsExported := tc.wantDiags.ForRPC()
 
 			for _, testFile := range tc.files {
 				testFile.tempFileWriter()
 				defer os.Remove(testFile.filePath)
 				targetFileArguments = append(targetFileArguments, "-target-file="+testFile.filePath)
 
-				if testFile.hasError {
-					wantDiagsExported[0].Source().Subject.Filename = testFile.filePath
+				for _, diag := range tc.wantDiags {
+					if diag.Subject != nil {
+						diag.Subject.Filename = testFile.filePath
+					}
 				}
 			}
+			wantDiagsExported := tfdiags.Diagnostics(nil).Append(tc.wantDiags).ForRPC()
 
 			got, gotDiags := ParsePlan(targetFileArguments)
 			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
@@ -425,7 +428,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 	testCases := map[string]struct {
 		files     []testFile
 		want      []addrs.Targetable
-		wantDiags tfdiags.Diagnostics
+		wantDiags hcl.Diagnostics
 	}{
 		"exclude file no targets": {
 			files: []testFile{},
@@ -458,7 +461,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 				},
 			},
 			want: nil,
-			wantDiags: tfdiags.Diagnostics(nil).Append(
+			wantDiags: hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid syntax",
@@ -468,7 +471,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
 					},
 				},
-			),
+			},
 		},
 		"exclude file valid comment": {
 			files: []testFile{
@@ -502,7 +505,7 @@ func TestParsePlan_excludeFile(t *testing.T) {
 				},
 			},
 			want: nil,
-			wantDiags: tfdiags.Diagnostics(nil).Append(
+			wantDiags: hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid syntax",
@@ -512,14 +515,13 @@ func TestParsePlan_excludeFile(t *testing.T) {
 						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
 					},
 				},
-			),
+			},
 		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			targetFileArguments := []string{}
-			wantDiagsExported := tc.wantDiags.ForRPC()
 
 			for _, testFile := range tc.files {
 
@@ -527,10 +529,13 @@ func TestParsePlan_excludeFile(t *testing.T) {
 				defer os.Remove(testFile.filePath)
 				targetFileArguments = append(targetFileArguments, "-exclude-file="+testFile.filePath)
 
-				if testFile.hasError {
-					wantDiagsExported[0].Source().Subject.Filename = testFile.filePath
+				for _, diag := range tc.wantDiags {
+					if diag.Subject != nil {
+						diag.Subject.Filename = testFile.filePath
+					}
 				}
 			}
+			wantDiagsExported := tfdiags.Diagnostics(nil).Append(tc.wantDiags).ForRPC()
 
 			got, gotDiags := ParsePlan(targetFileArguments)
 			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
