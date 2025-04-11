@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -212,9 +211,13 @@ func TestParsePlan_targetFile(t *testing.T) {
 			wantDiags: hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Invalid syntax",
-					Detail:   `For target "foo.": Dot must be followed by attribute name.`,
+					Summary:  "Attribute name required",
+					Detail:   "Dot must be followed by attribute name.",
 					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
+					Context: &hcl.Range{
 						Start: hcl.Pos{Line: 1, Column: 1},
 						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
 					},
@@ -244,6 +247,10 @@ func TestParsePlan_targetFile(t *testing.T) {
 						Start: hcl.Pos{Line: 1, Column: 1},
 						End:   hcl.Pos{Line: 1, Column: 13, Byte: 12},
 					},
+					Context: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
 				},
 			},
 		},
@@ -259,20 +266,24 @@ func TestParsePlan_targetFile(t *testing.T) {
 			wantDiags: hcl.Diagnostics{
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Invalid syntax",
-					Detail:   `For target "modu(le.boop": Expected an attribute access or an index operator.`,
+					Summary:  "Invalid character",
+					Detail:   "Expected an attribute access or an index operator.",
 					Subject: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
+						End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					},
+					Context: &hcl.Range{
 						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 13, Byte: 12},
+						End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
 					},
 				},
 				&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Invalid syntax",
-					Detail:   `For target "wow^.ham": Bitwise operators are not supported.`,
+					Summary:  "Unsupported operator",
+					Detail:   `Bitwise operators are not supported.`,
 					Subject: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 9, Byte: 8},
+						Start: hcl.Pos{Line: 1, Column: 4, Byte: 3},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
 					},
 				},
 			},
@@ -316,6 +327,10 @@ func TestParsePlan_targetFile(t *testing.T) {
 						Start: hcl.Pos{Line: 1, Column: 1},
 						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
 					},
+					Context: &hcl.Range{
+						Start: hcl.Pos{Line: 1, Column: 1},
+						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+					},
 				},
 			},
 		},
@@ -323,17 +338,19 @@ func TestParsePlan_targetFile(t *testing.T) {
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
-
 			targetFileArguments := []string{}
-
 			for _, testFile := range tc.files {
-				testFile.tempFileWriter()
+				testFile.tempFileWriter(t)
 				defer os.Remove(testFile.filePath)
 				targetFileArguments = append(targetFileArguments, "-target-file="+testFile.filePath)
-				if testFile.hasError {
+
+				if testFile.hasError { // for setting the correct filePath on each wantDiag
 					for _, diag := range tc.wantDiags {
 						if diag.Subject.Filename == "" {
 							diag.Subject.Filename = testFile.filePath
+							if diag.Context != nil {
+								diag.Context.Filename = testFile.filePath
+							}
 							break
 						}
 					}
@@ -516,11 +533,8 @@ func TestParsePlan_excludeFile(t *testing.T) {
 			targetFileArguments := []string{}
 
 			for _, testFile := range tc.files {
-
-				testFile.tempFileWriter()
-				defer os.Remove(testFile.filePath)
+				testFile.tempFileWriter(t)
 				targetFileArguments = append(targetFileArguments, "-exclude-file="+testFile.filePath)
-
 				for _, diag := range tc.wantDiags {
 					if diag.Subject != nil {
 						diag.Subject.Filename = testFile.filePath
@@ -632,15 +646,18 @@ func TestParsePlan_vars(t *testing.T) {
 	}
 }
 
-// Don't forget to os.Remove(file) for each file after calling this function
-func (t *testFile) tempFileWriter() {
-	tempFile, err := os.CreateTemp("", "opentofu-test-files")
+func (t *testFile) tempFileWriter(tt *testing.T) {
+	tt.Helper()
+	tempFile, err := os.CreateTemp(tt.TempDir(), "opentofu-test-files")
 	if err != nil {
-		log.Fatal(err)
+		tt.Fatal(err)
 	}
 	t.filePath = tempFile.Name()
 	tempFile.WriteString(t.fileContent)
 	if err != nil {
-		log.Fatal(err)
+		tt.Fatal(err)
+	}
+	if err := tempFile.Close(); err != nil {
+		tt.Fatal(err)
 	}
 }
