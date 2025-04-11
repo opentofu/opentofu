@@ -9,10 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/tfdiags"
-
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 func TestParseRefresh_basicValid(t *testing.T) {
@@ -199,7 +198,7 @@ func TestParseRefresh_excludeAndTarget(t *testing.T) {
 		tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
-			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+			"The target and exclude planning options are mutually-exclusive. Each plan must use either only the target options or only the exclude options",
 		),
 	}
 	if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
@@ -212,6 +211,7 @@ func TestParseRefresh_excludeAndTarget(t *testing.T) {
 		t.Errorf("Did not expect operation to parse excludes, but it parsed %d targets", len(got.Operation.Excludes))
 	}
 }
+
 func TestParseRefresh_vars(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
