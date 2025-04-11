@@ -132,10 +132,8 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		setVal, setCheckDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 		diags = diags.Append(setCheckDiags)
 		forEachVal = setVal
-	}
-
-	// Testing unknown values later so we return the UnknownVal and with the type check errors from the switch case above. We purposely do not check sets with unknown values here, since they are handled differently.
-	if (!forEachVal.IsKnown()) {
+	} else if (!forEachVal.IsKnown()) {
+		// Testing unknown values later so we return the UnknownVal and with the type check errors from the switch case above. We purposely do not check sets here, since they are handled differently.
 		unknownVal, unknownDiags := performUnknownValueChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 		diags = diags.Append(unknownDiags)
 		return unknownVal, diags
@@ -157,8 +155,8 @@ func performUnknownValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 	case ty.IsMapType() || ty.IsObjectType():
 		msg = errInvalidUnknownDetailMap
 	default:
-		// Other types shouldn't return these error messages, and set type isn't treated here
-		return forEachVal, diags
+		// other types shouldn't be tested here
+		panic(fmt.Sprintf("type %s shouldn't be reaching this part of the code ", ty))
 	}
 
 	if !allowUnknown {
