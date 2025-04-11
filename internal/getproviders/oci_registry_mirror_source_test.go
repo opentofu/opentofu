@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,6 +24,7 @@ import (
 	orasContent "oras.land/oras-go/v2/content"
 	orasOCI "oras.land/oras-go/v2/content/oci"
 	orasErrors "oras.land/oras-go/v2/errdef"
+	orasRegistryErrors "oras.land/oras-go/v2/registry/remote/errcode"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -511,4 +513,150 @@ func makeFakeOCIRepositoryWithNonProviderContent(t *testing.T) (OCIRepositorySto
 	}
 
 	return store, lookups
+}
+
+func TestErrRepresentsOCIProviderNotFound(t *testing.T) {
+	// These are tests just for the internal errRepresentsOCIProviderNotFound
+	// helper, with some of the test inputs based directly on how ORAS-Go
+	// translates the error responses from real OCI Distribution server
+	// implementations. Of course, new server implementations can be
+	// released and existing implementations can change at any time, so
+	// this can only test results that we've already seen. If we learn
+	// of new servers that cause ORAS-Go to return materially different
+	// results then let's add those examples here too as a regression test.
+
+	ociRepositoryTagLookupURL, err := url.Parse("https://example.com/v2/foo/bar/tags/list")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		Error                  error
+		WantIsProviderNotFound bool
+	}{
+		{
+			fmt.Errorf("totally unrelated error"),
+			false,
+		},
+		{
+			&orasRegistryErrors.ErrorResponse{
+				Method:     "GET",
+				URL:        ociRepositoryTagLookupURL,
+				StatusCode: 404,
+			},
+			true, // we assume this means that the repository doesn't exist
+		},
+		{
+			&orasRegistryErrors.ErrorResponse{
+				Method:     "GET",
+				URL:        ociRepositoryTagLookupURL,
+				StatusCode: 401,
+			},
+			false, // represents invalid credentials, not a missing repository
+		},
+		{
+			&orasRegistryErrors.ErrorResponse{
+				Method:     "GET",
+				URL:        ociRepositoryTagLookupURL,
+				StatusCode: 403,
+			},
+			false, // represents invalid credentials, not a missing repository
+		},
+		{
+			&orasRegistryErrors.ErrorResponse{
+				Method:     "GET",
+				URL:        ociRepositoryTagLookupURL,
+				StatusCode: 500,
+			},
+			false, // represents a problem with the server, not a missing repository
+		},
+		{
+			// This particular example matches how ORAS-Go reacts to ghcr.io's
+			// response for an unrecognized repository at the time of writing.
+			&orasRegistryErrors.ErrorResponse{
+				Method:     "GET",
+				URL:        ociRepositoryTagLookupURL,
+				StatusCode: 404,
+				Errors: orasRegistryErrors.Errors{
+					{
+						Code:    orasRegistryErrors.ErrorCodeNameUnknown,
+						Message: "name unknown",
+						Detail:  "repository name not known to registry",
+					},
+				},
+			},
+			true,
+		},
+		{
+			&orasRegistryErrors.ErrorResponse{
+				Method:     "GET",
+				URL:        ociRepositoryTagLookupURL,
+				StatusCode: 404,
+				Errors: orasRegistryErrors.Errors{
+					{
+						Code:    orasRegistryErrors.ErrorCodeNameInvalid,
+						Message: "Invalid repository name",
+						Detail:  "...",
+					},
+				},
+			},
+			// We treat this one as "provider not found" because some registries
+			// have stricter naming requirements than the OCI Distribution spec
+			// actually requires but that's okay as long as at least _some_
+			// translations from provider source address to repository name can
+			// yield a name the registry would accept.
+			true,
+		},
+		{
+			&orasRegistryErrors.ErrorResponse{
+				Method:     "GET",
+				URL:        ociRepositoryTagLookupURL,
+				StatusCode: 404,
+				Errors: orasRegistryErrors.Errors{
+					{
+						Code:    orasRegistryErrors.ErrorCodeUnauthorized,
+						Message: "Unauthorized",
+						Detail:  "...",
+					},
+				},
+			},
+			false, // represents invalid credentials, not a missing repository
+		},
+		{
+			&orasRegistryErrors.ErrorResponse{
+				Method:     "GET",
+				URL:        ociRepositoryTagLookupURL,
+				StatusCode: 404,
+				Errors: orasRegistryErrors.Errors{
+					{
+						Code:    orasRegistryErrors.ErrorCodeUnauthorized,
+						Message: "Unauthorized",
+						Detail:  "...",
+					},
+					{
+						Code:    orasRegistryErrors.ErrorCodeNameUnknown,
+						Message: "No such repository",
+						Detail:  "...",
+					},
+				},
+			},
+			true, // a recognized error code overrides an unrecognized one
+		},
+		{
+			orasErrors.ErrNotFound, // returned by ORAS-Go's local implementations of its interfaces
+			true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.Error.Error(), func(t *testing.T) {
+			got := errRepresentsOCIProviderNotFound(test.Error)
+			if got != test.WantIsProviderNotFound {
+				t.Errorf(
+					"wrong result\nerr:  [%T] %s\ngot:  %t\nwant: %t",
+					test.Error, test.Error, got, test.WantIsProviderNotFound,
+				)
+			}
+		})
+	}
 }

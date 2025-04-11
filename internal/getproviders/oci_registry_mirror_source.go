@@ -17,6 +17,7 @@ import (
 	"github.com/apparentlymart/go-versions/versions"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
 	orasErrors "oras.land/oras-go/v2/errdef"
+	orasRegistryErrors "oras.land/oras-go/v2/registry/remote/errcode"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -178,7 +179,7 @@ func (o *OCIRegistryMirrorSource) AvailableVersions(ctx context.Context, provide
 		return nil
 	})
 	if err != nil {
-		if errors.Is(err, orasErrors.ErrNotFound) {
+		if errRepresentsOCIProviderNotFound(err) {
 			// We treat "not found" as special because this function might be
 			// called from [MultiSource.AvailableVersions] and that relies
 			// on us returning this specific error type to represent that this
@@ -197,6 +198,62 @@ func (o *OCIRegistryMirrorSource) AvailableVersions(ctx context.Context, provide
 	}
 	ret.Sort()
 	return ret, nil, nil
+}
+
+// errRepresentsOCIProviderNotFound returns true if the given error seems like
+// one of the ways that typical implementations of ORAS-Go's [registry.Repository]
+// report that the specified repository doesn't exist, since we need to
+// understand that as meaning "provider not found" when we translate the
+// error for the result in [OCIRegistryMirrorSource.AvailableVersions].
+//
+// The result of this function is meaningful only for errors returned from
+// tag-listing requests.
+func errRepresentsOCIProviderNotFound(err error) bool {
+	if err == nil {
+		return false // the absense of an error cannot possibly signal that a provider wasn't found
+	} else if errors.Is(err, orasErrors.ErrNotFound) {
+		return true // This error value is used by the local-only implementations of the interface
+	} else if err, ok := err.(*orasRegistryErrors.ErrorResponse); ok {
+		// This error type deals with errors returned from remote
+		// registries when using the OCI Distribution protocol.
+		// This case is a little trickier because different server
+		// implementations can potentially vary in how they report
+		// this problem, but the OCI Distribution specification
+		// says that:
+		// - 404 Not Found is the only valid error code to return
+		//   from the tag-listing endpoint.
+		// - Remote servers MAY (but are not required to) return
+		//   additional detail in a JSON-formatted response body
+		//   that ORAS-Go then decodes into the "Errors" field
+		//   of the error object.
+		// Therefore our strategy is to make a best effort to use
+		// the OCI-specific detail payload if it's available, but
+		// otherwise to assume that "404 Not Found" is a sufficient
+		// signal for "provider not found".
+		//
+		// Overall the goal here is to avoid masking other kinds of
+		// errors a server might return if possible, but to err
+		// on the side of "provider not found" if we're not sure
+		// because otherwise a failure of this source could block
+		// the provider installer from finding a suitable provider
+		// package from another source.
+		if len(err.Errors) == 0 { // less-precise handling for servers that don't return error details
+			return err.StatusCode == 404
+		}
+		for _, subErr := range err.Errors {
+			if subErr.Code == orasRegistryErrors.ErrorCodeNameUnknown || subErr.Code == orasRegistryErrors.ErrorCodeNameInvalid {
+				return true
+			}
+			// There are various other possible error codes that we're
+			// intentionally _not_ classifying as "provider not found"
+			// here, such as "unauthorized" or "denied" for invalid
+			// credentials, since those imply that the provider source
+			// configuration isn't correct and we want to give the
+			// operator clear feedback about that.
+		}
+		return false
+	}
+	return false
 }
 
 // PackageMeta implements Source.
