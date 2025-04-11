@@ -157,30 +157,40 @@ func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, 
 			if isComment(lineBytes) {
 				continue
 			}
+			// traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, lineRange.Filename, lineRange.Start)
+			// if syntaxDiags.HasErrors() {
+			// 	diags = diags.Append(nil).Append(
+			// 		&hcl.Diagnostic{
+			// 			Severity: tfdiags.Error.ToHCL(),
+			// 			Summary:  "Invalid syntax",
+			// 			Detail:   fmt.Sprintf("For %s %q: %v", flag, lineBytes, syntaxDiags[0].Detail),
+			// 			Subject: &hcl.Range{
+			// 				Filename: lineRange.Filename,
+			// 				Start:    lineRange.Start,
+			// 				End:      lineRange.End,
+			// 			},
+			// 		},
+			// 	)
+			// 	continue
+			// }
+
+			// target, targetDiags := addrs.ParseTarget(traversal)
+			// if targetDiags.HasErrors() {
+			// 	diags = diags.Append(tfdiags.Sourceless(
+			// 		tfdiags.Error,
+			// 		fmt.Sprintf("Invalid %s address", flag),
+			// 		fmt.Sprintf("my detail: %v %s %q", targetDiags[0].Description().Detail, flag, lineBytes),
+			// 	))
+			// 	continue
+			// }
 			traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, lineRange.Filename, lineRange.Start)
+			diags = diags.Append(syntaxDiags)
 			if syntaxDiags.HasErrors() {
-				diags = diags.Append(nil).Append(
-					&hcl.Diagnostic{
-						Severity: tfdiags.Error.ToHCL(),
-						Summary:  "Invalid syntax",
-						Detail:   fmt.Sprintf("For %s %q: %v", flag, lineBytes, syntaxDiags[0].Detail),
-						Subject: &hcl.Range{
-							Filename: lineRange.Filename,
-							Start:    lineRange.Start,
-							End:      lineRange.End,
-						},
-					},
-				)
 				continue
 			}
-
 			target, targetDiags := addrs.ParseTarget(traversal)
+			diags = diags.Append(targetDiags)
 			if targetDiags.HasErrors() {
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Error,
-					fmt.Sprintf("Invalid %s address", flag),
-					fmt.Sprintf("my detail: %v %s %q", targetDiags[0].Description().Detail, flag, lineBytes),
-				))
 				continue
 			}
 			targetables = append(targetables, target.Subject)
