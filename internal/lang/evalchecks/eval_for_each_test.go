@@ -860,14 +860,14 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set containing type object.",
-					CausedByUnknown:   false,
+					Detail:            "set includes values derived from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
 					CausedBySensitive: false,
 				},
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set includes values derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "set containing type object.",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
@@ -901,14 +901,14 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set containing type bool.",
-					CausedByUnknown:   false,
+					Detail:            "set includes values derived from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
 					CausedBySensitive: false,
 				},
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "set includes values derived from resource attributes that cannot be determined until apply",
-					CausedByUnknown:   true,
+					Detail:            "set containing type bool.",
+					CausedByUnknown:   false,
 					CausedBySensitive: false,
 				},
 			},
