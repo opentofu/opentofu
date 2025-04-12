@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	errInvalidUnknownDetailMap   = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
-	errInvalidUnknownDetailSet   = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
-	errInvalidUnknownDetailTuple = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full tuple of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailMap     = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
+	errInvalidUnknownDetailSet     = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailTuple   = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full tuple of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
 	errInvalidUnknownDetailDynamic = "The \"for_each\" value includes keys or set values that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results\n\n"
 )
 
@@ -132,7 +132,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		setVal, setCheckDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 		diags = diags.Append(setCheckDiags)
 		forEachVal = setVal
-	} else if (!forEachVal.IsKnown()) {
+	} else if !forEachVal.IsKnown() {
 		// Testing unknown values later so we return the UnknownVal and with the type check errors from the switch case above. We purposely do not check sets here, since they are handled differently.
 		unknownVal, unknownDiags := performUnknownValueChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
 		diags = diags.Append(unknownDiags)
@@ -154,9 +154,6 @@ func performUnknownValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 		msg = errInvalidUnknownDetailDynamic
 	case ty.IsMapType() || ty.IsObjectType():
 		msg = errInvalidUnknownDetailMap
-	default:
-		// other types shouldn't be tested here
-		panic(fmt.Sprintf("type %s shouldn't be reaching this part of the code ", ty))
 	}
 
 	if !allowUnknown {
@@ -197,9 +194,9 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 	if !forEachVal.IsWhollyKnown() {
 		if !allowUnknown {
 			diags = diags.Append(&hcl.Diagnostic{
-				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each argument",                     Detail:      errInvalidUnknownDetailSet + forEachCommandLineExcludeSuggestion(excludableAddr),
-				Subject:     expr.Range().Ptr(),                              Expression:  expr,
+				Severity: hcl.DiagError,
+				Summary:  "Invalid for_each argument", Detail: errInvalidUnknownDetailSet + forEachCommandLineExcludeSuggestion(excludableAddr),
+				Subject: expr.Range().Ptr(), Expression: expr,
 				EvalContext: hclCtx,
 				Extra:       DiagnosticCausedByUnknown(true),
 			})

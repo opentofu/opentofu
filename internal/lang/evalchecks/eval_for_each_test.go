@@ -134,17 +134,17 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 	// Tests for cases where allowTuple is true. This can't be added to the tests on TestEvaluateForEach since they are called with allowTuple as false.
 	tests := map[string]struct {
-		Value          cty.Value
+		Value        cty.Value
 		expectedErrs []expectedErr
 	}{
 		"valid tuple": {
-			Value:       cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}),
+			Value: cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}),
 		},
 		"empty tuple": {
-			Value:       cty.EmptyTupleVal,
+			Value: cty.EmptyTupleVal,
 		},
 		"null tuple": {
-			Value:          cty.NullVal(cty.Tuple([]cty.Type{})),
+			Value: cty.NullVal(cty.Tuple([]cty.Type{})),
 			expectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -155,7 +155,7 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 			},
 		},
 		"sensitive tuple": {
-			Value:          cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Sensitive),
+			Value: cty.TupleVal([]cty.Value{cty.StringVal("a"), cty.StringVal("b")}).Mark(marks.Sensitive),
 			expectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
@@ -166,7 +166,7 @@ func TestEvaluateForEachExpressionValueTuple(t *testing.T) {
 			},
 		},
 		"unknown tuple": {
-			Value:          cty.UnknownVal(cty.Tuple([]cty.Type{cty.String})),
+			Value: cty.UnknownVal(cty.Tuple([]cty.Type{cty.String})),
 			expectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
