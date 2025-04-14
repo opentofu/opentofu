@@ -96,7 +96,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	}
 
 	instDir := filepath.Join(rootDir, ".terraform/init-from-module")
-	inst := NewModuleInstaller(instDir, loader, reg)
+	inst := NewModuleInstaller(instDir, loader, reg, getmodules.NewPackageFetcher())
 	log.Printf("[DEBUG] installing modules in %s to initialize working directory from %q", instDir, sourceAddrStr)
 	os.RemoveAll(instDir) // if this fails then we'll fail on MkdirAll below too
 	err := os.MkdirAll(instDir, os.ModePerm)

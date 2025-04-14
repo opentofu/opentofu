@@ -24,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/initwd"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -291,7 +292,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 		return true, diags
 	}
 
-	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient())
+	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient(), getmodules.NewPackageFetcher())
 
 	call, vDiags := m.rootModuleCall(rootDir)
 	diags = diags.Append(vDiags)
