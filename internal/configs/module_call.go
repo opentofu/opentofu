@@ -72,7 +72,10 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 	}
 
 	if attr, exists := content.Attributes["version"]; exists {
-		mc.VersionAttr = attr
+		val, _ := attr.Expr.Value(nil)
+		if !val.IsNull() {
+			mc.VersionAttr = attr
+		}
 	}
 
 	if attr, exists := content.Attributes["source"]; exists {

@@ -120,6 +120,17 @@ func TestLoadModuleCall(t *testing.T) {
 				End:      hcl.Pos{Line: 14, Column: 13, Byte: 179},
 			},
 		},
+		{
+			Name:          "bat",
+			SourceAddr:    addrs.ModuleSourceLocal("./bat"),
+			SourceAddrRaw: "./bat",
+			SourceSet:     true,
+			DeclRange: hcl.Range{
+				Filename: "module-calls.tf",
+				Start:    hcl.Pos{Line: 31, Column: 1, Byte: 353},
+				End:      hcl.Pos{Line: 31, Column: 13, Byte: 365},
+			},
+		},
 	}
 
 	// We'll hide all of the bodies/exprs since we're treating them as opaque
