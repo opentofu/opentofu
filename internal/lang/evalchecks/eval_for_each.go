@@ -70,8 +70,8 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 
 	refs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
 	diags = diags.Append(moreDiags)
-	var hclCtx *hcl.EvalContext
-	hclCtx, moreDiags = ctx(refs)
+
+	hclCtx, moreDiags := ctx(refs)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() { // Can't continue if we don't even have a valid scope
 		return nullMap, diags
@@ -80,11 +80,10 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	forEachVal, forEachDiags := expr.Value(hclCtx)
 	diags = diags.Append(forEachDiags)
 
-	resultValue, errInvalidUnknownDetail, typeCheckDiags := performTypeChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal)
 	// Normally, we'd add the type check diags here, but we are deferring that for ordering
+	typeVal, typeCheckDiags := performTypeChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal)
 
-	// Perform value checks
-	resultValue, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, resultValue, errInvalidUnknownDetail, excludableAddr)
+	resultValue, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, typeVal, excludableAddr)
 
 	// See above comment
 	diags = diags.Append(valueDiags)
@@ -93,27 +92,19 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	return resultValue, diags
 }
 
-func performTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value) (cty.Value, string, tfdiags.Diagnostics) {
+// performTypeChecks checks if the type is valid and returns the proper value and the unknown message to be used depending on the type
+func performTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	ty := forEachVal.Type()
+	var diags tfdiags.Diagnostics
 
-	// Perform type checks
+	allowedTypes := ty == cty.DynamicPseudoType || (ty.IsMapType() || ty.IsObjectType()) || ty.IsSetType()
 	allowedTypesMessage := "map, or set of strings"
 	if allowTuple {
+		allowedTypes = allowedTypes || ty.IsTupleType()
 		allowedTypesMessage = "map, set of strings, or a tuple"
 	}
 
-	switch {
-	case ty == cty.DynamicPseudoType:
-		return forEachVal, errInvalidUnknownDetailDynamic, nil
-	case ty.IsMapType() || ty.IsObjectType():
-		return forEachVal, errInvalidUnknownDetailMap, nil
-	case ty.IsSetType():
-		setCheckValue, setCheckDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal)
-		return setCheckValue, errInvalidUnknownDetailSet, setCheckDiags
-	case ty.IsTupleType() && allowTuple:
-		return forEachVal, errInvalidUnknownDetailTuple, nil
-	default:
-		var diags tfdiags.Diagnostics
+	if !allowedTypes {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -122,17 +113,45 @@ func performTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknow
 			Expression:  expr,
 			EvalContext: hclCtx,
 		})
-		return cty.NullVal(ty), "", diags
+		return cty.NullVal(ty), diags
 	}
+
+	if ty.IsSetType() {
+		setVal, setDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal)
+		return setVal, setDiags
+	}
+
+	return forEachVal, diags
 }
 
-func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, originalVal cty.Value, typeCheckVal cty.Value, errInvalidUnknownDetail string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value, typeCheckVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	resultValue := typeCheckVal
-	ty := originalVal.Type()
-	// Testing unknown values later so we return the UnknownVal and with the type check errors from the switch case above
+	resultVal := typeCheckVal
+	ty := forEachVal.Type()
+	var errInvalidUnknownDetail string
+
+	// Perform top-level type checks
+	switch {
+	case ty == cty.DynamicPseudoType:
+		errInvalidUnknownDetail = errInvalidUnknownDetailDynamic
+	case ty.IsMapType() || ty.IsObjectType():
+		errInvalidUnknownDetail = errInvalidUnknownDetailMap
+	case ty.IsSetType():
+		errInvalidUnknownDetail = errInvalidUnknownDetailSet
+	case ty.IsTupleType() && allowTuple:
+		errInvalidUnknownDetail = errInvalidUnknownDetailTuple
+	default:
+	}
+
+	if ty.IsSetType() {
+		setVal, setCheckDiags := performSetValueChecks(expr, hclCtx, resultVal)
+		diags = diags.Append(setCheckDiags)
+		resultVal = setVal
+	}
+
 	isUnderstoodType := errInvalidUnknownDetail != ""
-	if !typeCheckVal.IsKnown() && isUnderstoodType {
+	// Testing if the original value, the type check result or if the set check above are unknown
+	if (!resultVal.IsKnown() || !forEachVal.IsKnown()) && isUnderstoodType {
 		if !allowUnknown {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
@@ -144,17 +163,11 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 				Extra:       DiagnosticCausedByUnknown(true),
 			})
 		}
-		resultValue = cty.UnknownVal(ty)
-	}
-
-	if ty.IsSetType() {
-		setVal, setCheckDiags := performSetValueChecks(expr, hclCtx, resultValue)
-		diags = diags.Append(setCheckDiags)
-		resultValue = setVal
+		resultVal = cty.UnknownVal(ty)
 	}
 
 	// Check the original value for null
-	if originalVal.IsNull() {
+	if forEachVal.IsNull() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -163,12 +176,12 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 			Expression:  expr,
 			EvalContext: hclCtx,
 		})
-		resultValue = cty.NullVal(ty)
+		resultVal = cty.NullVal(ty)
 	}
 
 	// If a whole map is marked, or a set contains marked values (which means the set is then marked)
 	// give an error diagnostic as this value cannot be used in for_each
-	if originalVal.HasMark(marks.Sensitive) {
+	if forEachVal.HasMark(marks.Sensitive) {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
@@ -178,10 +191,10 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 			EvalContext: hclCtx,
 			Extra:       DiagnosticCausedBySensitive(true),
 		})
-		resultValue = cty.NullVal(ty)
+		resultVal = cty.NullVal(ty)
 	}
 
-	return resultValue, diags
+	return resultVal, diags
 }
 
 // performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
@@ -203,10 +216,6 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 		typeVal = cty.NullVal(ty)
 	}
 
-	// since we can't use a set values that are unknown, we treat theentire set as unknown
-	if !forEachVal.IsWhollyKnown() {
-		typeVal = cty.UnknownVal(ty)
-	}
 	return typeVal, diags
 }
 
@@ -214,7 +223,13 @@ func performSetValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, forEach
 	var diags tfdiags.Diagnostics
 
 	// Since we're using a multi-error approach, we try to add as much of information as possible. The ElementIterator code below can't iterate on null or unknown values, that's why we test if these conditions are present and return earlier.
-	if forEachVal.IsNull() || !forEachVal.IsKnown() {
+	// since we can't use a set values that are unknown, we treat the entire set as unknown
+	ty := forEachVal.Type()
+	if !forEachVal.IsWhollyKnown() {
+		return cty.UnknownVal(ty), diags
+	}
+
+	if forEachVal.IsNull() {
 		return forEachVal, diags
 	}
 
@@ -232,7 +247,7 @@ func performSetValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, forEach
 				Expression:  expr,
 				EvalContext: hclCtx,
 			})
-			return cty.NullVal(forEachVal.Type()), diags
+			return cty.NullVal(ty), diags
 		}
 	}
 	return forEachVal, diags
