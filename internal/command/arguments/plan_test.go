@@ -19,11 +19,6 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
-//	type testFileBackup struct {
-//		filePath    string
-//		fileContent string
-//		hasError    bool
-//	}
 type testFile struct {
 	filePath    string
 	fileContent string
@@ -186,7 +181,7 @@ func TestParsePlan_targets(t *testing.T) {
 func TestParsePlan_targetFile(t *testing.T) {
 	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
 	boop, _ := addrs.ParseTargetStr("module.boop")
-	wow, _ := addrs.ParseTargetStr("wow.ham")
+	barbaz, _ := addrs.ParseTargetStr("bar.baz")
 	testCases := map[string]struct {
 		files []testFile
 		want  []addrs.Targetable
@@ -282,7 +277,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 				},
 				{fileContent: "foo_bar.baz"},
 				{
-					fileContent: "wow^.ham",
+					fileContent: "bar^.baz",
 					diags: []*hcl.Diagnostic{
 						&hcl.Diagnostic{
 							Severity: hcl.DiagError,
@@ -331,9 +326,9 @@ func TestParsePlan_targetFile(t *testing.T) {
 		},
 		"target file valid complicated": {
 			files: []testFile{
-				{fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham"},
+				{fileContent: "\tmodule.boop\n#foo_bar.baz\nbar.baz"},
 			},
-			want: []addrs.Targetable{boop.Subject, wow.Subject},
+			want: []addrs.Targetable{boop.Subject, barbaz.Subject},
 		},
 		"target file invalid bracket with spaces": {
 			files: []testFile{
@@ -391,11 +386,11 @@ func TestParsePlan_targetFile(t *testing.T) {
 				}
 
 				if diff := cmp.Diff(gotDiagsExported, wantDiagsExported); diff != "" {
-					t.Fatalf("wrong diagnostics\n%s", diff)
+					t.Fatalf("diff between want(+) and got(-) diagnostics\n%s", diff)
 				}
 			}
 			if !cmp.Equal(got.Operation.Targets, tc.want) {
-				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Targets, tc.want))
+				t.Fatalf("diff between want(+) and got(-) targets\n%s", cmp.Diff(got.Operation.Targets, tc.want))
 			}
 		})
 	}
@@ -458,128 +453,128 @@ func TestParsePlan_excludes(t *testing.T) {
 }
 
 func TestParsePlan_excludeFile(t *testing.T) {
-	foobarbaz, _ := addrs.ParseTargetStr("foo_bar.baz")
-	boop, _ := addrs.ParseTargetStr("module.boop")
-	wow, _ := addrs.ParseTargetStr("wow.ham")
-	testCases := map[string]struct {
-		files     []testFile
-		want      []addrs.Targetable
-		wantDiags hcl.Diagnostics
-	}{
+	testCasesTest := map[string][]testFile{
 		"exclude file no targets": {
-			files: []testFile{},
-			want:  nil,
+			{fileContent: "foo_bar.baz"},
 		},
 		"exclude file valid single target": {
-			files: []testFile{
-				{fileContent: "foo_bar.baz"},
-			},
-			want: []addrs.Targetable{foobarbaz.Subject},
+			{fileContent: "foo_bar.baz"},
 		},
 		"exclude file valid multiple targets": {
-			files: []testFile{
-				{fileContent: "foo_bar.baz\nmodule.boop"},
-			},
-			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
-		},
-		"exclude multiple files valid targets": {
-			files: []testFile{
-				{fileContent: "foo_bar.baz"},
-				{fileContent: "module.boop"},
-			},
-			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
+			{fileContent: "foo_bar.baz\nmodule.boop"},
 		},
 		"exclude file invalid target": {
-			files: []testFile{
-				{fileContent: "foo."},
+			{
+				fileContent: "foo.",
+				diags: hcl.Diagnostics{
+					&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Attribute name required",
+						Detail:   "Dot must be followed by attribute name.",
+						Subject: &hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
+							End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+						},
+						Context: &hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 1},
+							End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+						},
+					},
+				},
 			},
-			want: nil,
-			wantDiags: hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid syntax",
-					Detail:   `For exclude "foo.": Dot must be followed by attribute name.`,
-					Subject: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+		},
+		"multiple files multiple invalid targets": {
+			{
+				fileContent: "modu(le.boop",
+				diags: hcl.Diagnostics{
+					&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid character",
+						Detail:   "Expected an attribute access or an index operator.",
+						Subject: &hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
+							End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
+						},
+						Context: &hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 1},
+							End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
+						},
+					},
+				},
+			},
+			{fileContent: "foo_bar.baz"},
+			{
+				fileContent: "wow^.ham",
+				diags: []*hcl.Diagnostic{
+					&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Unsupported operator",
+						Detail:   `Bitwise operators are not supported.`,
+						Subject: &hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 4, Byte: 3},
+							End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+						},
+					},
+					&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid character",
+						Detail:   "Expected an attribute access or an index operator.",
+						Subject: &hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 4, Byte: 3},
+							End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+						},
+						Context: &hcl.Range{
+							Start: hcl.Pos{Line: 1, Column: 1},
+							End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+						},
 					},
 				},
 			},
 		},
 		"exclude file valid comment": {
-			files: []testFile{
-				{fileContent: "#foo_bar.baz"},
-			},
-			want: nil,
-		},
-		"exclude file valid spaces": {
-			files: []testFile{
-				{fileContent: "   foo_bar.baz"},
-			},
-			want: []addrs.Targetable{foobarbaz.Subject},
-		},
-		"exclude file valid tab": {
-			files: []testFile{
-				{fileContent: "\tfoo_bar.baz"},
-			},
-			want: []addrs.Targetable{foobarbaz.Subject},
-		},
-		"exclude file complicated": {
-			files: []testFile{
-				{fileContent: "\tmodule.boop\n#foo_bar.baz\nwow.ham"},
-			},
-			want: []addrs.Targetable{boop.Subject, wow.Subject},
-		},
-		"exclude file invalid bracket with spaces": {
-			files: []testFile{
-				{fileContent: `    [boop]`},
-			},
-			want: nil,
-			wantDiags: hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid syntax",
-					Detail:   `For exclude "    [boop]": Must begin with a variable name.`,
-					Subject: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
-					},
-				},
-			},
+			{fileContent: "#foo_bar.baz"},
 		},
 	}
-
-	for name, tc := range testCases {
+	for name, tc := range testCasesTest {
 		t.Run(name, func(t *testing.T) {
-			targetFileArguments := []string{}
-
-			for _, testFile := range tc.files {
+			excludeFileArguments := []string{}
+			wantDiags := tfdiags.Diagnostics{}
+			for _, testFile := range tc {
 				testFile.tempFileWriter(t)
-				targetFileArguments = append(targetFileArguments, "-exclude-file="+testFile.filePath)
-				for _, diag := range tc.wantDiags {
-					if diag.Subject != nil {
+				defer os.Remove(testFile.filePath)
+				excludeFileArguments = append(excludeFileArguments, "-exclude-file="+testFile.filePath)
+
+				// for setting the correct filePath on each wantDiag
+				if len(testFile.diags) > 0 {
+					for _, diag := range testFile.diags {
 						diag.Subject.Filename = testFile.filePath
+						if diag.Context != nil {
+							diag.Context.Filename = testFile.filePath
+						}
+						wantDiags = wantDiags.Append(diag)
 					}
 				}
 			}
-			wantDiagsExported := tfdiags.Diagnostics(nil).Append(tc.wantDiags).ForRPC()
 
-			got, gotDiags := ParsePlan(targetFileArguments)
-			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
+			wantDiagsExported := wantDiags.ForRPC()
+
+			got, gotDiags := ParsePlan(excludeFileArguments)
+			gotDiagsExported := gotDiags.ForRPC()
+
+			if len(wantDiagsExported) != 0 || len(gotDiags) != 0 {
 				if len(gotDiags) == 0 {
 					t.Fatalf("expected diags but got none")
 				}
-				if len(tc.wantDiags) == 0 {
+				if len(wantDiagsExported) == 0 {
 					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
 				}
-				gotDiagsExported := gotDiags.ForRPC()
 
-				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
-					t.Error("wrong diagnostics\n" + diff)
+				if diff := cmp.Diff(gotDiagsExported, wantDiagsExported); diff != "" {
+					t.Fatalf("diff between want(+) and got(-) diagnostics\n%s", diff)
 				}
 			}
-			if !cmp.Equal(got.Operation.Excludes, tc.want) {
-				t.Fatalf("unexpected result\n%s", cmp.Diff(got.Operation.Excludes, tc.want))
+			if len(got.Operation.Targets) > 0 {
+				t.Fatalf("got targeted resources, but exclude-targets should not contain the targets\n%s", got.Operation.Targets)
 			}
 		})
 	}
