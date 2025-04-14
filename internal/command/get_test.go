@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+
+	"github.com/opentofu/opentofu/internal/getmodules"
 )
 
 func TestGet(t *testing.T) {
@@ -103,6 +105,14 @@ func TestGet_cancel(t *testing.T) {
 			Ui:               ui,
 			WorkingDir:       wd,
 			ShutdownCh:       shutdownCh,
+
+			// This test needs a real module package fetcher instance because
+			// its configuration includes a reference to a module from a registry
+			// that doesn't really exist. The shutdown signal prevents us from
+			// actually making a request to this, but we still need to provide
+			// the fetcher so that it will _attempt_ to make a network request
+			// that can then fail with a cancellation error.
+			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
 		},
 	}
 

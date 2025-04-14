@@ -18,16 +18,16 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
-
-	"github.com/hashicorp/go-version"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
@@ -95,6 +95,12 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			View:             view,
+
+			// This test relies on the module installer's legacy support for
+			// treating an absolute filesystem path as if it were a "remote"
+			// source address, and so we need a real package fetcher but the
+			// way we use it here does not cause it to make network requests.
+			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
 		},
 	}
 
@@ -102,7 +108,7 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 		"-from-module=" + testFixturePath("init"),
 	}
 	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		t.Fatalf("unexpected error\n%s", ui.ErrorWriter.String())
 	}
 
 	if _, err := os.Stat(filepath.Join(td, "hello.tf")); err != nil {
@@ -146,6 +152,12 @@ func TestInit_fromModule_dstInSrc(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			View:             view,
+
+			// This test relies on the module installer's legacy support for
+			// treating an absolute filesystem path as if it were a "remote"
+			// source address, and so we need a real package fetcher but the
+			// way we use it here does not cause it to make network requests.
+			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
 		},
 	}
 
@@ -1837,6 +1849,14 @@ func TestInit_cancelModules(t *testing.T) {
 		Ui:               ui,
 		View:             view,
 		ShutdownCh:       shutdownCh,
+
+		// This test needs a real module package fetcher instance because
+		// its configuration includes a reference to a module from a registry
+		// that doesn't really exist. The shutdown signal prevents us from
+		// actually making a request to this, but we still need to provide
+		// the fetcher so that it will _attempt_ to make a network request
+		// that can then fail with a cancellation error.
+		ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
 	}
 
 	c := &InitCommand{
