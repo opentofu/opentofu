@@ -36,6 +36,7 @@ type ModuleInstaller struct {
 	modsDir string
 	loader  *configload.Loader
 	reg     *registry.Client
+	fetcher *getmodules.PackageFetcher
 
 	// The keys in moduleVersions are resolved and trimmed registry source
 	// addresses and the values are the registry response.
@@ -51,11 +52,30 @@ type moduleVersion struct {
 	version string
 }
 
-func NewModuleInstaller(modsDir string, loader *configload.Loader, reg *registry.Client) *ModuleInstaller {
+// NewModuleInstaller constructs a new [ModuleInstaller] object whose methods
+// will make use of the given dependencies.
+//
+// "loader" is the configuration loader to use to traverse the module tree
+// of the configuration whose modules are being installed.
+//
+// "registryClient" is the client for the OpenTofu module registry protocol,
+// used to fetch package metadata when installing remote modules indirectly
+// through a registry-style module source address. This may be nil only if
+// "remotePackageFetcher" is also nil, since registry source addresses are
+// only resolvable when remote module packages are available.
+//
+// "remotePackageFetcher" is the client used for fetching actual module packages
+// from concrete physical source locations, which can be either specified
+// directly in the configuration or returned dynamically as part of the metadata
+// fetched from an OpenTofu module registry. This argument can be nil, in which
+// case no remote package sources are supported; this facility is included
+// primarily for unit testing where only local modules are needed.
+func NewModuleInstaller(modsDir string, loader *configload.Loader, registryClient *registry.Client, remotePackageFetcher *getmodules.PackageFetcher) *ModuleInstaller {
 	return &ModuleInstaller{
 		modsDir:                 modsDir,
 		loader:                  loader,
-		reg:                     reg,
+		reg:                     registryClient,
+		fetcher:                 remotePackageFetcher,
 		registryPackageVersions: make(map[addrs.ModuleRegistryPackage]*response.ModuleVersions),
 		registryPackageSources:  make(map[moduleVersion]addrs.ModuleSourceRemote),
 	}
@@ -124,7 +144,7 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 		return nil, diags
 	}
 
-	fetcher := getmodules.NewPackageFetcher()
+	fetcher := i.fetcher
 
 	if hooks == nil {
 		// Use our no-op implementation as a placeholder
@@ -420,6 +440,19 @@ var versionRegexp = regexp.MustCompile(version.VersionRegexpRaw)
 
 func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, addr addrs.ModuleSourceRegistry, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, *version.Version, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
+	if i.reg == nil || fetcher == nil {
+		// Only local package sources are available when we have no registry
+		// client or no fetcher, since both would be needed for successful install.
+		// (This special situation is primarily for use in tests.)
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Registry-style module sources not supported",
+			Detail:   "Only local module sources are supported in this context.",
+			Subject:  req.CallRange.Ptr(),
+		})
+		return nil, nil, diags
+	}
 
 	hostname := addr.Package.Host
 	reg := i.reg
@@ -753,6 +786,18 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 
 func (i *ModuleInstaller) installGoGetterModule(ctx context.Context, req *configs.ModuleRequest, key string, instPath string, manifest modsdir.Manifest, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) (*configs.Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
+
+	if fetcher == nil {
+		// Only local package sources are available when we have no fetcher.
+		// (This special situation is primarily for use in tests.)
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Remote module sources not supported",
+			Detail:   "Only local module sources are supported in this context.",
+			Subject:  req.CallRange.Ptr(),
+		})
+		return nil, diags
+	}
 
 	// Report up to the caller that we're about to start downloading.
 	addr := req.SourceAddr.(addrs.ModuleSourceRemote)
