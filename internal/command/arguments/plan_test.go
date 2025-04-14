@@ -19,10 +19,15 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
+//	type testFileBackup struct {
+//		filePath    string
+//		fileContent string
+//		hasError    bool
+//	}
 type testFile struct {
 	filePath    string
 	fileContent string
-	hasError    bool
+	diags       hcl.Diagnostics
 }
 
 func TestParsePlan_basicValid(t *testing.T) {
@@ -183,9 +188,8 @@ func TestParsePlan_targetFile(t *testing.T) {
 	boop, _ := addrs.ParseTargetStr("module.boop")
 	wow, _ := addrs.ParseTargetStr("wow.ham")
 	testCases := map[string]struct {
-		files     []testFile
-		want      []addrs.Targetable
-		wantDiags hcl.Diagnostics
+		files []testFile
+		want  []addrs.Targetable
 	}{
 		"target file no targets": {
 			files: []testFile{},
@@ -204,25 +208,26 @@ func TestParsePlan_targetFile(t *testing.T) {
 		},
 		"target file invalid target": {
 			files: []testFile{
-				{fileContent: "foo.",
-					hasError: true},
-			},
-			want: nil,
-			wantDiags: hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Attribute name required",
-					Detail:   "Dot must be followed by attribute name.",
-					Subject: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
-						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
-					},
-					Context: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+				{
+					fileContent: "foo.",
+					diags: hcl.Diagnostics{
+						&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Attribute name required",
+							Detail:   "Dot must be followed by attribute name.",
+							Subject: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
+								End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+							},
+							Context: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 1},
+								End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+							},
+						},
 					},
 				},
 			},
+			want: nil,
 		},
 		"multiple files valid targets": {
 			files: []testFile{
@@ -234,59 +239,77 @@ func TestParsePlan_targetFile(t *testing.T) {
 		"multiple files invalid target": {
 			files: []testFile{
 				{fileContent: "foo_bar.baz"},
-				{fileContent: "modu(le.boop",
-					hasError: true},
-			},
-			want: []addrs.Targetable{foobarbaz.Subject},
-			wantDiags: hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid syntax",
-					Detail:   `For target "modu(le.boop": Expected an attribute access or an index operator.`,
-					Subject: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 13, Byte: 12},
-					},
-					Context: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+				{
+					fileContent: "modu(le.boop",
+					diags: hcl.Diagnostics{
+						&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Invalid character",
+							Detail:   `Expected an attribute access or an index operator.`,
+							Subject: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
+								End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
+							},
+							Context: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 1},
+								End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
+							},
+						},
 					},
 				},
 			},
+			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"multiple files multiple invalid targets": {
 			files: []testFile{
-				{fileContent: "modu(le.boop",
-					hasError: true},
+				{
+					fileContent: "modu(le.boop",
+					diags: hcl.Diagnostics{
+						&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Invalid character",
+							Detail:   "Expected an attribute access or an index operator.",
+							Subject: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
+								End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
+							},
+							Context: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 1},
+								End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
+							},
+						},
+					},
+				},
 				{fileContent: "foo_bar.baz"},
-				{fileContent: "wow^.ham",
-					hasError: true},
+				{
+					fileContent: "wow^.ham",
+					diags: []*hcl.Diagnostic{
+						&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Unsupported operator",
+							Detail:   `Bitwise operators are not supported.`,
+							Subject: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 4, Byte: 3},
+								End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+							},
+						},
+						&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Invalid character",
+							Detail:   "Expected an attribute access or an index operator.",
+							Subject: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 4, Byte: 3},
+								End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+							},
+							Context: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 1},
+								End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+							},
+						},
+					},
+				},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
-			wantDiags: hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid character",
-					Detail:   "Expected an attribute access or an index operator.",
-					Subject: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
-						End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
-					},
-					Context: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
-					},
-				},
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Unsupported operator",
-					Detail:   `Bitwise operators are not supported.`,
-					Subject: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 4, Byte: 3},
-						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
-					},
-				},
-			},
 		},
 		"target file valid comment": {
 			files: []testFile{
@@ -314,62 +337,60 @@ func TestParsePlan_targetFile(t *testing.T) {
 		},
 		"target file invalid bracket with spaces": {
 			files: []testFile{
-				{fileContent: `    [boop]`,
-					hasError: true},
-			},
-			want: nil,
-			wantDiags: hcl.Diagnostics{
-				&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Invalid syntax",
-					Detail:   `For target "    [boop]": Must begin with a variable name.`,
-					Subject: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 11, Byte: 10},
-					},
-					Context: &hcl.Range{
-						Start: hcl.Pos{Line: 1, Column: 1},
-						End:   hcl.Pos{Line: 1, Column: 5, Byte: 4},
+				{
+					fileContent: `    [boop]`,
+					diags: hcl.Diagnostics{
+						&hcl.Diagnostic{
+							Severity: hcl.DiagError,
+							Summary:  "Variable name required",
+							Detail:   `Must begin with a variable name.`,
+							Subject: &hcl.Range{
+								Start: hcl.Pos{Line: 1, Column: 5, Byte: 4},
+								End:   hcl.Pos{Line: 1, Column: 6, Byte: 5},
+							},
+						},
 					},
 				},
 			},
+			want: nil,
 		},
 	}
 
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			targetFileArguments := []string{}
+			wantDiags := tfdiags.Diagnostics{}
 			for _, testFile := range tc.files {
 				testFile.tempFileWriter(t)
 				defer os.Remove(testFile.filePath)
 				targetFileArguments = append(targetFileArguments, "-target-file="+testFile.filePath)
 
-				if testFile.hasError { // for setting the correct filePath on each wantDiag
-					for _, diag := range tc.wantDiags {
-						if diag.Subject.Filename == "" {
-							diag.Subject.Filename = testFile.filePath
-							if diag.Context != nil {
-								diag.Context.Filename = testFile.filePath
-							}
-							break
+				// for setting the correct filePath on each wantDiag
+				if len(testFile.diags) > 0 {
+					for _, diag := range testFile.diags {
+						diag.Subject.Filename = testFile.filePath
+						if diag.Context != nil {
+							diag.Context.Filename = testFile.filePath
 						}
+						wantDiags = wantDiags.Append(diag)
 					}
 				}
 			}
 
-			wantDiagsExported := tfdiags.Diagnostics(nil).Append(tc.wantDiags).ForRPC()
+			wantDiagsExported := wantDiags.ForRPC()
 
 			got, gotDiags := ParsePlan(targetFileArguments)
-			if len(tc.wantDiags) != 0 || len(gotDiags) != 0 {
+			gotDiagsExported := gotDiags.ForRPC()
+
+			if len(wantDiagsExported) != 0 || len(gotDiags) != 0 {
 				if len(gotDiags) == 0 {
 					t.Fatalf("expected diags but got none")
 				}
-				if len(tc.wantDiags) == 0 {
+				if len(wantDiagsExported) == 0 {
 					t.Fatalf("got diags but didn't want any: %v", gotDiags.ErrWithWarnings())
 				}
-				gotDiagsExported := gotDiags.ForRPC()
 
-				if diff := cmp.Diff(wantDiagsExported, gotDiagsExported); diff != "" {
+				if diff := cmp.Diff(gotDiagsExported, wantDiagsExported); diff != "" {
 					t.Fatalf("wrong diagnostics\n%s", diff)
 				}
 			}
