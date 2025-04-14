@@ -194,7 +194,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 	// the esoteric legacy support for treating an absolute filesystem path
 	// as if it were a "remote package". This should not use any of the
 	// truly-"remote" module sources, even though it technically has access to.
-	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher())
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -236,7 +236,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 	// the esoteric legacy support for treating an absolute filesystem path
 	// as if it were a "remote package". This should not use any of the
 	// truly-"remote" module sources, even though it technically has access to.
-	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher())
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if diags.HasErrors() {
@@ -1022,7 +1022,8 @@ func assertDiagnosticCount(t *testing.T, diags tfdiags.Diagnostics, want int) bo
 	if len(diags) != want {
 		t.Errorf("wrong number of diagnostics %d; want %d", len(diags), want)
 		for _, diag := range diags {
-			t.Logf("- %#v", diag)
+			desc := diag.Description()
+			t.Logf("- %s: %s", desc.Summary, desc.Detail)
 		}
 		return true
 	}
@@ -1040,7 +1041,8 @@ func assertDiagnosticSummary(t *testing.T, diags tfdiags.Diagnostics, want strin
 
 	t.Errorf("missing diagnostic summary %q", want)
 	for _, diag := range diags {
-		t.Logf("- %#v", diag)
+		desc := diag.Description()
+		t.Logf("- %s: %s", desc.Summary, desc.Detail)
 	}
 	return true
 }
