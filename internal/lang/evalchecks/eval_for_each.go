@@ -130,7 +130,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 	ty := forEachVal.Type()
 	var errInvalidUnknownDetail string
 
-	// Perform top-level type checks
+	// Assign right unknown detail message depending on the type
 	switch {
 	case ty == cty.DynamicPseudoType:
 		errInvalidUnknownDetail = errInvalidUnknownDetailDynamic
