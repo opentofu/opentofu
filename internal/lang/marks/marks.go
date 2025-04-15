@@ -61,7 +61,7 @@ type deprecationMark struct {
 }
 
 func (m deprecationMark) GoString() string {
-	return "marks." + string("Deprecated")
+	return "marks.Deprecated"
 }
 
 // Deprecated marks a given value as deprecated with specified DeprecationCause.
