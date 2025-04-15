@@ -357,7 +357,6 @@ func TestParsePlan_targetFile(t *testing.T) {
 			wantDiags := tfdiags.Diagnostics{}
 			for _, testFile := range tc.files {
 				testFile.tempFileWriter(t)
-				defer os.Remove(testFile.filePath)
 				targetFileArguments = append(targetFileArguments, "-target-file="+testFile.filePath)
 
 				// for setting the correct filePath on each wantDiag
@@ -541,7 +540,6 @@ func TestParsePlan_excludeFile(t *testing.T) {
 			wantDiags := tfdiags.Diagnostics{}
 			for _, testFile := range tc {
 				testFile.tempFileWriter(t)
-				defer os.Remove(testFile.filePath)
 				excludeFileArguments = append(excludeFileArguments, "-exclude-file="+testFile.filePath)
 
 				// for setting the correct filePath on each wantDiag
