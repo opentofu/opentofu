@@ -5,6 +5,10 @@
 
 package arguments
 
+import (
+	"github.com/hashicorp/hcl/v2"
+)
+
 // ViewType represents which view layer to use for a given command. Not all
 // commands will support all view types, and validation that the type is
 // supported should happen in the view constructor.
@@ -30,4 +34,10 @@ func (vt ViewType) String() string {
 	default:
 		return "unknown"
 	}
+}
+
+type testFile struct {
+	filePath    string
+	fileContent string
+	diags       hcl.Diagnostics
 }

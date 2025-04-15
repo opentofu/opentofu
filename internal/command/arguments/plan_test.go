@@ -19,12 +19,6 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
-type testFile struct {
-	filePath    string
-	fileContent string
-	diags       hcl.Diagnostics
-}
-
 func TestParsePlan_basicValid(t *testing.T) {
 	testCases := map[string]struct {
 		args []string
