@@ -9,14 +9,15 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/refactoring"
-
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -26,6 +27,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 		nodeAddress           string
 		nodeEndpointsToRemove []*refactoring.RemoveStatement
 		wantAction            plans.Action
+		wantDiags             tfdiags.Diagnostics
 	}{
 		{
 			description:           "no remove block",
@@ -56,6 +58,11 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				{From: mustConfigResourceAddr("test_instance.foo")},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo"),
+			}),
 		},
 		{
 			description: "remove block is targeting current node and required to get it destroyed",
@@ -75,6 +82,11 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				{From: mustConfigResourceAddr("test_instance.foo")},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo[1]"),
+			}),
 		},
 		{
 			description: "remove block is targeting a resource to be destroyed and the current node is an instance of that",
@@ -94,6 +106,11 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				{From: mustConfigResourceAddr("module.boop.test_instance.foo")},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
+			}),
 		},
 		{
 			description: "remove block is targeting a resource from a module to be destroyed which is the current node",
@@ -124,6 +141,11 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				{From: mustConfigResourceAddr("module.boop.test_instance.foo")},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo[1]"),
+			}),
 		},
 		{
 			description: "remove block is targeting a module and the current node is a resource of that module",
@@ -132,6 +154,11 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				{From: addrs.Module{"boop"}},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
+			}),
 		},
 		{
 			description: "remove block is targeting a module and the current node is a resource of one of the module instances",
@@ -140,6 +167,11 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				{From: addrs.Module{"boop"}},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo"),
+			}),
 		},
 	}
 
@@ -209,10 +241,8 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 				RemoveStatements: test.nodeEndpointsToRemove,
 			}
 
-			err := node.Execute(ctx, walkPlan)
-			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
-			}
+			gotDiags := node.Execute(ctx, walkPlan)
+			assertDiags(t, gotDiags, test.wantDiags)
 
 			change := ctx.Changes().GetResourceInstanceChange(absResource, states.NotDeposed)
 			if got, want := change.ChangeSrc.Action, test.wantAction; got != want {

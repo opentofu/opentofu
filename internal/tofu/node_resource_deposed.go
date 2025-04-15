@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -147,7 +148,7 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 		var planDiags tfdiags.Diagnostics
 
 		shouldForget := false
-		shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
+		shouldDestroy := false
 
 		for _, rs := range n.RemoveStatements {
 			if rs.From.TargetContains(n.Addr) {
@@ -160,6 +161,11 @@ func (n *NodePlanDeposedResourceInstanceObject) Execute(ctx EvalContext, op walk
 			if shouldDestroy {
 				change, planDiags = n.planDestroy(ctx, state, n.DeposedKey)
 			} else {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagWarning,
+					Summary:  "Resource going to be removed from the state",
+					Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+				})
 				change = n.planForget(ctx, state, n.DeposedKey)
 			}
 		} else {

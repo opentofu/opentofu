@@ -2,4 +2,7 @@
 # appending of multiple files works properly.
 removed {
   from = test.boop
+  lifecycle {
+    destroy = false
+  }
 }

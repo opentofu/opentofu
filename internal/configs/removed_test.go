@@ -29,9 +29,10 @@ func TestRemovedBlock_decode(t *testing.T) {
 	data_foo_expr := hcltest.MockExprTraversalSrc("data.test_instance.foo")
 
 	tests := map[string]struct {
-		input *hcl.Block
-		want  *Removed
-		err   string
+		input         *hcl.Block
+		want          *Removed
+		err           string
+		wantWarnDiags hcl.Diagnostics
 	}{
 		"success": {
 			&hcl.Block{
@@ -51,6 +52,12 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			``,
+			hcl.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Missing lifecycle from the removed block",
+				Detail:   "It is recommended for each 'removed' block configured to have also the 'lifecycle' block defined. By not specifying if the resource should be destroyed or not, could lead to unwanted behavior.",
+				Subject:  &blockRange,
+			}),
 		},
 		"success-with-lifecycle-and-provisioner": {
 			&hcl.Block{
@@ -111,6 +118,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 				},
 			},
 			``,
+			hcl.Diagnostics{},
 		},
 		"modules": {
 			&hcl.Block{
@@ -130,6 +138,12 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			``,
+			hcl.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Missing lifecycle from the removed block",
+				Detail:   "It is recommended for each 'removed' block configured to have also the 'lifecycle' block defined. By not specifying if the resource should be destroyed or not, could lead to unwanted behavior.",
+				Subject:  &blockRange,
+			}),
 		},
 		"error-removed-module-with-provisioner": {
 			&hcl.Block{
@@ -166,6 +180,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			`Invalid "removed" block`,
+			hcl.Diagnostics{},
 		},
 		"error-non-destroy-provisioner": {
 			&hcl.Block{
@@ -202,6 +217,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			`Invalid "removed.provisioner" block`,
+			hcl.Diagnostics{},
 		},
 		"error: missing argument": {
 			&hcl.Block{
@@ -215,6 +231,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			"Missing required argument",
+			hcl.Diagnostics{},
 		},
 		"error: indexed resources": {
 			&hcl.Block{
@@ -233,6 +250,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			"Resource instance address with keys is not allowed",
+			hcl.Diagnostics{},
 		},
 		"error: indexed modules": {
 			&hcl.Block{
@@ -251,6 +269,7 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			"Module instance address with keys is not allowed",
+			hcl.Diagnostics{},
 		},
 		"error: data address": {
 			&hcl.Block{
@@ -269,13 +288,13 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			"Data source address is not allowed",
+			hcl.Diagnostics{},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			got, diags := decodeRemovedBlock(test.input)
-
 			if diags.HasErrors() {
 				if test.err == "" {
 					t.Fatalf("unexpected error: %s", diags.Errs())
@@ -285,6 +304,14 @@ func TestRemovedBlock_decode(t *testing.T) {
 				}
 			} else if test.err != "" {
 				t.Fatal("expected error")
+			}
+
+			if len(diags) > 0 && !diags.HasErrors() {
+				if diff := cmp.Diff(diags, test.wantWarnDiags); diff != "" {
+					t.Fatalf("unexpected diags: %s", diff)
+				}
+			} else if len(test.wantWarnDiags) > 0 {
+				t.Fatalf("wanted diagnostics but got nothing")
 			}
 
 			if diff := cmp.Diff(test.want, got, cmp.AllowUnexported(addrs.MoveEndpoint{}), cmpopts.IgnoreUnexported(cty.Value{})); diff != "" {
