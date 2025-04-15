@@ -76,6 +76,20 @@ var goGetterDecompressors = map[string]getter.Decompressor{
 	"txz":    new(getter.TarXzDecompressor),
 }
 
+// This is a map from media types as used in OCI descriptors to the keys in
+// [goGetterDecompressors] whose decompressor can be used for each type.
+//
+// This intentionally covers only the subset of archive formats we support
+// for module packages retrieved from OCI distribution repositories, but
+// is defined in here so we can more easily correlate it with
+// goGetterDecompressors when adding new entries.
+//
+// If this map grows in future then any new keys must also appear somewhere
+// in [ociBlobMediaTypePreference].
+var goGetterDecompressorMediaTypes = map[string]string{
+	"archive/zip": "zip",
+}
+
 var goGetterGetters = map[string]getter.Getter{
 	"file":  new(getter.FileGetter),
 	"gcs":   new(getter.GCSGetter),
