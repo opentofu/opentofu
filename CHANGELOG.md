@@ -19,6 +19,7 @@ NEW FEATURES:
     - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
 - Added support for S3 native locking ([#599](https://github.com/opentofu/opentofu/issues/599))
 - Backend `pg` now allows the `table_name` and `index_name` to be specified. This enables a single database schema to support multiple backends via multiple tables. ([#2465](https://github.com/opentofu/opentofu/pull/2465))
+- New `opentofu` CLI options with `-target-file` and `-exclude-file` allow for simplified workflows for targeting many or frequently reused resources.
 
 ENHANCEMENTS:
 
@@ -47,7 +48,7 @@ BUG FIXES:
 - Fix the error message when default value of a complex variable is containing a wrong type ([2394](https://github.com/opentofu/opentofu/issues/2394))
 - Fix the way OpenTofu downloads a module that is sourced from a GitHub branch containing slashes in the name. ([2396](https://github.com/opentofu/opentofu/issues/2396))
 - `pg` backend doesn't fail on workspace creation for parallel runs, when the database is shared across multiple projects. ([#2411](https://github.com/opentofu/opentofu/pull/2411))
-- Generating an OpenTofu configuration from an `import` block that is referencing a resource with nested attributes now works correctly, instead of giving an error that the nested computed attribute is required. ([#2372](https://github.com/opentofu/opentofu/issues/2372)) 
+- Generating an OpenTofu configuration from an `import` block that is referencing a resource with nested attributes now works correctly, instead of giving an error that the nested computed attribute is required. ([#2372](https://github.com/opentofu/opentofu/issues/2372))
 - `base64gunzip` now doesn't expose sensitive values if it fails during the base64 decoding. ([#2503](https://github.com/opentofu/opentofu/pull/2503))
 - Fix loading only the necessary encryption key providers and methods for better `terraform_remote_state` support. ([2551](https://github.com/opentofu/opentofu/issues/2551))
 - Better error messages when using `null` in invalid positions in the argument to the `transpose` function. ([#2553](https://github.com/opentofu/opentofu/pull/2553))
