@@ -21,7 +21,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
-	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -310,16 +309,12 @@ func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema
 	diags = diags.Append(evalDiags)
 	val, evalDiags := scope.EvalBlock(body, schema)
 	diags = diags.Append(evalDiags)
-	val, depDiags := marks.DeprecatedDiagnosticsInBody(val, body)
-	diags = diags.Append(depDiags)
 	return val, body, diags
 }
 
 func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
 	v, diags := scope.EvalExpr(expr, wantType)
-	v, depDiags := marks.DeprecatedDiagnosticsInExpr(v, expr)
-	diags = diags.Append(depDiags)
 	return v, diags
 }
 
