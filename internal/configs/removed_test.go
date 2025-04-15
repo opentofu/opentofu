@@ -7,9 +7,12 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestRemovedBlock_decode(t *testing.T) {
@@ -49,6 +52,66 @@ func TestRemovedBlock_decode(t *testing.T) {
 			},
 			``,
 		},
+		"success-with-lifecycle-and-provisioner": {
+			&hcl.Block{
+				Type: "removed",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"from": {
+							Name: "from",
+							Expr: foo_expr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type: "lifecycle",
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"destroy": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.BoolVal(true)}},
+								},
+							}),
+						},
+						{
+							Type:   "provisioner",
+							Labels: []string{"local-exec"},
+							LabelRanges: []hcl.Range{
+								{
+									Filename: "file",
+								},
+							},
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
+									"when":    &hcl.Attribute{Expr: &hclsyntax.ScopeTraversalExpr{Traversal: hcl.Traversal{hcl.TraverseRoot{Name: "destroy"}}}},
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Removed{
+				From:       mustRemoveEndpointFromExpr(foo_expr),
+				DeclRange:  blockRange,
+				Destroy:    true,
+				DestroySet: true,
+				Provisioners: []*Provisioner{
+					{
+						Type:      "local-exec",
+						When:      ProvisionerWhenDestroy,
+						OnFailure: ProvisionerOnFailureFail,
+						TypeRange: hcl.Range{Filename: "file"},
+						Config: hcltest.MockBody(&hcl.BodyContent{
+							Attributes: hcl.Attributes{
+								"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
+							},
+							Blocks: make(hcl.Blocks, 0),
+						}),
+					},
+				},
+			},
+			``,
+		},
 		"modules": {
 			&hcl.Block{
 				Type: "removed",
@@ -67,6 +130,78 @@ func TestRemovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			``,
+		},
+		"error-removed-module-with-provisioner": {
+			&hcl.Block{
+				Type: "removed",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"from": {
+							Name: "from",
+							Expr: mod_foo_expr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type:   "provisioner",
+							Labels: []string{"local-exec"},
+							LabelRanges: []hcl.Range{
+								{
+									Filename: "file",
+								},
+							},
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
+									"when":    &hcl.Attribute{Expr: hcltest.MockExprTraversalSrc("destroy")},
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Removed{
+				From:      mustRemoveEndpointFromExpr(mod_foo_expr),
+				DeclRange: blockRange,
+			},
+			`Invalid "removed" block`,
+		},
+		"error-non-destroy-provisioner": {
+			&hcl.Block{
+				Type: "removed",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"from": {
+							Name: "from",
+							Expr: foo_expr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type:   "provisioner",
+							Labels: []string{"local-exec"},
+							LabelRanges: []hcl.Range{
+								{
+									Filename: "file",
+								},
+							},
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
+									// Not configuring "when" attribute is defaulting to when=create so it needs to fail
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Removed{
+				From:      mustRemoveEndpointFromExpr(foo_expr),
+				DeclRange: blockRange,
+			},
+			`Invalid "removed.provisioner" block`,
 		},
 		"error: missing argument": {
 			&hcl.Block{
@@ -152,8 +287,8 @@ func TestRemovedBlock_decode(t *testing.T) {
 				t.Fatal("expected error")
 			}
 
-			if !cmp.Equal(got, test.want, cmp.AllowUnexported(addrs.MoveEndpoint{})) {
-				t.Fatalf("wrong result: %s", cmp.Diff(got, test.want))
+			if diff := cmp.Diff(test.want, got, cmp.AllowUnexported(addrs.MoveEndpoint{}), cmpopts.IgnoreUnexported(cty.Value{})); diff != "" {
+				t.Fatalf("wrong result: %s", diff)
 			}
 		})
 	}

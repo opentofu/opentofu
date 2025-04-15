@@ -6,9 +6,15 @@
 package tofu
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -170,3 +176,48 @@ resource "aws_instance" "foo" {
 const testTransformDiffBasicStr = `
 aws_instance.foo
 `
+
+func TestTransformRemovedProvisioners(t *testing.T) {
+	g := Graph{Path: addrs.RootModuleInstance}
+	module := testModule(t, "transform-diff-creates-destroy-node")
+
+	err := (&ConfigTransformer{Config: module}).Transform(&g)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// instead of creating nodes manually in the graph, just use the DiffTransformer for doing it
+	resAddr := mustResourceInstanceAddr("module.child.tfcoremock_simple_resource.example")
+	err = (&DiffTransformer{
+		Config: module,
+		Changes: &plans.Changes{
+			Resources: []*plans.ResourceInstanceChangeSrc{
+				{
+					Addr: resAddr,
+					ChangeSrc: plans.ChangeSrc{
+						Action: plans.Delete,
+					},
+				},
+			},
+		},
+	}).Transform(&g)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	verts := g.Vertices()
+	if len(verts) != 1 {
+		t.Fatalf("Expected 1 vertices, got %v", len(verts))
+	}
+	concrete, ok := verts[0].(*NodeDestroyResourceInstance)
+	if !ok {
+		t.Fatalf("expected the only vertex to be a NodeDestroyResourceInstance. got instead %s", reflect.TypeOf(verts[0]).String())
+	}
+	wantProvisioners := refactoring.FindResourceRemovedBlockProvisioners(module, resAddr.ConfigResource())
+	if len(wantProvisioners) == 0 { // just a sanity check to ensure that the call generating the wanted provisioners is actually returning 1 provisioner
+		t.Fatalf("expected to have 1 provisioner in the config. this is an indication that the functionality for searching provisioners might be broken or that the test is wrongly configured")
+	}
+	if diff := cmp.Diff(wantProvisioners, concrete.removedBlockProvisioners, cmpopts.IgnoreUnexported(cty.Value{}, hcl.TraverseRoot{}, hcl.TraverseAttr{}, hclsyntax.Body{})); diff != "" {
+		t.Fatalf("expected no diff between the expected provisioners and the ones configured in NodeDestroyResourceInstance. got:\n %s", diff)
+	}
+}

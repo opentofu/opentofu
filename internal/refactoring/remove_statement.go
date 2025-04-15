@@ -18,6 +18,10 @@ type RemoveStatement struct {
 	From      addrs.ConfigRemovable
 	Destroy   bool
 	DeclRange tfdiags.SourceRange
+	// Provisioners here are used only to be able to return these to the transformer that is injecting these
+	// in the nodes that are supporting this kind of operation. To get a better understanding of the usage of this field,
+	// check ResourceRemovedProvisioners
+	Provisioners []*configs.Provisioner
 }
 
 // FindRemoveStatements recurses through the modules of the given configuration
@@ -30,7 +34,33 @@ func FindRemoveStatements(rootCfg *configs.Config) ([]*RemoveStatement, tfdiags.
 	return rm, diags
 }
 
+// FindResourceRemovedStatement returns the RemoveStatement if found for the given resAddr.
+// This function is searching in the Config for any "removed" block targeting the given resource.
+// This method shouldn't be concerned if resAddr is pointing to a "module" or a "data" block because all of
+// these will be validated way before this function is going to be called.
+func FindResourceRemovedStatement(rootCfg *configs.Config, resAddr addrs.ConfigResource) *RemoveStatement {
+	rm := findRemoveStatements(rootCfg, nil)
+	// no need to call validateRemoveStatements again since these should have been validated in the plan phase
+	for _, rs := range rm {
+		if rs.From.TargetContains(resAddr) {
+			return rs
+		}
+	}
+	return nil
+}
+
+// FindResourceRemovedBlockProvisioners is returning the provisioners of the RemoveStatement found by calling FindResourceRemovedStatement
+func FindResourceRemovedBlockProvisioners(rootCfg *configs.Config, resAddr addrs.ConfigResource) []*configs.Provisioner {
+	if rs := FindResourceRemovedStatement(rootCfg, resAddr); rs != nil {
+		return rs.Provisioners
+	}
+	return nil
+}
+
 func findRemoveStatements(cfg *configs.Config, into []*RemoveStatement) []*RemoveStatement {
+	if cfg == nil {
+		return nil
+	}
 	modAddr := cfg.Path
 
 	for _, rc := range cfg.Module.Removed {
@@ -48,7 +78,7 @@ func findRemoveStatements(cfg *configs.Config, into []*RemoveStatement) []*Remov
 				Module:   absModule,
 			}
 
-			removedEndpoint = &RemoveStatement{From: absConfigResource, Destroy: rc.Destroy, DeclRange: tfdiags.SourceRangeFromHCL(rc.DeclRange)}
+			removedEndpoint = &RemoveStatement{From: absConfigResource, Destroy: rc.Destroy, DeclRange: tfdiags.SourceRangeFromHCL(rc.DeclRange), Provisioners: rc.Provisioners}
 
 		case addrs.Module:
 			// Get the absolute address of the module by appending the module config address
@@ -56,7 +86,7 @@ func findRemoveStatements(cfg *configs.Config, into []*RemoveStatement) []*Remov
 			var absModule = make(addrs.Module, 0, len(modAddr)+len(FromAddress))
 			absModule = append(absModule, modAddr...)
 			absModule = append(absModule, FromAddress...)
-			removedEndpoint = &RemoveStatement{From: absModule, Destroy: rc.Destroy, DeclRange: tfdiags.SourceRangeFromHCL(rc.DeclRange)}
+			removedEndpoint = &RemoveStatement{From: absModule, Destroy: rc.Destroy, DeclRange: tfdiags.SourceRangeFromHCL(rc.DeclRange), Provisioners: rc.Provisioners}
 
 		default:
 			panic(fmt.Sprintf("unhandled address type %T", FromAddress))

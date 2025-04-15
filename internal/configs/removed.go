@@ -20,17 +20,19 @@ type Removed struct {
 	Destroy    bool
 	DestroySet bool
 
+	Provisioners []*Provisioner
+
 	DeclRange hcl.Range
 }
 
-func decodeRemovedBlock(block *hcl.Block) (*Removed, hcl.Diagnostics) {
+func decodeRemovedBlock(removedBlock *hcl.Block) (*Removed, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 	removed := &Removed{
-		DeclRange: block.DefRange,
-		Destroy:   false, // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
+		DeclRange: removedBlock.DefRange,
+		Destroy:   false,
 	}
 
-	content, moreDiags := block.Body.Content(removedBlockSchema)
+	content, moreDiags := removedBlock.Body.Content(removedBlockSchema)
 	diags = append(diags, moreDiags...)
 
 	if attr, exists := content.Attributes["from"]; exists {
@@ -66,6 +68,30 @@ func decodeRemovedBlock(block *hcl.Block) (*Removed, hcl.Diagnostics) {
 				diags = append(diags, valDiags...)
 				removed.DestroySet = true
 			}
+		case "provisioner":
+			pv, pvDiags := decodeProvisionerBlock(block)
+			diags = append(diags, pvDiags...)
+			if pv != nil {
+				if pv.When != ProvisionerWhenDestroy {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  `Invalid "removed.provisioner" block`,
+						Detail:   `"removed" blocks can only contain destroy provisioners. "removed.provisioner.when = destroy" expected`,
+						Subject:  &block.DefRange,
+					})
+					continue
+				}
+				if removed.From.RelSubject.AddrType() == addrs.ModuleAddrType {
+					diags = append(diags, &hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  `Invalid "removed" block`,
+						Detail:   `"removed" blocks containing "provisioner"s can only target resources. Found one block that is targeting a module`,
+						Subject:  &removedBlock.DefRange,
+					})
+					continue
+				}
+				removed.Provisioners = append(removed.Provisioners, pv)
+			}
 		}
 	}
 
@@ -81,6 +107,7 @@ var removedBlockSchema = &hcl.BodySchema{
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{Type: "lifecycle"},
+		{Type: "provisioner", LabelNames: []string{"type"}},
 	},
 }
 
