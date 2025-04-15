@@ -93,40 +93,8 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Va
 	})
 }
 
-// ContainsDeprecated returns true if the cty.Value or any any value within it
-// contains the deprecation mark.
-func ContainsDeprecated(v cty.Value) bool {
-	_, marks := v.UnmarkDeep()
-
-	for m := range marks {
-		if _, ok := m.(deprecationMark); ok {
-			return true
-		}
-	}
-
-	return false
-}
-
-// ListDeprecationCauses iterates over all the marks for a given value to
-// extract all the DeprecationCauses. A single cty.Value could be constructed
-// from a multiple references to deprecated values, so this is a list.
-func ListDeprecationCauses(v cty.Value) []DeprecationCause {
-	var causes []DeprecationCause
-
-	_, marks := v.UnmarkDeep()
-
-	for m := range marks {
-		dm, ok := m.(deprecationMark)
-		if !ok {
-			continue
-		}
-
-		causes = append(causes, dm.Cause)
-	}
-
-	return causes
-}
-
+// DeprecatedDiagnosticsInBody composes deprecation diagnostics based on deprecation marks inside
+// the cty.Value. It uses hcl.Body to properly reference deprecated attributes in final diagnostics.
 func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -157,6 +125,8 @@ func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdia
 	return unmarked.MarkWithPaths(pathMarks), diags.InConfigBody(body, "")
 }
 
+// DeprecatedDiagnosticsInExpr composes deprecation diagnostics based on deprecation marks inside
+// the cty.Value. It uses hcl.Expression to properly reference deprecated attributes in final diagnostics.
 func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
@@ -173,24 +143,16 @@ func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value,
 			// Remove mark
 			delete(pm.Marks, m)
 
-			attr := ""
-			// Assumes AttrStep is always first
-			for _, p := range pm.Path {
-				switch pv := p.(type) {
-				case cty.IndexStep:
-					attr += fmt.Sprintf("[%v]", pv.Key.GoString())
-				case cty.GetAttrStep:
-					if attr == "" {
-						attr = pv.Name
-					} else {
-						attr += fmt.Sprintf(".%s", pv.Name)
-					}
-				}
+			attr := tfdiags.FormatCtyPath(pm.Path)
+			// FormatCtyPath call could result in ".fieldA.fieldB" in some
+			// cases, so we want to remove the first dot for a friendlier message.
+			if len(attr) > 1 && attr[0] == '.' {
+				attr = attr[1:]
 			}
 
 			source := "This value"
 			if attr != "" {
-				source += "'s field " + attr
+				source += "'s attribute " + attr
 			}
 
 			cause := dm.Cause
