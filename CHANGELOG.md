@@ -13,6 +13,7 @@ UPGRADE NOTES:
 NEW FEATURES:
 
 - Can now use OCI Registries as a new kind of provider mirror. ([#2540](https://github.com/opentofu/opentofu/issues/2540))
+- Can now install module packages from OCI Registries using the new `oci:` source address scheme. ([#2540](https://github.com/opentofu/opentofu/issues/2540))
 - New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
     - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
     - `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
