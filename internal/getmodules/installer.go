@@ -8,6 +8,7 @@ package getmodules
 import (
 	"context"
 	"fmt"
+	"maps"
 )
 
 // PackageFetcher is a low-level utility for fetching remote module packages
@@ -36,9 +37,18 @@ type PackageFetcher struct {
 // intended only for use in unit tests.
 func NewPackageFetcher(env PackageFetcherEnvironment) *PackageFetcher {
 	env = preparePackageFetcherEnvironment(env)
-	_ = env // TODO: Actually use this, once we have an OCI Distribution getter
+
+	// We use goGetterGetters as our starting point for the available
+	// getters, but some need to be instantiated dynamically based on
+	// the given "env". We shallow-copy the source map so that multiple
+	// instances of PackageFetcher don't clobber each other's getters.
+	getters := maps.Clone(goGetterGetters)
+	getters["oci"] = &ociDistributionGetter{
+		getOCIRepositoryStore: env.OCIRepositoryStore,
+	}
+
 	return &PackageFetcher{
-		getter: &reusingGetter{},
+		getter: newReusingGetter(getters),
 	}
 }
 
