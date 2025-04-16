@@ -136,6 +136,9 @@ type GetProviderSchemaResponse struct {
 
 	// Functions lists all functions supported by this provider.
 	Functions map[string]FunctionSpec
+
+	// EphemeralResources map the ephemeral type name to that type's schema.
+	EphemeralResources map[string]Schema
 }
 
 // Schema pairs a provider or resource schema with that schema's version.

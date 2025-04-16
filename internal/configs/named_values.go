@@ -50,6 +50,9 @@ type Variable struct {
 	Nullable    bool
 	NullableSet bool
 
+	// Ephemeral restricts the usage of this variable to only a subset of HCL contexts.
+	Ephemeral bool
+
 	DeclRange hcl.Range
 }
 
@@ -146,6 +149,11 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		// The current default is true, which is subject to change in a future
 		// language edition.
 		v.Nullable = true
+	}
+
+	if attr, exists := content.Attributes["ephemeral"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &v.Ephemeral)
+		diags = append(diags, valDiags...)
 	}
 
 	if attr, exists := content.Attributes["default"]; exists {
@@ -418,6 +426,7 @@ type Output struct {
 	DependsOn   []hcl.Traversal
 	Sensitive   bool
 	Deprecated  string
+	Ephemeral   bool
 
 	Preconditions []*CheckRule
 
@@ -488,6 +497,10 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 				Subject:  attr.Expr.Range().Ptr(),
 			})
 		}
+	}
+	if attr, exists := content.Attributes["ephemeral"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Ephemeral)
+		diags = append(diags, valDiags...)
 	}
 
 	if attr, exists := content.Attributes["depends_on"]; exists {

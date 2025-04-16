@@ -104,6 +104,7 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 
 	resp.ResourceTypes = make(map[string]providers.Schema)
 	resp.DataSources = make(map[string]providers.Schema)
+	resp.EphemeralResources = make(map[string]providers.Schema)
 	resp.Functions = make(map[string]providers.FunctionSpec)
 
 	// Some providers may generate quite large schemas, and the internal default
@@ -149,6 +150,10 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 
 	for name, fn := range protoResp.Functions {
 		resp.Functions[name] = convert.ProtoToFunctionSpec(fn)
+	}
+
+	for name, res := range protoResp.EphemeralResourceSchemas {
+		resp.EphemeralResources[name] = convert.ProtoToProviderSchema(res)
 	}
 
 	if protoResp.ServerCapabilities != nil {
@@ -231,6 +236,9 @@ func (p *GRPCProvider) ValidateResourceConfig(r providers.ValidateResourceConfig
 	protoReq := &proto6.ValidateResourceConfig_Request{
 		TypeName: r.TypeName,
 		Config:   &proto6.DynamicValue{Msgpack: mp},
+		ClientCapabilities: &proto6.ClientCapabilities{
+			WriteOnlyAttributesAllowed: true,
+		},
 	}
 
 	protoResp, err := p.client.ValidateResourceConfig(p.ctx, protoReq)

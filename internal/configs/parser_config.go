@@ -175,6 +175,13 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 			if cfg != nil {
 				file.ManagedResources = append(file.ManagedResources, cfg)
 			}
+			
+		case "ephemeral":
+			cfg, cfgDiags := decodeEphemeralBlock(block, override)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.ManagedResources = append(file.ManagedResources, cfg)
+			}
 
 		case "data":
 			cfg, cfgDiags := decodeDataBlock(block, override, false)
