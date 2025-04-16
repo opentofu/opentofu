@@ -511,4 +511,8 @@ const (
 	// DataResourceMode indicates a data resource, as defined by
 	// "data" blocks in configuration.
 	DataResourceMode ResourceMode = 'D'
+
+	// EphemeralResourceMode indicates an ephemeral resource, as defined by
+	// "ephemeral" blocks in configuration.
+	EphemeralResourceMode ResourceMode = 'E'
 )
