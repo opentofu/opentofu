@@ -13,12 +13,16 @@ import (
 	"github.com/zclconf/go-cty/cty"
 )
 
+// sensitiveMarksEqual filters out any non-sensitive marks and then uses
+// marksEqual to compare the resulting lists.
 func sensitiveMarksEqual(a, b []cty.PathValueMarks) bool {
 	a = filterNonTargetMarks(a, marks.Sensitive)
 	b = filterNonTargetMarks(b, marks.Sensitive)
 	return marksEqual(a, b)
 }
 
+// filterNonTargetMarks makes a copy of pvms and then filters out every
+// non-target mark and removes the path if it is no longer contains marks.
 func filterNonTargetMarks(pvms []cty.PathValueMarks, target interface{}) []cty.PathValueMarks {
 	pvmsCopy := make([]cty.PathValueMarks, 0, len(pvms))
 	for _, pvm := range pvms {
