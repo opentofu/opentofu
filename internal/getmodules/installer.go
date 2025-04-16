@@ -24,7 +24,7 @@ import (
 // no way to reset this cache, so a particular PackageFetcher instance should
 // live only for the duration of a single initialization process.
 type PackageFetcher struct {
-	getter reusingGetter
+	getter *reusingGetter
 }
 
 // NewPackageFetcher constructs a new [PackageFetcher] that interacts with
@@ -38,7 +38,7 @@ func NewPackageFetcher(env PackageFetcherEnvironment) *PackageFetcher {
 	env = preparePackageFetcherEnvironment(env)
 	_ = env // TODO: Actually use this, once we have an OCI Distribution getter
 	return &PackageFetcher{
-		getter: reusingGetter{},
+		getter: &reusingGetter{},
 	}
 }
 
