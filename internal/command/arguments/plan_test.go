@@ -6,7 +6,6 @@
 package arguments
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -177,26 +176,26 @@ func TestParsePlan_targetFile(t *testing.T) {
 	boop, _ := addrs.ParseTargetStr("module.boop")
 	barbaz, _ := addrs.ParseTargetStr("bar.baz")
 	testCases := map[string]struct {
-		files []testFile
+		files []mockFile
 		want  []addrs.Targetable
 	}{
 		"target file no targets": {
-			files: []testFile{},
+			files: []mockFile{},
 			want:  nil,
 		},
 		"target file valid single target": {
-			files: []testFile{
+			files: []mockFile{
 				{fileContent: "foo_bar.baz"}},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid multiple targets": {
-			files: []testFile{
+			files: []mockFile{
 				{fileContent: "foo_bar.baz\nmodule.boop"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
 		"target file invalid target": {
-			files: []testFile{
+			files: []mockFile{
 				{
 					fileContent: "foo.",
 					diags: hcl.Diagnostics{
@@ -219,14 +218,14 @@ func TestParsePlan_targetFile(t *testing.T) {
 			want: nil,
 		},
 		"multiple files valid targets": {
-			files: []testFile{
+			files: []mockFile{
 				{fileContent: "foo_bar.baz"},
 				{fileContent: "module.boop"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject, boop.Subject},
 		},
 		"multiple files invalid target": {
-			files: []testFile{
+			files: []mockFile{
 				{fileContent: "foo_bar.baz"},
 				{
 					fileContent: "modu(le.boop",
@@ -250,7 +249,7 @@ func TestParsePlan_targetFile(t *testing.T) {
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"multiple files multiple invalid targets": {
-			files: []testFile{
+			files: []mockFile{
 				{
 					fileContent: "modu(le.boop",
 					diags: hcl.Diagnostics{
@@ -301,31 +300,31 @@ func TestParsePlan_targetFile(t *testing.T) {
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid comment": {
-			files: []testFile{
+			files: []mockFile{
 				{fileContent: "#foo_bar.baz"},
 			},
 			want: nil,
 		},
 		"target file valid spaces": {
-			files: []testFile{
+			files: []mockFile{
 				{fileContent: "   foo_bar.baz"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid tab": {
-			files: []testFile{
+			files: []mockFile{
 				{fileContent: "\tfoo_bar.baz"},
 			},
 			want: []addrs.Targetable{foobarbaz.Subject},
 		},
 		"target file valid complicated": {
-			files: []testFile{
+			files: []mockFile{
 				{fileContent: "\tmodule.boop\n#foo_bar.baz\nbar.baz"},
 			},
 			want: []addrs.Targetable{boop.Subject, barbaz.Subject},
 		},
 		"target file invalid bracket with spaces": {
-			files: []testFile{
+			files: []mockFile{
 				{
 					fileContent: `    [boop]`,
 					diags: hcl.Diagnostics{
@@ -349,16 +348,16 @@ func TestParsePlan_targetFile(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			targetFileArguments := []string{}
 			wantDiags := tfdiags.Diagnostics{}
-			for _, testFile := range tc.files {
-				testFile.tempFileWriter(t)
-				targetFileArguments = append(targetFileArguments, "-target-file="+testFile.filePath)
+			for _, mockFile := range tc.files {
+				mockFile.tempFileWriter(t)
+				targetFileArguments = append(targetFileArguments, "-target-file="+mockFile.filePath)
 
 				// for setting the correct filePath on each wantDiag
-				if len(testFile.diags) > 0 {
-					for _, diag := range testFile.diags {
-						diag.Subject.Filename = testFile.filePath
+				if len(mockFile.diags) > 0 {
+					for _, diag := range mockFile.diags {
+						diag.Subject.Filename = mockFile.filePath
 						if diag.Context != nil {
-							diag.Context.Filename = testFile.filePath
+							diag.Context.Filename = mockFile.filePath
 						}
 						wantDiags = wantDiags.Append(diag)
 					}
@@ -446,7 +445,7 @@ func TestParsePlan_excludes(t *testing.T) {
 }
 
 func TestParsePlan_excludeFile(t *testing.T) {
-	testCasesTest := map[string][]testFile{
+	testCasesTest := map[string][]mockFile{
 		"exclude file no targets": {
 			{fileContent: "foo_bar.baz"},
 		},
@@ -532,16 +531,16 @@ func TestParsePlan_excludeFile(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			excludeFileArguments := []string{}
 			wantDiags := tfdiags.Diagnostics{}
-			for _, testFile := range tc {
-				testFile.tempFileWriter(t)
-				excludeFileArguments = append(excludeFileArguments, "-exclude-file="+testFile.filePath)
+			for _, mockFile := range tc {
+				mockFile.tempFileWriter(t)
+				excludeFileArguments = append(excludeFileArguments, "-exclude-file="+mockFile.filePath)
 
 				// for setting the correct filePath on each wantDiag
-				if len(testFile.diags) > 0 {
-					for _, diag := range testFile.diags {
-						diag.Subject.Filename = testFile.filePath
+				if len(mockFile.diags) > 0 {
+					for _, diag := range mockFile.diags {
+						diag.Subject.Filename = mockFile.filePath
 						if diag.Context != nil {
-							diag.Context.Filename = testFile.filePath
+							diag.Context.Filename = mockFile.filePath
 						}
 						wantDiags = wantDiags.Append(diag)
 					}
@@ -651,21 +650,5 @@ func TestParsePlan_vars(t *testing.T) {
 				t.Fatalf("expected Empty() to return %t, but was %t", want, got)
 			}
 		})
-	}
-}
-
-func (t *testFile) tempFileWriter(tt *testing.T) {
-	tt.Helper()
-	tempFile, err := os.CreateTemp(tt.TempDir(), "opentofu-test-files")
-	if err != nil {
-		tt.Fatal(err)
-	}
-	t.filePath = tempFile.Name()
-	tempFile.WriteString(t.fileContent)
-	if err != nil {
-		tt.Fatal(err)
-	}
-	if err := tempFile.Close(); err != nil {
-		tt.Fatal(err)
 	}
 }
