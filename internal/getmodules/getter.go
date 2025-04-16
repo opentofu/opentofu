@@ -91,14 +91,22 @@ var goGetterDecompressorMediaTypes = map[string]string{
 	"archive/zip": "zip",
 }
 
+// goGetterGetters is an initial table of getters that we use as a starting
+// point when building a _real_ table of getters to pass into a
+// [reusingGetter] instance.
+//
+// The elements mapped to nil here are those which are populated dynamically
+// based on arguments to [NewPackageFetcher], included here only so it's
+// easier to refer to the entire list of supported getter keys in one place.
 var goGetterGetters = map[string]getter.Getter{
 	"file":  new(getter.FileGetter),
 	"gcs":   new(getter.GCSGetter),
 	"git":   new(getter.GitGetter),
 	"hg":    new(getter.HgGetter),
-	"s3":    new(getter.S3Getter),
 	"http":  getterHTTPGetter,
 	"https": getterHTTPGetter,
+	"oci":   nil, // configured dynamically using [PackageFetcherEnvironment.OCIRepositoryStore]
+	"s3":    new(getter.S3Getter),
 }
 
 var getterHTTPClient = cleanhttp.DefaultClient()
@@ -121,8 +129,19 @@ var getterHTTPGetter = &getter.HttpGetter{
 // imports getmodules in order to indirectly access our go-getter
 // configuration.)
 type reusingGetter struct {
+	// getters are the go-getter getters that this particular instance of
+	// reusingGetter should use.
+	getters map[string]getter.Getter
+
 	previousInstalls   map[string]string // initialized on first install request
 	previousInstallsMu sync.Mutex        // must hold while interacting with previousInstalls
+}
+
+func newReusingGetter(getters map[string]getter.Getter) *reusingGetter {
+	return &reusingGetter{
+		getters: getters,
+		// previousInstalls initialized only on request
+	}
 }
 
 // getWithGoGetter fetches the package at the given address into the given
@@ -188,7 +207,7 @@ func (g *reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAd
 
 			Detectors:     goGetterNoDetectors, // our caller should've already done detection
 			Decompressors: goGetterDecompressors,
-			Getters:       goGetterGetters,
+			Getters:       g.getters,
 			Ctx:           ctx,
 		}
 		err = client.Get()
