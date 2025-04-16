@@ -9,8 +9,38 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
+
+func sensitiveMarksEqual(a, b []cty.PathValueMarks) bool {
+	a = filterNonTargetMarks(a, marks.Sensitive)
+	b = filterNonTargetMarks(b, marks.Sensitive)
+	return marksEqual(a, b)
+}
+
+func filterNonTargetMarks(pvms []cty.PathValueMarks, target interface{}) []cty.PathValueMarks {
+	pvmsCopy := make([]cty.PathValueMarks, 0, len(pvms))
+	for _, pvm := range pvms {
+		pvmsCopy = append(pvmsCopy, copyPathValueMarks(pvm))
+	}
+
+	for i := range pvms {
+		for k := range pvmsCopy[i].Marks {
+			if k != target {
+				delete(pvmsCopy[i].Marks, k)
+			}
+		}
+
+		// Remove PathValueMarks from the slice if there is no
+		// marks anymore.
+		if len(pvmsCopy[i].Marks) == 0 {
+			pvmsCopy = append(pvmsCopy[:i], pvmsCopy[i+1:]...)
+		}
+	}
+
+	return pvmsCopy
+}
 
 // marksEqual compares 2 unordered sets of PathValue marks for equality, with
 // the comparison using the cty.PathValueMarks.Equal method.
