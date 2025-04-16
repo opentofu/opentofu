@@ -19,6 +19,8 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/evalchecks"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -340,28 +342,90 @@ func (n *NodeAbstractResourceInstance) readDiff(ctx EvalContext, providerSchema 
 	return change, nil
 }
 
-func (n *NodeAbstractResourceInstance) checkPreventDestroy(change *plans.ResourceInstanceChange) error {
-	if change == nil || n.Config == nil || n.Config.Managed == nil {
+func (n *NodeAbstractResourceInstance) checkPreventDestroy(evalCtx EvalContext, change *plans.ResourceInstanceChange) tfdiags.Diagnostics {
+	if change == nil || n.Config == nil || n.Config.Managed == nil || n.Config.Managed.PreventDestroy == nil {
 		return nil
 	}
 
-	preventDestroy := n.Config.Managed.PreventDestroy
+	var diags tfdiags.Diagnostics
 
-	if (change.Action == plans.Delete || change.Action.IsReplace()) && preventDestroy {
-		var diags tfdiags.Diagnostics
+	// We intentionally don't support referring to repetition symbols like
+	// each.key/etc here because we must be able to evaluate prevent_destroy
+	// for a resource instance that has already been removed from the
+	// desired state (and is therefore being proposed to destroy) and
+	// there would be no instance-related data to use in that acse.
+	scope := evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
+
+	preventDestroyExpr := n.Config.Managed.PreventDestroy
+	preventDestroyVal, evalDiags := scope.EvalExpr(preventDestroyExpr, cty.Bool)
+	diags = diags.Append(evalDiags)
+	if evalDiags.HasErrors() {
+		return diags
+	}
+	if preventDestroyVal.IsNull() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  "Instance cannot be destroyed",
-			Detail: fmt.Sprintf(
-				"Resource %s has lifecycle.prevent_destroy set, but the plan calls for this resource to be destroyed. To avoid this error and continue with the plan, either disable lifecycle.prevent_destroy or reduce the scope of the plan using the -target flag.",
-				n.Addr.String(),
-			),
-			Subject: &n.Config.DeclRange,
+			Summary:  "Invalid prevent_destroy value",
+			Detail:   "Unsuitable value for prevent_destroy argument: must not be null.",
+			Subject:  preventDestroyExpr.StartRange().Ptr(),
 		})
-		return diags.Err()
+	}
+	if preventDestroyVal.HasMark(marks.Sensitive) {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid prevent_destroy value",
+			Detail:   "Unsuitable value for prevent_destroy argument: derived from a sensitive value, so the prevent_destroy outcome could disclose the sensitive result.",
+			Subject:  preventDestroyExpr.StartRange().Ptr(),
+			Extra:    evalchecks.DiagnosticCausedBySensitive(true),
+		})
+	}
+	if diags.HasErrors() {
+		return diags
 	}
 
-	return nil
+	// We'll discard any other marks, since we don't know what they mean and so
+	// can't report an error describing them.
+	// FIXME: Should this return a generic "this is marked in a way we don't support"
+	// error so that we fail closed rather than open?
+	preventDestroyVal, _ = preventDestroyVal.Unmark()
+
+	if change.Action == plans.Delete || change.Action.IsReplace() {
+		// The remaining checks apply only if we're actually planning to delete/replace this object.
+		if !preventDestroyVal.IsKnown() {
+			// TODO: Should this actually be a warning, so the operator can decide to proceed if they
+			// know that prevent_destroy will turn out to be false? Perhaps we could re-check
+			// during the apply phase and fail then if the final known value is true, at the
+			// expense of potentially failing partway through the overall apply operation.
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid prevent_destroy value",
+				Detail: fmt.Sprintf(
+					"The resource instance %s is planned for deletion but its prevent_destroy argument is derived from a value that won't be decided until the apply phase, so OpenTofu can't determine whether this action is acceptable.",
+					n.Addr.String(),
+				),
+				Subject: preventDestroyExpr.StartRange().Ptr(),
+				Extra:   evalchecks.DiagnosticCausedByUnknown(true),
+			})
+			return diags
+		}
+
+		// In the above checks we've eliminated the possibilities that
+		// preventDestroyVal is null, unknown, or marked, and so we
+		// are now safe to ask for its actual boolean value.
+		if preventDestroyVal.True() {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Instance cannot be destroyed",
+				Detail: fmt.Sprintf(
+					"The resource instance %s has lifecycle.prevent_destroy set, but the plan calls for this resource to be destroyed. To avoid this error and continue with the plan, either disable lifecycle.prevent_destroy or reduce the scope of the plan using the -target option.",
+					n.Addr.String(),
+				),
+				Subject: preventDestroyExpr.StartRange().Ptr(),
+			})
+		}
+	}
+
+	return diags
 }
 
 // preApplyHook calls the pre-Apply hook

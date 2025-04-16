@@ -357,7 +357,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx EvalContext) 
 		if diags.HasErrors() {
 			return diags
 		}
-		diags = diags.Append(n.checkPreventDestroy(change))
+		diags = diags.Append(n.checkPreventDestroy(ctx, change))
 		if diags.HasErrors() {
 			return diags
 		}
