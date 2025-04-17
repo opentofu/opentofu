@@ -21,25 +21,24 @@ func sensitiveMarksEqual(a, b []cty.PathValueMarks) bool {
 	return marksEqual(a, b)
 }
 
-// filterNonTargetMarks makes a copy of pvms and then filters out every
-// non-target mark and removes the path if it is no longer contains marks.
+// filterNonTargetMarks makes a copy of PathValueMarks and filters out every
+// non-target mark.
 func filterNonTargetMarks(pvms []cty.PathValueMarks, target interface{}) []cty.PathValueMarks {
 	pvmsCopy := make([]cty.PathValueMarks, 0, len(pvms))
-	for _, pvm := range pvms {
-		pvmsCopy = append(pvmsCopy, copyPathValueMarks(pvm))
-	}
 
-	for i := range pvms {
-		for k := range pvmsCopy[i].Marks {
+	for _, pvm := range pvms {
+		pvmCopy := copyPathValueMarks(pvm)
+
+		// Remove non-target marks
+		for k := range pvm.Marks {
 			if k != target {
-				delete(pvmsCopy[i].Marks, k)
+				delete(pvmCopy.Marks, k)
 			}
 		}
 
-		// Remove PathValueMarks from the slice if there is no
-		// marks anymore.
-		if len(pvmsCopy[i].Marks) == 0 {
-			pvmsCopy = append(pvmsCopy[:i], pvmsCopy[i+1:]...)
+		// Add path if it still has marks
+		if len(pvmCopy.Marks) != 0 {
+			pvmsCopy = append(pvmsCopy, pvmCopy)
 		}
 	}
 
