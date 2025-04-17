@@ -332,9 +332,9 @@ func TestGetHttpProxyUrl(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set environment variables
-			os.Setenv("HTTP_PROXY", tt.httpProxy)
-			os.Setenv("HTTPS_PROXY", tt.httpsProxy)
-			os.Setenv("NO_PROXY", tt.noProxy)
+			t.Setenv("HTTP_PROXY", tt.httpProxy)
+			t.Setenv("HTTPS_PROXY", tt.httpsProxy)
+			t.Setenv("NO_PROXY", tt.noProxy)
 
 			proxyUrl, err := getHttpProxyUrl(tt.rawUrl)
 			if err != nil {
