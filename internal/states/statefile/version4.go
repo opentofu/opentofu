@@ -767,7 +767,8 @@ type outputStateV4 struct {
 	ValueRaw     json.RawMessage `json:"value"`
 	ValueTypeRaw json.RawMessage `json:"type"`
 	Sensitive    bool            `json:"sensitive,omitempty"`
-	Deprecated   string          `json:"deprecated,omitempty"`
+	// TODO: Do we need to update the state schema or state documentation somewhere?
+	Deprecated string `json:"deprecated,omitempty"`
 }
 
 // Note: the ProviderConfig field is only set on either the resource or the resource instance object
