@@ -206,11 +206,11 @@ func TestCombinePathValueMarks(t *testing.T) {
 }
 
 func TestSensitiveMarksEqual(t *testing.T) {
-	for i, tc := range []struct {
+	testCases := map[string]struct {
 		a, b  []cty.PathValueMarks
 		equal bool
 	}{
-		{
+		"singleMarkToFilterOut": {
 			[]cty.PathValueMarks{
 				cty.PathValueMarks{Path: cty.Path{cty.GetAttrStep{Name: "a"}}, Marks: cty.NewValueMarks(marks.Sensitive, "customMark")},
 			},
@@ -219,7 +219,7 @@ func TestSensitiveMarksEqual(t *testing.T) {
 			},
 			true,
 		},
-		{
+		"simpleDiff": {
 			[]cty.PathValueMarks{
 				cty.PathValueMarks{Path: cty.Path{cty.GetAttrStep{Name: "a"}}, Marks: cty.NewValueMarks(marks.Sensitive)},
 			},
@@ -228,7 +228,7 @@ func TestSensitiveMarksEqual(t *testing.T) {
 			},
 			false,
 		},
-		{
+		"multipleOverlapingMarksToFilterOut": {
 			[]cty.PathValueMarks{
 				cty.PathValueMarks{Path: cty.Path{cty.GetAttrStep{Name: "a"}}, Marks: cty.NewValueMarks(marks.Sensitive)},
 				cty.PathValueMarks{Path: cty.Path{cty.GetAttrStep{Name: "b"}}, Marks: cty.NewValueMarks(marks.Sensitive, "customMark")},
@@ -241,7 +241,7 @@ func TestSensitiveMarksEqual(t *testing.T) {
 			},
 			true,
 		},
-		{
+		"multipleNonOverlapingMarksToFilterOut": {
 			[]cty.PathValueMarks{
 				cty.PathValueMarks{
 					Path:  cty.Path{cty.GetAttrStep{Name: "a"}, cty.GetAttrStep{Name: "b"}},
@@ -264,7 +264,7 @@ func TestSensitiveMarksEqual(t *testing.T) {
 			},
 			true,
 		},
-		{
+		"anotherSimpleDiff": {
 			[]cty.PathValueMarks{
 				cty.PathValueMarks{Path: cty.Path{cty.GetAttrStep{Name: "a"}}, Marks: cty.NewValueMarks(marks.Sensitive)},
 			},
@@ -273,36 +273,39 @@ func TestSensitiveMarksEqual(t *testing.T) {
 			},
 			false,
 		},
-		{
+		"bothEmpty": {
 			nil,
 			nil,
 			true,
 		},
-		{
+		"firstEmpty": {
 			[]cty.PathValueMarks{
 				cty.PathValueMarks{Path: cty.Path{cty.GetAttrStep{Name: "a"}}, Marks: cty.NewValueMarks(marks.Sensitive)},
 			},
 			nil,
 			false,
 		},
-		{
+		"secondEmpty": {
 			nil,
 			[]cty.PathValueMarks{
 				cty.PathValueMarks{Path: cty.Path{cty.GetAttrStep{Name: "a"}}, Marks: cty.NewValueMarks(marks.Sensitive)},
 			},
 			false,
 		},
-		{
+		"bothEmptyAfterFiltering": {
 			nil,
 			[]cty.PathValueMarks{
 				cty.PathValueMarks{Path: cty.Path{cty.GetAttrStep{Name: "a"}}, Marks: cty.NewValueMarks("customMark")},
 			},
 			true,
 		},
-	} {
-		t.Run(fmt.Sprint(i), func(t *testing.T) {
-			if sensitiveMarksEqual(tc.a, tc.b) != tc.equal {
-				t.Fatalf("marksEqual(\n%#v,\n%#v,\n) != %t\n", tc.a, tc.b, tc.equal)
+	}
+
+	for name, test := range testCases {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			if sensitiveMarksEqual(test.a, test.b) != test.equal {
+				t.Fatalf("marksEqual(\n%#v,\n%#v,\n) != %t\n", test.a, test.b, test.equal)
 			}
 		})
 	}
