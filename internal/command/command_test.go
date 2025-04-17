@@ -1185,3 +1185,72 @@ func deleteMapField(fieldMap map[string]interface{}, rootField, field string) ma
 	delete(rootMap, field)
 	return rootMap
 }
+
+// testHangServer starts a local HTTP server that accepts incoming requests
+// but then intentionally leaves the connection hanging without responding,
+// writing the request to the returned channel so that the caller can then
+// trigger some mechanism for cancelling that hung request.
+//
+// This is intended for testing anything that needs to be able to cancel
+// slow requests to remote HTTP servers, so that the test can be sure that
+// the request definitely will be "slow enough" that cancellation is
+// definitely the only way the request could've halted.
+//
+// The returned server is automatically closed when the calling test
+// is complete, but the caller is also allowed to optionally call Close
+// directly itself. Note that the Close method alone will not close
+// any active requests, but testHangServer guarantees that it will
+// eventually terminate active requests once the calling test is
+// complete.
+func testHangServer(t testing.TB) (server *httptest.Server, reqs <-chan *http.Request) {
+	t.Helper()
+
+	// We'll use this channel to signal any active requests to terminate
+	// during test cleanup, so that the active requests can't remain
+	// running indefinitely.
+	cleanupCh := make(chan struct{})
+
+	// This channel is how we'll notify the caller when we get a request.
+	// This has a buffer so that in the assumed-typical case where the
+	// test server will only start serving a few requests before they
+	// get cancelled the server's handler can be decoupled from the
+	// channel reads in the caller.
+	reqsCh := make(chan *http.Request, 8)
+
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// We intentionally don't take any action on this request until
+		// the test cleanup function runs, but we will notify our
+		// caller that the request was started.
+		//
+		// We'll also accept getting told to clean up before the
+		// channel write succeeds just in case the calling test exits
+		// before it reads from reqsCh.
+		select {
+		case reqsCh <- req:
+		case <-cleanupCh:
+		}
+		// If we managed to send req to reqsCh above then we still
+		// need to wait for cleanupCh to close. The following is
+		// no-op if the channel is already closed.
+		<-cleanupCh
+		// If any client is still connected by the time we get here then
+		// we'll respond quickly just to get their connection closed.
+		// This is unlikely but could potentially happen if a new client
+		// connects in the narrow time window between us closing the
+		// existing client connections and fully closing the server,
+		// after cleanupCh is already closed: in that case the new client
+		// will get a 500 Internal Server Error response immediately.
+		w.WriteHeader(500)
+	}))
+	t.Logf("testHangServer is running at %s", server.URL)
+
+	t.Cleanup(func() {
+		t.Helper()
+		t.Log("shutting down testHangServer")
+		close(cleanupCh)                // terminate any active handlers
+		close(reqsCh)                   // unblock any test that's awaiting a request notification
+		server.CloseClientConnections() // force any active clients to disconnect
+		server.Close()                  // stop accepting new requests and wait for existing ones to stop
+	})
+	return server, reqsCh
+}

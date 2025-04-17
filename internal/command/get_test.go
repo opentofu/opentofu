@@ -6,8 +6,10 @@
 package command
 
 import (
+	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/mitchellh/cli"
 
@@ -87,16 +89,41 @@ func TestGet_update(t *testing.T) {
 }
 
 func TestGet_cancel(t *testing.T) {
-	// This test runs `tofu get` as if SIGINT (or similar on other
-	// platforms) were sent to it, testing that it is interruptible.
+	// This test runs `tofu get` against a server that stalls indefinitely
+	// instead of responding, and then requests shutdown in the same way
+	// as package main would in response to SIGINT (or similar on other
+	// platforms). This ensures that slow requests can be interrupted.
 
-	wd := tempWorkingDirFixture(t, "init-registry-module")
-	defer testChdir(t, wd.RootModuleDir())()
+	wd := tempWorkingDirFixture(t, "init-module-early-eval")
+	t.Chdir(wd.RootModuleDir())
 
-	// Our shutdown channel is pre-closed so init will exit as soon as it
-	// starts a cancelable portion of the process.
+	// One failure mode of this test is for the cancellation to fail and
+	// so the command runs indefinitely, and so we'll impose a timeout
+	// to allow us to eventually catch that and diagnose it as a test
+	// failure message.
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+
+	// This server intentionally stalls any incoming request by leaving
+	// the connection open but not responding. "reqs" will become
+	// readable each time a request arrives.
+	server, reqs := testHangServer(t)
+
+	// We'll close this channel once we've been notified that the server
+	// received our request, which should then cause cancellation.
 	shutdownCh := make(chan struct{})
-	close(shutdownCh)
+	go func() {
+		select {
+		case <-reqs:
+			// Request received, so time to interrupt.
+			t.Log("server received request, but won't respond")
+			close(shutdownCh)
+		case <-ctx.Done():
+			// Exit early if we reach our timeout.
+			t.Log("timeout before server received request")
+		}
+		server.CloseClientConnections() // force any active client request to fail
+	}()
 
 	ui := cli.NewMockUi()
 	c := &GetCommand{
@@ -107,20 +134,21 @@ func TestGet_cancel(t *testing.T) {
 			ShutdownCh:       shutdownCh,
 
 			// This test needs a real module package fetcher instance because
-			// its configuration includes a reference to a module from a registry
-			// that doesn't really exist. The shutdown signal prevents us from
-			// actually making a request to this, but we still need to provide
-			// the fetcher so that it will _attempt_ to make a network request
-			// that can then fail with a cancellation error.
+			// we want to attempt installing a module package from our server.
 			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
 		},
 	}
 
-	args := []string{}
-	if code := c.Run(args); code == 0 {
+	fakeModuleSourceAddr := server.URL + "/example.zip"
+	t.Logf("attempting to install module package from %s", fakeModuleSourceAddr)
+	args := []string{"-var=module_source=" + fakeModuleSourceAddr}
+	code := c.Run(args)
+	if err := ctx.Err(); err != nil {
+		t.Errorf("context error: %s", err) // probably reporting a timeout
+	}
+	if code == 0 {
 		t.Fatalf("succeeded; wanted error\n%s", ui.OutputWriter.String())
 	}
-
 	if got, want := ui.ErrorWriter.String(), `Module installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
