@@ -354,7 +354,7 @@ func testStateMgrCurrentLineage(mgr statemgr.Persistent) string {
 //	// (do stuff to the state)
 //	assertStateHasMarker(state, mark)
 func markStateForMatching(state *states.State, mark string) string {
-	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false)
+	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false, "")
 	return mark
 }
 

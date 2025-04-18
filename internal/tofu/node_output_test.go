@@ -192,7 +192,7 @@ func TestNodeDestroyableOutputExecute(t *testing.T) {
 	outputAddr := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
 
 	state := states.NewState()
-	state.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false)
+	state.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false, "")
 	state.OutputValue(outputAddr)
 
 	ctx := &MockEvalContext{

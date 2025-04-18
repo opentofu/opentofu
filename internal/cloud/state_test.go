@@ -337,7 +337,7 @@ func TestState_PersistState(t *testing.T) {
 			cloudState.WriteState(states.BuildState(func(s *states.SyncState) {
 				s.SetOutputValue(
 					addrs.OutputValue{Name: "boop"}.Absolute(addrs.RootModuleInstance),
-					cty.StringVal("beep"), false,
+					cty.StringVal("beep"), false, "",
 				)
 			}))
 

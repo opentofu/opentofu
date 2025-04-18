@@ -30,8 +30,8 @@ func TestState(t *testing.T) {
 	}
 
 	rootModule.SetLocalValue("foo", cty.StringVal("foo value"))
-	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false)
-	rootModule.SetOutputValue("secret", cty.StringVal("secret value"), true)
+	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false, "")
+	rootModule.SetOutputValue("secret", cty.StringVal("secret value"), true, "")
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
 			Mode: addrs.ManagedResourceMode,
@@ -51,11 +51,11 @@ func TestState(t *testing.T) {
 	)
 
 	childModule := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-	childModule.SetOutputValue("pizza", cty.StringVal("hawaiian"), false)
+	childModule.SetOutputValue("pizza", cty.StringVal("hawaiian"), false, "")
 	multiModA := state.EnsureModule(addrs.RootModuleInstance.Child("multi", addrs.StringKey("a")))
-	multiModA.SetOutputValue("pizza", cty.StringVal("cheese"), false)
+	multiModA.SetOutputValue("pizza", cty.StringVal("cheese"), false, "")
 	multiModB := state.EnsureModule(addrs.RootModuleInstance.Child("multi", addrs.StringKey("b")))
-	multiModB.SetOutputValue("pizza", cty.StringVal("sausage"), false)
+	multiModB.SetOutputValue("pizza", cty.StringVal("sausage"), false, "")
 
 	want := &State{
 		Modules: map[string]*Module{
@@ -235,8 +235,8 @@ func TestStateDeepCopy(t *testing.T) {
 	}
 
 	rootModule.SetLocalValue("foo", cty.StringVal("foo value"))
-	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false)
-	rootModule.SetOutputValue("secret", cty.StringVal("secret value"), true)
+	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false, "")
+	rootModule.SetOutputValue("secret", cty.StringVal("secret value"), true, "")
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
 			Mode: addrs.ManagedResourceMode,
@@ -294,7 +294,7 @@ func TestStateDeepCopy(t *testing.T) {
 	)
 
 	childModule := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-	childModule.SetOutputValue("pizza", cty.StringVal("hawaiian"), false)
+	childModule.SetOutputValue("pizza", cty.StringVal("hawaiian"), false, "")
 
 	stateCopy := state.DeepCopy()
 	if !state.Equal(stateCopy) {

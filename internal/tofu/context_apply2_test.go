@@ -1893,7 +1893,7 @@ output "from_resource" {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
-	mod.SetOutputValue("from_resource", cty.StringVal("wrong val"), false)
+	mod.SetOutputValue("from_resource", cty.StringVal("wrong val"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
