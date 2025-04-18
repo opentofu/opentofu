@@ -6,11 +6,15 @@
 package providercache
 
 import (
+	"context"
 	"log"
+	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/flock"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
@@ -42,6 +46,13 @@ type Dir struct {
 	// directory made by other codepaths because the contract for NewDir
 	// explicitly defines using the same directory for multiple purposes
 	// as undefined behavior.
+	// However, this code is now used for the global provider cache. With
+	// the added support for locking, the data may no longer be valid with
+	// changes from other processes. In practice this means that some packages
+	// may have been installed since the latest re-scan. The code that
+	// handles the installation should be smart enough to detect that and
+	// work around it.
+
 	metaCache map[addrs.Provider][]CachedProvider
 }
 
@@ -75,6 +86,88 @@ func NewDirWithPlatform(baseDir string, platform getproviders.Platform) *Dir {
 // cache directory.
 func (d *Dir) BasePath() string {
 	return filepath.Clean(d.baseDir)
+}
+
+func (d *Dir) Lock(ctx context.Context, provider addrs.Provider, version getproviders.Version) (func() error, error) {
+	providerPath := getproviders.UnpackedDirectoryPathForPackage(d.baseDir, provider, version, d.targetPlatform)
+	// If the lockfile is put within the target directory, it can mess with hashing
+	// Instead we add a suffix to the last part of the path (targetplatform) and lock that file instead.
+	lockFile := providerPath + ".lock"
+
+	log.Printf("[TRACE] Attempting to acquire global provider lock %s", lockFile)
+
+	// Ensure the provider directory exists
+	//nolint: mnd // directory permissions
+	if err := os.MkdirAll(providerPath, 0755); err != nil {
+		return nil, err
+	}
+
+	var f *os.File
+
+	// Try to create the lock file, wait up to 1 second for transient errors to clear.
+	for timeout := time.After(time.Second); ; {
+		var err error
+
+		// Try to get a handle to the file (or create if it does not exist)
+		// Sometimes the creates can conflict and will need to be tried multiple times.
+		f, err = os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE, 0644)
+		if err == nil {
+			// We don't defer f.Close() here as we explicitly want to handle it below
+			break
+		}
+
+		select {
+		case <-timeout:
+			return nil, err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+			// Chill for a bit before trying again
+			time.Sleep(50 * time.Millisecond)
+		}
+	}
+
+	// Wait for the file lock for up to 60s.  Might make sense to have the timeout be configurable for different network conditions / package sizes.
+	for timeout := time.After(time.Second * 60); ; {
+		// We have a valid file handle, let's try to lock it (nonblocking)
+		err := flock.Lock(f)
+		if err == nil {
+			// Lock succeeded
+			break
+		}
+
+		select {
+		case <-timeout:
+			if f != nil {
+				f.Close()
+			}
+			return nil, err
+		case <-ctx.Done():
+			if f != nil {
+				f.Close()
+			}
+			return nil, ctx.Err()
+		default:
+			// Chill for a bit before trying again
+			time.Sleep(100 * time.Millisecond)
+		}
+
+	}
+
+	log.Printf("[TRACE] Acquired global provider lock %s", lockFile)
+
+	return func() error {
+		log.Printf("[TRACE] Releasing global provider lock %s", lockFile)
+
+		unlockErr := flock.Unlock(f)
+
+		// Prefer close error over unlock error
+		err := f.Close()
+		if err != nil {
+			return err
+		}
+		return unlockErr
+	}, nil
 }
 
 // AllAvailablePackages returns a description of all of the packages already
