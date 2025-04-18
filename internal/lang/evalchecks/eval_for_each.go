@@ -199,7 +199,6 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 
 // performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
 func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
-	typeVal := forEachVal
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
 
@@ -213,10 +212,10 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 			Expression:  expr,
 			EvalContext: hclCtx,
 		})
-		typeVal = cty.NullVal(ty)
+		return cty.NullVal(ty), diags
 	}
 
-	return typeVal, diags
+	return forEachVal, diags
 }
 
 func performSetValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
