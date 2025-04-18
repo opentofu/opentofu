@@ -12,9 +12,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"log"
 
 	orasRemote "oras.land/oras-go/v2/registry/remote"
 	orasAuth "oras.land/oras-go/v2/registry/remote/auth"
+	orasCreds "oras.land/oras-go/v2/registry/remote/credentials"
+	orasCredsTrace "oras.land/oras-go/v2/registry/remote/credentials/trace"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -114,6 +117,44 @@ var _ ociauthconfig.CredentialsLookupEnvironment = ociCredentialsLookupEnv{}
 
 // QueryDockerCredentialHelper implements ociauthconfig.CredentialsLookupEnvironment.
 func (o ociCredentialsLookupEnv) QueryDockerCredentialHelper(ctx context.Context, helperName string, serverURL string) (ociauthconfig.DockerCredentialHelperGetResult, error) {
-	// TODO: Implement this
-	return ociauthconfig.DockerCredentialHelperGetResult{}, fmt.Errorf("support for Docker-style credential helpers is not yet available")
+	// (just because this type name is very long to keep repeating in full)
+	type Result = ociauthconfig.DockerCredentialHelperGetResult
+
+	// We currently use the ORAS-Go implementation of the Docker
+	// credential helper protocol, because we already depend on
+	// that library for our OCI registry interactions elsewhere.
+	// ORAS refers to this protocol as "native store", rather
+	// than "Docker-style Credential Helper", but it's the
+	// same protocol nonetheless.
+
+	ctx = orasCredsTrace.WithExecutableTrace(ctx, &orasCredsTrace.ExecutableTrace{
+		ExecuteStart: func(executableName, action string) {
+			log.Printf("[DEBUG] Executing docker-style credentials helper %q for %s", helperName, serverURL)
+		},
+		ExecuteDone: func(executableName, action string, err error) {
+			if err != nil {
+				log.Printf("[ERROR] Docker-style credential helper %q failed for %s: %s", helperName, serverURL, err)
+			}
+		},
+	})
+
+	store := orasCreds.NewNativeStore(helperName)
+	creds, err := store.Get(ctx, serverURL)
+	if err != nil {
+		return Result{}, fmt.Errorf("%q credential helper failed: %w", helperName, err)
+	}
+	if creds.AccessToken != "" || creds.RefreshToken != "" {
+		// A little awkward: orasAuth.Credential is a more general type than
+		// what the Docker credential helper needs: it has fields for OAuth-style
+		// credentials even though the credential helper protocol only supports
+		// username/password style. So for completeness/robustness we check
+		// the OAuth fields and fail if they are set, but it should not actually
+		// be possible for them to be set in practice.
+		return Result{}, fmt.Errorf("%q credential helper returned OAuth-style credentials, but only username/password-style is allowed from a credential helper", helperName)
+	}
+	return Result{
+		ServerURL: serverURL,
+		Username:  creds.Username,
+		Secret:    creds.Password,
+	}, nil
 }
