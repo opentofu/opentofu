@@ -392,8 +392,8 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 			val = val.Mark(marks.Sensitive)
 		}
 
-		if cfg := outputConfigs[output.Addr.OutputValue.Name]; cfg != nil && cfg.Deprecated != "" {
-			val = marks.DeprecatedOutput(val, output.Addr, cfg.Deprecated)
+		if output.Deprecated != "" {
+			val = marks.DeprecatedOutput(val, output.Addr, output.Deprecated)
 		}
 
 		_, callInstance := output.Addr.Module.CallInstance()

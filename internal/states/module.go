@@ -259,7 +259,7 @@ func (ms *Module) maybeRestoreResourceInstanceDeposed(addr addrs.ResourceInstanc
 
 // SetOutputValue writes an output value into the state, overwriting any
 // existing value of the same name.
-func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool) *OutputValue {
+func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool, deprecated string) *OutputValue {
 	os := &OutputValue{
 		Addr: addrs.AbsOutputValue{
 			Module: ms.Addr,
@@ -267,8 +267,9 @@ func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool) *
 				Name: name,
 			},
 		},
-		Value:     value,
-		Sensitive: sensitive,
+		Value:      value,
+		Sensitive:  sensitive,
+		Deprecated: deprecated,
 	}
 	ms.OutputValues[name] = os
 	return os

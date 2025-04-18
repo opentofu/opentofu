@@ -48,9 +48,10 @@ type StateValues struct {
 }
 
 type Output struct {
-	Sensitive bool            `json:"sensitive"`
-	Value     json.RawMessage `json:"value,omitempty"`
-	Type      json.RawMessage `json:"type,omitempty"`
+	Sensitive  bool            `json:"sensitive"`
+	Deprecated string          `json:"deprecated,omitempty"`
+	Value      json.RawMessage `json:"value,omitempty"`
+	Type       json.RawMessage `json:"type,omitempty"`
 }
 
 // Module is the representation of a module in state. This can be the root module
@@ -241,9 +242,10 @@ func MarshalOutputs(outputs map[string]*states.OutputValue) (map[string]Output, 
 			return ret, err
 		}
 		ret[k] = Output{
-			Value:     ov,
-			Type:      ot,
-			Sensitive: v.Sensitive,
+			Value:      ov,
+			Type:       ot,
+			Sensitive:  v.Sensitive,
+			Deprecated: v.Deprecated,
 		}
 	}
 

@@ -94,12 +94,12 @@ func (s *SyncState) OutputValue(addr addrs.AbsOutputValue) *OutputValue {
 //
 // If the module containing the output is not yet tracked in state then it
 // be added as a side-effect.
-func (s *SyncState) SetOutputValue(addr addrs.AbsOutputValue, value cty.Value, sensitive bool) {
+func (s *SyncState) SetOutputValue(addr addrs.AbsOutputValue, value cty.Value, sensitive bool, deprecated string) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	ms := s.state.EnsureModule(addr.Module)
-	ms.SetOutputValue(addr.OutputValue.Name, value, sensitive)
+	ms.SetOutputValue(addr.OutputValue.Name, value, sensitive, deprecated)
 }
 
 // RemoveOutputValue removes the stored value for the output value with the
