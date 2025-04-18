@@ -963,7 +963,7 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
-					Detail:            "includes keys or set values that cannot be determined until apply",
+					Detail:            "value includes keys or set values from resource attributes that cannot be determined until apply",
 					CausedByUnknown:   true,
 					CausedBySensitive: false,
 				},
@@ -998,6 +998,12 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
+					Detail:            "value includes keys or set values from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
+					CausedBySensitive: false,
+				},
+				{
+					Summary:           "Invalid for_each argument",
 					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
@@ -1019,6 +1025,12 @@ func TestEvaluateForEach(t *testing.T) {
 			PlanExpectedErrs: []expectedErr{
 				{
 					Summary:           "Invalid for_each argument",
+					Detail:            "value includes keys or set values from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
+					CausedBySensitive: false,
+				},
+				{
+					Summary:           "Invalid for_each argument",
 					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",
 					CausedByUnknown:   false,
 					CausedBySensitive: false,
@@ -1038,6 +1050,12 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			ValidateReturnValue: cty.NullVal(cty.Tuple([]cty.Type{cty.Bool})),
 			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "value includes keys or set values from resource attributes that cannot be determined until apply",
+					CausedByUnknown:   true,
+					CausedBySensitive: false,
+				},
 				{
 					Summary:           "Invalid for_each argument",
 					Detail:            "argument must be a map, or set of strings, and you have provided a value of type tuple",

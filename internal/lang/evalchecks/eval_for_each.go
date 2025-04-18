@@ -19,8 +19,8 @@ import (
 const (
 	errInvalidUnknownDetailMap     = "The \"for_each\" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
 	errInvalidUnknownDetailSet     = "The \"for_each\" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
-	errInvalidUnknownDetailTuple   = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full tuple of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
-	errInvalidUnknownDetailDynamic = "The \"for_each\" value includes keys or set values that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results\n\n"
+	errInvalidUnknownDetailTuple   = "The \"for_each\" tuple includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to use a map value where the keys are defined statically in your configuration and where only the values contain apply-time results.\n\n"
+	errInvalidUnknownDetailDynamic = "The \"for_each\" value includes keys or set values from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.\n\nWhen working with unknown values in for_each, it's better to define the map keys statically in your configuration and place apply-time results only in the map values.\n\n"
 )
 
 type ContextFunc func(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics)
@@ -80,10 +80,15 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	forEachVal, forEachDiags := expr.Value(hclCtx)
 	diags = diags.Append(forEachDiags)
 
-	return performTypeAndValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, excludableAddr)
+	checksVal, checksDiags := performTypeAndValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, excludableAddr)
+	diags = diags.Append(checksDiags)
+	return checksVal, diags
 }
 
-// performTypeChecks checks if the type is valid and returns the proper value and the unknown message to be used depending on the type
+// performTypeAndValueChecks checks are divided in two parts:
+// - it checks if the type is valid
+// - it checks if the values depending on the type are valid;
+// It returns the cty.Value wrapped in some special cases (like null or and unknown values) and the errors
 func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	ty := forEachVal.Type()
 
@@ -118,8 +123,7 @@ func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 			EvalContext: hclCtx,
 		})
 
-		// TODO consider adding a errInvalidUnknownDetail for a "Invalid type"?  What would that wording look like?
-		_, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, "", excludableAddr)
+		_, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailDynamic, excludableAddr)
 
 		// TODO: odd diag ordering due to existing tests
 		return cty.NullVal(ty), valueDiags.Append(typeDiags)
@@ -133,7 +137,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 	resultVal := typeCheckVal
 
 	// Testing if the original value, the type check result or if the set check above are unknown
-	if (!resultVal.IsKnown() || !forEachVal.IsKnown()) && errInvalidUnknownDetail != "" {
+	if (!resultVal.IsKnown() || !forEachVal.IsKnown()) {
 		if !allowUnknown {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
@@ -179,7 +183,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 	return resultVal, diags
 }
 
-// performSetTypeChecks does checks when we have a Set type, as sets have some gotchas
+// performSetTypeChecks does checks when we have a Set type, as sets have some gotchas, like needing all the values to be statically defined and aren't null.
 func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
