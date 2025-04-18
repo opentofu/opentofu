@@ -18,6 +18,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/copy"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -46,7 +47,7 @@ func TestDirFromModule_registry(t *testing.T) {
 	reg := registry.NewClient(nil, nil)
 	loader, cleanup := configload.NewLoaderForTests(t)
 	defer cleanup()
-	diags := DirFromModule(context.Background(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, hooks)
+	diags := DirFromModule(context.Background(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, nil, hooks)
 	assertNoDiagnostics(t, diags)
 
 	v := version.Must(version.NewVersion("0.0.2"))
@@ -164,7 +165,20 @@ func TestDirFromModule_submodules(t *testing.T) {
 
 	loader, cleanup := configload.NewLoaderForTests(t)
 	defer cleanup()
-	diags := DirFromModule(context.Background(), loader, dir, modInstallDir, fromModuleDir, nil, hooks)
+	diags := DirFromModule(
+		context.Background(),
+		loader,
+		dir,
+		modInstallDir,
+		fromModuleDir,
+		nil,
+		// This test relies on the module installer's legacy support for
+		// treating an absolute filesystem path as if it were a "remote"
+		// source address, and so we need a real package fetcher but the
+		// way we use it here does not cause it to make network requests.
+		getmodules.NewPackageFetcher(nil),
+		hooks,
+	)
 	assertNoDiagnostics(t, diags)
 	wantCalls := []testInstallHookCall{
 		{
@@ -238,7 +252,20 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 
 	loader, cleanup := configload.NewLoaderForTests(t)
 	defer cleanup()
-	diags := DirFromModule(context.Background(), loader, dir, modInstallDir, fromModuleDir, nil, hooks)
+	diags := DirFromModule(
+		context.Background(),
+		loader,
+		dir,
+		modInstallDir,
+		fromModuleDir,
+		nil,
+		// This test relies on the module installer's legacy support for
+		// treating an absolute filesystem path as if it were a "remote"
+		// source address, and so we need a real package fetcher but the
+		// way we use it here does not cause it to make network requests.
+		getmodules.NewPackageFetcher(nil),
+		hooks,
+	)
 
 	for _, d := range diags {
 		if d.Severity() != tfdiags.Warning {
@@ -295,7 +322,19 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	sourceDir := "../local-modules"
 	loader, cleanup := configload.NewLoaderForTests(t)
 	defer cleanup()
-	diags := DirFromModule(context.Background(), loader, ".", modInstallDir, sourceDir, nil, hooks)
+	diags := DirFromModule(
+		context.Background(),
+		loader, ".",
+		modInstallDir,
+		sourceDir,
+		nil,
+		// This test relies on the module installer's legacy support for
+		// treating an absolute filesystem path as if it were a "remote"
+		// source address, and so we need a real package fetcher but the
+		// way we use it here does not cause it to make network requests.
+		getmodules.NewPackageFetcher(nil),
+		hooks,
+	)
 	assertNoDiagnostics(t, diags)
 	wantCalls := []testInstallHookCall{
 		{

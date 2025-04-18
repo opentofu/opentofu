@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -1298,11 +1299,11 @@ func (n *NodeAbstractResourceInstance) plan(
 	_, plannedNewValMarks := plannedNewVal.UnmarkDeepWithPaths()
 	_, priorValMarks := priorVal.UnmarkDeepWithPaths()
 
-	marksAreEqual := marksEqual(plannedNewValMarks, priorValMarks)
+	sensitiveMarksAreEqual := sensitiveMarksEqual(plannedNewValMarks, priorValMarks)
 
 	// If we plan to update sensitive paths from state,
 	// this is an Update action instead of a NoOp.
-	if action == plans.NoOp && !marksAreEqual {
+	if action == plans.NoOp && !sensitiveMarksAreEqual {
 		action = plans.Update
 	}
 
@@ -2329,7 +2330,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 		// provisioner logging, so we conservatively suppress all output in
 		// this case. This should not apply to connection info values, which
 		// provisioners ought not to be logging anyway.
-		if len(configMarks) > 0 {
+		if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive {
 			outputFn = func(msg string) {
 				ctx.Hook(func(h Hook) (HookAction, error) {
 					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to sensitive value in config)")
@@ -2500,7 +2501,7 @@ func (n *NodeAbstractResourceInstance) apply(
 	// persisted.
 	eqV := unmarkedBefore.Equals(unmarkedAfter)
 	eq := eqV.IsKnown() && eqV.True()
-	if change.Action == plans.Update && eq && !marksEqual(beforePaths, afterPaths) {
+	if change.Action == plans.Update && eq && !sensitiveMarksEqual(beforePaths, afterPaths) {
 		// Copy the previous state, changing only the value
 		newState := &states.ResourceInstanceObject{
 			CreateBeforeDestroy: state.CreateBeforeDestroy,

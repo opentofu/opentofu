@@ -50,7 +50,7 @@ const initFromModuleRootKeyPrefix = initFromModuleRootCallName + "."
 // references using ../ from that module to be unresolvable. Error diagnostics
 // are produced in that case, to prompt the user to rewrite the source strings
 // to be absolute references to the original remote module.
-func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modulesDir, sourceAddrStr string, reg *registry.Client, hooks ModuleInstallHooks) tfdiags.Diagnostics {
+func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modulesDir, sourceAddrStr string, reg *registry.Client, remoteFetcher *getmodules.PackageFetcher, hooks ModuleInstallHooks) tfdiags.Diagnostics {
 
 	var diags tfdiags.Diagnostics
 
@@ -96,7 +96,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	}
 
 	instDir := filepath.Join(rootDir, ".terraform/init-from-module")
-	inst := NewModuleInstaller(instDir, loader, reg)
+	inst := NewModuleInstaller(instDir, loader, reg, remoteFetcher)
 	log.Printf("[DEBUG] installing modules in %s to initialize working directory from %q", instDir, sourceAddrStr)
 	os.RemoveAll(instDir) // if this fails then we'll fail on MkdirAll below too
 	err := os.MkdirAll(instDir, os.ModePerm)
@@ -168,9 +168,8 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		Key: "",
 		Dir: rootDir,
 	}
-	fetcher := getmodules.NewPackageFetcher()
 
-	walker := inst.moduleInstallWalker(ctx, instManifest, true, wrapHooks, fetcher)
+	walker := inst.moduleInstallWalker(ctx, instManifest, true, wrapHooks, remoteFetcher)
 	_, cDiags := inst.installDescendentModules(fakeRootModule, instManifest, walker, true)
 	if cDiags.HasErrors() {
 		return diags.Append(cDiags)

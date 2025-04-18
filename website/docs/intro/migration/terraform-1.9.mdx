@@ -80,7 +80,7 @@ If you rely on these functions, please refactor your code to work without them.
 
 If you are using the S3 backend, please change your code as follows:
 
-1. If you are using the `skip_s3_checksum` option on the S3 backend, remove this option as OpenTofu does not need it.
+1. If you are using the `skip_s3_checksum` option on the S3 backend, OpenTofu recommends removing it if the used S3 compatible API can work with SHA256 checksum validation.
 2. If you are using the `endpoints` &rarr; `sso` option or the `AWS_ENDPOINT_URL` environment variable, remove this option and verify if your code still works as intended after the migration.
 
 ### Removed block

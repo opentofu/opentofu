@@ -1,0 +1,7 @@
+oci_default_credentials {
+  # This fixture directory has $XDG_CONFIG_HOME/containers/auth.json
+  # that would normally be recognized as an implicit ambient config
+  # location on Linux systems, but the following setting prevents
+  # OpenTofu from performing that automatic detection.
+  docker_style_config_files = []
+}

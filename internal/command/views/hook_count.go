@@ -19,10 +19,11 @@ import (
 // countHook is a hook that counts the number of resources
 // added, removed, changed during the course of an apply.
 type countHook struct {
-	Added    int
-	Changed  int
-	Removed  int
-	Imported int
+	Added     int
+	Changed   int
+	Removed   int
+	Imported  int
+	Forgotten int
 
 	ToAdd          int
 	ToChange       int
@@ -46,6 +47,7 @@ func (h *countHook) Reset() {
 	h.Changed = 0
 	h.Removed = 0
 	h.Imported = 0
+	h.Forgotten = 0
 }
 
 func (h *countHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (tofu.HookAction, error) {
@@ -81,6 +83,7 @@ func (h *countHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generat
 					h.Removed++
 				case plans.Update:
 					h.Changed++
+
 				}
 			}
 		}
@@ -117,5 +120,13 @@ func (h *countHook) PostApplyImport(addr addrs.AbsResourceInstance, importing pl
 	defer h.Unlock()
 
 	h.Imported++
+	return tofu.HookActionContinue, nil
+}
+
+func (h *countHook) PostApplyForget(_ addrs.AbsResourceInstance) (tofu.HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.Forgotten++
 	return tofu.HookActionContinue, nil
 }

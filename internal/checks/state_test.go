@@ -21,7 +21,7 @@ func TestChecksHappyPath(t *testing.T) {
 	const fixtureDir = "testdata/happypath"
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, nil)
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, nil, nil)
 	_, instDiags := inst.InstallModules(context.Background(), fixtureDir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())

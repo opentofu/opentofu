@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/url"
@@ -25,7 +26,7 @@ import (
 // CLI configuration and some default search locations. This will be the
 // provider source used for provider installation in the "tofu init"
 // command, unless overridden by the special -plugin-dir option.
-func providerSource(configs []*cliconfig.ProviderInstallation, services *disco.Disco) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSource(configs []*cliconfig.ProviderInstallation, services *disco.Disco, getOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
 	if len(configs) == 0 {
 		// If there's no explicit installation configuration then we'll build
 		// up an implicit one with direct registry installation along with
@@ -37,16 +38,16 @@ func providerSource(configs []*cliconfig.ProviderInstallation, services *disco.D
 	// the validation logic in the cliconfig package. Therefore we'll just
 	// ignore any additional configurations in here.
 	config := configs[0]
-	return explicitProviderSource(config, services)
+	return explicitProviderSource(config, services, getOCICredsPolicy)
 }
 
-func explicitProviderSource(config *cliconfig.ProviderInstallation, services *disco.Disco) (getproviders.Source, tfdiags.Diagnostics) {
+func explicitProviderSource(config *cliconfig.ProviderInstallation, services *disco.Disco, getOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var searchRules []getproviders.MultiSourceSelector
 
 	log.Printf("[DEBUG] Explicit provider installation configuration is set")
 	for _, methodConfig := range config.Methods {
-		source, moreDiags := providerSourceForCLIConfigLocation(methodConfig.Location, services)
+		source, moreDiags := providerSourceForCLIConfigLocation(methodConfig.Location, services, getOCICredsPolicy)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			continue
@@ -192,7 +193,7 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	return getproviders.MultiSource(searchRules)
 }
 
-func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocation, services *disco.Disco) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocation, services *disco.Disco, makeOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
 			getproviders.NewRegistrySource(services),
@@ -225,6 +226,25 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 			return nil, diags
 		}
 		return getproviders.NewHTTPMirrorSource(url, services.CredentialsSource()), nil
+
+	case cliconfig.ProviderInstallationOCIMirror:
+		mappingFunc := loc.RepositoryMapping
+		return getproviders.NewOCIRegistryMirrorSource(
+			mappingFunc,
+			func(ctx context.Context, registryDomain, repositoryName string) (getproviders.OCIRepositoryStore, error) {
+				// We intentionally delay the finalization of the credentials policy until
+				// just before we need it because most OpenTofu commands don't install
+				// providers at all, and even those that do only need to do this if
+				// actually interacting with an OCI mirror, so we can avoid doing
+				// this work at all most of the time.
+				credsPolicy, err := makeOCICredsPolicy(ctx)
+				if err != nil {
+					// This deals with only a small number of errors that we can't catch during CLI config validation
+					return nil, fmt.Errorf("invalid credentials configuration for OCI registries: %w", err)
+				}
+				return getOCIRepositoryStore(ctx, registryDomain, repositoryName, credsPolicy)
+			},
+		), nil
 
 	default:
 		// We should not get here because the set of cases above should

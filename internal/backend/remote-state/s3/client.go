@@ -35,7 +35,10 @@ import (
 const (
 	s3EncryptionAlgorithm  = "AES256"
 	stateIDSuffix          = "-md5"
+	lockFileSuffix         = ".tflock"
 	s3ErrCodeInternalError = "InternalError"
+
+	contentTypeJSON = "application/json"
 )
 
 type RemoteClient struct {
@@ -50,6 +53,8 @@ type RemoteClient struct {
 	ddbTable              string
 
 	skipS3Checksum bool
+
+	useLockfile bool
 }
 
 var (
@@ -127,7 +132,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	}
 
 	// Head works around some s3 compatible backends not handling missing GetObject requests correctly (ex: minio Get returns Missing Bucket)
-	_, err = c.s3Client.HeadObject(ctx, inputHead)
+	_, err = c.s3Client.HeadObject(ctx, inputHead, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
@@ -153,7 +158,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 		input.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
 	}
 
-	output, err = c.s3Client.GetObject(ctx, input)
+	output, err = c.s3Client.GetObject(ctx, input, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		var nb *types.NoSuchBucket
 		if errors.As(err, &nb) {
@@ -190,11 +195,10 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 }
 
 func (c *RemoteClient) Put(data []byte) error {
-	contentType := "application/json"
 	contentLength := int64(len(data))
 
 	i := &s3.PutObjectInput{
-		ContentType:   &contentType,
+		ContentType:   aws.String(contentTypeJSON),
 		ContentLength: aws.Int64(contentLength),
 		Body:          bytes.NewReader(data),
 		Bucket:        &c.bucketName,
@@ -235,7 +239,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
 
-	_, err := c.s3Client.PutObject(ctx, i)
+	_, err := c.s3Client.PutObject(ctx, i, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
 	}
@@ -258,7 +262,7 @@ func (c *RemoteClient) Delete() error {
 	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
 		Bucket: &c.bucketName,
 		Key:    &c.path,
-	})
+	}, s3optDisableDefaultChecksum(c.skipS3Checksum))
 
 	if err != nil {
 		return err
@@ -272,12 +276,9 @@ func (c *RemoteClient) Delete() error {
 }
 
 func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
-	if c.ddbTable == "" {
+	if !c.IsLockingEnabled() {
 		return "", nil
 	}
-
-	info.Path = c.lockPath()
-
 	if info.ID == "" {
 		lockID, err := uuid.GenerateUUID()
 		if err != nil {
@@ -285,6 +286,26 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 		}
 
 		info.ID = lockID
+	}
+	info.Path = c.lockPath()
+
+	if err := c.s3Lock(info); err != nil {
+		return "", err
+	}
+	if err := c.dynamoDBLock(info); err != nil {
+		// when the second lock fails from getting acquired, release the initially acquired one
+		if uErr := c.s3Unlock(info.ID); uErr != nil {
+			log.Printf("[WARN] failed to release the S3 lock after failed to acquire the dynamoDD lock: %v", uErr)
+		}
+		return "", err
+	}
+	return info.ID, nil
+}
+
+// dynamoDBLock expects the statemgr.LockInfo#ID to be filled already
+func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) error {
+	if c.ddbTable == "" {
+		return nil
 	}
 
 	putParams := &dynamodb.PutItemInput{
@@ -299,7 +320,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	ctx := context.TODO()
 	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
-		lockInfo, infoErr := c.getLockInfo(ctx)
+		lockInfo, infoErr := c.getLockInfoFromDynamoDB(ctx)
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
 		}
@@ -308,10 +329,62 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 			Err:  err,
 			Info: lockInfo,
 		}
-		return "", lockErr
+		return lockErr
 	}
 
-	return info.ID, nil
+	return nil
+}
+
+// s3Lock expects the statemgr.LockInfo#ID to be filled already
+func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
+	if !c.useLockfile {
+		return nil
+	}
+
+	lInfo := info.Marshal()
+	putParams := &s3.PutObjectInput{
+		ContentType:   aws.String(contentTypeJSON),
+		ContentLength: aws.Int64(int64(len(lInfo))),
+		Bucket:        aws.String(c.bucketName),
+		Key:           aws.String(c.lockFilePath()),
+		Body:          bytes.NewReader(lInfo),
+		IfNoneMatch:   aws.String("*"),
+	}
+
+	if !c.skipS3Checksum {
+		putParams.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
+
+		// There is a conflict in the aws-go-sdk-v2 that prevents it from working with many s3 compatible services
+		// Since we can pre-compute the hash here, we can work around it.
+		// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
+		algo := sha256.New()
+		algo.Write(lInfo)
+		sum64str := base64.StdEncoding.EncodeToString(algo.Sum(nil))
+		putParams.ChecksumSHA256 = &sum64str
+	}
+
+	if c.acl != "" {
+		putParams.ACL = types.ObjectCannedACL(c.acl)
+	}
+
+	log.Printf("[DEBUG] Uploading s3 locking object: %#v", putParams)
+	ctx := context.TODO()
+	ctx, _ = attachLoggerToContext(ctx)
+	_, err := c.s3Client.PutObject(ctx, putParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
+	if err != nil {
+		lockInfo, infoErr := c.getLockInfoFromS3(ctx)
+		if infoErr != nil {
+			err = multierror.Append(err, infoErr)
+		}
+
+		lockErr := &statemgr.LockError{
+			Err:  err,
+			Info: lockInfo,
+		}
+		return lockErr
+	}
+
+	return nil
 }
 
 func (c *RemoteClient) getMD5(ctx context.Context) ([]byte, error) {
@@ -391,7 +464,7 @@ func (c *RemoteClient) deleteMD5(ctx context.Context) error {
 	return nil
 }
 
-func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
+func (c *RemoteClient) getLockInfoFromDynamoDB(ctx context.Context) (*statemgr.LockInfo, error) {
 	getParams := &dynamodb.GetItemInput{
 		Key: map[string]dtypes.AttributeValue{
 			"LockID": &dtypes.AttributeValueMemberS{Value: c.lockPath()},
@@ -426,7 +499,88 @@ func (c *RemoteClient) getLockInfo(ctx context.Context) (*statemgr.LockInfo, err
 	return lockInfo, nil
 }
 
+func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInfo, error) {
+	getParams := &s3.GetObjectInput{
+		Bucket: aws.String(c.bucketName),
+		Key:    aws.String(c.lockFilePath()),
+	}
+
+	resp, err := c.s3Client.GetObject(ctx, getParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
+	if err != nil {
+		var nb *types.NoSuchBucket
+		if errors.As(err, &nb) {
+			return nil, fmt.Errorf(errS3NoSuchBucket, err)
+		}
+
+		return nil, err
+	}
+
+	lockInfo := &statemgr.LockInfo{}
+	err = json.NewDecoder(resp.Body).Decode(lockInfo)
+	if err != nil {
+		return nil, fmt.Errorf("unable to json parse the lock info %q from bucket %q: %w", c.lockFilePath(), c.bucketName, err)
+	}
+
+	return lockInfo, nil
+}
+
 func (c *RemoteClient) Unlock(id string) error {
+	// Attempt to release the lock from both sources.
+	// We want to do so to be sure that we are leaving no locks unhandled
+	s3Err := c.s3Unlock(id)
+	dynamoDBErr := c.dynamoDBUnlock(id)
+	switch {
+	case s3Err != nil && dynamoDBErr != nil:
+		s3Err.Err = multierror.Append(s3Err.Err, dynamoDBErr.Err)
+		return s3Err
+	case s3Err != nil:
+		if c.ddbTable != "" {
+			return fmt.Errorf("dynamoDB lock released but s3 failed: %w", s3Err)
+		}
+		return s3Err
+	case dynamoDBErr != nil:
+		if c.useLockfile {
+			return fmt.Errorf("s3 lock released but dynamoDB failed: %w", dynamoDBErr)
+		}
+		return dynamoDBErr
+	}
+	return nil
+}
+
+func (c *RemoteClient) s3Unlock(id string) *statemgr.LockError {
+	if !c.useLockfile {
+		return nil
+	}
+	lockErr := &statemgr.LockError{}
+	ctx := context.TODO()
+	ctx, _ = attachLoggerToContext(ctx)
+
+	lockInfo, err := c.getLockInfoFromS3(ctx)
+	if err != nil {
+		lockErr.Err = fmt.Errorf("failed to retrieve s3 lock info: %w", err)
+		return lockErr
+	}
+	lockErr.Info = lockInfo
+
+	if lockInfo.ID != id {
+		lockErr.Err = fmt.Errorf("lock id %q from s3 does not match existing lock", id)
+		return lockErr
+	}
+
+	params := &s3.DeleteObjectInput{
+		Bucket: aws.String(c.bucketName),
+		Key:    aws.String(c.lockFilePath()),
+	}
+
+	_, err = c.s3Client.DeleteObject(ctx, params, s3optDisableDefaultChecksum(c.skipS3Checksum))
+	if err != nil {
+		lockErr.Err = err
+		return lockErr
+	}
+	return nil
+}
+
+func (c *RemoteClient) dynamoDBUnlock(id string) *statemgr.LockError {
 	if c.ddbTable == "" {
 		return nil
 	}
@@ -434,7 +588,7 @@ func (c *RemoteClient) Unlock(id string) error {
 	lockErr := &statemgr.LockError{}
 	ctx := context.TODO()
 
-	lockInfo, err := c.getLockInfo(ctx)
+	lockInfo, err := c.getLockInfoFromDynamoDB(ctx)
 	if err != nil {
 		lockErr.Err = fmt.Errorf("failed to retrieve lock info: %w", err)
 		return lockErr
@@ -476,7 +630,25 @@ func (c *RemoteClient) getSSECustomerKeyMD5() string {
 }
 
 func (c *RemoteClient) IsLockingEnabled() bool {
-	return c.ddbTable != ""
+	return c.ddbTable != "" || c.useLockfile
+}
+
+func (c *RemoteClient) lockFilePath() string {
+	return fmt.Sprintf("%s%s", c.path, lockFileSuffix)
+}
+
+// According to the announcement done here (https://github.com/aws/aws-sdk-go-v2/discussions/2960), a recent version
+// of the aws-sdk introduced default checksum calculations and validations for all s3 objects.
+// This function is meant to disable this new default behavior when used against 3rd party S3 providers.
+// More details about the feature: https://docs.aws.amazon.com/sdkref/latest/guide/feature-dataintegrity.html
+func s3optDisableDefaultChecksum(skipS3Checksum bool) func(*s3.Options) {
+	if skipS3Checksum {
+		return func(o *s3.Options) {
+			o.RequestChecksumCalculation = aws.RequestChecksumCalculationWhenRequired
+			o.ResponseChecksumValidation = aws.ResponseChecksumValidationWhenRequired
+		}
+	}
+	return func(o *s3.Options) {}
 }
 
 const errBadChecksumFmt = `state data in S3 does not have the expected content.

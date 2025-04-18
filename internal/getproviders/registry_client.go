@@ -38,7 +38,7 @@ const (
 	// can be configured to customize number of retries for module and provider
 	// discovery requests with the remote registry.
 	registryDiscoveryRetryEnvName = "TF_REGISTRY_DISCOVERY_RETRY"
-	defaultRetry                  = 1
+	registryClientDefaultRetry    = 1
 
 	// registryClientTimeoutEnvName is the name of the environment variable that
 	// can be configured to customize the timeout duration (seconds) for module
@@ -359,7 +359,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	ret.Authentication = PackageAuthenticationAll(
 		NewMatchingChecksumAuthentication(document, body.Filename, checksum),
 		NewArchiveChecksumAuthentication(ret.TargetPlatform, checksum),
-		NewSignatureAuthentication(ret, document, signature, keys, &provider),
+		NewSignatureAuthentication(ret, document, signature, keys, provider),
 	)
 
 	return ret, nil
@@ -456,7 +456,7 @@ func (c *registryClient) getFile(url *url.URL) ([]byte, error) {
 // configureDiscoveryRetry configures the number of retries the registry client
 // will attempt for requests with retryable errors, like 502 status codes
 func configureDiscoveryRetry() {
-	discoveryRetry = defaultRetry
+	discoveryRetry = registryClientDefaultRetry
 
 	if v := os.Getenv(registryDiscoveryRetryEnvName); v != "" {
 		retry, err := strconv.Atoi(v)

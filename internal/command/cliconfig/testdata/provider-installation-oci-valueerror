@@ -1,0 +1,10 @@
+provider_installation {
+  oci_mirror {
+    # The following is invalid in a way that we can only detect
+    # with known values, because strings containing only digits
+    # can convert to numbers automatically for addition, but
+    # the real hostname we use for detecting this does not
+    # meet that criteria.
+    repository_template = "example.com/${hostname + 1}/${namespace}/${type}"
+  }
+}

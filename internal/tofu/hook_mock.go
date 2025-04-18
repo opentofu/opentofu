@@ -133,6 +133,14 @@ type MockHook struct {
 	PostApplyImportReturn HookAction
 	PostApplyImportError  error
 
+	PreApplyForgetCalled bool
+	PreApplyForgetReturn HookAction
+	PreApplyForgetError  error
+
+	PostApplyForgetCalled bool
+	PostApplyForgetReturn HookAction
+	PostApplyForgetError  error
+
 	StoppingCalled bool
 
 	PostStateUpdateCalled bool
@@ -325,6 +333,22 @@ func (h *MockHook) PostApplyImport(addr addrs.AbsResourceInstance, importing pla
 	h.PostApplyImportCalled = true
 	h.PostApplyImportAddr = addr
 	return h.PostApplyImportReturn, h.PostApplyImportError
+}
+
+func (h *MockHook) PreApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PreApplyForgetCalled = true
+	return h.PreApplyForgetReturn, h.PreApplyForgetError
+}
+
+func (h *MockHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PostApplyForgetCalled = true
+	return h.PostApplyForgetReturn, h.PostApplyForgetError
 }
 
 func (h *MockHook) Stopping() {

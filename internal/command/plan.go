@@ -265,11 +265,11 @@ Other Options:
                              accompanied by errors, shows them in a more compact
                              form that includes only the summary messages.
 
-  -consolidate-warnings      If OpenTofu produces any warnings, no consolodation
+  -consolidate-warnings      If OpenTofu produces any warnings, no consolidation
                              will be performed. All locations, for all warnings
                              will be listed. Enabled by default.
 
-  -consolidate-errors        If OpenTofu produces any errors, no consolodation
+  -consolidate-errors        If OpenTofu produces any errors, no consolidation
                              will be performed. All locations, for all errors
                              will be listed. Disabled by default
 
@@ -296,8 +296,7 @@ Other Options:
 
   -no-color                  If specified, output won't contain any color.
 
-  -concise                   Displays plan output in a concise way, skipping the
-							 refreshing log lines.
+  -concise                   Disables progress-related messages in the output.
 
   -out=path                  Write a plan file to the given path. This can be
                              used as input to the "apply" command.

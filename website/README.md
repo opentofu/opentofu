@@ -10,7 +10,7 @@ You can start a local development server with Docker by running the following co
 docker compose up --build
 ```
 
-The development server will be available on http://localhost:3000/ .
+The development server will be available on http://localhost:3000/docs/main/ .
 
 ## Suggesting Changes
 

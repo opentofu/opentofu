@@ -34,6 +34,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/workdir"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	legacy "github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -128,6 +129,15 @@ type Meta struct {
 	// and determines where a distribution package for a particular
 	// provider version can be obtained.
 	ProviderSource getproviders.Source
+
+	// ModulePackageFetcher is the client to use when fetching module packages
+	// from remote locations. This object effectively represents the policy
+	// for how to fetch remote module packages, which is decided by the caller.
+	//
+	// Leaving this nil means that only local modules (using relative paths
+	// in the source address) are supported, which is only reasonable for
+	// unit testing.
+	ModulePackageFetcher *getmodules.PackageFetcher
 
 	// BrowserLauncher is used by commands that need to open a URL in a
 	// web browser.
@@ -257,10 +267,10 @@ type Meta struct {
 	// compactWarnings (-compact-warnings) selects a more compact presentation
 	// of warnings in the output when they are not accompanied by errors.
 	//
-	// consolidateWarnings (-consolidate-warnings=false) disables consolodation
+	// consolidateWarnings (-consolidate-warnings=false) disables consolidation
 	// of warnings in the output, printing all instances of a particular warning.
 	//
-	// consolidateErrors (-consolidate-errors=true) enables consolodation
+	// consolidateErrors (-consolidate-errors=true) enables consolidation
 	// of errors in the output, printing a single instances of a particular warning.
 	statePath           string
 	stateOutPath        string
