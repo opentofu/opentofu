@@ -101,7 +101,7 @@ func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdia
 	unmarked, pathMarks := val.UnmarkDeepWithPaths()
 
 	// Locate deprecationMarks and filter them out
-	for _, pm := range pathMarks {
+	for i, pm := range pathMarks {
 		for m := range pm.Marks {
 			dm, ok := m.(deprecationMark)
 			if !ok {
@@ -119,7 +119,11 @@ func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdia
 				pm.Path,
 			))
 		}
-		// TODO If all marks are removed, should we remove it from pathMarks?
+
+		// Remove empty path to not break caller code expectations.
+		if len(pm.Marks) == 0 {
+			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
+		}
 	}
 
 	return unmarked.MarkWithPaths(pathMarks), diags.InConfigBody(body, "")
@@ -133,7 +137,7 @@ func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value,
 	unmarked, pathMarks := val.UnmarkDeepWithPaths()
 
 	// Locate deprecationMarks and filter them out
-	for _, pm := range pathMarks {
+	for i, pm := range pathMarks {
 		for m := range pm.Marks {
 			dm, ok := m.(deprecationMark)
 			if !ok {
@@ -165,7 +169,11 @@ func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value,
 			})
 
 		}
-		// TODO If all marks are removed, should we remove it from pathMarks?
+
+		// Remove empty path to not break caller code expectations.
+		if len(pm.Marks) == 0 {
+			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
+		}
 	}
 
 	return unmarked.MarkWithPaths(pathMarks), diags
