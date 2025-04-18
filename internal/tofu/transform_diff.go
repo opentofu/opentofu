@@ -176,6 +176,15 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 				if dn, ok := node.(GraphNodeDeposer); ok {
 					dn.SetPreallocatedDeposedKey(dk)
 				}
+
+				// We need to set CBD to the node here, otherwise if CBD flag was caused
+				// by the CBD descendant of the node (and not the config) and this is the sole node being updated
+				// in the current apply operation, we will lose the CBD flag in the state file and cause the "cycle" error down the line.
+				// For more details, see the issue https://github.com/opentofu/opentofu/issues/2398
+				if cn, ok := node.(GraphNodeDestroyerCBD); ok {
+					cn.ModifyCreateBeforeDestroy(true)
+				}
+
 				log.Printf("[TRACE] DiffTransformer: %s will be represented by %s, deposing prior object to %s", addr, dag.VertexName(node), dk)
 			} else {
 				log.Printf("[TRACE] DiffTransformer: %s will be represented by %s", addr, dag.VertexName(node))
