@@ -200,6 +200,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 			markerOutput,
 			cty.StringVal("from-output-state"),
 			false, // not sensitive
+			"",
 		)
 	})
 	outFile, err := os.Create(filepath.Join(workDir, "output.tfstate"))
@@ -222,6 +223,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 			markerOutput,
 			cty.StringVal("from-input-state"),
 			false, // not sensitive
+			"",
 		)
 	})
 	inFile, err := os.Create(filepath.Join(workDir, "input.tfstate"))
@@ -249,6 +251,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 			markerOutput,
 			cty.StringVal("from-new-state"),
 			false, // not sensitive
+			"",
 		)
 	})
 	err = WriteAndPersist(ls, newState, nil)

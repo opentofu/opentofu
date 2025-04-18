@@ -955,6 +955,7 @@ func TestInit_backendCloudInvalidOptions(t *testing.T) {
 			addrs.OutputValue{Name: "a"}.Absolute(addrs.RootModuleInstance),
 			cty.True,
 			false,
+			"",
 		)
 	})
 	fakeStateFile := &statefile.File{
@@ -1261,6 +1262,7 @@ func TestInit_inputFalse(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("foo"),
 			false, // not sensitive
+			"",
 		)
 	})
 	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("foo", encryption.StateEncryptionDisabled()), fooState, nil); err != nil {
@@ -1271,6 +1273,7 @@ func TestInit_inputFalse(t *testing.T) {
 			addrs.OutputValue{Name: "bar"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false, // not sensitive
+			"",
 		)
 	})
 	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("bar", encryption.StateEncryptionDisabled()), barState, nil); err != nil {

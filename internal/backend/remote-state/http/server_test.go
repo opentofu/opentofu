@@ -375,7 +375,7 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 		ss.SetOutputValue(
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
-			false)
+			false, "")
 	})
 	stateFoo = state.OutputValue(addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance))
 	if nil == stateFoo {

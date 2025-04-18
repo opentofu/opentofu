@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/apparentlymart/go-dump/dump"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -296,7 +297,7 @@ func TestState_basic(t *testing.T) {
 			var got cty.Value
 			if !diags.HasErrors() && config.IsWhollyKnown() {
 				var moreDiags tfdiags.Diagnostics
-				got, moreDiags = dataSourceRemoteStateRead(config, encryption.StateEncryptionDisabled())
+				got, moreDiags = dataSourceRemoteStateRead(config, encryption.StateEncryptionDisabled(), addrs.AbsResourceInstance{})
 				diags = diags.Append(moreDiags)
 			}
 

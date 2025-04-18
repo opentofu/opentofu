@@ -142,7 +142,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 
 	// Write some state
 	next := testState()
-	next.RootModule().SetOutputValue("foo", cty.StringVal("bar"), false)
+	next.RootModule().SetOutputValue("foo", cty.StringVal("bar"), false, "")
 	s.WriteState(next)
 	if err := s.PersistState(nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
@@ -2013,7 +2013,7 @@ func TestMetaBackend_localDoesNotDeleteLocal(t *testing.T) {
 
 	//// create our local state
 	orig := states.NewState()
-	orig.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false)
+	orig.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false, "")
 	testStateFileDefault(t, orig)
 
 	m := testMetaBackend(t, nil)

@@ -255,7 +255,7 @@ func basicState(t *testing.T) *states.State {
 	}
 
 	rootModule.SetLocalValue("foo", cty.StringVal("foo value"))
-	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false)
+	rootModule.SetOutputValue("bar", cty.StringVal("bar value"), false, "")
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
 			Mode: addrs.ManagedResourceMode,
@@ -301,14 +301,14 @@ func stateWithMoreOutputs(t *testing.T) *states.State {
 		t.Errorf("root module is nil; want valid object")
 	}
 
-	rootModule.SetOutputValue("string_var", cty.StringVal("string value"), false)
-	rootModule.SetOutputValue("int_var", cty.NumberIntVal(42), false)
-	rootModule.SetOutputValue("bool_var", cty.BoolVal(true), false)
-	rootModule.SetOutputValue("sensitive_var", cty.StringVal("secret!!!"), true)
+	rootModule.SetOutputValue("string_var", cty.StringVal("string value"), false, "")
+	rootModule.SetOutputValue("int_var", cty.NumberIntVal(42), false, "")
+	rootModule.SetOutputValue("bool_var", cty.BoolVal(true), false, "")
+	rootModule.SetOutputValue("sensitive_var", cty.StringVal("secret!!!"), true, "")
 	rootModule.SetOutputValue("map_var", cty.MapVal(map[string]cty.Value{
 		"first":  cty.StringVal("foo"),
 		"second": cty.StringVal("bar"),
-	}), false)
+	}), false, "")
 
 	rootModule.SetResourceInstanceCurrent(
 		addrs.Resource{
