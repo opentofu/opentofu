@@ -98,13 +98,16 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 	// If it contains marks, remove these marks before traversing the
 	// structure with UnknownAsNull, and save the PathValueMarks
 	// so we can save them in state.
-	val, allPVM := o.Value.UnmarkDeepWithPaths()
+	val, allPVMs := o.Value.UnmarkDeepWithPaths()
 
-	var sensitivePVM = make([]cty.PathValueMarks, 0, len(allPVM))
+	var sensitivePVMs = make([]cty.PathValueMarks, 0, len(allPVMs))
 
-	for _, pvm := range allPVM {
+	for _, pvm := range allPVMs {
 		if _, ok := pvm.Marks[marks.Sensitive]; ok {
-			sensitivePVM = append(sensitivePVM, pvm)
+			sensitivePVMs = append(sensitivePVMs, cty.PathValueMarks{
+				Path:  pvm.Path,
+				Marks: cty.NewValueMarks(marks.Sensitive),
+			})
 		}
 	}
 
@@ -137,13 +140,14 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 	sort.Slice(dependencies, func(i, j int) bool { return dependencies[i].String() < dependencies[j].String() })
 
 	return &ResourceInstanceObjectSrc{
-		SchemaVersion:       schemaVersion,
-		AttrsJSON:           src,
-		AttrSensitivePaths:  sensitivePVM,
-		Private:             o.Private,
-		Status:              o.Status,
-		Dependencies:        dependencies,
-		CreateBeforeDestroy: o.CreateBeforeDestroy,
+		SchemaVersion:           schemaVersion,
+		AttrsJSON:               src,
+		AttrSensitivePaths:      sensitivePVMs,
+		TransientPathValueMarks: allPVMs,
+		Private:                 o.Private,
+		Status:                  o.Status,
+		Dependencies:            dependencies,
+		CreateBeforeDestroy:     o.CreateBeforeDestroy,
 	}, nil
 }
 

@@ -112,7 +112,7 @@ func (p *Provider) ReadDataSourceEncrypted(req providers.ReadDataSourceRequest, 
 
 	log.Printf("[DEBUG] accessing remote state at %s", key)
 
-	newState, diags := dataSourceRemoteStateRead(req.Config, enc.RemoteState(key))
+	newState, diags := dataSourceRemoteStateRead(req.Config, enc.RemoteState(key), path)
 
 	if diags.HasErrors() {
 		diags = diags.Append(fmt.Errorf("%s: Unable to read remote state", path.String()))
