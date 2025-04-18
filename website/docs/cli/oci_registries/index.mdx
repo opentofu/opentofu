@@ -26,9 +26,15 @@ If you need more control over the behavior, refer to [OCI Registry Credentials](
 
 ## OpenTofu Modules in OCI Registries
 
-OpenTofu does not yet support distributing modules from OCI Registries, but we are intending
-to add support for this prior to the final v1.10.0 release. More information will appear here
-in a later prerelease.
+OpenTofu supports OCI Registries as one of its many supported
+[module source address types](/language/modules/sources.mdx).
+
+No special configuration is required to enable this source address type aside from
+ensuring that you have configured whatever credentials are needed to communicate
+with the specified remote repository.
+
+For more information on how to create suitable artifacts for use as OpenTofu module
+packages, refer to [Module Packages in OCI Registries](module-package.mdx).
 
 ## OpenTofu Providers in OCI Registries
 

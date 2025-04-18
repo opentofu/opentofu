@@ -26,6 +26,8 @@ types.
 
 - Generic [Git](#generic-git-repository), [Mercurial](#generic-mercurial-repository) repositories
 
+- [OCI Distribution](#oci-distribution-repository) repositories
+
 - [HTTP URLs](#http-urls)
 
 - [S3 buckets](#s3-bucket)
@@ -313,6 +315,52 @@ module "vpc" {
 }
 ```
 
+## OCI Distribution Repository
+
+The OCI Distribution protocol is a generalization of the protocol originally
+used by Docker for distributing container images. OpenTofu can install
+module packages from specially-formatted artifacts published into repositories
+in OCI Registries.
+
+```hcl
+module "example" {
+  source = "oci://example.com/repository-name"
+}
+```
+
+The domain name specified immediately after the `oci://` prefix is the OCI
+Registry domain name. The remainder of the address specifies a specific
+repository name within that repository.
+
+If your specified OCI Registry requires authentication credentials,
+refer to [OCI Registry Credentials](/cli/oci_registries/credentials.mdx).
+
+### Selecting a Tag or Digest
+
+By default, OpenTofu attempts to retrieve the artifact associated with the
+remote tag named "latest". You can select a different artifact using
+one of the following arguments in the query string:
+
+- `tag` specifies a different tag name to use.
+- `digest` directly specifies the digest of the manifest of the desired
+  artifact, totally ignoring the tags defined in the repository.
+
+Only one of these arguments at a time can be used in a valid source address.
+
+For example, to select a tag named `v1.0.0`:
+
+```hcl
+module "example" {
+  source = "oci://example.com/repository-name?tag=v1.0.0"
+}
+```
+
+### Building a module package artifact
+
+For more information on the manifest structure that OpenTofu expects for
+module package artifacts, refer to
+[Module Packages in OCI Registries](/cli/oci_registries/module-package.mdx).
+
 ## HTTP URLs
 
 When you use an HTTP or HTTPS URL, OpenTofu will make a `GET` request to
@@ -449,6 +497,7 @@ For example:
 
 - `hashicorp/consul/aws//modules/consul-cluster`
 - `git::https://example.com/network.git//modules/vpc`
+- `oci://example.com/repository-name//modules/vpc`
 - `https://example.com/network-module.zip//modules/vpc`
 - `s3::https://s3-eu-west-1.amazonaws.com/examplecorp-tofu-modules/network.zip//modules/vpc`
 
@@ -458,6 +507,7 @@ arguments:
 
 - `git::https://example.com/network.git//modules/vpc?ref=v1.2.0`
 - `github.com/hashicorp/example//modules/vpc?ref=v1.2.0`
+- `oci://example.com/repository-name//modules/vpc?tag=v1.2.0`
 
 OpenTofu will still extract the entire package to local disk, but will read
 the module from the subdirectory. As a result, it is safe for a module in

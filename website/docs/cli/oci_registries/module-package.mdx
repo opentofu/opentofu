@@ -1,0 +1,121 @@
+---
+description: >-
+  Use OCI registries as an distribution mechanism for OpenTofu module packages
+---
+
+# Module Packages in OCI Registries
+
+OpenTofu supports installing module packages from
+[a variety of different sources](/language/modules/sources.mdx), including
+from repositories in registries that implement the OCI Distribution protocol.
+
+You can configure OpenTofu to install a module from an OCI repository by
+using the `oci:` source address scheme:
+
+```hcl
+module "example" {
+  source = "oci://example.com/repository-name"
+}
+```
+
+For more information on how to select OCI artifacts to install, refer to
+[the module sources documentation](/language/modules/sources.mdx#oci-distribution-repository).
+The remainder of this page focuses on how to construct suitable OCI artifacts
+for use as OpenTofu module packages.
+
+## Required OCI Repository Content
+
+The OCI artifact selected by an `oci:` module source address must follow certain
+requirements for both its manifest metadata and for the blob representing the
+content of the module package.
+
+The chosen tag or digest must correspond to a standard
+[OCI Image Manifest](https://github.com/opencontainers/image-spec/blob/v1.1.1/manifest.md)
+whose `artifactType` property is set to `"application/vnd.opentofu.modulepkg"`.
+
+The image manifest's `layers` array must include exactly one descriptor
+whose `mediaType` is `archive/zip`, referring to a valid `.zip` archive
+representing the content of the module package.
+
+The root directory of the `.zip` archive corresponds to the root directory of
+the module package, and so contains the `.tf`, `.tofu`, etc configuration files
+describing the default module from the module package. The archive may
+optionally contain subdirectories representing additional modules, which can
+then be selected using the usual syntax for
+[Modules in Package Sub-directories](/language/modules/sources.mdx#modules-in-package-sub-directories).
+
+If the specified source address does not include either of the `tag` or `digest` query
+string arguments then OpenTofu attempts to resolve a tag named `latest`. OpenTofu makes
+no other assumptions about tag naming convention beyond the syntax constraints required
+by the OCI Distribution specification.
+
+## Assembling and Pushing Module Package Manifests
+
+### Install and Configure ORAS
+
+We recommend assembling and pushing the manifests and blobs for a module
+package using the CLI tool offered by [the ORAS project](https://oras.land/).
+
+If you are installing and using ORAS for the first time, and you intend to
+push to an OCI registry that requires authentication, you will need to first
+obtain credentials for that repository using [`oras login`](https://oras.land/docs/commands/oras_login).
+
+### Create a `.zip` archive
+
+The actual content of a module package is represented for an OCI artifact as
+a single layer using the `.zip` archive format.
+
+You can use any suitable tool to build a `.zip` archive containing the
+module source code (`.tf`/`.tofu`/etc files) you intend to distribute.
+For example, using the `zip` tool commonly available on Unix systems:
+
+```shell
+zip -r ../module-package.zip .
+```
+
+This command creates or updates an archive `module-package.zip` in the
+parent of the current working directory, containing all of the files
+in the current working directory and any of its subdirectories.
+Creating the file in the parent directory avoids adding the zip file
+into itself if you run the same command again.
+
+The next section will use `module-package.zip` to refer to the `.zip`
+archive you've created.
+
+### Push the artifact to a remote repository
+
+The `oras push` command can automatically construct a suitable image manifest,
+upload that manifest and the associated `.zip` file to a remote OCI repository,
+and create or update one or more tags referring to it in the same repository.
+
+```shell
+oras push \
+  --artifact-type=application/vnd.opentofu.modulepkg \
+  example.com/repository-name:latest \
+  module-package.zip:archive/zip
+```
+
+`example.com/repository-name` is the address of the repository to push the
+artifact into. `latest` is the tag name to use.
+
+`module-package.zip` is the name of the `.zip` archive created in the previous
+step. The `:archive/zip` suffix tells ORAS which media type to specify for
+this file in the artifact manifest. OpenTofu does not support any other media
+types.
+
+The `--artifact-type` option included above must be used _exactly as shown_
+to ensure that OpenTofu will recognize this artifact as a module package.
+
+The repository address and tag shown above can be specified in a `module`
+block source address as follows:
+
+```hcl
+module "example" {
+  source = "oci://example.com/repository-name?tag=latest"
+}
+```
+
+If you chose the tag name `latest` as shown here then you can omit the
+`tag` argument, specifying just `oci://example.com/repository-name`,
+because "latest" is the tag name OpenTofu uses by default.
+
