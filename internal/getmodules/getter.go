@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
@@ -76,14 +77,36 @@ var goGetterDecompressors = map[string]getter.Decompressor{
 	"txz":    new(getter.TarXzDecompressor),
 }
 
+// This is a map from media types as used in OCI descriptors to the keys in
+// [goGetterDecompressors] whose decompressor can be used for each type.
+//
+// This intentionally covers only the subset of archive formats we support
+// for module packages retrieved from OCI distribution repositories, but
+// is defined in here so we can more easily correlate it with
+// goGetterDecompressors when adding new entries.
+//
+// If this map grows in future then any new keys must also appear somewhere
+// in [ociBlobMediaTypePreference].
+var goGetterDecompressorMediaTypes = map[string]string{
+	"archive/zip": "zip",
+}
+
+// goGetterGetters is an initial table of getters that we use as a starting
+// point when building a _real_ table of getters to pass into a
+// [reusingGetter] instance.
+//
+// The elements mapped to nil here are those which are populated dynamically
+// based on arguments to [NewPackageFetcher], included here only so it's
+// easier to refer to the entire list of supported getter keys in one place.
 var goGetterGetters = map[string]getter.Getter{
 	"file":  new(getter.FileGetter),
 	"gcs":   new(getter.GCSGetter),
 	"git":   new(getter.GitGetter),
 	"hg":    new(getter.HgGetter),
-	"s3":    new(getter.S3Getter),
 	"http":  getterHTTPGetter,
 	"https": getterHTTPGetter,
+	"oci":   nil, // configured dynamically using [PackageFetcherEnvironment.OCIRepositoryStore]
+	"s3":    new(getter.S3Getter),
 }
 
 var getterHTTPClient = cleanhttp.DefaultClient()
@@ -105,7 +128,21 @@ var getterHTTPGetter = &getter.HttpGetter{
 // values, but we can't type them that way because the addrs package
 // imports getmodules in order to indirectly access our go-getter
 // configuration.)
-type reusingGetter map[string]string
+type reusingGetter struct {
+	// getters are the go-getter getters that this particular instance of
+	// reusingGetter should use.
+	getters map[string]getter.Getter
+
+	previousInstalls   map[string]string // initialized on first install request
+	previousInstallsMu sync.Mutex        // must hold while interacting with previousInstalls
+}
+
+func newReusingGetter(getters map[string]getter.Getter) *reusingGetter {
+	return &reusingGetter{
+		getters: getters,
+		// previousInstalls initialized only on request
+	}
+}
 
 // getWithGoGetter fetches the package at the given address into the given
 // target directory. The given address must already be in normalized form
@@ -127,10 +164,29 @@ type reusingGetter map[string]string
 // end-user-actionable error messages. At this time we do not have any
 // reasonable way to improve these error messages at this layer because
 // the underlying errors are not separately recognizable.
-func (g reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAddr string) error {
+func (g *reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAddr string) error {
 	var err error
 
-	if prevDir, exists := g[packageAddr]; exists {
+	// For now we hold the "previousInstalls" mutex throughout our entire work here
+	// since we don't currently try to use a single getter concurrently anyway.
+	// If we _do_ want to enable more concurrency in future then we'll need a
+	// more interesting strategy to make sure that only concurrent attempts to
+	// install the _same_ package get serialized, but we'll wait until we have
+	// that need before we introduce that complexity.
+	//
+	// NOTE WELL: [getter.Client.Get] modifies internal state inside each of the
+	// getters passed in [getter.Client.Getters] before calling into them, so
+	// it is _not_ safe to reuse the same getter instances across multiple
+	// concurrent calls. If we want to make this work concurrently in future
+	// then we'll need to instead instantiate the getters on demand for each
+	// request.
+	g.previousInstallsMu.Lock()
+	defer g.previousInstallsMu.Unlock()
+	if g.previousInstalls == nil {
+		g.previousInstalls = make(map[string]string)
+	}
+
+	if prevDir, exists := g.previousInstalls[packageAddr]; exists {
 		log.Printf("[TRACE] getmodules: copying previous install of %q from %s to %s", packageAddr, prevDir, instPath)
 		err := os.Mkdir(instPath, os.ModePerm)
 		if err != nil {
@@ -151,7 +207,7 @@ func (g reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAdd
 
 			Detectors:     goGetterNoDetectors, // our caller should've already done detection
 			Decompressors: goGetterDecompressors,
-			Getters:       goGetterGetters,
+			Getters:       g.getters,
 			Ctx:           ctx,
 		}
 		err = client.Get()
@@ -160,7 +216,7 @@ func (g reusingGetter) getWithGoGetter(ctx context.Context, instPath, packageAdd
 		}
 		// Remember where we installed this so we might reuse this directory
 		// on subsequent calls to avoid re-downloading.
-		g[packageAddr] = instPath
+		g.previousInstalls[packageAddr] = instPath
 	}
 
 	// If we get down here then we've either downloaded the package or

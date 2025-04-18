@@ -1,0 +1,16 @@
+{
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.oci.image.index.v1+json",
+    "manifests": [
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:a47afe6606ae1d53305461b023c193c50af457259e40dc45bd068f62ef408034",
+            "size": 571,
+            "annotations": {
+                "org.opencontainers.image.created": "2025-04-16T16:31:15Z",
+                "org.opencontainers.image.ref.name": "latest"
+            },
+            "artifactType": "application/vnd.opentofu.modulepkg"
+        }
+    ]
+}
