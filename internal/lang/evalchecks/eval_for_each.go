@@ -220,11 +220,11 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 
 func performSetValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+	ty := forEachVal.Type()
 
 	// Since we're using a multi-error approach, we try to add as much of information as possible. The ElementIterator code below can't iterate on null or unknown values, that's why we test if these conditions are present and return earlier.
-	// since we can't use a set values that are unknown, we treat the entire set as unknown
-	ty := forEachVal.Type()
 	if !forEachVal.IsWhollyKnown() {
+		// since we can't use a set values that are unknown, we treat the entire set as unknown
 		return cty.UnknownVal(ty), diags
 	}
 
