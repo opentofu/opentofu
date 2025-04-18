@@ -314,8 +314,7 @@ func (ctx *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema
 
 func (ctx *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	scope := ctx.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
-	v, diags := scope.EvalExpr(expr, wantType)
-	return v, diags
+	return scope.EvalExpr(expr, wantType)
 }
 
 func (ctx *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
