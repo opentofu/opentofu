@@ -4966,3 +4966,138 @@ variable "res_data" {
 		t.Fatalf("Expected: %q, got %q", want, got)
 	}
 }
+
+func TestContext2Apply_deprecationWarnings(t *testing.T) {
+	const singleDeprecatedOutput = `
+output "test-child" {
+	value = "test-child"
+	deprecated = "Don't use me"
+}`
+
+	tests := map[string]struct {
+		module       map[string]string
+		expectedWarn tfdiags.Description
+	}{
+		"simpleModCall": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+		module "mod" {
+			source = "./mod"
+		}
+
+		resource "test_object" "test" {
+			test_string = module.mod.test-child
+		}
+		`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"modCallThroughLocal": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value's attribute test-child is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+		module "mod" {
+			source = "./mod"
+		}
+
+		locals {
+			a = module.mod
+		}
+
+		resource "test_object" "test" {
+			test_string = "a-${local.a.test-child}.txt"
+		}
+		`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"modForEach": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod[\"a\"].test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+		module "mod" {
+			for_each = toset([ "a" ])
+			source = "./mod"
+		}
+
+		resource "test_object" "test" {
+			test_string = "a-${module.mod["a"].test-child}.txt"
+		}`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"multipleModCalls": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+	source = "./mod"
+}
+
+resource "test_object" "test" {
+	test_string = module.mod.test
+}`,
+				"./mod/mod/main.tf": singleDeprecatedOutput,
+				"./mod/main.tf": `
+module "mod" {
+	source = "./mod"
+}
+
+output "test" {
+	value = module.mod.test-child
+}
+				`,
+			},
+		},
+	}
+
+	p := simpleMockProvider()
+	p.ApplyResourceChangeFn = func(arcr providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+		return providers.ApplyResourceChangeResponse{
+			NewState: arcr.PlannedState,
+		}
+	}
+
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			mod := testModuleInline(t, test.module)
+
+			_, diags := ctx.Plan(context.Background(), mod, states.NewState(), DefaultPlanOpts)
+			if diags.HasErrors() {
+				t.Fatalf("Unexpected error(s) during plan: %v", diags.Err())
+			}
+
+			if len(diags) != 1 {
+				t.Fatalf("Expected a single warning, got: %v", diags.ErrWithWarnings())
+			}
+
+			if diags[0].Severity() != tfdiags.Warning {
+				t.Fatalf("Expected a warning, got: %v", diags.ErrWithWarnings())
+			}
+
+			if !diags[0].Description().Equal(test.expectedWarn) {
+				t.Fatalf("Unexpected warning: %v", diags.ErrWithWarnings())
+			}
+		})
+	}
+}

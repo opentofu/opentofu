@@ -6,6 +6,11 @@
 package marks
 
 import (
+	"fmt"
+
+	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -45,3 +50,131 @@ const Sensitive = valueMark("Sensitive")
 // another value's type. This is part of the implementation of the console-only
 // `type` function.
 const TypeType = valueMark("TypeType")
+
+type DeprecationCause struct {
+	By      addrs.Referenceable
+	Message string
+}
+
+type deprecationMark struct {
+	Cause DeprecationCause
+}
+
+func (m deprecationMark) GoString() string {
+	return "marks.Deprecated"
+}
+
+// Deprecated marks a given value as deprecated with specified DeprecationCause.
+func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
+	for m := range v.Marks() {
+		dm, ok := m.(deprecationMark)
+		if !ok {
+			continue
+		}
+
+		// Already marked as deprecated for this cause.
+		if addrs.Equivalent(dm.Cause.By, cause.By) {
+			return v
+		}
+	}
+
+	return v.Mark(deprecationMark{
+		Cause: cause,
+	})
+}
+
+// DeprecatedOutput marks a given values as deprecated constructing a DeprecationCause
+// from module output specific data.
+func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Value {
+	_, callOutAddr := addr.ModuleCallOutput()
+	return Deprecated(v, DeprecationCause{
+		By:      callOutAddr,
+		Message: msg,
+	})
+}
+
+// DeprecatedDiagnosticsInBody composes deprecation diagnostics based on deprecation marks inside
+// the cty.Value. It uses hcl.Body to properly reference deprecated attributes in final diagnostics.
+func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	unmarked, pathMarks := val.UnmarkDeepWithPaths()
+
+	// Locate deprecationMarks and filter them out
+	for i, pm := range pathMarks {
+		for m := range pm.Marks {
+			dm, ok := m.(deprecationMark)
+			if !ok {
+				continue
+			}
+
+			// Remove mark
+			delete(pm.Marks, m)
+
+			cause := dm.Cause
+			diags = diags.Append(tfdiags.AttributeValue(
+				tfdiags.Warning,
+				"Value derived from a deprecated source",
+				fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
+				pm.Path,
+			))
+		}
+
+		// Remove empty path to not break caller code expectations.
+		if len(pm.Marks) == 0 {
+			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
+		}
+	}
+
+	return unmarked.MarkWithPaths(pathMarks), diags.InConfigBody(body, "")
+}
+
+// DeprecatedDiagnosticsInExpr composes deprecation diagnostics based on deprecation marks inside
+// the cty.Value. It uses hcl.Expression to properly reference deprecated attributes in final diagnostics.
+func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	unmarked, pathMarks := val.UnmarkDeepWithPaths()
+
+	// Locate deprecationMarks and filter them out
+	for i, pm := range pathMarks {
+		for m := range pm.Marks {
+			dm, ok := m.(deprecationMark)
+			if !ok {
+				continue
+			}
+
+			// Remove mark
+			delete(pm.Marks, m)
+
+			attr := tfdiags.FormatCtyPath(pm.Path)
+			// FormatCtyPath call could result in ".fieldA.fieldB" in some
+			// cases, so we want to remove the first dot for a friendlier message.
+			if len(attr) > 1 && attr[0] == '.' {
+				attr = attr[1:]
+			}
+
+			source := "This value"
+			if attr != "" {
+				source += "'s attribute " + attr
+			}
+
+			cause := dm.Cause
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity:   hcl.DiagWarning,
+				Summary:    "Value derived from a deprecated source",
+				Detail:     fmt.Sprintf("%s is derived from %v, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message),
+				Subject:    expr.Range().Ptr(),
+				Expression: expr,
+			})
+
+		}
+
+		// Remove empty path to not break caller code expectations.
+		if len(pm.Marks) == 0 {
+			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
+		}
+	}
+
+	return unmarked.MarkWithPaths(pathMarks), diags
+}
