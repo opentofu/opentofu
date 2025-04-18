@@ -80,6 +80,8 @@ The following options change how the apply command executes and reports on the a
   if you are running OpenTofu in a context where its output will be
   rendered by a system that cannot interpret terminal formatting.
 
+- `-concise` - Disables progress-related messages in the output.
+
 - `-parallelism=n` - Limit the number of concurrent operation as OpenTofu
   [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults to
   10\.

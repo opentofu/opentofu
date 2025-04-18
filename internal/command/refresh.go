@@ -199,11 +199,11 @@ Options:
                          accompanied by errors, show them in a more compact form
                          that includes only the summary messages.
 
-  -consolidate-warnings  If OpenTofu produces any warnings, no consolodation
+  -consolidate-warnings  If OpenTofu produces any warnings, no consolidation
                          will be performed. All locations, for all warnings
                          will be listed. Enabled by default.
 
-  -consolidate-errors    If OpenTofu produces any errors, no consolodation
+  -consolidate-errors    If OpenTofu produces any errors, no consolidation
                          will be performed. All locations, for all errors
                          will be listed. Disabled by default
 
@@ -221,6 +221,8 @@ Options:
   -lock-timeout=0s       Duration to retry a state lock.
 
   -no-color              If specified, output won't contain any color.
+
+  -concise               Disables progress-related messages in the output.
 
   -parallelism=n         Limit the number of concurrent operations. Defaults to 10.
 

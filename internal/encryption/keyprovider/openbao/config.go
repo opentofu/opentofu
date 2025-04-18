@@ -8,7 +8,7 @@ package openbao
 import (
 	"fmt"
 
-	openbao "github.com/openbao/openbao/api"
+	openbao "github.com/openbao/openbao/api/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 )
 

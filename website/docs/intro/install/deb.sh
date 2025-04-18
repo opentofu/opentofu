@@ -19,4 +19,4 @@ else
   bash -ex examples/deb-step4.sh
 fi
 
-tofu --version
+tofu -version

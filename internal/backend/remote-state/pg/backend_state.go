@@ -7,6 +7,7 @@ package pg
 
 import (
 	"fmt"
+	"github.com/lib/pq"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
@@ -15,8 +16,8 @@ import (
 )
 
 func (b *Backend) Workspaces() ([]string, error) {
-	query := `SELECT name FROM %s.%s WHERE name != 'default' ORDER BY name`
-	rows, err := b.db.Query(fmt.Sprintf(query, b.schemaName, statesTableName))
+	query := fmt.Sprintf(`SELECT name FROM %s.%s WHERE name != 'default' ORDER BY name`, pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName))
+	rows, err := b.db.Query(query)
 	if err != nil {
 		return nil, err
 	}
@@ -45,8 +46,8 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 		return fmt.Errorf("can't delete default state")
 	}
 
-	query := `DELETE FROM %s.%s WHERE name = $1`
-	_, err := b.db.Exec(fmt.Sprintf(query, b.schemaName, statesTableName), name)
+	query := fmt.Sprintf(`DELETE FROM %s.%s WHERE name = $1`, pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName))
+	_, err := b.db.Exec(query, name)
 	if err != nil {
 		return err
 	}
@@ -61,6 +62,8 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 			Client:     b.db,
 			Name:       name,
 			SchemaName: b.schemaName,
+			TableName:  b.tableName,
+			IndexName:  b.indexName,
 		},
 		b.encryption,
 	)

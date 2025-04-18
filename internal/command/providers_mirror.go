@@ -83,7 +83,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 
 	config, confDiags := c.loadConfig(".")
 	diags = diags.Append(confDiags)
-	reqs, moreDiags := config.ProviderRequirements()
+	reqs, _, moreDiags := config.ProviderRequirements()
 	diags = diags.Append(moreDiags)
 
 	// Read lock file

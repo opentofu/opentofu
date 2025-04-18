@@ -133,20 +133,22 @@ func TestConfig_asAWSBase(t *testing.T) {
 				EC2MetadataServiceEndpointMode: "my-emde-mode",
 				SharedCredentialsFiles:         []string{"my-scredf"},
 				SharedConfigFiles:              []string{"my-sconff"},
-				AssumeRole: &awsbase.AssumeRole{
-					RoleARN:    "ar_arn",
-					Duration:   time.Hour * 4,
-					ExternalID: "ar_extid",
-					Policy:     "ar_policy",
-					PolicyARNs: []string{
-						"arn:aws:iam::123456789012:policy/AR",
-					},
-					SessionName: "ar_session_name",
-					Tags: map[string]string{
-						"foo": "bar",
-					},
-					TransitiveTagKeys: []string{
-						"ar_tags",
+				AssumeRole: []awsbase.AssumeRole{
+					{
+						RoleARN:    "ar_arn",
+						Duration:   time.Hour * 4,
+						ExternalID: "ar_extid",
+						Policy:     "ar_policy",
+						PolicyARNs: []string{
+							"arn:aws:iam::123456789012:policy/AR",
+						},
+						SessionName: "ar_session_name",
+						Tags: map[string]string{
+							"foo": "bar",
+						},
+						TransitiveTagKeys: []string{
+							"ar_tags",
+						},
 					},
 				},
 				AssumeRoleWithWebIdentity: &awsbase.AssumeRoleWithWebIdentity{

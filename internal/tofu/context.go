@@ -358,7 +358,7 @@ func (c *Context) checkConfigDependencies(config *configs.Config) tfdiags.Diagno
 	// We only check that we have a factory for each required provider, and
 	// assume the caller already assured that any separately-installed
 	// plugins are of a suitable version, match expected checksums, etc.
-	providerReqs, hclDiags := config.ProviderRequirements()
+	providerReqs, _, hclDiags := config.ProviderRequirements()
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		return diags

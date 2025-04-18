@@ -5,7 +5,7 @@
 
 //
 
-//nolint:revive,staticcheck //Disabling because we want to just stub out some methods
+//nolint:staticcheck //Disabling because we want to just stub out some methods
 package cloud
 
 import (

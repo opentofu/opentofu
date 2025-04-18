@@ -10,7 +10,6 @@
 // This library accepts either size of byte slice but always
 // returns 16-byte addresses.
 
-//nolint:cyclop,funlen,gochecknoglobals,gocritic,nonamedreturns,mnd // This file is copied from the Go codebase and intended to remain close to the original in case we need to backport changes.
 package ipaddr
 
 import (

@@ -56,7 +56,7 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 	// config could be nil when we're e.g. showing a statefile without the configuration present
 	if config != nil {
 		var hclDiags hcl.Diagnostics
-		providers, hclDiags = config.ProviderRequirements()
+		providers, _, hclDiags = config.ProviderRequirements()
 		diags = diags.Append(hclDiags)
 		if hclDiags.HasErrors() {
 			return nil, diags

@@ -6,6 +6,7 @@
 package getproviders
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"sort"
@@ -13,8 +14,8 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/apparentlymart/go-versions/versions/constraints"
-
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // Version represents a particular single version of a provider.
@@ -49,6 +50,48 @@ type Warnings = []string
 // acceptable. That's different than a provider being absent from the map
 // altogether, which means that it is not required at all.
 type Requirements map[addrs.Provider]VersionConstraints
+
+// ProvidersQualification is storing the implicit/explicit reference qualification of the providers.
+// This is necessary to be able to warn the user when the resources are referencing a provider that
+// is not specifically defined in a required_providers block. When the implicitly referenced
+// provider is tried to be downloaded without a specific provider requirement, it will be tried
+// from the default namespace (hashicorp), failing to download it when it does not exist in the default namespace.
+// Therefore, we want to let the user know what resources are generating this situation.
+type ProvidersQualification struct {
+	Implicit map[addrs.Provider][]ResourceRef
+	Explicit map[addrs.Provider]struct{}
+}
+
+type ResourceRef struct {
+	CfgRes            addrs.ConfigResource
+	Ref               tfdiags.SourceRange
+	ProviderAttribute bool
+}
+
+// AddImplicitProvider saves an addrs.Provider with the place in the configuration where this is generated from.
+func (pq *ProvidersQualification) AddImplicitProvider(provider addrs.Provider, ref ResourceRef) {
+	if pq.Implicit == nil {
+		pq.Implicit = map[addrs.Provider][]ResourceRef{}
+	}
+	// This is avoiding adding the implicit reference of the provider if this is already explicitly configured.
+	// Done this way, because when collecting these qualifications, if there are at least 2 resources (A from root module and B from an imported module),
+	// root module could have no explicit definition but the module of B could have an explicit one. But in case none of the modules is having
+	// an explicit definition, we want to gather all the resources that are implicitly referencing a provider.
+	if _, ok := pq.Explicit[provider]; ok {
+		return
+	}
+	refs := pq.Implicit[provider]
+	refs = append(refs, ref)
+	pq.Implicit[provider] = refs
+}
+
+// AddExplicitProvider saves an addrs.Provider that is specifically configured in a required_providers block.
+func (pq *ProvidersQualification) AddExplicitProvider(provider addrs.Provider) {
+	if pq.Explicit == nil {
+		pq.Explicit = map[addrs.Provider]struct{}{}
+	}
+	pq.Explicit[provider] = struct{}{}
+}
 
 // Merge takes the requirements in the receiver and the requirements in the
 // other given value and produces a new set of requirements that combines
@@ -249,71 +292,21 @@ func (m PackageMeta) PackedFilePath(baseDir string) string {
 	return PackedFilePathForPackage(baseDir, m.Provider, m.Version, m.TargetPlatform)
 }
 
-// AcceptableHashes returns a set of hashes that could be recorded for
-// comparison to future results for the same provider version, to implement a
-// "trust on first use" scheme.
-//
-// The AcceptableHashes result is a platform-agnostic set of hashes, with the
-// intent that in most cases it will be used as an additional cross-check in
-// addition to a platform-specific hash check made during installation. However,
-// there are some situations (such as verifying an already-installed package
-// that's on local disk) where OpenTofu would check only against the results
-// of this function, meaning that it would in principle accept another
-// platform's package as a substitute for the correct platform. That's a
-// pragmatic compromise to allow lock files derived from the result of this
-// method to be portable across platforms.
-//
-// Callers of this method should typically also verify the package using the
-// object in the Authentication field, and consider how much trust to give
-// the result of this method depending on the authentication result: an
-// unauthenticated result or one that only verified a checksum could be
-// considered less trustworthy than one that checked the package against
-// a signature provided by the origin registry.
-//
-// The AcceptableHashes result is actually provided by the object in the
-// Authentication field. AcceptableHashes therefore returns an empty result
-// for a PackageMeta that has no authentication object, or has one that does
-// not make use of hashes.
-func (m PackageMeta) AcceptableHashes() []Hash {
-	auth, ok := m.Authentication.(PackageAuthenticationHashes)
-	if !ok {
-		return nil
-	}
-	return auth.AcceptableHashes()
-}
-
 // PackageLocation represents a location where a provider distribution package
-// can be obtained. A value of this type contains one of the following
-// concrete types: PackageLocalArchive, PackageLocalDir, or PackageHTTPURL.
+// can be obtained.
 type PackageLocation interface {
-	packageLocation()
+	// InstallProviderPackage installs the provider package at the location
+	// represented by the implementer into a new directory at targetDir,
+	// and then verifies both that the newly-created package directory
+	// matches at least one of allowedHashes (if any) and that the
+	// authentication strategy represented by meta.Authentication succeeds.
+	InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error)
+
+	// String returns a concise string representation of the package location
+	// that is suitable to include in the UI to explain where a package
+	// is being installed from.
 	String() string
 }
-
-// PackageLocalArchive is the location of a provider distribution archive file
-// in the local filesystem. Its value is a local filesystem path using the
-// syntax understood by Go's standard path/filepath package on the operating
-// system where OpenTofu is running.
-type PackageLocalArchive string
-
-func (p PackageLocalArchive) packageLocation() {}
-func (p PackageLocalArchive) String() string   { return string(p) }
-
-// PackageLocalDir is the location of a directory containing an unpacked
-// provider distribution archive in the local filesystem. Its value is a local
-// filesystem path using the syntax understood by Go's standard path/filepath
-// package on the operating system where OpenTofu is running.
-type PackageLocalDir string
-
-func (p PackageLocalDir) packageLocation() {}
-func (p PackageLocalDir) String() string   { return string(p) }
-
-// PackageHTTPURL is a provider package location accessible via HTTP.
-// Its value is a URL string using either the http: scheme or the https: scheme.
-type PackageHTTPURL string
-
-func (p PackageHTTPURL) packageLocation() {}
-func (p PackageHTTPURL) String() string   { return string(p) }
 
 // PackageMetaList is a list of PackageMeta. It's just []PackageMeta with
 // some methods for convenient sorting and filtering.

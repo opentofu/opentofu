@@ -149,7 +149,7 @@ func (c *httpClient) Unlock(id string) error {
 	// force unlock command does not instantiate statemgr.LockInfo
 	// which means that c.jsonLockInfo will be nil
 	if c.jsonLockInfo != nil {
-		if err := json.Unmarshal(c.jsonLockInfo, &lockInfo); err != nil { //nolint:musttag // for now add musttag until we fully adopt the linting rules
+		if err := json.Unmarshal(c.jsonLockInfo, &lockInfo); err != nil {
 			return fmt.Errorf("failed to unmarshal jsonLockInfo: %w", err)
 		}
 		if lockInfo.ID != id {

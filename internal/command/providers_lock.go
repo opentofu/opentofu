@@ -124,7 +124,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 
 	config, confDiags := c.loadConfig(".")
 	diags = diags.Append(confDiags)
-	reqs, hclDiags := config.ProviderRequirements()
+	reqs, _, hclDiags := config.ProviderRequirements()
 	diags = diags.Append(hclDiags)
 
 	// If we have explicit provider selections on the command line then
@@ -235,7 +235,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			FetchPackageSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string, auth *getproviders.PackageAuthenticationResult) {
 				var keyID string
 				if auth != nil && auth.Signed() {
-					keyID = auth.KeyID
+					keyID = auth.GPGKeyIDsString()
 				}
 				if keyID != "" {
 					keyID = c.Colorize().Color(fmt.Sprintf(", key ID [reset][bold]%s[reset]", keyID))

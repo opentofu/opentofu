@@ -15,19 +15,20 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-version"
 	"github.com/mitchellh/cli"
 	"github.com/zclconf/go-cty/cty"
-
-	"github.com/hashicorp/go-version"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
@@ -95,6 +96,12 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			View:             view,
+
+			// This test relies on the module installer's legacy support for
+			// treating an absolute filesystem path as if it were a "remote"
+			// source address, and so we need a real package fetcher but the
+			// way we use it here does not cause it to make network requests.
+			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
 		},
 	}
 
@@ -102,7 +109,7 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 		"-from-module=" + testFixturePath("init"),
 	}
 	if code := c.Run(args); code != 0 {
-		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
+		t.Fatalf("unexpected error\n%s", ui.ErrorWriter.String())
 	}
 
 	if _, err := os.Stat(filepath.Join(td, "hello.tf")); err != nil {
@@ -146,6 +153,12 @@ func TestInit_fromModule_dstInSrc(t *testing.T) {
 			testingOverrides: metaOverridesForProvider(testProvider()),
 			Ui:               ui,
 			View:             view,
+
+			// This test relies on the module installer's legacy support for
+			// treating an absolute filesystem path as if it were a "remote"
+			// source address, and so we need a real package fetcher but the
+			// way we use it here does not cause it to make network requests.
+			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
 		},
 	}
 
@@ -1778,6 +1791,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.4"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("vEthLkqAecdQimaW6JHZ0SBRNtHibLnOb31tX9ZXlcI="),
+				getproviders.HashSchemeZip.New("ec7c3fd6eb575c06f0e6957e1ee8531a588805c4eeb8abb5e4156911e080eb31"),
 			},
 		),
 		addrs.NewDefaultProvider("test"): depsfile.NewProviderLock(
@@ -1786,6 +1800,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI="),
+				getproviders.HashSchemeZip.New("6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2"),
 			},
 		),
 		addrs.NewDefaultProvider("source"): depsfile.NewProviderLock(
@@ -1794,6 +1809,7 @@ func TestInit_providerSource(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("ACYytVQ2Q6JfoEs7xxCqa1yGFf9HwF3SEHzJKBoJfo0="),
+				getproviders.HashSchemeZip.New("69f700dbf9eda586abef22ab08e3a3896760e01885f6cbda4460ceeca4e3c0ba"),
 			},
 		),
 	}
@@ -1805,23 +1821,51 @@ func TestInit_providerSource(t *testing.T) {
 	if got, want := ui.OutputWriter.String(), "Installed hashicorp/test v1.2.3 (verified checksum)"; !strings.Contains(got, want) {
 		t.Fatalf("unexpected output: %s\nexpected to include %q", got, want)
 	}
+	// On stderr we should've written a warning about the dependency lock file
+	// entry being incomplete for these three providers, because we installed
+	// from a non-origin-registry source and so registry-promised hashes
+	// are not available.
 	if got, want := ui.ErrorWriter.String(), "\n  - hashicorp/source\n  - hashicorp/test\n  - hashicorp/test-beta"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
 }
 
 func TestInit_cancelModules(t *testing.T) {
-	// This test runs `tofu init` as if SIGINT (or similar on other
-	// platforms) were sent to it, testing that it is interruptible.
+	// This test runs `tofu init` against a server that stalls indefinitely
+	// instead of responding, and then requests shutdown in the same way
+	// as package main would in response to SIGINT (or similar on other
+	// platforms). This ensures that slow requests can be interrupted.
 
-	td := t.TempDir()
-	testCopyDir(t, testFixturePath("init-registry-module"), td)
-	defer testChdir(t, td)()
+	wd := tempWorkingDirFixture(t, "init-module-early-eval")
+	t.Chdir(wd.RootModuleDir())
 
-	// Our shutdown channel is pre-closed so init will exit as soon as it
-	// starts a cancelable portion of the process.
+	// One failure mode of this test is for the cancellation to fail and
+	// so the command runs indefinitely, and so we'll impose a timeout
+	// to allow us to eventually catch that and diagnose it as a test
+	// failure message.
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+
+	// This server intentionally stalls any incoming request by leaving
+	// the connection open but not responding. "reqs" will become
+	// readable each time a request arrives.
+	server, reqs := testHangServer(t)
+
+	// We'll close this channel once we've been notified that the server
+	// received our request, which should then cause cancellation.
 	shutdownCh := make(chan struct{})
-	close(shutdownCh)
+	go func() {
+		select {
+		case <-reqs:
+			// Request received, so time to interrupt.
+			t.Log("server received request, but won't respond")
+			close(shutdownCh)
+		case <-ctx.Done():
+			// Exit early if we reach our timeout.
+			t.Log("timeout before server received request")
+		}
+		server.CloseClientConnections() // force any active client request to fail
+	}()
 
 	ui := cli.NewMockUi()
 	view, _ := testView(t)
@@ -1830,18 +1874,29 @@ func TestInit_cancelModules(t *testing.T) {
 		Ui:               ui,
 		View:             view,
 		ShutdownCh:       shutdownCh,
-	}
 
+		// This test needs a real module package fetcher instance because
+		// its configuration includes a reference to a module from a registry
+		// that doesn't really exist. The shutdown signal prevents us from
+		// actually making a request to this, but we still need to provide
+		// the fetcher so that it will _attempt_ to make a network request
+		// that can then fail with a cancellation error.
+		ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
+	}
 	c := &InitCommand{
 		Meta: m,
 	}
 
-	args := []string{}
-
-	if code := c.Run(args); code == 0 {
+	fakeModuleSourceAddr := server.URL + "/example.zip"
+	t.Logf("attempting to install module package from %s", fakeModuleSourceAddr)
+	args := []string{"-var=module_source=" + fakeModuleSourceAddr}
+	code := c.Run(args)
+	if err := ctx.Err(); err != nil {
+		t.Errorf("context error: %s", err) // probably reporting a timeout
+	}
+	if code == 0 {
 		t.Fatalf("succeeded; wanted error\n%s", ui.OutputWriter.String())
 	}
-
 	if got, want := ui.ErrorWriter.String(), `Module installation was canceled by an interrupt signal`; !strings.Contains(got, want) {
 		t.Fatalf("wrong error message\nshould contain: %s\ngot:\n%s", want, got)
 	}
@@ -1994,6 +2049,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints("> 1.0.0, < 3.0.0"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("ntfa04OlRqIfGL/Gkd+nGMJSHGWyAgMQplFWk7WEsOk="),
+				getproviders.HashSchemeZip.New("29e1045215056680ac59fe95554f0eb1323534a3d411aae2a7a04495ac884258"),
 			},
 		),
 		addrs.NewDefaultProvider("exact"): depsfile.NewProviderLock(
@@ -2002,6 +2058,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints("= 1.2.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("Xgk+LFrzi9Mop6+d01TCTaD3kgSrUASCAUU1aDsEsJU="),
+				getproviders.HashSchemeZip.New("9cb7a3006b9c1344b2d838a5bb03c1e0f04b8c046beb38901eaf3cc99fceb870"),
 			},
 		),
 		addrs.NewDefaultProvider("greater-than"): depsfile.NewProviderLock(
@@ -2010,6 +2067,7 @@ func TestInit_getUpgradePlugins(t *testing.T) {
 			getproviders.MustParseVersionConstraints(">= 2.3.3"),
 			[]getproviders.Hash{
 				getproviders.HashScheme1.New("8M5DXICmUiVjbkxNNO0zXNsV6duCVNWzq3/Kf0mNIo4="),
+				getproviders.HashSchemeZip.New("bfb683ee94027efb191986484352ada8219cd45e856d25c2ddcb489e100a9a02"),
 			},
 		),
 	}
@@ -2176,8 +2234,8 @@ func TestInit_providerLockFile(t *testing.T) {
 		t.Fatalf("failed to read dependency lock file %s: %s", lockFile, err)
 	}
 	buf = bytes.TrimSpace(buf)
-	// The hash in here is for the fake package that newMockProviderSource produces
-	// (so it'll change if newMockProviderSource starts producing different contents)
+	// The hashes in here are for the fake package that newMockProviderSource produces
+	// (so they'll change if newMockProviderSource starts producing different contents)
 	wantLockFile := strings.TrimSpace(`
 # This file is maintained automatically by "tofu init".
 # Manual edits may be lost in future updates.
@@ -2187,6 +2245,7 @@ provider "registry.opentofu.org/hashicorp/test" {
   constraints = "1.2.3"
   hashes = [
     "h1:8CjxaUBuegKZSFnRos39Fs+CS78ax0Dyb7aIA5XBiNI=",
+    "zh:6f85a1f747dd09455cd77683c0e06da647d8240461b8b36b304b9056814d91f2",
   ]
 }
 `)

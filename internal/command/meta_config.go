@@ -291,7 +291,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 		return true, diags
 	}
 
-	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient())
+	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient(), m.ModulePackageFetcher)
 
 	call, vDiags := m.rootModuleCall(rootDir)
 	diags = diags.Append(vDiags)
@@ -333,7 +333,7 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 	}
 
 	targetDir = m.normalizePath(targetDir)
-	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.modulesDir(), addr, m.registryClient(), hooks)
+	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.modulesDir(), addr, m.registryClient(), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {
 		m.showDiagnostics(diags)

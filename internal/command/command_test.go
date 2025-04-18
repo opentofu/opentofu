@@ -161,7 +161,7 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths
 	// in a JSON file so that we can load them below.
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil))
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil), nil)
 	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
@@ -1153,9 +1153,11 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		if _, ok := gotMap["@timestamp"]; !ok {
 			t.Errorf("missing @timestamp field in log: %s", gotLines[index])
 		}
+		gotMap = deleteMapField(gotMap, "hook", "elapsed_seconds")
 		delete(gotMap, "@timestamp")
 		gotLineMaps = append(gotLineMaps, gotMap)
 	}
+
 	var wantLineMaps []map[string]interface{}
 	for i, line := range wantLines[1:] {
 		index := i + 1
@@ -1163,11 +1165,92 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 		if err := json.Unmarshal([]byte(line), &wantMap); err != nil {
 			t.Errorf("failed to unmarshal want line %d: %s\n%s", index, err, gotLines[index])
 		}
+		wantMap = deleteMapField(wantMap, "hook", "elapsed_seconds")
 		wantLineMaps = append(wantLineMaps, wantMap)
 	}
+
 	if diff := cmp.Diff(wantLineMaps, gotLineMaps); diff != "" {
 		t.Errorf("wrong output lines\n%s\n"+
 			"NOTE: This failure may indicate a UI change affecting the behavior of structured run output on TFC.\n"+
 			"Please communicate with Terraform Cloud team before resolving", diff)
 	}
+}
+
+func deleteMapField(fieldMap map[string]interface{}, rootField, field string) map[string]interface{} {
+	rootMap, ok := fieldMap[rootField].(map[string]interface{})
+	if !ok {
+		return fieldMap
+	}
+
+	delete(rootMap, field)
+	return rootMap
+}
+
+// testHangServer starts a local HTTP server that accepts incoming requests
+// but then intentionally leaves the connection hanging without responding,
+// writing the request to the returned channel so that the caller can then
+// trigger some mechanism for cancelling that hung request.
+//
+// This is intended for testing anything that needs to be able to cancel
+// slow requests to remote HTTP servers, so that the test can be sure that
+// the request definitely will be "slow enough" that cancellation is
+// definitely the only way the request could've halted.
+//
+// The returned server is automatically closed when the calling test
+// is complete, but the caller is also allowed to optionally call Close
+// directly itself. Note that the Close method alone will not close
+// any active requests, but testHangServer guarantees that it will
+// eventually terminate active requests once the calling test is
+// complete.
+func testHangServer(t testing.TB) (server *httptest.Server, reqs <-chan *http.Request) {
+	t.Helper()
+
+	// We'll use this channel to signal any active requests to terminate
+	// during test cleanup, so that the active requests can't remain
+	// running indefinitely.
+	cleanupCh := make(chan struct{})
+
+	// This channel is how we'll notify the caller when we get a request.
+	// This has a buffer so that in the assumed-typical case where the
+	// test server will only start serving a few requests before they
+	// get cancelled the server's handler can be decoupled from the
+	// channel reads in the caller.
+	reqsCh := make(chan *http.Request, 8)
+
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// We intentionally don't take any action on this request until
+		// the test cleanup function runs, but we will notify our
+		// caller that the request was started.
+		//
+		// We'll also accept getting told to clean up before the
+		// channel write succeeds just in case the calling test exits
+		// before it reads from reqsCh.
+		select {
+		case reqsCh <- req:
+		case <-cleanupCh:
+		}
+		// If we managed to send req to reqsCh above then we still
+		// need to wait for cleanupCh to close. The following is
+		// no-op if the channel is already closed.
+		<-cleanupCh
+		// If any client is still connected by the time we get here then
+		// we'll respond quickly just to get their connection closed.
+		// This is unlikely but could potentially happen if a new client
+		// connects in the narrow time window between us closing the
+		// existing client connections and fully closing the server,
+		// after cleanupCh is already closed: in that case the new client
+		// will get a 500 Internal Server Error response immediately.
+		w.WriteHeader(500)
+	}))
+	t.Logf("testHangServer is running at %s", server.URL)
+
+	t.Cleanup(func() {
+		t.Helper()
+		t.Log("shutting down testHangServer")
+		close(cleanupCh)                // terminate any active handlers
+		close(reqsCh)                   // unblock any test that's awaiting a request notification
+		server.CloseClientConnections() // force any active clients to disconnect
+		server.Close()                  // stop accepting new requests and wait for existing ones to stop
+	})
+	return server, reqsCh
 }
