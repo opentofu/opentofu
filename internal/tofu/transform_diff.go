@@ -182,7 +182,18 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 				// in the current apply operation, we will lose the CBD flag in the state file and cause the "cycle" error down the line.
 				// For more details, see the issue https://github.com/opentofu/opentofu/issues/2398
 				if cn, ok := node.(GraphNodeDestroyerCBD); ok {
-					cn.ModifyCreateBeforeDestroy(true)
+					log.Printf("[TRACE] DiffTransformer: %s implements GraphNodeDestroyerCBD, setting CBD to true", addr)
+					// Setting CBD to true
+					// Error handling here is just for future-proofing, since none of the GraphNodeDestroyerCBD current implementations
+					// should return an error when setting CBD to true
+					if err := cn.ModifyCreateBeforeDestroy(true); err != nil {
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Error,
+							"Invalid planned change",
+							fmt.Sprintf("%s: wasn't able to set CBD, error occured %s", dag.VertexName(node), err.Error())))
+						log.Printf("[TRACE] DiffTransformer: %s: wasn't able to set CBD, error occured %s", addr, err.Error())
+						continue
+					}
 				}
 
 				log.Printf("[TRACE] DiffTransformer: %s will be represented by %s, deposing prior object to %s", addr, dag.VertexName(node), dk)
