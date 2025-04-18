@@ -6,6 +6,7 @@
 package cliconfig
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -66,7 +68,7 @@ func TestLoadConfig_non_existing_file(t *testing.T) {
 
 	t.Setenv("TF_CLI_CONFIG_FILE", cliTmpFile)
 
-	c, errs := LoadConfig()
+	c, errs := LoadConfig(context.Background())
 	if errs.HasErrors() || c.Validate().HasErrors() {
 		t.Fatalf("err: %s", errs)
 	}

@@ -24,10 +24,15 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -82,6 +87,8 @@ func newRegistryClient(baseURL *url.URL, creds svcauth.HostCredentials) *registr
 	retryableClient.RequestLogHook = requestLogHook
 	retryableClient.ErrorHandler = maxRetryErrorHandler
 
+	retryableClient.HTTPClient.Transport = otelhttp.NewTransport(retryableClient.HTTPClient.Transport)
+
 	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
 
 	return &registryClient{
@@ -99,6 +106,14 @@ func newRegistryClient(baseURL *url.URL, creds svcauth.HostCredentials) *registr
 // ErrUnauthorized if the registry responds with 401 or 403 status codes, or
 // ErrQueryFailed for any other protocol or operational problem.
 func (c *registryClient) ProviderVersions(ctx context.Context, addr addrs.Provider) (map[string][]string, []string, error) {
+	ctx, span := tracing.Tracer().Start(ctx,
+		"opentofu.provider.versions",
+		trace.WithAttributes(
+			attribute.String(tracing.ProviderAddressAttributeName, addr.String()),
+			attribute.String(tracing.ProviderVersionAttributeName, version.String()),
+		),
+	)
+	defer span.End()
 	endpointPath, err := url.Parse(path.Join(addr.Namespace, addr.Type, "versions"))
 	if err != nil {
 		// Should never happen because we're constructing this from
@@ -181,6 +196,8 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 		target.OS,
 		target.Arch,
 	))
+	ctx, span := tracing.Tracer().Start(ctx, "opentofu.provider.meta")
+	defer span.End()
 	if err != nil {
 		// Should never happen because we're constructing this from
 		// already-validated components.
@@ -197,6 +214,8 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
+		span.SetStatus(codes.Error, "failed to fetch metadata")
+		span.RecordError(err)
 		return PackageMeta{}, c.errQueryFailed(provider, err)
 	}
 	defer resp.Body.Close()
@@ -328,7 +347,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	if shasumsURL.Scheme != "http" && shasumsURL.Scheme != "https" {
 		return PackageMeta{}, fmt.Errorf("registry response includes invalid SHASUMS URL: must use http or https scheme")
 	}
-	document, err := c.getFile(shasumsURL)
+	document, err := c.getFile(ctx, shasumsURL)
 	if err != nil {
 		return PackageMeta{}, c.errQueryFailed(
 			provider,
@@ -343,7 +362,7 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	if signatureURL.Scheme != "http" && signatureURL.Scheme != "https" {
 		return PackageMeta{}, fmt.Errorf("registry response includes invalid SHASUMS signature URL: must use http or https scheme")
 	}
-	signature, err := c.getFile(signatureURL)
+	signature, err := c.getFile(ctx, signatureURL)
 	if err != nil {
 		return PackageMeta{}, c.errQueryFailed(
 			provider,
@@ -434,8 +453,14 @@ func (c *registryClient) errUnauthorized(hostname svchost.Hostname) error {
 	}
 }
 
-func (c *registryClient) getFile(url *url.URL) ([]byte, error) {
-	resp, err := c.httpClient.Get(url.String())
+func (c *registryClient) getFile(ctx context.Context, url *url.URL) ([]byte, error) {
+	req, err := retryablehttp.NewRequest("GET", url.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}

@@ -15,11 +15,15 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/apparentlymart/go-versions/versions/constraints"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	copydir "github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Installer is the main type in this package, representing a provider installer
@@ -440,7 +444,16 @@ func (i *Installer) ensureProviderVersionsInstall(
 	authResults := map[addrs.Provider]*getproviders.PackageAuthenticationResult{} // record auth results for all successfully fetched providers
 
 	for provider, version := range need {
-		if err := ctx.Err(); err != nil {
+		traceCtx, span := tracing.Tracer().Start(ctx,
+			"opentofu.provider.install",
+			trace.WithAttributes(
+				attribute.String(tracing.ProviderAddressAttributeName, provider.String()),
+				attribute.String(tracing.ProviderVersionAttributeName, version.String()),
+			),
+		)
+		if err := traceCtx.Err(); err != nil {
+			span.SetStatus(codes.Error, "context cancelled")
+			span.RecordError(err)
 			// If our context has been cancelled or reached a timeout then
 			// we'll abort early, because subsequent operations against
 			// that context will fail immediately anyway.
@@ -460,6 +473,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 					if cb := evts.ProviderAlreadyInstalled; cb != nil {
 						cb(provider, version)
 					}
+					span.End()
 					continue
 				}
 			}
@@ -469,7 +483,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 			// If our global cache already has this version available then
 			// we'll just link it in.
 			installed, err := tryInstallPackageFromCacheDir(
-				ctx,
+				traceCtx,
 				i.globalCacheDir,
 				i.targetDir,
 				provider, version,
@@ -480,9 +494,13 @@ func (i *Installer) ensureProviderVersionsInstall(
 			)
 			if err != nil {
 				errs[provider] = err
+				span.SetStatus(codes.Error, fmt.Sprintf("failed to install %s from cache", provider.String()))
+				span.RecordError(err)
+				span.End()
 				continue
 			}
 			if installed {
+				span.End()
 				continue // nothing left to do for this provider, then
 			}
 		}
@@ -495,12 +513,15 @@ func (i *Installer) ensureProviderVersionsInstall(
 		if cb := evts.FetchPackageMeta; cb != nil {
 			cb(provider, version)
 		}
-		meta, err := i.source.PackageMeta(ctx, provider, version, targetPlatform)
+		meta, err := i.source.PackageMeta(traceCtx, provider, version, targetPlatform)
 		if err != nil {
 			errs[provider] = err
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			span.SetStatus(codes.Error, fmt.Sprintf("failed to fetch metadata for %s", provider.String()))
+			span.RecordError(err)
+			span.End()
 			continue
 		}
 
@@ -524,7 +545,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 			allowedHashes = []getproviders.Hash{}
 		}
 
-		authResult, err := installTo.InstallPackage(ctx, meta, allowedHashes)
+		authResult, err := installTo.InstallPackage(traceCtx, meta, allowedHashes)
 		if err != nil {
 			// TODO: Consider retrying for certain kinds of error that seem
 			// likely to be transient. For now, we just treat all errors equally.
@@ -532,6 +553,9 @@ func (i *Installer) ensureProviderVersionsInstall(
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			span.SetStatus(codes.Error, fmt.Sprintf("failed to install %s", provider.String()))
+			span.RecordError(err)
+			span.End()
 			continue
 		}
 		new := installTo.ProviderVersion(provider, version)
@@ -541,6 +565,9 @@ func (i *Installer) ensureProviderVersionsInstall(
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			span.SetStatus(codes.Error, fmt.Sprintf("failed to install %s", provider.String()))
+			span.RecordError(err)
+			span.End()
 			continue
 		}
 		if _, err := new.ExecutableFile(); err != nil {
@@ -549,6 +576,9 @@ func (i *Installer) ensureProviderVersionsInstall(
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			span.SetStatus(codes.Error, fmt.Sprintf("provider binary not found for %s", provider.String()))
+			span.RecordError(err)
+			span.End()
 			continue
 		}
 		if linkTo != nil {
@@ -564,6 +594,9 @@ func (i *Installer) ensureProviderVersionsInstall(
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
 				}
+				span.SetStatus(codes.Error, fmt.Sprintf("failed to link %s from cache", provider.String()))
+				span.RecordError(err)
+				span.End()
 				continue
 			}
 
@@ -578,6 +611,9 @@ func (i *Installer) ensureProviderVersionsInstall(
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
 				}
+				span.SetStatus(codes.Error, fmt.Sprintf("provider binary not found for %s", provider.String()))
+				span.RecordError(err)
+				span.End()
 				continue
 			}
 			if _, err := new.ExecutableFile(); err != nil {
@@ -586,6 +622,9 @@ func (i *Installer) ensureProviderVersionsInstall(
 				if cb := evts.FetchPackageFailure; cb != nil {
 					cb(provider, version, err)
 				}
+				span.SetStatus(codes.Error, fmt.Sprintf("provider binary not found for %s", provider.String()))
+				span.RecordError(err)
+				span.End()
 				continue
 			}
 		}
@@ -622,6 +661,9 @@ func (i *Installer) ensureProviderVersionsInstall(
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			span.SetStatus(codes.Error, fmt.Sprintf("unable to compute checksum for %s", provider.String()))
+			span.RecordError(err)
+			span.End()
 			continue
 		}
 
@@ -674,6 +716,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 		if cb := evts.FetchPackageSuccess; cb != nil {
 			cb(provider, version, new.PackageDir, authResult)
 		}
+		span.End()
 	}
 
 	return authResults, nil

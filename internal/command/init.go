@@ -36,6 +36,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
+	"github.com/opentofu/opentofu/internal/tracing"
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
@@ -46,6 +47,7 @@ type InitCommand struct {
 }
 
 func (c *InitCommand) Run(args []string) int {
+
 	var flagFromModule, flagLockfile, testsDirectory string
 	var flagBackend, flagCloud, flagGet, flagUpgrade bool
 	var flagPluginPath FlagStringSlice
@@ -132,6 +134,9 @@ func (c *InitCommand) Run(args []string) int {
 	ctx, done := c.InterruptibleContext(c.CommandContext())
 	defer done()
 
+	ctx, span := tracing.Tracer().Start(ctx, "opentofu.init")
+	defer span.End()
+
 	// This will track whether we outputted anything so that we know whether
 	// to output a newline before the success message
 	var header bool
@@ -159,9 +164,10 @@ func (c *InitCommand) Run(args []string) int {
 			ShowLocalPaths: false, // since they are in a weird location for init
 		}
 
-		ctx, span := tracer.Start(ctx, "-from-module=...", trace.WithAttributes(
-			attribute.String("module_source", src),
+		ctx, span := tracing.Tracer().Start(ctx, "opentofu.init.from_module", trace.WithAttributes(
+			attribute.String("opentofu.module_source", src),
 		))
+		defer span.End()
 
 		initDirFromModuleAbort, initDirFromModuleDiags := c.initDirFromModule(ctx, path, src, hooks)
 		diags = diags.Append(initDirFromModuleDiags)
@@ -402,8 +408,8 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		return false, false, nil
 	}
 
-	ctx, span := tracer.Start(ctx, "install modules", trace.WithAttributes(
-		attribute.Bool("upgrade", upgrade),
+	ctx, span := tracing.Tracer().Start(ctx, "opentofu.modules.get", trace.WithAttributes(
+		attribute.Bool("opentofu.modules.upgrade", upgrade),
 	))
 	defer span.End()
 
@@ -442,7 +448,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 }
 
 func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "initialize cloud backend")
+	ctx, span := tracing.Tracer().Start(ctx, "opentofu.cloudbackend.init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
 
@@ -470,7 +476,7 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 }
 
 func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "initialize backend")
+	ctx, span := tracing.Tracer().Start(ctx, "opentofu.backend.init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
 
@@ -555,7 +561,7 @@ the backend configuration is present and valid.
 // Load the complete module tree, and fetch any missing providers.
 // This method outputs its own Ui.
 func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, state *states.State, upgrade bool, pluginDirs []string, flagLockfile string) (output, abort bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "install providers")
+	ctx, span := tracing.Tracer().Start(ctx, "opentofu.providers.get")
 	defer span.End()
 
 	// Dev overrides cause the result of "tofu init" to be irrelevant for
@@ -1035,7 +1041,7 @@ in the .terraform.lock.hcl file. Review those changes and commit them to your
 version control system if they represent changes you intended to make.`))
 		}
 
-		moreDiags = c.replaceLockedDependencies(newLocks)
+		moreDiags = c.replaceLockedDependencies(ctx, newLocks)
 		diags = diags.Append(moreDiags)
 	}
 

@@ -14,6 +14,7 @@
 package cliconfig
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -23,10 +24,10 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl"
-
 	svchost "github.com/hashicorp/terraform-svchost"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 const pluginCacheDirEnvVar = "TF_PLUGIN_CACHE_DIR"
@@ -116,7 +117,10 @@ func DataDirs() ([]string, error) {
 // LoadConfig reads the CLI configuration from the various filesystem locations
 // and from the environment, returning a merged configuration along with any
 // diagnostics (errors and warnings) encountered along the way.
-func LoadConfig() (*Config, tfdiags.Diagnostics) {
+func LoadConfig(ctx context.Context) (*Config, tfdiags.Diagnostics) {
+	_, span := tracing.Tracer().Start(ctx, "opentofu.config.load")
+	defer span.End()
+
 	var diags tfdiags.Diagnostics
 	configVal := BuiltinConfig // copy
 	config := &configVal
