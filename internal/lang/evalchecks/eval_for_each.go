@@ -80,32 +80,36 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	forEachVal, forEachDiags := expr.Value(hclCtx)
 	diags = diags.Append(forEachDiags)
 
-	// Normally, we'd add the type check diags here, but we are deferring that for ordering
-	typeVal, typeCheckDiags := performTypeChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal)
-
-	resultValue, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, typeVal, excludableAddr)
-
-	// See above comment
-	diags = diags.Append(valueDiags)
-	diags = diags.Append(typeCheckDiags)
-
-	return resultValue, diags
+	return performTypeAndValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, excludableAddr)
 }
 
 // performTypeChecks checks if the type is valid and returns the proper value and the unknown message to be used depending on the type
-func performTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func performTypeAndValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	ty := forEachVal.Type()
-	var diags tfdiags.Diagnostics
 
-	allowedTypes := ty == cty.DynamicPseudoType || (ty.IsMapType() || ty.IsObjectType()) || ty.IsSetType()
-	allowedTypesMessage := "map, or set of strings"
-	if allowTuple {
-		allowedTypes = allowedTypes || ty.IsTupleType()
-		allowedTypesMessage = "map, set of strings, or a tuple"
-	}
+	switch {
+	case ty == cty.DynamicPseudoType:
+		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailDynamic, excludableAddr)
+	case ty.IsMapType() || ty.IsObjectType():
+		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailMap, excludableAddr)
+	case ty.IsSetType():
+		resultVal, typeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal)
+		setVal, setValueDiags := performSetValueChecks(expr, hclCtx, resultVal)
 
-	if !allowedTypes {
-		diags = diags.Append(&hcl.Diagnostic{
+		// Now that we have refined the set value, we can run the generic type checks
+		resultVal, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, setVal, errInvalidUnknownDetailSet, excludableAddr)
+
+		// TODO: odd diag ordering due to existing tests
+		return resultVal, valueDiags.Append(setValueDiags).Append(typeDiags)
+	case ty.IsTupleType() && allowTuple:
+		return performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, errInvalidUnknownDetailTuple, excludableAddr)
+	default:
+		allowedTypesMessage := "map, or set of strings"
+		if allowTuple {
+			allowedTypesMessage = "map, set of strings, or a tuple"
+		}
+
+		typeDiags := tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid for_each argument",
 			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: the "for_each" argument must be a %s, and you have provided a value of type %s.`, allowedTypesMessage, ty.FriendlyName()),
@@ -113,45 +117,23 @@ func performTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknow
 			Expression:  expr,
 			EvalContext: hclCtx,
 		})
-		return cty.NullVal(ty), diags
+
+		// TODO consider adding a errInvalidUnknownDetail for a "Invalid type"?  What would that wording look like?
+		_, valueDiags := performValueChecks(expr, hclCtx, allowUnknown, forEachVal, forEachVal, "", excludableAddr)
+
+		// TODO: odd diag ordering due to existing tests
+		return cty.NullVal(ty), valueDiags.Append(typeDiags)
 	}
 
-	if ty.IsSetType() {
-		setVal, setDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal)
-		return setVal, setDiags
-	}
-
-	return forEachVal, diags
 }
 
-func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, allowTuple bool, forEachVal cty.Value, typeCheckVal cty.Value, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value, typeCheckVal cty.Value, errInvalidUnknownDetail string, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	resultVal := typeCheckVal
 	ty := forEachVal.Type()
-	var errInvalidUnknownDetail string
+	resultVal := typeCheckVal
 
-	// Assign right unknown detail message depending on the type
-	switch {
-	case ty == cty.DynamicPseudoType:
-		errInvalidUnknownDetail = errInvalidUnknownDetailDynamic
-	case ty.IsMapType() || ty.IsObjectType():
-		errInvalidUnknownDetail = errInvalidUnknownDetailMap
-	case ty.IsSetType():
-		errInvalidUnknownDetail = errInvalidUnknownDetailSet
-	case ty.IsTupleType() && allowTuple:
-		errInvalidUnknownDetail = errInvalidUnknownDetailTuple
-	default:
-	}
-
-	if ty.IsSetType() {
-		setVal, setCheckDiags := performSetValueChecks(expr, hclCtx, resultVal)
-		diags = diags.Append(setCheckDiags)
-		resultVal = setVal
-	}
-
-	isUnderstoodType := errInvalidUnknownDetail != ""
 	// Testing if the original value, the type check result or if the set check above are unknown
-	if (!resultVal.IsKnown() || !forEachVal.IsKnown()) && isUnderstoodType {
+	if (!resultVal.IsKnown() || !forEachVal.IsKnown()) && errInvalidUnknownDetail != "" {
 		if !allowUnknown {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,

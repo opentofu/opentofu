@@ -100,7 +100,7 @@ func TestEvaluateForEachExpression_multi_errors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			_, diags := EvaluateForEachExpression(test.Expr, mockRefsFunc(), nil)
 			if len(diags) != len(test.Wanted) {
-				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
+				t.Fatalf("Expected diagnostics: %s\nGot: %s\n", spew.Sdump(test.Wanted), spew.Sdump(diags))
 			}
 			for idx := range test.Wanted {
 				if got, want := diags[idx].Severity(), tfdiags.Error; got != want {
