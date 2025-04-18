@@ -147,8 +147,15 @@ func TestNodeApplyableOutputExecute_alternativelyMarkedValue(t *testing.T) {
 
 	stateVal := ctx.StateState.OutputValue(modOutputAddr)
 
-	if !stateVal.Value.HasMark("alternative-mark") {
-		t.Fatalf("Non-sensitive mark has been erased")
+	_, pvms := stateVal.Value.UnmarkDeepWithPaths()
+	if len(pvms) != 1 {
+		t.Fatalf("Expected a single mark to be present, got: %v", pvms)
+	}
+
+	// We want to check if the mark is still under the same path.
+	if !pvms[0].Path.Equals(cty.IndexStringPath("a")) ||
+		!pvms[0].Marks.Equal(cty.NewValueMarks("alternative-mark")) {
+		t.Fatalf("Expected an alternativeMark with preserved path (a). Got: %v", pvms)
 	}
 }
 
