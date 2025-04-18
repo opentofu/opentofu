@@ -2170,7 +2170,7 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx EvalContext, st
 		return nil
 	}
 
-	provs := filterProvisioners(n.Config, when)
+	provs := filterResourceProvisioners(n.Config, n.removedBlockProvisioners, when)
 	if len(provs) == 0 {
 		// We have no provisioners, so don't do anything
 		return nil
@@ -2198,20 +2198,30 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx EvalContext, st
 	}))
 }
 
-// filterProvisioners filters the provisioners on the resource to only
-// the provisioners specified by the "when" option.
-func filterProvisioners(config *configs.Resource, when configs.ProvisionerWhen) []*configs.Provisioner {
+// filterResourceProvisioners is filtering the providers based on the "when" option.
+// In case the given resource is nil or is having no configuration defined (aka destroy/removed from the config files),
+// then this function tries to filter the removedProvisioners.
+// If the resource is having a configuration (aka config.Managed != nil), then the removedProvisioners is ignored since
+// a "removed" block cannot coexist with the "resource" config that is targeting.
+func filterResourceProvisioners(config *configs.Resource, removedProvisioners []*configs.Provisioner, when configs.ProvisionerWhen) []*configs.Provisioner {
 	// Fast path the zero case
 	if config == nil || config.Managed == nil {
-		return nil
+		return filterProvisioners(removedProvisioners, when)
 	}
 
 	if len(config.Managed.Provisioners) == 0 {
+		// This shouldn't be reached because if there is a config.Managed object, then a "removed" block should not be allowed
+		// to coexist with the resource one. This error should have been returned way before getting at this logic.
 		return nil
 	}
+	// Filter the resource defined provisioners if any
+	return filterProvisioners(config.Managed.Provisioners, when)
+}
 
-	result := make([]*configs.Provisioner, 0, len(config.Managed.Provisioners))
-	for _, p := range config.Managed.Provisioners {
+// filterProvisioners filters the provisioners to only the provisioners specified by the "when" option.
+func filterProvisioners(provisioners []*configs.Provisioner, when configs.ProvisionerWhen) []*configs.Provisioner {
+	result := make([]*configs.Provisioner, 0, len(provisioners))
+	for _, p := range provisioners {
 		if p.When == when {
 			result = append(result, p)
 		}
@@ -2240,7 +2250,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 	// then it'll serve as a base connection configuration for all of the
 	// provisioners.
 	var baseConn hcl.Body
-	if n.Config.Managed != nil && n.Config.Managed.Connection != nil {
+	if n.Config != nil && n.Config.Managed != nil && n.Config.Managed.Connection != nil {
 		baseConn = n.Config.Managed.Connection.Config
 	}
 

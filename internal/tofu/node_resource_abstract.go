@@ -90,6 +90,11 @@ type NodeAbstractResource struct {
 	// generateConfigPath tells this node which file to write generated config
 	// into. If empty, then config should not be generated.
 	generateConfigPath string
+
+	// removedBlockProvisioners holds any possibly existing configs.Provisioner configs that could be defined by using
+	// removed.provisioner configuration. If the field "Config.Managed.Provisioners" is having no provisioners, then
+	// these provisioners should be used instead.
+	removedBlockProvisioners []*configs.Provisioner
 }
 
 var (
