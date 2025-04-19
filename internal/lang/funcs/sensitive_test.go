@@ -214,10 +214,18 @@ func TestIsSensitive(t *testing.T) {
 			cty.NullVal(cty.EmptyObject),
 			false,
 		},
+		{
+			cty.StringVal("hello").Mark(marks.Sensitive),
+			true,
+		},
+		{
+			cty.StringVal("hello"),
+			false,
+		},
 	}
 
 	for _, test := range tests {
-		t.Run(fmt.Sprintf("issensitive(%#v)", test.Input), func(t *testing.T) {
+		t.Run(fmt.Sprintf("IsSensitive(%#v)", test.Input), func(t *testing.T) {
 			got, err := IsSensitive(test.Input)
 
 			if err != nil {
@@ -226,6 +234,69 @@ func TestIsSensitive(t *testing.T) {
 
 			if got.Equals(cty.BoolVal(test.IsSensitive)).False() {
 				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, cty.BoolVal(test.IsSensitive))
+			}
+		})
+	}
+}
+
+func TestFlipSensitive(t *testing.T) {
+	tests := []struct {
+		Input cty.Value
+		Want  cty.Value
+	}{
+		{
+			cty.StringVal("hello"),
+			cty.StringVal("hello").Mark(marks.Sensitive),
+		},
+		{
+			cty.StringVal("hello").Mark(marks.Sensitive),
+			cty.StringVal("hello"),
+		},
+		{
+			cty.NumberIntVal(123),
+			cty.NumberIntVal(123).Mark(marks.Sensitive),
+		},
+		{
+			cty.NumberIntVal(123).Mark(marks.Sensitive),
+			cty.NumberIntVal(123),
+		},
+		{
+			cty.True,
+			cty.True.Mark(marks.Sensitive),
+		},
+		{
+			cty.True.Mark(marks.Sensitive),
+			cty.True,
+		},
+		{
+			cty.NullVal(cty.String),
+			cty.NullVal(cty.String).Mark(marks.Sensitive),
+		},
+		{
+			cty.NullVal(cty.String).Mark(marks.Sensitive),
+			cty.NullVal(cty.String),
+		},
+		{
+			cty.UnknownVal(cty.String),
+			cty.UnknownVal(cty.String).Mark(marks.Sensitive),
+		},
+		{
+			cty.UnknownVal(cty.String).Mark(marks.Sensitive),
+			cty.UnknownVal(cty.String),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(fmt.Sprintf("FlipSensitive(%#v)", test.Input), func(t *testing.T) {
+			got, err := FlipSensitiveFunc.Call([]cty.Value{test.Input})
+
+			if err != nil {
+				t.Fatalf("unexpected error: %s", err)
+			}
+
+			// Use RawEquals because marks don't participate in normal equality
+			if !got.RawEquals(test.Want) {
+				t.Errorf("wrong result\ngot:  %#v\nwant: %#v", got, test.Want)
 			}
 		})
 	}

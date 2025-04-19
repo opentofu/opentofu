@@ -248,6 +248,12 @@ var DescriptionList = map[string]descriptionEntry{
 		Description:      "`issensitive` takes any value and returns `true` if the value is marked as sensitive, and `false` otherwise.",
 		ParamDescription: []string{""},
 	},
+	"flip_sensitive": {
+		Description: "Takes a value and returns a copy with the opposite sensitivity marking. If the input is sensitive, the output is non-sensitive and vice-versa.",
+		ParamDescription: []string{
+			"The value whose sensitivity should be flipped.",
+		},
+	},
 	"join": {
 		Description: "`join` produces a string by concatenating together all elements of a given list of strings with the given delimiter.",
 		ParamDescription: []string{

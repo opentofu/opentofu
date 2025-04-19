@@ -789,6 +789,17 @@ func TestFunctions(t *testing.T) {
 			},
 		},
 
+		"flip_sensitive": {
+			{
+				`flip_sensitive("hello")`,
+				cty.StringVal("hello").Mark(marks.Sensitive),
+			},
+			{
+				`flip_sensitive(sensitive("secret"))`,
+				cty.StringVal("secret"),
+			},
+		},
+
 		"setintersection": {
 			{
 				`setintersection(["a", "b"], ["b", "c"], ["b", "d"])`,

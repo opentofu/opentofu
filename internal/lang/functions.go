@@ -192,6 +192,7 @@ func makeBaseFunctionTable(baseDir string) map[string]function.Function {
 		"sensitive":        funcs.SensitiveFunc,
 		"nonsensitive":     funcs.NonsensitiveFunc,
 		"issensitive":      funcs.IsSensitiveFunc,
+		"flip_sensitive":   funcs.FlipSensitiveFunc,
 		"setintersection":  stdlib.SetIntersectionFunc,
 		"setproduct":       stdlib.SetProductFunc,
 		"setsubtract":      stdlib.SetSubtractFunc,
