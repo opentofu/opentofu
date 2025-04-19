@@ -27,3 +27,8 @@ module "baz" {
     aws = aws.foo
   }
 }
+
+module "bat" {
+  source = "./bat"
+  version = null
+}
