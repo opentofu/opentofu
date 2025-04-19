@@ -163,11 +163,12 @@ func (m *Meta) getInput(ctx context.Context, variable *configs.Variable) (string
 	if !m.Input() {
 		return "", fmt.Errorf("input is disabled")
 	}
+
 	uiInput := m.UIInput()
 	rawValue, err := uiInput.Input(ctx, &tofu.InputOpts{
 		Id:          fmt.Sprintf("var.%s", variable.Name),
 		Query:       fmt.Sprintf("var.%s", variable.Name),
-		Description: variable.Description,
+		Description: variable.InputPrompt(),
 		Secret:      variable.Sensitive,
 	})
 	if err != nil {
