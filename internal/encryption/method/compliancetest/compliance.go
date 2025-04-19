@@ -11,6 +11,8 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/hashicorp/hcl/v2"
+
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/opentofu/opentofu/internal/encryption/compliancetest"
 	"github.com/opentofu/opentofu/internal/encryption/config"
@@ -310,7 +312,7 @@ func buildConfigAndValidate[TMethod method.Method, TConfig method.Config](
 			compliancetest.Log(t, "Build() correctly returned an error: %v", err)
 		}
 
-		var typedError *method.ErrInvalidConfiguration
+		var typedError hcl.Diagnostics
 		if !errors.As(err, &typedError) {
 			compliancetest.Fail(
 				t,

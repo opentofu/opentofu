@@ -34,9 +34,9 @@ func Example() {
 		panic(err)
 	}
 
-	method, err := config.Build()
-	if err != nil {
-		panic(err)
+	method, diags := config.Build()
+	if diags != nil {
+		panic(diags)
 	}
 
 	// Encrypt some data:
@@ -70,9 +70,9 @@ func Example_config() {
 	}
 
 	// Now you can build a method:
-	method, err := config.Build()
-	if err != nil {
-		panic(err)
+	method, diags := config.Build()
+	if diags != nil {
+		panic(diags)
 	}
 
 	// Encrypt something:
@@ -111,9 +111,9 @@ func Example_config_json() {
 	}
 
 	// Now you can build a method:
-	method, err := config.Build()
-	if err != nil {
-		panic(err)
+	method, diags := config.Build()
+	if diags != nil {
+		panic(diags)
 	}
 
 	// Encrypt something:
@@ -158,9 +158,9 @@ func Example_config_hcl() {
 	}
 
 	// Now you can build a method:
-	method, err := config.Build()
-	if err != nil {
-		panic(err)
+	method, diags := config.Build()
+	if diags != nil {
+		panic(diags)
 	}
 
 	// Encrypt something:
