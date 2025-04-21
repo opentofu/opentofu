@@ -7,6 +7,7 @@ package providercache
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -52,7 +53,6 @@ type Dir struct {
 	// may have been installed since the latest re-scan. The code that
 	// handles the installation should be smart enough to detect that and
 	// work around it.
-
 	metaCache map[addrs.Provider][]CachedProvider
 }
 
@@ -112,7 +112,10 @@ func (d *Dir) Lock(ctx context.Context, provider addrs.Provider, version getprov
 		var err error
 
 		// Try to get a handle to the file (or create if it does not exist)
-		// Sometimes the creates can conflict and will need to be tried multiple times.
+		// They will all end up with the same file handle on any correctly implemented filesystem.
+		// This is one of the many reasons we recommend users look at the flock support of their
+		// networked filesystems when using the global provider cache.
+		// Sometimes the creates can conflict and will need to be tried multiple times (incredibly uncommon).
 		f, err = os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE, 0644)
 		if err == nil {
 			// We don't defer f.Close() here as we explicitly want to handle it below
@@ -144,7 +147,7 @@ func (d *Dir) Lock(ctx context.Context, provider addrs.Provider, version getprov
 			if f != nil {
 				f.Close()
 			}
-			return nil, err
+			return nil, fmt.Errorf("Unable to acquire file lock on %q: %w", lockFile, err)
 		case <-ctx.Done():
 			if f != nil {
 				f.Close()
