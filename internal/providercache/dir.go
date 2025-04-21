@@ -90,15 +90,18 @@ func (d *Dir) BasePath() string {
 
 func (d *Dir) Lock(ctx context.Context, provider addrs.Provider, version getproviders.Version) (func() error, error) {
 	providerPath := getproviders.UnpackedDirectoryPathForPackage(d.baseDir, provider, version, d.targetPlatform)
+
 	// If the lockfile is put within the target directory, it can mess with hashing
 	// Instead we add a suffix to the last part of the path (targetplatform) and lock that file instead.
-	lockFile := providerPath + ".lock"
+	dirPath := filepath.Dir(providerPath)
+	lockFileName := filepath.Base(providerPath) + ".lock"
+	lockFile := filepath.Join(dirPath, lockFileName)
 
 	log.Printf("[TRACE] Attempting to acquire global provider lock %s", lockFile)
 
 	// Ensure the provider directory exists
 	//nolint: mnd // directory permissions
-	if err := os.MkdirAll(providerPath, 0755); err != nil {
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
 		return nil, err
 	}
 

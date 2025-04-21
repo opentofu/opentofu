@@ -61,7 +61,7 @@ func (p PackageLocalArchive) InstallProviderPackage(_ context.Context, meta Pack
 	// NOTE: Packages are immutable, but we may want to skip overwriting the existing
 	// files in due to specific scenarios defined below.
 
-	if entries, err := os.ReadDir(targetDir); err == nil && len(entries) != 0 {
+	if _, err := os.Stat(targetDir); err == nil {
 		// If the package might already be installed, we should try to skip overwriting the contents.
 		// When run with TF_PLUGIN_CACHE_DIR or similar, a given provider might already be executing
 		// and therefore locking the provider binary in the target directory (preventing the overwrite below)
