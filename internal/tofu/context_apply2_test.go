@@ -100,66 +100,62 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 // Check that create_before_destroy is still set on the B resource after only the B resource is updated
 func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 	m := testModule(t, "apply-cbd-depends-non-cbd-update")
-	p := testProviderBuiltin()
+	p := simpleMockProvider()
 
+	// Set plan resource change to replace on test_number change
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState:    req.ProposedNewState,
+			RequiresReplace: []cty.Path{cty.GetAttrPath("test_number")},
+		}
+	}
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("terraform_data.A").Resource,
+		mustResourceInstanceAddr("test_object.A").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status: states.ObjectReady,
 			AttrsJSON: []byte(`
 			{
-				"id": "a1",
-				"triggers_replace": {
-				  "value": { "version": 0 },
-				  "type": ["object", { "version": "number" }]
-				}
+				"test_string": "A"
 			}`),
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["terraform.io/builtin/terraform"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("terraform_data.B").Resource,
+		mustResourceInstanceAddr("test_object.B").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status: states.ObjectReady,
 			AttrsJSON: []byte(`
 			{
-				"id": "b1",
-				"triggers_replace": {
-				  "value": {
-					"base": "a1",
-					"version": 0
-				  },
-				  "type": ["object", { "base": "string", "version": "number" }]
-				}
+				"test_number": 0,
+				"test_string": "A"
 			}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("terraform_data.A")},
+			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["terraform.io/builtin/terraform"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
-		mustResourceInstanceAddr("terraform_data.C").Resource,
+		mustResourceInstanceAddr("test_object.C").Resource,
 		&states.ResourceInstanceObjectSrc{
 			Status: states.ObjectReady,
 			AttrsJSON: []byte(`
 			{
-				"id": "c1",
-				"triggers_replace": null
+				"test_string": "C"
 			}`),
-			Dependencies:        []addrs.ConfigResource{mustConfigResourceAddr("terraform_data.A"), mustConfigResourceAddr("terraform_data.B")},
+			Dependencies:        []addrs.ConfigResource{mustConfigResourceAddr("test_object.A"), mustConfigResourceAddr("terraform_data.B")},
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["terraform.io/builtin/terraform"]`),
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
-			addrs.NewBuiltInProvider("terraform"): testProviderFuncFixed(p),
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
 		},
 	})
 
@@ -176,11 +172,12 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 	}
 
 	// Check that create_before_destroy was set on the foo resource
-	foo := state.RootModule().Resources["terraform_data.B"].Instances[addrs.NoKey].Current
+	foo := state.RootModule().Resources["test_object.B"].Instances[addrs.NoKey].Current
 	if !foo.CreateBeforeDestroy {
-		t.Fatalf("foo resource should have create_before_destroy set")
+		t.Fatalf("B resource should have create_before_destroy set")
 	}
 }
+
 func TestContext2Apply_destroyWithDataSourceExpansion(t *testing.T) {
 	// While managed resources store their destroy-time dependencies, data
 	// sources do not. This means that if a provider were only included in a

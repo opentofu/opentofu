@@ -1,22 +1,19 @@
-resource "terraform_data" "A" {
-  triggers_replace = {
-    version = 0
-  }
+resource "test_object" "A" {
+  test_string = "A"
 
   lifecycle {
     create_before_destroy = true
   }
 }
 
-resource "terraform_data" "B" {
-  triggers_replace = {
-    base    = terraform_data.A.id
-    version = 1
-  }
+resource "test_object" "B" {
+  test_string = test_object.A.test_string
+  test_number  = 1
 }
 
-resource "terraform_data" "C" {
-  depends_on = [terraform_data.B]
+resource "test_object" "C" {
+  test_string = "C"
+  depends_on = [test_object.B]
 
   lifecycle {
     create_before_destroy = true
