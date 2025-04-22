@@ -587,7 +587,7 @@ func TestParsePlan_excludeAndTarget(t *testing.T) {
 			tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid combination of arguments",
-				"The target and exclude planning options are mutually-exclusive. Each plan must use either only the target options or only the exclude options",
+				"The target and exclude planning options are mutually-exclusive. Each plan must use either only the target options or only the exclude options.",
 			),
 		}
 		if diff := cmp.Diff(wantDiags.ForRPC(), gotDiags.ForRPC()); diff != "" {
