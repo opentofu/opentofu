@@ -19,12 +19,12 @@ NEW FEATURES:
     - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
 - Added support for S3 native locking ([#599](https://github.com/opentofu/opentofu/issues/599))
 - Backend `pg` now allows the `table_name` and `index_name` to be specified. This enables a single database schema to support multiple backends via multiple tables. ([#2465](https://github.com/opentofu/opentofu/pull/2465))
-- New CLI options with `-target-file` and `-exclude-file` allow for simplified workflows for targeting many or frequently reused resources.
 
 ENHANCEMENTS:
 
 * OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
 * State encryption now supports using external programs as key providers. Additionally, the PBKDF2 key provider now supports chaining via the `chain` parameter. ([#2023](https://github.com/opentofu/opentofu/pull/2023))
+* New planning options `-target-file` and `-exclude-file` allow specifying a list of resource instances to target or exclude in a separate file, to allow listing routinely-relevant target addresses in files under version control for easier reuse. ([#2620](https://github.com/opentofu/opentofu/pull/2620))
 * Added count of forgotten resources to plan and apply outputs. ([#1956](https://github.com/opentofu/opentofu/issues/1956))
 * The `element` function now accepts negative indices, which extends the existing "wrapping" model into the negative direction. In particular, choosing element `-1` selects the final element in the sequence. ([#2371](https://github.com/opentofu/opentofu/pull/2371))
 * `moved` now supports moving between different types ([#2370](https://github.com/opentofu/opentofu/pull/2370))
