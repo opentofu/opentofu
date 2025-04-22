@@ -20,8 +20,7 @@ func (m *mockFile) tempFileWriter(tt *testing.T) {
 		tt.Fatal(err)
 	}
 	m.filePath = tempFile.Name()
-	tempFile.WriteString(m.fileContent)
-	if err != nil {
+	if _, err := tempFile.WriteString(m.fileContent); err != nil {
 		tt.Fatal(err)
 	}
 	if err := tempFile.Close(); err != nil {

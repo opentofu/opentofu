@@ -175,10 +175,7 @@ func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, 
 }
 
 func isComment(b []byte) bool {
-	if bytes.HasPrefix(bytes.TrimSpace(b), []byte("#")) {
-		return true
-	}
-	return false
+	return bytes.HasPrefix(bytes.TrimSpace(b), []byte("#"))
 }
 
 func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFiles, excludeFiles []string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
