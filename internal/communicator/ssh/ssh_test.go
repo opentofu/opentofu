@@ -22,14 +22,7 @@ import (
 func TestFindKeyData(t *testing.T) {
 	// set up a test directory
 	td := t.TempDir()
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Chdir(td); err != nil {
-		t.Fatal(err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(td)
 
 	id := "provisioner_id"
 
