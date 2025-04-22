@@ -58,9 +58,6 @@ func FindResourceRemovedBlockProvisioners(rootCfg *configs.Config, resAddr addrs
 }
 
 func findRemoveStatements(cfg *configs.Config, into []*RemoveStatement) []*RemoveStatement {
-	if cfg == nil {
-		return nil
-	}
 	modAddr := cfg.Path
 
 	for _, rc := range cfg.Module.Removed {
