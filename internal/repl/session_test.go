@@ -279,8 +279,7 @@ func testSession(t *testing.T, test testSessionTest) {
 		},
 	}
 
-	config, _, cleanup, configDiags := initwd.LoadConfigForTests(t, "testdata/config-fixture", "tests")
-	defer cleanup()
+	config, _, configDiags := initwd.LoadConfigForTests(t, "testdata/config-fixture", "tests")
 	if configDiags.HasErrors() {
 		t.Fatalf("unexpected problems loading config: %s", configDiags.Err())
 	}

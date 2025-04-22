@@ -45,8 +45,7 @@ func TestDirFromModule_registry(t *testing.T) {
 	hooks := &testInstallHooks{}
 
 	reg := registry.NewClient(nil, nil)
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(context.Background(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, nil, hooks)
 	assertNoDiagnostics(t, diags)
 
@@ -163,8 +162,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 	}
 	modInstallDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
 		context.Background(),
 		loader,
@@ -250,8 +248,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 	}
 	modInstallDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
 		context.Background(),
 		loader,
@@ -320,8 +317,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 
 	modInstallDir := ".terraform/modules"
 	sourceDir := "../local-modules"
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
 		context.Background(),
 		loader, ".",

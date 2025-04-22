@@ -45,8 +45,7 @@ func TestModuleInstaller(t *testing.T) {
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
@@ -109,8 +108,7 @@ func TestModuleInstaller_error(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
@@ -130,8 +128,7 @@ func TestModuleInstaller_emptyModuleName(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
@@ -151,8 +148,7 @@ func TestModuleInstaller_invalidModuleName(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	if !diags.HasErrors() {
@@ -188,8 +184,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	// This test needs a real getmodules.PackageFetcher because it makes use of
 	// the esoteric legacy support for treating an absolute filesystem path
 	// as if it were a "remote package". This should not use any of the
@@ -230,8 +225,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	// This test needs a real getmodules.PackageFetcher because it makes use of
 	// the esoteric legacy support for treating an absolute filesystem path
 	// as if it were a "remote package". This should not use any of the
@@ -320,8 +314,7 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 
 			modulesDir := filepath.Join(dir, ".terraform/modules")
 
-			loader, closeLoader := configload.NewLoaderForTests(t)
-			defer closeLoader()
+			loader := configload.NewLoaderForTests(t)
 			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 			cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
@@ -352,8 +345,7 @@ func TestModuleInstaller_invalid_version_constraint_error(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
@@ -378,8 +370,7 @@ func TestModuleInstaller_invalidVersionConstraintGetter(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
@@ -404,8 +395,7 @@ func TestModuleInstaller_invalidVersionConstraintLocal(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
@@ -430,8 +420,7 @@ func TestModuleInstaller_symlink(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
@@ -506,8 +495,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 	hooks := &testInstallHooks{}
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
@@ -669,8 +657,7 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 	hooks := &testInstallHooks{}
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
@@ -787,8 +774,7 @@ func TestModuleInstaller_fromTests(t *testing.T) {
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
@@ -844,8 +830,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 	hooks := &testInstallHooks{}
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)

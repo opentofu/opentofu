@@ -171,8 +171,7 @@ func TestShowJSON(t *testing.T) {
 		},
 	}
 
-	config, _, configCleanup := initwd.MustLoadConfigForTests(t, "./testdata/show", "tests")
-	defer configCleanup()
+	config, _ := initwd.MustLoadConfigForTests(t, "./testdata/show", "tests")
 
 	for name, testCase := range testCases {
 		t.Run(name, func(t *testing.T) {

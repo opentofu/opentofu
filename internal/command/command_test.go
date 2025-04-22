@@ -153,10 +153,7 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	t.Helper()
 
 	dir := filepath.Join(fixtureDir, name)
-	// FIXME: We're not dealing with the cleanup function here because
-	// this testModule function is used all over and so we don't want to
-	// change its interface at this late stage.
-	loader, _ := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t)
 
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths

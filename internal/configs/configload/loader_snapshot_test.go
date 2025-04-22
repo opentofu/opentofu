@@ -6,7 +6,6 @@
 package configload
 
 import (
-	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -88,10 +87,7 @@ module "child_b" {
 
 func TestLoadConfigWithSnapshot_invalidSource(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/already-installed-now-invalid")
-
-	old, _ := os.Getwd()
-	os.Chdir(fixtureDir)
-	defer os.Chdir(old)
+	t.Chdir(fixtureDir)
 
 	loader, err := NewLoader(&Config{
 		ModulesDir: ".terraform/modules",
