@@ -148,7 +148,10 @@ func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, 
 
 	for _, filePath := range filePaths {
 		b, err := os.ReadFile(filePath)
-		diags = diags.Append(err)
+		if err != nil {
+			diags = diags.Append(err)
+			continue
+		}
 
 		sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
 		for sc.Scan() {
