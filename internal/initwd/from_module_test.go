@@ -9,7 +9,6 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -29,8 +28,7 @@ func TestDirFromModule_registry(t *testing.T) {
 	}
 
 	fixtureDir := filepath.Clean("testdata/empty")
-	tmpDir, done := tempChdir(t, fixtureDir)
-	defer done()
+	tmpDir := tempChdir(t, fixtureDir)
 
 	// the module installer runs filepath.EvalSymlinks() on the destination
 	// directory before copying files, and the resultant directory is what is
@@ -152,8 +150,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 		t.Error(err)
 	}
 
-	tmpDir, done := tempChdir(t, fixtureDir)
-	defer done()
+	tmpDir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 	dir, err := filepath.EvalSymlinks(tmpDir)
@@ -238,9 +235,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmpDir, done := tempChdir(t, fixtureDir)
-	defer done()
-
+	tmpDir := tempChdir(t, fixtureDir)
 	hooks := &testInstallHooks{}
 	dir, err := filepath.EvalSymlinks(tmpDir)
 	if err != nil {
@@ -296,22 +291,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	if err := os.Mkdir(targetDir, os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
-	oldDir, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = os.Chdir(targetDir)
-	if err != nil {
-		t.Fatalf("failed to switch to temp dir %s: %s", tmpDir, err)
-	}
-	t.Cleanup(func() {
-		os.Chdir(oldDir)
-		// Trigger garbage collection to ensure that all open file handles are closed.
-		// This prevents TempDir RemoveAll cleanup errors on Windows.
-		if runtime.GOOS == "windows" {
-			runtime.GC()
-		}
-	})
+	t.Chdir(targetDir)
 
 	hooks := &testInstallHooks{}
 
@@ -349,7 +329,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 		return
 	}
 
-	loader, err = configload.NewLoader(&configload.Config{
+	loader, err := configload.NewLoader(&configload.Config{
 		ModulesDir: modInstallDir,
 	})
 	if err != nil {
