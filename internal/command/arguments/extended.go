@@ -6,8 +6,11 @@
 package arguments
 
 import (
+	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
@@ -88,17 +91,19 @@ type Operation struct {
 	// These private fields are used only temporarily during decoding. Use
 	// method Parse to populate the exported fields from these, validating
 	// the raw values in the process.
-	targetsRaw      []string
-	excludesRaw     []string
-	forceReplaceRaw []string
-	destroyRaw      bool
-	refreshOnlyRaw  bool
+	targetsRaw       []string
+	targetsFilesRaw  []string
+	excludesRaw      []string
+	excludesFilesRaw []string
+	forceReplaceRaw  []string
+	destroyRaw       bool
+	refreshOnlyRaw   bool
 }
 
-// parseTargetables gets a list of strings, each representing a targetable object, and returns a list of
-// addrs.Targetable
+// parseDirectTargetables gets a list of strings passed from directly from the CLI
+// with each representing a targetable object, and returns a list of addrs.Targetable
 // This is used for parsing the input of -target and -exclude flags
-func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+func parseDirectTargetables(rawTargetables []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
 	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
@@ -128,28 +133,83 @@ func parseTargetables(rawTargetables []string, flag string) ([]addrs.Targetable,
 	return targetables, diags
 }
 
-func parseRawTargetsAndExcludes(targets []string, excludes []string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
-	var parsedTargets []addrs.Targetable
-	var parsedExcludes []addrs.Targetable
+// parseFile gets a filePath and reads the file, which contains a list of targets
+// with each line in the file representating a targeted object, and returns
+// a list of addrs.Targetable. This is used for parsing the input of -target-file
+// and -exclude-file flags
+func parseFileTargetables(filePaths []string, flag string) ([]addrs.Targetable, tfdiags.Diagnostics) {
+
+	// If no file passed, no targets
+	if len(filePaths) <= 0 {
+		return nil, nil
+	}
+	var targetables []addrs.Targetable
 	var diags tfdiags.Diagnostics
 
-	if len(targets) > 0 && len(excludes) > 0 {
+	for _, filePath := range filePaths {
+		b, err := os.ReadFile(filePath)
+		if err != nil {
+			diags = diags.Append(err)
+			continue
+		}
+
+		sc := hcl.NewRangeScanner(b, filePath, bufio.ScanLines)
+		for sc.Scan() {
+			lineBytes := sc.Bytes()
+			lineRange := sc.Range()
+			if isComment(lineBytes) {
+				continue
+			}
+			traversal, syntaxDiags := hclsyntax.ParseTraversalAbs(lineBytes, lineRange.Filename, lineRange.Start)
+			diags = diags.Append(syntaxDiags)
+			if syntaxDiags.HasErrors() {
+				continue
+			}
+			target, targetDiags := addrs.ParseTarget(traversal)
+			diags = diags.Append(targetDiags)
+			if targetDiags.HasErrors() {
+				continue
+			}
+			targetables = append(targetables, target.Subject)
+		}
+
+	}
+	return targetables, diags
+}
+
+func isComment(b []byte) bool {
+	return bytes.HasPrefix(bytes.TrimSpace(b), []byte("#"))
+}
+
+func parseRawTargetsAndExcludes(targetsDirect, excludesDirect []string, targetFiles, excludeFiles []string) ([]addrs.Targetable, []addrs.Targetable, tfdiags.Diagnostics) {
+	var allParsedTargets, allParsedExcludes, parsedTargets []addrs.Targetable
+	var parseDiags, diags tfdiags.Diagnostics
+
+	// Cannot exclude and target in same command
+	if (len(targetsDirect) > 0 || len(targetFiles) > 0) && (len(excludesDirect) > 0 || len(excludeFiles) > 0) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Invalid combination of arguments",
-			"-target and -exclude flags cannot be used together. Please remove one of the flags",
+			"The target and exclude planning options are mutually-exclusive. Each plan must use either only the target options or only the exclude options.",
 		))
-		return parsedTargets, parsedExcludes, diags
+		return allParsedTargets, allParsedExcludes, diags
 	}
 
-	var parseDiags tfdiags.Diagnostics
-	parsedTargets, parseDiags = parseTargetables(targets, "target")
+	parsedTargets, parseDiags = parseDirectTargetables(targetsDirect, "target")
 	diags = diags.Append(parseDiags)
-
-	parsedExcludes, parseDiags = parseTargetables(excludes, "exclude")
+	allParsedTargets = append(allParsedTargets, parsedTargets...)
+	parsedTargets, parseDiags = parseFileTargetables(targetFiles, "target")
 	diags = diags.Append(parseDiags)
+	allParsedTargets = append(allParsedTargets, parsedTargets...)
 
-	return parsedTargets, parsedExcludes, diags
+	parsedTargets, parseDiags = parseDirectTargetables(excludesDirect, "exclude")
+	diags = diags.Append(parseDiags)
+	allParsedExcludes = append(allParsedExcludes, parsedTargets...)
+	parsedTargets, parseDiags = parseFileTargetables(excludeFiles, "exclude")
+	diags = diags.Append(parseDiags)
+	allParsedExcludes = append(allParsedExcludes, parsedTargets...)
+
+	return allParsedTargets, allParsedExcludes, diags
 }
 
 // Parse must be called on Operation after initial flag parse. This processes
@@ -159,7 +219,7 @@ func (o *Operation) Parse() tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	var parseDiags tfdiags.Diagnostics
-	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw)
+	o.Targets, o.Excludes, parseDiags = parseRawTargetsAndExcludes(o.targetsRaw, o.excludesRaw, o.targetsFilesRaw, o.excludesFilesRaw)
 	diags = diags.Append(parseDiags)
 
 	for _, raw := range o.forceReplaceRaw {
@@ -270,7 +330,9 @@ func extendedFlagSet(name string, state *State, operation *Operation, vars *Vars
 		f.BoolVar(&operation.destroyRaw, "destroy", false, "destroy")
 		f.BoolVar(&operation.refreshOnlyRaw, "refresh-only", false, "refresh-only")
 		f.Var((*flagStringSlice)(&operation.targetsRaw), "target", "target")
+		f.Var((*flagStringSlice)(&operation.targetsFilesRaw), "target-file", "target-file")
 		f.Var((*flagStringSlice)(&operation.excludesRaw), "exclude", "exclude")
+		f.Var((*flagStringSlice)(&operation.excludesFilesRaw), "exclude-file", "exclude-file")
 		f.Var((*flagStringSlice)(&operation.forceReplaceRaw), "replace", "replace")
 	}
 

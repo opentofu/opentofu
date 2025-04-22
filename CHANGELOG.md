@@ -24,6 +24,7 @@ ENHANCEMENTS:
 
 * OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
 * State encryption now supports using external programs as key providers. Additionally, the PBKDF2 key provider now supports chaining via the `chain` parameter. ([#2023](https://github.com/opentofu/opentofu/pull/2023))
+* New planning options `-target-file` and `-exclude-file` allow specifying a list of resource instances to target or exclude in a separate file, to allow listing routinely-relevant target addresses in files under version control for easier reuse. ([#2620](https://github.com/opentofu/opentofu/pull/2620))
 * Added count of forgotten resources to plan and apply outputs. ([#1956](https://github.com/opentofu/opentofu/issues/1956))
 * The `element` function now accepts negative indices, which extends the existing "wrapping" model into the negative direction. In particular, choosing element `-1` selects the final element in the sequence. ([#2371](https://github.com/opentofu/opentofu/pull/2371))
 * `moved` now supports moving between different types ([#2370](https://github.com/opentofu/opentofu/pull/2370))
@@ -47,7 +48,7 @@ BUG FIXES:
 - Fix the error message when default value of a complex variable is containing a wrong type ([2394](https://github.com/opentofu/opentofu/issues/2394))
 - Fix the way OpenTofu downloads a module that is sourced from a GitHub branch containing slashes in the name. ([2396](https://github.com/opentofu/opentofu/issues/2396))
 - `pg` backend doesn't fail on workspace creation for parallel runs, when the database is shared across multiple projects. ([#2411](https://github.com/opentofu/opentofu/pull/2411))
-- Generating an OpenTofu configuration from an `import` block that is referencing a resource with nested attributes now works correctly, instead of giving an error that the nested computed attribute is required. ([#2372](https://github.com/opentofu/opentofu/issues/2372)) 
+- Generating an OpenTofu configuration from an `import` block that is referencing a resource with nested attributes now works correctly, instead of giving an error that the nested computed attribute is required. ([#2372](https://github.com/opentofu/opentofu/issues/2372))
 - `base64gunzip` now doesn't expose sensitive values if it fails during the base64 decoding. ([#2503](https://github.com/opentofu/opentofu/pull/2503))
 - Fix loading only the necessary encryption key providers and methods for better `terraform_remote_state` support. ([2551](https://github.com/opentofu/opentofu/issues/2551))
 - Better error messages when using `null` in invalid positions in the argument to the `transpose` function. ([#2553](https://github.com/opentofu/opentofu/pull/2553))
