@@ -18,7 +18,7 @@ import (
 
 func TestGet(t *testing.T) {
 	wd := tempWorkingDirFixture(t, "get")
-	defer testChdir(t, wd.RootModuleDir())()
+	t.Chdir(wd.RootModuleDir())
 
 	ui := cli.NewMockUi()
 	c := &GetCommand{
@@ -42,7 +42,7 @@ func TestGet(t *testing.T) {
 
 func TestGet_multipleArgs(t *testing.T) {
 	wd := tempWorkingDir(t)
-	defer testChdir(t, wd.RootModuleDir())()
+	t.Chdir(wd.RootModuleDir())
 
 	ui := cli.NewMockUi()
 	c := &GetCommand{
@@ -64,7 +64,7 @@ func TestGet_multipleArgs(t *testing.T) {
 
 func TestGet_update(t *testing.T) {
 	wd := tempWorkingDirFixture(t, "get")
-	defer testChdir(t, wd.RootModuleDir())()
+	t.Chdir(wd.RootModuleDir())
 
 	ui := cli.NewMockUi()
 	c := &GetCommand{
@@ -180,7 +180,7 @@ func TestGetCommand_InvalidArgs(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			wd := tempWorkingDirFixture(t, "get")
-			defer testChdir(t, wd.RootModuleDir())()
+			t.Chdir(wd.RootModuleDir())
 
 			ui := cli.NewMockUi()
 			c := &GetCommand{

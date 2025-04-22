@@ -27,7 +27,7 @@ func TestApply_destroy(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -132,7 +132,7 @@ func TestApply_destroyApproveNo(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Create some existing state
 	originalState := states.BuildState(func(s *states.SyncState) {
@@ -201,7 +201,7 @@ func TestApply_destroyApproveYes(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Create some existing state
 	originalState := states.BuildState(func(s *states.SyncState) {
@@ -273,7 +273,7 @@ func TestApply_destroyLockedState(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -332,7 +332,7 @@ func TestApply_destroyPlan(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	planPath := testPlanFileNoop(t)
 
@@ -364,7 +364,7 @@ func TestApply_destroyPath(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := applyFixtureProvider()
 
@@ -472,7 +472,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 			// Create a temporary working directory that is empty
 			td := filepath.Join(t.TempDir(), t.Name())
 			testCopyDir(t, testFixturePath("apply-destroy-targeted"), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			originalState := states.BuildState(func(s *states.SyncState) {
 				s.SetResourceInstanceCurrent(
