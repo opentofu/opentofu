@@ -268,11 +268,7 @@ func TestLocal_applyBackendFail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get current working directory")
 	}
-	err = os.Chdir(filepath.Dir(b.StatePath))
-	if err != nil {
-		t.Fatalf("failed to set temporary working directory")
-	}
-	defer os.Chdir(wd)
+	t.Chdir(filepath.Dir(b.StatePath))
 
 	op, done := testOperationApply(t, wd+"/testdata/apply")
 
