@@ -5800,7 +5800,7 @@ import {
 		},
 		{
 			Description:   "for_each key is unknown",
-			expectedError: `The "for_each" value includes keys or set values that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.`,
+			expectedError: `The "for_each" value includes keys or set values from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {

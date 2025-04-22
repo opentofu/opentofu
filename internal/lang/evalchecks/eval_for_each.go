@@ -60,7 +60,7 @@ func EvaluateForEachExpression(expr hcl.Expression, ctx ContextFunc, excludableA
 // If excludableAddr is non-nil then any unknown-value-related error will
 // include an additional idea to exclude that address using the -exclude
 // planning option to converge over multiple plan/apply rounds.
-func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowUnknown bool, allowTuple bool, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
+func EvaluateForEachExpressionValue(expr hcl.Expression, hclCtxFunc ContextFunc, allowUnknown bool, allowTuple bool, excludableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	nullMap := cty.NullVal(cty.Map(cty.DynamicPseudoType))
 
@@ -71,7 +71,7 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	refs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
 	diags = diags.Append(moreDiags)
 
-	hclCtx, moreDiags := ctx(refs)
+	hclCtx, moreDiags := hclCtxFunc(refs)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() { // Can't continue if we don't even have a valid scope
 		return nullMap, diags
@@ -137,7 +137,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 	resultVal := typeCheckVal
 
 	// Testing if the original value, the type check result or if the set check above are unknown
-	if (!resultVal.IsKnown() || !forEachVal.IsKnown()) {
+	if !resultVal.IsKnown() || !forEachVal.IsKnown() {
 		if !allowUnknown {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
@@ -183,7 +183,7 @@ func performValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnkno
 	return resultVal, diags
 }
 
-// performSetTypeChecks does checks when we have a Set type, as sets have some gotchas, like needing all the values to be statically defined and aren't null.
+// performSetTypeChecks runs checks for Set types, since Sets have some quirks — like only allowing strings. DynamicPseudoType is also allowed, as it's not possible to determine if it's a string.
 func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnknown bool, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
@@ -204,6 +204,7 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 	return forEachVal, diags
 }
 
+// performSetTypeChecks checks Set values to ensure all elements are statically defined and not null.
 func performSetValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, forEachVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ty := forEachVal.Type()
