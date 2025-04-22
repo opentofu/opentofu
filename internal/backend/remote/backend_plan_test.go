@@ -1011,17 +1011,9 @@ func TestRemote_planWithWorkingDirectoryFromCurrentPath(t *testing.T) {
 		t.Fatalf("error configuring working directory: %v", err)
 	}
 
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("error getting current working directory: %v", err)
-	}
-
 	// We need to change into the configuration directory to make sure
 	// the logic to upload the correct slug is working as expected.
-	if err := os.Chdir("./testdata/plan-with-working-directory/tofu"); err != nil {
-		t.Fatalf("error changing directory: %v", err)
-	}
-	defer os.Chdir(wd) // Make sure we change back again when were done.
+	t.Chdir("./testdata/plan-with-working-directory/tofu")
 
 	// For this test we need to give our current directory instead of the
 	// full path to the configuration as we already changed directories.
