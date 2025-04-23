@@ -49,9 +49,7 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 			Summary:  "Invalid import id argument",
 			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
 			Subject:  expr.Range().Ptr(),
-			//	Expression:
-			//	EvalContext:
-			Extra: evalchecks.DiagnosticCausedByUnknown(true),
+			Extra:    evalchecks.DiagnosticCausedByUnknown(true),
 		})
 	}
 
