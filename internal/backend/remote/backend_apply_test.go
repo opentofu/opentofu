@@ -35,16 +35,16 @@ import (
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
-func testOperationApply(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationApply(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
 	return testOperationApplyWithTimeout(t, configDir, 0)
 }
 
-func testOperationApplyWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationApplyWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
@@ -64,15 +64,14 @@ func testOperationApplyWithTimeout(t *testing.T, configDir string, timeout time.
 		Type:            backend.OperationTypeApply,
 		View:            operationView,
 		DependencyLocks: depLocks,
-	}, configCleanup, done
+	}, done
 }
 
 func TestRemote_applyBasic(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -122,8 +121,7 @@ func TestRemote_applyCanceled(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	op.Workspace = backend.DefaultStateName
@@ -164,8 +162,7 @@ func TestRemote_applyWithoutPermissions(t *testing.T) {
 	}
 	w.Permissions.CanQueueApply = false
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	op.UIOut = b.CLI
 	op.Workspace = "prod"
@@ -204,8 +201,7 @@ func TestRemote_applyWithVCS(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	op.Workspace = "prod"
 
@@ -233,8 +229,7 @@ func TestRemote_applyWithParallelism(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	if b.ContextOpts == nil {
 		b.ContextOpts = &tofu.ContextOpts{}
@@ -263,8 +258,7 @@ func TestRemote_applyWithPlan(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	op.PlanFile = planfile.NewWrappedLocal(&planfile.Reader{})
 	op.Workspace = backend.DefaultStateName
@@ -293,8 +287,7 @@ func TestRemote_applyWithoutRefresh(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	op.PlanRefresh = false
@@ -330,8 +323,7 @@ func TestRemote_applyWithoutRefreshIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	b.client.SetFakeRemoteAPIVersion("2.3")
 
@@ -362,8 +354,7 @@ func TestRemote_applyWithRefreshOnly(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	op.PlanMode = plans.RefreshOnlyMode
@@ -399,8 +390,7 @@ func TestRemote_applyWithRefreshOnlyIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	b.client.SetFakeRemoteAPIVersion("2.3")
 
@@ -431,8 +421,7 @@ func TestRemote_applyWithTarget(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
@@ -471,8 +460,7 @@ func TestRemote_applyWithExclude(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
 
@@ -509,8 +497,7 @@ func TestRemote_applyWithTargetIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	// Set the tfe client's RemoteAPIVersion to an empty string, to mimic
 	// API versions prior to 2.3.
@@ -545,8 +532,7 @@ func TestRemote_applyWithReplace(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	addr, _ := addrs.ParseAbsResourceInstanceStr("null_resource.foo")
@@ -584,8 +570,7 @@ func TestRemote_applyWithReplaceIncompatibleAPIVersion(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	b.client.SetFakeRemoteAPIVersion("2.3")
 
@@ -618,8 +603,7 @@ func TestRemote_applyWithVariables(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-variables")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-variables")
 
 	op.Variables = testVariables(tofu.ValueFromNamedFile, "foo", "bar")
 	op.Workspace = backend.DefaultStateName
@@ -645,8 +629,7 @@ func TestRemote_applyNoConfig(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/empty")
 
 	op.Workspace = backend.DefaultStateName
 
@@ -680,8 +663,7 @@ func TestRemote_applyNoChanges(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-no-changes")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-no-changes")
 	defer done(t)
 
 	op.Workspace = backend.DefaultStateName
@@ -712,8 +694,7 @@ func TestRemote_applyNoApprove(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	input := testInput(t, map[string]string{
 		"approve": "no",
@@ -751,8 +732,7 @@ func TestRemote_applyAutoApprove(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -797,8 +777,7 @@ func TestRemote_applyApprovedExternally(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -871,8 +850,7 @@ func TestRemote_applyDiscardedExternally(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -958,8 +936,7 @@ func TestRemote_applyWithAutoApply(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1007,8 +984,7 @@ func TestRemote_applyForceLocal(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1070,8 +1046,7 @@ func TestRemote_applyWorkspaceWithoutOperations(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1142,8 +1117,7 @@ func TestRemote_applyLockTimeout(t *testing.T) {
 		t.Fatalf("error creating pending run: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApplyWithTimeout(t, "./testdata/apply", 50*time.Millisecond)
-	defer configCleanup()
+	op, done := testOperationApplyWithTimeout(t, "./testdata/apply", 50*time.Millisecond)
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1193,8 +1167,7 @@ func TestRemote_applyDestroy(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-destroy")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-destroy")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1243,8 +1216,7 @@ func TestRemote_applyDestroyNoConfig(t *testing.T) {
 		"approve": "yes",
 	})
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/empty")
 	defer done(t)
 
 	op.PlanMode = plans.DestroyMode
@@ -1274,8 +1246,7 @@ func TestRemote_applyPolicyPass(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-passed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-passed")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1322,8 +1293,7 @@ func TestRemote_applyPolicyHardFail(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-hard-failed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-hard-failed")
 
 	input := testInput(t, map[string]string{
 		"approve": "yes",
@@ -1375,8 +1345,7 @@ func TestRemote_applyPolicySoftFail(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1425,8 +1394,7 @@ func TestRemote_applyPolicySoftFailAutoApproveSuccess(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
 
 	input := testInput(t, map[string]string{})
 
@@ -1489,8 +1457,7 @@ func TestRemote_applyPolicySoftFailAutoApply(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1538,8 +1505,7 @@ func TestRemote_applyWithRemoteError(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-with-error")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-with-error")
 	defer done(t)
 
 	op.Workspace = backend.DefaultStateName
@@ -1642,8 +1608,7 @@ func TestRemote_applyVersionCheck(t *testing.T) {
 			}
 
 			// RUN: prepare the apply operation and run it
-			op, configCleanup, _ := testOperationApply(t, "./testdata/apply")
-			defer configCleanup()
+			op, _ := testOperationApply(t, "./testdata/apply")
 
 			streams, done := terminal.StreamsForTesting(t)
 			view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))

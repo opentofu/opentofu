@@ -368,7 +368,6 @@ func testDiffFn(req providers.PlanResourceChangeRequest) (resp providers.PlanRes
 	resp.PlannedState = cty.ObjectVal(planned)
 	return
 }
-
 func testProvider(prefix string) *MockProvider {
 	p := new(MockProvider)
 	p.GetProviderSchemaResponse = testProviderSchema(prefix)

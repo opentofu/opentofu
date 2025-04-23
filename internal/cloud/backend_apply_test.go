@@ -39,16 +39,16 @@ import (
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
-func testOperationApply(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationApply(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
 	return testOperationApplyWithTimeout(t, configDir, 0)
 }
 
-func testOperationApplyWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationApplyWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
@@ -68,15 +68,14 @@ func testOperationApplyWithTimeout(t *testing.T, configDir string, timeout time.
 		Type:            backend.OperationTypeApply,
 		View:            operationView,
 		DependencyLocks: depLocks,
-	}, configCleanup, done
+	}, done
 }
 
 func TestCloud_applyBasic(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -133,8 +132,7 @@ func TestCloud_applyJSONBasic(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-json")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-json")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -192,8 +190,7 @@ func TestCloud_applyJSONWithOutputs(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-json-with-outputs")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-json-with-outputs")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -273,8 +270,7 @@ func TestCloud_applyCanceled(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -315,8 +311,7 @@ func TestCloud_applyWithoutPermissions(t *testing.T) {
 	}
 	w.Permissions.CanQueueApply = false
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	op.UIOut = b.CLI
 	op.Workspace = "prod"
@@ -355,8 +350,7 @@ func TestCloud_applyWithVCS(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	op.Workspace = "prod"
 
@@ -384,8 +378,7 @@ func TestCloud_applyWithParallelism(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	if b.ContextOpts == nil {
 		b.ContextOpts = &tofu.ContextOpts{}
@@ -415,8 +408,7 @@ func TestCloud_applyWithLocalPlan(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	op.PlanFile = planfile.NewWrappedLocal(&planfile.Reader{})
 	op.Workspace = testBackendSingleWorkspaceName
@@ -447,8 +439,7 @@ func TestCloud_applyWithCloudPlan(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-json")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-json")
 	defer done(t)
 
 	op.UIOut = b.CLI
@@ -514,8 +505,7 @@ func TestCloud_applyWithoutRefresh(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	op.PlanRefresh = false
@@ -551,8 +541,7 @@ func TestCloud_applyWithRefreshOnly(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	op.PlanMode = plans.RefreshOnlyMode
@@ -588,8 +577,7 @@ func TestCloud_applyWithTarget(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
@@ -628,8 +616,7 @@ func TestCloud_applyWithExclude(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	addr, _ := addrs.ParseAbsResourceStr("null_resource.foo")
 
@@ -666,8 +653,7 @@ func TestCloud_applyWithReplace(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	addr, _ := addrs.ParseAbsResourceInstanceStr("null_resource.foo")
@@ -705,8 +691,7 @@ func TestCloud_applyWithRequiredVariables(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-variables")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-variables")
 	defer done(t)
 
 	op.Variables = testVariables(tofu.ValueFromNamedFile, "foo") // "bar" variable value missing
@@ -734,8 +719,7 @@ func TestCloud_applyNoConfig(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/empty")
 
 	op.Workspace = testBackendSingleWorkspaceName
 
@@ -769,8 +753,7 @@ func TestCloud_applyNoChanges(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-no-changes")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-no-changes")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -801,8 +784,7 @@ func TestCloud_applyNoApprove(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	input := testInput(t, map[string]string{
 		"approve": "no",
@@ -848,8 +830,7 @@ func TestCloud_applyAutoApprove(t *testing.T) {
 	applyMock.EXPECT().Logs(gomock.Any(), gomock.Any()).Return(logs, nil)
 	b.client.Applies = applyMock
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -894,8 +875,7 @@ func TestCloud_applyApprovedExternally(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -968,8 +948,7 @@ func TestCloud_applyDiscardedExternally(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1062,8 +1041,7 @@ func TestCloud_applyWithAutoApprove(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1112,8 +1090,7 @@ func TestCloud_applyForceLocal(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1175,8 +1152,7 @@ func TestCloud_applyWorkspaceWithoutOperations(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1247,8 +1223,7 @@ func TestCloud_applyLockTimeout(t *testing.T) {
 		t.Fatalf("error creating pending run: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApplyWithTimeout(t, "./testdata/apply", 50*time.Millisecond)
-	defer configCleanup()
+	op, done := testOperationApplyWithTimeout(t, "./testdata/apply", 50*time.Millisecond)
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1298,8 +1273,7 @@ func TestCloud_applyDestroy(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-destroy")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-destroy")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1348,8 +1322,7 @@ func TestCloud_applyDestroyNoConfig(t *testing.T) {
 		"approve": "yes",
 	})
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/empty")
 	defer done(t)
 
 	op.PlanMode = plans.DestroyMode
@@ -1389,8 +1362,7 @@ func TestCloud_applyJSONWithProvisioner(t *testing.T) {
 		"approve": "yes",
 	})
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-json-with-provisioner")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-json-with-provisioner")
 	defer done(t)
 
 	op.UIIn = input
@@ -1449,8 +1421,7 @@ func TestCloud_applyJSONWithProvisionerError(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-json-with-provisioner-error")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-json-with-provisioner-error")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1476,8 +1447,7 @@ func TestCloud_applyPolicyPass(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-passed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-passed")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1524,8 +1494,7 @@ func TestCloud_applyPolicyHardFail(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-hard-failed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-hard-failed")
 
 	input := testInput(t, map[string]string{
 		"approve": "yes",
@@ -1577,8 +1546,7 @@ func TestCloud_applyPolicySoftFail(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1655,8 +1623,7 @@ func TestCloud_applyPolicySoftFailAutoApproveSuccess(t *testing.T) {
 	applyMock.EXPECT().Logs(gomock.Any(), gomock.Any()).Return(logs, nil)
 	b.client.Applies = applyMock
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
 
 	input := testInput(t, map[string]string{})
 
@@ -1726,8 +1693,7 @@ func TestCloud_applyPolicySoftFailAutoApprove(t *testing.T) {
 		t.Fatalf("error creating named workspace: %v", err)
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-policy-soft-failed")
 	defer done(t)
 
 	input := testInput(t, map[string]string{
@@ -1776,8 +1742,7 @@ func TestCloud_applyWithRemoteError(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-with-error")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-with-error")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1812,8 +1777,7 @@ func TestCloud_applyJSONWithRemoteError(t *testing.T) {
 		Colorize: mockColorize(),
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-json-with-error")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-json-with-error")
 	defer done(t)
 
 	op.Workspace = testBackendSingleWorkspaceName
@@ -1920,8 +1884,7 @@ func TestCloud_applyVersionCheck(t *testing.T) {
 			}
 
 			// RUN: prepare the apply operation and run it
-			op, configCleanup, opDone := testOperationApply(t, "./testdata/apply")
-			defer configCleanup()
+			op, opDone := testOperationApply(t, "./testdata/apply")
 			defer opDone(t)
 
 			streams, done := terminal.StreamsForTesting(t)

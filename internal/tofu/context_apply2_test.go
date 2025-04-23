@@ -96,6 +96,88 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 	}
 }
 
+// This tests that when a CBD (C) resource depends on a non-CBD (B) resource that depends on another CBD resource (A)
+// Check that create_before_destroy is still set on the B resource after only the B resource is updated
+func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
+	m := testModule(t, "apply-cbd-depends-non-cbd-update")
+	p := simpleMockProvider()
+
+	// Set plan resource change to replace on test_number change
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState:    req.ProposedNewState,
+			RequiresReplace: []cty.Path{cty.GetAttrPath("test_number")},
+		}
+	}
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_object.A").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"test_string": "A"
+			}`),
+			CreateBeforeDestroy: true,
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_object.B").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"test_number": 0,
+				"test_string": "A"
+			}`),
+			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_object.C").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"test_string": "C"
+			}`),
+			Dependencies:        []addrs.ConfigResource{mustConfigResourceAddr("test_object.A"), mustConfigResourceAddr("terraform_data.B")},
+			CreateBeforeDestroy: true,
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	} else {
+		t.Log(legacyDiffComparisonString(plan.Changes))
+	}
+
+	state, diags = ctx.Apply(context.Background(), plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	// Check that create_before_destroy was set on the foo resource
+	foo := state.RootModule().Resources["test_object.B"].Instances[addrs.NoKey].Current
+	if !foo.CreateBeforeDestroy {
+		t.Fatalf("B resource should have create_before_destroy set")
+	}
+}
+
 func TestContext2Apply_destroyWithDataSourceExpansion(t *testing.T) {
 	// While managed resources store their destroy-time dependencies, data
 	// sources do not. This means that if a provider were only included in a

@@ -3521,22 +3521,8 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 			// Modify the state file path to use the temporary directory
 			tempStateFilePath := filepath.Clean(filepath.Join(tempDir, "errored_test.tfstate"))
 
-			// Get the current working directory
-			originalDir, err := os.Getwd()
-			if err != nil {
-				t.Fatalf("Error getting current working directory: %v", err)
-			}
-
 			// Change the working directory to the temporary directory
-			if err := os.Chdir(tempDir); err != nil {
-				t.Fatalf("Error changing working directory: %v", err)
-			}
-			defer func() {
-				// Change the working directory back to the original directory after the test
-				if err := os.Chdir(originalDir); err != nil {
-					t.Fatalf("Error changing working directory back: %v", err)
-				}
-			}()
+			t.Chdir(tempDir)
 
 			streams, done := terminal.StreamsForTesting(t)
 

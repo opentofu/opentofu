@@ -233,20 +233,8 @@ func TestLocal_multiStateBackend(t *testing.T) {
 
 // testTmpDir changes into a tmp dir and change back automatically when the test
 // and all its subtests complete.
-func testTmpDir(t *testing.T) {
+func testTmpDir(t testing.TB) {
+	t.Helper()
 	tmp := t.TempDir()
-
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
-
-	t.Cleanup(func() {
-		// ignore errors and try to clean up
-		os.Chdir(old)
-	})
+	t.Chdir(tmp)
 }

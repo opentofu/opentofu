@@ -36,8 +36,7 @@ func TestLocalRun(t *testing.T) {
 	configDir := "./testdata/empty"
 	b := TestLocal(t)
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
-	defer configCleanup()
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
@@ -67,8 +66,7 @@ func TestLocalRun_error(t *testing.T) {
 	// should then cause LocalRun to return with the state unlocked.
 	b.Backend = backendWithStateStorageThatFailsRefresh{}
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
-	defer configCleanup()
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, _ := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
@@ -94,8 +92,7 @@ func TestLocalRun_cloudPlan(t *testing.T) {
 	configDir := "./testdata/apply"
 	b := TestLocal(t)
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
-	defer configCleanup()
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	planPath := "./testdata/plan-bookmark/bookmark.json"
 
@@ -129,8 +126,7 @@ func TestLocalRun_stalePlan(t *testing.T) {
 	configDir := "./testdata/apply"
 	b := TestLocal(t)
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
-	defer configCleanup()
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	// Write an empty state file with serial 3
 	sf, err := os.Create(b.StatePath)

@@ -1124,6 +1124,12 @@ aws_instance.foo:
   require_new = yes
   type = aws_instance
 	`)
+
+	// Check that create_before_destroy was set on the foo resource
+	foo := state.RootModule().Resources["aws_instance.foo"].Instances[addrs.NoKey].Current
+	if !foo.CreateBeforeDestroy {
+		t.Fatalf("foo resource should have create_before_destroy set")
+	}
 }
 
 func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {

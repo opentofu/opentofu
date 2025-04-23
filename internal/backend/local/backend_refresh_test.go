@@ -38,8 +38,7 @@ func TestLocal_refresh(t *testing.T) {
 		"id": cty.StringVal("yes"),
 	})}
 
-	op, configCleanup, done := testOperationRefresh(t, "./testdata/refresh")
-	defer configCleanup()
+	op, done := testOperationRefresh(t, "./testdata/refresh")
 	defer done(t)
 
 	run, err := b.Operation(context.Background(), op)
@@ -106,8 +105,7 @@ func TestLocal_refreshInput(t *testing.T) {
 	b.OpInput = true
 	b.ContextOpts.UIInput = &tofu.MockUIInput{InputReturnString: "bar"}
 
-	op, configCleanup, done := testOperationRefresh(t, "./testdata/refresh-var-unset")
-	defer configCleanup()
+	op, done := testOperationRefresh(t, "./testdata/refresh-var-unset")
 	defer done(t)
 	op.UIIn = b.ContextOpts.UIInput
 
@@ -140,8 +138,7 @@ func TestLocal_refreshValidate(t *testing.T) {
 	// Enable validation
 	b.OpValidation = true
 
-	op, configCleanup, done := testOperationRefresh(t, "./testdata/refresh")
-	defer configCleanup()
+	op, done := testOperationRefresh(t, "./testdata/refresh")
 	defer done(t)
 
 	run, err := b.Operation(context.Background(), op)
@@ -190,8 +187,7 @@ func TestLocal_refreshValidateProviderConfigured(t *testing.T) {
 	// Enable validation
 	b.OpValidation = true
 
-	op, configCleanup, done := testOperationRefresh(t, "./testdata/refresh-provider-config")
-	defer configCleanup()
+	op, done := testOperationRefresh(t, "./testdata/refresh-provider-config")
 	defer done(t)
 
 	run, err := b.Operation(context.Background(), op)
@@ -216,8 +212,7 @@ test_instance.foo:
 func TestLocal_refresh_context_error(t *testing.T) {
 	b := TestLocal(t)
 	testStateFile(t, b.StatePath, testRefreshState())
-	op, configCleanup, done := testOperationRefresh(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationRefresh(t, "./testdata/apply")
 	defer done(t)
 
 	// we coerce a failure in Context() by omitting the provider schema
@@ -244,8 +239,7 @@ func TestLocal_refreshEmptyState(t *testing.T) {
 		"id": cty.StringVal("yes"),
 	})}
 
-	op, configCleanup, done := testOperationRefresh(t, "./testdata/refresh")
-	defer configCleanup()
+	op, done := testOperationRefresh(t, "./testdata/refresh")
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -266,10 +260,10 @@ func TestLocal_refreshEmptyState(t *testing.T) {
 	assertBackendStateUnlocked(t, b)
 }
 
-func testOperationRefresh(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationRefresh(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
@@ -286,7 +280,7 @@ func testOperationRefresh(t *testing.T, configDir string) (*backend.Operation, f
 		StateLocker:     clistate.NewNoopLocker(),
 		View:            view,
 		DependencyLocks: depLocks,
-	}, configCleanup, done
+	}, done
 }
 
 // testRefreshState is just a common state that we use for testing refresh.

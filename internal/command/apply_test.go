@@ -37,7 +37,7 @@ func TestApply(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -74,7 +74,7 @@ func TestApply_conditionalSensitive(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-plan-conditional-sensitive"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := applyFixtureProvider()
 
@@ -104,7 +104,7 @@ func TestApply_path(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := applyFixtureProvider()
 
@@ -134,7 +134,7 @@ func TestApply_approveNo(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -177,7 +177,7 @@ func TestApply_approveYes(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -224,7 +224,7 @@ func TestApply_lockedState(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -263,7 +263,7 @@ func TestApply_lockedStateWait(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -307,7 +307,7 @@ func TestApply_parallelism(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("parallelism"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -401,7 +401,7 @@ func TestApply_configInvalid(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-config-invalid"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := testProvider()
 	view, done := testView(t)
@@ -427,19 +427,9 @@ func TestApply_defaultState(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := filepath.Join(td, DefaultStateFilename)
-
-	// Change to the temporary directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(filepath.Dir(statePath)); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
@@ -478,7 +468,7 @@ func TestApply_error(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-error"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -555,7 +545,7 @@ func TestApply_input(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-input"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Disable test mode so input would be asked
 	test = false
@@ -605,7 +595,7 @@ func TestApply_inputPartial(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-input-partial"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Disable test mode so input would be asked
 	test = false
@@ -651,7 +641,7 @@ func TestApply_noArgs(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -805,7 +795,7 @@ func TestApply_plan_remoteState(t *testing.T) {
 	// Disable test mode so input would be asked
 	test = false
 	defer func() { test = true }()
-	tmp := testCwd(t)
+	tmp := testCwdTemp(t)
 	remoteStatePath := filepath.Join(tmp, DefaultDataDir, DefaultStateFilename)
 	if err := os.MkdirAll(filepath.Dir(remoteStatePath), 0755); err != nil {
 		t.Fatalf("err: %s", err)
@@ -882,7 +872,7 @@ func TestApply_plan_remoteState(t *testing.T) {
 }
 
 func TestApply_planWithVarFile(t *testing.T) {
-	varFileDir := testTempDir(t)
+	varFileDir := testTempDirRealpath(t)
 	varFilePath := filepath.Join(varFileDir, "terraform.tfvars")
 	if err := os.WriteFile(varFilePath, []byte(applyVarFile), 0644); err != nil {
 		t.Fatalf("err: %s", err)
@@ -890,15 +880,7 @@ func TestApply_planWithVarFile(t *testing.T) {
 
 	planPath := applyFixturePlanFile(t)
 	statePath := testTempFile(t)
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(varFileDir); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(varFileDir)
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
@@ -957,10 +939,10 @@ func TestApply_planVars(t *testing.T) {
 // we should be able to apply a plan file with no other file dependencies
 func TestApply_planNoModuleFiles(t *testing.T) {
 	// temporary data directory which we can remove between commands
-	td := testTempDir(t)
+	td := testTempDirRealpath(t)
 	defer os.RemoveAll(td)
 
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := applyFixtureProvider()
 	planPath := applyFixturePlanFile(t)
@@ -983,7 +965,7 @@ func TestApply_refresh(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -1051,7 +1033,7 @@ func TestApply_refreshFalse(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -1101,7 +1083,7 @@ func TestApply_shutdown(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-shutdown"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	cancelled := make(chan struct{})
 	shutdownCh := make(chan struct{})
@@ -1189,7 +1171,7 @@ func TestApply_state(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -1284,7 +1266,7 @@ func TestApply_stateNoExist(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := applyFixtureProvider()
 	view, done := testView(t)
@@ -1309,7 +1291,7 @@ func TestApply_sensitiveOutput(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-sensitive-output"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := testProvider()
 	view, done := testView(t)
@@ -1346,7 +1328,7 @@ func TestApply_vars(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-vars"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -1403,7 +1385,7 @@ func TestApply_varFile(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-vars"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	varFilePath := testTempFile(t)
 	if err := os.WriteFile(varFilePath, []byte(applyVarFile), 0644); err != nil {
@@ -1465,7 +1447,7 @@ func TestApply_varFileDefault(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-vars"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	varFilePath := filepath.Join(td, "terraform.tfvars")
 	if err := os.WriteFile(varFilePath, []byte(applyVarFile), 0644); err != nil {
@@ -1526,7 +1508,7 @@ func TestApply_varFileDefaultJSON(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-vars"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	varFilePath := filepath.Join(td, "terraform.tfvars.json")
 	if err := os.WriteFile(varFilePath, []byte(applyVarFileJSON), 0644); err != nil {
@@ -1587,7 +1569,7 @@ func TestApply_backup(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -1665,7 +1647,7 @@ func TestApply_disableBackup(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := testState()
 	statePath := testStateFile(t, originalState)
@@ -1743,7 +1725,7 @@ func TestApply_tfWorkspace(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-tf-workspace"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -1780,7 +1762,7 @@ func TestApply_tofuWorkspace(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-tofu-workspace"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -1816,7 +1798,7 @@ func TestApply_tfWorkspaceNonDefault(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-tf-workspace"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Create new env
 	{
@@ -1878,7 +1860,7 @@ func TestApply_tofuWorkspaceNonDefault(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-tofu-workspace"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Create new env
 	{
@@ -1939,7 +1921,7 @@ output = test
 func TestApply_targeted(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-targeted"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := testProvider()
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -1992,9 +1974,9 @@ func TestApply_targetFlagsDiags(t *testing.T) {
 
 	for target, wantDiag := range testCases {
 		t.Run(target, func(t *testing.T) {
-			td := testTempDir(t)
+			td := testTempDirRealpath(t)
 			defer os.RemoveAll(td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			view, done := testView(t)
 			c := &ApplyCommand{
@@ -2028,7 +2010,7 @@ func TestApply_targetFlagsDiags(t *testing.T) {
 func TestApply_excluded(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-excluded"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := testProvider()
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
@@ -2080,9 +2062,9 @@ func TestApply_excludeFlagsDiags(t *testing.T) {
 
 	for exclude, wantDiag := range testCases {
 		t.Run(exclude, func(t *testing.T) {
-			td := testTempDir(t)
+			td := testTempDirRealpath(t)
 			defer os.RemoveAll(td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			view, done := testView(t)
 			c := &ApplyCommand{
@@ -2115,7 +2097,7 @@ func TestApply_excludeFlagsDiags(t *testing.T) {
 func TestApply_replace(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-replace"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -2203,7 +2185,7 @@ func TestApply_pluginPath(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -2243,7 +2225,7 @@ func TestApply_jsonGoldenReference(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	statePath := testTempFile(t)
 
@@ -2284,7 +2266,7 @@ func TestApply_warnings(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := testProvider()
 	p.GetProviderSchemaResponse = applyFixtureSchema()
@@ -2360,7 +2342,7 @@ func TestApply_warnings(t *testing.T) {
 func TestApply_showSensitiveArg(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply-sensitive-output"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := testProvider()
 	view, done := testView(t)
@@ -2397,7 +2379,7 @@ func TestApply_showSensitiveArg(t *testing.T) {
 func TestApply_CreateBeforeDestroyWithRefreshFalse(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("apply_cbd_with_refresh_false"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := states.BuildState(func(s *states.SyncState) {
 		s.SetResourceInstanceCurrent(
@@ -2474,7 +2456,7 @@ func TestApply_CreateBeforeDestroyWithRefreshFalse(t *testing.T) {
 func TestApply_concise(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("plan"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := planFixtureProvider()
 	view, done := testView(t)

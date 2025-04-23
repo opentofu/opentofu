@@ -23,16 +23,16 @@ import (
 	"github.com/opentofu/opentofu/internal/terminal"
 )
 
-func testOperationRefresh(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationRefresh(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
 	return testOperationRefreshWithTimeout(t, configDir, 0)
 }
 
-func testOperationRefreshWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationRefreshWithTimeout(t *testing.T, configDir string, timeout time.Duration) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewView(streams)
@@ -46,15 +46,14 @@ func testOperationRefreshWithTimeout(t *testing.T, configDir string, timeout tim
 		StateLocker:  clistate.NewLocker(timeout, stateLockerView),
 		Type:         backend.OperationTypeRefresh,
 		View:         operationView,
-	}, configCleanup, done
+	}, done
 }
 
 func TestCloud_refreshBasicActuallyRunsApplyRefresh(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	op, configCleanup, done := testOperationRefresh(t, "./testdata/refresh")
-	defer configCleanup()
+	op, done := testOperationRefresh(t, "./testdata/refresh")
 	defer done(t)
 
 	op.UIOut = b.CLI

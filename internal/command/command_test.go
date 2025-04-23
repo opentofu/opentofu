@@ -124,7 +124,7 @@ func tempWorkingDir(t *testing.T) *workdir.Dir {
 func tempWorkingDirFixture(t *testing.T, fixtureName string) *workdir.Dir {
 	t.Helper()
 
-	dirPath := testTempDir(t)
+	dirPath := testTempDirRealpath(t)
 	t.Logf("temporary directory %s with fixture %q", dirPath, fixtureName)
 
 	fixturePath := testFixturePath(fixtureName)
@@ -153,10 +153,7 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	t.Helper()
 
 	dir := filepath.Join(fixtureDir, name)
-	// FIXME: We're not dealing with the cleanup function here because
-	// this testModule function is used all over and so we don't want to
-	// change its interface at this late stage.
-	loader, _ := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t)
 
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths
@@ -544,62 +541,29 @@ func testProvider() *tofu.MockProvider {
 func testTempFile(t *testing.T) string {
 	t.Helper()
 
-	return filepath.Join(testTempDir(t), "state.tfstate")
+	return filepath.Join(testTempDirRealpath(t), "state.tfstate")
 }
 
-func testTempDir(t *testing.T) string {
+// testTempDirRealpath is like [testing.T.TempDir] but takes the
+// extra step of ensuring that the result is a path that does not
+// include any symlinks.
+func testTempDirRealpath(t *testing.T) string {
 	t.Helper()
 	d, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	return d
 }
 
-// testChdir changes the directory and returns a function to defer to
-// revert the old cwd.
-func testChdir(t *testing.T, new string) func() {
-	t.Helper()
-
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	if err := os.Chdir(new); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	return func() {
-		// Re-run the function ignoring the defer result
-		testChdir(t, old)
-	}
-}
-
-// testCwd is used to change the current working directory into a temporary
+// testCwdTemp is used to change the current working directory into a temporary
 // directory. The cleanup is performed automatically after the test and all its
 // subtests complete.
-func testCwd(t *testing.T) string {
+func testCwdTemp(t testing.TB) string {
 	t.Helper()
 
 	tmp := t.TempDir()
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if err := os.Chdir(cwd); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
-
+	t.Chdir(tmp)
 	return tmp
 }
 
