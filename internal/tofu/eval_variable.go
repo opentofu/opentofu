@@ -442,9 +442,9 @@ You can correct this by removing references to sensitive values, or by carefully
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
 			} else {
-				// errorValue could have some marks other than sensitive ones,
+				// errorValue could have deprecated marks as well,
 				// so we need to unmark to not get panic from AsString()
-				errorValue, _ = errorValue.UnmarkDeep()
+				errorValue = marks.RemoveDeepDeprecated(errorValue)
 				errorMessage = strings.TrimSpace(errorValue.AsString())
 			}
 		}

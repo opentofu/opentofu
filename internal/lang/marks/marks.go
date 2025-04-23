@@ -189,7 +189,7 @@ func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMar
 	return unmarked.MarkWithPaths(pathMarks), deprecationMarks
 }
 
-func UnmarkDeepDeprecated(val cty.Value) cty.Value {
+func RemoveDeepDeprecated(val cty.Value) cty.Value {
 	val, _ = unmarkDeepWithPathsDeprecated(val)
 	return val
 }

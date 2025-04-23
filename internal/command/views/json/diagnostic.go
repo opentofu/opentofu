@@ -499,9 +499,9 @@ func compactValueStr(val cty.Value) string {
 		return "(sensitive value)"
 	}
 
-	// val could have some marks other than sensitive ones, so we want to
+	// val could have deprecated marks as well, so we want to
 	// unmark it first to eliminate the risk of panics.
-	val, _ = val.UnmarkDeep()
+	val = marks.RemoveDeepDeprecated(val)
 
 	// WARNING: We've only checked that the value isn't sensitive _shallowly_
 	// here, and so we must never show any element values from complex types
