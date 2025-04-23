@@ -5062,6 +5062,96 @@ output "test" {
 				`,
 			},
 		},
+		"variableCondition": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+variable "a" {
+  default = "a"
+  validation {
+    condition     = var.a != module.mod.test-child
+	error_message = "invalid"
+  }
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"variableErrorMessage": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+variable "a" {
+  default = "a"
+  validation {
+    condition     = var.a == "a"
+	error_message = module.mod.test-child
+  }
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"checkCondition": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+check "test" {
+  assert {
+    condition = module.mod.test-child != "a"
+    error_message = "invalid"
+  }
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"checkErrorMessage": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+locals {
+  a = "a"
+}
+
+check "test" {
+  assert {
+    condition = local.a == "a"
+    error_message = module.mod.test-child
+  }
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
 	}
 
 	p := simpleMockProvider()
@@ -5082,7 +5172,7 @@ output "test" {
 
 			mod := testModuleInline(t, test.module)
 
-			_, diags := ctx.Plan(context.Background(), mod, states.NewState(), DefaultPlanOpts)
+			_, diags := ctx.Plan(context.Background(), mod, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(mod.Module.Variables)))
 			if diags.HasErrors() {
 				t.Fatalf("Unexpected error(s) during plan: %v", diags.Err())
 			}

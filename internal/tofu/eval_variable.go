@@ -293,6 +293,10 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 
 	result, moreDiags := validation.Condition.Value(hclCtx)
 	diags = diags.Append(moreDiags)
+
+	result, deprDiags := marks.DeprecatedDiagnosticsInExpr(result, validation.Condition)
+	diags = diags.Append(deprDiags)
+
 	errorValue, errorDiags := validation.ErrorMessage.Value(hclCtx)
 
 	// The following error handling is a workaround to preserve backwards
@@ -345,6 +349,9 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 		// fallback failed, or the warning generated above if it succeeded.
 		diags = diags.Append(errorDiags)
 	}
+
+	errorValue, deprDiags = marks.DeprecatedDiagnosticsInExpr(errorValue, validation.ErrorMessage)
+	diags = diags.Append(deprDiags)
 
 	if diags.HasErrors() {
 		log.Printf("[TRACE] evalVariableValidations: %s rule %s check rule evaluation failed: %s", addr, validation.DeclRange, diags.Err().Error())
@@ -435,6 +442,9 @@ You can correct this by removing references to sensitive values, or by carefully
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
 			} else {
+				// errorValue could have some marks other than sensitive ones,
+				// so we need to unmark to not get panic from AsString()
+				errorValue, _ = errorValue.UnmarkDeep()
 				errorMessage = strings.TrimSpace(errorValue.AsString())
 			}
 		}
