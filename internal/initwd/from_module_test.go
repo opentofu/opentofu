@@ -9,6 +9,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -291,7 +292,22 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 	if err := os.Mkdir(targetDir, os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
-	t.Chdir(targetDir)
+	oldDir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.Chdir(targetDir)
+	if err != nil {
+		t.Fatalf("failed to switch to temp dir %s: %s", tmpDir, err)
+	}
+	t.Cleanup(func() {
+		os.Chdir(oldDir)
+		// Trigger garbage collection to ensure that all open file handles are closed.
+		// This prevents TempDir RemoveAll cleanup errors on Windows.
+		if runtime.GOOS == "windows" {
+			runtime.GC()
+		}
+	})
 
 	hooks := &testInstallHooks{}
 
@@ -329,7 +345,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 		return
 	}
 
-	loader, err := configload.NewLoader(&configload.Config{
+	loader, err = configload.NewLoader(&configload.Config{
 		ModulesDir: modInstallDir,
 	})
 	if err != nil {
