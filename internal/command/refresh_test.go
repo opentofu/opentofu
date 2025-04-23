@@ -77,7 +77,7 @@ func TestRefresh(t *testing.T) {
 	}
 
 	newStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -213,7 +213,7 @@ func TestRefresh_cwd(t *testing.T) {
 	}
 
 	newStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -315,7 +315,7 @@ func TestRefresh_outPath(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	outPath := outf.Name()
-	outf.Close()
+	safeClose(t, outf)
 	os.Remove(outPath)
 
 	p := testProvider()
@@ -552,7 +552,7 @@ func TestRefresh_backup(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	outPath := outf.Name()
-	defer outf.Close()
+	defer safeClose(t, outf)
 
 	// Need to put some state content in the output file so that there's
 	// something to back up.
@@ -567,7 +567,7 @@ func TestRefresh_backup(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	backupPath := backupf.Name()
-	backupf.Close()
+	safeClose(t, backupf)
 	os.Remove(backupPath)
 
 	p := testProvider()
@@ -637,7 +637,7 @@ func TestRefresh_disableBackup(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	outPath := outf.Name()
-	outf.Close()
+	safeClose(t, outf)
 	os.Remove(outPath)
 
 	p := testProvider()

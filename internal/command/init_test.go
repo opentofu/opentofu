@@ -504,7 +504,7 @@ func TestInit_backendReconfigure(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	err = writeStateForTesting(testState(), f)
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -579,7 +579,7 @@ func TestInit_backendMigrateWhileLocked(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	err = writeStateForTesting(testState(), f)
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -1363,7 +1363,7 @@ func TestInit_getProvider(t *testing.T) {
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
-		defer f.Close()
+		defer safeClose(t, f)
 
 		// Construct a mock state file from the far future
 		type FutureState struct {

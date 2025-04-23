@@ -103,7 +103,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		err = writeStateForTesting(testState(), f)
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -169,7 +169,7 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		err = writeStateForTesting(testState(), f)
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -282,7 +282,7 @@ func TestMetaBackend_configureNew(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -356,7 +356,7 @@ func TestMetaBackend_configureNewWithState(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -405,7 +405,7 @@ func TestMetaBackend_configureNewWithoutCopy(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -522,7 +522,7 @@ func TestMetaBackend_configureNewWithStateExisting(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -593,7 +593,7 @@ func TestMetaBackend_configureNewWithStateExistingNoMigrate(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -857,7 +857,7 @@ func TestMetaBackend_configuredChange(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1747,7 +1747,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1848,7 +1848,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -1935,7 +1935,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		actual, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}

@@ -574,7 +574,7 @@ func TestShow_json_output(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
-			defer wantFile.Close()
+			defer safeClose(t, wantFile)
 			byteValue, err := io.ReadAll(wantFile)
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
@@ -725,7 +725,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	defer wantFile.Close()
+	defer safeClose(t, wantFile)
 	byteValue, err := io.ReadAll(wantFile)
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
@@ -821,7 +821,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	defer wantFile.Close()
+	defer safeClose(t, wantFile)
 	byteValue, err := io.ReadAll(wantFile)
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
@@ -908,7 +908,7 @@ func TestShow_json_output_state(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %s", err)
 			}
-			defer wantFile.Close()
+			defer safeClose(t, wantFile)
 			byteValue, err := io.ReadAll(wantFile)
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)

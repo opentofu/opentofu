@@ -400,7 +400,7 @@ func TestWorkspace_deleteWithState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 	if err := legacy.WriteState(originalState, f); err != nil {
 		t.Fatal(err)
 	}

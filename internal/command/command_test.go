@@ -394,7 +394,7 @@ func testStateFile(t *testing.T, s *states.State) string {
 	if err != nil {
 		t.Fatalf("failed to create temporary state file %s: %s", path, err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	err = writeStateForTesting(s, f)
 	if err != nil {
@@ -413,7 +413,7 @@ func testStateFileDefault(t *testing.T, s *states.State) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	if err := writeStateForTesting(s, f); err != nil {
 		t.Fatalf("err: %s", err)
@@ -436,7 +436,7 @@ func testStateFileWorkspaceDefault(t *testing.T, workspace string, s *states.Sta
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	if err := writeStateForTesting(s, f); err != nil {
 		t.Fatalf("err: %s", err)
@@ -459,7 +459,7 @@ func testStateFileRemote(t *testing.T, s *legacy.State) string {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	if err := legacy.WriteState(s, f); err != nil {
 		t.Fatalf("err: %s", err)
@@ -476,7 +476,7 @@ func testStateRead(t *testing.T, path string) *states.State {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	sf, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
@@ -498,7 +498,7 @@ func testDataStateRead(t *testing.T, path string) *legacy.State {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	s, err := legacy.ReadState(f)
 	if err != nil {
@@ -584,12 +584,17 @@ func testStdinPipe(t *testing.T, src io.Reader) func() {
 
 	// Copy the data from the reader to the pipe
 	go func() {
+		//nolint:errcheck // pipes are pretty safe
 		defer w.Close()
-		io.Copy(w, src)
+		_, err := io.Copy(w, src)
+		if err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
 		// Close our read end
+		//nolint:errcheck // pipes are pretty safe
 		r.Close()
 
 		// Reset stdin
@@ -616,14 +621,25 @@ func testStdoutCapture(t *testing.T, dst io.Writer) func() {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		defer r.Close()
-		io.Copy(dst, r)
+		defer func() {
+			if err := r.Close(); err != nil {
+				panic(err)
+			}
+		}()
+		_, err := io.Copy(dst, r)
+		if err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
+		// Sync on a pipe does not actually do anything and in many platforms returns an error
+		_ = w.Sync()
+
 		// Close the writer end of the pipe
-		w.Sync()
-		w.Close()
+		if err := w.Close(); err != nil {
+			t.Error(err)
+		}
 
 		// Reset stdout
 		os.Stdout = old
@@ -830,8 +846,8 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 	if err != nil {
 		return nil, err
 	}
-	defer pr.Close()
-	defer pw.Close()
+	defer safeClose(t, pr)
+	defer safeClose(t, pw)
 	locker.Stderr = pw
 	locker.Stdout = pw
 
@@ -1058,7 +1074,7 @@ func checkGoldenReference(t *testing.T, output *terminal.TestOutput, fixturePath
 	if err != nil {
 		t.Fatalf("failed to open output file: %s", err)
 	}
-	defer wantFile.Close()
+	defer safeClose(t, wantFile)
 	wantBytes, err := io.ReadAll(wantFile)
 	if err != nil {
 		t.Fatalf("failed to read output file: %s", err)
@@ -1215,4 +1231,12 @@ func testHangServer(t testing.TB) (server *httptest.Server, reqs <-chan *http.Re
 		server.Close()                  // stop accepting new requests and wait for existing ones to stop
 	})
 	return server, reqsCh
+}
+
+func safeClose(t *testing.T, f io.Closer) {
+	t.Helper()
+	err := f.Close()
+	if err != nil {
+		t.Error(err)
+	}
 }

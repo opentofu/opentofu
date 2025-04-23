@@ -93,7 +93,7 @@ func TestApply_destroy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	defer f.Close()
+	defer safeClose(t, f)
 
 	stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 	if err != nil {
@@ -116,7 +116,7 @@ func TestApply_destroy(t *testing.T) {
 	}
 
 	backupStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -571,7 +571,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
-			defer f.Close()
+			defer safeClose(t, f)
 
 			stateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
 			if err != nil {
@@ -600,7 +600,7 @@ func TestApply_targetedDestroy(t *testing.T) {
 			}
 
 			backupStateFile, err := statefile.Read(f, encryption.StateEncryptionDisabled())
-			f.Close()
+			safeClose(t, f)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}

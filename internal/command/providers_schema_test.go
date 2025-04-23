@@ -91,7 +91,7 @@ func TestProvidersSchema_output(t *testing.T) {
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
-			defer wantFile.Close()
+			defer safeClose(t, wantFile)
 			byteValue, err := io.ReadAll(wantFile)
 			if err != nil {
 				t.Fatalf("err: %s", err)

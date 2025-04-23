@@ -288,7 +288,7 @@ func TestOutput_stateDefault(t *testing.T) {
 		t.Fatalf("err: %s", err)
 	}
 	err = writeStateForTesting(originalState, f)
-	f.Close()
+	safeClose(t, f)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

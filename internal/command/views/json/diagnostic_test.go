@@ -911,7 +911,11 @@ func TestNewDiagnostic(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to open golden file: %s", err)
 			}
-			defer wantFile.Close()
+			defer func() {
+				if err := wantFile.Close(); err != nil {
+					t.Error(err)
+				}
+			}()
 			wantBytes, err := io.ReadAll(wantFile)
 			if err != nil {
 				t.Fatalf("failed to read output file: %s", err)

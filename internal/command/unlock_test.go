@@ -29,7 +29,7 @@ func TestUnlock(t *testing.T) {
 			t.Fatalf("err: %s", err)
 		}
 		err = legacy.WriteState(legacy.NewState(), f)
-		f.Close()
+		safeClose(t, f)
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
