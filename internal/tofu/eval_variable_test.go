@@ -1124,7 +1124,7 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 		// message with the expression successfully evaluated.
 		{
 			varName: "valid",
-			given:   cty.StringVal("bar").Mark("alternativeMark"), // alternativeMark must not cause panic
+			given:   marks.Deprecated(cty.StringVal("bar"), marks.DeprecationCause{}), // deprecation mark must not cause panic
 			wantErr: []string{
 				"Invalid value for variable",
 				"Valid template string bar",
