@@ -98,20 +98,11 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Va
 func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	unmarked, pathMarks := val.UnmarkDeepWithPaths()
+	val, deprecatedPathMarks := unmarkDeepWithPathsDeprecated(val)
 
-	// Locate deprecationMarks and filter them out
-	for i, pm := range pathMarks {
+	for _, pm := range deprecatedPathMarks {
 		for m := range pm.Marks {
-			dm, ok := m.(deprecationMark)
-			if !ok {
-				continue
-			}
-
-			// Remove mark
-			delete(pm.Marks, m)
-
-			cause := dm.Cause
+			cause := m.(deprecationMark).Cause
 			diags = diags.Append(tfdiags.AttributeValue(
 				tfdiags.Warning,
 				"Value derived from a deprecated source",
@@ -119,14 +110,9 @@ func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdia
 				pm.Path,
 			))
 		}
-
-		// Remove empty path to not break caller code expectations.
-		if len(pm.Marks) == 0 {
-			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
-		}
 	}
 
-	return unmarked.MarkWithPaths(pathMarks), diags.InConfigBody(body, "")
+	return val, diags.InConfigBody(body, "")
 }
 
 // DeprecatedDiagnosticsInExpr composes deprecation diagnostics based on deprecation marks inside
@@ -134,19 +120,11 @@ func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdia
 func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	unmarked, pathMarks := val.UnmarkDeepWithPaths()
+	val, deprecatedPathMarks := unmarkDeepWithPathsDeprecated(val)
 
 	// Locate deprecationMarks and filter them out
-	for i, pm := range pathMarks {
+	for _, pm := range deprecatedPathMarks {
 		for m := range pm.Marks {
-			dm, ok := m.(deprecationMark)
-			if !ok {
-				continue
-			}
-
-			// Remove mark
-			delete(pm.Marks, m)
-
 			attr := tfdiags.FormatCtyPath(pm.Path)
 			// FormatCtyPath call could result in ".fieldA.fieldB" in some
 			// cases, so we want to remove the first dot for a friendlier message.
@@ -159,7 +137,7 @@ func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value,
 				source += "'s attribute " + attr
 			}
 
-			cause := dm.Cause
+			cause := m.(deprecationMark).Cause
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:   hcl.DiagWarning,
 				Summary:    "Value derived from a deprecated source",
@@ -167,14 +145,51 @@ func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value,
 				Subject:    expr.Range().Ptr(),
 				Expression: expr,
 			})
+		}
+	}
 
+	return val, diags
+}
+
+func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMarks) {
+	unmarked, pathMarks := val.UnmarkDeepWithPaths()
+
+	var deprecationMarks []cty.PathValueMarks
+
+	// Locate deprecationMarks and filter them out
+	for i, pm := range pathMarks {
+		deprecationPM := cty.PathValueMarks{
+			Path:  pm.Path,
+			Marks: make(cty.ValueMarks),
+		}
+
+		for m := range pm.Marks {
+			_, ok := m.(deprecationMark)
+			if !ok {
+				continue
+			}
+
+			// Remove mark from value marks
+			delete(pm.Marks, m)
+
+			// Add mark to deprecation marks
+			deprecationPM.Marks[m] = struct{}{}
 		}
 
 		// Remove empty path to not break caller code expectations.
 		if len(pm.Marks) == 0 {
 			pathMarks = append(pathMarks[:i], pathMarks[i+1:]...)
 		}
+
+		if len(deprecationPM.Marks) != 0 {
+			deprecationMarks = append(deprecationMarks, deprecationPM)
+		}
 	}
 
-	return unmarked.MarkWithPaths(pathMarks), diags
+	return unmarked.MarkWithPaths(pathMarks), deprecationMarks
+}
+
+func UnmarkDeepDeprecated(val cty.Value) cty.Value {
+	val, _ = unmarkDeepWithPathsDeprecated(val)
+	return val
 }
