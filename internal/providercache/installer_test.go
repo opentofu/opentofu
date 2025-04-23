@@ -308,7 +308,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 							},
 						},
 						{
-							Event: "ProvidersFetched",
+							Event: "ProvidersAuthenticated",
 							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
 								beepProvider: getproviders.NewPackageAuthenticationResult(getproviders.HashDispositions{
 									beepProviderZipHash: {

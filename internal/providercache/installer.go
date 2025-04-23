@@ -235,7 +235,7 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 	}
 
 	// Emit final event for fetching if any were successfully fetched
-	if cb := evts.ProvidersFetched; cb != nil && len(authResults) > 0 {
+	if cb := evts.ProvidersAuthenticated; cb != nil && len(authResults) > 0 {
 		cb(authResults)
 	}
 

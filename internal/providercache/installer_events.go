@@ -130,9 +130,9 @@ type InstallerEvents struct {
 	// in the same manner enforced by the lock file within NewProviderLock.
 	ProvidersLockUpdated func(provider addrs.Provider, version getproviders.Version, localHashes []getproviders.Hash, signedHashes []getproviders.Hash, priorHashes []getproviders.Hash)
 
-	// The ProvidersFetched event is called after all fetch operations if at
+	// The ProvidersAuthenticated event is called after all fetch operations if at
 	// least one provider was fetched successfully.
-	ProvidersFetched func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult)
+	ProvidersAuthenticated func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult)
 }
 
 // OnContext produces a context with all of the same behaviors as the given
