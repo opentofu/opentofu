@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -22,11 +24,9 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tofu"
-
-	"github.com/zclconf/go-cty/cty"
 )
 
-func TestShowHuman(t *testing.T) {
+func TestShowHuman_DisplayPlan(t *testing.T) {
 	redactedPath := "./testdata/plans/redacted-plan.json"
 	redactedPlanJson, err := os.ReadFile(redactedPath)
 	if err != nil {
@@ -35,14 +35,12 @@ func TestShowHuman(t *testing.T) {
 	testCases := map[string]struct {
 		plan       *plans.Plan
 		jsonPlan   *cloudplan.RemotePlanJSON
-		stateFile  *statefile.File
 		schemas    *tofu.Schemas
 		wantExact  bool
 		wantString string
 	}{
 		"plan file": {
 			testPlan(t),
-			nil,
 			nil,
 			testSchemas(),
 			false,
@@ -59,41 +57,15 @@ func TestShowHuman(t *testing.T) {
 				RunFooter: "[reset][green]Run status: planned and saved (confirmable)[reset]\n[green]Workspace is unlocked[reset]",
 			},
 			nil,
-			nil,
 			false,
 			"# null_resource.foo will be created",
-		},
-		"statefile": {
-			nil,
-			nil,
-			&statefile.File{
-				Serial:  0,
-				Lineage: "fake-for-testing",
-				State:   testState(),
-			},
-			testSchemas(),
-			false,
-			"# test_resource.foo:",
-		},
-		"empty statefile": {
-			nil,
-			nil,
-			&statefile.File{
-				Serial:  0,
-				Lineage: "fake-for-testing",
-				State:   states.NewState(),
-			},
-			testSchemas(),
-			true,
-			"The state file is empty. No resources are represented.\n",
 		},
 		"nothing": {
 			nil,
 			nil,
 			nil,
-			nil,
 			true,
-			"No state.\n",
+			"No plan.\n",
 		},
 	}
 	for name, testCase := range testCases {
@@ -103,7 +75,7 @@ func TestShowHuman(t *testing.T) {
 			view.Configure(&arguments.View{NoColor: true})
 			v := NewShow(arguments.ViewHuman, view)
 
-			code := v.Display(nil, testCase.plan, testCase.jsonPlan, testCase.stateFile, testCase.schemas)
+			code := v.DisplayPlan(testCase.plan, testCase.jsonPlan, nil, nil, testCase.schemas)
 			if code != 0 {
 				t.Errorf("expected 0 return code, got %d", code)
 			}
@@ -118,7 +90,63 @@ func TestShowHuman(t *testing.T) {
 	}
 }
 
-func TestShowJSON(t *testing.T) {
+func TestShowHuman_DisplayState(t *testing.T) {
+	testCases := map[string]struct {
+		stateFile  *statefile.File
+		schemas    *tofu.Schemas
+		wantExact  bool
+		wantString string
+	}{
+		"non-empty statefile": {
+			&statefile.File{
+				Serial:  0,
+				Lineage: "fake-for-testing",
+				State:   testState(),
+			},
+			testSchemas(),
+			false,
+			"# test_resource.foo:",
+		},
+		"empty statefile": {
+			&statefile.File{
+				Serial:  0,
+				Lineage: "fake-for-testing",
+				State:   states.NewState(),
+			},
+			testSchemas(),
+			true,
+			"The state file is empty. No resources are represented.\n",
+		},
+		"nothing": {
+			nil,
+			nil,
+			true,
+			"No state.\n",
+		},
+	}
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+			view := NewView(streams)
+			view.Configure(&arguments.View{NoColor: true})
+			v := NewShow(arguments.ViewHuman, view)
+
+			code := v.DisplayState(testCase.stateFile, testCase.schemas)
+			if code != 0 {
+				t.Errorf("expected 0 return code, got %d", code)
+			}
+
+			output := done(t)
+			got := output.Stdout()
+			want := testCase.wantString
+			if (testCase.wantExact && got != want) || (!testCase.wantExact && !strings.Contains(got, want)) {
+				t.Fatalf("unexpected output\ngot: %s\nwant: %s", got, want)
+			}
+		})
+	}
+}
+
+func TestShowJSON_DisplayPlan(t *testing.T) {
 	unredactedPath := "../testdata/show-json/basic-create/output.json"
 	unredactedPlanJson, err := os.ReadFile(unredactedPath)
 	if err != nil {
@@ -197,7 +225,7 @@ func TestShowJSON(t *testing.T) {
 				},
 			}
 
-			code := v.Display(config, testCase.plan, testCase.jsonPlan, testCase.stateFile, schemas)
+			code := v.DisplayPlan(testCase.plan, testCase.jsonPlan, config, testCase.stateFile, schemas)
 
 			if code != 0 {
 				t.Errorf("expected 0 return code, got %d", code)
@@ -205,7 +233,72 @@ func TestShowJSON(t *testing.T) {
 
 			// Make sure the result looks like JSON; we comprehensively test
 			// the structure of this output in the command package tests.
-			var result map[string]interface{}
+			var result map[string]any
+			got := done(t).All()
+			t.Logf("output: %s", got)
+			if err := json.Unmarshal([]byte(got), &result); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestShowJSON_DisplayState(t *testing.T) {
+	testCases := map[string]struct {
+		stateFile *statefile.File
+	}{
+		"non-empty statefile": {
+			&statefile.File{
+				Serial:  0,
+				Lineage: "fake-for-testing",
+				State:   testState(),
+			},
+		},
+		"empty statefile": {
+			&statefile.File{
+				Serial:  0,
+				Lineage: "fake-for-testing",
+				State:   states.NewState(),
+			},
+		},
+		"nothing": {
+			nil,
+		},
+	}
+
+	for name, testCase := range testCases {
+		t.Run(name, func(t *testing.T) {
+			streams, done := terminal.StreamsForTesting(t)
+			view := NewView(streams)
+			view.Configure(&arguments.View{NoColor: true})
+			v := NewShow(arguments.ViewJSON, view)
+
+			schemas := &tofu.Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					addrs.NewDefaultProvider("test"): {
+						ResourceTypes: map[string]providers.Schema{
+							"test_resource": {
+								Block: &configschema.Block{
+									Attributes: map[string]*configschema.Attribute{
+										"id":  {Type: cty.String, Optional: true, Computed: true},
+										"foo": {Type: cty.String, Optional: true},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+
+			code := v.DisplayState(testCase.stateFile, schemas)
+
+			if code != 0 {
+				t.Errorf("expected 0 return code, got %d", code)
+			}
+
+			// Make sure the result looks like JSON; we comprehensively test
+			// the structure of this output in the command package tests.
+			var result map[string]any
 			got := done(t).All()
 			t.Logf("output: %s", got)
 			if err := json.Unmarshal([]byte(got), &result); err != nil {
