@@ -171,7 +171,7 @@ removed {
   }
 }
 ```
-The `command` field do support references only the `self` object, which represents the information that OpenTofu is still having
+The `command` field do support references only the `self` object, `each.key` and `count.index`, which represents the information that OpenTofu is still having
 in the state about the targeted `resource`.
 
 The `provisioner` block will be executed only when the `removed` block is configured in a specific way:
