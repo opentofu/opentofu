@@ -236,6 +236,88 @@ state, without changing any real infrastructure.
 	}
 }
 
+// TestLocal_planOutputSensitivityChanged tests that changes to output sensitivity
+// are properly detected and reported as changes in the plan.
+func TestLocal_planOutputSensitivityChanged(t *testing.T) {
+	b := TestLocal(t)
+	testStateFile(t, b.StatePath, states.BuildState(func(ss *states.SyncState) {
+		// Output that will become sensitive
+		ss.SetOutputValue(addrs.AbsOutputValue{
+			Module:      addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{Name: "sensitive_after"},
+		}, cty.StringVal("after"), false) // starts non-sensitive
+
+		// Output that will become non-sensitive
+		ss.SetOutputValue(addrs.AbsOutputValue{
+			Module:      addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{Name: "sensitive_before"},
+		}, cty.StringVal("before"), true) // starts sensitive
+
+		// Outputs that remain unchanged
+		ss.SetOutputValue(addrs.AbsOutputValue{
+			Module:      addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{Name: "unchanged_insensitive"},
+		}, cty.StringVal("unchanged"), false)
+
+		// Outputs with actual value changes (for control comparison)
+		ss.SetOutputValue(addrs.AbsOutputValue{
+			Module:      addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{Name: "changed_insensitive"},
+		}, cty.StringVal("changed_but_always_insensitive"), false)
+	}))
+
+	outDir := t.TempDir()
+	defer os.RemoveAll(outDir) // Likely don't need, but will delete once reviewer agrees
+	planPath := filepath.Join(outDir, "sensitivity_plan_test.tfplan")
+
+	// Use the test fixture with sensitivity changes
+	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-outputs-sensitivity-changed")
+	defer configCleanup()
+	op.PlanRefresh = true
+	op.PlanOutPath = planPath
+
+	cfg := cty.ObjectVal(map[string]cty.Value{
+		"path": cty.StringVal(b.StatePath),
+	})
+	cfgRaw, err := plans.NewDynamicValue(cfg, cfg.Type())
+	if err != nil {
+		t.Fatal(err)
+	}
+	op.PlanOutBackend = &plans.Backend{
+		// Just a placeholder so that we can generate a valid plan file.
+		Type:   "local",
+		Config: cfgRaw,
+	}
+
+	run, err := b.Operation(context.Background(), op)
+	if err != nil {
+		t.Fatalf("bad: %s", err)
+	}
+	<-run.Done()
+	if run.Result != backend.OperationSuccess {
+		t.Fatalf("plan operation failed")
+	}
+	if run.PlanEmpty {
+		t.Error("plan should not be empty")
+	}
+
+	// The plan should include changes to sensitivity even when the value itself didn't change
+	expectedOutput := strings.TrimSpace(`
+Changes to Outputs:
+  + added            = "after"
+  ~ changed          = "before" -> "after"
+  ~ sensitive_after  = "after" -> (sensitive value)
+  ~ sensitive_before = (sensitive value) -> "after"
+
+You can apply this plan to save these new output values to the OpenTofu
+state, without changing any real infrastructure.
+`)
+
+	if output := done(t).Stdout(); !strings.Contains(output, expectedOutput) {
+		t.Errorf("Unexpected output\ngot output:%s\n\nwant output containing:\n%s", output, expectedOutput)
+	}
+}
+
 // Module outputs should not cause the plan to be rendered
 func TestLocal_planModuleOutputsChanged(t *testing.T) {
 	b := TestLocal(t)
