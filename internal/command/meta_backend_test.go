@@ -39,7 +39,6 @@ import (
 func TestMetaBackend_emptyDir(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// Get the backend
@@ -94,7 +93,6 @@ func isEmptyState(path string) bool {
 func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// Write the legacy state
@@ -158,12 +156,10 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// Create another directory to store our state
 	stateDir := t.TempDir()
-	os.MkdirAll(stateDir, 0755)
 
 	// Write the legacy state
 	statePath := filepath.Join(stateDir, "foo")

@@ -39,7 +39,6 @@ import (
 func TestInit_empty(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
@@ -61,7 +60,6 @@ func TestInit_empty(t *testing.T) {
 func TestInit_multipleArgs(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
@@ -86,7 +84,6 @@ func TestInit_multipleArgs(t *testing.T) {
 func TestInit_fromModule_cwdDest(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, os.ModePerm)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
