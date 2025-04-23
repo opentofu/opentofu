@@ -2417,7 +2417,6 @@ provider "registry.opentofu.org/hashicorp/test" {
 
 func TestInit_pluginDirReset(t *testing.T) {
 	td := testTempDirRealpath(t)
-	defer os.RemoveAll(td)
 	t.Chdir(td)
 
 	// An empty provider source

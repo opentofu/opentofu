@@ -940,7 +940,6 @@ func TestApply_planVars(t *testing.T) {
 func TestApply_planNoModuleFiles(t *testing.T) {
 	// temporary data directory which we can remove between commands
 	td := testTempDirRealpath(t)
-	defer os.RemoveAll(td)
 
 	t.Chdir(td)
 
@@ -1975,7 +1974,6 @@ func TestApply_targetFlagsDiags(t *testing.T) {
 	for target, wantDiag := range testCases {
 		t.Run(target, func(t *testing.T) {
 			td := testTempDirRealpath(t)
-			defer os.RemoveAll(td)
 			t.Chdir(td)
 
 			view, done := testView(t)
@@ -2063,7 +2061,6 @@ func TestApply_excludeFlagsDiags(t *testing.T) {
 	for exclude, wantDiag := range testCases {
 		t.Run(exclude, func(t *testing.T) {
 			td := testTempDirRealpath(t)
-			defer os.RemoveAll(td)
 			t.Chdir(td)
 
 			view, done := testView(t)

@@ -808,7 +808,6 @@ func TestRefresh_targetFlagsDiags(t *testing.T) {
 	for target, wantDiag := range testCases {
 		t.Run(target, func(t *testing.T) {
 			td := testTempDirRealpath(t)
-			defer os.RemoveAll(td)
 			t.Chdir(td)
 
 			view, done := testView(t)
@@ -902,7 +901,6 @@ func TestRefresh_excludeFlagsDiags(t *testing.T) {
 	for exclude, wantDiag := range testCases {
 		t.Run(exclude, func(t *testing.T) {
 			td := testTempDirRealpath(t)
-			defer os.RemoveAll(td)
 			t.Chdir(td)
 
 			view, done := testView(t)

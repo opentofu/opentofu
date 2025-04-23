@@ -121,6 +121,7 @@ func tempWorkingDir(t *testing.T) *workdir.Dir {
 // the testWorkingDir commentary for an example of how to use this function
 // along with testChdir to meet the expectations of command.Meta legacy
 // functionality.
+
 func tempWorkingDirFixture(t *testing.T, fixtureName string) *workdir.Dir {
 	t.Helper()
 
@@ -129,9 +130,6 @@ func tempWorkingDirFixture(t *testing.T, fixtureName string) *workdir.Dir {
 
 	fixturePath := testFixturePath(fixtureName)
 	testCopyDir(t, fixturePath, dirPath)
-	// NOTE: Unfortunately because testCopyDir immediately aborts the test
-	// on failure, a failure to copy will prevent us from cleaning up the
-	// temporary directory. Oh well. :(
 
 	return workdir.NewDir(dirPath)
 }
