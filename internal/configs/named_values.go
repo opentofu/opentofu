@@ -453,7 +453,7 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid `deprecated` attribute",
-				Detail:   `Attribute "deprecated" must be a non-empty string, please provide a suggestion for users to properly migrate from a deprecated module output.`,
+				Detail:   `The "deprecated" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated output value.`,
 				Subject:  attr.Expr.Range().Ptr(),
 			})
 		}

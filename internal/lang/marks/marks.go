@@ -7,6 +7,7 @@ package marks
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -125,13 +126,7 @@ func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value,
 	// Locate deprecationMarks and filter them out
 	for _, pm := range deprecatedPathMarks {
 		for m := range pm.Marks {
-			attr := tfdiags.FormatCtyPath(pm.Path)
-			// FormatCtyPath call could result in ".fieldA.fieldB" in some
-			// cases, so we want to remove the first dot for a friendlier message.
-			if len(attr) > 1 && attr[0] == '.' {
-				attr = attr[1:]
-			}
-
+			attr := strings.TrimPrefix(tfdiags.FormatCtyPath(pm.Path), ".")
 			source := "This value"
 			if attr != "" {
 				source += "'s attribute " + attr
