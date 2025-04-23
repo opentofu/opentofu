@@ -5780,7 +5780,7 @@ import {
 		},
 		{
 			Description:   "for_each expression is null",
-			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the "for_each" argument must be a map, set of strings, or a tuple, and you have provided a value of type dynamic.`,
+			expectedError: `Invalid for_each argument: The given "for_each" argument value is unsuitable: the given "for_each" argument value is null.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 variable "map" {
@@ -5800,7 +5800,7 @@ import {
 		},
 		{
 			Description:   "for_each key is unknown",
-			expectedError: `Invalid for_each argument: The "for_each" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
+			expectedError: `The "for_each" value includes keys or set values from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine what will identify the instances of this resource.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
@@ -5852,14 +5852,14 @@ import {
 		},
 		{
 			Description:   "for_each expression is unknown",
-			expectedError: `Invalid for_each argument: The "for_each" map includes keys derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
+			expectedError: `Invalid for_each argument: The "for_each" set includes values derived from resource attributes that cannot be determined until apply, and so OpenTofu cannot determine the full set of keys that will identify the instances of this resource.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
 }
 
 locals {
-  map = (test_object.reference.id)
+  set = toset([test_object.reference.id])
 }
 
 resource "test_object" "a" {
@@ -5867,7 +5867,7 @@ resource "test_object" "a" {
 }
 
 import {
-  for_each = local.map
+  for_each = local.set
   to = test_object.a[each.key]
   id = each.value
 }
