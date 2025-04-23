@@ -152,7 +152,7 @@ func TestParserLoadConfigFileFailureMessages(t *testing.T) {
 			"invalid-files/empty-deprecated-output-attr.tf",
 			hcl.DiagError,
 			"Invalid `deprecated` attribute",
-			`Attribute "deprecated" must be a non-empty string, please provide a suggestion for users to properly migrate from a deprecated module output.`,
+			`The "deprecated" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated output value.`,
 		},
 	}
 
