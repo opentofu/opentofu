@@ -42,8 +42,7 @@ func TestLocal_applyBasic(t *testing.T) {
 		"ami": cty.StringVal("bar"),
 	})}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply")
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -86,8 +85,7 @@ func TestLocal_applyCheck(t *testing.T) {
 		"ami": cty.StringVal("bar"),
 	})}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-check")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-check")
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -128,8 +126,7 @@ func TestLocal_applyEmptyDir(t *testing.T) {
 	p := TestLocalProvider(t, b, "test", providers.ProviderSchema{})
 	p.ApplyResourceChangeResponse = &providers.ApplyResourceChangeResponse{NewState: cty.ObjectVal(map[string]cty.Value{"id": cty.StringVal("yes")})}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/empty")
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -162,8 +159,7 @@ func TestLocal_applyEmptyDirDestroy(t *testing.T) {
 	p := TestLocalProvider(t, b, "test", providers.ProviderSchema{})
 	p.ApplyResourceChangeResponse = &providers.ApplyResourceChangeResponse{}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/empty")
 	op.PlanMode = plans.DestroyMode
 
 	run, err := b.Operation(context.Background(), op)
@@ -229,8 +225,7 @@ func TestLocal_applyError(t *testing.T) {
 		}
 	}
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply-error")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/apply-error")
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -273,14 +268,9 @@ func TestLocal_applyBackendFail(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get current working directory")
 	}
-	err = os.Chdir(filepath.Dir(b.StatePath))
-	if err != nil {
-		t.Fatalf("failed to set temporary working directory")
-	}
-	defer os.Chdir(wd)
+	t.Chdir(filepath.Dir(b.StatePath))
 
-	op, configCleanup, done := testOperationApply(t, wd+"/testdata/apply")
-	defer configCleanup()
+	op, done := testOperationApply(t, wd+"/testdata/apply")
 
 	b.Backend = &backendWithFailingState{}
 
@@ -325,8 +315,7 @@ func TestLocal_applyRefreshFalse(t *testing.T) {
 	p := TestLocalProvider(t, b, "test", planFixtureSchema())
 	testStateFile(t, b.StatePath, testPlanState())
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationApply(t, "./testdata/plan")
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -364,10 +353,10 @@ func (s failingState) WriteState(state *states.State) error {
 	return errors.New("fake failure")
 }
 
-func testOperationApply(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationApply(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
@@ -385,7 +374,7 @@ func testOperationApply(t *testing.T, configDir string) (*backend.Operation, fun
 		StateLocker:     clistate.NewNoopLocker(),
 		View:            view,
 		DependencyLocks: depLocks,
-	}, configCleanup, done
+	}, done
 }
 
 // applyFixtureSchema returns a schema suitable for processing the
@@ -411,9 +400,8 @@ func TestApply_applyCanceledAutoApprove(t *testing.T) {
 
 	TestLocalProvider(t, b, "test", applyFixtureSchema())
 
-	op, configCleanup, done := testOperationApply(t, "./testdata/apply")
+	op, done := testOperationApply(t, "./testdata/apply")
 	op.AutoApprove = true
-	defer configCleanup()
 	defer func() {
 		output := done(t)
 		if !strings.Contains(output.Stderr(), "execution halted") {

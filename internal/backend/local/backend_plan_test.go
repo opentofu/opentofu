@@ -35,8 +35,7 @@ func TestLocal_planBasic(t *testing.T) {
 	b := TestLocal(t)
 	p := TestLocalProvider(t, b, "test", planFixtureSchema())
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	op.PlanRefresh = true
 
 	run, err := b.Operation(context.Background(), op)
@@ -73,8 +72,7 @@ func TestLocal_planInAutomation(t *testing.T) {
 	//
 	// Ideally this test would be replaced by a call-logging mock view, but
 	// that's future work.
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	op.PlanRefresh = true
 
 	run, err := b.Operation(context.Background(), op)
@@ -95,8 +93,7 @@ func TestLocal_planNoConfig(t *testing.T) {
 	b := TestLocal(t)
 	TestLocalProvider(t, b, "test", providers.ProviderSchema{})
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/empty")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/empty")
 	op.PlanRefresh = true
 
 	run, err := b.Operation(context.Background(), op)
@@ -140,8 +137,7 @@ func TestLocal_plan_context_error(t *testing.T) {
 	}
 	b.ContextOpts.Parallelism = -1
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 
 	// we coerce a failure in Context() by omitting the provider schema
 	run, err := b.Operation(context.Background(), op)
@@ -196,8 +192,7 @@ func TestLocal_planOutputsChanged(t *testing.T) {
 	outDir := t.TempDir()
 	defer os.RemoveAll(outDir)
 	planPath := filepath.Join(outDir, "plan.tfplan")
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-outputs-changed")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-outputs-changed")
 	op.PlanRefresh = true
 	op.PlanOutPath = planPath
 	cfg := cty.ObjectVal(map[string]cty.Value{
@@ -253,8 +248,7 @@ func TestLocal_planModuleOutputsChanged(t *testing.T) {
 	outDir := t.TempDir()
 	defer os.RemoveAll(outDir)
 	planPath := filepath.Join(outDir, "plan.tfplan")
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-module-outputs-changed")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-module-outputs-changed")
 	op.PlanRefresh = true
 	op.PlanOutPath = planPath
 	cfg := cty.ObjectVal(map[string]cty.Value{
@@ -294,8 +288,7 @@ func TestLocal_planTainted(t *testing.T) {
 	testStateFile(t, b.StatePath, testPlanState_tainted())
 	outDir := t.TempDir()
 	planPath := filepath.Join(outDir, "plan.tfplan")
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	op.PlanRefresh = true
 	op.PlanOutPath = planPath
 	cfg := cty.ObjectVal(map[string]cty.Value{
@@ -374,8 +367,7 @@ func TestLocal_planDeposedOnly(t *testing.T) {
 	}))
 	outDir := t.TempDir()
 	planPath := filepath.Join(outDir, "plan.tfplan")
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	op.PlanRefresh = true
 	op.PlanOutPath = planPath
 	cfg := cty.ObjectVal(map[string]cty.Value{
@@ -465,8 +457,7 @@ func TestLocal_planTainted_createBeforeDestroy(t *testing.T) {
 	testStateFile(t, b.StatePath, testPlanState_tainted())
 	outDir := t.TempDir()
 	planPath := filepath.Join(outDir, "plan.tfplan")
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-cbd")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-cbd")
 	op.PlanRefresh = true
 	op.PlanOutPath = planPath
 	cfg := cty.ObjectVal(map[string]cty.Value{
@@ -521,8 +512,7 @@ func TestLocal_planRefreshFalse(t *testing.T) {
 	p := TestLocalProvider(t, b, "test", planFixtureSchema())
 	testStateFile(t, b.StatePath, testPlanState())
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 
 	run, err := b.Operation(context.Background(), op)
 	if err != nil {
@@ -555,8 +545,7 @@ func TestLocal_planDestroy(t *testing.T) {
 	outDir := t.TempDir()
 	planPath := filepath.Join(outDir, "plan.tfplan")
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	op.PlanMode = plans.DestroyMode
 	op.PlanRefresh = true
 	op.PlanOutPath = planPath
@@ -607,8 +596,7 @@ func TestLocal_planDestroy_withDataSources(t *testing.T) {
 	outDir := t.TempDir()
 	planPath := filepath.Join(outDir, "plan.tfplan")
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/destroy-with-ds")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/destroy-with-ds")
 	op.PlanMode = plans.DestroyMode
 	op.PlanRefresh = true
 	op.PlanOutPath = planPath
@@ -681,8 +669,7 @@ func TestLocal_planOutPathNoChange(t *testing.T) {
 	outDir := t.TempDir()
 	planPath := filepath.Join(outDir, "plan.tfplan")
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	op.PlanOutPath = planPath
 	cfg := cty.ObjectVal(map[string]cty.Value{
 		"path": cty.StringVal(b.StatePath),
@@ -718,10 +705,10 @@ func TestLocal_planOutPathNoChange(t *testing.T) {
 	}
 }
 
-func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(), func(*testing.T) *terminal.TestOutput) {
+func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func(*testing.T) *terminal.TestOutput) {
 	t.Helper()
 
-	_, configLoader, configCleanup := initwd.MustLoadConfigForTests(t, configDir, "tests")
+	_, configLoader := initwd.MustLoadConfigForTests(t, configDir, "tests")
 
 	streams, done := terminal.StreamsForTesting(t)
 	view := views.NewOperation(arguments.ViewHuman, false, views.NewView(streams))
@@ -739,7 +726,7 @@ func testOperationPlan(t *testing.T, configDir string) (*backend.Operation, func
 		StateLocker:     clistate.NewNoopLocker(),
 		View:            view,
 		DependencyLocks: depLocks,
-	}, configCleanup, done
+	}, done
 }
 
 // testPlanState is just a common state that we use for testing plan.
@@ -902,8 +889,7 @@ func TestLocal_invalidOptions(t *testing.T) {
 	b := TestLocal(t)
 	TestLocalProvider(t, b, "test", planFixtureSchema())
 
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan")
 	op.PlanRefresh = true
 	op.PlanMode = plans.RefreshOnlyMode
 	op.ForceReplace = []addrs.AbsResourceInstance{mustResourceInstanceAddr("test_instance.foo")}

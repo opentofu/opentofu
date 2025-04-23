@@ -19,7 +19,7 @@ import (
 func TestConsole_multiline_interactive(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("console-multiline-vars"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	p := testProvider()
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{

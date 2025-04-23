@@ -538,9 +538,7 @@ A chain of move statements must end with an address that doesn't appear in any o
 func loadRefactoringFixture(t *testing.T, dir string) (*configs.Config, instances.Set) {
 	t.Helper()
 
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
-
+	loader := configload.NewLoaderForTests(t)
 	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil), nil)
 	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {

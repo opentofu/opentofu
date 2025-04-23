@@ -57,10 +57,7 @@ func testModuleWithSnapshot(t testing.TB, name string) (*configs.Config, *config
 	t.Helper()
 
 	dir := filepath.Join(fixtureDir, name)
-	// FIXME: We're not dealing with the cleanup function here because
-	// this testModule function is used all over and so we don't want to
-	// change its interface at this late stage.
-	loader, _ := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t)
 
 	// We need to be able to exercise experimental features in our integration tests.
 	loader.AllowLanguageExperiments(true)
@@ -116,8 +113,7 @@ func testModuleInline(t testing.TB, sources map[string]string) *configs.Config {
 		}
 	}
 
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 
 	// We need to be able to exercise experimental features in our integration tests.
 	loader.AllowLanguageExperiments(true)

@@ -29,25 +29,20 @@ import (
 // possibly-incomplete config is returned along with error diagnostics. The
 // test run is not aborted in this case, so that the caller can make assertions
 // against the returned diagnostics.
-//
-// As with NewLoaderForTests, a cleanup function is returned which must be
-// called before the test completes in order to remove the temporary
-// modules directory.
-func LoadConfigForTests(t *testing.T, rootDir string, testsDir string) (*configs.Config, *configload.Loader, func(), tfdiags.Diagnostics) {
+func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs.Config, *configload.Loader, tfdiags.Diagnostics) {
 	t.Helper()
 
 	var diags tfdiags.Diagnostics
 
-	loader, cleanup := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t)
 	inst := NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil), nil)
 
 	call := configs.RootModuleCallForTesting()
 	_, moreDiags := inst.InstallModules(context.Background(), rootDir, testsDir, true, false, ModuleInstallHooksImpl{}, call)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
-		cleanup()
 		t.Fatal(diags.Err())
-		return nil, nil, func() {}, diags
+		return nil, nil, diags
 	}
 
 	// Since module installer has modified the module manifest on disk, we need
@@ -58,7 +53,7 @@ func LoadConfigForTests(t *testing.T, rootDir string, testsDir string) (*configs
 
 	config, hclDiags := loader.LoadConfig(rootDir, call)
 	diags = diags.Append(hclDiags)
-	return config, loader, cleanup, diags
+	return config, loader, diags
 }
 
 // MustLoadConfigForTests is a variant of LoadConfigForTests which calls
@@ -68,13 +63,12 @@ func LoadConfigForTests(t *testing.T, rootDir string, testsDir string) (*configs
 // This is useful for concisely writing tests that don't expect errors at
 // all. For tests that expect errors and need to assert against them, use
 // LoadConfigForTests instead.
-func MustLoadConfigForTests(t *testing.T, rootDir, testsDir string) (*configs.Config, *configload.Loader, func()) {
+func MustLoadConfigForTests(t testing.TB, rootDir, testsDir string) (*configs.Config, *configload.Loader) {
 	t.Helper()
 
-	config, loader, cleanup, diags := LoadConfigForTests(t, rootDir, testsDir)
+	config, loader, diags := LoadConfigForTests(t, rootDir, testsDir)
 	if diags.HasErrors() {
-		cleanup()
 		t.Fatal(diags.Err())
 	}
-	return config, loader, cleanup
+	return config, loader
 }
