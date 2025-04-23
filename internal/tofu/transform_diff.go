@@ -176,6 +176,26 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 				if dn, ok := node.(GraphNodeDeposer); ok {
 					dn.SetPreallocatedDeposedKey(dk)
 				}
+
+				// We need to set CBD to the node here, otherwise if CBD flag was caused
+				// by the CBD descendant of the node (and not the config) and this is the sole node being updated
+				// in the current apply operation, we will lose the CBD flag in the state file and cause the "cycle" error down the line.
+				// For more details, see the issue https://github.com/opentofu/opentofu/issues/2398
+				if cn, ok := node.(GraphNodeDestroyerCBD); ok {
+					log.Printf("[TRACE] DiffTransformer: %s implements GraphNodeDestroyerCBD, setting CBD to true", addr)
+					// Setting CBD to true
+					// Error handling here is just for future-proofing, since none of the GraphNodeDestroyerCBD current implementations
+					// should return an error when setting CBD to true
+					if err := cn.ModifyCreateBeforeDestroy(true); err != nil {
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Error,
+							"Invalid planned change",
+							fmt.Sprintf("%s: wasn't able to set CBD, error occured %s", dag.VertexName(node), err.Error())))
+						log.Printf("[TRACE] DiffTransformer: %s: wasn't able to set CBD, error occured %s", addr, err.Error())
+						continue
+					}
+				}
+
 				log.Printf("[TRACE] DiffTransformer: %s will be represented by %s, deposing prior object to %s", addr, dag.VertexName(node), dk)
 			} else {
 				log.Printf("[TRACE] DiffTransformer: %s will be represented by %s", addr, dag.VertexName(node))
