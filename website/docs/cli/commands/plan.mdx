@@ -115,6 +115,17 @@ In addition to alternate [planning modes](#planning-modes), there are several op
 - `-replace=ADDRESS` - Instructs OpenTofu to plan to replace the
   resource instance with the given address. This is helpful when one or more remote objects have become degraded, and you can use replacement objects with the same configuration to align with immutable infrastructure patterns. OpenTofu will use a "replace" action if the specified resource would normally cause an "update" action or no action at all. Include this option multiple times to replace several objects at once. You cannot use `-replace` with the `-destroy` option.
 
+- `-exclude=ADDRESS` - Instructs OpenTofu to focus its planning efforts only
+  on resource instances which do not match the given excluded address, and that
+  do not depend on any such resources or modules that were excluded.
+
+  :::note
+  Use `-exclude=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTofu limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
+  :::
+
+- `-exclude-file=FILENAME` - Similar to `-exclude` but with multiple addresses
+  specified in a separate file rather than directly on the command line.
+
 - `-target=ADDRESS` - Instructs OpenTofu to focus its planning efforts only
   on resource instances which match the given address and on any objects that
   those instances depend on.
@@ -123,13 +134,8 @@ In addition to alternate [planning modes](#planning-modes), there are several op
   Use `-target=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTofu limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
   :::
 
-- `-exclude=ADDRESS` - Instructs OpenTofu to focus its planning efforts only
-  on resource instances which do not match the given excluded address, and that
-  do not depend on any such resources or modules that were excluded.
-
-  :::note
-  Use `-exclude=ADDRESS` in exceptional circumstances only, such as recovering from mistakes or working around OpenTofu limitations. Refer to [Resource Targeting](#resource-targeting) for more details.
-  :::
+- `-target-file=FILENAME` - Similar to `-target` but with multiple addresses
+  specified in a separate file rather than directly on the command line.
 
 - `-var 'NAME=VALUE'` - Sets a value for a single
   [input variable](../../language/values/variables.mdx) declared in the
@@ -225,25 +231,44 @@ input variables, see
 
 ### Resource Targeting
 
-You can use the `-target` or the `-exclude` option to trigger resource targeting,
-focusing OpenTofu's attention on only a subset of resources.
-Using the `-target` option will focus OpenTofu's attention only on resources and
-module that are directly targeted, or are dependencies of the target.
-Using the `-exclude` option will focus OpenTofu's attention only on resources and
-modules that are not directly excluded, and are not dependent on an excluded resource
-or module.
+You can use the `-target`, `-target-file`, `-exclude`, and `-exclude-file` options
+to activate resource targeting, which focuses OpenTofu's attention on only a
+subset of the resource instances that are declared in the configuration or tracked
+in the current state.
 
-You can use multiple `-target` flags in order to target multiple resources and modules,
-and you can use multiple `-exclude` flags in order to exclude multiple resource and
-modules. You cannot use both `-target` and `-exclude` flags together.
+Using `-target` or `-target-file` focuses OpenTofu's attention only on resource
+instances that match the given target addresses and resource instances that
+are dependencies of those.
 
-You can use [resource address syntax](../../cli/state/resource-addressing.mdx)
-to specify the constraint. OpenTofu interprets the resource address as follows:
+Using `-exclude` or `-exclude-file` instead focuses OpenTofu's attention on
+resource instances _other than_ those that match and anything that depends
+on those.
+
+Positive targeting using `-target` and `-target-file` is mutually exclusive with
+negative targeting using `-exclude` and `-exclude-file`. You cannot use both
+the target options and the exclude options together in a single command.
+
+Specify the resource instances to target using [resource address syntax](../../cli/state/resource-addressing.mdx).
+For `-target` and `-exclude`, refer to
+[Resource Addresses on the Command Line](../../cli/state/resource-addressing.mdx#resource-addresses-on-the-command-line).
+For `-target-file` and `-exclude-file`, refer to
+[Resource Addresses in Targeting Files](../../cli/state/resource-addressing.mdx#resource-addresses-in-targeting-files).
+
+OpenTofu matches resource instances with the given resource addresses as
+follows:
 
 * If the given address identifies one specific resource instance, OpenTofu
-  will select that instance alone. For resources with either `count` or
-  `for_each` set, a resource instance address must include the instance index
-  part, like `aws_instance.example[0]`.
+  will select that instance alone.
+
+  For resources with either `count` or `for_each` set, a resource instance
+  address must include the instance index part, like `aws_instance.example[0]`.
+
+  Your shell may assign special meaning to some punctuation characters used
+  in a resource instance address, such as quotes and brackets, so it's
+  important to properly quote or escape resource instance addresses written
+  directly on the command line in `-target` or `-exclude` options as
+  described in
+  [Resource Addresses on the Command Line](../../cli/state/resource-addressing.mdx#resource-addresses-on-the-command-line).
 
 * If the given address identifies a resource as a whole, OpenTofu will select
   all of the instances of that resource. For resources with either `count`
@@ -258,15 +283,15 @@ to specify the constraint. OpenTofu interprets the resource address as follows:
 
 This targeting capability is provided for exceptional circumstances, such
 as recovering from mistakes or working around OpenTofu limitations. It
-is _not recommended_ to use `-target` or `-exclude` for routine operations, since
-this can lead to undetected configuration drift and confusion about how the true
-state of resources relates to configuration.
+is _not recommended_ to use these options for routine operations, because
+that can lead to undetected configuration drift and confusion about how the
+true state of resources relates to configuration.
 
-Instead of using `-target` or `-exclude` as a means to operate on isolated portions
-of very large configurations, prefer instead to break large configurations into
+Instead of using resource targeting to operate on isolated portions
+of very large configurations, prefer to break large configurations into
 several smaller configurations that can each be independently applied.
-[Data sources](../../language/data-sources/index.mdx) can be used to access
-information about resources created in other configurations, allowing
+You can use [data sources](../../language/data-sources/index.mdx) to access
+information about resources declared in other configurations, allowing
 a complex system architecture to be broken down into more manageable parts
 that can be updated independently.
 
