@@ -94,9 +94,10 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Va
 	})
 }
 
-// DeprecatedDiagnosticsInBody composes deprecation diagnostics based on deprecation marks inside
+// ExtractDeprecationDiagnosticsWithBody composes deprecation diagnostics based on deprecation marks inside
 // the cty.Value. It uses hcl.Body to properly reference deprecated attributes in final diagnostics.
-func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdiags.Diagnostics) {
+// The returned cty.Value has no deprecation marks inside, since all the relevant diagnostics has been collected.
+func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	val, deprecatedPathMarks := unmarkDeepWithPathsDeprecated(val)
@@ -116,9 +117,10 @@ func DeprecatedDiagnosticsInBody(val cty.Value, body hcl.Body) (cty.Value, tfdia
 	return val, diags.InConfigBody(body, "")
 }
 
-// DeprecatedDiagnosticsInExpr composes deprecation diagnostics based on deprecation marks inside
+// ExtractDeprecatedDiagnosticsWithExpr composes deprecation diagnostics based on deprecation marks inside
 // the cty.Value. It uses hcl.Expression to properly reference deprecated attributes in final diagnostics.
-func DeprecatedDiagnosticsInExpr(val cty.Value, expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
+// The returned cty.Value has no deprecation marks inside, since all the relevant diagnostics has been collected.
+func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	val, deprecatedPathMarks := unmarkDeepWithPathsDeprecated(val)

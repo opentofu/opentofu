@@ -186,7 +186,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		runVal, hclDiags := rule.Condition.Value(hclCtx)
 		diags = diags.Append(hclDiags)
 
-		runVal, deprDiags := marks.DeprecatedDiagnosticsInExpr(runVal, rule.Condition)
+		runVal, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(runVal, rule.Condition)
 		diags = diags.Append(deprDiags)
 
 		run.Diagnostics = run.Diagnostics.Append(diags)

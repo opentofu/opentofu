@@ -78,7 +78,7 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 	val, evalDiags := hcldec.Decode(body, spec, ctx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
 
-	val, depDiags := marks.DeprecatedDiagnosticsInBody(val, body)
+	val, depDiags := marks.ExtractDeprecationDiagnosticsWithBody(val, body)
 	diags = diags.Append(depDiags)
 
 	return val, diags
@@ -203,7 +203,7 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 		}
 	}
 
-	val, depDiags := marks.DeprecatedDiagnosticsInExpr(val, expr)
+	val, depDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(val, expr)
 	diags = diags.Append(depDiags)
 
 	return val, diags
