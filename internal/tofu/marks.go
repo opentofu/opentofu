@@ -9,8 +9,41 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/zclconf/go-cty/cty"
 )
+
+// sensitiveMarksEqual filters out any non-sensitive marks and then uses
+// marksEqual to compare the resulting lists.
+func sensitiveMarksEqual(a, b []cty.PathValueMarks) bool {
+	a = filterNonTargetMarks(a, marks.Sensitive)
+	b = filterNonTargetMarks(b, marks.Sensitive)
+	return marksEqual(a, b)
+}
+
+// filterNonTargetMarks makes a copy of PathValueMarks and filters out every
+// non-target mark.
+func filterNonTargetMarks(pvms []cty.PathValueMarks, target interface{}) []cty.PathValueMarks {
+	pvmsCopy := make([]cty.PathValueMarks, 0, len(pvms))
+
+	for _, pvm := range pvms {
+		pvmCopy := copyPathValueMarks(pvm)
+
+		// Remove non-target marks
+		for k := range pvm.Marks {
+			if k != target {
+				delete(pvmCopy.Marks, k)
+			}
+		}
+
+		// Add path if it still has marks
+		if len(pvmCopy.Marks) != 0 {
+			pvmsCopy = append(pvmsCopy, pvmCopy)
+		}
+	}
+
+	return pvmsCopy
+}
 
 // marksEqual compares 2 unordered sets of PathValue marks for equality, with
 // the comparison using the cty.PathValueMarks.Equal method.

@@ -25,6 +25,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/copy"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
@@ -46,7 +47,7 @@ func TestModuleInstaller(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -110,7 +111,7 @@ func TestModuleInstaller_error(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -131,7 +132,7 @@ func TestModuleInstaller_emptyModuleName(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -152,7 +153,7 @@ func TestModuleInstaller_invalidModuleName(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	if !diags.HasErrors() {
 		t.Fatal("expected error")
@@ -189,7 +190,11 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	// This test needs a real getmodules.PackageFetcher because it makes use of
+	// the esoteric legacy support for treating an absolute filesystem path
+	// as if it were a "remote package". This should not use any of the
+	// truly-"remote" module sources, even though it technically has access to.
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -227,7 +232,11 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	// This test needs a real getmodules.PackageFetcher because it makes use of
+	// the esoteric legacy support for treating an absolute filesystem path
+	// as if it were a "remote package". This should not use any of the
+	// truly-"remote" module sources, even though it technically has access to.
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if diags.HasErrors() {
@@ -313,7 +322,7 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 
 			loader, closeLoader := configload.NewLoaderForTests(t)
 			defer closeLoader()
-			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 			cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 			if tc.shouldError {
@@ -345,7 +354,7 @@ func TestModuleInstaller_invalid_version_constraint_error(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -371,7 +380,7 @@ func TestModuleInstaller_invalidVersionConstraintGetter(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -397,7 +406,7 @@ func TestModuleInstaller_invalidVersionConstraintLocal(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -423,7 +432,7 @@ func TestModuleInstaller_symlink(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -499,7 +508,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -662,7 +671,7 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -780,7 +789,7 @@ func TestModuleInstaller_fromTests(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -837,7 +846,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 
 	loader, close := configload.NewLoaderForTests(t)
 	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -1013,7 +1022,8 @@ func assertDiagnosticCount(t *testing.T, diags tfdiags.Diagnostics, want int) bo
 	if len(diags) != want {
 		t.Errorf("wrong number of diagnostics %d; want %d", len(diags), want)
 		for _, diag := range diags {
-			t.Logf("- %#v", diag)
+			desc := diag.Description()
+			t.Logf("- %s: %s", desc.Summary, desc.Detail)
 		}
 		return true
 	}
@@ -1031,7 +1041,8 @@ func assertDiagnosticSummary(t *testing.T, diags tfdiags.Diagnostics, want strin
 
 	t.Errorf("missing diagnostic summary %q", want)
 	for _, diag := range diags {
-		t.Logf("- %#v", diag)
+		desc := diag.Description()
+		t.Logf("- %s: %s", desc.Summary, desc.Detail)
 	}
 	return true
 }

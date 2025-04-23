@@ -9,10 +9,15 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"io"
+	"iter"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
+	"sort"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/collections"
 	"golang.org/x/mod/sumdb/dirhash"
 )
 
@@ -219,47 +224,75 @@ func PackageMatchesHash(loc PackageLocation, want Hash) (bool, error) {
 // contents of the indicated package in order to compute the hash. If given
 // a non-local location this function will always return an error.
 func PackageMatchesAnyHash(loc PackageLocation, allowed []Hash) (bool, error) {
+	for _, err := range HashesMatchingPackage(loc, allowed) {
+		if err != nil {
+			return false, err
+		}
+		// If we get at least one non-error iteration then that's
+		// enough to answer this question.
+		return true, nil
+	}
+	// If we don't get at least one non-error iteration then
+	// we know that none of the hashes matched.
+	return false, nil
+}
+
+// HashesMatchingPackage compares the given package location to each
+// of the given hashes in turn and returns a sequence of only those
+// that match the package.
+//
+// Each iteration can potentially fail due to being unable to read
+// from the given location, in which case it will yield NilHash and
+// an error and no further iteration will be possible.
+func HashesMatchingPackage(loc PackageLocation, toTest []Hash) iter.Seq2[Hash, error] {
 	// It's likely that we'll have multiple hashes of the same scheme in
 	// the "allowed" set, in which case we'll avoid repeatedly re-reading the
 	// given package by caching its result for each of the two
 	// currently-supported hash formats. These will be NilHash until we
 	// encounter the first hash of the corresponding scheme.
 	var v1Hash, zipHash Hash
-	for _, want := range allowed {
-		switch want.Scheme() {
-		case HashScheme1:
-			if v1Hash == NilHash {
-				got, err := PackageHashV1(loc)
-				if err != nil {
-					return false, err
+	return func(yield func(Hash, error) bool) {
+		for _, want := range toTest {
+			switch want.Scheme() {
+			case HashScheme1:
+				if v1Hash == NilHash {
+					got, err := PackageHashV1(loc)
+					if err != nil {
+						yield(NilHash, err)
+						return
+					}
+					v1Hash = got
 				}
-				v1Hash = got
-			}
-			if v1Hash == want {
-				return true, nil
-			}
-		case HashSchemeZip:
-			archiveLoc, ok := loc.(PackageLocalArchive)
-			if !ok {
-				// A zip hash can never match an unpacked directory
+				if v1Hash == want {
+					if keepGoing := yield(want, nil); !keepGoing {
+						return
+					}
+				}
+			case HashSchemeZip:
+				archiveLoc, ok := loc.(PackageLocalArchive)
+				if !ok {
+					// A zip hash can never match an unpacked directory
+					continue
+				}
+				if zipHash == NilHash {
+					got, err := PackageHashLegacyZipSHA(archiveLoc)
+					if err != nil {
+						yield(NilHash, err)
+						return
+					}
+					zipHash = got
+				}
+				if zipHash == want {
+					if keepGoing := yield(want, nil); !keepGoing {
+						return
+					}
+				}
+			default:
+				// If it's not a supported format then it can't match.
 				continue
 			}
-			if zipHash == NilHash {
-				got, err := PackageHashLegacyZipSHA(archiveLoc)
-				if err != nil {
-					return false, err
-				}
-				zipHash = got
-			}
-			if zipHash == want {
-				return true, nil
-			}
-		default:
-			// If it's not a supported format then it can't match.
-			continue
 		}
 	}
-	return false, nil
 }
 
 // PreferredHashes examines all of the given hash strings and returns the one
@@ -453,4 +486,162 @@ func (m PackageMeta) MatchesAnyHash(acceptable []Hash) (bool, error) {
 // a non-local location this function will always return an error.
 func (m PackageMeta) HashV1() (Hash, error) {
 	return PackageHashV1(m.Location)
+}
+
+// HashDisposition describes in what way a particular hash is related to
+// a particular [PackageAuthenticationResult], and thus what a caller might
+// be able to assume about the trustworthiness of that hash.
+type HashDisposition struct {
+	// SignedByGPGKeyIDs is a set of GPG key IDs which provided signatures
+	// covering the associated hash.
+	//
+	// A hash that has at least one signing key ID but was not otherwise
+	// verified (as indicated by the other fields of this type) should be
+	// trusted only if at least one of the given signing keys is trusted.
+	// It's the responsibility of any subsystem relying on this information
+	// to define what it means for a key to be "trusted".
+	SignedByGPGKeyIDs collections.Set[string]
+
+	// ReportedByRegistry is set if this hash was reported by the associated
+	// provider's origin registry as being one of the official hashes for
+	// this provider release.
+	//
+	// Note that this signal alone is only trustworthy to the extent that
+	// the origin registry is trusted. Unless there is also at least one
+	// entry in SignedByGPGKeyIDs, this hash was not covered by any GPG
+	// signing key.
+	//
+	// This field must be set only by a source that directly interacted
+	// with the associated provider's origin registry. It MUST NOT be
+	// set by a source that interacts with any sort of "mirror".
+	ReportedByRegistry bool
+
+	// VerifiedLocally is set for any hash that was calculated locally,
+	// directly from a package for the provider that the hash is intended
+	// to verify.
+	//
+	// Note that this represents only that the artifact matched the
+	// associated hash; it does NOT mean that the associated hash is
+	// one of the official hashes as designated by the provider developer,
+	// unless the provider developer's signing key also appears in
+	// SignedByGPGKeyIDs.
+	VerifiedLocally bool
+}
+
+// SignedByAnyGPGKeys returns true if the reciever has at least one GPG key
+// ID that signed an assertion that the associated hash is valid for the
+// associated provider version.
+//
+// Note that relying _only_ on the result of this function to make a trust
+// decision implies that the caller considers all keys to be equally
+// trustworthy, which is probably a risky assumption!
+func (d HashDisposition) SignedByAnyGPGKeys() bool {
+	return len(d.SignedByGPGKeyIDs) != 0
+}
+
+// GPGSigningKeysString returns a string representation of any GPG signing
+// key IDs that signed an assertion that the associated hash is valid for the
+// associated provider version.
+//
+// If there are no such keys then the result is an empty string.
+//
+// The result of this is intended for display to a human in the UI, rather
+// than for machine-readable purposes. The exact format might change in future
+// versions.
+func (d HashDisposition) GPGSigningKeysString() string {
+	if !d.SignedByAnyGPGKeys() {
+		return ""
+	}
+	// We want to return the keys in a predictable order, so we'll
+	// first collect them into a slice and sort them.
+	keyIDs := slices.Collect(maps.Keys(d.SignedByGPGKeyIDs))
+	sort.Strings(keyIDs)
+	return strings.Join(keyIDs, ", ")
+}
+
+// MergeHashDisposition takes two [HashDisposition] objects and returns a
+// new object that represents the union of the information from both.
+func MergeHashDisposition(a, b *HashDisposition) *HashDisposition {
+	ret := &HashDisposition{}
+	gpgKeyIDCount := len(a.SignedByGPGKeyIDs) + len(b.SignedByGPGKeyIDs)
+	if gpgKeyIDCount > 0 {
+		ret.SignedByGPGKeyIDs = make(collections.Set[string], gpgKeyIDCount)
+		for key := range a.SignedByGPGKeyIDs {
+			ret.SignedByGPGKeyIDs[key] = struct{}{}
+		}
+		for key := range b.SignedByGPGKeyIDs {
+			ret.SignedByGPGKeyIDs[key] = struct{}{}
+		}
+	}
+	ret.ReportedByRegistry = a.ReportedByRegistry || b.ReportedByRegistry
+	ret.VerifiedLocally = a.VerifiedLocally || b.VerifiedLocally
+	return ret
+}
+
+// HashDispositions represents a collection of hashes that are associated
+// with a provider as a result of installing it, each of which has a
+// "disposition" that calling code can use to decide in what ways it is
+// appropriate to make use of the hash.
+//
+// For example, the provider installer might choose to ignore hashes that
+// were not verified locally unless are marked as having been signed by a
+// trusted GPG key.
+type HashDispositions map[Hash]*HashDisposition
+
+// AllGPGSigningKeysString returns a string representation of all GPG signing
+// key IDs that signed an assertion that one of the hashes is valid for the
+// associated provider version.
+//
+// If there are no such keys then the result is an empty string.
+//
+// The result of this is intended for display to a human in the UI, rather
+// than for machine-readable purposes. The exact format might change in future
+// versions.
+func (ds HashDispositions) AllGPGSigningKeysString() string {
+	allKeyIDs := make(collections.Set[string])
+	for _, disp := range ds {
+		for keyID := range disp.SignedByGPGKeyIDs {
+			allKeyIDs[keyID] = struct{}{}
+		}
+	}
+	// We want to return the keys in a predictable order, so we'll
+	// first collect them into a slice and sort them.
+	keyIDs := slices.Collect(maps.Keys(allKeyIDs))
+	sort.Strings(keyIDs)
+	return strings.Join(keyIDs, ", ")
+}
+
+func (ds HashDispositions) HasAnyReportedByRegistry() bool {
+	for _, disp := range ds {
+		if disp.ReportedByRegistry {
+			return true
+		}
+	}
+	return false
+}
+
+func (ds HashDispositions) HasAnySignedByGPGKeys() bool {
+	for _, disp := range ds {
+		if disp.SignedByAnyGPGKeys() {
+			return true
+		}
+	}
+	return false
+}
+
+// Merge modifies the receiever to also include all of the hashes and
+// associated dispositions from the given other [HashDispositions] object.
+//
+// If both collections contain the same hash then their dispositions are
+// also merged, so that the reciever is left representing the union
+// of the disposition information from both collections.
+func (ds HashDispositions) Merge(other HashDispositions) {
+	for hash, disp := range other {
+		haveDisp, ok := ds[hash]
+		if ok {
+			ds[hash] = MergeHashDisposition(haveDisp, disp)
+		} else {
+			ds[hash] = disp
+		}
+	}
 }

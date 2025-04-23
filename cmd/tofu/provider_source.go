@@ -18,19 +18,9 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
-	"github.com/opentofu/opentofu/internal/command/cliconfig/ociauthconfig"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
-
-// ociCredsPolicyBuilder is the type of a callback function that the [providerSource]
-// functions will use if any of the configured provider installation methods
-// need to interact with OCI Distribution registries.
-//
-// We represent this indirectly as a callback function so that we can skip doing
-// this work in the common case where we won't need to interact with OCI registries
-// at all.
-type ociCredsPolicyBuilder func(context.Context) (ociauthconfig.CredentialsConfigs, error)
 
 // providerSource constructs a provider source based on a combination of the
 // CLI configuration and some default search locations. This will be the
@@ -203,7 +193,7 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	return getproviders.MultiSource(searchRules)
 }
 
-func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocation, services *disco.Disco, _ ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
+func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocation, services *disco.Disco, makeOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
 			getproviders.NewRegistrySource(services),
@@ -237,11 +227,24 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 		}
 		return getproviders.NewHTTPMirrorSource(url, services.CredentialsSource()), nil
 
-	// TODO: Once we implement an OCI-Distribution-based mirror source in a
-	// future commit, we'll use the ociCredsPolicyBuilder callback as part of
-	// initializing it so that it can find any credentials it needs to do its work.
-	// For now this is just a stub to illustrate where future work should
-	// continue, to help split this OCI integration work across multiple changes.
+	case cliconfig.ProviderInstallationOCIMirror:
+		mappingFunc := loc.RepositoryMapping
+		return getproviders.NewOCIRegistryMirrorSource(
+			mappingFunc,
+			func(ctx context.Context, registryDomain, repositoryName string) (getproviders.OCIRepositoryStore, error) {
+				// We intentionally delay the finalization of the credentials policy until
+				// just before we need it because most OpenTofu commands don't install
+				// providers at all, and even those that do only need to do this if
+				// actually interacting with an OCI mirror, so we can avoid doing
+				// this work at all most of the time.
+				credsPolicy, err := makeOCICredsPolicy(ctx)
+				if err != nil {
+					// This deals with only a small number of errors that we can't catch during CLI config validation
+					return nil, fmt.Errorf("invalid credentials configuration for OCI registries: %w", err)
+				}
+				return getOCIRepositoryStore(ctx, registryDomain, repositoryName, credsPolicy)
+			},
+		), nil
 
 	default:
 		// We should not get here because the set of cases above should

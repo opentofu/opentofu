@@ -185,6 +185,8 @@ func realMain() int {
 	}
 	services.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
+	modulePkgFetcher := remoteModulePackageFetcher(config.OCICredentialsPolicy)
+
 	providerSrc, diags := providerSource(config.ProviderInstallation, services, config.OCICredentialsPolicy)
 	if len(diags) > 0 {
 		Ui.Error("There are some problems with the provider_installation configuration:")
@@ -248,7 +250,7 @@ func realMain() int {
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
 		// that we've now switched to above.
-		initCommands(ctx, originalWd, streams, config, services, providerSrc, providerDevOverrides, unmanagedProviders)
+		initCommands(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
 	}
 
 	// Attempt to ensure the config directory exists.

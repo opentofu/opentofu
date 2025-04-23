@@ -6,12 +6,14 @@
 package providercache
 
 import (
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -49,11 +51,52 @@ func TestEnsureProviderVersions(t *testing.T) {
 	// using in this test as the key for installer events that are not
 	// specific to a particular provider.
 	var noProvider addrs.Provider
+
+	// beepProvider (and its associated derived values) represent a provider package
+	// fixture that's realistic enough to really be installed, although the
+	// plugin executable in it is really just a text file placeholder so it
+	// cannot actually be executed after installation.
 	beepProvider := addrs.MustParseProviderSourceString("example.com/foo/beep")
 	beepProviderDir := getproviders.PackageLocalDir("testdata/beep-provider")
+	beepProviderHash := getproviders.HashScheme1.New("2y06Ykj0FRneZfGCTxI9wRTori8iB7ZL5kQ6YyEnh84=")
+
+	// We also derive a zip archive of the beep provider that we can use to test
+	// the slightly-different treatment of installation sources that can provide
+	// an uncompressed archive: specifically, that we can also calculate and record
+	// a "ziphash"-style hash that is based on the zip file itself instead of its content.
+	tempDir := t.TempDir()
+	beepProviderZip := getproviders.PackageLocalArchive(filepath.Join(tempDir, "beep-provider.zip"))
+	{
+		f, err := os.Create(string(beepProviderZip))
+		if err != nil {
+			t.Fatal(err)
+		}
+		zw := zip.NewWriter(f)
+		err = zw.AddFS(os.DirFS(string(beepProviderDir)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = zw.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = f.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	// We calculate this particular hash dynamically, rather than hard-coding it
+	// as we normally do for these situations in tests, because archive/zip
+	// can generate slightly different entry metadata depending on the platform
+	// where the test is running and other details of the execution environment.
+	// We only care that the final result uses a hash that matches the zip file.
+	beepProviderZipHash, err := getproviders.PackageHashLegacyZipSHA(beepProviderZip)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	fakePlatform := getproviders.Platform{OS: "bleep", Arch: "bloop"}
 	wrongPlatform := getproviders.Platform{OS: "wrong", Arch: "wrong"}
-	beepProviderHash := getproviders.HashScheme1.New("2y06Ykj0FRneZfGCTxI9wRTori8iB7ZL5kQ6YyEnh84=")
 	terraformProvider := addrs.MustParseProviderSourceString("terraform.io/builtin/terraform")
 
 	tests := map[string]Test{
@@ -204,6 +247,143 @@ func TestEnsureProviderVersions(t *testing.T) {
 								"2.1.0",
 								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
 								"unauthenticated",
+							},
+						},
+					},
+				}
+			},
+		},
+		"successful initial install of one provider from a .zip archive": {
+			Source: getproviders.NewMockSource(
+				[]getproviders.PackageMeta{
+					{
+						Provider:       beepProvider,
+						Version:        getproviders.MustParseVersion("2.1.0"),
+						TargetPlatform: fakePlatform,
+						Location:       beepProviderZip,
+						Authentication: getproviders.NewPackageHashAuthentication(
+							fakePlatform, []getproviders.Hash{beepProviderZipHash},
+						),
+					},
+				},
+				nil,
+			),
+			Mode: InstallNewProvidersOnly,
+			Reqs: getproviders.Requirements{
+				beepProvider: getproviders.MustParseVersionConstraints(">= 2.0.0"),
+			},
+			Check: func(t *testing.T, dir *Dir, locks *depsfile.Locks) {
+				if allCached := dir.AllAvailablePackages(); len(allCached) != 1 {
+					t.Errorf("wrong number of cache directory entries; want only one\n%s", spew.Sdump(allCached))
+				}
+				if allLocked := locks.AllProviders(); len(allLocked) != 1 {
+					t.Errorf("wrong number of provider lock entries; want only one\n%s", spew.Sdump(allLocked))
+				}
+
+				gotLock := locks.Provider(beepProvider)
+				wantLock := depsfile.NewProviderLock(
+					beepProvider,
+					getproviders.MustParseVersion("2.1.0"),
+					getproviders.MustParseVersionConstraints(">= 2.0.0"),
+					[]getproviders.Hash{
+						beepProviderHash,
+						beepProviderZipHash, // additional hash should appear when we install from zip
+					},
+				)
+				if diff := cmp.Diff(wantLock, gotLock, depsfile.ProviderLockComparer); diff != "" {
+					t.Errorf("wrong lock entry\n%s", diff)
+				}
+
+				gotEntry := dir.ProviderLatestVersion(beepProvider)
+				wantEntry := &CachedProvider{
+					Provider:   beepProvider,
+					Version:    getproviders.MustParseVersion("2.1.0"),
+					PackageDir: filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+				}
+				if diff := cmp.Diff(wantEntry, gotEntry); diff != "" {
+					t.Errorf("wrong cache entry\n%s", diff)
+				}
+			},
+			WantEvents: func(inst *Installer, dir *Dir) map[addrs.Provider][]*testInstallerEventLogItem {
+				return map[addrs.Provider][]*testInstallerEventLogItem{
+					noProvider: {
+						{
+							Event: "PendingProviders",
+							Args: map[addrs.Provider]getproviders.VersionConstraints{
+								beepProvider: getproviders.MustParseVersionConstraints(">= 2.0.0"),
+							},
+						},
+						{
+							Event: "ProvidersFetched",
+							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
+								beepProvider: getproviders.NewPackageAuthenticationResult(getproviders.HashDispositions{
+									beepProviderZipHash: {
+										VerifiedLocally: true,
+									},
+								}),
+							},
+						},
+					},
+					beepProvider: {
+						{
+							Event:    "QueryPackagesBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Constraints string
+								Locked      bool
+							}{">= 2.0.0", false},
+						},
+						{
+							Event:    "QueryPackagesSuccess",
+							Provider: beepProvider,
+							Args:     "2.1.0",
+						},
+						{
+							Event:    "FetchPackageMeta",
+							Provider: beepProvider,
+							Args:     "2.1.0",
+						},
+						{
+							Event:    "FetchPackageBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Version  string
+								Location getproviders.PackageLocation
+							}{"2.1.0", beepProviderZip},
+						},
+						{
+							Event:    "ProvidersLockUpdated",
+							Provider: beepProvider,
+							Args: struct {
+								Version string
+								Local   []getproviders.Hash
+								Signed  []getproviders.Hash
+								Prior   []getproviders.Hash
+							}{
+								"2.1.0",
+								[]getproviders.Hash{
+									"h1:2y06Ykj0FRneZfGCTxI9wRTori8iB7ZL5kQ6YyEnh84=",
+									// When installing from a .zip archive and using
+									// getproviders.NewPackageHashAuthentication the lock file also
+									// records the "ziphash" of the .zip archive itself, whereas the
+									// "h1" hash is calculated from only the files inside the archive.
+									beepProviderZipHash,
+								},
+								nil,
+								nil,
+							},
+						},
+						{
+							Event:    "FetchPackageSuccess",
+							Provider: beepProvider,
+							Args: struct {
+								Version    string
+								LocalDir   string
+								AuthResult string
+							}{
+								"2.1.0",
+								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								"verified checksum",
 							},
 						},
 					},
@@ -2266,7 +2446,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 
 			if test.WantEvents != nil {
 				wantEvents := test.WantEvents(inst, outputDir)
-				if diff := cmp.Diff(wantEvents, providerEvents); diff != "" {
+				if diff := cmp.Diff(wantEvents, providerEvents, cmp.AllowUnexported(getproviders.PackageAuthenticationResult{})); diff != "" {
 					t.Errorf("wrong installer events\n%s", diff)
 				}
 			}

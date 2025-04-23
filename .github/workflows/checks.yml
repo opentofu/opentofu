@@ -46,7 +46,7 @@ jobs:
           - { runson: ubuntu-latest, goos: linux, goarch: "amd64" }
           - { runson: ubuntu-latest, goos: linux, goarch: "386" }
           - { runson: ubuntu-latest, goos: linux, goarch: "arm" }
-          - { runson: macos-latest, goos: darwin, goarch: "amd64" }
+          - { runson: macos-latest, goos: darwin, goarch: "arm64" }
           # - { runson: windows-latest, goos: windows, goarch: "amd64" }
           # https://github.com/opentofu/opentofu/issues/1201 if fixed
           #  ^ un-comment the  windows-latest line

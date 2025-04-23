@@ -63,6 +63,10 @@ The following settings can be set in the CLI configuration file:
   and retrieval of credentials for cloud backends.
   See [Credentials Helpers](#credentials-helpers) below for more information.
 
+* `oci_credentials` and `default_oci_credentials` - configures credentials for
+  interacting with an OCI Registry. Refer to
+  [OCI Registry Credentials](../oci_registries/credentials.mdx) for more information.
+
 * `plugin_cache_dir` — enables
   [plugin caching](#provider-plugin-cache)
   and specifies, as a string, the location of the plugin cache directory.
@@ -94,6 +98,10 @@ giving the API token to use for that host.
 The credentials hostname must match the hostname in your module
 sources and/or backend configuration.
 :::
+
+`credentials` blocks are used only for OpenTofu-specific protocols. You can
+configure credentials for OCI Registries using `oci_credentials` blocks,
+as described in [OCI Registry Credentials](../oci_registries/credentials.mdx).
 
 ### Environment Variable Credentials
 
@@ -247,6 +255,16 @@ The following are the supported installation method types:
   [the provider network mirror protocol](../../internals/provider-network-mirror-protocol.mdx),
   which is designed to be relatively easy to implement using typical static
   website hosting mechanisms.
+
+* `oci_mirror`: map provider source addresses into OCI repository addresses,
+  regardless of which registry host they belong to, and then retrieve them
+  using the OCI Distribution protocol.
+
+  This is similar to `network_mirror`, but uses the industry-standard OCI
+  registry protocol instead of the OpenTofu-specific provider network
+  mirror protocol to allow you to reuse a pre-existing OCI registry service.
+
+  For more information, refer to [Provider Mirrors in OCI Registries](../oci_registries/provider-mirror.mdx).
 
 :::warning
 Don't configure `network_mirror` URLs that you do not trust.

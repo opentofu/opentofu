@@ -1,0 +1,123 @@
+{
+    "schemaVersion": 2,
+    "manifests": [
+        {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:7fee2d5c6987e97eab0dfd92f38ea627c036c52f459defcc5b7709b01df44024",
+            "size": 1443,
+            "annotations": {
+                "org.opencontainers.image.ref.name": "1.0.0"
+            },
+            "artifactType": "application/vnd.opentofu.provider"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.index.v1+json",
+            "digest": "sha256:21c1e4dab5ad5cb2d34dcd5fc6009440141a8a4f12dac12cb17adcc290461a9f",
+            "size": 1443,
+            "annotations": {
+                "org.opencontainers.image.ref.name": "2.0.0"
+            },
+            "artifactType": "application/vnd.opentofu.provider"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:91d5969c8c301e8f361627ec94c449b6c922bebfc41fd8f313aebb584e32f1c8",
+            "size": 535,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:d59977d043f5c492567fbcf1316ed15fb355c2e6ba87374df9b5402551137418",
+            "size": 537,
+            "platform": {
+                "architecture": "amd64",
+                "os": "windows"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:91e5c0e362dcc98c7df110e52f8d54750060352aa6b7ccf91fc0d9fd7bb9d915",
+            "size": 536,
+            "platform": {
+                "architecture": "arm64",
+                "os": "darwin"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:28fc3cb74e7e8d5007a4b1700f25b6ba9e29328af1ac0420208dd3ffb32fac11",
+            "size": 537,
+            "platform": {
+                "architecture": "amd64",
+                "os": "windows"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:a50cba4c6527168756dd3343d6bfcc4ddc96b3217dd3e095cf095124dccf91e6",
+            "size": 536,
+            "platform": {
+                "architecture": "arm64",
+                "os": "darwin"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:aa842faadbcfd1428772b265e4f7a423fbe9ce1de5c0827746517f2ec0483d84",
+            "size": 535,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:cbde373bb9b2cbde1893cdeaa68057afbe4a6eed1cfb301e1bc42c4e270f5a1f",
+            "size": 535,
+            "platform": {
+                "architecture": "arm64",
+                "os": "linux"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:15cc4d622123e7496e925855df43c73524e36f40d0e50c4bcc657f5690e1e518",
+            "size": 537,
+            "platform": {
+                "architecture": "arm64",
+                "os": "windows"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:92384f470c01a761db5baadd2e69cd0db73afe8ea60c264e7e7069fbe98d3d9f",
+            "size": 537,
+            "platform": {
+                "architecture": "arm64",
+                "os": "windows"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        },
+        {
+            "mediaType": "application/vnd.oci.image.manifest.v1+json",
+            "digest": "sha256:7bbdf2d0f2b30e65dff1ac7984d7317ef7332f897ba20e78aa4b977a800ba8a0",
+            "size": 535,
+            "platform": {
+                "architecture": "amd64",
+                "os": "linux"
+            },
+            "artifactType": "application/vnd.opentofu.provider-target"
+        }
+    ]
+}

@@ -167,6 +167,12 @@ func performForEachValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, all
 				EvalContext: hclCtx,
 				Extra:       DiagnosticCausedByUnknown(true),
 			})
+		} else if ty.IsSetType() {
+			setVal, setTypeDiags := performSetTypeChecks(expr, hclCtx, allowUnknown, forEachVal, excludableAddr)
+			diags = diags.Append(setTypeDiags)
+			if diags.HasErrors() {
+				return setVal, diags
+			}
 		}
 		// ensure that we have a map, and not a DynamicValue
 		return cty.UnknownVal(cty.Map(cty.DynamicPseudoType)), diags
@@ -206,6 +212,16 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 				EvalContext: hclCtx,
 				Extra:       DiagnosticCausedByUnknown(true),
 			})
+		} else if ty.ElementType() != cty.String && ty.ElementType() != cty.DynamicPseudoType {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity:    hcl.DiagError,
+				Summary:     "Invalid for_each argument",
+				Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing a %s.`, forEachVal.Type().ElementType().FriendlyName()),
+				Subject:     expr.Range().Ptr(),
+				Expression:  expr,
+				EvalContext: hclCtx,
+			})
+			return cty.NullVal(ty), diags
 		}
 		return cty.UnknownVal(ty), diags
 	}
@@ -213,7 +229,7 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 	if ty.ElementType() != cty.String {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
-			Summary:     "Invalid for_each set argument",
+			Summary:     "Invalid for_each argument",
 			Detail:      fmt.Sprintf(`The given "for_each" argument value is unsuitable: "for_each" supports sets of strings, but you have provided a set containing type %s.`, forEachVal.Type().ElementType().FriendlyName()),
 			Subject:     expr.Range().Ptr(),
 			Expression:  expr,
@@ -230,7 +246,7 @@ func performSetTypeChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, allowUnk
 		if item.IsNull() {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity:    hcl.DiagError,
-				Summary:     "Invalid for_each set argument",
+				Summary:     "Invalid for_each argument",
 				Detail:      `The given "for_each" argument value is unsuitable: "for_each" sets must not contain null values.`,
 				Subject:     expr.Range().Ptr(),
 				Expression:  expr,

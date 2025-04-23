@@ -12,11 +12,13 @@ UPGRADE NOTES:
 
 NEW FEATURES:
 
+- Can now use OCI Registries as a new kind of provider mirror. ([#2540](https://github.com/opentofu/opentofu/issues/2540))
 - New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
     - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
     - `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
     - `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
 - Added support for S3 native locking ([#599](https://github.com/opentofu/opentofu/issues/599))
+- Backend `pg` now allows the `table_name` and `index_name` to be specified. This enables a single database schema to support multiple backends via multiple tables. ([#2465](https://github.com/opentofu/opentofu/pull/2465))
 
 ENHANCEMENTS:
 
@@ -30,7 +32,8 @@ ENHANCEMENTS:
 * The test `run` outputs can now be used in the test `provider` blocks defined in test files. ([#2543](https://github.com/opentofu/opentofu/pull/2543))
 * Provider instance keys now automatically converted to string ([#2378](https://github.com/opentofu/opentofu/issues/2378))
 * Remove progress messages from commands using -concise argument ([#2549](https://github.com/opentofu/opentofu/issues/2549))
-
+* Upgrade aws-sdk version to include `mx-central-1` region. ([#2596](https://github.com/opentofu/opentofu/pull/2596))
+* When installing a provider from a source that offers a `.zip` archive of a provider package but that cannot also offer a signed set of official checksums for the provider, OpenTofu will now include its locally-verified zip archive checksum (`zh:` scheme) in the dependency lock file in addition to the package contents checksum (`h1:` checksum) previously recorded. This makes it more likely that a future reinstall of the same package from a different source will be verified successfully. ([#2656](https://github.com/opentofu/opentofu/pull/2656))
 
 BUG FIXES:
 
@@ -43,11 +46,16 @@ BUG FIXES:
 - Changing Go version to 1.22.11 in order to fix [CVE-2024-45336](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45336) and [CVE-2024-45341](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45341) ([#2438](https://github.com/opentofu/opentofu/pull/2438))
 - Fix the error message when default value of a complex variable is containing a wrong type ([2394](https://github.com/opentofu/opentofu/issues/2394))
 - Fix the way OpenTofu downloads a module that is sourced from a GitHub branch containing slashes in the name. ([2396](https://github.com/opentofu/opentofu/issues/2396))
-- `pg` backend doesn't fail on workspace creation for paralel runs, when the database is shared across multiple projects. ([#2411](https://github.com/opentofu/opentofu/pull/2411))
+- `pg` backend doesn't fail on workspace creation for parallel runs, when the database is shared across multiple projects. ([#2411](https://github.com/opentofu/opentofu/pull/2411))
 - Generating an OpenTofu configuration from an `import` block that is referencing a resource with nested attributes now works correctly, instead of giving an error that the nested computed attribute is required. ([#2372](https://github.com/opentofu/opentofu/issues/2372)) 
 - `base64gunzip` now doesn't expose sensitive values if it fails during the base64 decoding. ([#2503](https://github.com/opentofu/opentofu/pull/2503))
 - Fix loading only the necessary encryption key providers and methods for better `terraform_remote_state` support. ([2551](https://github.com/opentofu/opentofu/issues/2551))
 - Better error messages when using `null` in invalid positions in the argument to the `transpose` function. ([#2553](https://github.com/opentofu/opentofu/pull/2553))
+- Provider GPG Expiration warnings no longer show when only one of the keys have expired. Only once all are expired or invalid. ([#2475](https://github.com/opentofu/opentofu/issues/2475))
+- The "oss" backend, for state storage in Alibaba Cloud OSS, now fully supports all of the typical environment variables for HTTP/HTTPS proxy configuration. Previously it supported configuring a proxy using variables like `HTTPS_PROXY`, but did not support per-origin opt-out using the `NO_PROXY` environment variable. ([#2675](https://github.com/opentofu/opentofu/pull/2675))
+
+INTERNAL CHANGES:
+- `skip_s3_checksum=true` now blocks the [aws-sdk new default S3 integrity checks](https://github.com/aws/aws-sdk-go-v2/discussions/2960) ([#2596](https://github.com/opentofu/opentofu/pull/2596))
 
 ## Previous Releases
 
