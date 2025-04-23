@@ -5152,6 +5152,25 @@ check "test" {
 				"./mod/main.tf": singleDeprecatedOutput,
 			},
 		},
+		"deprecatedInForEach": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+module "modfe" {
+  source = "./mod"
+  for_each = toset([ module.mod.test-child ])
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
 	}
 
 	p := simpleMockProvider()

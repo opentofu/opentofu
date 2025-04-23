@@ -78,6 +78,9 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 	forEachVal, forEachDiags := expr.Value(hclCtx)
 	diags = diags.Append(forEachDiags)
 
+	forEachVal, deprDiags := marks.DeprecatedDiagnosticsInExpr(forEachVal, expr)
+	diags = diags.Append(deprDiags)
+
 	// If a whole map is marked, or a set contains marked values (which means the set is then marked)
 	// give an error diagnostic as this value cannot be used in for_each
 	if forEachVal.HasMark(marks.Sensitive) {
@@ -121,12 +124,10 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, ctx ContextFunc, allowU
 		return nullMap, diags
 	}
 
-	forEachVal, diags = performForEachValueChecks(expr, hclCtx, allowUnknown, forEachVal, allowedTypesMessage, excludableAddr)
-	if diags.HasErrors() {
-		return forEachVal, diags
-	}
+	forEachVal, moreDiags = performForEachValueChecks(expr, hclCtx, allowUnknown, forEachVal, allowedTypesMessage, excludableAddr)
+	diags = diags.Append(moreDiags)
 
-	return forEachVal, nil
+	return forEachVal, diags
 }
 
 // performForEachValueChecks ensures the for_each argument is valid
