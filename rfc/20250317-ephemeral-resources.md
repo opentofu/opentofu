@@ -58,6 +58,13 @@ resource "aws_db_instance" "example" {
 }
 ```
 
+As seen in this particular change of the [terraform-plugin-framework](https://github.com/hashicorp/terraform-plugin-framework/commit/ecd80f67daed0b92b243ae59bb1ee2077f8077c7), the write-only attribute cannot be configured for set attributes, set nested attributes and set nested blocks.
+> [!NOTE]
+> 
+> Why so? I need additional information here. Why MapNestedAttribute can be write-only but not SetAttribute, SetNestedAttribute and SetNestedBlock?
+> Some info [here](https://github.com/hashicorp/terraform-plugin-framework/pull/1095).
+
+Write-only attributes cannot generate a plan diff because the prior state does not contain a value that OpenTofu can use to compare the new value against and also the planned value of a write-only argument will always be empty.
 ### Variables
 Any `variable` block can be marked as ephemeral.
 ```hcl
@@ -164,13 +171,31 @@ This documentation will help the community have a better understanding how they 
 
 ## Technical Approach
 
-Technical summary, easy to understand by someone unfamiliar with the codebase.
+<!-- Technical summary, easy to understand by someone unfamiliar with the codebase. -->
+<!---->
+<!-- Link to existing documentation and code, include diagrams if helpful. -->
+<!---->
+<!-- Include pseudocode or link to a Proof of Concept if applicable. -->
+<!---->
+<!-- Describe potential limitations or impacts on other areas of the codebase. -->
 
-Link to existing documentation and code, include diagrams if helpful.
+In this section, as in the "Proposed Solution" section, we'll go over each concept, but this time in a more technical point of view.
 
-Include pseudocode or link to a Proof of Concept if applicable.
+### Write-only arguments
+Most of the write-only arguments logic is already in the [provider-framework](https://github.com/hashicorp/terraform-plugin-framework):
+* [Initial implementation](https://github.com/hashicorp/terraform-plugin-framework/pull/1044)
+* [Sets comparisson enhancement](https://github.com/hashicorp/terraform-plugin-framework/pull/1064)
+  * This seems to be related to the reason why sets of any kind are not allowed to be marked as write-only
+* [Dynamic attribute validation](https://github.com/hashicorp/terraform-plugin-framework/pull/1090)
+* [Prevent write-only for sets](https://github.com/hashicorp/terraform-plugin-framework/pull/1095)
+* [Nullifying write-only attributes moved to an earlier stage](https://github.com/hashicorp/terraform-plugin-framework/pull/1097)
 
-Describe potential limitations or impacts on other areas of the codebase.
+On the OpenTofu side the following needs to be tackled:
+* Update [Attribute](https://github.com/opentofu/opentofu/blob/ff4c84055065fa2d83d318155b72aef6434d99e4/internal/configs/configschema/schema.go#L44) to add a field for the WriteOnly flag.
+* Update the validation of the provider generated plan in such a way to allow nil values for the fields that are actually having a value defined in the configuration. This is necessary because the plugin framework is setting nil any values that are marked as write-only.
+  * Test this in-depth for all the block types except sets of any kind (Investigate and understand why sets are not allowed by the plugin framework).
+    * Add a new validation on the provider schema to check against, set nested attributes and set nested blocks with writeOnly=true. Tested this with a version of terraform-plugin-framework that allowed writeOnly on sets and there is an error returned. (set attributes are allowed based on my tests)
+    In order to understand this better, maybe we should allow this for the moment and test OpenTofu with the [plugin-framework version](https://github.com/hashicorp/terraform-plugin-framework/commit/0724df105602e6b6676e201b7c0c5e1d187df990) that allows sets to be write-only=true.
 
 ## Open Questions
 
