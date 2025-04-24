@@ -449,22 +449,24 @@ func (i *Installer) ensureProviderVersionsInstall(
 				attribute.String(tracing.ProviderVersionAttributeName, version.String()),
 			),
 		)
+
 		if err := traceCtx.Err(); err != nil {
-			tracing.SetSpanError(span, err)
-			span.End()
 			// If our context has been cancelled or reached a timeout then
 			// we'll abort early, because subsequent operations against
 			// that context will fail immediately anyway.
+			tracing.SetSpanError(span, err)
+			span.End()
 			return nil, err
 		}
 
-		authResult, err := i.ensureProviderVersionInstall(ctx, locks, reqs, mode, provider, version, targetPlatform)
+		authResult, err := i.ensureProviderVersionInstall(traceCtx, locks, reqs, mode, provider, version, targetPlatform)
 		if authResult != nil {
 			authResults[provider] = authResult
 		}
 		if err != nil {
 			errs[provider] = err
 		}
+		span.End()
 	}
 	return authResults, nil
 }
@@ -726,15 +728,15 @@ func tryInstallPackageFromCacheDir(
 	preferredHashes []getproviders.Hash,
 	mayBreakDependencyLockFile bool,
 
-	// FIXME: The above set of arguments came from exhaustively including
-	// everything that a previously-inline version of this chunk of code
-	// referred to, to minimize the risk of factoring it out. In future
-	// we should try to separate these concerns a little better so that
-	// this doesn't need so many arguments. For example, it might be better
-	// for the caller to be responsible for updating "locks" when
-	// installation is successful, but that would likely require changing
-	// the order of emitted events so that the locks-update event
-	// comes after the successful-linking event.
+// FIXME: The above set of arguments came from exhaustively including
+// everything that a previously-inline version of this chunk of code
+// referred to, to minimize the risk of factoring it out. In future
+// we should try to separate these concerns a little better so that
+// this doesn't need so many arguments. For example, it might be better
+// for the caller to be responsible for updating "locks" when
+// installation is successful, but that would likely require changing
+// the order of emitted events so that the locks-update event
+// comes after the successful-linking event.
 ) (installed bool, err error) {
 	evts := installerEventsForContext(ctx)
 
