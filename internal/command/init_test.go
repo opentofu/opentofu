@@ -3283,7 +3283,7 @@ func installFakeProviderPackagesElsewhere(t *testing.T, cacheDir *providercache.
 			if err != nil {
 				t.Fatalf("failed to prepare fake package for %s %s: %s", name, versionStr, err)
 			}
-			_, err = cacheDir.InstallPackage(context.Background(), meta, nil)
+			_, err = cacheDir.InstallPackage(context.Background(), meta, nil, false)
 			if err != nil {
 				t.Fatalf("failed to install fake package for %s %s: %s", name, versionStr, err)
 			}
