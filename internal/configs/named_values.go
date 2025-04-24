@@ -600,6 +600,9 @@ var variableBlockSchema = &hcl.BodySchema{
 		{
 			Name: "nullable",
 		},
+		{
+			Name: "ephemeral",
+		},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{
