@@ -4,6 +4,8 @@ description: How to make backward-compatible changes to modules already in use.
 
 # Refactoring
 
+## Module resources
+
 In shared modules and long-lived configurations, you may eventually outgrow
 your initial module structure and resource names. For example, you might decide
 that what was previously one child module makes more sense as two separate
@@ -18,7 +20,7 @@ When you add `moved` blocks in your configuration to record where you've
 historically moved or renamed an object, OpenTofu treats an existing object at
 the old address as if it now belongs to the new address.
 
-## `moved` Block Syntax
+### `moved` Block Syntax
 
 A `moved` block expects no labels and contains only `from` and `to` arguments:
 
@@ -52,7 +54,7 @@ for each situation.
 * [Splitting One Module into Multiple](#splitting-one-module-into-multiple)
 * [Removing `moved` blocks](#removing-moved-blocks)
 
-## Renaming a Resource
+### Renaming a Resource
 
 Consider this example module with a resource configuration:
 
@@ -97,7 +99,7 @@ so OpenTofu recognizes the move for all instances of the resource. That is,
 it covers both `aws_instance.a[0]` and `aws_instance.a[1]` without the need
 to identify each one separately.
 
-## Changing a Resource Type
+### Changing a Resource Type
 
 Each resource type has a separate schema, so objects of different types are not generally compatible.
 However, some providers will let you change an object from one resource type to another.
@@ -107,7 +109,7 @@ Refer to the provider documentation for more information about resource compatib
 You can use `moved` to change the name (and sometimes type) of a resource,
 but you _cannot_ use `moved` to change a managed resource (a `resource` block) into a data resource (a `data` block).
 
-## Enabling `count` or `for_each` For a Resource
+### Enabling `count` or `for_each` For a Resource
 
 Consider this example module containing a single-instance resource:
 
@@ -201,7 +203,7 @@ However, we recommend still writing out the corresponding `moved` block
 explicitly, to make the change clearer to future readers of the module.
 :::
 
-## Renaming a Module Call
+### Renaming a Module Call
 
 You can rename a call to a module in a similar way as renaming a resource.
 Consider the following original module version:
@@ -245,7 +247,7 @@ so OpenTofu recognizes the move for all instances of the call. If this
 module call used `count` or `for_each` then it would apply to all of the
 instances, without the need to specify each one separately.
 
-## Enabling `count` or `for_each` For a Module Call
+### Enabling `count` or `for_each` For a Module Call
 
 Consider this example of a single-instance module:
 
@@ -419,7 +421,7 @@ moved {
 }
 ```
 
-## Removing `moved` Blocks
+### Removing `moved` Blocks
 
 Over time, a long-lasting module may accumulate many `moved` blocks.
 
@@ -446,3 +448,23 @@ Recording a sequence of moves in this way allows for successful upgrades for
 both configurations with objects at `aws_instance.a` _and_ configurations with
 objects at `aws_instance.b`. In both cases, OpenTofu treats the existing
 object as if it had been originally created as `aws_instance.c`.
+
+## Module variables and outputs
+
+:::warning
+This feature is considered experimental and the final UX may change in the future.
+:::
+
+Refactoring module variables and outputs requires additional changes from module
+callers. In order to properly communicate variables and outputs deprecation, module
+authors can prepare their configuration to warn callers about future removal.
+
+OpenTofu supports `deprecated` attributes for variable and output blocks with a
+suggestion from module author on how to properly migrate away on deprecation.
+Module callers receive a warning if their configuration is affected.
+
+Refer to `deprecated` attribute of
+[variables](../../../language/values/variables.mdx#marking-variable-as-deprecated)
+and [module outputs](../../../language/values/outputs.mdx#deprecated--marking-output-as-deprecated)
+for more information.
+
