@@ -7,6 +7,7 @@ package configs
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/ext/typeexpr"
@@ -449,7 +450,7 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Deprecated)
 		diags = append(diags, valDiags...)
 
-		if o.Deprecated == "" {
+		if !diags.HasErrors() && strings.TrimSpace(o.Deprecated) == "" {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Invalid `deprecated` attribute",
