@@ -17,6 +17,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -5047,4 +5048,43 @@ variable "res_data" {
 	if got, want := diags[0].Description().Summary, "Invalid value for variable"; got != want {
 		t.Fatalf("Expected: %q, got %q", want, got)
 	}
+}
+
+func TestContext2Apply_variableDeprecation(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+module "call" {
+	source = "./mod"
+	input = "val"
+}
+`,
+		"mod/main.tf": `
+	variable "input" {
+		type = string
+		deprecated = "This variable is deprecated"
+	}
+	output "out" {
+		value = "output the variable 'input' value: ${var.input}"
+	}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{})
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+	})
+	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{}.Append(
+		&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  `The variable "input" is marked as deprecated by module author`,
+			Detail:   "This variable is marked as deprecated with the following message:\nThis variable is deprecated",
+			Subject: &hcl.Range{
+				Filename: fmt.Sprintf("%s/main.tf", m.Module.SourceDir),
+				Start:    hcl.Pos{Line: 4, Column: 10, Byte: 44},
+				End:      hcl.Pos{Line: 4, Column: 15, Byte: 49},
+			},
+		}))
+
+	_, diags = ctx.Apply(context.Background(), plan, m)
+	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{})
 }
