@@ -187,12 +187,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 								beepProvider: getproviders.MustParseVersionConstraints(">= 2.0.0"),
 							},
 						},
-						{
-							Event: "ProvidersFetched",
-							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
-								beepProvider: nil,
-							},
-						},
 					},
 					beepProvider: {
 						{
@@ -314,7 +308,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 							},
 						},
 						{
-							Event: "ProvidersFetched",
+							Event: "ProvidersAuthenticated",
 							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
 								beepProvider: getproviders.NewPackageAuthenticationResult(getproviders.HashDispositions{
 									beepProviderZipHash: {
@@ -455,12 +449,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 								beepProvider: getproviders.MustParseVersionConstraints(">= 2.0.0"),
 							},
 						},
-						{
-							Event: "ProvidersFetched",
-							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
-								beepProvider: nil,
-							},
-						},
 					},
 					beepProvider: {
 						{
@@ -597,12 +585,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Event: "PendingProviders",
 							Args: map[addrs.Provider]getproviders.VersionConstraints{
 								beepProvider: getproviders.MustParseVersionConstraints(">= 2.0.0"),
-							},
-						},
-						{
-							Event: "ProvidersFetched",
-							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
-								beepProvider: nil,
 							},
 						},
 					},
@@ -924,12 +906,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Event: "PendingProviders",
 							Args: map[addrs.Provider]getproviders.VersionConstraints{
 								beepProvider: getproviders.MustParseVersionConstraints(">= 2.0.0"),
-							},
-						},
-						{
-							Event: "ProvidersFetched",
-							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
-								beepProvider: nil,
 							},
 						},
 					},
@@ -1345,12 +1321,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 								beepProvider: getproviders.MustParseVersionConstraints(">= 2.0.0"),
 							},
 						},
-						{
-							Event: "ProvidersFetched",
-							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
-								beepProvider: nil,
-							},
-						},
 					},
 					beepProvider: {
 						{
@@ -1588,12 +1558,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 								beepProvider: getproviders.MustParseVersionConstraints(">= 2.0.0"),
 							},
 						},
-						{
-							Event: "ProvidersFetched",
-							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
-								beepProvider: nil,
-							},
-						},
 					},
 					beepProvider: {
 						{
@@ -1764,12 +1728,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Event: "PendingProviders",
 							Args: map[addrs.Provider]getproviders.VersionConstraints{
 								beepProvider: getproviders.MustParseVersionConstraints(">= 1.0.0"),
-							},
-						},
-						{
-							Event: "ProvidersFetched",
-							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
-								beepProvider: nil,
 							},
 						},
 					},
@@ -2314,12 +2272,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Event: "PendingProviders",
 							Args: map[addrs.Provider]getproviders.VersionConstraints{
 								beepProvider: getproviders.MustParseVersionConstraints(">= 1.0.0"),
-							},
-						},
-						{
-							Event: "ProvidersFetched",
-							Args: map[addrs.Provider]*getproviders.PackageAuthenticationResult{
-								beepProvider: nil,
 							},
 						},
 					},
