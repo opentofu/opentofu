@@ -180,6 +180,7 @@ func writeConfigAttributesFromExisting(addr addrs.AbsResourceInstance, buf *stri
 					}
 				}
 
+				// It is safe to call tryWrapAsJsonEncodeFunctionCall with marked value.
 				tok := tryWrapAsJsonEncodeFunctionCall(val)
 				if _, err := tok.WriteTo(buf); err != nil {
 					diags = diags.Append(&hcl.Diagnostic{
@@ -408,7 +409,8 @@ func writeConfigNestedTypeAttributeFromExisting(addr addrs.AbsResourceInstance, 
 			return diags
 		}
 
-		vals := attr.AsValueMap()
+		unmarkedAttr, _ := attr.Unmark()
+		vals := unmarkedAttr.AsValueMap()
 		keys := make([]string, 0, len(vals))
 		for key := range vals {
 			keys = append(keys, key)
@@ -485,7 +487,8 @@ func writeConfigNestedBlockFromExisting(addr addrs.AbsResourceInstance, buf *str
 			return diags
 		}
 
-		vals := stateVal.AsValueMap()
+		unmarkedStateVal, _ := stateVal.Unmark()
+		vals := unmarkedStateVal.AsValueMap()
 		keys := make([]string, 0, len(vals))
 		for key := range vals {
 			keys = append(keys, key)
@@ -627,6 +630,10 @@ func wrapAsJSONEncodeFunctionCall(v cty.Value) (hclwrite.Tokens, error) {
 	if v.IsNull() || v.Type() != cty.String || !v.IsKnown() {
 		return nil, errors.New("value cannot be treated as JSON string")
 	}
+
+	// Don't let marked value to be passed into functions like AsString()
+	// to prevent panics.
+	v, _ = v.Unmark()
 
 	s := []byte(strings.TrimSpace(v.AsString()))
 	if len(s) == 0 {

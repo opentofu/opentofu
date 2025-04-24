@@ -575,9 +575,7 @@ func validateForEach(ctx EvalContext, expr hcl.Expression) (diags tfdiags.Diagno
 		return diags
 	}
 
-	if forEachDiags.HasErrors() {
-		diags = diags.Append(forEachDiags)
-	}
+	diags = diags.Append(forEachDiags)
 
 	return diags
 }

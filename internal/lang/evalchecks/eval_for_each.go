@@ -80,8 +80,12 @@ func EvaluateForEachExpressionValue(expr hcl.Expression, hclCtxFunc ContextFunc,
 	forEachVal, forEachDiags := expr.Value(hclCtx)
 	diags = diags.Append(forEachDiags)
 
+	forEachVal, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(forEachVal, expr)
+	diags = diags.Append(deprDiags)
+
 	checksVal, checksDiags := performTypeAndValueChecks(expr, hclCtx, allowUnknown, allowTuple, forEachVal, excludableAddr)
 	diags = diags.Append(checksDiags)
+
 	return checksVal, diags
 }
 

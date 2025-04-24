@@ -112,6 +112,7 @@ type resource struct {
 
 type output struct {
 	Sensitive   bool       `json:"sensitive,omitempty"`
+	Deprecated  string     `json:"deprecated,omitempty"`
 	Expression  expression `json:"expression,omitempty"`
 	DependsOn   []string   `json:"depends_on,omitempty"`
 	Description string     `json:"description,omitempty"`
@@ -327,6 +328,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 	for _, v := range c.Module.Outputs {
 		o := output{
 			Sensitive:  v.Sensitive,
+			Deprecated: v.Deprecated,
 			Expression: marshalExpression(v.Expr),
 		}
 		if v.Description != "" {

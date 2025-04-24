@@ -417,6 +417,7 @@ type Output struct {
 	Expr        hcl.Expression
 	DependsOn   []hcl.Traversal
 	Sensitive   bool
+	Deprecated  string
 
 	Preconditions []*CheckRule
 
@@ -473,6 +474,20 @@ func decodeOutputBlock(block *hcl.Block, override bool) (*Output, hcl.Diagnostic
 		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Sensitive)
 		diags = append(diags, valDiags...)
 		o.SensitiveSet = true
+	}
+
+	if attr, exists := content.Attributes["deprecated"]; exists {
+		valDiags := gohcl.DecodeExpression(attr.Expr, nil, &o.Deprecated)
+		diags = append(diags, valDiags...)
+
+		if !diags.HasErrors() && strings.TrimSpace(o.Deprecated) == "" {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid `deprecated` attribute",
+				Detail:   `The "deprecated" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated output value.`,
+				Subject:  attr.Expr.Range().Ptr(),
+			})
+		}
 	}
 
 	if attr, exists := content.Attributes["depends_on"]; exists {
@@ -594,6 +609,9 @@ var outputBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "sensitive",
+		},
+		{
+			Name: "deprecated",
 		},
 	},
 	Blocks: []hcl.BlockHeaderSchema{

@@ -153,6 +153,9 @@ func (o *Output) merge(oo *Output) hcl.Diagnostics {
 		o.Sensitive = oo.Sensitive
 		o.SensitiveSet = oo.SensitiveSet
 	}
+	if oo.Deprecated != "" {
+		o.Deprecated = oo.Deprecated
+	}
 
 	// We don't allow depends_on to be overridden because that is likely to
 	// cause confusing misbehavior.

@@ -148,6 +148,12 @@ func TestParserLoadConfigFileFailureMessages(t *testing.T) {
 			"Invalid default value for variable",
 			`This default value is not compatible with the variable's type constraint: ["mykey"].field: a bool is required.`,
 		},
+		{
+			"invalid-files/empty-deprecated-output-attr.tf",
+			hcl.DiagError,
+			"Invalid `deprecated` attribute",
+			`The "deprecated" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated output value.`,
+		},
 	}
 
 	for _, test := range tests {
