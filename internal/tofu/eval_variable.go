@@ -481,7 +481,7 @@ You can correct this by removing references to sensitive values, or by carefully
 // evalVariableDeprecation checks if a variable is deprecated and if so it returns a warning diagnostic to be shown to the user
 func evalVariableDeprecation(addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext) tfdiags.Diagnostics {
 	if config.Deprecated == "" {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %s is having no deprecation configured", addr)
+		log.Printf("[TRACE] evalVariableDeprecation: variable %s does not have deprecation configured", addr)
 		return nil
 	}
 	// if the variable is not given in the module call, do not show a warning
