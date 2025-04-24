@@ -13,6 +13,12 @@ You can use the `terraform_remote_state` data source without requiring or config
 
 :::warning
 
+`terraform_remote_state` does not respect the sensitivity of source state snapshots. Use caution when referencing state with sensitive root module output values.
+
+:::
+
+:::warning
+
 Be careful when using [state encryption](./encryption.mdx)! Sharing encrypted state between projects requires careful coordination of metadata keys. Please read the [Remote state data sources](./encryption.mdx#remote-state-data-sources) section of the state encryption guide for details.
 
 :::
