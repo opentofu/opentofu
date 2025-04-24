@@ -927,7 +927,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			// Either way, this is bad. Let's complain/warn.
 			incompleteProviders = append(incompleteProviders, provider.ForDisplay())
 		},
-		ProvidersFetched: func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult) {
+		ProvidersAuthenticated: func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult) {
 			thirdPartySigned := false
 			for _, authResult := range authResults {
 				if authResult.Signed() {

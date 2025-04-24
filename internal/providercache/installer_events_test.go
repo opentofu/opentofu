@@ -181,9 +181,9 @@ func installerLogEventsForTests(into chan<- *testInstallerEventLogItem) *Install
 				}{version.String(), localHashes, signedHashes, priorHashes},
 			}
 		},
-		ProvidersFetched: func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult) {
+		ProvidersAuthenticated: func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult) {
 			into <- &testInstallerEventLogItem{
-				Event: "ProvidersFetched",
+				Event: "ProvidersAuthenticated",
 				Args:  authResults,
 			}
 		},
