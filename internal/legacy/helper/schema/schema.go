@@ -252,6 +252,8 @@ type Schema struct {
 	// secret fields. Future versions of OpenTofu may encrypt these
 	// values.
 	Sensitive bool
+
+	WriteOnly bool
 }
 
 // SchemaConfigMode is used to influence how a schema item is mapped into a
