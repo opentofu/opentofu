@@ -131,8 +131,8 @@ func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagno
 		if !valDiags.HasErrors() && strings.TrimSpace(v.Deprecated) == "" {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  "Invalid deprecated value",
-				Detail:   fmt.Sprintf("The variable name %q 'deprecated' field is defined but is empty.", v.Name),
+				Summary:  "Invalid `deprecated` value",
+				Detail:   `The "deprecated" argument must not be empty, and should provide instructions on how to migrate away from usage of this deprecated variable.`,
 				Subject:  &block.LabelRanges[0],
 			})
 		}
@@ -295,11 +295,11 @@ func (v *Variable) Required() bool {
 	return v.Default == cty.NilVal
 }
 
-// InputPrompt returns the text that will be shown during prompting for the variable input when required but on value given.
+// InputPrompt returns the text that will be shown during prompting for the variable input when required but no value given.
 // This method is meant to return also the deprecated message together with the description when both exists or only the
 // deprecated info when the description is missing.
-// Other than these 2 cases, the method is keeping the default behavior in case of both (deprecated and description missing),
-// by returning the description. This will keep the previous behavior where during prompting will be shown only the
+// Other than these 2 cases, the method is keeping the default behavior in case of both, deprecated and description,
+// are missing by returning the description. This will keep the previous behavior where during prompting will be shown only the
 // variable name.
 func (v *Variable) InputPrompt() string {
 	switch {
