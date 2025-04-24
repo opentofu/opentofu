@@ -1,4 +1,6 @@
-## 1.7.8 (unreleased)
+## 1.7.9 (Unreleased)
+
+## 1.7.8
 
 BUG FIXES:
 
