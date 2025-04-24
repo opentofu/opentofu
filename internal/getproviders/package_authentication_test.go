@@ -26,11 +26,16 @@ import (
 func TestPackageAuthenticationResult(t *testing.T) {
 	tests := map[string]struct {
 		result *PackageAuthenticationResult
-		want   string
+
+		want                string
+		wantGPGKeyIDsString string
+		wantSigned          bool
+		wantSigningSkipped  bool
 	}{
 		"nil": {
 			nil,
 			"unauthenticated",
+			"", false, false,
 		},
 		"SignedByGPGKeyIDs": {
 			&PackageAuthenticationResult{
@@ -41,6 +46,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signed",
+			"abc123", true, false,
 		},
 		"VerifiedLocally": {
 			&PackageAuthenticationResult{
@@ -51,6 +57,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"verified checksum",
+			"", false, false,
 		},
 		"ReportedByRegistry": {
 			&PackageAuthenticationResult{
@@ -61,6 +68,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signing skipped",
+			"", false, true,
 		},
 		"SignedByGPGKeyIDs+VerifiedLocally": {
 			&PackageAuthenticationResult{
@@ -72,6 +80,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signed",
+			"abc123", true, false,
 		},
 		"SignedByGPGKeyIDs+ReportedByRegistry": {
 			&PackageAuthenticationResult{
@@ -83,6 +92,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signed",
+			"abc123", true, false,
 		},
 		"ReportedByRegistry+VerifiedLocally": {
 			&PackageAuthenticationResult{
@@ -94,6 +104,7 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signing skipped",
+			"", false, true,
 		},
 		"SignedByGPGKeyIDs+ReportedByRegistry+VerifiedLocally": {
 			&PackageAuthenticationResult{
@@ -106,12 +117,23 @@ func TestPackageAuthenticationResult(t *testing.T) {
 				},
 			},
 			"signed",
+			"abc123", true, false,
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			if got := test.result.String(); got != test.want {
 				t.Errorf("wrong value\ngot:  %q\nwant: %q", got, test.want)
+			}
+
+			if got, want := test.result.GPGKeyIDsString(), test.wantGPGKeyIDsString; got != want {
+				t.Errorf("wrong GPGKeyIDsString result\ngot:  %q\nwant: %q", got, want)
+			}
+			if got, want := test.result.Signed(), test.wantSigned; got != want {
+				t.Errorf("wrong Signed result\ngot:  %t\nwant: %t", got, want)
+			}
+			if got, want := test.result.SigningSkipped(), test.wantSigningSkipped; got != want {
+				t.Errorf("wrong SigningSkipped result\ngot:  %t\nwant: %t", got, want)
 			}
 		})
 	}
