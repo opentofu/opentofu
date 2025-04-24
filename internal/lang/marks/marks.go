@@ -65,6 +65,15 @@ func (m deprecationMark) GoString() string {
 	return "marks.Deprecated"
 }
 
+func HasDeprecated(v cty.Value) bool {
+	for m := range v.Marks() {
+		if _, ok := m.(deprecationMark); ok {
+			return true
+		}
+	}
+	return false
+}
+
 // Deprecated marks a given value as deprecated with specified DeprecationCause.
 func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 	for m := range v.Marks() {
