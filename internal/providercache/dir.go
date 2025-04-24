@@ -115,6 +115,7 @@ func (d *Dir) Lock(ctx context.Context, provider addrs.Provider, version getprov
 		// They will all end up with the same file handle on any correctly implemented filesystem.
 		// This is one of the many reasons we recommend users look at the flock support of their
 		// networked filesystems when using the global provider cache.
+		// Windows: even though out flock creates an exclusive lock, we are still able to open a handle to this file and wait below for the actual lock to be provided.
 		// Sometimes the creates can conflict and will need to be tried multiple times (incredibly uncommon).
 		f, err = os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE, 0644)
 		if err == nil {
