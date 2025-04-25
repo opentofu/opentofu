@@ -502,23 +502,15 @@ func (i *Installer) ensureProviderVersionInstall(
 		// Try to lock the provider's directory.
 		unlockProvider, err := i.globalCacheDir.Lock(ctx, provider, version)
 		if err != nil {
-			errs[provider] = err
 			if cb := evts.LinkFromCacheFailure; cb != nil {
 				cb(provider, version, err)
 			}
-			continue
+			return nil, err
 		}
 		unlock = func() {
 			err = unlockProvider()
 			if err != nil {
-				// Don't overwrite existing errors
-				if errs[provider] != nil {
-					errs[provider] = err
-				}
-				// Still report it via the callback
-				if cb := evts.LinkFromCacheFailure; cb != nil {
-					cb(provider, version, err)
-				}
+				log.Printf("[ERROR] Unable to clear provider lock: %s", err.Error())
 			}
 		}
 
