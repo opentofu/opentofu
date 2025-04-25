@@ -6,15 +6,18 @@
 package tofu
 
 import (
+	"fmt"
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
-
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -22,150 +25,234 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 	tests := []struct {
 		description           string
 		nodeAddress           string
-		nodeEndpointsToRemove []addrs.ConfigRemovable
+		nodeEndpointsToRemove []*refactoring.RemoveStatement
 		wantAction            plans.Action
+		wantDiags             tfdiags.Diagnostics
 	}{
 		{
+			description:           "no remove block",
 			nodeAddress:           "test_instance.foo",
-			nodeEndpointsToRemove: make([]addrs.ConfigRemovable, 0),
+			nodeEndpointsToRemove: make([]*refactoring.RemoveStatement, 0),
 			wantAction:            plans.Delete,
 		},
 		{
+			description: "remove block is targeting another resource name of same type",
 			nodeAddress: "test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("test_instance.bar")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{From: mustConfigResourceAddr("test_instance.bar")},
 			},
 			wantAction: plans.Delete,
 		},
 		{
+			description: "remove block is targeting a module but current node is from root module",
 			nodeAddress: "test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{From: addrs.Module{"boop"}},
 			},
 			wantAction: plans.Delete,
 		},
 		{
+			description: "remove block is targeting current node",
 			nodeAddress: "test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("test_instance.foo")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{From: mustConfigResourceAddr("test_instance.foo")},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo"),
+			}),
 		},
 		{
+			description: "remove block is targeting current node and required to get it destroyed",
+			nodeAddress: "test_instance.foo",
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{
+					From:    mustConfigResourceAddr("test_instance.foo"),
+					Destroy: true,
+				},
+			},
+			wantAction: plans.Delete,
+		},
+		{
+			description: "remove block is targeting a resource and the current node is an instance of that",
 			nodeAddress: "test_instance.foo[1]",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("test_instance.foo")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{From: mustConfigResourceAddr("test_instance.foo")},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "test_instance.foo[1]"),
+			}),
 		},
 		{
+			description: "remove block is targeting a resource to be destroyed and the current node is an instance of that",
+			nodeAddress: "test_instance.foo[1]",
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{
+					From:    mustConfigResourceAddr("test_instance.foo"),
+					Destroy: true,
+				},
+			},
+			wantAction: plans.Delete,
+		},
+		{
+			description: "remove block is targeting a resource from a module which is the current node",
 			nodeAddress: "module.boop.test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("module.boop.test_instance.foo")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{From: mustConfigResourceAddr("module.boop.test_instance.foo")},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
+			}),
 		},
 		{
+			description: "remove block is targeting a resource from a module to be destroyed which is the current node",
+			nodeAddress: "module.boop.test_instance.foo",
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{
+					From:    mustConfigResourceAddr("module.boop.test_instance.foo"),
+					Destroy: true,
+				},
+			},
+			wantAction: plans.Delete,
+		},
+		{
+			description: "remove block is targeting a resource from a module to be destroyed which is the current node",
+			nodeAddress: "module.boop.test_instance.foo",
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{
+					From:    mustConfigResourceAddr("module.boop.test_instance.foo"),
+					Destroy: true,
+				},
+			},
+			wantAction: plans.Delete,
+		},
+		{
+			description: "remove block is targeting a resource from a module of which the current node is an instance of",
 			nodeAddress: "module.boop[1].test_instance.foo[1]",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(mustConfigResourceAddr("module.boop.test_instance.foo")).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{From: mustConfigResourceAddr("module.boop.test_instance.foo")},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo[1]"),
+			}),
 		},
 		{
+			description: "remove block is targeting a module and the current node is a resource of that module",
 			nodeAddress: "module.boop.test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{From: addrs.Module{"boop"}},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop.test_instance.foo"),
+			}),
 		},
 		{
+			description: "remove block is targeting a module and the current node is a resource of one of the module instances",
 			nodeAddress: "module.boop[1].test_instance.foo",
-			nodeEndpointsToRemove: []addrs.ConfigRemovable{
-				interface{}(addrs.Module{"boop"}).(addrs.ConfigRemovable),
+			nodeEndpointsToRemove: []*refactoring.RemoveStatement{
+				{From: addrs.Module{"boop"}},
 			},
 			wantAction: plans.Forget,
+			wantDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", "module.boop[1].test_instance.foo"),
+			}),
 		},
 	}
 
 	for _, test := range tests {
-		state := states.NewState()
-		absResource := mustResourceInstanceAddr(test.nodeAddress)
+		t.Run(fmt.Sprintf("%s %s", test.wantAction, test.description), func(t *testing.T) {
+			state := states.NewState()
+			absResource := mustResourceInstanceAddr(test.nodeAddress)
 
-		if !absResource.Module.IsRoot() {
-			state.EnsureModule(addrs.RootModuleInstance.Child(absResource.Module[0].Name, absResource.Module[0].InstanceKey))
-		}
+			if !absResource.Module.IsRoot() {
+				state.EnsureModule(addrs.RootModuleInstance.Child(absResource.Module[0].Name, absResource.Module[0].InstanceKey))
+			}
 
-		state.Module(absResource.Module).SetResourceInstanceCurrent(
-			absResource.Resource,
-			&states.ResourceInstanceObjectSrc{
-				AttrsFlat: map[string]string{
-					"test_string": "foo",
+			state.Module(absResource.Module).SetResourceInstanceCurrent(
+				absResource.Resource,
+				&states.ResourceInstanceObjectSrc{
+					AttrsFlat: map[string]string{
+						"test_string": "foo",
+					},
+					Status: states.ObjectReady,
 				},
-				Status: states.ObjectReady,
-			},
-			addrs.AbsProviderConfig{
-				Provider: addrs.NewDefaultProvider("test"),
-				Module:   addrs.RootModule,
-			},
-			addrs.NoKey,
-		)
+				addrs.AbsProviderConfig{
+					Provider: addrs.NewDefaultProvider("test"),
+					Module:   addrs.RootModule,
+				},
+				addrs.NoKey,
+			)
 
-		schema := providers.ProviderSchema{
-			ResourceTypes: map[string]providers.Schema{
-				"test_instance": {
-					Block: &configschema.Block{
-						Attributes: map[string]*configschema.Attribute{
-							"id": {
-								Type:     cty.String,
-								Computed: true,
+			schema := providers.ProviderSchema{
+				ResourceTypes: map[string]providers.Schema{
+					"test_instance": {
+						Block: &configschema.Block{
+							Attributes: map[string]*configschema.Attribute{
+								"id": {
+									Type:     cty.String,
+									Computed: true,
+								},
 							},
 						},
 					},
 				},
-			},
-		}
+			}
 
-		p := simpleMockProvider()
-		p.ConfigureProvider(providers.ConfigureProviderRequest{})
-		p.GetProviderSchemaResponse = &schema
+			p := simpleMockProvider()
+			p.ConfigureProvider(providers.ConfigureProviderRequest{})
+			p.GetProviderSchemaResponse = &schema
 
-		ctx := &MockEvalContext{
-			StateState:               state.SyncWrapper(),
-			RefreshStateState:        state.DeepCopy().SyncWrapper(),
-			PrevRunStateState:        state.DeepCopy().SyncWrapper(),
-			InstanceExpanderExpander: instances.NewExpander(),
-			ProviderProvider:         p,
-			ProviderSchemaSchema:     schema,
-			ChangesChanges:           plans.NewChanges().SyncWrapper(),
-		}
+			ctx := &MockEvalContext{
+				StateState:               state.SyncWrapper(),
+				RefreshStateState:        state.DeepCopy().SyncWrapper(),
+				PrevRunStateState:        state.DeepCopy().SyncWrapper(),
+				InstanceExpanderExpander: instances.NewExpander(),
+				ProviderProvider:         p,
+				ProviderSchemaSchema:     schema,
+				ChangesChanges:           plans.NewChanges().SyncWrapper(),
+			}
 
-		node := NodePlannableResourceInstanceOrphan{
-			NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
-				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
-						Provider: addrs.NewDefaultProvider("test"),
-						Module:   addrs.RootModule,
-					}},
+			node := NodePlannableResourceInstanceOrphan{
+				NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
+					NodeAbstractResource: NodeAbstractResource{
+						ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
+							Provider: addrs.NewDefaultProvider("test"),
+							Module:   addrs.RootModule,
+						}},
+					},
+					Addr: absResource,
 				},
-				Addr: absResource,
-			},
-			EndpointsToRemove: test.nodeEndpointsToRemove,
-		}
+				RemoveStatements: test.nodeEndpointsToRemove,
+			}
 
-		err := node.Execute(ctx, walkPlan)
-		if err != nil {
-			t.Fatalf("unexpected error: %s", err)
-		}
+			gotDiags := node.Execute(ctx, walkPlan)
+			assertDiags(t, gotDiags, test.wantDiags)
 
-		change := ctx.Changes().GetResourceInstanceChange(absResource, states.NotDeposed)
-		if got, want := change.ChangeSrc.Action, test.wantAction; got != want {
-			t.Fatalf("wrong planned action\ngot:  %s\nwant: %s", got, want)
-		}
+			change := ctx.Changes().GetResourceInstanceChange(absResource, states.NotDeposed)
+			if got, want := change.ChangeSrc.Action, test.wantAction; got != want {
+				t.Fatalf("wrong planned action\ngot:  %s\nwant: %s", got, want)
+			}
 
-		if !state.Empty() {
-			t.Fatalf("expected empty state, got %s", state.String())
-		}
+			if !state.Empty() {
+				t.Fatalf("expected empty state, got %s", state.String())
+			}
+		})
 	}
 }
 

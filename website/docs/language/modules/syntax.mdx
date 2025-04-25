@@ -189,3 +189,25 @@ The above selects a `resource "aws_instance" "example"` declared inside a
 Because replacing is a very disruptive action, OpenTofu only allows selecting
 individual resource instances. There is no syntax to force replacing _all_
 resource instances belonging to a particular module.
+
+## Removing a module
+The same as any `resource`, a `module` can be removed as well by using the `removed` refactoring block.
+When you remove the configuration of a module, OpenTofu will destroy all the resources that the removed module was managing.
+
+There are cases when the module is wanted to be removed from the configuration (and from the state) but the resources managed by it should stay untouched.
+To achieve this, follow these steps:
+1. Delete the module from your configuration.
+2. Add a removed block instead, specifying the module address you want to "forget" in the `from` attribute.
+3. Specify the `lifecycle.destroy = false`
+
+```hcl
+removed {
+  from = module.some_module
+  lifecycle {
+    destroy = false
+  }
+}
+```
+:::note
+In contrast with `resource` blocks removal, `removed` blocks pointing to modules, do not allow usage of `provisioners`.
+:::

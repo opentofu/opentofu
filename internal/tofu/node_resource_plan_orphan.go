@@ -9,8 +9,10 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -27,11 +29,11 @@ type NodePlannableResourceInstanceOrphan struct {
 	// for any instances.
 	skipPlanChanges bool
 
-	// EndpointsToRemove are resource instance addresses where the user wants to
+	// RemoveStatements are resource instance addresses where the user wants to
 	// forget from the state. This set isn't pre-filtered, so
 	// it might contain addresses that have nothing to do with the resource
 	// that this node represents, which the node itself must therefore ignore.
-	EndpointsToRemove []addrs.ConfigRemovable
+	RemoveStatements []*refactoring.RemoveStatement
 }
 
 var (
@@ -148,15 +150,26 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx EvalCon
 	var planDiags tfdiags.Diagnostics
 
 	shouldForget := false
+	shouldDestroy := false // NOTE: false for backwards compatibility. This is not the same behavior that the other system is having.
 
-	for _, etf := range n.EndpointsToRemove {
-		if etf.TargetContains(n.Addr) {
+	for _, rs := range n.RemoveStatements {
+		if rs.From.TargetContains(n.Addr) {
 			shouldForget = true
+			shouldDestroy = rs.Destroy
 		}
 	}
 
 	if shouldForget {
-		change = n.planForget(ctx, oldState, "")
+		if shouldDestroy {
+			change, planDiags = n.planDestroy(ctx, oldState, "")
+		} else {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Resource going to be removed from the state",
+				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
+			})
+			change = n.planForget(ctx, oldState, "")
+		}
 	} else {
 		change, planDiags = n.planDestroy(ctx, oldState, "")
 	}

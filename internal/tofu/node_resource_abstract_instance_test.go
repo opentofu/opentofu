@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -188,4 +189,80 @@ aws_instance.foo:
   ID = i-abc123
   provider = provider["registry.opentofu.org/hashicorp/aws"]
 	`)
+}
+
+func TestFilterResourceProvisioners(t *testing.T) {
+	tests := map[string]struct {
+		when               configs.ProvisionerWhen
+		cfg                *configs.Resource
+		removedBlocksProvs []*configs.Provisioner
+		wantProvs          []*configs.Provisioner
+	}{
+		"config and provisioners nil": {
+			when:               configs.ProvisionerWhenDestroy,
+			cfg:                nil,
+			removedBlocksProvs: nil,
+			wantProvs:          []*configs.Provisioner{},
+		},
+		"config nil and provisioners contains targeted provisioners": {
+			when: configs.ProvisionerWhenDestroy,
+			cfg:  nil,
+			removedBlocksProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenDestroy},
+				{Type: "local-exec2", When: configs.ProvisionerWhenCreate},
+			},
+			wantProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenDestroy},
+			},
+		},
+		"config.managed nil and provisioners contains no targeted provisioners": {
+			when: configs.ProvisionerWhenDestroy,
+			cfg:  &configs.Resource{},
+			removedBlocksProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenCreate},
+				{Type: "local-exec2", When: configs.ProvisionerWhenCreate},
+			},
+			wantProvs: []*configs.Provisioner{},
+		},
+		// This is expecting an empty result because we want to use the resource defined provisioners when
+		// config.managed exists
+		"config.managed not nil and provisioners contains targeted provisioners": {
+			when: configs.ProvisionerWhenCreate,
+			cfg: &configs.Resource{
+				Managed: &configs.ManagedResource{},
+			},
+			removedBlocksProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenCreate},
+				{Type: "local-exec2", When: configs.ProvisionerWhenCreate},
+			},
+			wantProvs: nil,
+		},
+		"config.managed is having provisioners therefore removed blocks provisioners are ignored": {
+			when: configs.ProvisionerWhenCreate,
+			cfg: &configs.Resource{
+				Managed: &configs.ManagedResource{
+					Provisioners: []*configs.Provisioner{
+						{Type: "local-exec3", When: configs.ProvisionerWhenCreate},
+						{Type: "local-exec4", When: configs.ProvisionerWhenCreate},
+					},
+				},
+			},
+			removedBlocksProvs: []*configs.Provisioner{
+				{Type: "local-exec", When: configs.ProvisionerWhenCreate},
+				{Type: "local-exec2", When: configs.ProvisionerWhenCreate},
+			},
+			wantProvs: []*configs.Provisioner{
+				{Type: "local-exec3", When: configs.ProvisionerWhenCreate},
+				{Type: "local-exec4", When: configs.ProvisionerWhenCreate},
+			},
+		},
+	}
+	for name, test := range tests {
+		t.Run(fmt.Sprintf("%s-%s", test.when, name), func(t *testing.T) {
+			res := filterResourceProvisioners(test.cfg, test.removedBlocksProvs, test.when)
+			if diff := cmp.Diff(test.wantProvs, res); diff != "" {
+				t.Errorf("expected provisioners different than what we got:\n%s", diff)
+			}
+		})
+	}
 }

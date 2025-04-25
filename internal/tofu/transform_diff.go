@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -215,6 +216,9 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 			var node GraphNodeResourceInstance
 			abstract := NewNodeAbstractResourceInstance(addr)
 			if dk == states.NotDeposed {
+				// If any removed block is targeting the resource in this node, ensure that any provisioners defined in that block are going to be
+				// executed before actual resource destruction.
+				abstract.removedBlockProvisioners = refactoring.FindResourceRemovedBlockProvisioners(t.Config, abstract.Addr.ConfigResource())
 				node = &NodeDestroyResourceInstance{
 					NodeAbstractResourceInstance: abstract,
 					DeposedKey:                   dk,

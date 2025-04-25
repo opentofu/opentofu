@@ -407,6 +407,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 				Concrete: concreteResourceInstance,
 				State:    state,
 				Changes:  changes,
+				Config:   config,
 			},
 			&ReferenceTransformer{},
 			&AttachDependenciesTransformer{},
