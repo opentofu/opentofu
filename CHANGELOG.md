@@ -40,6 +40,7 @@ ENHANCEMENTS:
 * When installing a provider from a source that offers a `.zip` archive of a provider package but that cannot also offer a signed set of official checksums for the provider, OpenTofu will now include its locally-verified zip archive checksum (`zh:` scheme) in the dependency lock file in addition to the package contents checksum (`h1:` checksum) previously recorded. This makes it more likely that a future reinstall of the same package from a different source will be verified successfully. ([#2656](https://github.com/opentofu/opentofu/pull/2656))
 * The `tofu show` command now supports a new explicit and extensible usage style, with `-state` and `-plan=PLANFILE` options. The old style with zero or one positional arguments is still supported for backward-compatibility. ([#2699](https://github.com/opentofu/opentofu/pull/2699))
 * `removed` now supports `lifecycle` and `provisioner` configuration. ([#2556](https://github.com/opentofu/opentofu/issues/2556))
+* "force-unlock" option is now supported by the HTTP backend. ([#2381](https://github.com/opentofu/opentofu/pull/2381))
 
 BUG FIXES:
 
