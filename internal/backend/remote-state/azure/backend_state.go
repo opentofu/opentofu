@@ -8,6 +8,7 @@ package azure
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
 
@@ -26,32 +27,44 @@ const (
 )
 
 func (b *Backend) Workspaces() ([]string, error) {
-	prefix := b.keyName + keyEnvPrefix
-	params := containers.ListBlobsInput{
-		Prefix: &prefix,
-	}
-
 	ctx := context.TODO()
 	client, err := b.armClient.getContainersClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.ListBlobs(ctx, b.armClient.storageAccountName, b.containerName, params)
-	if err != nil {
-		return nil, err
+
+	// Used to paginate blobs, saving the NextMarker result from ListBlobs
+	count := 1
+	envs := map[string]struct{}{}
+	prefix := b.keyName + keyEnvPrefix
+	params := containers.ListBlobsInput{
+		Prefix: &prefix,
 	}
 
-	envs := map[string]struct{}{}
-	for _, obj := range resp.Blobs.Blobs {
-		key := obj.Name
-		if strings.HasPrefix(key, prefix) {
-			name := strings.TrimPrefix(key, prefix)
-			// we store the state in a key, not a directory
-			if strings.Contains(name, "/") {
-				continue
-			}
+	for {
 
-			envs[name] = struct{}{}
+		log.Printf("[TRACE] Getting page %d of blob results", count)
+		resp, err := client.ListBlobs(ctx, b.armClient.storageAccountName, b.containerName, params)
+		if err != nil {
+			return nil, err
+		}
+
+		params.Marker = resp.NextMarker
+		for _, obj := range resp.Blobs.Blobs {
+			key := obj.Name
+			if strings.HasPrefix(key, prefix) {
+				name := strings.TrimPrefix(key, prefix)
+				// we store the state in a key, not a directory
+				if strings.Contains(name, "/") {
+					continue
+				}
+				envs[name] = struct{}{}
+			}
+		}
+
+		count++
+		if *resp.NextMarker == "" {
+			break;
 		}
 	}
 
