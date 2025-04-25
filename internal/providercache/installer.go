@@ -15,7 +15,7 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/apparentlymart/go-versions/versions/constraints"
-	"go.opentelemetry.io/otel/attribute"
+	otelAttr "go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -445,8 +445,8 @@ func (i *Installer) ensureProviderVersionsInstall(
 		traceCtx, span := tracing.Tracer().Start(ctx,
 			"Install Provider",
 			trace.WithAttributes(
-				attribute.String(tracing.ProviderAddressAttributeName, provider.String()),
-				attribute.String(tracing.ProviderVersionAttributeName, version.String()),
+				otelAttr.String(tracing.ProviderAddressAttributeName, provider.String()),
+				otelAttr.String(tracing.ProviderVersionAttributeName, version.String()),
 			),
 		)
 

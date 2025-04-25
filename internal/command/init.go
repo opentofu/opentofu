@@ -17,7 +17,7 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
-	"go.opentelemetry.io/otel/attribute"
+	otelAttr "go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -165,7 +165,7 @@ func (c *InitCommand) Run(args []string) int {
 		}
 
 		ctx, span := tracing.Tracer().Start(ctx, "From module", trace.WithAttributes(
-			attribute.String("opentofu.module_source", src),
+			otelAttr.String("opentofu.module_source", src),
 		))
 		defer span.End()
 
@@ -408,7 +408,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 	}
 
 	ctx, span := tracing.Tracer().Start(ctx, "Get modules", trace.WithAttributes(
-		attribute.Bool("opentofu.modules.upgrade", upgrade),
+		otelAttr.Bool("opentofu.modules.upgrade", upgrade),
 	))
 	defer span.End()
 

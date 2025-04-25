@@ -25,7 +25,7 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
-	"go.opentelemetry.io/otel/attribute"
+	otelAttr "go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
 
@@ -109,7 +109,7 @@ func (c *registryClient) ProviderVersions(ctx context.Context, addr addrs.Provid
 	ctx, span := tracing.Tracer().Start(ctx,
 		"List Versions",
 		trace.WithAttributes(
-			attribute.String(tracing.ProviderAddressAttributeName, addr.String()),
+			otelAttr.String(tracing.ProviderAddressAttributeName, addr.String()),
 		),
 	)
 	defer span.End()
@@ -209,8 +209,8 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	ctx, span := tracing.Tracer().Start(ctx,
 		"Fetch metadata",
 		trace.WithAttributes(
-			attribute.String(tracing.ProviderAddressAttributeName, provider.String()),
-			attribute.String(tracing.ProviderVersionAttributeName, version.String()),
+			otelAttr.String(tracing.ProviderAddressAttributeName, provider.String()),
+			otelAttr.String(tracing.ProviderVersionAttributeName, version.String()),
 		))
 	defer span.End()
 
