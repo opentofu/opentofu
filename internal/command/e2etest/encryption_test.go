@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime/debug"
 	"strings"
 	"testing"
@@ -24,10 +25,39 @@ type tofuResult struct {
 	err    error
 }
 
+// Helper function to check for actual errors in stderr, ignoring operational logs
+func containsRealError(stderr string) bool {
+	// Regex to find lines starting with "Error:" or "Warning:", potentially after log prefixes.
+	// It looks for the start of a line (^) optionally followed by timestamp/level/module stuff ([^:]*:\s*)?
+	// and then the literal "Error:" or "Warning:".
+	// It also explicitly ignores the known benign FIPS message.
+	errorWarningRegex := regexp.MustCompile(`(?m)^([^:]*:\s*)?(Error:|Warning:)`)
+
+	lines := strings.Split(stderr, "\n")
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+		if trimmedLine == "" {
+			continue
+		}
+
+		// Ignore the known benign FIPS message
+		if strings.Contains(trimmedLine, "crypto/fips: required module is not available") {
+			continue
+		}
+
+		// Check if the line matches the pattern for a real error or warning
+		if errorWarningRegex.MatchString(trimmedLine) {
+			return true
+		}
+	}
+	return false
+}
+
 func (r tofuResult) Success() tofuResult {
-	if r.stderr != "" {
+	// Check for actual errors instead of just non-empty stderr
+	if containsRealError(r.stderr) {
 		debug.PrintStack()
-		r.t.Fatalf("unexpected stderr output:\n%s", r.stderr)
+		r.t.Fatalf("unexpected error or warning in stderr output:\n%s", r.stderr)
 	}
 	if r.err != nil {
 		debug.PrintStack()

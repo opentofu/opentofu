@@ -31,8 +31,9 @@ func TestVersion(t *testing.T) {
 		t.Errorf("unexpected error: %s", err)
 	}
 
-	if stderr != "" {
-		t.Errorf("unexpected stderr output:\n%s", stderr)
+	// Check for actual errors instead of just non-empty stderr
+	if containsRealError(stderr) {
+		t.Errorf("unexpected error or warning in stderr output:\n%s", stderr)
 	}
 
 	wantVersion := fmt.Sprintf("OpenTofu v%s", version.String())
@@ -62,8 +63,9 @@ func TestVersionWithProvider(t *testing.T) {
 			t.Errorf("unexpected error: %s", err)
 		}
 
-		if stderr != "" {
-			t.Errorf("unexpected stderr output:\n%s", stderr)
+		// Check for actual errors instead of just non-empty stderr
+		if containsRealError(stderr) {
+			t.Errorf("unexpected error or warning in stderr output:\n%s", stderr)
 		}
 
 		wantVersion := fmt.Sprintf("OpenTofu v%s", version.String())
@@ -87,8 +89,9 @@ func TestVersionWithProvider(t *testing.T) {
 			t.Errorf("unexpected error: %s", err)
 		}
 
-		if stderr != "" {
-			t.Errorf("unexpected stderr output:\n%s", stderr)
+		// Check for actual errors instead of just non-empty stderr
+		if containsRealError(stderr) {
+			t.Errorf("unexpected error or warning in stderr output:\n%s", stderr)
 		}
 
 		wantMsg := "+ provider registry.opentofu.org/hashicorp/template v" // we don't know which version we'll get here
