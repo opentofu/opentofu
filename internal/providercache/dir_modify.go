@@ -45,7 +45,10 @@ func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta,
 	// Check to see if it is already installed
 	if entry := d.ProviderVersion(meta.Provider, meta.Version); entry != nil {
 		if allowSkippingInstallWithoutHashes && len(allowedHashes) == 0 {
-			return nil, nil
+			// Ensure that the provider exists
+			if _, err := entry.ExecutableFile(); err == nil {
+				return nil, nil
+			}
 		}
 
 		if matches, err := entry.MatchesAnyHash(allowedHashes); err == nil && matches {
