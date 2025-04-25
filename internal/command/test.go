@@ -228,6 +228,14 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	log.Printf("[DEBUG] TestCommand: found %d files with %d run blocks", fileCount, runCount)
 
+	if len(args.Filter) > 0 && len(suite.Files) == 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"No tests were found",
+			"-filter is being used but no tests were found. Make sure you're using a relative path to the current working directory.",
+		))
+	}
+
 	diags = diags.Append(fileDiags)
 	if fileDiags.HasErrors() {
 		view.Diagnostics(nil, nil, diags)
