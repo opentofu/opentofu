@@ -33,6 +33,7 @@ import (
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -109,7 +110,7 @@ func (c *registryClient) ProviderVersions(ctx context.Context, addr addrs.Provid
 	ctx, span := tracing.Tracer().Start(ctx,
 		"List Versions",
 		trace.WithAttributes(
-			otelAttr.String(tracing.ProviderAddressAttributeName, addr.String()),
+			otelAttr.String(traceattrs.ProviderAddress, addr.String()),
 		),
 	)
 	defer span.End()
@@ -209,8 +210,8 @@ func (c *registryClient) PackageMeta(ctx context.Context, provider addrs.Provide
 	ctx, span := tracing.Tracer().Start(ctx,
 		"Fetch metadata",
 		trace.WithAttributes(
-			otelAttr.String(tracing.ProviderAddressAttributeName, provider.String()),
-			otelAttr.String(tracing.ProviderVersionAttributeName, version.String()),
+			otelAttr.String(traceattrs.ProviderAddress, provider.String()),
+			otelAttr.String(traceattrs.ProviderVersion, version.String()),
 		))
 	defer span.End()
 
