@@ -7,6 +7,7 @@ package providercache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -27,6 +28,16 @@ import (
 // hashes match then the returned error message assumes that the hashes came
 // from a lock file.
 func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta, allowedHashes []getproviders.Hash, allowSkippingInstallWithoutHashes bool) (*getproviders.PackageAuthenticationResult, error) {
+	unlock, err := d.lock(ctx, meta.Provider, meta.Version)
+	if err != nil {
+		return nil, err
+	}
+
+	install, installErr := d.installPackageWithLock(ctx, meta, allowedHashes, allowSkippingInstallWithoutHashes)
+
+	return install, errors.Join(installErr, unlock())
+}
+func (d *Dir) installPackageWithLock(ctx context.Context, meta getproviders.PackageMeta, allowedHashes []getproviders.Hash, allowSkippingInstallWithoutHashes bool) (*getproviders.PackageAuthenticationResult, error) {
 	if meta.TargetPlatform != d.targetPlatform {
 		return nil, fmt.Errorf("can't install %s package into cache directory expecting %s", meta.TargetPlatform, d.targetPlatform)
 	}
