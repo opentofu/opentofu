@@ -197,6 +197,10 @@ func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState
 	varDiags := checkInputVariables(config.Module.Variables, opts.SetVariables)
 	diags = diags.Append(varDiags)
 
+	// Already having all the variables' values figured out, we can now warn on the user if it's using
+	// variables that are deprecated
+	diags = diags.Append(warnOnUsedDeprecatedVars(opts.SetVariables, config.Module.Variables))
+
 	if len(opts.Targets) > 0 || len(opts.Excludes) > 0 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Warning,
@@ -1130,4 +1134,27 @@ func (c *Context) relevantResourceAttrsForPlan(config *configs.Config, plan *pla
 	}
 
 	return contributors, diags
+}
+
+// warnOnUsedDeprecatedVars is checking for variables whose values are given by the user and if any of that is
+// marked as deprecated, a warning message is written for it.
+func warnOnUsedDeprecatedVars(inputs InputValues, decls map[string]*configs.Variable) (diags tfdiags.Diagnostics) {
+	for vn, in := range inputs {
+		if in.SourceType == ValueFromConfig {
+			continue
+		}
+		vc, ok := decls[vn]
+		if !ok {
+			continue
+		}
+		if vc.Deprecated != "" {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Deprecated variable used from the root module",
+				Detail:   fmt.Sprintf("The root variable %q is deprecated with the following message: %s", vc.Name, vc.Deprecated),
+				Subject:  vc.DeclRange.Ptr(),
+			})
+		}
+	}
+	return diags
 }
