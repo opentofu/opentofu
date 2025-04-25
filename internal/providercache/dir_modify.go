@@ -29,10 +29,6 @@ func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta,
 		d.baseDir, meta.Provider, meta.Version, d.targetPlatform,
 	)
 
-	// Invalidate our metaCache so that subsequent read calls will re-scan to
-	// incorporate any changes we make here.
-	d.metaCache = nil
-
 	log.Printf("[TRACE] providercache.Dir.InstallPackage: installing %s v%s from %s", meta.Provider, meta.Version, meta.Location)
 	return meta.Location.InstallProviderPackage(ctx, meta, newPath, allowedHashes)
 }
@@ -72,10 +68,6 @@ func (d *Dir) LinkFromOtherCache(entry *CachedProvider, allowedHashes []getprovi
 	)
 	currentPath := entry.PackageDir
 	log.Printf("[TRACE] providercache.Dir.LinkFromOtherCache: linking %s v%s from existing cache %s to %s", entry.Provider, entry.Version, currentPath, newPath)
-
-	// Invalidate our metaCache so that subsequent read calls will re-scan to
-	// incorporate any changes we make here.
-	d.metaCache = nil
 
 	// We re-use the process of installing from a local directory here, because
 	// the two operations are fundamentally the same: symlink if possible,

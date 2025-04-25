@@ -37,23 +37,6 @@ import (
 type Dir struct {
 	baseDir        string
 	targetPlatform getproviders.Platform
-
-	// metaCache is a cache of the metadata of relevant packages available in
-	// the cache directory last time we scanned it. This can be nil to indicate
-	// that the cache is cold. The cache will be invalidated (set back to nil)
-	// by any operation that modifies the contents of the cache directory.
-	//
-	// We intentionally don't make effort to detect modifications to the
-	// directory made by other codepaths because the contract for NewDir
-	// explicitly defines using the same directory for multiple purposes
-	// as undefined behavior.
-	// However, this code is now used for the global provider cache. With
-	// the added support for locking, the data may no longer be valid with
-	// changes from other processes. In practice this means that some packages
-	// may have been installed since the latest re-scan. The code that
-	// handles the installation should be smart enough to detect that and
-	// work around it.
-	metaCache map[addrs.Provider][]CachedProvider
 }
 
 // NewDir creates and returns a new Dir object that will read and write
@@ -187,30 +170,27 @@ func (d *Dir) Lock(ctx context.Context, provider addrs.Provider, version getprov
 //
 // The caller is forbidden from modifying the returned data structure in any
 // way, even though the Go type system permits it.
+//
+// Not performant / cached as it's only used in tests!
 func (d *Dir) AllAvailablePackages() map[addrs.Provider][]CachedProvider {
-	if err := d.fillMetaCache(); err != nil {
+	metaCache, err := d.fillMetaCache()
+	if err != nil {
 		log.Printf("[WARN] Failed to scan provider cache directory %s: %s", d.baseDir, err)
 		return nil
 	}
 
-	return d.metaCache
+	return metaCache
 }
 
 // ProviderVersion returns the cache entry for the requested provider version,
 // or nil if the requested provider version isn't present in the cache.
 func (d *Dir) ProviderVersion(provider addrs.Provider, version getproviders.Version) *CachedProvider {
-	if err := d.fillMetaCache(); err != nil {
-		return nil
-	}
-
-	for _, entry := range d.metaCache[provider] {
-		// We're intentionally comparing exact version here, so if either
-		// version number contains build metadata and they don't match then
-		// this will not return true. The rule of ignoring build metadata
-		// applies only for handling version _constraints_ and for deciding
-		// version precedence.
-		if entry.Version == version {
-			return &entry
+	dir := getproviders.UnpackedDirectoryPathForPackage(d.baseDir, provider, version, d.targetPlatform)
+	if stat, err := os.Stat(dir); err == nil && stat.IsDir() {
+		return &CachedProvider{
+			Provider:   provider,
+			Version:    version,
+			PackageDir: dir,
 		}
 	}
 
@@ -220,12 +200,15 @@ func (d *Dir) ProviderVersion(provider addrs.Provider, version getproviders.Vers
 // ProviderLatestVersion returns the cache entry for the latest
 // version of the requested provider already available in the cache, or nil if
 // there are no versions of that provider available.
+//
+// Not performant / cached as it's only used in tests!
 func (d *Dir) ProviderLatestVersion(provider addrs.Provider) *CachedProvider {
-	if err := d.fillMetaCache(); err != nil {
+	metaCache, err := d.fillMetaCache()
+	if err != nil {
 		return nil
 	}
 
-	entries := d.metaCache[provider]
+	entries := metaCache[provider]
 	if len(entries) == 0 {
 		return nil
 	}
@@ -233,20 +216,14 @@ func (d *Dir) ProviderLatestVersion(provider addrs.Provider) *CachedProvider {
 	return &entries[0]
 }
 
-func (d *Dir) fillMetaCache() error {
-	// For d.metaCache we consider nil to be different than a non-nil empty
-	// map, so we can distinguish between having scanned and got an empty
-	// result vs. not having scanned successfully at all yet.
-	if d.metaCache != nil {
-		log.Printf("[TRACE] providercache.fillMetaCache: using cached result from previous scan of %s", d.baseDir)
-		return nil
-	}
+// Not performant / cached as it's only used in tests!
+func (d *Dir) fillMetaCache() (map[addrs.Provider][]CachedProvider, error) {
 	log.Printf("[TRACE] providercache.fillMetaCache: scanning directory %s", d.baseDir)
 
 	allData, err := getproviders.SearchLocalDirectory(d.baseDir)
 	if err != nil {
 		log.Printf("[TRACE] providercache.fillMetaCache: error while scanning directory %s: %s", d.baseDir, err)
-		return err
+		return nil, err
 	}
 
 	// The getproviders package just returns everything it found, but we're
@@ -298,6 +275,5 @@ func (d *Dir) fillMetaCache() error {
 		})
 	}
 
-	d.metaCache = data
-	return nil
+	return data, nil
 }
