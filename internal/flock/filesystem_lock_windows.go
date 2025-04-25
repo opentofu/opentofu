@@ -6,11 +6,11 @@
 //go:build windows
 // +build windows
 
-package statemgr
+package flock
 
 import (
-	"log"
 	"math"
+	"os"
 	"syscall"
 	"unsafe"
 )
@@ -28,9 +28,8 @@ const (
 	_LOCKFILE_EXCLUSIVE_LOCK   = 2
 )
 
-func (s *Filesystem) lock() error {
-	log.Printf("[TRACE] statemgr.Filesystem: locking %s using LockFileEx", s.path)
-
+// This still alows the file handle to be opened by another process for competing locks on the same file.
+func Lock(f *os.File) error {
 	// even though we're failing immediately, an overlapped event structure is
 	// required
 	ol, err := newOverlapped()
@@ -40,7 +39,7 @@ func (s *Filesystem) lock() error {
 	defer syscall.CloseHandle(ol.HEvent)
 
 	return lockFileEx(
-		syscall.Handle(s.stateFileOut.Fd()),
+		syscall.Handle(f.Fd()),
 		_LOCKFILE_EXCLUSIVE_LOCK|_LOCKFILE_FAIL_IMMEDIATELY,
 		0,              // reserved
 		0,              // bytes low
@@ -49,10 +48,8 @@ func (s *Filesystem) lock() error {
 	)
 }
 
-func (s *Filesystem) unlock() error {
-	log.Printf("[TRACE] statemgr.Filesystem: unlocked by closing %s", s.path)
-
-	// the file is closed in Unlock
+func Unlock(*os.File) error {
+	// the lock is released when Close() is called
 	return nil
 }
 

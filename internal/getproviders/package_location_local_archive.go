@@ -8,6 +8,8 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/hashicorp/go-getter"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
@@ -67,13 +69,26 @@ func (p PackageLocalArchive) InstallProviderPackage(ctx context.Context, meta Pa
 	filename := meta.Location.String()
 	span.SetAttributes(semconv.FilePath(filename))
 
-	// NOTE: We're not checking whether there's already a directory at
-	// targetDir with some files in it. Packages are supposed to be immutable
-	// and therefore we'll just be overwriting all of the existing files with
-	// their same contents unless something unusual is happening. If something
-	// unusual _is_ happening then this will produce something that doesn't
-	// match the allowed hashes and so our caller should catch that after
-	// we return if so.
+	// NOTE: Packages are immutable, but we may want to skip overwriting the existing
+	// files in due to specific scenarios defined below.
+
+	if _, err := os.Stat(targetDir); err == nil {
+		// If the package might already be installed, we should try to skip overwriting the contents.
+		// When run with TF_PLUGIN_CACHE_DIR or similar, a given provider might already be executing
+		// and therefore locking the provider binary in the target directory (preventing the overwrite below)
+		//
+		// This does incur the overhead of two additional hash computations and could be
+		// skipped with smarter checks around re-use scenarios in the future.
+
+		targetHash, targetErr := PackageHashV1(PackageLocalDir(targetDir))
+		fileHash, fileErr := PackageHashV1(meta.Location)
+
+		if targetHash == fileHash && fileErr == nil && targetErr == nil {
+			// Package is properly installed, bad or missing lock file will be caught elsewhere
+			log.Printf("[INFO] Skipping local installation of provider %s %s as the existing contents already match the new contents", meta.Provider, meta.Version)
+			return authResult, nil
+		}
+	}
 
 	//nolint:mnd // magic number predates us using this linter
 	err := unzip.Decompress(targetDir, filename, true, 0000)

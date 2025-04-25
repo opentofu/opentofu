@@ -483,6 +483,18 @@ func (i *Installer) ensureProviderVersionInstall(
 ) (*getproviders.PackageAuthenticationResult, error) {
 	evts := installerEventsForContext(ctx)
 
+	// The unlock function may be used if the globalCacheDir is set.  It is unlocked in the *next* iteration of the loop or after the loop exits
+	// We create a file lock per-provider to prevent modification from different processes using the shared global cache
+	// We lock per-provider to prevent deadlocks and release as soon as possible (instead of defer at the function scope)
+	// This is not ideal, but the best option for not generating a large code diff
+	var unlock func()
+	defer func() {
+		if unlock != nil {
+			// Free remaining lock on return
+			unlock()
+		}
+	}()
+
 	lock := locks.Provider(provider)
 	var preferredHashes []getproviders.Hash
 	if lock != nil && lock.Version() == version { // hash changes are expected if the version is also changing
@@ -502,6 +514,21 @@ func (i *Installer) ensureProviderVersionInstall(
 	}
 
 	if i.globalCacheDir != nil {
+		// Try to lock the provider's directory.
+		unlockProvider, err := i.globalCacheDir.Lock(ctx, provider, version)
+		if err != nil {
+			if cb := evts.LinkFromCacheFailure; cb != nil {
+				cb(provider, version, err)
+			}
+			return nil, err
+		}
+		unlock = func() {
+			err = unlockProvider()
+			if err != nil {
+				log.Printf("[ERROR] Unable to clear provider lock: %s", err.Error())
+			}
+		}
+
 		// If our global cache already has this version available then
 		// we'll just link it in.
 		installed, err := tryInstallPackageFromCacheDir(
@@ -567,6 +594,13 @@ func (i *Installer) ensureProviderVersionInstall(
 		}
 		return nil, err
 	}
+
+	if unlock != nil {
+		// Early unlock as the write to the globalCacheDir has completed
+		unlock()
+		unlock = nil
+	}
+
 	new := installTo.ProviderVersion(provider, version)
 	if new == nil {
 		err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, installTo.BasePath())
