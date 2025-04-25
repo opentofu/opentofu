@@ -5297,6 +5297,10 @@ module "modfe" {
 func TestContext2Apply_variableDeprecation(t *testing.T) {
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
+variable "var" {
+	type = string
+	deprecated = "this is deprecated"
+}
 module "call" {
 	source = "./mod"
 	input = "val"
@@ -5316,6 +5320,12 @@ module "call" {
 	ctx := testContext2(t, &ContextOpts{})
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
 		Mode: plans.NormalMode,
+		SetVariables: InputValues{
+			"var": {
+				Value:      cty.StringVal("from cli"),
+				SourceType: ValueFromCLIArg,
+			},
+		},
 	})
 	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{}.Append(
 		&hcl.Diagnostic{
@@ -5324,10 +5334,21 @@ module "call" {
 			Detail:   "This variable is marked as deprecated with the following message:\nThis variable is deprecated",
 			Subject: &hcl.Range{
 				Filename: fmt.Sprintf("%s/main.tf", m.Module.SourceDir),
-				Start:    hcl.Pos{Line: 4, Column: 10, Byte: 44},
-				End:      hcl.Pos{Line: 4, Column: 15, Byte: 49},
+				Start:    hcl.Pos{Line: 8, Column: 10, Byte: 113},
+				End:      hcl.Pos{Line: 8, Column: 15, Byte: 118},
 			},
-		}))
+		},
+		&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  `Deprecated variable used from the root module`,
+			Detail:   `The root variable "var" is deprecated with the following message: this is deprecated`,
+			Subject: &hcl.Range{
+				Filename: fmt.Sprintf("%s/main.tf", m.Module.SourceDir),
+				Start:    hcl.Pos{Line: 2, Column: 1, Byte: 1},
+				End:      hcl.Pos{Line: 2, Column: 15, Byte: 15},
+			},
+		},
+	))
 
 	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{})
