@@ -20,6 +20,8 @@ import (
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -30,6 +32,8 @@ import (
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 type ModuleInstaller struct {
@@ -159,7 +163,7 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 	}
 	walker := i.moduleInstallWalker(ctx, manifest, upgrade, hooks, fetcher)
 
-	cfg, instDiags := i.installDescendentModules(rootMod, manifest, walker, installErrsOnly)
+	cfg, instDiags := i.installDescendentModules(ctx, rootMod, manifest, walker, installErrsOnly)
 	diags = append(diags, instDiags...)
 
 	return cfg, diags
@@ -167,7 +171,7 @@ func (i *ModuleInstaller) InstallModules(ctx context.Context, rootDir, testsDir 
 
 func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest modsdir.Manifest, upgrade bool, hooks ModuleInstallHooks, fetcher *getmodules.PackageFetcher) configs.ModuleWalker {
 	return configs.ModuleWalkerFunc(
-		func(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+		func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
 			var diags hcl.Diagnostics
 
 			if req.SourceAddr == nil {
@@ -195,6 +199,12 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 
 			key := manifest.ModuleKey(req.Path)
 			instPath := i.packageInstallPath(req.Path)
+
+			ctx, span := tracing.Tracer().Start(ctx, "Install Module", trace.WithAttributes(
+				otelAttr.String(traceattrs.ModuleName, req.Name),
+				otelAttr.String(traceattrs.ModuleAddress, req.SourceAddr.String()),
+			))
+			defer span.End()
 
 			log.Printf("[DEBUG] Module installer: begin %s", key)
 
@@ -288,7 +298,7 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 
 			case addrs.ModuleSourceLocal:
 				log.Printf("[TRACE] ModuleInstaller: %s has local path %q", key, addr.String())
-				mod, mDiags := i.installLocalModule(req, key, manifest, hooks)
+				mod, mDiags := i.installLocalModule(ctx, req, key, manifest, hooks)
 				mDiags = maybeImproveLocalInstallError(req, mDiags)
 				diags = append(diags, mDiags...)
 				return mod, nil, diags
@@ -314,7 +324,7 @@ func (i *ModuleInstaller) moduleInstallWalker(ctx context.Context, manifest mods
 	)
 }
 
-func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, manifest modsdir.Manifest, installWalker configs.ModuleWalker, installErrsOnly bool) (*configs.Config, tfdiags.Diagnostics) {
+func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod *configs.Module, manifest modsdir.Manifest, installWalker configs.ModuleWalker, installErrsOnly bool) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// When attempting to initialize the current directory with a module
@@ -327,14 +337,14 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, mani
 	var instDiags hcl.Diagnostics
 	walker := installWalker
 	if installErrsOnly {
-		walker = configs.ModuleWalkerFunc(func(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
-			mod, version, diags := installWalker.LoadModule(req)
+		walker = configs.ModuleWalkerFunc(func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+			mod, version, diags := installWalker.LoadModule(ctx, req)
 			instDiags = instDiags.Extend(diags)
 			return mod, version, diags
 		})
 	}
 
-	cfg, cDiags := configs.BuildConfig(rootMod, walker)
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, walker)
 	diags = diags.Append(cDiags)
 	if installErrsOnly {
 		// We can't continue if there was an error during installation, but
@@ -366,7 +376,7 @@ func (i *ModuleInstaller) installDescendentModules(rootMod *configs.Module, mani
 	return cfg, diags
 }
 
-func (i *ModuleInstaller) installLocalModule(req *configs.ModuleRequest, key string, manifest modsdir.Manifest, hooks ModuleInstallHooks) (*configs.Module, hcl.Diagnostics) {
+func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.ModuleRequest, key string, manifest modsdir.Manifest, hooks ModuleInstallHooks) (*configs.Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	parentKey := manifest.ModuleKey(req.Parent.Path)

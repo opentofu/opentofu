@@ -57,6 +57,7 @@ type ShowCommand struct {
 
 func (c *ShowCommand) Run(rawArgs []string) int {
 	ctx := c.CommandContext()
+
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -364,7 +365,7 @@ func (c *ShowCommand) getPlanFromPath(ctx context.Context, path string, enc encr
 	}
 
 	if lp, ok := pf.Local(); ok {
-		plan, stateFile, config, err = getDataFromPlanfileReader(lp, rootCall)
+		plan, stateFile, config, err = getDataFromPlanfileReader(ctx, lp, rootCall)
 	} else if cp, ok := pf.Cloud(); ok {
 		redacted := c.viewType != arguments.ViewJSON
 		jsonPlan, err = c.getDataFromCloudPlan(ctx, cp, redacted, enc)
@@ -404,7 +405,7 @@ func (c *ShowCommand) maybeGetSchemas(ctx context.Context, stateFile *statefile.
 }
 
 // getDataFromPlanfileReader returns a plan, statefile, and config, extracted from a local plan file.
-func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.StaticModuleCall) (*plans.Plan, *statefile.File, *configs.Config, error) {
+func getDataFromPlanfileReader(ctx context.Context, planReader *planfile.Reader, rootCall configs.StaticModuleCall) (*plans.Plan, *statefile.File, *configs.Config, error) {
 	// Get plan
 	plan, err := planReader.ReadPlan()
 	if err != nil {
@@ -444,7 +445,7 @@ func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.Sta
 	})
 
 	// Get config
-	config, diags := planReader.ReadConfig(subCall)
+	config, diags := planReader.ReadConfig(ctx, subCall)
 	if diags.HasErrors() {
 		return nil, nil, nil, errUnusable(diags.Err(), "local plan")
 	}

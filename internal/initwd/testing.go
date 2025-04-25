@@ -6,7 +6,6 @@
 package initwd
 
 import (
-	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -38,7 +37,7 @@ func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs
 	inst := NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil), nil)
 
 	call := configs.RootModuleCallForTesting()
-	_, moreDiags := inst.InstallModules(context.Background(), rootDir, testsDir, true, false, ModuleInstallHooksImpl{}, call)
+	_, moreDiags := inst.InstallModules(t.Context(), rootDir, testsDir, true, false, ModuleInstallHooksImpl{}, call)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
@@ -51,7 +50,7 @@ func LoadConfigForTests(t testing.TB, rootDir string, testsDir string) (*configs
 		t.Fatalf("failed to refresh modules after installation: %s", err)
 	}
 
-	config, hclDiags := loader.LoadConfig(rootDir, call)
+	config, hclDiags := loader.LoadConfig(t.Context(), rootDir, call)
 	diags = diags.Append(hclDiags)
 	return config, loader, diags
 }

@@ -453,7 +453,7 @@ func TestCloud_applyWithCloudPlan(t *testing.T) {
 		t.Fatalf("Couldn't read workspace: %s", err)
 	}
 
-	planRun, err := b.plan(context.Background(), context.Background(), op, ws)
+	planRun, err := b.plan(context.Background(), context.Background(), context.Background(), op, ws)
 	if err != nil {
 		t.Fatalf("Couldn't perform plan: %s", err)
 	}

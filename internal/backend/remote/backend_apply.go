@@ -14,13 +14,14 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
+func (b *Remote) opApply(ctx context.Context, stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
 	log.Printf("[INFO] backend/remote: starting Apply operation")
 
 	var diags tfdiags.Diagnostics
@@ -65,7 +66,7 @@ func (b *Remote) opApply(stopCtx, cancelCtx context.Context, op *backend.Operati
 		))
 	}
 
-	if b.hasExplicitVariableValues(op) {
+	if b.hasExplicitVariableValues(ctx, op) {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Run variables are currently not supported",

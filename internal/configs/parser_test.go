@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -50,7 +51,7 @@ func testModuleConfigFromFile(filename string) (*Config, hcl.Diagnostics) {
 	f, diags := parser.LoadConfigFile(filename)
 	mod, modDiags := NewModule([]*File{f}, nil, RootModuleCallForTesting(), filename, SelectiveLoadAll)
 	diags = append(diags, modDiags...)
-	cfg, moreDiags := BuildConfig(mod, nil)
+	cfg, moreDiags := BuildConfig(context.Background(), mod, nil)
 	return cfg, append(diags, moreDiags...)
 }
 
@@ -66,7 +67,7 @@ func testModuleFromDir(path string) (*Module, hcl.Diagnostics) {
 func testModuleConfigFromDir(path string) (*Config, hcl.Diagnostics) {
 	parser := NewParser(nil)
 	mod, diags := parser.LoadConfigDir(path, RootModuleCallForTesting())
-	cfg, moreDiags := BuildConfig(mod, nil)
+	cfg, moreDiags := BuildConfig(context.Background(), mod, nil)
 	return cfg, append(diags, moreDiags...)
 }
 
@@ -107,8 +108,8 @@ func testNestedModuleConfigFromDir(t *testing.T, path string) (*Config, hcl.Diag
 
 func buildNestedModuleConfig(mod *Module, path string, parser *Parser) (*Config, hcl.Diagnostics) {
 	versionI := 0
-	return BuildConfig(mod, ModuleWalkerFunc(
-		func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	return BuildConfig(context.Background(), mod, ModuleWalkerFunc(
+		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 			// For the sake of this test we're going to just treat our
 			// SourceAddr as a path relative to the calling module.
 			// A "real" implementation of ModuleWalker should accept the

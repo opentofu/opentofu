@@ -31,7 +31,7 @@ func TestChecksHappyPath(t *testing.T) {
 
 	/////////////////////////////////////////////////////////////////////////
 
-	cfg, hclDiags := loader.LoadConfig(fixtureDir, configs.RootModuleCallForTesting())
+	cfg, hclDiags := loader.LoadConfig(t.Context(), fixtureDir, configs.RootModuleCallForTesting())
 	if hclDiags.HasErrors() {
 		t.Fatalf("invalid configuration: %s", hclDiags.Error())
 	}

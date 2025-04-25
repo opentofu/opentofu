@@ -6,6 +6,7 @@
 package configload
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -15,15 +16,16 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/spf13/afero"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/modsdir"
-	"github.com/spf13/afero"
 )
 
 // LoadConfigWithSnapshot is a variant of LoadConfig that also simultaneously
 // creates an in-memory snapshot of the configuration files used, which can
 // be later used to create a loader that may read only from this snapshot.
-func (l *Loader) LoadConfigWithSnapshot(rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
+func (l *Loader) LoadConfigWithSnapshot(ctx context.Context, rootDir string, call configs.StaticModuleCall) (*configs.Config, *Snapshot, hcl.Diagnostics) {
 	rootMod, diags := l.parser.LoadConfigDir(rootDir, call)
 	if rootMod == nil {
 		return nil, nil, diags
@@ -33,7 +35,7 @@ func (l *Loader) LoadConfigWithSnapshot(rootDir string, call configs.StaticModul
 		Modules: map[string]*SnapshotModule{},
 	}
 	walker := l.makeModuleWalkerSnapshot(snap)
-	cfg, cDiags := configs.BuildConfig(rootMod, walker)
+	cfg, cDiags := configs.BuildConfig(ctx, rootMod, walker)
 	diags = append(diags, cDiags...)
 
 	addDiags := l.addModuleToSnapshot(snap, "", rootDir, "", nil)
@@ -135,8 +137,8 @@ func (s *Snapshot) moduleManifest() modsdir.Manifest {
 // source files from the referenced modules into the given snapshot.
 func (l *Loader) makeModuleWalkerSnapshot(snap *Snapshot) configs.ModuleWalker {
 	return configs.ModuleWalkerFunc(
-		func(req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
-			mod, v, diags := l.moduleWalkerLoad(req)
+		func(ctx context.Context, req *configs.ModuleRequest) (*configs.Module, *version.Version, hcl.Diagnostics) {
+			mod, v, diags := l.moduleWalkerLoad(ctx, req)
 			if diags.HasErrors() {
 				return mod, v, diags
 			}

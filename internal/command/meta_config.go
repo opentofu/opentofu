@@ -56,7 +56,7 @@ func (m *Meta) loadConfig(ctx context.Context, rootDir string) (*configs.Config,
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfig(rootDir, call)
+	config, hclDiags := loader.LoadConfig(ctx, rootDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }
@@ -79,7 +79,7 @@ func (m *Meta) loadConfigWithTests(ctx context.Context, rootDir, testDir string)
 		return nil, diags
 	}
 
-	config, hclDiags := loader.LoadConfigWithTests(rootDir, testDir, call)
+	config, hclDiags := loader.LoadConfigWithTests(ctx, rootDir, testDir, call)
 	diags = diags.Append(hclDiags)
 	return config, diags
 }

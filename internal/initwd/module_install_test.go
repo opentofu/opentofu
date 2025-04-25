@@ -76,7 +76,7 @@ func TestModuleInstaller(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -441,7 +441,7 @@ func TestModuleInstaller_symlink(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -597,7 +597,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -725,7 +725,7 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -785,7 +785,7 @@ func TestModuleInstaller_fromTests(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfigWithTests(".", "tests", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfigWithTests(t.Context(), ".", "tests", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	if config.Module.Tests[filepath.Join("tests", "main.tftest.hcl")].Runs[0].ConfigUnderTest == nil {
@@ -891,7 +891,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfigWithTests(".", "tests", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfigWithTests(t.Context(), ".", "tests", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	if config.Module.Tests["main.tftest.hcl"].Runs[0].ConfigUnderTest == nil {
