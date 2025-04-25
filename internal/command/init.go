@@ -17,8 +17,7 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
+	otelAttr "go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -36,6 +35,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
+	"github.com/opentofu/opentofu/internal/tracing"
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
@@ -46,6 +46,11 @@ type InitCommand struct {
 }
 
 func (c *InitCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
+	ctx, span := tracing.Tracer().Start(ctx, "Init")
+	defer span.End()
+
 	var flagFromModule, flagLockfile, testsDirectory string
 	var flagBackend, flagCloud, flagGet, flagUpgrade bool
 	var flagPluginPath FlagStringSlice
@@ -129,7 +134,7 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	// Initialization can be aborted by interruption signals
-	ctx, done := c.InterruptibleContext(c.CommandContext())
+	ctx, done := c.InterruptibleContext(ctx)
 	defer done()
 
 	// This will track whether we outputted anything so that we know whether
@@ -159,19 +164,19 @@ func (c *InitCommand) Run(args []string) int {
 			ShowLocalPaths: false, // since they are in a weird location for init
 		}
 
-		ctx, span := tracer.Start(ctx, "-from-module=...", trace.WithAttributes(
-			attribute.String("module_source", src),
+		ctx, span := tracing.Tracer().Start(ctx, "From module", trace.WithAttributes(
+			otelAttr.String("opentofu.module_source", src),
 		))
+		defer span.End()
 
 		initDirFromModuleAbort, initDirFromModuleDiags := c.initDirFromModule(ctx, path, src, hooks)
 		diags = diags.Append(initDirFromModuleDiags)
 		if initDirFromModuleAbort || initDirFromModuleDiags.HasErrors() {
 			c.showDiagnostics(diags)
-			span.SetStatus(codes.Error, "module installation failed")
+			tracing.SetSpanError(span, initDirFromModuleDiags)
 			span.End()
 			return 1
 		}
-		span.End()
 
 		c.Ui.Output("")
 	}
@@ -402,8 +407,8 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		return false, false, nil
 	}
 
-	ctx, span := tracer.Start(ctx, "install modules", trace.WithAttributes(
-		attribute.Bool("upgrade", upgrade),
+	ctx, span := tracing.Tracer().Start(ctx, "Get modules", trace.WithAttributes(
+		otelAttr.Bool("opentofu.modules.upgrade", upgrade),
 	))
 	defer span.End()
 
@@ -442,7 +447,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 }
 
 func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "initialize cloud backend")
+	ctx, span := tracing.Tracer().Start(ctx, "Cloud backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
 
@@ -470,7 +475,7 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 }
 
 func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "initialize backend")
+	ctx, span := tracing.Tracer().Start(ctx, "Backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
 
@@ -555,7 +560,7 @@ the backend configuration is present and valid.
 // Load the complete module tree, and fetch any missing providers.
 // This method outputs its own Ui.
 func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, state *states.State, upgrade bool, pluginDirs []string, flagLockfile string) (output, abort bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "install providers")
+	ctx, span := tracing.Tracer().Start(ctx, "Get Providers")
 	defer span.End()
 
 	// Dev overrides cause the result of "tofu init" to be irrelevant for
@@ -1035,7 +1040,7 @@ in the .terraform.lock.hcl file. Review those changes and commit them to your
 version control system if they represent changes you intended to make.`))
 		}
 
-		moreDiags = c.replaceLockedDependencies(newLocks)
+		moreDiags = c.replaceLockedDependencies(ctx, newLocks)
 		diags = diags.Append(moreDiags)
 	}
 

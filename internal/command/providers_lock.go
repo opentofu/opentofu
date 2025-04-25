@@ -331,7 +331,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		newLocks.SetProvider(provider, version, constraints, hashes)
 	}
 
-	moreDiags = c.replaceLockedDependencies(newLocks)
+	moreDiags = c.replaceLockedDependencies(ctx, newLocks)
 	diags = diags.Append(moreDiags)
 
 	c.showDiagnostics(diags)

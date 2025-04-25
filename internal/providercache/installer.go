@@ -15,11 +15,15 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/apparentlymart/go-versions/versions/constraints"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	copydir "github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // Installer is the main type in this package, representing a provider installer
@@ -439,20 +443,31 @@ func (i *Installer) ensureProviderVersionsInstall(
 	authResults := map[addrs.Provider]*getproviders.PackageAuthenticationResult{} // record auth results for all successfully fetched providers
 
 	for provider, version := range need {
-		if err := ctx.Err(); err != nil {
+		traceCtx, span := tracing.Tracer().Start(ctx,
+			"Install Provider",
+			trace.WithAttributes(
+				otelAttr.String(traceattrs.ProviderAddress, provider.String()),
+				otelAttr.String(traceattrs.ProviderVersion, version.String()),
+			),
+		)
+
+		if err := traceCtx.Err(); err != nil {
 			// If our context has been cancelled or reached a timeout then
 			// we'll abort early, because subsequent operations against
 			// that context will fail immediately anyway.
+			tracing.SetSpanError(span, err)
+			span.End()
 			return nil, err
 		}
 
-		authResult, err := i.ensureProviderVersionInstall(ctx, locks, reqs, mode, provider, version, targetPlatform)
+		authResult, err := i.ensureProviderVersionInstall(traceCtx, locks, reqs, mode, provider, version, targetPlatform)
 		if authResult != nil {
 			authResults[provider] = authResult
 		}
 		if err != nil {
 			errs[provider] = err
 		}
+		span.End()
 	}
 	return authResults, nil
 }
