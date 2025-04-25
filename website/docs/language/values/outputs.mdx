@@ -208,3 +208,38 @@ output "instance_ip_addr" {
 The `depends_on` argument should be used only as a last resort. When using it,
 always include a comment explaining why it is being used, to help future
 maintainers understand the purpose of the additional dependency.
+
+<a id="deprecated"></a>
+
+### `deprecated` — Marking output as deprecated
+
+:::warning
+This feature is considered experimental and the final UX may change in the future.
+:::
+
+The `deprecated` argument in a module output block indicates its deprecation and potential
+removal in the future. This attribute should contain non-empty string and should provide
+instructions on how to migrate away from usage of this module output. Here is an example of
+the configuration:
+
+```hcl
+output "examle" {
+  value      = "someval"
+  deprecated = "'examle' output must no longer be used due to a typo, use 'example' instead"
+}
+```
+
+The caller of the module will receive a warning, if the depreacted output is referenced in
+their configuration:
+
+```
+╷
+│ Warning: Value derived from a deprecated source
+│ 
+│   on main.tf line 45, in locals:
+│   45:   a = module.mod.examle
+│ 
+│ This value is derived from module.mod.examle, which is deprecated with the following message:
+│ 
+│ 'examle' output must no longer be used due to a typo, use 'example' instead
+```

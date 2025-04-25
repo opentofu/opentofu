@@ -84,6 +84,7 @@ OpenTofu CLI defines the following optional arguments for variable declarations:
 * [`validation`][inpage-validation] - A block to define validation rules, usually in addition to type constraints.
 * [`sensitive`][inpage-sensitive] - Limits OpenTofu UI output when the variable is used in configuration.
 * [`nullable`][inpage-nullable] - Specify if the variable can be `null` within the module.
+* [`deprecated`][inpage-deprecated] - Mark the variable as deprecated to warn callers about migration.
 
 ### Default values
 
@@ -294,6 +295,40 @@ The `nullable` argument only controls where the direct value of the variable may
 For variables of collection or structural types, such as lists or objects,
 the caller may still use `null` in nested elements or attributes, as long as
 the collection or structure itself is not null.
+
+### Marking variable as deprecated
+
+[inpage-deprecated]: #marking-variable-as-deprecated
+
+:::warning
+This feature is considered experimental and the final UX may change in the future.
+:::
+
+The `deprecated` argument in a variable block indicates its deprecation and potential
+removal in the future. This attribute should contain non-empty string and should provide
+instructions on how to migrate away from usage of this variable. Here is an example of the
+configuration:
+
+```hcl
+variable "examle" {
+  type       = string
+  deprecated = "'examle' variable must no longer be used due to a typo, use 'example' instead"
+}
+```
+
+The caller of the module will receive a warning, if the depreacted variable is used in
+their configuration:
+
+```
+╷
+│ Warning: The variable "examle" is marked as deprecated by module author
+│ 
+│   on main.tf line 3, in module "mod":
+│    3:   examle = "a"
+│ 
+│ This variable is marked as deprecated with the following message:
+│ 'examle' variable must no longer be used due to a typo, use 'example' instead
+```
 
 ## Using Input Variable Values
 
