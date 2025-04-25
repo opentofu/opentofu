@@ -95,14 +95,25 @@ func decodeRemovedBlock(removedBlock *hcl.Block) (*Removed, hcl.Diagnostics) {
 		}
 	}
 
-	if !diags.HasErrors() && !removed.DestroySet {
-		// This warning is necessary because of a difference in the default behavior of the removed block compared with other .tf files runners.
-		diags = append(diags, &hcl.Diagnostic{
-			Severity: hcl.DiagWarning,
-			Summary:  "Missing lifecycle from the removed block",
-			Detail:   "It is recommended for each 'removed' block configured to have also the 'lifecycle' block defined. By not specifying if the resource should be destroyed or not, could lead to unwanted behavior.",
-			Subject:  &removedBlock.DefRange,
-		})
+	if !diags.HasErrors() {
+		if !removed.DestroySet {
+			// This warning is necessary because of a difference in the default behavior of the removed block compared with other .tf files runners.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Missing lifecycle from the removed block",
+				Detail:   "It is recommended for each 'removed' block configured to have also the 'lifecycle' block defined. By not specifying if the resource should be destroyed or not, could lead to unwanted behavior.",
+				Subject:  &removedBlock.DefRange,
+			})
+		} else if removed.DestroySet && !removed.Destroy && len(removed.Provisioners) > 0 {
+			// Show a warning when a removed block is having provisioners configured but the removed.lifecycle.destroy = false,
+			// meaning that the provisioners will not be executed.
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Removed block provisioners will not be executed",
+				Detail:   "The 'removed' block has marked the resource to be forgotten and not destroyed. Therefore, the provisioners configured for it will not be executed.",
+				Subject:  &removedBlock.DefRange,
+			})
+		}
 	}
 	return removed, diags
 }

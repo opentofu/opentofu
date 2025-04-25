@@ -120,6 +120,72 @@ func TestRemovedBlock_decode(t *testing.T) {
 			``,
 			hcl.Diagnostics{},
 		},
+		"success-with-lifecycle-not-destroy-and-provisioner": {
+			&hcl.Block{
+				Type: "removed",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"from": {
+							Name: "from",
+							Expr: foo_expr,
+						},
+					},
+					Blocks: hcl.Blocks{
+						{
+							Type: "lifecycle",
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"destroy": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.BoolVal(false)}},
+								},
+							}),
+						},
+						{
+							Type:   "provisioner",
+							Labels: []string{"local-exec"},
+							LabelRanges: []hcl.Range{
+								{
+									Filename: "file",
+								},
+							},
+							Body: hcltest.MockBody(&hcl.BodyContent{
+								Attributes: hcl.Attributes{
+									"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
+									"when":    &hcl.Attribute{Expr: &hclsyntax.ScopeTraversalExpr{Traversal: hcl.Traversal{hcl.TraverseRoot{Name: "destroy"}}}},
+								},
+							}),
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Removed{
+				From:       mustRemoveEndpointFromExpr(foo_expr),
+				DeclRange:  blockRange,
+				Destroy:    false,
+				DestroySet: true,
+				Provisioners: []*Provisioner{
+					{
+						Type:      "local-exec",
+						When:      ProvisionerWhenDestroy,
+						OnFailure: ProvisionerOnFailureFail,
+						TypeRange: hcl.Range{Filename: "file"},
+						Config: hcltest.MockBody(&hcl.BodyContent{
+							Attributes: hcl.Attributes{
+								"command": &hcl.Attribute{Expr: &hclsyntax.LiteralValueExpr{Val: cty.StringVal("echo 'test'")}},
+							},
+							Blocks: make(hcl.Blocks, 0),
+						}),
+					},
+				},
+			},
+			``,
+			hcl.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Removed block provisioners will not be executed",
+				Detail:   "The 'removed' block has marked the resource to be forgotten and not destroyed. Therefore, the provisioners configured for it will not be executed.",
+				Subject:  &blockRange,
+			}),
+		},
 		"modules": {
 			&hcl.Block{
 				Type: "removed",
