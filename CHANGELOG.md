@@ -22,6 +22,7 @@ NEW FEATURES:
 - Backend `pg` now allows the `table_name` and `index_name` to be specified. This enables a single database schema to support multiple backends via multiple tables. ([#2465](https://github.com/opentofu/opentofu/pull/2465))
 - Module variables and outputs can now be marked as `deprecated` to indicate their removal in the future. ([#1005](https://github.com/opentofu/opentofu/issues/1005))
 - OpenTelemetry tracing has been added to the `init` command for provider installation. Note: This feature is experimental and subject to change in the future. ([#2665](https://github.com/opentofu/opentofu/pull/2665))
+- Global Provider Cache Locking is now supported ([#1878](https://github.com/opentofu/opentofu/pull/1878). As long as your filesystem supports file level locking, you can now run multiple instances of OpenTofu that use the same global provider file system cache without worrying about them clobbering each other.
 
 ENHANCEMENTS:
 
