@@ -11,9 +11,11 @@ import (
 	"testing"
 
 	"github.com/apparentlymart/go-dump/dump"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -282,13 +284,42 @@ func TestState_basic(t *testing.T) {
 			cty.NilVal,
 			true,
 		},
+		"deprecation marks": {
+			cty.ObjectVal(map[string]cty.Value{
+				"backend": cty.StringVal("local"),
+				"config": cty.ObjectVal(map[string]cty.Value{
+					"path": cty.StringVal("./testdata/deprecation_warnings.tfstate"),
+				}),
+			}),
+			cty.ObjectVal(map[string]cty.Value{
+				"backend": cty.StringVal("local"),
+				"config": cty.ObjectVal(map[string]cty.Value{
+					"path": cty.StringVal("./testdata/deprecation_warnings.tfstate"),
+				}),
+				"outputs": cty.ObjectVal(map[string]cty.Value{
+					"foo": marks.Deprecated(cty.StringVal("bar"), marks.DeprecationCause{
+						By: addrs.ResourceInstance{
+							Resource: addrs.Resource{
+								Mode: addrs.DataResourceMode,
+								Type: "terraform_remote_state",
+								Name: "test",
+							},
+						},
+						Message: "I am deprecated",
+					}),
+				}),
+				"defaults":  cty.NullVal(cty.DynamicPseudoType),
+				"workspace": cty.NullVal(cty.String),
+			}),
+			false,
+		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			schema := dataSourceRemoteStateGetSchema().Block
 			config, err := schema.CoerceValue(test.Config)
 			if err != nil {
-				t.Fatalf("unexpected error: %s", err)
+				t.Fatalf("unexpected error: %v", err)
 			}
 
 			diags := dataSourceRemoteStateValidate(config)
@@ -296,7 +327,15 @@ func TestState_basic(t *testing.T) {
 			var got cty.Value
 			if !diags.HasErrors() && config.IsWhollyKnown() {
 				var moreDiags tfdiags.Diagnostics
-				got, moreDiags = dataSourceRemoteStateRead(config, encryption.StateEncryptionDisabled())
+				got, moreDiags = dataSourceRemoteStateRead(config, encryption.StateEncryptionDisabled(), addrs.AbsResourceInstance{
+					Resource: addrs.ResourceInstance{
+						Resource: addrs.Resource{
+							Mode: addrs.DataResourceMode,
+							Type: "terraform_remote_state",
+							Name: "test",
+						},
+					},
+				})
 				diags = diags.Append(moreDiags)
 			}
 
@@ -305,7 +344,7 @@ func TestState_basic(t *testing.T) {
 					t.Fatal("succeeded; want error")
 				}
 			} else if diags.HasErrors() {
-				t.Fatalf("unexpected errors: %s", diags.Err())
+				t.Fatalf("unexpected errors: %v", diags.Err())
 			}
 
 			if test.Want != cty.NilVal && !test.Want.RawEquals(got) {

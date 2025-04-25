@@ -122,6 +122,45 @@ func TestNodeApplyableOutputExecute_sensitiveValueNotOutput(t *testing.T) {
 	}
 }
 
+func TestNodeApplyableOutputExecute_deprecatedOutput(t *testing.T) {
+	ctx := new(MockEvalContext)
+	ctx.StateState = states.NewState().SyncWrapper()
+	ctx.ChecksState = checks.NewState(nil)
+
+	config := &configs.Output{Name: "map-output"}
+	addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
+	node := &NodeApplyableOutput{Config: config, Addr: addr}
+	val := cty.MapVal(map[string]cty.Value{
+		"a": marks.Deprecated(cty.StringVal("b"), marks.DeprecationCause{}),
+	})
+	ctx.EvaluateExprResult = val
+
+	// We set a value with no deprecation marks to check if the marks
+	// will be updated in the state.
+	ctx.StateState.SetOutputValue(addr, marks.RemoveDeepDeprecated(val), false, "")
+
+	diags := node.Execute(ctx, walkApply)
+	if diags.HasErrors() {
+		t.Fatalf("Got unexpected error: %v", diags)
+	}
+
+	modOutputAddr, diags := addrs.ParseAbsOutputValueStr("output.map-output")
+	if diags.HasErrors() {
+		t.Fatalf("Invalid mod addr in test: %v", diags)
+	}
+
+	stateVal := ctx.StateState.OutputValue(modOutputAddr)
+
+	_, pvms := stateVal.Value.UnmarkDeepWithPaths()
+	if len(pvms) != 1 {
+		t.Fatalf("Expected a single mark to be present, got: %v", pvms)
+	}
+
+	if !marks.HasDeprecated(stateVal.Value.AsValueMap()["a"]) {
+		t.Fatalf("No deprecated mark found")
+	}
+}
+
 func TestNodeApplyableOutputExecute_alternativelyMarkedValue(t *testing.T) {
 	ctx := new(MockEvalContext)
 	ctx.StateState = states.NewState().SyncWrapper()
@@ -192,7 +231,7 @@ func TestNodeDestroyableOutputExecute(t *testing.T) {
 	outputAddr := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
 
 	state := states.NewState()
-	state.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false)
+	state.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false, "")
 	state.OutputValue(outputAddr)
 
 	ctx := &MockEvalContext{

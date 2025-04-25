@@ -513,7 +513,7 @@ func TestShow_state(t *testing.T) {
 		"attr": cty.NullVal(cty.DynamicPseudoType),
 		"null": cty.NullVal(cty.String),
 		"list": cty.ListVal([]cty.Value{cty.NullVal(cty.Number)}),
-	}), false)
+	}), false, "")
 
 	statePath := testStateFile(t, originalState)
 	defer os.RemoveAll(filepath.Dir(statePath))
@@ -1083,6 +1083,7 @@ func stateWithSensitiveValueForShow() *states.State {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			true,
+			"",
 		)
 	})
 	return state

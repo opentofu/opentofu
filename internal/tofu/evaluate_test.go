@@ -123,13 +123,13 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 				OutputValue: addrs.OutputValue{
 					Name: "some_output",
 				},
-			}, cty.StringVal("first"), true)
+			}, cty.StringVal("first"), true, "")
 			state.SetOutputValue(addrs.AbsOutputValue{
 				Module: addrs.RootModuleInstance,
 				OutputValue: addrs.OutputValue{
 					Name: "some_other_output",
 				},
-			}, cty.StringVal("second"), false)
+			}, cty.StringVal("second"), false, "")
 		}).SyncWrapper(),
 	}
 
@@ -550,6 +550,7 @@ func TestEvaluatorGetModule(t *testing.T) {
 			addrs.OutputValue{Name: "out"}.Absolute(addrs.ModuleInstance{addrs.ModuleInstanceStep{Name: "mod"}}),
 			cty.StringVal("bar"),
 			true,
+			"",
 		)
 	}).SyncWrapper()
 	evaluator := evaluatorForModule(stateSync, plans.NewChanges().SyncWrapper())

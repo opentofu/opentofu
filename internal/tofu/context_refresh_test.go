@@ -995,7 +995,7 @@ func TestContext2Refresh_output(t *testing.T) {
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
 	testSetResourceInstanceCurrent(root, "aws_instance.web", `{"id":"foo","foo":"bar"}`, `provider["registry.opentofu.org/hashicorp/aws"]`)
-	root.SetOutputValue("foo", cty.StringVal("foo"), false)
+	root.SetOutputValue("foo", cty.StringVal("foo"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
