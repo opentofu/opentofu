@@ -1179,6 +1179,19 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args:     "2.1.0",
 						},
 						{
+							Event:    "FetchPackageMeta",
+							Provider: beepProvider,
+							Args:     "2.1.0",
+						},
+						{
+							Event:    "FetchPackageBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Version  string
+								Location getproviders.PackageLocation
+							}{"2.1.0", beepProviderDir},
+						},
+						{
 							Event:    "LinkFromCacheBegin",
 							Provider: beepProvider,
 							Args: struct {
@@ -1187,6 +1200,17 @@ func TestEnsureProviderVersions(t *testing.T) {
 							}{
 								"2.1.0",
 								inst.globalCacheDir.BasePath(),
+							},
+						},
+						{
+							Event:    "LinkFromCacheSuccess",
+							Provider: beepProvider,
+							Args: struct {
+								Version  string
+								LocalDir string
+							}{
+								"2.1.0",
+								filepath.Join(dir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
 							},
 						},
 						{
@@ -1205,14 +1229,16 @@ func TestEnsureProviderVersions(t *testing.T) {
 							},
 						},
 						{
-							Event:    "LinkFromCacheSuccess",
+							Event:    "FetchPackageSuccess",
 							Provider: beepProvider,
 							Args: struct {
-								Version  string
-								LocalDir string
+								Version    string
+								LocalDir   string
+								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								"unauthenticated",
 							},
 						},
 					},
@@ -1329,18 +1355,20 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args:     "2.1.0",
 						},
 						{
-							Event:    "LinkFromCacheBegin",
+							Event:    "FetchPackageMeta",
 							Provider: beepProvider,
-							Args: struct {
-								Version   string
-								CacheRoot string
-							}{
-								"2.1.0",
-								inst.globalCacheDir.BasePath(),
-							},
+							Args:     "2.1.0",
 						},
 						{
-							Event:    "LinkFromCacheFailure",
+							Event:    "FetchPackageBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Version  string
+								Location getproviders.PackageLocation
+							}{"2.1.0", beepProviderDir},
+						},
+						{
+							Event:    "FetchPackageFailure",
 							Provider: beepProvider,
 							Args: struct {
 								Version string
@@ -1348,8 +1376,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							}{
 								"2.1.0",
 								fmt.Sprintf(
-									"the provider cache at %s has a copy of example.com/foo/beep 2.1.0 that doesn't match any of the checksums recorded in the dependency lock file",
-									dir.BasePath(),
+									"the local package for %s 2.1.0 doesn't match any of the checksums previously recorded in the dependency lock file (this might be because the available checksums are for packages targeting different platforms); for more information: https://opentofu.org/docs/language/files/dependency-lock/#checksum-verification",
+									beepProvider,
 								),
 							},
 						},

@@ -26,7 +26,7 @@ import (
 // in the set must match the package that "entry" refers to. If none of the
 // hashes match then the returned error message assumes that the hashes came
 // from a lock file.
-func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta, allowedHashes []getproviders.Hash, canIgnoreHashes bool) (*getproviders.PackageAuthenticationResult, error) {
+func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta, allowedHashes []getproviders.Hash, allowSkippingInstallWithoutHashes bool) (*getproviders.PackageAuthenticationResult, error) {
 	if meta.TargetPlatform != d.targetPlatform {
 		return nil, fmt.Errorf("can't install %s package into cache directory expecting %s", meta.TargetPlatform, d.targetPlatform)
 	}
@@ -44,12 +44,13 @@ func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta,
 
 	// Check to see if it is already installed
 	if entry := d.ProviderVersion(meta.Provider, meta.Version); entry != nil {
+		if allowSkippingInstallWithoutHashes && len(allowedHashes) == 0 {
+			return nil, nil
+		}
+
 		if matches, err := entry.MatchesAnyHash(allowedHashes); err == nil && matches {
 			// No auth result needed, package is valid
 			return getproviders.NewPackageHashAuthentication(meta.TargetPlatform, allowedHashes).AuthenticatePackage(entry.PackageLocation())
-		}
-		if canIgnoreHashes {
-			return nil, nil
 		}
 	}
 

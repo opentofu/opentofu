@@ -541,8 +541,8 @@ func (i *Installer) ensureProviderVersionInstall(
 		allowedHashes = []getproviders.Hash{}
 	}
 
-	canIgnoreHashes := i.globalCacheDirMayBreakDependencyLockFile && i.globalCacheDir != nil
-	authResult, err := installTo.InstallPackage(ctx, meta, allowedHashes, canIgnoreHashes)
+	allowSkippingInstallWithoutHashes := i.globalCacheDirMayBreakDependencyLockFile && i.globalCacheDir != nil
+	authResult, err := installTo.InstallPackage(ctx, meta, allowedHashes, allowSkippingInstallWithoutHashes)
 	if err != nil {
 		// TODO: Consider retrying for certain kinds of error that seem
 		// likely to be transient. For now, we just treat all errors equally.
@@ -579,6 +579,9 @@ func (i *Installer) ensureProviderVersionInstall(
 			if cb := evts.LinkFromCacheFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			if cb := evts.FetchPackageFailure; cb != nil {
+				cb(provider, version, fmt.Errorf("installation failed due issues encountered using the cache"))
+			}
 			return nil, err
 		}
 
@@ -592,12 +595,18 @@ func (i *Installer) ensureProviderVersionInstall(
 			if cb := evts.LinkFromCacheFailure; cb != nil {
 				cb(provider, version, err)
 			}
+			if cb := evts.FetchPackageFailure; cb != nil {
+				cb(provider, version, fmt.Errorf("installation failed due issues encountered using the cache"))
+			}
 			return nil, err
 		}
 		if _, err := new.ExecutableFile(); err != nil {
 			err := fmt.Errorf("provider binary not found: %w", err)
 			if cb := evts.LinkFromCacheFailure; cb != nil {
 				cb(provider, version, err)
+			}
+			if cb := evts.FetchPackageFailure; cb != nil {
+				cb(provider, version, fmt.Errorf("installation failed due issues encountered using the cache"))
 			}
 			return nil, err
 		}
