@@ -92,6 +92,14 @@ only load `main.tofutest.json` and ignore `main.tftest.json`.
   working directory.
 * `-filter=testfile` Specify an individual test file to run. Use this option multiple times to specify more than one
   file. The path should be relative to the current working directory.
+:::warning
+
+If `-filter` is used alongside `-test-directory=path`, any filters for test files in the \<test-directory\> must be prepended by the \<test-directory\>, as in:
+
+```
+tofu test -test-directory=extra-tests -filter=extra-tests/a.tftest.hcl
+```
+:::
 * `-var 'foo=bar'` Set an input variable of the root module. Specify this option multiple times to add more
   than one variable.
 * `-var-file=filename` Set multiple variables from the specified file. In addition to this file, OpenTofu automatically
