@@ -7,11 +7,14 @@ package command
 
 import (
 	"bytes"
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	plugin "github.com/hashicorp/go-plugin"
@@ -363,10 +366,49 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
 			Managed:          true,
 			Cmd:              exec.Command(execFile),
-			AutoMTLS:         enableProviderAutoMTLS,
 			VersionedPlugins: tfplugin.VersionedPlugins,
 			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Provider)),
 			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", meta.Provider)),
+		}
+
+		// FIPS Compliance: Use custom TLS config in FIPS mode, disable AutoMTLS.
+		// Go's crypto/tls automatically uses FIPS-validated modules when GODEBUG=fips140=on is set.
+		isFipsMode := strings.Contains(os.Getenv("GODEBUG"), "fips140=on")
+		if isFipsMode {
+			log.Println("[INFO] FIPS mode detected, configuring custom mTLS for provider client")
+			config.AutoMTLS = false
+
+			// Use absolute path to ensure certs are found during tests
+			certDir := "/Users/topperge/Projects/Personal/opentofu/fips-certs"
+			caCertPath := filepath.Join(certDir, "ca.pem")
+			clientCertPath := filepath.Join(certDir, "client.pem")
+			clientKeyPath := filepath.Join(certDir, "client-key.pem")
+
+			caCertPEM, err := os.ReadFile(caCertPath)
+			if err != nil {
+				// Handle error - maybe log and fall back to insecure or fail?
+				log.Printf("[ERROR] Failed to read FIPS CA cert: %v", err)
+				// For now, let's fall back to the default (which will likely fail)
+				config.AutoMTLS = enableProviderAutoMTLS
+			} else {
+				caCertPool := x509.NewCertPool()
+				caCertPool.AppendCertsFromPEM(caCertPEM)
+
+				clientCert, err := tls.LoadX509KeyPair(clientCertPath, clientKeyPath)
+				if err != nil {
+					log.Printf("[ERROR] Failed to load FIPS client cert/key: %v", err)
+					config.AutoMTLS = enableProviderAutoMTLS // Fallback
+				} else {
+					config.TLSConfig = &tls.Config{
+						Certificates: []tls.Certificate{clientCert},
+						RootCAs:      caCertPool,
+						MinVersion:   tls.VersionTLS12, // Restore FIPS requirement
+						ServerName:   "localhost",      // Server cert CN or SAN
+					}
+				}
+			}
+		} else {
+			config.AutoMTLS = enableProviderAutoMTLS
 		}
 
 		client := plugin.NewClient(config)

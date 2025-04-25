@@ -217,8 +217,12 @@
       {
         "title": "Environment Variables",
         "path": "cli/config/environment-variables"
-      }
-    ]
+       },
+       {
+        "title": "FIPS Mode (Experimental)",
+        "path": "usage/fips"
+       }
+      ]
   },
   {
     "title": "Using Cloud Backend",

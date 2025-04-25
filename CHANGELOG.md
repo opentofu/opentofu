@@ -12,6 +12,7 @@ UPGRADE NOTES:
 
 NEW FEATURES:
 
+* **Experimental: FIPS 140-3 Mode Support:** OpenTofu can now optionally be run in a mode that utilizes FIPS 140-3 validated cryptographic modules provided by the underlying Go 1.24+ runtime. This helps organizations meet certain compliance requirements by ensuring only approved cryptographic algorithms are used for operations like TLS connections. To enable FIPS mode, ensure your OpenTofu binary was built with Go 1.24 or later and set the environment variable `GODEBUG=fips140=on` before running `tofu` commands. **Important Limitation:** Due to current limitations in the underlying OpenPGP library, GPG signature validation for provider packages is **automatically skipped** when FIPS mode is enabled. A warning will be logged when this occurs. In this mode, provider integrity relies on the secure TLS connection to the registry. See the [FIPS Mode documentation](./docs/usage/fips.md) for more details.
 - Can now use OCI Registries as a new kind of provider mirror. ([#2540](https://github.com/opentofu/opentofu/issues/2540))
 - Can now install module packages from OCI Registries using the new `oci:` source address scheme. ([#2540](https://github.com/opentofu/opentofu/issues/2540))
 - New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
