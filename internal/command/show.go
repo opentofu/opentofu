@@ -24,7 +24,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
-	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -397,11 +396,10 @@ func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, re
 // the state file being nil, since that's more convenient for the
 // "tofu show" methods that may or may not have a state file to use.
 func (c *ShowCommand) maybeGetSchemas(stateFile *statefile.File, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
-	var state *states.State
-	if stateFile != nil {
-		state = stateFile.State
+	if stateFile == nil {
+		return nil, nil
 	}
-	return c.MaybeGetSchemas(state, config)
+	return c.MaybeGetSchemas(stateFile.State, config)
 }
 
 // getDataFromPlanfileReader returns a plan, statefile, and config, extracted from a local plan file.
