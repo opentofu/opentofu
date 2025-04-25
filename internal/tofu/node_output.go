@@ -531,6 +531,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// if this is a root module, try to get a before value from the state for
 		// the diff
 		sensitiveBefore := false
+		deprecatedBefore := ""
 		before := cty.NullVal(cty.DynamicPseudoType)
 
 		// is this output new to our state?
@@ -542,6 +543,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 				if name == n.Addr.OutputValue.Name {
 					before = o.Value
 					sensitiveBefore = o.Sensitive
+					deprecatedBefore = o.Deprecated
 					newOutput = false
 					break
 				}
@@ -558,9 +560,12 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		action := plans.Update
 		switch {
-		case val.IsNull() && before.IsNull():
+		case val.IsNull() && before.IsNull() &&
+			n.Config.Deprecated == deprecatedBefore:
 			// This is separate from the NoOp case below, since we can ignore
 			// sensitivity here when there are only null values.
+			// However, we still need to ensure deprecation update is going to
+			// be written.
 			action = plans.NoOp
 
 		case newOutput:
@@ -569,8 +574,9 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		case val.IsWhollyKnown() &&
 			unmarkedVal.Equals(before).True() &&
-			n.Config.Sensitive == sensitiveBefore:
-			// Sensitivity must also match to be a NoOp.
+			n.Config.Sensitive == sensitiveBefore &&
+			n.Config.Deprecated == deprecatedBefore:
+			// Sensitivity and deprecation must also match to be a NoOp.
 			// Theoretically marks may not match here, but sensitivity is the
 			// only one we can act on, and the state will have been loaded
 			// without any marks to consider.
@@ -627,5 +633,5 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		val = cty.UnknownAsNull(val).MarkWithPaths(pvms)
 	}
 
-	state.SetOutputValue(n.Addr, val, n.Config.Sensitive)
+	state.SetOutputValue(n.Addr, val, n.Config.Sensitive, n.Config.Deprecated)
 }

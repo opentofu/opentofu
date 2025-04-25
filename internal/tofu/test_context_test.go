@@ -167,7 +167,7 @@ run "test_case" {
 			},
 			state: states.BuildState(func(state *states.SyncState) {
 				outputAddr, _ := addrs.ParseAbsOutputValueStr("module.mod.output.a")
-				state.SetOutputValue(outputAddr, cty.StringVal("a"), false)
+				state.SetOutputValue(outputAddr, cty.StringVal("a"), false, "Don't use me")
 			}),
 			provider:       &MockProvider{},
 			expectedStatus: moduletest.Pass,

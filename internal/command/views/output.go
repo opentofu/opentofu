@@ -220,9 +220,10 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 	// for compatibility, so this is an emulation of the JSON
 	// serialization of outputs used in state format version 3.
 	type OutputMeta struct {
-		Sensitive bool            `json:"sensitive"`
-		Type      json.RawMessage `json:"type"`
-		Value     json.RawMessage `json:"value"`
+		Sensitive  bool            `json:"sensitive"`
+		Deprecated string          `json:"deprecated,omitempty"`
+		Type       json.RawMessage `json:"type"`
+		Value      json.RawMessage `json:"value"`
 	}
 	outputMetas := map[string]OutputMeta{}
 
@@ -238,9 +239,10 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 			return diags
 		}
 		outputMetas[n] = OutputMeta{
-			Sensitive: os.Sensitive,
-			Type:      json.RawMessage(jsonType),
-			Value:     json.RawMessage(jsonVal),
+			Sensitive:  os.Sensitive,
+			Deprecated: os.Deprecated,
+			Type:       json.RawMessage(jsonType),
+			Value:      json.RawMessage(jsonVal),
 		}
 	}
 

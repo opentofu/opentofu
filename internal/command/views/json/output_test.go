@@ -43,6 +43,12 @@ func TestOutputsFromMap(t *testing.T) {
 		"honk": {
 			Value: cty.NullVal(cty.Map(cty.Bool)),
 		},
+		// Deprecated string output
+		"bloompypoo": {
+			// DeprecationCause is irrelevant for this test
+			Value:      marks.Deprecated(cty.NumberIntVal(1234), marks.DeprecationCause{}),
+			Deprecated: "deprecated",
+		},
 	})
 	if len(diags) > 0 {
 		t.Fatal(diags.Err())
@@ -66,6 +72,12 @@ func TestOutputsFromMap(t *testing.T) {
 			Sensitive: false,
 			Type:      json.RawMessage(`["map","bool"]`),
 			Value:     json.RawMessage(`null`),
+		},
+		"bloompypoo": {
+			Sensitive:  false,
+			Type:       json.RawMessage(`"number"`),
+			Value:      json.RawMessage(`1234`),
+			Deprecated: "deprecated",
 		},
 	}
 

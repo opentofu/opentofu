@@ -58,6 +58,11 @@ type ResourceInstanceObjectSrc struct {
 	// state, or to save as sensitive paths when saving state
 	AttrSensitivePaths []cty.PathValueMarks
 
+	// TransientPathValueMarks helps propagate all the marks (including
+	// non-sensitive ones) through the internal representation of a state,
+	// without being serialized into the final state file.
+	TransientPathValueMarks []cty.PathValueMarks
+
 	// These fields all correspond to the fields of the same name on
 	// ResourceInstanceObject.
 	Private             []byte
@@ -87,6 +92,9 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 		}
 	} else {
 		val, err = ctyjson.Unmarshal(os.AttrsJSON, ty)
+		if os.TransientPathValueMarks != nil {
+			val = val.MarkWithPaths(os.TransientPathValueMarks)
+		}
 		// Mark the value with paths if applicable
 		if os.AttrSensitivePaths != nil {
 			val = val.MarkWithPaths(os.AttrSensitivePaths)
