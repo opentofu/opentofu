@@ -11,6 +11,7 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
@@ -26,8 +27,15 @@ const (
 	keyEnvPrefix = "env:"
 )
 
+// getContextWithTimeout returns a context with timeout based on the timeoutSeconds
+func (b *Backend) getContextWithTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), time.Duration(b.armClient.timeoutSeconds)*time.Second)
+}
+
 func (b *Backend) Workspaces() ([]string, error) {
-	ctx := context.TODO()
+	ctx, cancel := b.getContextWithTimeout()
+	defer cancel()
+
 	client, err := b.armClient.getContainersClient(ctx)
 	if err != nil {
 		return nil, err
@@ -64,8 +72,8 @@ func (b *Backend) Workspaces() ([]string, error) {
 		}
 
 		count++
-		if *params.Marker == "" {
-			break;
+		if params.Marker == nil || *params.Marker == "" {
+			break
 		}
 	}
 
@@ -78,7 +86,8 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 		return fmt.Errorf("can't delete default state")
 	}
 
-	ctx := context.TODO()
+	ctx, cancel := b.getContextWithTimeout()
+	defer cancel()
 	client, err := b.armClient.getBlobClient(ctx)
 	if err != nil {
 		return err
@@ -94,7 +103,9 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 }
 
 func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
-	ctx := context.TODO()
+	ctx, cancel := b.getContextWithTimeout()
+	defer cancel()
+
 	blobClient, err := b.armClient.getBlobClient(ctx)
 	if err != nil {
 		return nil, err
