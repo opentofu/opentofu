@@ -407,7 +407,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		return false, false, nil
 	}
 
-	ctx, span := tracing.Tracer().Start(ctx, "Get modules", trace.WithAttributes(
+	ctx, span := tracing.Tracer().Start(ctx, "Get Modules", trace.WithAttributes(
 		otelAttr.Bool("opentofu.modules.upgrade", upgrade),
 	))
 	defer span.End()

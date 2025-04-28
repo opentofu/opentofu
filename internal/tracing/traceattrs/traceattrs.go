@@ -15,4 +15,5 @@ const (
 
 	ModuleName    = "opentofu.module.name"
 	ModuleAddress = "opentofu.module.address"
+	ModuleVersion = "opentofu.module.version"
 )

@@ -9,12 +9,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
 
 	cleanhttp "github.com/hashicorp/go-cleanhttp"
 	getter "github.com/hashicorp/go-getter"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+
 	"github.com/opentofu/opentofu/internal/copy"
 )
 
@@ -109,7 +112,9 @@ var goGetterGetters = map[string]getter.Getter{
 	"s3":    new(getter.S3Getter),
 }
 
-var getterHTTPClient = cleanhttp.DefaultClient()
+var getterHTTPClient = &http.Client{
+	Transport: otelhttp.NewTransport(cleanhttp.DefaultTransport()),
+}
 
 var getterHTTPGetter = &getter.HttpGetter{
 	Client:             getterHTTPClient,

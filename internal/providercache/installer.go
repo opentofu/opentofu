@@ -449,7 +449,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 
 	for provider, version := range need {
 		traceCtx, span := tracing.Tracer().Start(ctx,
-			"Install Provider",
+			fmt.Sprintf("Install Provider %q", provider.String()),
 			trace.WithAttributes(
 				otelAttr.String(traceattrs.ProviderAddress, provider.String()),
 				otelAttr.String(traceattrs.ProviderVersion, version.String()),
