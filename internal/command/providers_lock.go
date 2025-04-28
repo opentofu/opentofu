@@ -10,11 +10,14 @@ import (
 	"net/url"
 	"os"
 
+	otelAttr "go.opentelemetry.io/otel/attribute"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 type providersLockChangeType string
@@ -39,6 +42,10 @@ func (c *ProvidersLockCommand) Synopsis() string {
 }
 
 func (c *ProvidersLockCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+	ctx, span := tracing.Tracer().Start(ctx, "Providers lock")
+	defer span.End()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers lock")
 	c.Meta.varFlagSet(cmdFlags)
@@ -54,6 +61,14 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		return 1
 	}
 
+	span.SetAttributes(otelAttr.StringSlice("opentofu.provider.lock.targetplatforms", optPlatforms))
+	if fsMirrorDir != "" {
+		span.SetAttributes(otelAttr.String("opentofu.provider.lock.fsmirror", fsMirrorDir))
+	}
+	if netMirrorURL != "" {
+		span.SetAttributes(otelAttr.String("opentofu.provider.lock.netmirror", netMirrorURL))
+	}
+
 	var diags tfdiags.Diagnostics
 
 	if fsMirrorDir != "" && netMirrorURL != "" {
@@ -63,6 +78,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			"The -fs-mirror and -net-mirror command line options are mutually-exclusive.",
 		))
 		c.showDiagnostics(diags)
+		tracing.SetSpanError(span, diags)
 		return 1
 	}
 
@@ -71,6 +87,9 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	var platforms []getproviders.Platform
 	if len(optPlatforms) == 0 {
 		platforms = []getproviders.Platform{getproviders.CurrentPlatform}
+		span.SetAttributes(
+			otelAttr.StringSlice("opentofu.provider.lock.targetplatforms", []string{getproviders.CurrentPlatform.String()}),
+		)
 	} else {
 		platforms = make([]getproviders.Platform, 0, len(optPlatforms))
 		for _, platformStr := range optPlatforms {
@@ -88,7 +107,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	}
 
 	// Installation steps can be cancelled by SIGINT and similar.
-	ctx, done := c.InterruptibleContext(c.CommandContext())
+	ctx, done := c.InterruptibleContext(ctx)
 	defer done()
 
 	// Unlike other commands, this command ignores the installation methods
@@ -111,6 +130,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 				"Invalid network mirror URL",
 				"The -net-mirror option requires a valid https: URL as the mirror base URL.",
 			))
+			tracing.SetSpanError(span, diags)
 			c.showDiagnostics(diags)
 			return 1
 		}
@@ -173,6 +193,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 
 	// If we have any error diagnostics already then we won't proceed further.
 	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		c.showDiagnostics(diags)
 		return 1
 	}

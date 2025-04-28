@@ -188,6 +188,9 @@ func (i *Installer) SetUnmanagedProviderTypes(types map[addrs.Provider]struct{})
 // in the final returned error value so callers should show either one or the
 // other, and not both.
 func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.Locks, reqs getproviders.Requirements, mode InstallMode) (*depsfile.Locks, error) {
+	ctx, span := tracing.Tracer().Start(ctx, "Install Providers") // TODO: Discuss span name
+	defer span.End()
+
 	evts := installerEventsForContext(ctx)
 
 	// Whenever possible we prefer to collect separate errors for each
@@ -233,6 +236,8 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 	// Step 3: For each provider version we've decided we need to install,
 	// install its package into our target cache (possibly via the global cache).
 	targetPlatform := i.targetDir.targetPlatform // we inherit this to behave correctly in unit tests
+	span.SetAttributes(otelAttr.String(traceattrs.TargetPlatform, targetPlatform.String()))
+	span.SetName("Install Providers - " + targetPlatform.String())
 	authResults, err := i.ensureProviderVersionsInstall(ctx, locks, reqs, mode, need, targetPlatform, errs)
 	if err != nil {
 		return nil, err
@@ -448,6 +453,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 			trace.WithAttributes(
 				otelAttr.String(traceattrs.ProviderAddress, provider.String()),
 				otelAttr.String(traceattrs.ProviderVersion, version.String()),
+				otelAttr.String(traceattrs.TargetPlatform, targetPlatform.String()),
 			),
 		)
 
