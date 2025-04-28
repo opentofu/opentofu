@@ -365,36 +365,33 @@ func (i *Installer) ensureProviderVersionsNeed(
 	errs map[addrs.Provider]error,
 ) (map[addrs.Provider]getproviders.Version, error) {
 	evts := installerEventsForContext(ctx)
-	need := map[addrs.Provider]getproviders.Version{}
-NeedProvider:
 
-	for provider, acceptableVersions := range mightNeed {
-		if err := ctx.Err(); err != nil {
-			// If our context has been cancelled or reached a timeout then
-			// we'll abort early, because subsequent operations against
-			// that context will fail immediately anyway.
-			return nil, err
-		}
+	if err := ctx.Err(); err != nil {
+		// If our context has been cancelled or reached a timeout then
+		// we'll abort early, because subsequent operations against
+		// that context will fail immediately anyway.
+		return nil, err
+	}
+
+	computeNeeds := func(provider addrs.Provider, acceptableVersions getproviders.VersionSet) (getproviders.Version, error) {
 		if cb := evts.QueryPackagesBegin; cb != nil {
 			cb(provider, reqs[provider], locked[provider])
 		}
 		// Version 0.0.0 not supported
 		if err := checkUnspecifiedVersion(acceptableVersions); err != nil {
-			errs[provider] = err
 			if cb := evts.QueryPackagesFailure; cb != nil {
 				cb(provider, err)
 			}
-			continue
+			return getproviders.Version{}, err
 		}
 
 		available, warnings, err := i.source.AvailableVersions(ctx, provider)
 		if err != nil {
-			errs[provider] = err
 			if cb := evts.QueryPackagesFailure; cb != nil {
 				cb(provider, err)
 			}
 			// We will take no further actions for this provider.
-			continue
+			return getproviders.Version{}, err
 		}
 		if len(warnings) > 0 {
 			if cb := evts.QueryPackagesWarning; cb != nil {
@@ -404,11 +401,10 @@ NeedProvider:
 		available.Sort()                           // put the versions in increasing order of precedence
 		for i := len(available) - 1; i >= 0; i-- { // walk backwards to consider newer versions first
 			if acceptableVersions.Has(available[i]) {
-				need[provider] = available[i]
 				if cb := evts.QueryPackagesSuccess; cb != nil {
 					cb(provider, available[i])
 				}
-				continue NeedProvider
+				return available[i], nil
 			}
 		}
 		// If we get here then the source has no packages that meet the given
@@ -424,10 +420,37 @@ NeedProvider:
 			log.Printf("[DEBUG] %s", err.Error())
 			log.Printf("[DEBUG] Available releases: %s", available)
 		}
-		errs[provider] = err
 		if cb := evts.QueryPackagesFailure; cb != nil {
 			cb(provider, err)
 		}
+		return getproviders.Version{}, err
+	}
+
+	type providerNeeds struct {
+		provider addrs.Provider
+		version  getproviders.Version
+		err      error
+	}
+	results := make(chan providerNeeds, len(mightNeed))
+	for provider, acceptableVersions := range mightNeed {
+		go func(provider addrs.Provider, acceptableVersions getproviders.VersionSet) {
+			version, err := computeNeeds(provider, acceptableVersions)
+			results <- providerNeeds{
+				provider: provider,
+				version:  version,
+				err:      err,
+			}
+		}(provider, acceptableVersions)
+	}
+
+	need := map[addrs.Provider]getproviders.Version{}
+	for _ = range mightNeed {
+		r := <-results
+		if r.err != nil {
+			errs[r.provider] = r.err
+			continue
+		}
+		need[r.provider] = r.version
 	}
 
 	return need, nil
