@@ -10,4 +10,6 @@ const (
 
 	ProviderAddress = "opentofu.provider.address"
 	ProviderVersion = "opentofu.provider.version"
+
+	TargetPlatform = "opentofu.target_platform"
 )
