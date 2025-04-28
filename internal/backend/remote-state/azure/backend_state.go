@@ -33,45 +33,42 @@ func (b *Backend) Workspaces() ([]string, error) {
 		return nil, err
 	}
 
-	// Used to paginate blobs, saving the NextMarker result from ListBlobs
 	count := 1
-	envs := map[string]struct{}{}
 	prefix := b.keyName + keyEnvPrefix
 	params := containers.ListBlobsInput{
 		Prefix: &prefix,
 	}
+	result := []string{backend.DefaultStateName}
 
 	for {
-
 		log.Printf("[TRACE] Getting page %d of blob results", count)
 		resp, err := client.ListBlobs(ctx, b.armClient.storageAccountName, b.containerName, params)
 		if err != nil {
 			return nil, err
 		}
 
+		// Used to paginate blobs, saving the NextMarker result from ListBlobs
 		params.Marker = resp.NextMarker
 		for _, obj := range resp.Blobs.Blobs {
 			key := obj.Name
-			if strings.HasPrefix(key, prefix) {
-				name := strings.TrimPrefix(key, prefix)
-				// we store the state in a key, not a directory
-				if strings.Contains(name, "/") {
-					continue
-				}
-				envs[name] = struct{}{}
+			if !strings.HasPrefix(key, prefix) {
+				continue
 			}
+
+			name := strings.TrimPrefix(key, prefix)
+			// we store the state in a key, not a directory
+			if strings.Contains(name, "/") {
+				continue
+			}
+			result = append(result, name)
 		}
 
 		count++
-		if *resp.NextMarker == "" {
+		if *params.Marker == "" {
 			break;
 		}
 	}
 
-	result := []string{backend.DefaultStateName}
-	for name := range envs {
-		result = append(result, name)
-	}
 	sort.Strings(result[1:])
 	return result, nil
 }
