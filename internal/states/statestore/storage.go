@@ -54,22 +54,23 @@ type Storage interface {
 	// unlock each of the requested keys independently of the others as long
 	// as all are unlocked before the program terminates.
 	//
-	// Implementations are required to allow nested locks to be acquired by
-	// different calls to the same [Storage] object, such as by tracking an
-	// active lock count for each key and releasing the lock as observed by
-	// other clients only when the lock count returns to zero.
+	// Implementations are not required to allow nested locks to be acquired
+	// on the same keys by different calls on the same [Storage] object.
+	// This may be handled by deadlocking, by returning an error, or by
+	// panicking, since it's always a bug in the caller.
 	//
-	// If any of the requests conflict with already-active locks then the
-	// call must block until either all requested objects become available
-	// or until the given context is cancelled. If returning due to context
-	// cancellation then the returned error must be either [context.Canceled]
-	// or [context.DeadlineExceeded] as appropriate for the cancellation type.
+	// Similarly, it is a bug in the caller to include the same key in both the
+	// "shared" and "exclusive" sets, or to otherwise request an exclusive lock
+	// when already holding a shared lock for the same key. Storage
+	// implementations may handle that either by deadlocking, by panicking, or
+	// by returning an error.
 	//
-	// It is a bug in the caller to include the same key in both the "shared"
-	// and "exclusive" sets, or to otherwise request an exclusive lock when
-	// already holding a shared lock for the same key. Storage implementations
-	// may handle that either by deadlocking, by panicking, or by returning
-	// an error.
+	// If any of the requests conflict with already-active locks acquired by
+	// other instances of the same implementation then the call must block
+	// until either all requested objects become available or until the given
+	// context is cancelled. If returning due to context cancellation then the
+	// returned error must be either [context.Canceled] or
+	// [context.DeadlineExceeded] as appropriate for the cancellation type.
 	//
 	// FIXME: After some further design iteration, it doesn't actually seem
 	// necessary to support nested locks, so hopefully we can remove that
@@ -87,6 +88,9 @@ type Storage interface {
 	// given keys is unspecified, and so the caller must behave as if all
 	// locks were released and should aim to cease further work as soon as
 	// possible.
+	//
+	// It's a bug in the caller to attempt to unlock a key for which there is
+	// no active lock, and the outcome in that case is unspecified.
 	Unlock(context.Context, collections.Set[Key]) error
 
 	// Read retrieves the values associated with a given set of keys,
