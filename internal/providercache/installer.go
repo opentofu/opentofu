@@ -444,7 +444,7 @@ func (i *Installer) ensureProviderVersionsNeed(
 	}
 
 	need := map[addrs.Provider]getproviders.Version{}
-	for _ = range mightNeed {
+	for range mightNeed {
 		r := <-results
 		if r.err != nil {
 			errs[r.provider] = r.err
@@ -510,7 +510,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 		}(provider, version)
 	}
 
-	for _ = range need {
+	for range need {
 		i := <-results
 
 		if i.authResult != nil {
