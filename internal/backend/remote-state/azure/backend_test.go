@@ -102,6 +102,9 @@ func TestBackendConfig_Timeout(t *testing.T) {
 		})
 	}
 }
+
+// TestAccBackendAccessKeyBasic tests if resources are created using basic access key.
+// The call to backend.TestBackendStates tests workspace creation, list and deletion.
 func TestAccBackendAccessKeyBasic(t *testing.T) {
 	testAccAzureBackend(t)
 	rs := acctest.RandString(4)
@@ -109,10 +112,10 @@ func TestAccBackendAccessKeyBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
-		armClient.destroyTestResources(ctx, res)
+		armClient.destroyTestResources(t, ctx, res)
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
@@ -135,8 +138,8 @@ func TestAccBackendSASTokenBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -165,8 +168,8 @@ func TestAccBackendOIDCBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -193,8 +196,8 @@ func TestAccBackendManagedServiceIdentityBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -228,8 +231,8 @@ func TestAccBackendServicePrincipalClientCertificateBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -258,8 +261,8 @@ func TestAccBackendServicePrincipalClientSecretBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -294,8 +297,8 @@ func TestAccBackendServicePrincipalClientSecretCustomEndpoint(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -323,8 +326,8 @@ func TestAccBackendAccessKeyLocked(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -361,8 +364,8 @@ func TestAccBackendServicePrincipalLocked(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	defer armClient.destroyTestResources(t, ctx, res)
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
