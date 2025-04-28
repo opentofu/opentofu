@@ -281,50 +281,58 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 		factories[addrs.NewBuiltInProvider(name)] = factory
 	}
 	for provider, lock := range providerLocks {
-		reportError := func(thisErr error) {
-			errs[provider] = thisErr
-			// We'll populate a provider factory that just echoes our error
-			// again if called, which allows us to still report a helpful
-			// error even if it gets detected downstream somewhere from the
-			// caller using our partial result.
-			factories[provider] = providerFactoryError(thisErr)
-		}
-
 		if locks.ProviderIsOverridden(provider) {
 			// Overridden providers we'll handle with the other separate
 			// loops below, for dev overrides etc.
 			continue
 		}
 
+		provider := provider
 		version := lock.Version()
 		cached := cacheDir.ProviderVersion(provider, version)
-		if cached == nil {
-			reportError(fmt.Errorf(
-				"there is no package for %s %s cached in %s",
-				provider, version, cacheDir.BasePath(),
-			))
-			continue
-		}
-		// The cached package must match one of the checksums recorded in
-		// the lock file, if any.
-		if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
-			matched, err := cached.MatchesAnyHash(allowedHashes)
-			if err != nil {
-				reportError(fmt.Errorf(
-					"failed to verify checksum of %s %s package cached in in %s: %w",
-					provider, version, cacheDir.BasePath(), err,
-				))
-				continue
-			}
-			if !matched {
-				reportError(fmt.Errorf(
-					"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
+
+		checkedProvider := false
+		var checkErr error
+
+		checkProvider := func() error {
+			if cached == nil {
+				return fmt.Errorf(
+					"there is no package for %s %s cached in %s",
 					provider, version, cacheDir.BasePath(),
-				))
-				continue
+				)
 			}
+			// The cached package must match one of the checksums recorded in
+			// the lock file, if any.
+			if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
+				matched, err := cached.MatchesAnyHash(allowedHashes)
+				if err != nil {
+					return fmt.Errorf(
+						"failed to verify checksum of %s %s package cached in in %s: %w",
+						provider, version, cacheDir.BasePath(), err,
+					)
+				}
+				if !matched {
+					return fmt.Errorf(
+						"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
+						provider, version, cacheDir.BasePath(),
+					)
+				}
+			}
+			return nil
 		}
-		factories[provider] = providerFactory(cached)
+
+		factories[provider] = func() (providers.Interface, error) {
+			if !checkedProvider {
+				checkedProvider = true
+				checkErr = checkProvider()
+			}
+
+			if checkErr != nil {
+				return nil, checkErr
+			}
+
+			return providerFactory(cached)()
+		}
 	}
 	for provider, localDir := range devOverrideProviders {
 		factories[provider] = devOverrideProviderFactory(provider, localDir)
