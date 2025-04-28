@@ -210,17 +210,18 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	// Because our Installer abstraction is a per-platform idea, we'll
 	// instantiate one for each of the platforms the user requested, and then
 	// merge all of the generated locks together at the end.
-	updatedLocks := map[getproviders.Platform]*depsfile.Locks{}
-	selectedVersions := map[addrs.Provider]getproviders.Version{}
-	for _, platform := range platforms {
-		tempDir, err := os.MkdirTemp("", "terraform-providers-lock")
+	//
+	// TODO lock UI Output?
+	doLock := func(platform getproviders.Platform) (map[addrs.Provider]getproviders.Version, *depsfile.Locks, tfdiags.Diagnostic) {
+		selectedVersions := map[addrs.Provider]getproviders.Version{}
+
+		tempDir, err := os.MkdirTemp("", fmt.Sprintf("terraform-providers-lock-%s", platform))
 		if err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
+			return selectedVersions, nil, tfdiags.Sourceless(
 				tfdiags.Error,
 				"Could not create temporary directory",
 				fmt.Sprintf("Failed to create a temporary directory for staging the requested provider packages: %s.", err),
-			))
-			break
+			)
 		}
 		defer os.RemoveAll(tempDir)
 
@@ -229,28 +230,6 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 			// we're making progress, rather than just silently hanging.
 			FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, loc getproviders.PackageLocation) {
 				c.Ui.Output(fmt.Sprintf("- Fetching %s %s for %s...", provider.ForDisplay(), version, platform))
-				if prevVersion, exists := selectedVersions[provider]; exists && version != prevVersion {
-					// This indicates a weird situation where we ended up
-					// selecting a different version for one platform than
-					// for another. We won't be able to merge the result
-					// in that case, so we'll generate an error.
-					//
-					// This could potentially happen if there's a provider
-					// we've not previously recorded in the lock file and
-					// the available versions change while we're running. To
-					// avoid that would require pre-locking all of the
-					// providers, which is complicated to do with the building
-					// blocks we have here, and so we'll wait to do it only
-					// if this situation arises often in practice.
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Error,
-						"Inconsistent provider versions",
-						fmt.Sprintf(
-							"The version constraint for %s selected inconsistent versions for different platforms, which is unexpected.\n\nThe upstream registry may have changed its available versions during OpenTofu's work. If so, re-running this command may produce a successful result.",
-							provider,
-						),
-					))
-				}
 				selectedVersions[provider] = version
 			},
 			FetchPackageSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string, auth *getproviders.PackageAuthenticationResult) {
@@ -271,14 +250,74 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 
 		newLocks, err := installer.EnsureProviderVersions(ctx, oldLocks, reqs, providercache.InstallNewProvidersForce)
 		if err != nil {
-			diags = diags.Append(tfdiags.Sourceless(
+			return selectedVersions, nil, tfdiags.Sourceless(
 				tfdiags.Error,
 				"Could not retrieve providers for locking",
 				fmt.Sprintf("OpenTofu failed to fetch the requested providers for %s in order to calculate their checksums: %s.", platform, err),
-			))
-			break
+			)
 		}
-		updatedLocks[platform] = newLocks
+
+		return selectedVersions, newLocks, nil
+	}
+
+	type lockResult struct {
+		platform         getproviders.Platform
+		selectedVersions map[addrs.Provider]getproviders.Version
+		updatedLocks     *depsfile.Locks
+		diag             tfdiags.Diagnostic
+	}
+	lockResults := make(chan lockResult, len(platforms))
+	defer close(lockResults)
+
+	for _, platform := range platforms {
+		go func(platform getproviders.Platform) {
+			selectedVersions, updatedLocks, diag := doLock(platform)
+			lockResults <- lockResult{
+				platform:         platform,
+				selectedVersions: selectedVersions,
+				updatedLocks:     updatedLocks,
+				diag:             diag,
+			}
+		}(platform)
+	}
+
+	updatedLocks := map[getproviders.Platform]*depsfile.Locks{}
+	selectedVersions := map[addrs.Provider]getproviders.Version{}
+
+	for range platforms {
+		result := <-lockResults
+
+		updatedLocks[result.platform] = result.updatedLocks
+		for provider, version := range result.selectedVersions {
+			if prevVersion, exists := selectedVersions[provider]; exists && version != prevVersion {
+				// This indicates a weird situation where we ended up
+				// selecting a different version for one platform than
+				// for another. We won't be able to merge the result
+				// in that case, so we'll generate an error.
+				//
+				// This could potentially happen if there's a provider
+				// we've not previously recorded in the lock file and
+				// the available versions change while we're running. To
+				// avoid that would require pre-locking all of the
+				// providers, which is complicated to do with the building
+				// blocks we have here, and so we'll wait to do it only
+				// if this situation arises often in practice.
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Inconsistent provider versions",
+					fmt.Sprintf(
+						"The version constraint for %s selected inconsistent versions for different platforms, which is unexpected.\n\nThe upstream registry may have changed its available versions during OpenTofu's work. If so, re-running this command may produce a successful result.",
+						provider,
+					),
+				))
+			}
+			selectedVersions[provider] = version
+		}
+
+		if result.diag != nil {
+			diags = diags.Append(result.diag)
+		}
+
 	}
 
 	// If we have any error diagnostics from installation then we won't
@@ -299,6 +338,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	// We'll copy the old locks first because we want to retain any existing
 	// locks for providers that we _didn't_ visit above.
 	newLocks := oldLocks.DeepCopy()
+
 	for provider := range reqs {
 		oldLock := oldLocks.Provider(provider)
 
