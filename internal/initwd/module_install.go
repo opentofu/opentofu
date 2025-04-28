@@ -387,7 +387,7 @@ func (i *ModuleInstaller) installDescendentModules(ctx context.Context, rootMod 
 func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.ModuleRequest, key string, manifest modsdir.Manifest, hooks ModuleInstallHooks) (*configs.Module, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
-	ctx, span := tracing.Tracer().Start(ctx, "Install Local Module",
+	_, span := tracing.Tracer().Start(ctx, "Install Local Module",
 		trace.WithAttributes(otelAttr.String(traceattrs.ModuleName, req.Name)),
 		trace.WithAttributes(otelAttr.String(traceattrs.ModuleAddress, req.SourceAddr.String())),
 	)
