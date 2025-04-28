@@ -392,7 +392,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(response.ModuleLocationRegistryResp{Location: "file:///registry/exists"})
+				_ = json.NewEncoder(w).Encode(response.ModuleLocationRegistryResp{Location: "file:///registry/exists"})
 			},
 		},
 		"shall find the module location in the registry response header": {
@@ -415,7 +415,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("X-Terraform-Get", "file:///registry/exists-header")
 				w.WriteHeader(http.StatusOK)
-				json.NewEncoder(w).Encode(response.ModuleLocationRegistryResp{Location: "file:///registry/exists"})
+				_ = json.NewEncoder(w).Encode(response.ModuleLocationRegistryResp{Location: "file:///registry/exists"})
 			},
 		},
 		"shall fail to find the module": {
@@ -435,7 +435,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Length", "1000") // Set incorrect content length
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("{")) // Only write a partial response
+				_, _ = w.Write([]byte("{")) // Only write a partial response
 				// The connection will close after handler returns, but client will expect more data
 			},
 		},
@@ -445,7 +445,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			wantStatusCode: http.StatusOK,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("{"))
+				_, _ = w.Write([]byte("{"))
 			},
 		},
 		"shall fail because of unexpected protocol change - 422 http status": {
@@ -454,7 +454,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			wantStatusCode: http.StatusUnprocessableEntity,
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusUnprocessableEntity)
-				w.Write([]byte("bar"))
+				_, _ = w.Write([]byte("bar"))
 			},
 		},
 		"shall fail because location is not found in the response": {
@@ -464,7 +464,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusOK)
 				// note that the response emulates a contract change
-				w.Write([]byte(`{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`))
+				_, _ = w.Write([]byte(`{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`))
 			},
 		},
 	}
