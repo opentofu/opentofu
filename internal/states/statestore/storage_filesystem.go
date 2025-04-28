@@ -8,6 +8,7 @@ package statestore
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -63,9 +64,22 @@ func OpenFilesystemStorage(dir string) (*FilesystemStorage, error) {
 }
 
 // Close implements Storage.
-func (f *FilesystemStorage) Close(_ context.Context) error {
-	// TODO: Release all active locks.
-	return f.root.Close()
+func (f *FilesystemStorage) Close(ctx context.Context) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var err error
+
+	// We'll try to release all of our active locked first.
+	locked := collections.NewSet[Key]()
+	for key := range f.locks {
+		locked[key] = struct{}{}
+	}
+	err = errors.Join(err, f.Unlock(ctx, locked))
+
+	// Now we'll close our directory handle, which will make future
+	// actions on this object fail with an error.
+	err = errors.Join(err, f.root.Close())
+	return err
 }
 
 // Keys implements Storage.
@@ -129,17 +143,11 @@ func (f *FilesystemStorage) Lock(ctx context.Context, shared collections.Set[Key
 // a lock on f.mu.
 func (f *FilesystemStorage) acquireLocks(ctx context.Context, want collections.Set[Key], exclusive bool, lockFunc func(target *os.File) error) error {
 	for key := range want {
-		lock, ok := f.locks[key]
+		_, ok := f.locks[key]
 		if ok {
-			// This object already has a filesystem-level lock on this key,
-			// so we just need to update our internal tracking.
-			if exclusive != lock.exclusive {
-				// Caller is required to be consistent in whether it asks
-				// for a shared or an exclusive lock on each key.
-				return fmt.Errorf("shared/exclusive conflict for nested lock on %q", key.Name())
-			}
-			lock.lockCount++
-			continue
+			// This object already has a lock on this key, so our caller
+			// is buggy and not properly tracking what it has locked.
+			return fmt.Errorf("lock conflict for %q", key.Name())
 		}
 
 		filename := f.filename(key)
@@ -157,9 +165,8 @@ func (f *FilesystemStorage) acquireLocks(ctx context.Context, want collections.S
 			return err
 		}
 		f.locks[key] = &filesystemStorageLock{
-			exclusive: exclusive,
-			lockCount: 1,
 			file:      file,
+			exclusive: exclusive,
 		}
 	}
 	return nil
@@ -227,18 +234,15 @@ func (f *FilesystemStorage) Unlock(ctx context.Context, keys collections.Set[Key
 			return fmt.Errorf("sync %q before unlock: %w", key.Name(), err)
 		}
 
-		lock.lockCount--
-		if lock.lockCount == 0 {
-			delete(f.locks, key)
-			err := f.unlockFile(lock.file)
-			if err != nil {
-				return fmt.Errorf("unlocking %q: %w", key.Name(), err)
-			}
-			err = lock.file.Close()
-			if err != nil {
-				// Weird to get here since we synced already above, but okay...
-				return fmt.Errorf("closing file for %q: %w", key.Name(), err)
-			}
+		err = f.unlockFile(lock.file)
+		if err != nil {
+			return fmt.Errorf("unlocking %q: %w", key.Name(), err)
+		}
+		delete(f.locks, key)
+		err = lock.file.Close()
+		if err != nil {
+			// Weird to get here since we synced already above, but okay...
+			return fmt.Errorf("closing file for %q: %w", key.Name(), err)
 		}
 	}
 	return nil
@@ -275,9 +279,8 @@ func (f *FilesystemStorage) filename(key Key) string {
 }
 
 type filesystemStorageLock struct {
-	exclusive bool
-	lockCount int
 	file      *os.File
+	exclusive bool
 }
 
 // readValueFromFile is similar to [io.ReadAll] but is safe for multiple
