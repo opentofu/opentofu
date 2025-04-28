@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -89,6 +90,10 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
+	var wg sync.WaitGroup
+	var lock sync.Mutex
+	lock.Lock() // Prevent anything from started until we have finished schema map reads
+
 	ensure := func(fqn addrs.Provider) {
 		name := fqn.String()
 
@@ -96,24 +101,35 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 			return
 		}
 
-		log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", name)
-		schema, err := plugins.ProviderSchema(ctx, fqn)
-		if err != nil {
-			// We'll put a stub in the map so we won't re-attempt this on
-			// future calls, which would then repeat the same error message
-			// multiple times.
-			schemas[fqn] = providers.ProviderSchema{}
-			diags = diags.Append(
-				tfdiags.Sourceless(
-					tfdiags.Error,
-					"Failed to obtain provider schema",
-					fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
-				),
-			)
-			return
-		}
+		// We'll put a stub in the map so we won't re-attempt this on
+		// future calls, which would then repeat the same error message
+		// multiple times.
+		schemas[fqn] = providers.ProviderSchema{}
 
-		schemas[fqn] = schema
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", name)
+			schema, err := plugins.ProviderSchema(ctx, fqn)
+
+			// Ensure that we don't race on diags or schemas now that the hard work is done
+			lock.Lock()
+			defer lock.Unlock()
+
+			if err != nil {
+				diags = diags.Append(
+					tfdiags.Sourceless(
+						tfdiags.Error,
+						"Failed to obtain provider schema",
+						fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
+					),
+				)
+				return
+			}
+
+			schemas[fqn] = schema
+		}()
 	}
 
 	if config != nil {
@@ -128,6 +144,12 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 			ensure(typeAddr)
 		}
 	}
+
+	// Let everything start cooking
+	lock.Unlock()
+
+	// Wait for all of the scheduled routines to complete
+	wg.Wait()
 
 	return diags
 }
