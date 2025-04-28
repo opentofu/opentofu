@@ -46,12 +46,12 @@ func testParser(files map[string]string) *Parser {
 
 // testModuleConfigFrom File reads a single file from the given path as a
 // module and returns its configuration. This is a helper for use in unit tests.
-func testModuleConfigFromFile(filename string) (*Config, hcl.Diagnostics) {
+func testModuleConfigFromFile(ctx context.Context, filename string) (*Config, hcl.Diagnostics) {
 	parser := NewParser(nil)
 	f, diags := parser.LoadConfigFile(filename)
 	mod, modDiags := NewModule([]*File{f}, nil, RootModuleCallForTesting(), filename, SelectiveLoadAll)
 	diags = append(diags, modDiags...)
-	cfg, moreDiags := BuildConfig(context.Background(), mod, nil)
+	cfg, moreDiags := BuildConfig(ctx, mod, nil)
 	return cfg, append(diags, moreDiags...)
 }
 
@@ -64,10 +64,10 @@ func testModuleFromDir(path string) (*Module, hcl.Diagnostics) {
 
 // testModuleFromDir reads configuration from the given directory path as a
 // module and returns its configuration. This is a helper for use in unit tests.
-func testModuleConfigFromDir(path string) (*Config, hcl.Diagnostics) {
+func testModuleConfigFromDir(ctx context.Context, path string) (*Config, hcl.Diagnostics) {
 	parser := NewParser(nil)
 	mod, diags := parser.LoadConfigDir(path, RootModuleCallForTesting())
-	cfg, moreDiags := BuildConfig(context.Background(), mod, nil)
+	cfg, moreDiags := BuildConfig(ctx, mod, nil)
 	return cfg, append(diags, moreDiags...)
 }
 
@@ -82,7 +82,7 @@ func testNestedModuleConfigFromDirWithTests(t *testing.T, path string) (*Config,
 		t.Fatal("got nil root module; want non-nil")
 	}
 
-	cfg, nestedDiags := buildNestedModuleConfig(mod, path, parser)
+	cfg, nestedDiags := buildNestedModuleConfig(t.Context(), mod, path, parser)
 
 	diags = append(diags, nestedDiags...)
 	return cfg, diags
@@ -100,15 +100,15 @@ func testNestedModuleConfigFromDir(t *testing.T, path string) (*Config, hcl.Diag
 		t.Fatal("got nil root module; want non-nil")
 	}
 
-	cfg, nestedDiags := buildNestedModuleConfig(mod, path, parser)
+	cfg, nestedDiags := buildNestedModuleConfig(t.Context(), mod, path, parser)
 
 	diags = append(diags, nestedDiags...)
 	return cfg, diags
 }
 
-func buildNestedModuleConfig(mod *Module, path string, parser *Parser) (*Config, hcl.Diagnostics) {
+func buildNestedModuleConfig(ctx context.Context, mod *Module, path string, parser *Parser) (*Config, hcl.Diagnostics) {
 	versionI := 0
-	return BuildConfig(context.Background(), mod, ModuleWalkerFunc(
+	return BuildConfig(ctx, mod, ModuleWalkerFunc(
 		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 			// For the sake of this test we're going to just treat our
 			// SourceAddr as a path relative to the calling module.

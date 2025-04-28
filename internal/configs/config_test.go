@@ -18,8 +18,9 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclparse"
-	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
@@ -37,7 +38,7 @@ func TestConfigProviderTypes(t *testing.T) {
 		t.Fatal("expected empty result from empty config")
 	}
 
-	cfg, diags := testModuleConfigFromFile("testdata/valid-files/providers-explicit-implied.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/valid-files/providers-explicit-implied.tf")
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -82,7 +83,7 @@ func TestConfigProviderTypes_nested(t *testing.T) {
 }
 
 func TestConfigResolveAbsProviderAddr(t *testing.T) {
-	cfg, diags := testModuleConfigFromDir("testdata/providers-explicit-fqn")
+	cfg, diags := testModuleConfigFromDir(t.Context(), "testdata/providers-explicit-fqn")
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -640,7 +641,7 @@ func TestVerifyDependencySelections(t *testing.T) {
 }
 
 func TestConfigProviderForConfigAddr(t *testing.T) {
-	cfg, diags := testModuleConfigFromDir("testdata/valid-modules/providers-fqns")
+	cfg, diags := testModuleConfigFromDir(t.Context(), "testdata/valid-modules/providers-fqns")
 	assertNoDiagnostics(t, diags)
 
 	got := cfg.ProviderForConfigAddr(addrs.NewDefaultLocalProviderConfig("foo-test"))
@@ -658,7 +659,7 @@ func TestConfigProviderForConfigAddr(t *testing.T) {
 }
 
 func TestConfigAddProviderRequirements(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/valid-files/providers-explicit-implied.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/valid-files/providers-explicit-implied.tf")
 	assertNoDiagnostics(t, diags)
 
 	reqs := getproviders.Requirements{
@@ -688,7 +689,7 @@ Use the providers argument within the module block to configure providers for al
 }
 
 func TestConfigImportProviderClashesWithResources(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/invalid-import-files/import-and-resource-clash.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/invalid-import-files/import-and-resource-clash.tf")
 	assertNoDiagnostics(t, diags)
 	qualifs := new(getproviders.ProvidersQualification)
 
@@ -699,7 +700,7 @@ func TestConfigImportProviderClashesWithResources(t *testing.T) {
 }
 
 func TestConfigImportProviderWithNoResourceProvider(t *testing.T) {
-	cfg, diags := testModuleConfigFromFile("testdata/invalid-import-files/import-and-no-resource.tf")
+	cfg, diags := testModuleConfigFromFile(t.Context(), "testdata/invalid-import-files/import-and-no-resource.tf")
 	assertNoDiagnostics(t, diags)
 
 	qualifs := new(getproviders.ProvidersQualification)
