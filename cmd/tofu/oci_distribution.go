@@ -13,6 +13,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	orasRemote "oras.land/oras-go/v2/registry/remote"
 	orasAuth "oras.land/oras-go/v2/registry/remote/auth"
@@ -35,9 +36,22 @@ import (
 // at all.
 type ociCredsPolicyBuilder func(context.Context) (ociauthconfig.CredentialsConfigs, error)
 
+var ociReposMu sync.Mutex
+var ociRepos map[ociRepoKey]ociRepositoryStore
+
+type ociRepoKey struct {
+	registryDomain, repositoryName string
+}
+
 // getOCIRepositoryStore instantiates a [getproviders.OCIRepositoryStore] implementation to use
 // when accessing the given repository on the given registry, using the given OCI credentials
 // policy to decide which credentials to use.
+//
+// This function attempts to reuse previously-instantiated stores for a given registry
+// domain and repository name, and so it effectively assumes that all calls through the
+// life of the program will have the same credsPolicy argument. That assumption should
+// hold because in practice we only create a single credsPolicy per execution, based on
+// the CLI Configuration, and use it in both module_source.go and provider_source.go.
 func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName string, credsPolicy ociauthconfig.CredentialsConfigs) (ociRepositoryStore, error) {
 	// We currently use the ORAS-Go library to satisfy both the [getproviders.OCIRepositoryStore]
 	// and [getmodules.OCIRepositoryStore] interfaces, which is easy because those interfaces
@@ -45,6 +59,49 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 	// diverge from it. However, we consider ORAS-Go to be an implementation detail here and so
 	// we should avoid any ORAS-Go types becoming part of the direct public API between packages.
 
+	ociReposMu.Lock()
+	defer ociReposMu.Unlock()
+	if ociRepos == nil {
+		ociRepos = make(map[ociRepoKey]ociRepositoryStore)
+	}
+	// Reused cached store if possible, since that potentially allows us to
+	// reuse a previously-issued temporary auth token and thus skip a few
+	// session-setup roundtrips to the registry API.
+	key := ociRepoKey{registryDomain, repositoryName}
+	if store, ok := ociRepos[key]; ok {
+		return store, nil
+	}
+
+	client, err := getOCIRepositoryORASClient(ctx, registryDomain, repositoryName, credsPolicy)
+	if err != nil {
+		return nil, err
+	}
+	reg, err := orasRemote.NewRegistry(registryDomain)
+	if err != nil {
+		return nil, err // This is only for registryDomain validation errors, and we should've caught those much earlier than here
+	}
+	reg.Client = client
+	err = reg.Ping(ctx) // tests whether the given domain refers to a valid OCI repository and will accept the credentials
+	if err != nil {
+		return nil, fmt.Errorf("failed to contact OCI registry at %q: %w", registryDomain, err)
+	}
+	repo, err := reg.Repository(ctx, repositoryName)
+	if err != nil {
+		return nil, err // This is only for repositoryName validation errors, and we should've caught those much earlier than here
+	}
+
+	// Save this in case we get asked again for the same registry.
+	// (A subsequent call is common for provider installation since there
+	// are several independent steps that all request stores separately.)
+	ociRepos[key] = repo
+
+	// NOTE: At this point we don't yet know if the named repository actually exists
+	// in the registry. The caller will find that out when they try to interact
+	// with the methods of the returned object.
+	return repo, nil
+}
+
+func getOCIRepositoryORASClient(ctx context.Context, registryDomain, repositoryName string, credsPolicy ociauthconfig.CredentialsConfigs) (*orasAuth.Client, error) {
 	// ORAS-Go has a bit of an impedence mismatch with us in that it thinks of credentials
 	// as being a per-registry thing rather than a per-repository thing, so we deal with
 	// the credSource resolution ourselves here and then just return whatever we found to
@@ -56,7 +113,7 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 	} else if err != nil {
 		return nil, fmt.Errorf("finding credentials for %q: %w", registryDomain, err)
 	}
-	client := &orasAuth.Client{
+	return &orasAuth.Client{
 		Client: httpclient.New(), // the underlying HTTP client to use, preconfigured with OpenTofu's User-Agent string
 		Credential: func(ctx context.Context, hostport string) (orasAuth.Credential, error) {
 			if hostport != registryDomain {
@@ -77,24 +134,7 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 			return creds.ToORASCredential(), nil
 		},
 		Cache: orasAuth.NewCache(),
-	}
-	reg, err := orasRemote.NewRegistry(registryDomain)
-	if err != nil {
-		return nil, err // This is only for registryDomain validation errors, and we should've caught those much earlier than here
-	}
-	reg.Client = client
-	err = reg.Ping(ctx) // tests whether the given domain refers to a valid OCI repository and will accept the credentials
-	if err != nil {
-		return nil, fmt.Errorf("failed to contact OCI registry at %q: %w", registryDomain, err)
-	}
-	repo, err := reg.Repository(ctx, repositoryName)
-	if err != nil {
-		return nil, err // This is only for repositoryName validation errors, and we should've caught those much earlier than here
-	}
-	// NOTE: At this point we don't yet know if the named repository actually exists
-	// in the registry. The caller will find that out when they try to interact
-	// with the methods of the returned object.
-	return repo, nil
+	}, nil
 }
 
 // ociRepositoryStore represents the combined needs of both
