@@ -15,6 +15,8 @@ import (
 	"log"
 	"sync"
 
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 	orasRemote "oras.land/oras-go/v2/registry/remote"
 	orasAuth "oras.land/oras-go/v2/registry/remote/auth"
 	orasCreds "oras.land/oras-go/v2/registry/remote/credentials"
@@ -24,6 +26,7 @@ import (
 	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // ociCredsPolicyBuilder is the type of a callback function that the [providerSource]
@@ -72,21 +75,34 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 		return store, nil
 	}
 
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Authenticate to OCI Registry",
+		otelTrace.WithAttributes(
+			otelAttr.String("opentofu.oci.registry.domain", registryDomain),
+			otelAttr.String("opentofu.oci.repository.name", repositoryName),
+		),
+	)
+	defer span.End()
+
 	client, err := getOCIRepositoryORASClient(ctx, registryDomain, repositoryName, credsPolicy)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return nil, err
 	}
 	reg, err := orasRemote.NewRegistry(registryDomain)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return nil, err // This is only for registryDomain validation errors, and we should've caught those much earlier than here
 	}
 	reg.Client = client
 	err = reg.Ping(ctx) // tests whether the given domain refers to a valid OCI repository and will accept the credentials
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return nil, fmt.Errorf("failed to contact OCI registry at %q: %w", registryDomain, err)
 	}
 	repo, err := reg.Repository(ctx, repositoryName)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return nil, err // This is only for repositoryName validation errors, and we should've caught those much earlier than here
 	}
 
@@ -160,6 +176,15 @@ func (o ociCredentialsLookupEnv) QueryDockerCredentialHelper(ctx context.Context
 	// (just because this type name is very long to keep repeating in full)
 	type Result = ociauthconfig.DockerCredentialHelperGetResult
 
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Query Docker-style credential helper",
+		otelTrace.WithAttributes(
+			otelAttr.String("opentofu.oci.docker_credential_helper.name", helperName),
+			otelAttr.String("opentofu.oci.registry.url", serverURL),
+		),
+	)
+	defer span.End()
+
 	// We currently use the ORAS-Go implementation of the Docker
 	// credential helper protocol, because we already depend on
 	// that library for our OCI registry interactions elsewhere.
@@ -167,11 +192,23 @@ func (o ociCredentialsLookupEnv) QueryDockerCredentialHelper(ctx context.Context
 	// than "Docker-style Credential Helper", but it's the
 	// same protocol nonetheless.
 
+	var executeSpan otelTrace.Span // ORAS tracing API can't directly propagate span from Start to Done
 	ctx = orasCredsTrace.WithExecutableTrace(ctx, &orasCredsTrace.ExecutableTrace{
 		ExecuteStart: func(executableName, action string) {
+			_, executeSpan = tracing.Tracer().Start(
+				ctx, "Execute helper program",
+				otelTrace.WithAttributes(
+					otelAttr.String("opentofu.oci.docker_credential_helper.executable", helperName),
+					otelAttr.String("opentofu.oci.registry.url", serverURL),
+				),
+			)
 			log.Printf("[DEBUG] Executing docker-style credentials helper %q for %s", helperName, serverURL)
 		},
 		ExecuteDone: func(executableName, action string, err error) {
+			if executeSpan != nil {
+				tracing.SetSpanError(executeSpan, err)
+				executeSpan.End()
+			}
 			if err != nil {
 				log.Printf("[ERROR] Docker-style credential helper %q failed for %s: %s", helperName, serverURL, err)
 			}
@@ -181,6 +218,7 @@ func (o ociCredentialsLookupEnv) QueryDockerCredentialHelper(ctx context.Context
 	store := orasCreds.NewNativeStore(helperName)
 	creds, err := store.Get(ctx, serverURL)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return Result{}, fmt.Errorf("%q credential helper failed: %w", helperName, err)
 	}
 	if creds.AccessToken != "" || creds.RefreshToken != "" {
@@ -190,7 +228,9 @@ func (o ociCredentialsLookupEnv) QueryDockerCredentialHelper(ctx context.Context
 		// username/password style. So for completeness/robustness we check
 		// the OAuth fields and fail if they are set, but it should not actually
 		// be possible for them to be set in practice.
-		return Result{}, fmt.Errorf("%q credential helper returned OAuth-style credentials, but only username/password-style is allowed from a credential helper", helperName)
+		err := fmt.Errorf("%q credential helper returned OAuth-style credentials, but only username/password-style is allowed from a credential helper", helperName)
+		tracing.SetSpanError(span, err)
+		return Result{}, err
 	}
 	return Result{
 		ServerURL: serverURL,
