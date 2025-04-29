@@ -43,6 +43,10 @@ type Key struct {
 	raw unique.Handle[string]
 }
 
+// NoKey is the zero value of [Key] and represents the absense of a key. This
+// is NOT a valid Key value.
+var NoKey Key
+
 // MakeKey converts the given string into a [Key] without first checking whether
 // it uses the valid alphabet. Use this only for key strings constructed by
 // OpenTofu Core itself, which are guaranteed to be valid by construction.
