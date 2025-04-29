@@ -36,7 +36,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("console")
 	cmdFlags.StringVar(&c.Meta.statePath, "state", DefaultStateFilename, "path")
-	cmdFlags.StringVar(&moduleDeprecatedWarning, "deprecation-warn", "all", "control the level of deprecation warnings")
+	cmdFlags.StringVar(&moduleDeprecatedWarning, "module-deprecation-warnings", "", "control the level of deprecation warnings")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command line flags: %s\n", err.Error()))
@@ -229,33 +229,33 @@ Usage: tofu [global options] console [options]
 
 Options:
 
-  -compact-warnings      If OpenTofu produces any warnings that are not
-                         accompanied by errors, show them in a more compact
-                         form that includes only the summary messages.
+  -compact-warnings                 If OpenTofu produces any warnings that are not
+                                    accompanied by errors, show them in a more compact
+                                    form that includes only the summary messages.
+                                    
+  -consolidate-warnings             If OpenTofu produces any warnings, no consolidation
+                                    will be performed. All locations, for all warnings
+                                    will be listed. Enabled by default.
+                                    
+  -consolidate-errors               If OpenTofu produces any errors, no consolidation
+                                    will be performed. All locations, for all errors
+                                    will be listed. Disabled by default
+                                    
+  -state=path                       Legacy option for the local backend only. See the local
+                                    backend's documentation for more information.
 
-  -consolidate-warnings  If OpenTofu produces any warnings, no consolidation
-                         will be performed. All locations, for all warnings
-                         will be listed. Enabled by default.
+  -module-deprecation-warnings=all  Specify what type of warnings are shown. Accepted
+                                    values: all, local. When "all" is selected, OpenTofu
+                                    will show the deprecation warnings for all modules.
+                                    When "local" is selected, the warns will be shown
+                                    only for the local modules.
 
-  -consolidate-errors    If OpenTofu produces any errors, no consolidation
-                         will be performed. All locations, for all errors
-                         will be listed. Disabled by default
+  -var 'foo=bar'                    Set a variable in the OpenTofu configuration. This
+                                    flag can be set multiple times.
 
-  -state=path            Legacy option for the local backend only. See the local
-                         backend's documentation for more information.
-
-  -deprecation-warn=all  Specify what type of warnings are shown. Accepted
-                         values: all, local. When "all" is selected, OpenTofu
-                         will show the deprecation warnings for all modules.
-                         When "local" is selected, the warns will be shown
-                         only for the local modules.
-
-  -var 'foo=bar'         Set a variable in the OpenTofu configuration. This
-                         flag can be set multiple times.
-
-  -var-file=foo          Set variables in the OpenTofu configuration from
-                         a file. If "terraform.tfvars" or any ".auto.tfvars"
-                         files are present, they will be automatically loaded.
+  -var-file=foo                     Set variables in the OpenTofu configuration from
+                                    a file. If "terraform.tfvars" or any ".auto.tfvars"
+                                    files are present, they will be automatically loaded.
 `
 	return strings.TrimSpace(helpText)
 }

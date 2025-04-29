@@ -10,11 +10,12 @@ func _() {
 	var x [1]struct{}
 	_ = x[DeprecationWarningLevelAll-0]
 	_ = x[DeprecationWarningLevelLocal-1]
+	_ = x[DeprecationWarningLevelNone-2]
 }
 
-const _DeprecationWarningLevel_name = "DeprecationWarningLevelAllDeprecationWarningLevelLocal"
+const _DeprecationWarningLevel_name = "DeprecationWarningLevelAllDeprecationWarningLevelLocalDeprecationWarningLevelNone"
 
-var _DeprecationWarningLevel_index = [...]uint8{0, 26, 54}
+var _DeprecationWarningLevel_index = [...]uint8{0, 26, 54, 81}
 
 func (i DeprecationWarningLevel) String() string {
 	if i >= DeprecationWarningLevel(len(_DeprecationWarningLevel_index)-1) {

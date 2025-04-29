@@ -4,32 +4,30 @@
 // SPDX-License-Identifier: MPL-2.0
 package tofu
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestParseDeprecatedWarningLevel(t *testing.T) {
-	t.Run("'all' level parsing", func(t *testing.T) {
-		if got, expected := ParseDeprecatedWarningLevel("all"), DeprecationWarningLevelAll; got != expected {
-			t.Errorf("parsing %s deprecation level resulted in a wrong value. got: %s; expected: %s", "all", got, expected)
-		}
-	})
-	t.Run("'local' level parsing", func(t *testing.T) {
-		if got, expected := ParseDeprecatedWarningLevel("local"), DeprecationWarningLevelLocal; got != expected {
-			t.Errorf("parsing %s deprecation level resulted in a wrong value. got: %s; expected: %s", "local", got, expected)
-		}
-	})
-	t.Run("'none' level parsing", func(t *testing.T) {
-		if got, expected := ParseDeprecatedWarningLevel("local"), DeprecationWarningLevelLocal; got != expected {
-			t.Errorf("parsing %s deprecation level resulted in a wrong value. got: %s; expected: %s", "none", got, expected)
-		}
-	})
-	t.Run("'remote' level parsing", func(t *testing.T) {
-		if got, expected := ParseDeprecatedWarningLevel("local"), DeprecationWarningLevelLocal; got != expected {
-			t.Errorf("parsing %s deprecation level resulted in a wrong value. got: %s; expected: %s", "remote", got, expected)
-		}
-	})
-	t.Run("'wrongLevel' level parsing", func(t *testing.T) {
-		if got, expected := ParseDeprecatedWarningLevel("local"), DeprecationWarningLevelLocal; got != expected {
-			t.Errorf("parsing %s deprecation level resulted in a wrong value. got: %s; expected: %s", "wrongLevel", got, expected)
-		}
-	})
+	tests := []struct {
+		in   string
+		want DeprecationWarningLevel
+	}{
+		{want: DeprecationWarningLevelAll, in: ""},
+		{want: DeprecationWarningLevelAll, in: "all"},
+		{want: DeprecationWarningLevelLocal, in: "local"},
+		{want: DeprecationWarningLevelAll, in: "none"},
+		{want: DeprecationWarningLevelAll, in: "off"},
+		{want: DeprecationWarningLevelAll, in: "remote"},
+		{want: DeprecationWarningLevelAll, in: "wrongLevel"},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%q level parsing", tt.in), func(t *testing.T) {
+			if got, want := ParseDeprecatedWarningLevel(tt.in), tt.want; got != want {
+				t.Errorf("parsing %s deprecation level resulted in a wrong value. got: %s; want: %s", tt.in, got, want)
+			}
+		})
+	}
+
 }

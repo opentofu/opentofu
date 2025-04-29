@@ -62,7 +62,7 @@ func (c *ValidateCommand) Run(rawArgs []string) int {
 	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)
 
-	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests, args.ModuleDeprecationWarnLevel)
+	validateDiags := c.validate(ctx, dir, args.TestDirectory, args.NoTests)
 	diags = diags.Append(validateDiags)
 
 	// Validating with dev overrides in effect means that the result might
@@ -91,7 +91,7 @@ func (c *ValidateCommand) GatherVariables(args *arguments.Vars) {
 	c.Meta.variableArgs = rawFlags{items: &items}
 }
 
-func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool, moduleDeprecationWarnLevel string) tfdiags.Diagnostics {
+func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noTests bool) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	var cfg *configs.Config
 
@@ -112,6 +112,8 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 			diags = diags.Append(err)
 			return diags
 		}
+		// Disables variables deprecation checks for the validate action
+		opts.ModuleDeprecationWarnLevel = tofu.DeprecationWarningLevelNone
 
 		tfCtx, ctxDiags := tofu.NewContext(opts)
 		diags = diags.Append(ctxDiags)
@@ -119,7 +121,7 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 			return diags
 		}
 
-		return diags.Append(tfCtx.Validate(ctx, cfg, tofu.ParseDeprecatedWarningLevel(moduleDeprecationWarnLevel)))
+		return diags.Append(tfCtx.Validate(ctx, cfg))
 	}
 
 	diags = diags.Append(validate(cfg))
@@ -222,12 +224,6 @@ Options:
   -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
                         test command will search for test files in the current directory and
                         in the one specified by the flag.
-
-  -deprecation-warn=all Specify what type of warnings are shown. Accepted
-                        values: all, local. When "all" is selected, OpenTofu
-                        will show the deprecation warnings for all modules.
-                        When "local" is selected, the warns will be shown
-                        only for the local modules.
 
   -var 'foo=bar'        Set a value for one of the input variables in the root
                         module of the configuration. Use this option more than

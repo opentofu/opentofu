@@ -189,6 +189,8 @@ func TestAutoApplyInAutomation(t *testing.T) {
 	}
 }
 
+// TODO andrei add one test here
+
 // TestPlanOnlyInAutomation tests the scenario of creating a "throwaway" plan,
 // which we recommend as a way to verify a pull request.
 func TestPlanOnlyInAutomation(t *testing.T) {

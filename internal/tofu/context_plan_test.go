@@ -1858,7 +1858,7 @@ func TestContext2Plan_computedInFunction(t *testing.T) {
 		},
 	})
 
-	diags := ctx.Validate(context.Background(), m, DeprecationWarningLevelAll)
+	diags := ctx.Validate(context.Background(), m)
 	assertNoErrors(t, diags)
 
 	_, diags = ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
@@ -5715,7 +5715,7 @@ func TestContext2Plan_resourceNestedCount(t *testing.T) {
 		},
 	})
 
-	diags := ctx.Validate(context.Background(), m, DeprecationWarningLevelAll)
+	diags := ctx.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("validate errors: %s", diags.Err())
 	}
@@ -5799,7 +5799,7 @@ func TestContext2Plan_selfRef(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(context.Background(), m, DeprecationWarningLevelAll)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected validation failure: %s", diags.Err())
 	}
@@ -5835,7 +5835,7 @@ func TestContext2Plan_selfRefMulti(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(context.Background(), m, DeprecationWarningLevelAll)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected validation failure: %s", diags.Err())
 	}
@@ -5871,7 +5871,7 @@ func TestContext2Plan_selfRefMultiAll(t *testing.T) {
 		},
 	})
 
-	diags := c.Validate(context.Background(), m, DeprecationWarningLevelAll)
+	diags := c.Validate(context.Background(), m)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected validation failure: %s", diags.Err())
 	}

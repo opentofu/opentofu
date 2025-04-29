@@ -299,7 +299,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 		return plan, diags
 	}
 
-	diags = diags.Append(c.checkApplyGraph(plan, config, opts.ModuleDeprecationWarnLevel))
+	diags = diags.Append(c.checkApplyGraph(plan, config))
 
 	return plan, diags
 }
@@ -308,13 +308,13 @@ The -target and -exclude options are not for routine use, and are provided only 
 // check for any errors that may arise once the planned changes are added to
 // the graph. This allows tofu to report errors (mostly cycles) during
 // plan that would otherwise only crop up during apply
-func (c *Context) checkApplyGraph(plan *plans.Plan, config *configs.Config, moduleDeprecationWarnLevel DeprecationWarningLevel) tfdiags.Diagnostics {
+func (c *Context) checkApplyGraph(plan *plans.Plan, config *configs.Config) tfdiags.Diagnostics {
 	if plan.Changes.Empty() {
 		log.Println("[DEBUG] no planned changes, skipping apply graph check")
 		return nil
 	}
 	log.Println("[DEBUG] building apply graph to check for errors")
-	_, _, diags := c.applyGraph(plan, config, make(ProviderFunctionMapping), moduleDeprecationWarnLevel)
+	_, _, diags := c.applyGraph(plan, config, make(ProviderFunctionMapping))
 	return diags
 }
 

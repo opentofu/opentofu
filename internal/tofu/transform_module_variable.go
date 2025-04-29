@@ -128,8 +128,7 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 			Config: v,
 			Expr:   expr,
 
-			ModuleDeprecationWarnLevel: t.ModuleDeprecationWarnLevel,
-			ModuleSource:               callConfig.SourceAddr,
+			DeprecationWarnAllowed: variableDeprecationWarnAllowed(t.ModuleDeprecationWarnLevel, callConfig.SourceAddr),
 		}
 		g.Add(ref)
 

@@ -20,10 +20,13 @@ type DeprecationWarningLevel uint8
 const (
 	DeprecationWarningLevelAll DeprecationWarningLevel = iota
 	DeprecationWarningLevelLocal
+	DeprecationWarningLevelNone
 )
 
 func variableDeprecationWarnAllowed(lvl DeprecationWarningLevel, source addrs.ModuleSource) bool {
 	switch lvl {
+	case DeprecationWarningLevelNone:
+		return false
 	case DeprecationWarningLevelLocal:
 		_, ok := source.(addrs.ModuleSourceLocal)
 		return ok
@@ -36,15 +39,20 @@ func variableDeprecationWarnAllowed(lvl DeprecationWarningLevel, source addrs.Mo
 // Since these warnings are not critical to the system, this method is returning no error when the
 // warn level identifier is missing a mapping. Instead, it falls back on returning the level that
 // will write all the deprecation warnings.
+//
+// This function is purposely not handling DeprecationWarningLevelNone as we don't want the users to be able to disable the warnings entirely.
+// In case it's decided later to allow users to disable this type of warnings entirely, just adding DeprecationWarningLevelNone here
+// should be enough.
 func ParseDeprecatedWarningLevel(s string) DeprecationWarningLevel {
 	switch s {
+	// Adding also the empty string just to make it clear that empty string will result in DeprecationWarningLevelAll. Useful also for skipping the warn log in the default branch.
+	case "all", "":
+		return DeprecationWarningLevelAll
 	case "local":
 		return DeprecationWarningLevelLocal
-	case "all":
-		return DeprecationWarningLevelAll
 	default:
 		log.Printf(
-			"[WARN] ParseDeprecatedWarningLevel: returning %s deprecation warn level since the given value is unknown: %s", // TODO stringer generator
+			"[WARN] ParseDeprecatedWarningLevel: returning %s deprecation warn level since the given value is unknown: %s",
 			DeprecationWarningLevelAll,
 			s,
 		)

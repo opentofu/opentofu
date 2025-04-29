@@ -80,7 +80,7 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 		t.Logf("%s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -167,7 +167,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 		t.Log(legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -254,7 +254,7 @@ output "data" {
 		t.Fatal(diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -277,7 +277,7 @@ output "data" {
 		return resp
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -339,7 +339,7 @@ resource "test_instance" "a" {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -451,7 +451,7 @@ resource "aws_instance" "bin" {
 		t.Fatalf("baz should depend on bam after refresh, but got %s", baz.Current.Dependencies)
 	}
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -535,7 +535,7 @@ resource "test_resource" "b" {
 	plan, diags := ctx.Plan(context.Background(), m, state, SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -576,7 +576,7 @@ output "out" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatal(diags.ErrWithWarnings())
 	}
@@ -639,7 +639,7 @@ resource "test_object" "y" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(m.Module.Variables)))
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// FINAL PLAN:
@@ -697,7 +697,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -753,7 +753,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -767,7 +767,7 @@ func TestContext2Apply_nullableVariables(t *testing.T) {
 	if diags.HasErrors() {
 		t.Fatalf("plan: %s", diags.Err())
 	}
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -830,7 +830,7 @@ resource "test_object" "s" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// destroy only a single instance not included in the moved statements
@@ -880,7 +880,7 @@ resource "test_object" "s" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// destroy excluding the module in the moved statements
@@ -945,7 +945,7 @@ resource "test_object" "b" {
 	testObjA := plan.PriorState.Modules[""].Resources["test_object.a"].Instances[addrs.NoKey].Current
 	testObjA.Dependencies = append(testObjA.Dependencies, mustResourceInstanceAddr("test_object.b").ContainingResource().Config())
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if !diags.HasErrors() {
 		t.Fatal("expected cycle error from apply")
 	}
@@ -1031,7 +1031,7 @@ resource "test_resource" "c" {
 			resp.NewState = cty.ObjectVal(m)
 			return resp
 		}
-		state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		assertNoErrors(t, diags)
 
 		wantResourceAttrs := map[string]struct{ value, output string }{
@@ -1087,7 +1087,7 @@ resource "test_resource" "c" {
 			resp.NewState = cty.ObjectVal(m)
 			return resp
 		}
-		state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		if !diags.HasErrors() {
 			t.Fatal("succeeded; want errors")
 		}
@@ -1192,7 +1192,7 @@ func TestContext2Apply_outputValuePrecondition(t *testing.T) {
 			}
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		assertNoDiagnostics(t, diags)
 		for _, addr := range checkableObjects {
 			result := state.CheckResults.GetObjectResult(addr)
@@ -1345,7 +1345,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 			t.Fatalf("incorrect initial plan for instance B\nwant a 'create' change\ngot: %s", spew.Sdump(planB))
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags := ctx.Apply(context.Background(), plan, m)
 		assertNoErrors(t, diags)
 
 		stateA := state.ResourceInstance(instA)
@@ -1382,7 +1382,7 @@ func TestContext2Apply_resourceConditionApplyTimeFail(t *testing.T) {
 			t.Fatalf("incorrect initial plan for instance B\nwant a 'no-op' change\ngot: %s", spew.Sdump(planB))
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		_, diags = ctx.Apply(context.Background(), plan, m)
 		if !diags.HasErrors() {
 			t.Fatal("final apply succeeded, but should've failed with a postcondition error")
 		}
@@ -1520,7 +1520,7 @@ output "out" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// Resource changes which have dependencies across providers which
@@ -1645,7 +1645,7 @@ resource "test_object" "x" {
 		t.Fatalf("plan: %s", diags.Err())
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply: %s", diags.Err())
 	}
@@ -1691,7 +1691,7 @@ resource "test_object" "y" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -1773,7 +1773,7 @@ output "data" {
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), opts)
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// and destroy
@@ -1781,7 +1781,7 @@ output "data" {
 	plan, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// and destroy again with no state
@@ -1793,7 +1793,7 @@ output "data" {
 	plan, diags = ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -1848,7 +1848,7 @@ output "from_resource" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -1905,7 +1905,7 @@ output "from_resource" {
 	plan, diags := ctx.Plan(context.Background(), m, state, opts)
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	resCheck := state.CheckResults.GetObjectResult(mustResourceInstanceAddr("test_object.x"))
@@ -1993,7 +1993,7 @@ resource "test_object" "y" {
 		return resp
 	}
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -2041,7 +2041,7 @@ output "a" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -2088,7 +2088,7 @@ output "null_module_test" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	// now destroy
@@ -2096,7 +2096,7 @@ output "null_module_test" {
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -2163,7 +2163,7 @@ output "resources" {
 		Mode: plans.NormalMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -2251,7 +2251,7 @@ resource "test_resource" "b" {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -2294,7 +2294,7 @@ resource "unused_resource" "test" {
 		Mode: plans.DestroyMode,
 	})
 	assertNoErrors(t, diags)
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 }
 
@@ -2354,7 +2354,7 @@ import {
 	})
 	assertNoErrors(t, diags)
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertNoErrors(t, diags)
 
 	if !hook.PreApplyImportCalled {
@@ -2397,7 +2397,7 @@ locals {
 		t.Errorf("expected no errors, but got %s", diags)
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Errorf("expected no errors, but got %s", diags)
 	}
@@ -2440,7 +2440,7 @@ locals {
 		t.Errorf("expected no errors, but got %s", diags)
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Errorf("expected no errors, but got %s", diags)
 	}
@@ -2499,7 +2499,7 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2568,7 +2568,7 @@ func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -2754,7 +2754,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, normalPlanOpts)
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+			newState, diags := ctx.Apply(context.Background(), plan, m)
 			assertNoErrors(t, diags)
 
 			assertResourceInstanceProviderInstance(
@@ -2822,7 +2822,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, makeStep2PlanOpts(plans.NormalMode))
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+			newState, diags := ctx.Apply(context.Background(), plan, m)
 			assertNoErrors(t, diags)
 
 			// Because makeStep2PlanOpts told us to retain at least one
@@ -2895,7 +2895,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			plan, diags := ctx.Plan(context.Background(), m, state, normalPlanOpts)
 			assertNoErrors(t, diags)
 
-			newState, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+			newState, diags := ctx.Apply(context.Background(), plan, m)
 			assertNoErrors(t, diags)
 
 			// The whole resource state for mock.first should've been removed now.
@@ -2972,7 +2972,7 @@ func TestContext2Apply_moduleProviderAliasExcludes(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3012,7 +3012,7 @@ func TestContext2Apply_moduleProviderAliasExcludesNonExistent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3045,7 +3045,7 @@ func TestContext2Apply_moduleExclude(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3081,7 +3081,7 @@ func TestContext2Apply_moduleExcludeDependent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3112,7 +3112,7 @@ func TestContext2Apply_moduleExcludeNonExistent(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3159,7 +3159,7 @@ func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *t
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3193,7 +3193,7 @@ func TestContext2Apply_destroyExcludedNonExistentWithModuleVariableAndCount(t *t
 		}
 
 		// Destroy, excluding the module explicitly
-		state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags)
 		}
@@ -3248,7 +3248,7 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3282,7 +3282,7 @@ func TestContext2Apply_destroyExcludedWithModuleVariableAndCount(t *testing.T) {
 		}
 
 		// Destroy, excluding the module explicitly
-		state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("destroy apply err: %s", diags)
 		}
@@ -3326,7 +3326,7 @@ func TestContext2Apply_excluded(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3366,7 +3366,7 @@ func TestContext2Apply_excludedCount(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3408,7 +3408,7 @@ func TestContext2Apply_excludedCountIndex(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3451,14 +3451,14 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		if diags := ctx.Validate(context.Background(), m, DeprecationWarningLevelAll); diags.HasErrors() {
+		if diags := ctx.Validate(context.Background(), m); diags.HasErrors() {
 			t.Fatalf("validate errors: %s", diags.Err())
 		}
 
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3481,7 +3481,7 @@ func TestContext2Apply_excludedDestroy(t *testing.T) {
 		})
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3515,14 +3515,14 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 		})
 
 		// First plan and apply a create operation
-		if diags := ctx.Validate(context.Background(), m, DeprecationWarningLevelAll); diags.HasErrors() {
+		if diags := ctx.Validate(context.Background(), m); diags.HasErrors() {
 			t.Fatalf("validate errors: %s", diags.Err())
 		}
 
 		plan, diags := ctx.Plan(context.Background(), m, states.NewState(), DefaultPlanOpts)
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("apply err: %s", diags.Err())
 		}
@@ -3543,7 +3543,7 @@ func TestContext2Apply_excludedDestroyDependent(t *testing.T) {
 		})
 		assertNoErrors(t, diags)
 
-		state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		state, diags = ctx.Apply(context.Background(), plan, m)
 		if diags.HasErrors() {
 			t.Fatalf("diags: %s", diags.Err())
 		}
@@ -3633,7 +3633,7 @@ func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3711,7 +3711,7 @@ func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3795,7 +3795,7 @@ func TestContext2Apply_excludedDestroyModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3880,7 +3880,7 @@ func TestContext2Apply_excludedDestroyCountIndex(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3914,7 +3914,7 @@ func TestContext2Apply_excludedModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3963,7 +3963,7 @@ func TestContext2Apply_excludedModuleResourceDep(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -3996,7 +3996,7 @@ func TestContext2Apply_excludedResourceDependentOnModule(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4034,7 +4034,7 @@ func TestContext2Apply_excludedModuleDep(t *testing.T) {
 		t.Logf("Diff: %s", legacyDiffComparisonString(plan.Changes))
 	}
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4067,7 +4067,7 @@ func TestContext2Apply_excludedModuleUnrelatedOutputs(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	s, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4115,7 +4115,7 @@ func TestContext2Apply_excludedModuleResource(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("diags: %s", diags.Err())
 	}
@@ -4175,7 +4175,7 @@ func TestContext2Apply_excludedResourceOrphanModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -4226,7 +4226,7 @@ func TestContext2Apply_excludedOrphanModule(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags = ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("apply errors: %s", diags.Err())
 	}
@@ -4296,7 +4296,7 @@ func TestContext2Apply_excludedWithTaintedInState(t *testing.T) {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	s, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	s, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -4335,7 +4335,7 @@ func TestContext2Apply_excludedModuleRecursive(t *testing.T) {
 	})
 	assertNoErrors(t, diags)
 
-	state, diags := ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -4452,7 +4452,7 @@ data "test_data_source" "b_direct" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
@@ -4467,7 +4467,7 @@ data "test_data_source" "b_direct" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
 	primaryResource := mustResourceInstanceAddr(`test_instance.a["primary"]`)
@@ -4681,7 +4681,7 @@ data "test_data_source" "b" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) (*states.State, tfdiags.Diagnostics) {
@@ -4696,7 +4696,7 @@ data "test_data_source" "b" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
 	primaryResource := mustResourceInstanceAddr(`module.mod["primary"].test_instance.a`)
@@ -4891,7 +4891,7 @@ variable "other_var" {
 			t.Fatal(diags.Err())
 		}
 
-		state, diags := ctx.Apply(context.Background(), plan, valid, DeprecationWarningLevelAll)
+		state, diags := ctx.Apply(context.Background(), plan, valid)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
@@ -4904,7 +4904,7 @@ variable "other_var" {
 			t.Fatal(diags.Err())
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, valid, DeprecationWarningLevelAll)
+		_, diags = ctx.Apply(context.Background(), plan, valid)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}
@@ -4979,7 +4979,7 @@ variable "res_data" {
 			return nil, diags
 		}
 
-		return ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		return ctx.Apply(context.Background(), plan, m)
 	}
 
 	destroy := func(t *testing.T, m *configs.Config, prevState *states.State) tfdiags.Diagnostics {
@@ -4995,7 +4995,7 @@ variable "res_data" {
 			return diags
 		}
 
-		_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+		_, diags = ctx.Apply(context.Background(), plan, m)
 		return diags
 	}
 
@@ -5350,6 +5350,6 @@ module "call" {
 		},
 	))
 
-	_, diags = ctx.Apply(context.Background(), plan, m, DeprecationWarningLevelAll)
+	_, diags = ctx.Apply(context.Background(), plan, m)
 	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{})
 }

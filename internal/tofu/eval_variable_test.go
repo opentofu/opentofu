@@ -1549,7 +1549,7 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			}
 
 			expr := tt.expr
-			gotDiags := evalVariableDeprecation(varAddr, tt.varCfg, expr, ctx, tt.warnLevel, nil)
+			gotDiags := evalVariableDeprecation(varAddr, tt.varCfg, expr, ctx, variableDeprecationWarnAllowed(tt.warnLevel, nil))
 
 			if gotLen, expectedLen := len(gotDiags), len(tt.expectedDiags); gotLen != expectedLen {
 				t.Fatalf("expected %d diagnostics; got %d", expectedLen, gotLen)
@@ -1584,7 +1584,7 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 		varCfg := cfg.Children["foo-call"].Module.Variables["foo"]
 		// NOTE: this is just to test that diags are not returned when remote are excluded
 		varCfg.DeclRange.Filename = ".terraform/modules/" + varCfg.DeclRange.Filename
-		gotDiags := evalVariableDeprecation(varAddr, varCfg, cfg.Module.ModuleCalls["foo-call"].Source, ctx, DeprecationWarningLevelLocal, nil)
+		gotDiags := evalVariableDeprecation(varAddr, varCfg, cfg.Module.ModuleCalls["foo-call"].Source, ctx, variableDeprecationWarnAllowed(DeprecationWarningLevelLocal, nil))
 		if len(gotDiags) != 0 {
 			t.Fatalf("unexpected diags returned. %+v", gotDiags)
 		}

@@ -488,20 +488,19 @@ You can correct this by removing references to sensitive values, or by carefully
 	}, diags
 }
 
-// evalVariableDeprecation checks if a variable is deprecated and if so it returns a warning diagnostic to be shown to the user
+// evalVariableDeprecation checks if a variable is deprecated and if so, it returns a warning diagnostic to be shown to the user
 func evalVariableDeprecation(
 	addr addrs.AbsInputVariableInstance,
 	config *configs.Variable,
 	expr hcl.Expression,
 	ctx EvalContext,
-	warnLevel DeprecationWarningLevel,
-	moduleSource addrs.ModuleSource) tfdiags.Diagnostics {
+	deprecationWarningAllowed bool) tfdiags.Diagnostics {
 	if config.Deprecated == "" {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %s does not have deprecation configured", addr)
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q does not have deprecation configured", addr)
 		return nil
 	}
-	if !variableDeprecationWarnAllowed(warnLevel, moduleSource) {
-		log.Printf("[TRACE] evalVariableDeprecation: the current level excludes variable %q deprecation check. currently configured deprecation warn level: %s", addr, warnLevel)
+	if !deprecationWarningAllowed {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is excluded from generating deprecation warnings", addr)
 		return nil
 	}
 	// if the variable is not given in the module call, do not show a warning
@@ -511,7 +510,7 @@ func evalVariableDeprecation(
 	}
 	val := ctx.GetVariableValue(addr)
 	if val == cty.NilVal {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %s is marked as deprecated but no value given", addr)
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is marked as deprecated but no value given", addr)
 		return nil
 	}
 	log.Printf("[TRACE] evalVariableDeprecation: usage of deprecated variable %q detected", addr)

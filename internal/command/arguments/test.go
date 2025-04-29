@@ -48,7 +48,7 @@ func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
 	cmdFlags := extendedFlagSet("test", nil, nil, test.Vars)
 	cmdFlags.Var((*flagStringSlice)(&test.Filter), "filter", "filter")
 	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
-	cmdFlags.StringVar(&test.ModuleDeprecationWarnLevel, "deprecation-warn", "all", "control the level of deprecation warnings")
+	cmdFlags.StringVar(&test.ModuleDeprecationWarnLevel, "module-deprecation-warnings", "", "control the level of deprecation warnings")
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")
 

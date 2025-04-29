@@ -275,72 +275,72 @@ Plan Customization Options:
 
 Other Options:
 
-  -compact-warnings            If OpenTofu produces any warnings that are not
-                               accompanied by errors, shows them in a more
-                               compact form that includes only the summary
-                               messages.
+  -compact-warnings                 If OpenTofu produces any warnings that are not
+                                    accompanied by errors, shows them in a more
+                                    compact form that includes only the summary
+                                    messages.
+                                    
+  -consolidate-warnings=false       If OpenTofu produces any warnings, do not
+                                    attempt to consolidate similar messages. All
+                                    locations for all warnings will be listed.
+                                    
+  -consolidate-errors               If OpenTofu produces any errors, attempt to
+                                    consolidate similar messages into a single item.
 
-  -consolidate-warnings=false  If OpenTofu produces any warnings, do not
-                               attempt to consolidate similar messages. All
-                               locations for all warnings will be listed.
+  -detailed-exitcode                Return detailed exit codes when the command
+                                    exits. The detailed exit codes are:
+                                      0 - Succeeded but no changes proposed
+                                      1 - Planning failed with an error
+                                      2 - Succeeded and changes are proposed
 
-  -consolidate-errors          If OpenTofu produces any errors, attempt to
-                               consolidate similar messages into a single item.
+  -generate-config-out=path         (Experimental) If import blocks are present in
+                                    configuration, instructs OpenTofu to generate
+                                    HCL for any imported resources not already
+                                    present. The configuration is written to a new
+                                    file at PATH, which must not already exist.
+                                    OpenTofu may still attempt to write
+                                    configuration if planning fails with an error.
+                                    
+  -input=false                      Disable prompting for required input variables
+                                    that are not set some other way.
+                                    
+  -lock=false                       Don't hold a state lock during the operation.
+                                    This is dangerous if others might concurrently
+                                    run commands against the same workspace.
 
-  -detailed-exitcode           Return detailed exit codes when the command
-                               exits. The detailed exit codes are:
-                                 0 - Succeeded but no changes proposed
-                                 1 - Planning failed with an error
-                                 2 - Succeeded and changes are proposed
-
-  -generate-config-out=path    (Experimental) If import blocks are present in
-                               configuration, instructs OpenTofu to generate
-                               HCL for any imported resources not already
-                               present. The configuration is written to a new
-                               file at PATH, which must not already exist.
-                               OpenTofu may still attempt to write
-                               configuration if planning fails with an error.
-
-  -input=false                 Disable prompting for required input variables
-                               that are not set some other way.
-
-  -lock=false                  Don't hold a state lock during the operation.
-                               This is dangerous if others might concurrently
-                               run commands against the same workspace.
-
-  -lock-timeout=duration       Duration to retry a state lock, such as "5s"
-                               to represent five seconds.
-
-  -no-color                    Disable virtual terminal escape sequences.
-
-  -concise                     Disable progress-related messages.
-
-  -out=path                    Write a plan file to the given path. This can be
-                               used as input to the "apply" command.
-
-  -parallelism=n               Limit the number of concurrent operations.
-                               Defaults to 10.
-
-  -state=statefile             A legacy option used for the local backend only.
-                               Refer to the local backend's documentation for
-                               more information.
-
-  -show-sensitive              If specified, sensitive values will not be
-                               redacted in te UI output.
-
-  -json                        Produce output in a machine-readable JSON
-                               format, suitable for use in text editor
-                               integrations and other automated systems.
+  -lock-timeout=duration            Duration to retry a state lock, such as "5s"
+                                    to represent five seconds.
+                                    
+  -no-color                         Disable virtual terminal escape sequences.
+                                    
+  -concise                          Disable progress-related messages.
+                                    
+  -out=path                         Write a plan file to the given path. This can be
+                                    used as input to the "apply" command.
+                                    
+  -parallelism=n                    Limit the number of concurrent operations.
+                                    Defaults to 10.
+                                    
+  -state=statefile                  A legacy option used for the local backend only.
+                                    Refer to the local backend's documentation for
+                                    more information.
+                                    
+  -show-sensitive                   If specified, sensitive values will not be
+                                    redacted in te UI output.
+                                    
+  -json                             Produce output in a machine-readable JSON
+                                    format, suitable for use in text editor
+                                    integrations and other automated systems.
   
-  -deprecation-warn=all        Specify what type of warnings are shown. Accepted
-                               values: all, local. When "all" is selected, OpenTofu
-                               will show the deprecation warnings for all modules.
-                               When "local" is selected, the warns will be shown
-                               only for the local modules.
+  -module-deprecation-warnings=all  Specify what type of warnings are shown. Accepted
+                                    values: all, local. When "all" is selected, OpenTofu
+                                    will show the deprecation warnings for all modules.
+                                    When "local" is selected, the warns will be shown
+                                    only for the local modules.
 
-  -json                      Produce output in a machine-readable JSON format, 
-                             suitable for use in text editor integrations and 
-                             other automated systems. Always disables color.
+  -json                             Produce output in a machine-readable JSON format, 
+                                    suitable for use in text editor integrations and 
+                                    other automated systems. Always disables color.
 `
 	return strings.TrimSpace(helpText)
 }

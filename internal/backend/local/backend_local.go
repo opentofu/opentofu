@@ -83,6 +83,8 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	coreOpts.UIInput = op.UIIn
 	coreOpts.Hooks = op.Hooks
 	coreOpts.Encryption = op.Encryption
+	// TODO andrei should we do this in remote/backend too?
+	coreOpts.ModuleDeprecationWarnLevel = op.ModuleDeprecationWarnLevel
 
 	var ctxDiags tfdiags.Diagnostics
 	var configSnap *configload.Snapshot
@@ -137,7 +139,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 		// If validation is enabled, validate
 		if b.OpValidation {
 			log.Printf("[TRACE] backend/local: running validation operation")
-			validateDiags := ret.Core.Validate(ctx, ret.Config, op.ModuleDeprecationWarnLevel)
+			validateDiags := ret.Core.Validate(ctx, ret.Config)
 			diags = diags.Append(validateDiags)
 		}
 	}
