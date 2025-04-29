@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Schemas is a container for various kinds of schema that OpenTofu needs
@@ -80,14 +81,7 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 	}
 	var diags tfdiags.Diagnostics
 
-	// TODO: Start an OpenTelemetry trace span covering the entire time spent
-	// loading schemas. (Our use of schemas is an implementation concern
-	// rather than something end-users typically worry about, so we should
-	// avoid exposing excessive amounts of detail under this codepath.)
-
-	newDiags := loadProviderSchemas(ctx, schemas.Providers, config, state, plugins)
-	diags = diags.Append(newDiags)
-	newDiags = loadProvisionerSchemas(ctx, schemas.Provisioners, config, plugins)
+	newDiags := loadProvisionerSchemas(ctx, schemas.Provisioners, config, plugins)
 	diags = diags.Append(newDiags)
 
 	return schemas, diags.Err()
@@ -117,6 +111,7 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 					fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
 				),
 			)
+			//tracing.SetSpanError(span, diags)
 			return
 		}
 
@@ -143,10 +138,6 @@ func loadProvisionerSchemas(ctx context.Context, schemas map[string]*configschem
 	var diags tfdiags.Diagnostics
 
 	ensure := func(name string) {
-		if _, exists := schemas[name]; exists {
-			return
-		}
-
 		log.Printf("[TRACE] LoadSchemas: retrieving schema for provisioner %q", name)
 		schema, err := plugins.ProvisionerSchema(name)
 		if err != nil {
@@ -161,6 +152,7 @@ func loadProvisionerSchemas(ctx context.Context, schemas map[string]*configschem
 					fmt.Sprintf("Could not load the schema for provisioner %q: %s.", name, err),
 				),
 			)
+
 			return
 		}
 

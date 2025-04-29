@@ -75,7 +75,7 @@ func TestShowHuman_DisplayPlan(t *testing.T) {
 			view.Configure(&arguments.View{NoColor: true})
 			v := NewShow(arguments.ViewHuman, view)
 
-			code := v.DisplayPlan(testCase.plan, testCase.jsonPlan, nil, nil, testCase.schemas)
+			code := v.DisplayPlan(t.Context(), testCase.plan, testCase.jsonPlan, nil, nil, testCase.schemas)
 			if code != 0 {
 				t.Errorf("expected 0 return code, got %d", code)
 			}
@@ -131,7 +131,7 @@ func TestShowHuman_DisplayState(t *testing.T) {
 			view.Configure(&arguments.View{NoColor: true})
 			v := NewShow(arguments.ViewHuman, view)
 
-			code := v.DisplayState(testCase.stateFile, testCase.schemas)
+			code := v.DisplayState(t.Context(), testCase.stateFile, testCase.schemas)
 			if code != 0 {
 				t.Errorf("expected 0 return code, got %d", code)
 			}
@@ -225,7 +225,7 @@ func TestShowJSON_DisplayPlan(t *testing.T) {
 				},
 			}
 
-			code := v.DisplayPlan(testCase.plan, testCase.jsonPlan, config, testCase.stateFile, schemas)
+			code := v.DisplayPlan(t.Context(), testCase.plan, testCase.jsonPlan, config, testCase.stateFile, schemas)
 
 			if code != 0 {
 				t.Errorf("expected 0 return code, got %d", code)
@@ -290,7 +290,7 @@ func TestShowJSON_DisplayState(t *testing.T) {
 				},
 			}
 
-			code := v.DisplayState(testCase.stateFile, schemas)
+			code := v.DisplayState(t.Context(), testCase.stateFile, schemas)
 
 			if code != 0 {
 				t.Errorf("expected 0 return code, got %d", code)

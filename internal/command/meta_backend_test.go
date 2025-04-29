@@ -772,9 +772,7 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 					},
 				},
 			}),
-		},
-		encryption.StateEncryptionDisabled(),
-	)
+		}, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		// The original problem reported in https://github.com/opentofu/opentofu/issues/2024
 		// would return an error here: "Backend configuration has changed".
