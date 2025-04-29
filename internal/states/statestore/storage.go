@@ -125,10 +125,22 @@ type Storage interface {
 	// not.
 	Write(context.Context, map[Key]Value) error
 
+	// Persist suggests to the implementation that it would be a good idea
+	// to persist any data that isn't yet saved in durable storage.
+	//
+	// Exactly what this means depends on the implementation, and indeed it
+	// might not do anything at all for implementations that persist immediately
+	// on calls to [Storage.Write].
+	Persist(context.Context) error
+
 	// Close is called once the Storage object is no longer needed.
 	//
 	// Implementations should ensure that any uncommitted changes are persisted
 	// to the underlying storage and release any active locks before returning.
+	// For implementations that do something interesting in [Storage.Persist],
+	// this method must incorporate that same behavior; it's redundant to
+	// call Persist immediately followed by Close without any intermediate
+	// calls to Write.
 	//
 	// It's a bug in the caller if any other methods are called after beginning
 	// a call to Close.
