@@ -17,6 +17,9 @@ import (
 	getter "github.com/hashicorp/go-getter"
 	ociDigest "github.com/opencontainers/go-digest"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opentofu/opentofu/internal/tracing"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 	orasContent "oras.land/oras-go/v2/content"
 	orasRegistry "oras.land/oras-go/v2/registry"
 )
@@ -66,34 +69,52 @@ var _ getter.Getter = (*ociDistributionGetter)(nil)
 func (g *ociDistributionGetter) Get(destDir string, url *url.URL) error {
 	ctx := g.context()
 
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Fetch 'oci' module package",
+		otelTrace.WithAttributes(
+			otelAttr.String("opentofu.module.source", url.String()),
+			otelAttr.String("opentofu.module.local_dir", destDir),
+		),
+	)
+	defer span.End()
+
 	ref, err := g.resolveRepositoryRef(url)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return err
 	}
 	store, err := g.getOCIRepositoryStore(ctx, ref.Registry, ref.Repository)
 	if err != nil {
-		return fmt.Errorf("configuring client for %s: %w", ref, err)
+		err := fmt.Errorf("configuring client for %s: %w", ref, err)
+		tracing.SetSpanError(span, err)
+		return err
 	}
 	manifestDesc, err := g.resolveManifestDescriptor(ctx, ref, url.Query(), store)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return err
 	}
 	manifest, err := fetchOCIImageManifest(ctx, manifestDesc, store)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return err
 	}
 	pkgDesc, err := selectOCILayerBlob(manifest.Layers)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return err
 	}
 	decompKey := goGetterDecompressorMediaTypes[pkgDesc.MediaType]
 	decomp := goGetterDecompressors[decompKey]
 	if decomp == nil {
 		// Should not get here if selectOCILayerBlob is implemented correctly.
-		return fmt.Errorf("no decompressor available for media type %q", pkgDesc.MediaType)
+		err := fmt.Errorf("no decompressor available for media type %q", pkgDesc.MediaType)
+		tracing.SetSpanError(span, err)
+		return err
 	}
 	tempFile, err := fetchOCIBlobToTemporaryFile(ctx, pkgDesc, store)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return err
 	}
 	defer os.Remove(tempFile)
@@ -104,7 +125,9 @@ func (g *ociDistributionGetter) Get(destDir string, url *url.URL) error {
 	}
 	err = decomp.Decompress(destDir, tempFile, true, umask)
 	if err != nil {
-		return fmt.Errorf("decompressing package into %s: %w", destDir, err)
+		err := fmt.Errorf("decompressing package into %s: %w", destDir, err)
+		tracing.SetSpanError(span, err)
+		return err
 	}
 	return nil
 }
@@ -195,32 +218,45 @@ func (g *ociDistributionGetter) resolveRepositoryRef(url *url.URL) (*orasRegistr
 }
 
 func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, ref *orasRegistry.Reference, query url.Values, store OCIRepositoryStore) (desc ociv1.Descriptor, err error) {
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Resolve reference",
+		otelTrace.WithAttributes(
+			otelAttr.String("opentofu.oci.registry.domain", ref.Registry),
+			otelAttr.String("opentofu.oci.repository.name", ref.Repository),
+		),
+	)
+	defer span.End()
+	prepErr := func(err error) error {
+		tracing.SetSpanError(span, err)
+		return err
+	}
+
 	var unsupportedArgs []string
 	var wantTag string
 	var wantDigest ociDigest.Digest
 	for name, values := range query {
 		if len(values) > 1 {
-			return ociv1.Descriptor{}, fmt.Errorf("too many %q arguments", name)
+			return ociv1.Descriptor{}, prepErr(fmt.Errorf("too many %q arguments", name))
 		}
 		value := values[0]
 		switch name {
 		case "tag":
 			if value == "" {
-				return ociv1.Descriptor{}, fmt.Errorf("tag argument must not be empty")
+				return ociv1.Descriptor{}, prepErr(fmt.Errorf("tag argument must not be empty"))
 			}
 			tagRef := *ref           // shallow copy so we can modify the reference field
 			tagRef.Reference = value // We'll again borrow the ORAS-Go validation for this
 			if err := tagRef.ValidateReferenceAsTag(); err != nil {
-				return ociv1.Descriptor{}, err // message includes suitable context prefix already
+				return ociv1.Descriptor{}, prepErr(err) // message includes suitable context prefix already
 			}
 			wantTag = value
 		case "digest":
 			if value == "" {
-				return ociv1.Descriptor{}, fmt.Errorf("digest argument must not be empty")
+				return ociv1.Descriptor{}, prepErr(fmt.Errorf("digest argument must not be empty"))
 			}
 			d, err := ociDigest.Parse(value)
 			if err != nil {
-				return ociv1.Descriptor{}, fmt.Errorf("invalid digest: %s", err)
+				return ociv1.Descriptor{}, prepErr(fmt.Errorf("invalid digest: %s", err))
 			}
 			wantDigest = d
 		default:
@@ -228,12 +264,12 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 		}
 	}
 	if len(unsupportedArgs) == 1 {
-		return ociv1.Descriptor{}, fmt.Errorf("unsupported argument %q", unsupportedArgs[0])
+		return ociv1.Descriptor{}, prepErr(fmt.Errorf("unsupported argument %q", unsupportedArgs[0]))
 	} else if len(unsupportedArgs) >= 2 {
-		return ociv1.Descriptor{}, fmt.Errorf("unsupported arguments: %s", strings.Join(unsupportedArgs, ", "))
+		return ociv1.Descriptor{}, prepErr(fmt.Errorf("unsupported arguments: %s", strings.Join(unsupportedArgs, ", ")))
 	}
 	if wantTag != "" && wantDigest != "" {
-		return ociv1.Descriptor{}, fmt.Errorf("cannot set both \"tag\" and \"digest\" arguments")
+		return ociv1.Descriptor{}, prepErr(fmt.Errorf("cannot set both \"tag\" and \"digest\" arguments"))
 	}
 	if wantTag == "" && wantDigest == "" {
 		wantTag = "latest" // default tag to use if no arguments are present
@@ -242,9 +278,12 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 	if wantTag != "" {
 		// If we're starting with a tag name then we need to query the
 		// repository to find out which digest is currently selected.
+		span.SetAttributes(
+			otelAttr.String("opentofu.oci.reference.tag", wantTag),
+		)
 		desc, err = store.Resolve(ctx, wantTag)
 		if err != nil {
-			return ociv1.Descriptor{}, fmt.Errorf("resolving tag %q: %w", wantTag, err)
+			return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving tag %q: %w", wantTag, err))
 		}
 	} else {
 		// If we're requesting a specific digest then we still need to
@@ -254,18 +293,27 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 		// most of the other implementations only allow resolving by tag,
 		// and so we can't exercise this specific case from unit tests
 		// using in-memory or on-disk fakes. :(
+		span.SetAttributes(
+			otelAttr.String("opentofu.oci.reference.digest", wantDigest.String()),
+		)
 		desc, err = store.Resolve(ctx, wantDigest.String())
 		if err != nil {
-			return ociv1.Descriptor{}, fmt.Errorf("resolving digest %q: %w", wantDigest, err)
+			return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving digest %q: %w", wantDigest, err))
 		}
 	}
+
+	span.SetAttributes(
+		otelAttr.String("oci.manifest.digest", desc.Digest.String()),
+		otelAttr.String("opentofu.oci.manifest.media_type", desc.MediaType),
+		otelAttr.Int64("opentofu.oci.manifest.size", desc.Size),
+	)
 
 	// The initial request is only required to return a "plain" descriptor,
 	// with only MediaType+Digest+Size, so we can verify the media type
 	// here but we'll need to wait until we fetch the manifest to verify
 	// the ArtifactType and any other details.
 	if desc.MediaType != ociv1.MediaTypeImageManifest {
-		return ociv1.Descriptor{}, fmt.Errorf("selected object is not an OCI image manifest")
+		return ociv1.Descriptor{}, prepErr(fmt.Errorf("selected object is not an OCI image manifest"))
 	}
 
 	// We always expect ArtifactType to be set to our OpenTofu-specific type,
@@ -276,9 +324,22 @@ func (g *ociDistributionGetter) resolveManifestDescriptor(ctx context.Context, r
 }
 
 func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCIRepositoryStore) (*ociv1.Manifest, error) {
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Fetch manifest",
+		otelTrace.WithAttributes(
+			otelAttr.String("oci.manifest.digest", desc.Digest.String()),
+			otelAttr.Int64("opentofu.oci.manifest.size", desc.Size),
+		),
+	)
+	defer span.End()
+	prepErr := func(err error) error {
+		tracing.SetSpanError(span, err)
+		return err
+	}
+
 	manifestSrc, err := fetchOCIManifestBlob(ctx, desc, store)
 	if err != nil {
-		return nil, err
+		return nil, prepErr(err)
 	}
 
 	var manifest ociv1.Manifest
@@ -289,10 +350,15 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 		// failure could prevent us from reaching the MediaType check below.
 		var manifest ociv1.Index
 		if err := json.Unmarshal(manifestSrc, &manifest); err == nil && manifest.MediaType == ociv1.MediaTypeImageIndex {
-			return nil, fmt.Errorf("found index manifest but need image manifest")
+			return nil, prepErr(fmt.Errorf("found index manifest but need image manifest"))
 		}
-		return nil, fmt.Errorf("invalid manifest content: %w", err)
+		return nil, prepErr(fmt.Errorf("invalid manifest content: %w", err))
 	}
+
+	span.SetAttributes(
+		otelAttr.String("opentofu.oci.manifest.media_type", desc.MediaType),
+		otelAttr.String("opentofu.oci.manifest.artifact_type", desc.ArtifactType),
+	)
 
 	// Now we'll make sure that what we decoded seems vaguely sensible before we
 	// return it. Callers are allowed to rely on these checks by verifying
@@ -300,10 +366,10 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	// types before they call this function and then assuming that the result
 	// definitely matches what they asked for.
 	if manifest.MediaType != desc.MediaType {
-		return nil, fmt.Errorf("unexpected manifest media type %q", manifest.MediaType)
+		return nil, prepErr(fmt.Errorf("unexpected manifest media type %q", manifest.MediaType))
 	}
 	if manifest.ArtifactType != desc.ArtifactType {
-		return nil, fmt.Errorf("unexpected artifact type %q", manifest.ArtifactType)
+		return nil, prepErr(fmt.Errorf("unexpected artifact type %q", manifest.ArtifactType))
 	}
 	// We intentionally leave everything else loose so that we'll have flexibility
 	// to extend this format in backward-compatible ways in future OpenTofu versions.
@@ -386,12 +452,25 @@ func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 // It is the caller's responsibility to delete the temporary file once it's no longer
 // needed.
 func fetchOCIBlobToTemporaryFile(ctx context.Context, desc ociv1.Descriptor, store orasContent.Fetcher) (tempFile string, err error) {
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Fetch module package",
+		otelTrace.WithAttributes(
+			otelAttr.String("opentofu.oci.blob.digest", desc.Digest.String()),
+			otelAttr.String("opentofu.oci.blob.media_type", desc.MediaType),
+			otelAttr.Int64("opentofu.oci.blob.size", desc.Size),
+		),
+	)
+	defer span.End()
+
 	f, err := os.CreateTemp("", "opentofu-module")
 	if err != nil {
-		return "", fmt.Errorf("failed to open temporary file: %w", err)
+		err := fmt.Errorf("failed to open temporary file: %w", err)
+		tracing.SetSpanError(span, err)
+		return "", err
 	}
 	tempFile = f.Name()
 	defer func() {
+		tracing.SetSpanError(span, err)
 		// If we're returning an error then the caller won't make use of the
 		// file we've created, so we'll make a best effort to proactively
 		// remove it. If we return a nil error then it's the caller's
