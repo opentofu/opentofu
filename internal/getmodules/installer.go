@@ -77,6 +77,7 @@ func (f *PackageFetcher) FetchPackage(ctx context.Context, instDir string, packa
 	err := f.getter.getWithGoGetter(ctx, instDir, packageAddr)
 	if err != nil {
 		span.RecordError(err)
+		return err
 	}
 	return nil
 }
