@@ -957,7 +957,7 @@ func TestMetaBackend_initSelectedWorkspaceDoesNotExist(t *testing.T) {
 	}
 
 	expected := "foo"
-	actual, err := m.Workspace()
+	actual, err := m.Workspace(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -983,7 +983,7 @@ func TestMetaBackend_initSelectedWorkspaceDoesNotExistAutoSelect(t *testing.T) {
 	m.input = false
 
 	// Assert test precondition: The current selected workspace is "bar"
-	previousName, err := m.Workspace()
+	previousName, err := m.Workspace(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -999,7 +999,7 @@ func TestMetaBackend_initSelectedWorkspaceDoesNotExistAutoSelect(t *testing.T) {
 	}
 
 	expected := "default"
-	actual, err := m.Workspace()
+	actual, err := m.Workspace(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1243,7 +1243,7 @@ func TestMetaBackend_configuredChangeCopy_multiToSingle(t *testing.T) {
 	}
 
 	// Verify we are now in the default env, or we may not be able to access the new backend
-	env, err := m.Workspace()
+	env, err := m.Workspace(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1702,7 +1702,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.BackendForLocalPlan(backendConfig, encryption.StateEncryptionDisabled())
+	b, diags := m.BackendForLocalPlan(t.Context(), backendConfig, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1803,7 +1803,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	m.stateOutPath = statePath
 
 	// Get the backend
-	b, diags := m.BackendForLocalPlan(plannedBackend, encryption.StateEncryptionDisabled())
+	b, diags := m.BackendForLocalPlan(t.Context(), plannedBackend, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1892,7 +1892,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 	m := testMetaBackend(t, nil)
 
 	// Get the backend
-	b, diags := m.BackendForLocalPlan(backendConfig, encryption.StateEncryptionDisabled())
+	b, diags := m.BackendForLocalPlan(t.Context(), backendConfig, encryption.StateEncryptionDisabled())
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -1968,7 +1968,7 @@ func TestMetaBackend_configureWithExtra(t *testing.T) {
 		Init:           true,
 	}
 
-	_, cHash, err := m.backendConfig(opts)
+	_, cHash, err := m.backendConfig(t.Context(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}

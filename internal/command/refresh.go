@@ -75,7 +75,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -91,7 +91,7 @@ func (c *RefreshCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, args.Operation, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -125,7 +125,7 @@ func (c *RefreshCommand) PrepareBackend(ctx context.Context, args *arguments.Sta
 	// difficult but would make their use easier to understand.
 	c.Meta.applyStateArguments(args)
 
-	backendConfig, diags := c.loadBackendConfig(".")
+	backendConfig, diags := c.loadBackendConfig(ctx, ".")
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -143,12 +143,12 @@ func (c *RefreshCommand) PrepareBackend(ctx context.Context, args *arguments.Sta
 	return be, diags
 }
 
-func (c *RefreshCommand) OperationRequest(be backend.Enhanced, view views.Refresh, viewType arguments.ViewType, args *arguments.Operation, enc encryption.Encryption,
+func (c *RefreshCommand) OperationRequest(ctx context.Context, be backend.Enhanced, view views.Refresh, viewType arguments.ViewType, args *arguments.Operation, enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Build the operation
-	opReq := c.Operation(be, viewType, enc)
+	opReq := c.Operation(ctx, be, viewType, enc)
 	opReq.ConfigDir = "."
 	opReq.Hooks = view.Hooks()
 	opReq.Targets = args.Targets

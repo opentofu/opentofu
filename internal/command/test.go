@@ -151,7 +151,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	config, configDiags := c.loadConfigWithTests(".", args.TestDirectory)
+	config, configDiags := c.loadConfigWithTests(ctx, ".", args.TestDirectory)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		view.Diagnostics(nil, nil, diags)
@@ -242,7 +242,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	opts, err := c.contextOpts()
+	opts, err := c.contextOpts(ctx)
 	if err != nil {
 		diags = diags.Append(err)
 		view.Diagnostics(nil, nil, diags)

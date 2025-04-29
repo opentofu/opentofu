@@ -44,7 +44,7 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (state
 			return nil, backendDiags.Err()
 		}
 
-		workspace, err := c.Workspace()
+		workspace, err := c.Workspace(ctx)
 		if err != nil {
 			return nil, err
 		}

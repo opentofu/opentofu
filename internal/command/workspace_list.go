@@ -41,7 +41,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
@@ -49,7 +49,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
+	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -75,7 +75,7 @@ func (c *WorkspaceListCommand) Run(args []string) int {
 		return 1
 	}
 
-	env, isOverridden := c.WorkspaceOverridden()
+	env, isOverridden := c.WorkspaceOverridden(ctx)
 
 	var out bytes.Buffer
 	for _, s := range states {

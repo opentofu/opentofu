@@ -81,7 +81,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	ctx, done := c.InterruptibleContext(c.CommandContext())
 	defer done()
 
-	config, confDiags := c.loadConfig(".")
+	config, confDiags := c.loadConfig(ctx, ".")
 	diags = diags.Append(confDiags)
 	reqs, _, moreDiags := config.ProviderRequirements()
 	diags = diags.Append(moreDiags)

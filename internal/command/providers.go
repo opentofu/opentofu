@@ -78,7 +78,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 		return 1
 	}
 
-	config, configDiags := c.loadConfigWithTests(configPath, testsDirectory)
+	config, configDiags := c.loadConfigWithTests(ctx, configPath, testsDirectory)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -86,7 +86,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -107,7 +107,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Get the state
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1

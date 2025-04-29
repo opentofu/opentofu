@@ -63,13 +63,13 @@ func (c *TaintCommand) Run(args []string) int {
 		return 1
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
@@ -84,7 +84,7 @@ func (c *TaintCommand) Run(args []string) int {
 	}
 
 	// Determine the workspace name
-	workspace, err := c.Workspace()
+	workspace, err := c.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1
@@ -143,7 +143,7 @@ func (c *TaintCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(state, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(ctx, state, nil)
 		diags = diags.Append(schemaDiags)
 	}
 

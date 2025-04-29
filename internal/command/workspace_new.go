@@ -61,7 +61,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 
 	// You can't ask to create a workspace when you're overriding the
 	// workspace name to be something different.
-	if current, isOverridden := c.WorkspaceOverridden(); current != workspace && isOverridden {
+	if current, isOverridden := c.WorkspaceOverridden(ctx); current != workspace && isOverridden {
 		c.Ui.Error(envIsOverriddenNewError)
 		return 1
 	}
@@ -74,7 +74,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
+	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -82,7 +82,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)

@@ -49,21 +49,21 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
+	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
-	current, isOverridden := c.WorkspaceOverridden()
+	current, isOverridden := c.WorkspaceOverridden(ctx)
 	if isOverridden {
 		c.Ui.Error(envIsOverriddenSelectError)
 		return 1
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)

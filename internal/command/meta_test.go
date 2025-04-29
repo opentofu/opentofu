@@ -16,6 +16,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -189,7 +190,7 @@ func TestMeta_Env(t *testing.T) {
 
 	m := new(Meta)
 
-	env, err := m.Workspace()
+	env, err := m.Workspace(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +204,7 @@ func TestMeta_Env(t *testing.T) {
 		t.Fatal("error setting env:", err)
 	}
 
-	env, _ = m.Workspace()
+	env, _ = m.Workspace(t.Context())
 	if env != testEnv {
 		t.Fatalf("expected env %q, got env %q", testEnv, env)
 	}
@@ -212,7 +213,7 @@ func TestMeta_Env(t *testing.T) {
 		t.Fatal("error setting env:", err)
 	}
 
-	env, _ = m.Workspace()
+	env, _ = m.Workspace(t.Context())
 	if env != backend.DefaultStateName {
 		t.Fatalf("expected env %q, got env %q", backend.DefaultStateName, env)
 	}
@@ -242,7 +243,7 @@ func TestMeta_Workspace_override(t *testing.T) {
 	for name, tc := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Setenv(WorkspaceNameEnvVar, name)
-			workspace, err := m.Workspace()
+			workspace, err := m.Workspace(t.Context())
 			if workspace != tc.workspace {
 				t.Errorf("Unexpected workspace\n got: %s\nwant: %s\n", workspace, tc.workspace)
 			}
@@ -276,7 +277,7 @@ func TestMeta_Workspace_invalidSelected(t *testing.T) {
 
 	m := new(Meta)
 
-	ws, err := m.Workspace()
+	ws, err := m.Workspace(t.Context())
 	if ws != workspace {
 		t.Errorf("Unexpected workspace\n got: %s\nwant: %s\n", ws, workspace)
 	}
@@ -394,7 +395,7 @@ func TestCommand_checkRequiredVersion(t *testing.T) {
 		Ui: ui,
 	}
 
-	diags := meta.checkRequiredVersion()
+	diags := meta.checkRequiredVersion(t.Context())
 	if diags == nil {
 		t.Fatalf("diagnostics should contain unmet version constraint, but is nil")
 	}

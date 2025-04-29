@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/local"
@@ -31,7 +32,7 @@ func TestWorkspace_createAndChange(t *testing.T) {
 
 	newCmd := &WorkspaceNewCommand{}
 
-	current, _ := newCmd.Workspace()
+	current, _ := newCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
@@ -44,7 +45,7 @@ func TestWorkspace_createAndChange(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
-	current, _ = newCmd.Workspace()
+	current, _ = newCmd.Workspace(t.Context())
 	if current != "test" {
 		t.Fatalf("current workspace should be 'test', got %q", current)
 	}
@@ -57,7 +58,7 @@ func TestWorkspace_createAndChange(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
-	current, _ = newCmd.Workspace()
+	current, _ = newCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
@@ -315,7 +316,7 @@ func TestWorkspace_delete(t *testing.T) {
 		Meta: Meta{Ui: ui, View: view},
 	}
 
-	current, _ := delCmd.Workspace()
+	current, _ := delCmd.Workspace(t.Context())
 	if current != "test" {
 		t.Fatal("wrong workspace:", current)
 	}
@@ -338,7 +339,7 @@ func TestWorkspace_delete(t *testing.T) {
 		t.Fatalf("error deleting workspace: %s", ui.ErrorWriter)
 	}
 
-	current, _ = delCmd.Workspace()
+	current, _ = delCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
 		t.Fatalf("wrong workspace: %q", current)
 	}
@@ -450,7 +451,7 @@ func TestWorkspace_selectWithOrCreate(t *testing.T) {
 
 	selectCmd := &WorkspaceSelectCommand{}
 
-	current, _ := selectCmd.Workspace()
+	current, _ := selectCmd.Workspace(t.Context())
 	if current != backend.DefaultStateName {
 		t.Fatal("current workspace should be 'default'")
 	}
@@ -463,7 +464,7 @@ func TestWorkspace_selectWithOrCreate(t *testing.T) {
 		t.Fatalf("bad: %d\n\n%s", code, ui.ErrorWriter)
 	}
 
-	current, _ = selectCmd.Workspace()
+	current, _ = selectCmd.Workspace(t.Context())
 	if current != "test" {
 		t.Fatalf("current workspace should be 'test', got %q", current)
 	}

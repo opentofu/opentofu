@@ -59,7 +59,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
@@ -97,11 +97,11 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Build the operation (required to get the schemas)
-	opReq := c.Operation(b, arguments.ViewHuman, enc)
+	opReq := c.Operation(ctx, b, arguments.ViewHuman, enc)
 	opReq.AllowUnsetVariables = true
 	opReq.ConfigDir = cwd
 	var callDiags tfdiags.Diagnostics
-	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+	opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 	if callDiags.HasErrors() {
 		c.showDiagnostics(callDiags)
 		return 1
@@ -128,7 +128,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Get the state
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		c.Streams.Eprintf("Error selecting workspace: %s\n", err)
 		return 1

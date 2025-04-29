@@ -86,7 +86,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -196,7 +196,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encry
 	c.ignoreRemoteVersionConflict(b)
 
 	// Load the workspace
-	workspace, err := c.Workspace()
+	workspace, err := c.Workspace(ctx)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("error selecting workspace: %w", err))
 		return nil, diags
@@ -209,7 +209,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encry
 		return nil, diags
 	}
 
-	schemas, schemaDiags := c.maybeGetSchemas(stateFile, nil)
+	schemas, schemaDiags := c.maybeGetSchemas(ctx, stateFile, nil)
 	diags = diags.Append(schemaDiags)
 	if schemaDiags.HasErrors() {
 		return nil, diags
@@ -222,7 +222,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encry
 func (c *ShowCommand) showFromSavedPlanFile(ctx context.Context, filename string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	rootCall, callDiags := c.rootModuleCall(".")
+	rootCall, callDiags := c.rootModuleCall(ctx, ".")
 	diags = diags.Append(callDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -234,7 +234,7 @@ func (c *ShowCommand) showFromSavedPlanFile(ctx context.Context, filename string
 		return nil, diags
 	}
 
-	schemas, schemaDiags := c.maybeGetSchemas(stateFile, config)
+	schemas, schemaDiags := c.maybeGetSchemas(ctx, stateFile, config)
 	diags = diags.Append(schemaDiags)
 	if schemaDiags.HasErrors() {
 		return nil, diags
@@ -253,7 +253,7 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 	var stateFile *statefile.File
 	var config *configs.Config
 
-	rootCall, callDiags := c.rootModuleCall(".")
+	rootCall, callDiags := c.rootModuleCall(ctx, ".")
 	diags = diags.Append(callDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -323,7 +323,7 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 		}
 	}
 
-	schemas, schemaDiags := c.maybeGetSchemas(stateFile, config)
+	schemas, schemaDiags := c.maybeGetSchemas(ctx, stateFile, config)
 	diags = diags.Append(schemaDiags)
 	if schemaDiags.HasErrors() {
 		return nil, diags
@@ -396,11 +396,11 @@ func (c *ShowCommand) getDataFromCloudPlan(ctx context.Context, plan *cloudplan.
 // takes a [*statefile.File] instead of a [*states.State] and tolerates
 // the state file being nil, since that's more convenient for the
 // "tofu show" methods that may or may not have a state file to use.
-func (c *ShowCommand) maybeGetSchemas(stateFile *statefile.File, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+func (c *ShowCommand) maybeGetSchemas(ctx context.Context, stateFile *statefile.File, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
 	if stateFile == nil {
 		return nil, nil
 	}
-	return c.MaybeGetSchemas(stateFile.State, config)
+	return c.MaybeGetSchemas(ctx, stateFile.State, config)
 }
 
 // getDataFromPlanfileReader returns a plan, statefile, and config, extracted from a local plan file.

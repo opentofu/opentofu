@@ -60,7 +60,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -94,11 +94,11 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewJSON, enc)
+	opReq := c.Operation(ctx, b, arguments.ViewJSON, enc)
 	opReq.ConfigDir = cwd
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	var callDiags tfdiags.Diagnostics
-	opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+	opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 	diags = diags.Append(callDiags)
 	if callDiags.HasErrors() {
 		c.showDiagnostics(diags)

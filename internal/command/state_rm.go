@@ -45,13 +45,13 @@ func (c *StateRmCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
@@ -136,7 +136,7 @@ func (c *StateRmCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(state, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(ctx, state, nil)
 		diags = diags.Append(schemaDiags)
 	}
 

@@ -195,7 +195,7 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	// Load just the root module to begin backend and module initialization
-	rootModEarly, earlyConfDiags := c.loadSingleModuleWithTests(path, testsDirectory)
+	rootModEarly, earlyConfDiags := c.loadSingleModuleWithTests(ctx, path, testsDirectory)
 
 	// There may be parsing errors in config loading but these will be shown later _after_
 	// checking for core version requirement errors. Not meeting the version requirement should
@@ -251,7 +251,7 @@ func (c *InitCommand) Run(args []string) int {
 	// of provider dependencies.
 	if back != nil {
 		c.ignoreRemoteVersionConflict(back)
-		workspace, err := c.Workspace()
+		workspace, err := c.Workspace(ctx)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 			return 1
@@ -284,7 +284,7 @@ func (c *InitCommand) Run(args []string) int {
 
 	// With all of the modules (hopefully) installed, we can now try to load the
 	// whole configuration tree.
-	config, confDiags := c.loadConfigWithTests(path, testsDirectory)
+	config, confDiags := c.loadConfigWithTests(ctx, path, testsDirectory)
 	// configDiags will be handled after the version constraint check, since an
 	// incorrect version of tofu may be producing errors for configuration
 	// constructs added in later versions.

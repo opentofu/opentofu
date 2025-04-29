@@ -115,7 +115,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 	}
 
 	// Set up the CLI opts we pass into backends that support it.
-	cliOpts, err := m.backendCLIOpts()
+	cliOpts, err := m.backendCLIOpts(ctx)
 	if err != nil {
 		if errs := providerPluginErrors(nil); errors.As(err, &errs) {
 			// This is a special type returned by m.providerFactories, which
@@ -216,7 +216,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 // selectWorkspace gets a list of existing workspaces and then checks
 // if the currently selected workspace is valid. If not, it will ask
 // the user to select a workspace from the list.
-func (m *Meta) selectWorkspace(b backend.Backend) error {
+func (m *Meta) selectWorkspace(ctx context.Context, b backend.Backend) error {
 	workspaces, err := b.Workspaces()
 	if err == backend.ErrWorkspacesNotSupported {
 		return nil
@@ -249,7 +249,7 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 	}
 
 	// Get the currently selected workspace.
-	workspace, err := m.Workspace()
+	workspace, err := m.Workspace(ctx)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func (m *Meta) selectWorkspace(b backend.Backend) error {
 // The current workspace name is also stored as part of the plan, and so this
 // method will check that it matches the currently-selected workspace name
 // and produce error diagnostics if not.
-func (m *Meta) BackendForLocalPlan(settings plans.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	f := backendInit.Backend(settings.Type)
@@ -336,7 +336,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend, enc encryption.StateE
 
 	// If the backend supports CLI initialization, do it.
 	if cli, ok := b.(backend.CLI); ok {
-		cliOpts, err := m.backendCLIOpts()
+		cliOpts, err := m.backendCLIOpts(ctx)
 		if err != nil {
 			diags = diags.Append(err)
 			return nil, diags
@@ -365,7 +365,7 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend, enc encryption.StateE
 	// Otherwise, we'll wrap our state-only remote backend in the local backend
 	// to cause any operations to be run locally.
 	log.Printf("[TRACE] Meta.BackendForLocalPlan: backend %T does not support operations, so wrapping it in a local backend", b)
-	cliOpts, err := m.backendCLIOpts()
+	cliOpts, err := m.backendCLIOpts(ctx)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -382,8 +382,8 @@ func (m *Meta) BackendForLocalPlan(settings plans.Backend, enc encryption.StateE
 
 // backendCLIOpts returns a backend.CLIOpts object that should be passed to
 // a backend that supports local CLI operations.
-func (m *Meta) backendCLIOpts() (*backend.CLIOpts, error) {
-	contextOpts, err := m.contextOpts()
+func (m *Meta) backendCLIOpts(ctx context.Context) (*backend.CLIOpts, error) {
+	contextOpts, err := m.contextOpts(ctx)
 	if contextOpts == nil && err != nil {
 		return nil, err
 	}
@@ -405,9 +405,9 @@ func (m *Meta) backendCLIOpts() (*backend.CLIOpts, error) {
 // This prepares the operation. After calling this, the caller is expected
 // to modify fields of the operation such as Sequence to specify what will
 // be called.
-func (m *Meta) Operation(b backend.Backend, vt arguments.ViewType, enc encryption.Encryption) *backend.Operation {
+func (m *Meta) Operation(ctx context.Context, b backend.Backend, vt arguments.ViewType, enc encryption.Encryption) *backend.Operation {
 	schema := b.ConfigSchema()
-	workspace, err := m.Workspace()
+	workspace, err := m.Workspace(ctx)
 	if err != nil {
 		// An invalid workspace error would have been raised when creating the
 		// backend, and the caller should have already exited. Seeing the error
@@ -453,12 +453,12 @@ func (m *Meta) Operation(b backend.Backend, vt arguments.ViewType, enc encryptio
 }
 
 // backendConfig returns the local configuration for the backend
-func (m *Meta) backendConfig(opts *BackendOpts) (*configs.Backend, int, tfdiags.Diagnostics) {
+func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.Backend, int, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Config == nil {
 		// check if the config was missing, or just not required
-		conf, moreDiags := m.loadBackendConfig(".")
+		conf, moreDiags := m.loadBackendConfig(ctx, ".")
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return nil, 0, diags
@@ -534,7 +534,7 @@ func (m *Meta) backendConfig(opts *BackendOpts) (*configs.Backend, int, tfdiags.
 // which case this function will error.
 func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	// Get the local backend configuration.
-	c, cHash, diags := m.backendConfig(opts)
+	c, cHash, diags := m.backendConfig(ctx, opts)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -667,7 +667,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 			savedBackend, diags := m.savedBackend(sMgr, enc)
 			// Verify that selected workspace exist. Otherwise prompt user to create one
 			if opts.Init && savedBackend != nil {
-				if err := m.selectWorkspace(savedBackend); err != nil {
+				if err := m.selectWorkspace(ctx, savedBackend); err != nil {
 					diags = diags.Append(err)
 					return nil, diags
 				}
@@ -696,7 +696,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 			}
 			// Verify that selected workspace exist. Otherwise prompt user to create one
 			if opts.Init && savedBackend != nil {
-				if err := m.selectWorkspace(savedBackend); err != nil {
+				if err := m.selectWorkspace(ctx, savedBackend); err != nil {
 					diags = diags.Append(err)
 					return nil, diags
 				}
@@ -721,7 +721,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 		}
 
 		log.Printf("[WARN] backend config has changed since last init")
-		return m.backend_C_r_S_changed(c, cHash, sMgr, true, opts, enc)
+		return m.backend_C_r_S_changed(ctx, c, cHash, sMgr, true, opts, enc)
 
 	default:
 		diags = diags.Append(fmt.Errorf(
@@ -921,7 +921,7 @@ func (m *Meta) backend_c_r_S(
 	}
 
 	// Perform the migration
-	err := m.backendMigrateState(&backendMigrateOpts{
+	err := m.backendMigrateState(ctx, &backendMigrateOpts{
 		SourceType:      s.Backend.Type,
 		DestinationType: "local",
 		Source:          b,
@@ -1014,7 +1014,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 
 	if len(localStates) > 0 {
 		// Perform the migration
-		err = m.backendMigrateState(&backendMigrateOpts{
+		err = m.backendMigrateState(ctx, &backendMigrateOpts{
 			SourceType:      "local",
 			DestinationType: c.Type,
 			Source:          localB,
@@ -1085,7 +1085,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 
 	// Verify that selected workspace exists in the backend.
 	if opts.Init && b != nil {
-		err := m.selectWorkspace(b)
+		err := m.selectWorkspace(ctx, b)
 		if err != nil {
 			diags = diags.Append(err)
 
@@ -1124,7 +1124,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 }
 
 // Changing a previously saved backend.
-func (m *Meta) backend_C_r_S_changed(c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
+func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	vt := arguments.ViewJSON
@@ -1188,7 +1188,7 @@ func (m *Meta) backend_C_r_S_changed(c *configs.Backend, cHash int, sMgr *clista
 		}
 
 		// Perform the migration
-		err := m.backendMigrateState(&backendMigrateOpts{
+		err := m.backendMigrateState(ctx, &backendMigrateOpts{
 			SourceType:      s.Backend.Type,
 			DestinationType: c.Type,
 			Source:          oldB,
@@ -1230,7 +1230,7 @@ func (m *Meta) backend_C_r_S_changed(c *configs.Backend, cHash int, sMgr *clista
 
 	// Verify that selected workspace exist. Otherwise prompt user to create one
 	if opts.Init && b != nil {
-		if err := m.selectWorkspace(b); err != nil {
+		if err := m.selectWorkspace(ctx, b); err != nil {
 			diags = diags.Append(err)
 			return b, diags
 		}

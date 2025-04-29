@@ -45,7 +45,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.View.Diagnostics(diags)
@@ -90,7 +90,7 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 	// This is a read-only command
 	c.ignoreRemoteVersionConflict(b)
 
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Error selecting workspace: %w", err))
 		return nil, diags

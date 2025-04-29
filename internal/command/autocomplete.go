@@ -52,13 +52,13 @@ func (m *Meta) completePredictWorkspaceName(ctx context.Context) complete.Predic
 			return nil
 		}
 
-		backendConfig, diags := m.loadBackendConfig(configPath)
+		backendConfig, diags := m.loadBackendConfig(ctx, configPath)
 		if diags.HasErrors() {
 			return nil
 		}
 
 		// Load the encryption configuration
-		enc, encDiags := m.Encryption()
+		enc, encDiags := m.Encryption(ctx)
 		if encDiags.HasErrors() {
 			return nil
 		}

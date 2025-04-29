@@ -96,9 +96,9 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 	var cfg *configs.Config
 
 	if noTests {
-		cfg, diags = c.loadConfig(dir)
+		cfg, diags = c.loadConfig(ctx, dir)
 	} else {
-		cfg, diags = c.loadConfigWithTests(dir, testDir)
+		cfg, diags = c.loadConfigWithTests(ctx, dir, testDir)
 	}
 	if diags.HasErrors() {
 		return diags
@@ -107,7 +107,7 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 	validate := func(cfg *configs.Config) tfdiags.Diagnostics {
 		var diags tfdiags.Diagnostics
 
-		opts, err := c.contextOpts()
+		opts, err := c.contextOpts(ctx)
 		if err != nil {
 			diags = diags.Append(err)
 			return diags

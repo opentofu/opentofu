@@ -51,7 +51,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -81,7 +81,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -188,7 +188,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(state, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(ctx, state, nil)
 		diags = diags.Append(schemaDiags)
 	}
 
