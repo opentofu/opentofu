@@ -30,6 +30,8 @@ type StateReplaceProviderCommand struct {
 }
 
 func (c *StateReplaceProviderCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 
 	var autoApprove bool
@@ -87,7 +89,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 	}
 
 	// Initialize the state manager as configured
-	stateMgr, err := c.State(enc)
+	stateMgr, err := c.State(ctx, enc)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
@@ -175,7 +177,7 @@ func (c *StateReplaceProviderCommand) Run(args []string) int {
 		resource.ProviderConfig.Provider = to
 	}
 
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)

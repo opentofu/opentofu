@@ -56,6 +56,7 @@ type ShowCommand struct {
 }
 
 func (c *ShowCommand) Run(rawArgs []string) int {
+	ctx := c.CommandContext()
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -92,7 +93,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	renderResult, showDiags := c.show(args.TargetType, args.TargetArg, enc)
+	renderResult, showDiags := c.show(ctx, args.TargetType, args.TargetArg, enc)
 	diags = diags.Append(showDiags)
 	if showDiags.HasErrors() {
 		// "tofu show" intentionally ignores warnings unless there is at
@@ -165,17 +166,17 @@ func (c *ShowCommand) GatherVariables(args *arguments.Vars) {
 
 type showRenderFunc func(view views.Show) int
 
-func (c *ShowCommand) show(targetType arguments.ShowTargetType, targetArg string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
+func (c *ShowCommand) show(ctx context.Context, targetType arguments.ShowTargetType, targetArg string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	switch targetType {
 	case arguments.ShowState:
-		return c.showFromLatestStateSnapshot(enc)
+		return c.showFromLatestStateSnapshot(ctx, enc)
 	case arguments.ShowPlan:
-		return c.showFromSavedPlanFile(targetArg, enc)
+		return c.showFromSavedPlanFile(ctx, targetArg, enc)
 	case arguments.ShowUnknownType:
 		// This is a legacy case where we just have a filename and need to
 		// try treating it as either a saved plan file or a local state
 		// snapshot file.
-		return c.legacyShowFromPath(targetArg, enc)
+		return c.legacyShowFromPath(ctx, targetArg, enc)
 	default:
 		// Should not get here because the above cases should cover all
 		// possible values of [arguments.ShowTargetType].
@@ -183,11 +184,11 @@ func (c *ShowCommand) show(targetType arguments.ShowTargetType, targetArg string
 	}
 }
 
-func (c *ShowCommand) showFromLatestStateSnapshot(enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
+func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		return nil, diags
@@ -218,7 +219,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(enc encryption.Encryption) (sh
 	}, diags
 }
 
-func (c *ShowCommand) showFromSavedPlanFile(filename string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
+func (c *ShowCommand) showFromSavedPlanFile(ctx context.Context, filename string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	rootCall, callDiags := c.rootModuleCall(".")
@@ -227,7 +228,7 @@ func (c *ShowCommand) showFromSavedPlanFile(filename string, enc encryption.Encr
 		return nil, diags
 	}
 
-	plan, jsonPlan, stateFile, config, err := c.getPlanFromPath(filename, enc, rootCall)
+	plan, jsonPlan, stateFile, config, err := c.getPlanFromPath(ctx, filename, enc, rootCall)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags
@@ -244,7 +245,7 @@ func (c *ShowCommand) showFromSavedPlanFile(filename string, enc encryption.Encr
 	}, diags
 }
 
-func (c *ShowCommand) legacyShowFromPath(path string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
+func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var planErr, stateErr error
 	var plan *plans.Plan
@@ -262,7 +263,7 @@ func (c *ShowCommand) legacyShowFromPath(path string, enc encryption.Encryption)
 	// state file. First, try to get a plan and associated data from a local
 	// plan file. If that fails, try to get a json plan from the path argument.
 	// If that fails, try to get the statefile from the path argument.
-	plan, jsonPlan, stateFile, config, planErr = c.getPlanFromPath(path, enc, rootCall)
+	plan, jsonPlan, stateFile, config, planErr = c.getPlanFromPath(ctx, path, enc, rootCall)
 	if planErr != nil {
 		stateFile, stateErr = getStateFromPath(path, enc)
 		if stateErr != nil {
@@ -350,7 +351,7 @@ func (c *ShowCommand) legacyShowFromPath(path string, enc encryption.Encryption)
 // yield a json plan, and cloud plans do not yield real plan/state/config
 // structs. An error generally suggests that the given path is either a
 // directory or a statefile.
-func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption, rootCall configs.StaticModuleCall) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, error) {
+func (c *ShowCommand) getPlanFromPath(ctx context.Context, path string, enc encryption.Encryption, rootCall configs.StaticModuleCall) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, error) {
 	var err error
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
@@ -366,15 +367,15 @@ func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption, ro
 		plan, stateFile, config, err = getDataFromPlanfileReader(lp, rootCall)
 	} else if cp, ok := pf.Cloud(); ok {
 		redacted := c.viewType != arguments.ViewJSON
-		jsonPlan, err = c.getDataFromCloudPlan(cp, redacted, enc)
+		jsonPlan, err = c.getDataFromCloudPlan(ctx, cp, redacted, enc)
 	}
 
 	return plan, jsonPlan, stateFile, config, err
 }
 
-func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
+func (c *ShowCommand) getDataFromCloudPlan(ctx context.Context, plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
 	// Set up the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		return nil, errUnusable(backendDiags.Err(), "cloud plan")
 	}

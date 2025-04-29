@@ -117,7 +117,7 @@ func (c *GraphCommand) Run(args []string) int {
 			return 1
 		}
 
-		b, backendDiags = c.Backend(&BackendOpts{
+		b, backendDiags = c.Backend(ctx, &BackendOpts{
 			Config: backendConfig,
 		}, enc.State())
 		diags = diags.Append(backendDiags)

@@ -34,6 +34,8 @@ func (c *ProvidersCommand) Synopsis() string {
 func (c *ProvidersCommand) Run(args []string) int {
 	var testsDirectory string
 
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers")
 	c.Meta.varFlagSet(cmdFlags)
@@ -92,7 +94,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: config.Module.Backend,
 	}, enc.State())
 	diags = diags.Append(backendDiags)

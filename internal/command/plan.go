@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -85,7 +86,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Prepare the backend with the backend-specific arguments
-	be, beDiags := c.PrepareBackend(args.State, args.ViewType, enc)
+	be, beDiags := c.PrepareBackend(ctx, args.State, args.ViewType, enc)
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -123,7 +124,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	return op.Result.ExitStatus()
 }
 
-func (c *PlanCommand) PrepareBackend(args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	// FIXME: we need to apply the state arguments to the meta object here
 	// because they are later used when initializing the backend. Carving a
 	// path to pass these arguments to the functions that need them is
@@ -136,7 +137,7 @@ func (c *PlanCommand) PrepareBackend(args *arguments.State, viewType arguments.V
 	}
 
 	// Load the backend
-	be, beDiags := c.Backend(&BackendOpts{
+	be, beDiags := c.Backend(ctx, &BackendOpts{
 		Config:   backendConfig,
 		ViewType: viewType,
 	}, enc.State())

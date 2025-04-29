@@ -21,6 +21,7 @@ type WorkspaceSelectCommand struct {
 }
 
 func (c *WorkspaceSelectCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	envCommandShowWarning(c.Ui, c.LegacyName)
 
@@ -70,7 +71,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -145,7 +146,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 
 func (c *WorkspaceSelectCommand) AutocompleteArgs() complete.Predictor {
 	return completePredictSequence{
-		c.completePredictWorkspaceName(),
+		c.completePredictWorkspaceName(c.CommandContext()),
 		complete.PredictDirs(""),
 	}
 }

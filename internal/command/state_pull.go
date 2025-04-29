@@ -22,6 +22,8 @@ type StatePullCommand struct {
 }
 
 func (c *StatePullCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("state pull")
 	c.Meta.varFlagSet(cmdFlags)
@@ -43,7 +45,7 @@ func (c *StatePullCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1

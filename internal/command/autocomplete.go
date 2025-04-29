@@ -6,6 +6,8 @@
 package command
 
 import (
+	"context"
+
 	"github.com/posener/complete"
 )
 
@@ -33,7 +35,7 @@ func (s completePredictSequence) Predict(a complete.Args) []string {
 	return s[idx].Predict(a)
 }
 
-func (m *Meta) completePredictWorkspaceName() complete.Predictor {
+func (m *Meta) completePredictWorkspaceName(ctx context.Context) complete.Predictor {
 	return complete.PredictFunc(func(a complete.Args) []string {
 		// There are lot of things that can fail in here, so if we encounter
 		// any error then we'll just return nothing and not support autocomplete
@@ -61,7 +63,7 @@ func (m *Meta) completePredictWorkspaceName() complete.Predictor {
 			return nil
 		}
 
-		b, diags := m.Backend(&BackendOpts{
+		b, diags := m.Backend(ctx, &BackendOpts{
 			Config: backendConfig,
 		}, enc.State())
 		if diags.HasErrors() {

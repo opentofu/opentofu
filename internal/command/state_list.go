@@ -24,6 +24,8 @@ type StateListCommand struct {
 }
 
 func (c *StateListCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	var statePath string
 	cmdFlags := c.Meta.defaultFlagSet("state list")
@@ -48,7 +50,7 @@ func (c *StateListCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(backendDiags)
 		return 1

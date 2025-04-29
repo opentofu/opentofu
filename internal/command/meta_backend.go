@@ -91,7 +91,7 @@ type BackendWithRemoteTerraformVersion interface {
 // A side-effect of this method is the population of m.backendState, recording
 // the final resolved backend configuration after dealing with overrides from
 // the "tofu init" command line, etc.
-func (m *Meta) Backend(opts *BackendOpts, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// If no opts are set, then initialize
@@ -104,7 +104,7 @@ func (m *Meta) Backend(opts *BackendOpts, enc encryption.StateEncryption) (backe
 	var b backend.Backend
 	if !opts.ForceLocal {
 		var backendDiags tfdiags.Diagnostics
-		b, backendDiags = m.backendFromConfig(opts, enc)
+		b, backendDiags = m.backendFromConfig(ctx, opts, enc)
 		diags = diags.Append(backendDiags)
 
 		if diags.HasErrors() {
@@ -532,7 +532,7 @@ func (m *Meta) backendConfig(opts *BackendOpts) (*configs.Backend, int, tfdiags.
 //
 // This function may query the user for input unless input is disabled, in
 // which case this function will error.
-func (m *Meta) backendFromConfig(opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
+func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	// Get the local backend configuration.
 	c, cHash, diags := m.backendConfig(opts)
 	if diags.HasErrors() {
@@ -631,7 +631,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts, enc encryption.StateEncrypti
 			return nil, diags
 		}
 
-		return m.backend_c_r_S(c, cHash, sMgr, true, opts, enc)
+		return m.backend_c_r_S(ctx, c, cHash, sMgr, true, opts, enc)
 
 	// Configuring a backend for the first time or -reconfigure flag was used
 	case c != nil && s.Backend.Empty():
@@ -654,7 +654,7 @@ func (m *Meta) backendFromConfig(opts *BackendOpts, enc encryption.StateEncrypti
 			}
 			return nil, diags
 		}
-		return m.backend_C_r_s(c, cHash, sMgr, opts, enc)
+		return m.backend_C_r_s(ctx, c, cHash, sMgr, opts, enc)
 	// Potentially changing a backend configuration
 	case c != nil && !s.Backend.Empty():
 		// We are not going to migrate if...
@@ -877,6 +877,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 
 // Unconfiguring a backend (moving from backend => local).
 func (m *Meta) backend_c_r_S(
+	ctx context.Context,
 	c *configs.Backend, cHash int, sMgr *clistate.LocalState, output bool, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 
 	var diags tfdiags.Diagnostics
@@ -906,7 +907,7 @@ func (m *Meta) backend_c_r_S(
 	}
 
 	// Grab a purely local backend to get the local state if it exists
-	localB, moreDiags := m.Backend(&BackendOpts{ForceLocal: true, Init: true}, enc)
+	localB, moreDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true}, enc)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -954,7 +955,7 @@ func (m *Meta) backend_c_r_S(
 }
 
 // Configuring a backend for the first time.
-func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.LocalState, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
+func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int, sMgr *clistate.LocalState, opts *BackendOpts, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	vt := arguments.ViewJSON
@@ -965,7 +966,7 @@ func (m *Meta) backend_C_r_s(c *configs.Backend, cHash int, sMgr *clistate.Local
 	}
 
 	// Grab a purely local backend to get the local state if it exists
-	localB, localBDiags := m.Backend(&BackendOpts{ForceLocal: true, Init: true}, enc)
+	localB, localBDiags := m.Backend(ctx, &BackendOpts{ForceLocal: true, Init: true}, enc)
 	if localBDiags.HasErrors() {
 		diags = diags.Append(localBDiags)
 		return nil, diags

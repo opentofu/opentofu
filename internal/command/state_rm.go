@@ -25,6 +25,7 @@ type StateRmCommand struct {
 }
 
 func (c *StateRmCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	var dryRun bool
 	cmdFlags := c.Meta.ignoreRemoteVersionFlagSet("state rm")
@@ -57,7 +58,7 @@ func (c *StateRmCommand) Run(args []string) int {
 	}
 
 	// Get the state
-	stateMgr, err := c.State(enc)
+	stateMgr, err := c.State(ctx, enc)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
@@ -124,7 +125,7 @@ func (c *StateRmCommand) Run(args []string) int {
 		return 0 // This is as far as we go in dry-run mode
 	}
 
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
