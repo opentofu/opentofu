@@ -191,6 +191,13 @@ func (f *FilesystemStorage) waitForFileLock(ctx context.Context, target *os.File
 	}
 }
 
+// Persist implements Storage.
+func (f *FilesystemStorage) Persist(_ context.Context) error {
+	// Nothing special to do in this implementation, because Write persists
+	// immediately after each change.
+	return nil
+}
+
 // Read implements Storage.
 func (f *FilesystemStorage) Read(ctx context.Context, want collections.Set[Key]) (map[Key]Value, error) {
 	if len(want) == 0 {
@@ -269,6 +276,10 @@ func (f *FilesystemStorage) Write(ctx context.Context, new map[Key]Value) error 
 		err := writeValueToFile(value, lock.file)
 		if err != nil {
 			return fmt.Errorf("writing %q: %w", key.Name(), err)
+		}
+		err = lock.file.Sync()
+		if err != nil {
+			return fmt.Errorf("persisting %q: %w", key.Name(), err)
 		}
 	}
 	return nil
