@@ -463,6 +463,12 @@ OpenTofu supports `deprecated` attributes for variable and output blocks with a
 suggestion from module author on how to properly migrate away on deprecation.
 Module callers receive a warning if their configuration is affected.
 
+:::note
+Due to the internal logic of values evaluation, deprecation warnings for module
+outputs will not be raised for commands like `tofu validate`. OpenTofu produces
+all the expected deprecation warnings on `tofu plan` and `tofu apply` commands.
+:::
+
 Refer to `deprecated` attribute of
 [variables](../../../language/values/variables.mdx#marking-variable-as-deprecated)
 and [module outputs](../../../language/values/outputs.mdx#deprecated--marking-output-as-deprecated)
