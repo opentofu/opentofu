@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"time"
@@ -28,7 +29,7 @@ type StateMeta struct {
 // the backend, but changes the way that backups are done. This configures
 // backups to be timestamped rather than just the original state path plus a
 // backup path.
-func (c *StateMeta) State(enc encryption.Encryption) (statemgr.Full, error) {
+func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (statemgr.Full, error) {
 	var realState statemgr.Full
 	backupPath := c.backupPath
 	stateOutPath := c.statePath
@@ -38,12 +39,12 @@ func (c *StateMeta) State(enc encryption.Encryption) (statemgr.Full, error) {
 		realState = statemgr.NewFilesystem(c.statePath, encryption.StateEncryptionDisabled()) // User specified state file should not be encrypted
 	} else {
 		// Load the backend
-		b, backendDiags := c.Backend(nil, enc.State())
+		b, backendDiags := c.Backend(ctx, nil, enc.State())
 		if backendDiags.HasErrors() {
 			return nil, backendDiags.Err()
 		}
 
-		workspace, err := c.Workspace()
+		workspace, err := c.Workspace(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -62,7 +63,7 @@ func (c *StateMeta) State(enc encryption.Encryption) (statemgr.Full, error) {
 		}
 
 		// Get a local backend
-		localRaw, backendDiags := c.Backend(&BackendOpts{ForceLocal: true}, enc.State())
+		localRaw, backendDiags := c.Backend(ctx, &BackendOpts{ForceLocal: true}, enc.State())
 		if backendDiags.HasErrors() {
 			// This should never fail
 			panic(backendDiags.Err())

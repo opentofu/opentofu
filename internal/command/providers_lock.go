@@ -142,7 +142,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		source = getproviders.NewRegistrySource(c.Services)
 	}
 
-	config, confDiags := c.loadConfig(".")
+	config, confDiags := c.loadConfig(ctx, ".")
 	diags = diags.Append(confDiags)
 	reqs, _, hclDiags := config.ProviderRequirements()
 	diags = diags.Append(hclDiags)

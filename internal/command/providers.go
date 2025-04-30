@@ -34,6 +34,8 @@ func (c *ProvidersCommand) Synopsis() string {
 func (c *ProvidersCommand) Run(args []string) int {
 	var testsDirectory string
 
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("providers")
 	c.Meta.varFlagSet(cmdFlags)
@@ -76,7 +78,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 		return 1
 	}
 
-	config, configDiags := c.loadConfigWithTests(configPath, testsDirectory)
+	config, configDiags := c.loadConfigWithTests(ctx, configPath, testsDirectory)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -84,7 +86,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -92,7 +94,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: config.Module.Backend,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -105,7 +107,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 	c.ignoreRemoteVersionConflict(b)
 
 	// Get the state
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 		return 1

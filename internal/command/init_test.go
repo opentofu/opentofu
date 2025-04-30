@@ -820,7 +820,7 @@ func TestInit_backendReinitWithExtra(t *testing.T) {
 		Init: true,
 	}
 
-	_, cHash, err := m.backendConfig(opts)
+	_, cHash, err := m.backendConfig(t.Context(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}

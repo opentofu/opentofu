@@ -27,6 +27,7 @@ type StateMvCommand struct {
 }
 
 func (c *StateMvCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	// We create two metas to track the two states
 	var backupPathOut, statePathOut string
@@ -50,7 +51,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		return cli.RunResultHelp
 	}
 
-	if diags := c.Meta.checkRequiredVersion(); diags != nil {
+	if diags := c.Meta.checkRequiredVersion(ctx); diags != nil {
 		c.showDiagnostics(diags)
 		return 1
 	}
@@ -70,14 +71,14 @@ func (c *StateMvCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(encDiags)
 		return 1
 	}
 
 	if len(setLegacyLocalBackendOptions) > 0 {
-		currentBackend, diags := c.backendFromConfig(&BackendOpts{}, enc.State())
+		currentBackend, diags := c.backendFromConfig(ctx, &BackendOpts{}, enc.State())
 		if diags.HasErrors() {
 			c.showDiagnostics(diags)
 			return 1
@@ -100,7 +101,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	}
 
 	// Read the from state
-	stateFromMgr, err := c.State(enc)
+	stateFromMgr, err := c.State(ctx, enc)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
@@ -138,7 +139,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		c.statePath = statePathOut
 		c.backupPath = backupPathOut
 
-		stateToMgr, err = c.State(enc)
+		stateToMgr, err = c.State(ctx, enc)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 			return 1
@@ -399,7 +400,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		return 0 // This is as far as we go in dry-run mode
 	}
 
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -410,7 +411,7 @@ func (c *StateMvCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(stateTo, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(ctx, stateTo, nil)
 		diags = diags.Append(schemaDiags)
 	}
 

@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -74,7 +75,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -114,7 +115,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 
 	// Prepare the backend, passing the plan file if present, and the
 	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(planFile, args.State, args.ViewType, enc.State())
+	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, args.ViewType, enc.State())
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -122,7 +123,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
 	diags = diags.Append(opDiags)
 
 	// Before we delegate to the backend, we'll print any warning diagnostics
@@ -207,7 +208,7 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 	return planFile, diags
 }
 
-func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *arguments.State, viewType arguments.ViewType, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, viewType arguments.ViewType, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// FIXME: we need to apply the state arguments to the meta object here
@@ -238,16 +239,16 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 			))
 			return nil, diags
 		}
-		be, beDiags = c.BackendForLocalPlan(plan.Backend, enc)
+		be, beDiags = c.BackendForLocalPlan(ctx, plan.Backend, enc)
 	} else {
 		// Both new plans and saved cloud plans load their backend from config.
-		backendConfig, configDiags := c.loadBackendConfig(".")
+		backendConfig, configDiags := c.loadBackendConfig(ctx, ".")
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return nil, diags
 		}
 
-		be, beDiags = c.Backend(&BackendOpts{
+		be, beDiags = c.Backend(ctx, &BackendOpts{
 			Config:   backendConfig,
 			ViewType: viewType,
 		}, enc)
@@ -261,6 +262,7 @@ func (c *ApplyCommand) PrepareBackend(planFile *planfile.WrappedPlanFile, args *
 }
 
 func (c *ApplyCommand) OperationRequest(
+	ctx context.Context,
 	be backend.Enhanced,
 	view views.Apply,
 	viewType arguments.ViewType,
@@ -277,7 +279,7 @@ func (c *ApplyCommand) OperationRequest(
 	diags = diags.Append(c.providerDevOverrideRuntimeWarnings())
 
 	// Build the operation
-	opReq := c.Operation(be, viewType, enc)
+	opReq := c.Operation(ctx, be, viewType, enc)
 	opReq.AutoApprove = autoApprove
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode

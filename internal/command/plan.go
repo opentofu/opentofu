@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -77,7 +78,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		view.Diagnostics(diags)
@@ -85,7 +86,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Prepare the backend with the backend-specific arguments
-	be, beDiags := c.PrepareBackend(args.State, args.ViewType, enc)
+	be, beDiags := c.PrepareBackend(ctx, args.State, args.ViewType, enc)
 	diags = diags.Append(beDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -93,7 +94,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -123,20 +124,20 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	return op.Result.ExitStatus()
 }
 
-func (c *PlanCommand) PrepareBackend(args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
+func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	// FIXME: we need to apply the state arguments to the meta object here
 	// because they are later used when initializing the backend. Carving a
 	// path to pass these arguments to the functions that need them is
 	// difficult but would make their use easier to understand.
 	c.Meta.applyStateArguments(args)
 
-	backendConfig, diags := c.loadBackendConfig(".")
+	backendConfig, diags := c.loadBackendConfig(ctx, ".")
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
 	// Load the backend
-	be, beDiags := c.Backend(&BackendOpts{
+	be, beDiags := c.Backend(ctx, &BackendOpts{
 		Config:   backendConfig,
 		ViewType: viewType,
 	}, enc.State())
@@ -149,6 +150,7 @@ func (c *PlanCommand) PrepareBackend(args *arguments.State, viewType arguments.V
 }
 
 func (c *PlanCommand) OperationRequest(
+	ctx context.Context,
 	be backend.Enhanced,
 	view views.Plan,
 	viewType arguments.ViewType,
@@ -160,7 +162,7 @@ func (c *PlanCommand) OperationRequest(
 	var diags tfdiags.Diagnostics
 
 	// Build the operation
-	opReq := c.Operation(be, viewType, enc)
+	opReq := c.Operation(ctx, be, viewType, enc)
 	opReq.ConfigDir = "."
 	opReq.PlanMode = args.PlanMode
 	opReq.Hooks = view.Hooks()
