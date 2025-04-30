@@ -203,8 +203,8 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 			ctx, span := tracing.Tracer().Start(ctx,
 				fmt.Sprintf("Install Module %q", req.Name),
 				trace.WithAttributes(
-					otelAttr.String(traceattrs.ModuleName, req.Name),
-					otelAttr.String(traceattrs.ModuleAddress, req.SourceAddr.String()),
+					otelAttr.String(traceattrs.ModuleCallName, req.Name),
+					otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String()),
 				))
 			defer span.End()
 
@@ -303,7 +303,7 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 
 			case addrs.ModuleSourceLocal:
 				log.Printf("[TRACE] ModuleInstaller: %s has local path %q", key, addr.String())
-				span.SetAttributes(otelAttr.String("opentofu.module.source", "local"))
+				span.SetAttributes(otelAttr.String("opentofu.module.source_type", "local"))
 				mod, mDiags := i.installLocalModule(ctx, req, key, manifest, hooks)
 				mDiags = maybeImproveLocalInstallError(req, mDiags)
 				diags = append(diags, mDiags...)
@@ -311,14 +311,14 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 
 			case addrs.ModuleSourceRegistry:
 				log.Printf("[TRACE] ModuleInstaller: %s is a registry module at %s", key, addr.String())
-				span.SetAttributes(otelAttr.String("opentofu.module.source", "registry"))
+				span.SetAttributes(otelAttr.String("opentofu.module.source_type", "registry"))
 				mod, v, mDiags := i.installRegistryModule(ctx, req, key, instPath, addr, manifest, hooks, fetcher)
 				diags = append(diags, mDiags...)
 				return mod, v, diags
 
 			case addrs.ModuleSourceRemote:
 				log.Printf("[TRACE] ModuleInstaller: %s address %q will be handled by go-getter", key, addr.String())
-				span.SetAttributes(otelAttr.String("opentofu.module.source", "remote"))
+				span.SetAttributes(otelAttr.String("opentofu.module.source_type", "remote"))
 				mod, mDiags := i.installGoGetterModule(ctx, req, key, instPath, manifest, hooks, fetcher)
 				diags = append(diags, mDiags...)
 				return mod, nil, diags
@@ -388,8 +388,8 @@ func (i *ModuleInstaller) installLocalModule(ctx context.Context, req *configs.M
 	var diags hcl.Diagnostics
 
 	_, span := tracing.Tracer().Start(ctx, "Install Local Module",
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleName, req.Name)),
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleAddress, req.SourceAddr.String())),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleCallName, req.Name)),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String())),
 	)
 	defer span.End()
 
@@ -470,8 +470,8 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 	var diags hcl.Diagnostics
 
 	ctx, span := tracing.Tracer().Start(ctx, "Install Registry Module",
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleName, req.Name)),
-		trace.WithAttributes(otelAttr.String(traceattrs.ModuleAddress, req.SourceAddr.String())),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleCallName, req.Name)),
+		trace.WithAttributes(otelAttr.String(traceattrs.ModuleSource, req.SourceAddr.String())),
 		trace.WithAttributes(otelAttr.String(traceattrs.ModuleVersion, req.VersionConstraint.Required.String())),
 	)
 	defer span.End()
@@ -735,7 +735,7 @@ func (i *ModuleInstaller) installRegistryModule(ctx context.Context, req *config
 			return nil, nil, diags
 		}
 
-		span.SetAttributes(otelAttr.String("opentofu.module.source", realAddr.String()))
+		span.SetAttributes(otelAttr.String(traceattrs.ModuleSource, realAddr.String()))
 
 		switch realAddr := realAddr.(type) {
 		// Only a remote source address is allowed here: a registry isn't

@@ -207,8 +207,8 @@ func (c *Client) addRequestCreds(host svchost.Hostname, req *http.Request) {
 func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, version string) (string, error) {
 	ctx, span := tracing.Tracer().Start(ctx, "Find Module Location",
 		trace.WithAttributes(
-			otelAttr.String(traceattrs.ModuleName, module.RawName),
-			otelAttr.String(traceattrs.ModuleAddress, module.Module()),
+			otelAttr.String(traceattrs.ModuleCallName, module.RawName),
+			otelAttr.String(traceattrs.ModuleSource, module.Module()),
 			otelAttr.String(traceattrs.ModuleVersion, version),
 		),
 	)

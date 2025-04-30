@@ -13,7 +13,7 @@ const (
 
 	TargetPlatform = "opentofu.target_platform"
 
-	ModuleName    = "opentofu.module.name"
-	ModuleAddress = "opentofu.module.address"
-	ModuleVersion = "opentofu.module.version"
+	ModuleCallName = "opentofu.module.name"
+	ModuleSource   = "opentofu.module.source"
+	ModuleVersion  = "opentofu.module.version"
 )
