@@ -61,7 +61,7 @@ type ShowHuman struct {
 var _ Show = (*ShowHuman)(nil)
 
 func (v *ShowHuman) DisplayState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
-	ctx, span := tracing.Tracer().Start(ctx, "Display")
+	_, span := tracing.Tracer().Start(ctx, "Display")
 	defer span.End()
 
 	renderer := jsonformat.Renderer{
@@ -97,7 +97,7 @@ func (v *ShowHuman) DisplayState(ctx context.Context, stateFile *statefile.File,
 }
 
 func (v *ShowHuman) DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
-	ctx, span := tracing.Tracer().Start(ctx, "Display")
+	_, span := tracing.Tracer().Start(ctx, "Display")
 	defer span.End()
 
 	renderer := jsonformat.Renderer{
@@ -170,7 +170,7 @@ type ShowJSON struct {
 var _ Show = (*ShowJSON)(nil)
 
 func (v *ShowJSON) DisplayState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
-	ctx, span := tracing.Tracer().Start(ctx, "Display")
+	_, span := tracing.Tracer().Start(ctx, "Display")
 	defer span.End()
 
 	jsonState, err := jsonstate.Marshal(stateFile, schemas)
@@ -184,7 +184,7 @@ func (v *ShowJSON) DisplayState(ctx context.Context, stateFile *statefile.File, 
 }
 
 func (v *ShowJSON) DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
-	ctx, span := tracing.Tracer().Start(ctx, "Display")
+	_, span := tracing.Tracer().Start(ctx, "Display")
 	defer span.End()
 
 	// Prefer to display a pre-built JSON plan, if we got one; then, fall back

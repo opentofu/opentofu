@@ -75,6 +75,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	c.viewType = args.ViewType
 	c.View.SetShowSensitive(args.ShowSensitive)
 
+	//nolint:ineffassign - As this is a high-level call, we want to ensure that we are correctly using the right ctx later on when
 	ctx, span := tracing.Tracer().Start(ctx, "Show",
 		trace.WithAttributes(
 			otelAttr.String("opentofu.show.view", args.ViewType.String()),
@@ -506,7 +507,7 @@ func getStateFromPath(path string, enc encryption.Encryption) (*statefile.File, 
 
 // getStateFromBackend returns the State for the current workspace, if available.
 func getStateFromBackend(ctx context.Context, b backend.Backend, workspace string) (*statefile.File, error) {
-	ctx, span := tracing.Tracer().Start(ctx, "Get State from Backend")
+	_, span := tracing.Tracer().Start(ctx, "Get State from Backend")
 	defer span.End()
 	// Get the state store for the given workspace
 	stateStore, err := b.StateMgr(context.TODO(), workspace)
