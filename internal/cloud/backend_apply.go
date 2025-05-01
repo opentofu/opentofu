@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -22,7 +23,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
+func (b *Cloud) opApply(ctx, stopCtx, cancelCtx context.Context, op *backend.Operation, w *tfe.Workspace) (*tfe.Run, error) {
 	log.Printf("[INFO] cloud: starting Apply operation")
 
 	var diags tfdiags.Diagnostics
@@ -137,7 +138,7 @@ func (b *Cloud) opApply(stopCtx, cancelCtx context.Context, op *backend.Operatio
 	} else {
 		log.Printf("[TRACE] Running new cloud plan for apply")
 		// Run the plan phase.
-		r, err = b.plan(stopCtx, cancelCtx, op, w)
+		r, err = b.plan(ctx, stopCtx, cancelCtx, op, w)
 
 		if err != nil {
 			return r, err

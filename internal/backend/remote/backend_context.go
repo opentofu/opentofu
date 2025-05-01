@@ -14,16 +14,20 @@ import (
 	tfe "github.com/hashicorp/go-tfe"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/zclconf/go-cty/cty"
 )
 
-// Context implements backend.Local.
-func (b *Remote) LocalRun(_ context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
+// Ensure that remote.Remote implements the backend.Local interface.
+var _ backend.Local = (*Remote)(nil)
+
+// LocalRun implements backend.Local.
+func (b *Remote) LocalRun(ctx context.Context, op *backend.Operation) (*backend.LocalRun, statemgr.Full, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	ret := &backend.LocalRun{
 		PlanOpts: &tofu.PlanOpts{
@@ -82,7 +86,7 @@ func (b *Remote) LocalRun(_ context.Context, op *backend.Operation) (*backend.Lo
 	ret.InputState = stateMgr.State()
 
 	log.Printf("[TRACE] backend/remote: loading configuration for the current working directory")
-	config, configDiags := op.ConfigLoader.LoadConfig(op.ConfigDir, op.RootCall)
+	config, configDiags := op.ConfigLoader.LoadConfig(ctx, op.ConfigDir, op.RootCall)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, nil, diags

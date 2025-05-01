@@ -12,4 +12,8 @@ const (
 	ProviderVersion = "opentofu.provider.version"
 
 	TargetPlatform = "opentofu.target_platform"
+
+	ModuleCallName = "opentofu.module.name"
+	ModuleSource   = "opentofu.module.source"
+	ModuleVersion  = "opentofu.module.version"
 )

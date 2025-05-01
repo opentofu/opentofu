@@ -77,7 +77,7 @@ func testModuleWithSnapshot(t testing.TB, name string) (*configs.Config, *config
 		t.Fatalf("failed to refresh modules after installation: %s", err)
 	}
 
-	config, snap, diags := loader.LoadConfigWithSnapshot(dir, configs.RootModuleCallForTesting())
+	config, snap, diags := loader.LoadConfigWithSnapshot(t.Context(), dir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -133,7 +133,7 @@ func testModuleInline(t testing.TB, sources map[string]string) *configs.Config {
 		t.Fatalf("failed to refresh modules after installation: %s", err)
 	}
 
-	config, diags := loader.LoadConfigWithTests(cfgPath, "tests", configs.RootModuleCallForTesting())
+	config, diags := loader.LoadConfigWithTests(t.Context(), cfgPath, "tests", configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}

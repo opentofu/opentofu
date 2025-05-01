@@ -27,7 +27,7 @@ func TestConfigSnapshotRoundtrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	_, snapIn, diags := loader.LoadConfigWithSnapshot(fixtureDir, configs.RootModuleCallForTesting())
+	_, snapIn, diags := loader.LoadConfigWithSnapshot(t.Context(), fixtureDir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}

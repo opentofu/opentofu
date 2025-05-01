@@ -551,7 +551,7 @@ func loadRefactoringFixture(t *testing.T, dir string) (*configs.Config, instance
 		t.Fatalf("failed to refresh modules after installation: %s", err)
 	}
 
-	rootCfg, diags := loader.LoadConfig(dir, configs.RootModuleCallForTesting())
+	rootCfg, diags := loader.LoadConfig(t.Context(), dir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatalf("failed to load root module: %s", diags.Error())
 	}
