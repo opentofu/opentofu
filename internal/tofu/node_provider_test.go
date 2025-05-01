@@ -51,21 +51,21 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
-	ctx.ProviderInputValues = map[string]cty.Value{
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
+	evalCtx.ProviderInputValues = map[string]cty.Value{
 		"pw": cty.StringVal("so secret"),
 	}
 
-	if diags := n.Execute(ctx, walkApply); diags.HasErrors() {
+	if diags := n.Execute(t.Context(), evalCtx, walkApply); diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
 
-	if !ctx.ConfigureProviderCalled {
+	if !evalCtx.ConfigureProviderCalled {
 		t.Fatal("should be called")
 	}
 
-	gotObj := ctx.ConfigureProviderConfig
+	gotObj := evalCtx.ConfigureProviderConfig
 	if !gotObj.Type().HasAttribute("user") {
 		t.Fatal("configuration object does not have \"user\" attribute")
 	}
@@ -98,10 +98,10 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
 
-	diags := n.Execute(ctx, walkImport)
+	diags := n.Execute(t.Context(), evalCtx, walkImport)
 	if !diags.HasErrors() {
 		t.Fatal("expected error, got success")
 	}
@@ -111,7 +111,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		t.Errorf("wrong diagnostic detail\n got: %q\nwant: %q", got, want)
 	}
 
-	if ctx.ConfigureProviderCalled {
+	if evalCtx.ConfigureProviderCalled {
 		t.Fatal("should not be called")
 	}
 }
@@ -132,18 +132,18 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 		Addr:   providerAddr,
 		Config: config,
 	}}
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
 
-	if err := n.Execute(ctx, walkApply); err != nil {
+	if err := n.Execute(t.Context(), evalCtx, walkApply); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if !ctx.ConfigureProviderCalled {
+	if !evalCtx.ConfigureProviderCalled {
 		t.Fatal("should be called")
 	}
 
-	gotObj := ctx.ConfigureProviderConfig
+	gotObj := evalCtx.ConfigureProviderConfig
 	if !gotObj.Type().HasAttribute("test_string") {
 		t.Fatal("configuration object does not have \"test_string\" attribute")
 	}
@@ -170,17 +170,17 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
-	if err := n.Execute(ctx, walkApply); err != nil {
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
+	if err := n.Execute(t.Context(), evalCtx, walkApply); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if !ctx.ConfigureProviderCalled {
+	if !evalCtx.ConfigureProviderCalled {
 		t.Fatal("should be called")
 	}
 
-	gotObj := ctx.ConfigureProviderConfig
+	gotObj := evalCtx.ConfigureProviderConfig
 	if !gotObj.Type().HasAttribute("test_string") {
 		t.Fatal("configuration object does not have \"test_string\" attribute")
 	}
@@ -207,9 +207,9 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
-	if err := n.Execute(ctx, walkValidate); err != nil {
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
+	if err := n.Execute(t.Context(), evalCtx, walkValidate); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -249,13 +249,13 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 		Config: config,
 	}}
 
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
-	if err := n.Execute(ctx, walkValidate); err != nil {
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
+	if err := n.Execute(t.Context(), evalCtx, walkValidate); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
-	if ctx.ConfigureProviderCalled {
+	if evalCtx.ConfigureProviderCalled {
 		t.Fatal("should not be called")
 	}
 }

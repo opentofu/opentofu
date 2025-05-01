@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -116,14 +117,14 @@ func (n *NodeApplyableResourceInstance) AttachDependencies(deps []addrs.ConfigRe
 }
 
 // GraphNodeExecutable
-func (n *NodeApplyableResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableResourceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	if n.Config == nil {
 		// If there is no config, and there is no change, then we have nothing
 		// to do and the change was left in the plan for informational
 		// purposes only.
-		changes := ctx.Changes()
+		changes := evalCtx.Changes()
 		csrc := changes.GetResourceInstanceChange(n.ResourceInstanceAddr(), states.CurrentGen)
 		if csrc == nil || csrc.Action == plans.NoOp {
 			log.Printf("[DEBUG] NodeApplyableResourceInstance: No config or planned change recorded for %s", n.Addr)
@@ -141,7 +142,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx EvalContext, op walkOperatio
 		return diags
 	}
 
-	diags = n.resolveProvider(ctx, true, states.NotDeposed)
+	diags = n.resolveProvider(evalCtx, true, states.NotDeposed)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -149,9 +150,9 @@ func (n *NodeApplyableResourceInstance) Execute(ctx EvalContext, op walkOperatio
 	// Eval info is different depending on what kind of resource this is
 	switch n.Config.Mode {
 	case addrs.ManagedResourceMode:
-		return n.managedResourceExecute(ctx)
+		return n.managedResourceExecute(evalCtx)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx)
+		return n.dataResourceExecute(evalCtx)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}

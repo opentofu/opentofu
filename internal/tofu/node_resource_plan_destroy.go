@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -44,19 +45,19 @@ func (n *NodePlanDestroyableResourceInstance) DestroyAddr() *addrs.AbsResourceIn
 }
 
 // GraphNodeEvalable
-func (n *NodePlanDestroyableResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
-	diags = diags.Append(n.resolveProvider(ctx, false, states.NotDeposed))
+	diags = diags.Append(n.resolveProvider(evalCtx, false, states.NotDeposed))
 	if diags.HasErrors() {
 		return diags
 	}
 
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		return n.managedResourceExecute(ctx, op)
+		return n.managedResourceExecute(evalCtx, op)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx, op)
+		return n.dataResourceExecute(evalCtx, op)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}

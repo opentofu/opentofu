@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -46,14 +47,14 @@ func (n *NodeValidatableResource) Path() addrs.ModuleInstance {
 }
 
 // GraphNodeEvalable
-func (n *NodeValidatableResource) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeValidatableResource) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	if n.Config == nil {
 		return diags
 	}
 
-	diags = diags.Append(n.validateResource(ctx))
+	diags = diags.Append(n.validateResource(evalCtx))
 
-	diags = diags.Append(n.validateCheckRules(ctx, n.Config))
+	diags = diags.Append(n.validateCheckRules(evalCtx, n.Config))
 
 	if managed := n.Config.Managed; managed != nil {
 		// Validate all the provisioners
@@ -74,7 +75,7 @@ func (n *NodeValidatableResource) Execute(ctx EvalContext, op walkOperation) (di
 			}
 
 			// Validate Provisioner Config
-			diags = diags.Append(n.validateProvisioner(ctx, &provisioner))
+			diags = diags.Append(n.validateProvisioner(evalCtx, &provisioner))
 			if diags.HasErrors() {
 				return diags
 			}

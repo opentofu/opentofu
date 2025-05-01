@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -137,19 +138,19 @@ func (n *NodeDestroyResourceInstance) References() []*addrs.Reference {
 }
 
 // GraphNodeExecutable
-func (n *NodeDestroyResourceInstance) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeDestroyResourceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		diags = n.resolveProvider(ctx, false, states.NotDeposed)
+		diags = n.resolveProvider(evalCtx, false, states.NotDeposed)
 		if diags.HasErrors() {
 			return diags
 		}
-		return n.managedResourceExecute(ctx)
+		return n.managedResourceExecute(evalCtx)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(ctx)
+		return n.dataResourceExecute(evalCtx)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}

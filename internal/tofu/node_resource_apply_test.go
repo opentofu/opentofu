@@ -17,7 +17,7 @@ import (
 func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 	state := states.NewState()
 	t.Run("no config", func(t *testing.T) {
-		ctx := &MockEvalContext{
+		evalCtx := &MockEvalContext{
 			StateState:               state.SyncWrapper(),
 			InstanceExpanderExpander: instances.NewExpander(),
 		}
@@ -28,7 +28,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 				Config: nil,
 			},
 		}
-		diags := node.Execute(ctx, walkApply)
+		diags := node.Execute(t.Context(), evalCtx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
@@ -40,7 +40,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 	})
 
 	t.Run("simple", func(t *testing.T) {
-		ctx := &MockEvalContext{
+		evalCtx := &MockEvalContext{
 			StateState:               state.SyncWrapper(),
 			InstanceExpanderExpander: instances.NewExpander(),
 		}
@@ -59,7 +59,7 @@ func TestNodeExpandApplyableResourceExecute(t *testing.T) {
 				}},
 			},
 		}
-		diags := node.Execute(ctx, walkApply)
+		diags := node.Execute(t.Context(), evalCtx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
