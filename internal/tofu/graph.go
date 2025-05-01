@@ -82,7 +82,7 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostic
 
 		// If the node is exec-able, then execute it.
 		if ev, ok := v.(GraphNodeExecutable); ok {
-			diags = diags.Append(walker.Execute(vertexCtx, ev))
+			diags = diags.Append(walker.Execute(ctx, vertexCtx, ev))
 			if diags.HasErrors() {
 				return
 			}

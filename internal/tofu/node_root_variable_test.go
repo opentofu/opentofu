@@ -20,7 +20,7 @@ import (
 
 func TestNodeRootVariableExecute(t *testing.T) {
 	t.Run("type conversion", func(t *testing.T) {
-		ctx := new(MockEvalContext)
+		evalCtx := new(MockEvalContext)
 
 		n := &NodeRootVariable{
 			Addr: addrs.InputVariable{Name: "foo"},
@@ -35,7 +35,7 @@ func TestNodeRootVariableExecute(t *testing.T) {
 			},
 		}
 
-		ctx.ChecksState = checks.NewState(&configs.Config{
+		evalCtx.ChecksState = checks.NewState(&configs.Config{
 			Module: &configs.Module{
 				Variables: map[string]*configs.Variable{
 					"foo": n.Config,
@@ -43,18 +43,18 @@ func TestNodeRootVariableExecute(t *testing.T) {
 			},
 		})
 
-		diags := n.Execute(ctx, walkApply)
+		diags := n.Execute(t.Context(), evalCtx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
 
-		if !ctx.SetRootModuleArgumentCalled {
+		if !evalCtx.SetRootModuleArgumentCalled {
 			t.Fatalf("ctx.SetRootModuleArgument wasn't called")
 		}
-		if got, want := ctx.SetRootModuleArgumentAddr.String(), "var.foo"; got != want {
+		if got, want := evalCtx.SetRootModuleArgumentAddr.String(), "var.foo"; got != want {
 			t.Errorf("wrong address for ctx.SetRootModuleArgument\ngot:  %s\nwant: %s", got, want)
 		}
-		if got, want := ctx.SetRootModuleArgumentValue, cty.StringVal("true"); !want.RawEquals(got) {
+		if got, want := evalCtx.SetRootModuleArgumentValue, cty.StringVal("true"); !want.RawEquals(got) {
 			// NOTE: The given value was cty.Bool but the type constraint was
 			// cty.String, so it was NodeRootVariable's responsibility to convert
 			// as part of preparing the "final value".
@@ -62,25 +62,25 @@ func TestNodeRootVariableExecute(t *testing.T) {
 		}
 	})
 	t.Run("validation", func(t *testing.T) {
-		ctx := new(MockEvalContext)
+		evalCtx := new(MockEvalContext)
 
 		// The variable validation function gets called with OpenTofu's
 		// built-in functions available, so we need a minimal scope just for
 		// it to get the functions from.
-		ctx.EvaluationScopeScope = &lang.Scope{}
+		evalCtx.EvaluationScopeScope = &lang.Scope{}
 
 		// We need to reimplement a _little_ bit of EvalContextBuiltin logic
 		// here to get a similar effect with EvalContextMock just to get the
 		// value to flow through here in a realistic way that'll make this test
 		// useful.
 		var finalVal cty.Value
-		ctx.SetRootModuleArgumentFunc = func(addr addrs.InputVariable, v cty.Value) {
+		evalCtx.SetRootModuleArgumentFunc = func(addr addrs.InputVariable, v cty.Value) {
 			if addr.Name == "foo" {
 				t.Logf("set %s to %#v", addr.String(), v)
 				finalVal = v
 			}
 		}
-		ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+		evalCtx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 			if addr.String() != "var.foo" {
 				return cty.NilVal
 			}
@@ -133,7 +133,7 @@ func TestNodeRootVariableExecute(t *testing.T) {
 			Config: n.Config,
 		}
 
-		ctx.ChecksState = checks.NewState(&configs.Config{
+		evalCtx.ChecksState = checks.NewState(&configs.Config{
 			Module: &configs.Module{
 				Variables: map[string]*configs.Variable{
 					"foo": n.Config,
@@ -141,38 +141,38 @@ func TestNodeRootVariableExecute(t *testing.T) {
 			},
 		})
 
-		diags := n.Execute(ctx, walkApply)
+		diags := n.Execute(t.Context(), evalCtx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
 
-		g, err := ref.DynamicExpand(ctx)
+		g, err := ref.DynamicExpand(evalCtx)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 
 		for _, v := range g.Vertices() {
 			if ev, ok := v.(GraphNodeExecutable); ok {
-				diags = ev.Execute(ctx, walkApply)
+				diags = ev.Execute(t.Context(), evalCtx, walkApply)
 				if diags.HasErrors() {
 					t.Fatalf("unexpected error: %s", diags.Err())
 				}
 			}
 		}
 
-		if !ctx.SetRootModuleArgumentCalled {
+		if !evalCtx.SetRootModuleArgumentCalled {
 			t.Fatalf("ctx.SetRootModuleArgument wasn't called")
 		}
-		if got, want := ctx.SetRootModuleArgumentAddr.String(), "var.foo"; got != want {
+		if got, want := evalCtx.SetRootModuleArgumentAddr.String(), "var.foo"; got != want {
 			t.Errorf("wrong address for ctx.SetRootModuleArgument\ngot:  %s\nwant: %s", got, want)
 		}
-		if got, want := ctx.SetRootModuleArgumentValue, cty.NumberIntVal(5); !want.RawEquals(got) {
+		if got, want := evalCtx.SetRootModuleArgumentValue, cty.NumberIntVal(5); !want.RawEquals(got) {
 			// NOTE: The given value was cty.Bool but the type constraint was
 			// cty.String, so it was NodeRootVariable's responsibility to convert
 			// as part of preparing the "final value".
 			t.Errorf("wrong value for ctx.SetRootModuleArgument\ngot:  %#v\nwant: %#v", got, want)
 		}
-		if status := ctx.Checks().ObjectCheckStatus(n.Addr.Absolute(addrs.RootModuleInstance)); status != checks.StatusPass {
+		if status := evalCtx.Checks().ObjectCheckStatus(n.Addr.Absolute(addrs.RootModuleInstance)); status != checks.StatusPass {
 			t.Errorf("expected checks to pass but go %s instead", status)
 		}
 	})

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -143,10 +144,10 @@ func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable
-func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *nodeVariableReferenceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
-	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
-	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, ctx))
+	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, evalCtx)
+	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, evalCtx))
 
 	if op == walkValidate {
 		var filtered tfdiags.Diagnostics

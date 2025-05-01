@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -302,13 +303,13 @@ func (n *NodeApplyableOutput) References() []*addrs.Reference {
 }
 
 // GraphNodeExecutable
-func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	state := ctx.State()
+func (n *NodeApplyableOutput) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	state := evalCtx.State()
 	if state == nil {
 		return
 	}
 
-	changes := ctx.Changes() // may be nil, if we're not working on a changeset
+	changes := evalCtx.Changes() // may be nil, if we're not working on a changeset
 
 	val := cty.UnknownVal(cty.DynamicPseudoType)
 	changeRecorded := n.Change != nil
@@ -332,7 +333,7 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 		checkDiags := evalCheckRules(
 			addrs.OutputPrecondition,
 			n.Config.Preconditions,
-			ctx, n.Addr, EvalDataForNoInstanceKey,
+			evalCtx, n.Addr, EvalDataForNoInstanceKey,
 			checkRuleSeverity,
 		)
 		diags = diags.Append(checkDiags)
@@ -350,7 +351,7 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 			// This has to run before we have a state lock, since evaluation also
 			// reads the state
 			var evalDiags tfdiags.Diagnostics
-			val, evalDiags = ctx.EvaluateExpr(n.Config.Expr, cty.DynamicPseudoType, nil)
+			val, evalDiags = evalCtx.EvaluateExpr(n.Config.Expr, cty.DynamicPseudoType, nil)
 			diags = diags.Append(evalDiags)
 
 		// If the module is being overridden and we have a value to use,
@@ -367,7 +368,7 @@ func (n *NodeApplyableOutput) Execute(ctx EvalContext, op walkOperation) (diags 
 		// We'll handle errors below, after we have loaded the module.
 		// Outputs don't have a separate mode for validation, so validate
 		// depends_on expressions here too
-		diags = diags.Append(validateDependsOn(ctx, n.Config.DependsOn))
+		diags = diags.Append(validateDependsOn(evalCtx, n.Config.DependsOn))
 
 		// For root module outputs in particular, an output value must be
 		// statically declared as sensitive in order to dynamically return
@@ -419,7 +420,7 @@ If you do intend to export this data, annotate the output value as sensitive by 
 
 	// If we were able to evaluate a new value, we can update that in the
 	// refreshed state as well.
-	if state = ctx.RefreshState(); state != nil && val.IsWhollyKnown() {
+	if state = evalCtx.RefreshState(); state != nil && val.IsWhollyKnown() {
 		// we only need to update the state, do not pass in the changes again
 		n.setValue(state, nil, val)
 	}
@@ -465,8 +466,8 @@ func (n *NodeDestroyableOutput) temporaryValue() bool {
 }
 
 // GraphNodeExecutable
-func (n *NodeDestroyableOutput) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
-	state := ctx.State()
+func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	state := evalCtx.State()
 	if state == nil {
 		return nil
 	}
@@ -488,7 +489,7 @@ func (n *NodeDestroyableOutput) Execute(ctx EvalContext, op walkOperation) tfdia
 		}
 	}
 
-	changes := ctx.Changes()
+	changes := evalCtx.Changes()
 	if changes != nil && n.Planning {
 		change := &plans.OutputChange{
 			Addr:      n.Addr,

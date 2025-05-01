@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -27,11 +28,11 @@ var (
 )
 
 // GraphNodeExecutable
-func (n *NodeApplyableProvider) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
-	instances, diags := n.initInstances(ctx, op)
+func (n *NodeApplyableProvider) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	instances, diags := n.initInstances(evalCtx, op)
 
 	for key, provider := range instances {
-		diags = diags.Append(n.executeInstance(ctx, op, key, provider))
+		diags = diags.Append(n.executeInstance(evalCtx, op, key, provider))
 	}
 
 	return diags
