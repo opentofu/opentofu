@@ -318,7 +318,6 @@ func (i *ModuleInstaller) moduleInstallWalker(_ context.Context, manifest modsdi
 
 			case addrs.ModuleSourceRemote:
 				log.Printf("[TRACE] ModuleInstaller: %s address %q will be handled by go-getter", key, addr.String())
-				span.SetAttributes(otelAttr.String("opentofu.module.source_type", "remote"))
 				mod, mDiags := i.installGoGetterModule(ctx, req, key, instPath, manifest, hooks, fetcher)
 				diags = append(diags, mDiags...)
 				return mod, nil, diags
