@@ -51,8 +51,6 @@ func (c *UntaintCommand) Run(args []string) int {
 		return 1
 	}
 
-	ctx := c.CommandContext()
-
 	addr, addrDiags := addrs.ParseAbsResourceInstanceStr(args[0])
 	diags = diags.Append(addrDiags)
 	if addrDiags.HasErrors() {

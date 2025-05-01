@@ -46,8 +46,6 @@ func (c *ProvidersCommand) Run(args []string) int {
 		return 1
 	}
 
-	ctx := c.CommandContext()
-
 	configPath, err := modulePath(cmdFlags.Args())
 	if err != nil {
 		c.Ui.Error(err.Error())
