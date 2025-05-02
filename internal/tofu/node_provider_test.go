@@ -269,8 +269,8 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		},
 	})
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
 
 	t.Run("valid", func(t *testing.T) {
 		config := &configs.Provider{
@@ -287,7 +287,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
+		diags := node.ValidateProvider(t.Context(), evalCtx, addrs.NoKey, provider)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -308,7 +308,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
+		diags := node.ValidateProvider(t.Context(), evalCtx, addrs.NoKey, provider)
 		if !diags.HasErrors() {
 			t.Error("missing expected error with invalid config")
 		}
@@ -321,7 +321,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 			},
 		}
 
-		diags := node.ValidateProvider(ctx, addrs.NoKey, provider)
+		diags := node.ValidateProvider(t.Context(), evalCtx, addrs.NoKey, provider)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with empty config: %s", diags.Err())
 		}
@@ -351,8 +351,8 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 		}
 		return
 	}
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
 
 	t.Run("valid", func(t *testing.T) {
 		config := &configs.Provider{
@@ -369,7 +369,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(t.Context(), evalCtx, addrs.NoKey, provider, false)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -382,7 +382,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(t.Context(), evalCtx, addrs.NoKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with nil config")
 		}
@@ -403,7 +403,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(t.Context(), evalCtx, addrs.NoKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with invalid config")
 		}
@@ -424,14 +424,14 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		},
 	})
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
 	// For this test, provider.PrepareConfigFn will succeed every time but the
 	// ctx.ConfigureProviderFn will return an error if a value is not found.
 	//
 	// This is an unlikely but real situation that occurs:
 	// https://github.com/hashicorp/terraform/issues/23087
-	ctx.ConfigureProviderFn = func(addr addrs.AbsProviderConfig, cfg cty.Value) (diags tfdiags.Diagnostics) {
+	evalCtx.ConfigureProviderFn = func(addr addrs.AbsProviderConfig, cfg cty.Value) (diags tfdiags.Diagnostics) {
 		if cfg.IsNull() {
 			diags = diags.Append(fmt.Errorf("no config provided"))
 		} else {
@@ -458,7 +458,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(t.Context(), evalCtx, addrs.NoKey, provider, false)
 		if diags.HasErrors() {
 			t.Errorf("unexpected error with valid config: %s", diags.Err())
 		}
@@ -471,7 +471,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(t.Context(), evalCtx, addrs.NoKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with nil config")
 		}
@@ -492,7 +492,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 			},
 		}
 
-		diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+		diags := node.ConfigureProvider(t.Context(), evalCtx, addrs.NoKey, provider, false)
 		if !diags.HasErrors() {
 			t.Fatal("missing expected error with invalid config")
 		}
@@ -510,15 +510,15 @@ func TestGetSchemaError(t *testing.T) {
 	}
 
 	providerAddr := mustProviderConfig(`provider["terraform.io/some/provider"]`)
-	ctx := &MockEvalContext{ProviderProvider: provider}
-	ctx.installSimpleEval()
+	evalCtx := &MockEvalContext{ProviderProvider: provider}
+	evalCtx.installSimpleEval()
 	node := NodeApplyableProvider{
 		NodeAbstractProvider: &NodeAbstractProvider{
 			Addr: providerAddr,
 		},
 	}
 
-	diags := node.ConfigureProvider(ctx, addrs.NoKey, provider, false)
+	diags := node.ConfigureProvider(t.Context(), evalCtx, addrs.NoKey, provider, false)
 	for _, d := range diags {
 		desc := d.Description()
 		if desc.Address != providerAddr.String() {

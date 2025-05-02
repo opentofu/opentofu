@@ -20,6 +20,21 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// traceNameValidateResource is a standardized trace span name we use for the
+// overall execution of all graph nodes that somehow represent the planning
+// phase for a resource instance.
+const traceNameValidateResource = "Validate resource configuration"
+
+// traceAttrConfigResourceAddr is a standardized trace span attribute name that we
+// use for recording the address of the main resource that a particular span is
+// concerned with.
+//
+// The value of this should be populated by calling the String method on
+// a value of type [addrs.ConfigResource]. DO NOT use this with results from
+// [addrs.AbsResourceInstance]; use [traceAttrResourceInstanceAddr] instead
+// for that address type.
+const traceAttrConfigResourceAddr = "opentofu.resource.address"
+
 // ConcreteResourceNodeFunc is a callback type used to convert an
 // abstract resource to a concrete one of some type.
 type ConcreteResourceNodeFunc func(*NodeAbstractResource) dag.Vertex

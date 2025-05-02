@@ -10,13 +10,16 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/opentofu/opentofu/internal/instances"
-	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // NodeDestroyResourceInstance represents a resource instance that is to be
@@ -138,25 +141,43 @@ func (n *NodeDestroyResourceInstance) References() []*addrs.Reference {
 }
 
 // GraphNodeExecutable
-func (n *NodeDestroyResourceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, traceNameApplyResourceInstance,
+		otelTrace.WithAttributes(
+			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
+		),
+	)
+	defer span.End()
 
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
 		diags = n.resolveProvider(evalCtx, false, states.NotDeposed)
 		if diags.HasErrors() {
+			tracing.SetSpanError(span, diags)
 			return diags
 		}
-		return n.managedResourceExecute(evalCtx)
+		span.SetAttributes(
+			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		)
+		diags = diags.Append(
+			n.managedResourceExecute(ctx, evalCtx),
+		)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(evalCtx)
+		diags = diags.Append(
+			n.dataResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
+	tracing.SetSpanError(span, diags)
+	return diags
 }
 
-func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodeDestroyResourceInstance) managedResourceExecute(_ context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Get our state
@@ -169,13 +190,13 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 	var changeApply *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	changeApply, err = n.readDiff(ctx, providerSchema)
+	changeApply, err = n.readDiff(evalCtx, providerSchema)
 	diags = diags.Append(err)
 	if changeApply == nil || diags.HasErrors() {
 		return diags
@@ -188,7 +209,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 		return diags
 	}
 
-	state, readDiags := n.readResourceInstanceState(ctx, addr)
+	state, readDiags := n.readResourceInstanceState(evalCtx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -199,21 +220,21 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 		return diags
 	}
 
-	diags = diags.Append(n.preApplyHook(ctx, changeApply))
+	diags = diags.Append(n.preApplyHook(evalCtx, changeApply))
 	if diags.HasErrors() {
 		return diags
 	}
 
 	// Run destroy provisioners if not tainted
 	if state.Status != states.ObjectTainted {
-		applyProvisionersDiags := n.evalApplyProvisioners(ctx, state, false, configs.ProvisionerWhenDestroy)
+		applyProvisionersDiags := n.evalApplyProvisioners(evalCtx, state, false, configs.ProvisionerWhenDestroy)
 		diags = diags.Append(applyProvisionersDiags)
 		// keep the diags separate from the main set until we handle the cleanup
 
 		if diags.HasErrors() {
 			// If we have a provisioning error, then we just call
 			// the post-apply hook now.
-			diags = diags.Append(n.postApplyHook(ctx, state, diags.Err()))
+			diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
 			return diags
 		}
 	}
@@ -221,24 +242,24 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx EvalContext) (d
 	// Managed resources need to be destroyed, while data sources
 	// are only removed from state.
 	// we pass a nil configuration to apply because we are destroying
-	s, d := n.apply(ctx, state, changeApply, nil, instances.RepetitionData{}, false)
+	s, d := n.apply(evalCtx, state, changeApply, nil, instances.RepetitionData{}, false)
 	state, diags = s, diags.Append(d)
 	// we don't return immediately here on error, so that the state can be
 	// finalized
 
-	err = n.writeResourceInstanceState(ctx, state, workingState)
+	err = n.writeResourceInstanceState(evalCtx, state, workingState)
 	if err != nil {
 		return diags.Append(err)
 	}
 
 	// create the err value for postApplyHook
-	diags = diags.Append(n.postApplyHook(ctx, state, diags.Err()))
-	diags = diags.Append(updateStateHook(ctx))
+	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
+	diags = diags.Append(updateStateHook(evalCtx))
 	return diags
 }
 
-func (n *NodeDestroyResourceInstance) dataResourceExecute(ctx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodeDestroyResourceInstance) dataResourceExecute(_ context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] NodeDestroyResourceInstance: removing state object for %s", n.Addr)
-	ctx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-	return diags.Append(updateStateHook(ctx))
+	evalCtx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	return diags.Append(updateStateHook(evalCtx))
 }
