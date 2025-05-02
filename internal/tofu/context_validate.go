@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -31,6 +32,11 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 	defer c.acquireRun("validate")()
 
 	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Validation phase",
+	)
+	defer span.End()
 
 	moreDiags := c.checkConfigDependencies(config)
 	diags = diags.Append(moreDiags)

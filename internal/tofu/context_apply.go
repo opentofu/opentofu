@@ -11,12 +11,15 @@ import (
 	"log"
 
 	"github.com/zclconf/go-cty/cty"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Apply performs the actions described by the given Plan object and returns
@@ -33,6 +36,14 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
 
 	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Apply phase",
+		otelTrace.WithAttributes(
+			otelAttr.String("opentofu.plan.mode", plan.UIMode.UIName()),
+		),
+	)
+	defer span.End()
 
 	if plan.Errored {
 		diags = diags.Append(tfdiags.Sourceless(
