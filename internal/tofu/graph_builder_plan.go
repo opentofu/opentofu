@@ -55,6 +55,13 @@ type PlanGraphBuilder struct {
 	// action instead. Create and Delete actions are not affected.
 	ForceReplace []addrs.AbsResourceInstance
 
+	// WatchRequests are optional requests to be notified via callback once
+	// the value associated with a particular reference has been settled.
+	//
+	// This is intended to enable the CLI layer to offer the "-watch" option
+	// to expose values for debugging purposes.
+	WatchRequests []WatchRequest
+
 	// skipRefresh indicates that we should skip refreshing managed resources
 	skipRefresh bool
 
@@ -219,6 +226,11 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		// Plug in any external references.
 		&ExternalReferenceTransformer{
 			ExternalReferences: b.ExternalReferences,
+		},
+
+		// Each watch request needs an additional graph node to handle it.
+		&watchTransformer{
+			requests: b.WatchRequests,
 		},
 
 		&ReferenceTransformer{},
