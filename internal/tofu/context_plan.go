@@ -10,11 +10,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"slices"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/hashicorp/hcl/v2"
+	otelAttr "go.opentelemetry.io/otel/attribute"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -26,6 +28,7 @@ import (
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // PlanOpts are the various options that affect the details of how OpenTofu
@@ -142,6 +145,21 @@ func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState
 			Mode: plans.NormalMode,
 		}
 	}
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Plan phase",
+	)
+	span.SetAttributes(
+		otelAttr.String("opentofu.plan.mode", opts.Mode.UIName()),
+		otelAttr.StringSlice("opentofu.plan.target_addrs", tracing.StringSlice(span, slices.Values(opts.Targets))),
+		otelAttr.StringSlice("opentofu.plan.exclude_addrs", tracing.StringSlice(span, slices.Values(opts.Excludes))),
+		otelAttr.StringSlice("opentofu.plan.force_replace_addrs", tracing.StringSlice(span, slices.Values(opts.ForceReplace))),
+		// Additions here should typically be limited only to options that
+		// significantly change what provider-driven operations we'd perform
+		// during the planning phase, since that's the main influence on how
+		// long the overall planning phase takes.
+	)
+	defer span.End()
 
 	moreDiags := c.checkConfigDependencies(config)
 	diags = diags.Append(moreDiags)
