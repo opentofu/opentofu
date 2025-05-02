@@ -12,6 +12,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -22,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // NodeValidatableResource represents a resource that is used for validation
@@ -47,7 +50,15 @@ func (n *NodeValidatableResource) Path() addrs.ModuleInstance {
 }
 
 // GraphNodeEvalable
-func (n *NodeValidatableResource) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	_, span := tracing.Tracer().Start(
+		ctx, traceNameValidateResource,
+		otelTrace.WithAttributes(
+			otelAttr.String(traceAttrConfigResourceAddr, n.Addr.String()),
+		),
+	)
+	defer span.End()
+
 	if n.Config == nil {
 		return diags
 	}

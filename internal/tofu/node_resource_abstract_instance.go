@@ -28,6 +28,36 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// traceNamePlanResourceInstance is a standardize trace span name we use for the
+// overall execution of all graph nodes that somehow represent the planning
+// phase for a resource instance.
+const traceNamePlanResourceInstance = "Plan resource instance changes"
+
+// traceNameApplyResourceInstance is a standardize trace span name we use for
+// the overall execution of all graph nodes that somehow represent the apply
+// phase for a resource instance.
+const traceNameApplyResourceInstance = "Apply resource instance changes"
+
+// traceAttrResourceInstanceAddr is a standardized trace span attribute
+// name that we use for recording the address of the main resource instance that
+// a particular span is concerned with.
+//
+// The value of this should be populated by calling the String method on
+// a value of type [addrs.AbsResourceInstance].
+const traceAttrResourceInstanceAddr = "opentofu.resource_instance.address"
+
+// traceAttrPlanRefresh is a standardized trace span attribute name that we use
+// for a boolean attribute describing whether the refresh step is enabled
+// for the main resource instance associated with the span during the planning
+// phase.
+const traceAttrPlanRefresh = "opentofu.plan.refresh"
+
+// traceAttrPlanPlanChanges is a standardized trace span attribute name that we
+// use for a boolean attribute describing whether the plan step is enabled
+// for the main resource instance associated with the span during the planning
+// phase. (This is false in refresh-only mode.)
+const traceAttrPlanPlanChanges = "opentofu.plan.plan_changes"
+
 // NodeAbstractResourceInstance represents a resource instance with no
 // associated operations. It embeds NodeAbstractResource but additionally
 // contains an instance key, used to identify one of potentially many

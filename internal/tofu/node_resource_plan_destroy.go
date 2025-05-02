@@ -9,10 +9,14 @@ import (
 	"context"
 	"fmt"
 
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -45,25 +49,44 @@ func (n *NodePlanDestroyableResourceInstance) DestroyAddr() *addrs.AbsResourceIn
 }
 
 // GraphNodeEvalable
-func (n *NodePlanDestroyableResourceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, traceNamePlanResourceInstance,
+		otelTrace.WithAttributes(
+			otelAttr.String(traceAttrResourceInstanceAddr, addr.String()),
+			otelAttr.Bool(traceAttrPlanRefresh, !n.skipRefresh),
+		),
+	)
+	defer span.End()
 
 	diags = diags.Append(n.resolveProvider(evalCtx, false, states.NotDeposed))
 	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		return diags
 	}
+	span.SetAttributes(
+		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+	)
 
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		return n.managedResourceExecute(evalCtx, op)
+		diags = diags.Append(
+			n.managedResourceExecute(ctx, evalCtx, op),
+		)
 	case addrs.DataResourceMode:
-		return n.dataResourceExecute(evalCtx, op)
+		diags = diags.Append(
+			n.dataResourceExecute(ctx, evalCtx, op),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
+	tracing.SetSpanError(span, diags)
+	return diags
 }
 
-func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(_ context.Context, evalCtx EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Declare a bunch of variables that are used for state during
@@ -72,7 +95,7 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	var change *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	state, err := n.readResourceInstanceState(ctx, addr)
+	state, err := n.readResourceInstanceState(evalCtx, addr)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -88,23 +111,23 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	// conditionals must agree (be exactly opposite) in order to get the
 	// correct behavior in both cases.
 	if n.skipRefresh {
-		diags = diags.Append(n.writeResourceInstanceState(ctx, state, prevRunState))
+		diags = diags.Append(n.writeResourceInstanceState(evalCtx, state, prevRunState))
 		if diags.HasErrors() {
 			return diags
 		}
-		diags = diags.Append(n.writeResourceInstanceState(ctx, state, refreshState))
+		diags = diags.Append(n.writeResourceInstanceState(evalCtx, state, refreshState))
 		if diags.HasErrors() {
 			return diags
 		}
 	}
 
-	change, destroyPlanDiags := n.planDestroy(ctx, state, "")
+	change, destroyPlanDiags := n.planDestroy(evalCtx, state, "")
 	diags = diags.Append(destroyPlanDiags)
 	if diags.HasErrors() {
 		return diags
 	}
 
-	diags = diags.Append(n.writeChange(ctx, change, ""))
+	diags = diags.Append(n.writeChange(evalCtx, change, ""))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -113,7 +136,7 @@ func (n *NodePlanDestroyableResourceInstance) managedResourceExecute(ctx EvalCon
 	return diags
 }
 
-func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(_ context.Context, evalCtx EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
 
 	// We may not be able to read a prior data source from the state if the
 	// schema was upgraded and we are destroying before ever refreshing that
@@ -121,7 +144,7 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContex
 	// null state, which we can do with a null prior state too.
 	change := &plans.ResourceInstanceChange{
 		Addr:        n.ResourceInstanceAddr(),
-		PrevRunAddr: n.prevRunAddr(ctx),
+		PrevRunAddr: n.prevRunAddr(evalCtx),
 		Change: plans.Change{
 			Action: plans.Delete,
 			Before: cty.NullVal(cty.DynamicPseudoType),
@@ -129,5 +152,5 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx EvalContex
 		},
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
 	}
-	return diags.Append(n.writeChange(ctx, change, ""))
+	return diags.Append(n.writeChange(evalCtx, change, ""))
 }

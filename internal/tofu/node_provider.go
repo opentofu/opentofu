@@ -11,12 +11,41 @@ import (
 	"log"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
+
+// traceAttrProviderAddress is a standardized trace span attribute name that we
+// use for recording the address of the main provider that a span is associated
+// with.
+//
+// The value of this should be populated by calling the String method on
+// a value of type [addrs.Provider].
+const traceAttrProviderAddr = "opentofu.provider.source"
+
+// traceAttrProviderConfigAddress is a standardized trace span attribute
+// name that we use for recording the address of the main provider configuration
+// block that a span is associated with.
+//
+// The value of this should be populated by calling the String method on
+// a value of type [addrs.AbsProviderConfig].
+const traceAttrProviderConfigAddr = "opentofu.provider_config.address"
+
+// traceAttrProviderInstanceAddr is a standardized trace span attribute
+// name that we use for recording the address of the main provider instance
+// that a span is associated with.
+//
+// The value of this should be populated by calling traceProviderInstanceAddr
+// with the [addrs.AbsProviderConfig] and [addrs.InstanceKey] value that
+// together uniquely identify the provider instance.
+const traceAttrProviderInstanceAddr = "opentofu.provider_instance.address"
 
 // NodeApplyableProvider represents a provider during an apply.
 type NodeApplyableProvider struct {
@@ -28,16 +57,16 @@ var (
 )
 
 // GraphNodeExecutable
-func (n *NodeApplyableProvider) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
-	instances, diags := n.initInstances(evalCtx, op)
+func (n *NodeApplyableProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+	instances, diags := n.initInstances(ctx, evalCtx, op)
 
 	for key, provider := range instances {
-		diags = diags.Append(n.executeInstance(evalCtx, op, key, provider))
+		diags = diags.Append(n.executeInstance(ctx, evalCtx, op, key, provider))
 	}
 
 	return diags
 }
-func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation) (map[addrs.InstanceKey]providers.Interface, tfdiags.Diagnostics) {
+func (n *NodeApplyableProvider) initInstances(_ context.Context, evalCtx EvalContext, op walkOperation) (map[addrs.InstanceKey]providers.Interface, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	var initKeys []addrs.InstanceKey
@@ -61,7 +90,7 @@ func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation)
 	}
 
 	for _, key := range initKeys {
-		_, err := ctx.InitProvider(n.Addr, key)
+		_, err := evalCtx.InitProvider(n.Addr, key)
 		diags = diags.Append(err)
 	}
 	if diags.HasErrors() {
@@ -70,7 +99,7 @@ func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation)
 
 	instances := make(map[addrs.InstanceKey]providers.Interface)
 	for configKey, initKey := range instanceKeys {
-		provider, _, err := getProvider(ctx, n.Addr, initKey)
+		provider, _, err := getProvider(evalCtx, n.Addr, initKey)
 		diags = diags.Append(err)
 		instances[configKey] = provider
 	}
@@ -80,23 +109,33 @@ func (n *NodeApplyableProvider) initInstances(ctx EvalContext, op walkOperation)
 
 	return instances, diags
 }
-func (n *NodeApplyableProvider) executeInstance(ctx EvalContext, op walkOperation, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
+func (n *NodeApplyableProvider) executeInstance(ctx context.Context, evalCtx EvalContext, op walkOperation, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
 	switch op {
 	case walkValidate:
 		log.Printf("[TRACE] NodeApplyableProvider: validating configuration for %s", n.Addr)
-		return n.ValidateProvider(ctx, providerKey, provider)
+		return n.ValidateProvider(ctx, evalCtx, providerKey, provider)
 	case walkPlan, walkPlanDestroy, walkApply, walkDestroy:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s", n.Addr)
-		return n.ConfigureProvider(ctx, providerKey, provider, false)
+		return n.ConfigureProvider(ctx, evalCtx, providerKey, provider, false)
 	case walkImport:
 		log.Printf("[TRACE] NodeApplyableProvider: configuring %s (requiring that configuration is wholly known)", n.Addr)
-		return n.ConfigureProvider(ctx, providerKey, provider, true)
+		return n.ConfigureProvider(ctx, evalCtx, providerKey, provider, true)
 	}
 	return nil
 }
 
-func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
-	configBody := buildProviderConfig(ctx, n.Addr, n.ProviderConfig())
+func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface) tfdiags.Diagnostics {
+	_, span := tracing.Tracer().Start(
+		ctx, "Validate provider configuration",
+		otelTrace.WithAttributes(
+			otelAttr.String(traceAttrProviderAddr, n.Addr.Provider.String()),
+			otelAttr.String(traceAttrProviderConfigAddr, n.Addr.String()),
+			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
+		),
+	)
+	defer span.End()
+
+	configBody := buildProviderConfig(evalCtx, n.Addr, n.ProviderConfig())
 
 	// if a provider config is empty (only an alias), return early and don't continue
 	// validation. validate doesn't need to fully configure the provider itself, so
@@ -109,6 +148,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey ad
 	schemaResp := provider.GetProviderSchema()
 	diags := schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		return diags
 	}
 
@@ -125,8 +165,9 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey ad
 		data = n.Config.Instances[providerKey]
 	}
 
-	configVal, _, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, data)
+	configVal, _, evalDiags := evalCtx.EvaluateBlock(configBody, configSchema, nil, data)
 	if evalDiags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		return diags.Append(evalDiags)
 	}
 	diags = diags.Append(evalDiags)
@@ -142,20 +183,32 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx EvalContext, providerKey ad
 	validateResp := provider.ValidateProviderConfig(req)
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 
+	tracing.SetSpanError(span, diags)
 	return diags
 }
 
 // ConfigureProvider configures a provider that is already initialized and retrieved.
 // If verifyConfigIsKnown is true, ConfigureProvider will return an error if the
 // provider configVal is not wholly known and is meant only for use during import.
-func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface, verifyConfigIsKnown bool) tfdiags.Diagnostics {
+func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx EvalContext, providerKey addrs.InstanceKey, provider providers.Interface, verifyConfigIsKnown bool) tfdiags.Diagnostics {
+	_, span := tracing.Tracer().Start(
+		ctx, "Configure provider",
+		otelTrace.WithAttributes(
+			otelAttr.String(traceAttrProviderAddr, n.Addr.Provider.String()),
+			otelAttr.String(traceAttrProviderConfigAddr, n.Addr.String()),
+			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.Addr, providerKey)),
+		),
+	)
+	defer span.End()
+
 	config := n.ProviderConfig()
 
-	configBody := buildProviderConfig(ctx, n.Addr, config)
+	configBody := buildProviderConfig(evalCtx, n.Addr, config)
 
 	resp := provider.GetProviderSchema()
 	diags := resp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		return diags
 	}
 
@@ -165,9 +218,10 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey a
 		data = n.Config.Instances[providerKey]
 	}
 
-	configVal, configBody, evalDiags := ctx.EvaluateBlock(configBody, configSchema, nil, data)
+	configVal, configBody, evalDiags := evalCtx.EvaluateBlock(configBody, configSchema, nil, data)
 	diags = diags.Append(evalDiags)
 	if evalDiags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		return diags
 	}
 
@@ -178,6 +232,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey a
 			Detail:   fmt.Sprintf("The configuration for %s depends on values that cannot be determined until apply.", n.Addr),
 			Subject:  &config.DeclRange,
 		})
+		tracing.SetSpanError(span, diags)
 		return diags
 	}
 
@@ -207,6 +262,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey a
 	}
 
 	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		return diags
 	}
 
@@ -217,7 +273,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey a
 		log.Printf("[WARN] ValidateProviderConfig from %q changed the config value, but that value is unused", n.Addr)
 	}
 
-	configDiags := ctx.ConfigureProvider(n.Addr, providerKey, unmarkedConfigVal)
+	configDiags := evalCtx.ConfigureProvider(n.Addr, providerKey, unmarkedConfigVal)
 	diags = diags.Append(configDiags.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 	if diags.HasErrors() && config == nil {
 		// If there isn't an explicit "provider" block in the configuration,
@@ -229,8 +285,25 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx EvalContext, providerKey a
 			fmt.Sprintf(providerConfigErr, n.Addr.Provider),
 		))
 	}
+	tracing.SetSpanError(span, diags)
 	return diags
 }
 
 const providerConfigErr = `Provider %q requires explicit configuration. Add a provider block to the root module and configure the provider's required arguments as described in the provider documentation.
 `
+
+// traceProviderInstanceAddr generates a value to be used for tracing attributes
+// that refer to a specific instance of a provider configuration.
+//
+// This is here to compensate for the fact that we don't currently have an
+// address type for provider instance addresses in package addrs, and instead
+// just pass around loose config address and instance key values as separate
+// arguments. If we do eventually have a suitable address type then this
+// function should be removed and all uses of it replaced by calling the
+// String method on that address type.
+func traceProviderInstanceAddr(configAddr addrs.AbsProviderConfig, instKey addrs.InstanceKey) string {
+	if instKey == addrs.NoKey {
+		return configAddr.String()
+	}
+	return configAddr.String() + instKey.String()
+}
