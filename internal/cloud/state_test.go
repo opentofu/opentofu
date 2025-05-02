@@ -270,7 +270,7 @@ func TestState_PersistState(t *testing.T) {
 			t.Fatal("expected nil initial readState")
 		}
 
-		err := cloudState.PersistState(nil)
+		err := cloudState.PersistState(t.Context(), nil)
 		if err != nil {
 			t.Fatalf("expected no error, got %q", err)
 		}
@@ -341,7 +341,7 @@ func TestState_PersistState(t *testing.T) {
 				)
 			}))
 
-			err = cloudState.PersistState(nil)
+			err = cloudState.PersistState(t.Context(), nil)
 			if err != nil {
 				t.Fatal(err)
 			}
