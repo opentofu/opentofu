@@ -71,6 +71,42 @@ func TestParsePlan_basicValid(t *testing.T) {
 				},
 			},
 		},
+		"watch requests": {
+			[]string{`-watch=local.foo`, `-watch=module.baz:local.bar`},
+			&Plan{
+				DetailedExitCode: false,
+				InputEnabled:     true,
+				OutPath:          "",
+				Watches: []*addrs.AbsReference{
+					{
+						Module:  addrs.RootModuleInstance,
+						Subject: addrs.LocalValue{Name: "foo"},
+						SourceRange: tfdiags.SourceRange{
+							Filename: `-watch=... option`,
+							Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+							End:      tfdiags.SourcePos{Line: 1, Column: 10, Byte: 9},
+						},
+					},
+					{
+						Module:  addrs.RootModuleInstance.Child("baz", addrs.NoKey),
+						Subject: addrs.LocalValue{Name: "bar"},
+						SourceRange: tfdiags.SourceRange{
+							Filename: `-watch=... option`,
+							Start:    tfdiags.SourcePos{Line: 1, Column: 1, Byte: 0},
+							End:      tfdiags.SourcePos{Line: 1, Column: 21, Byte: 20},
+						},
+					},
+				},
+				ViewType: ViewHuman,
+				State:    &State{Lock: true},
+				Vars:     &Vars{},
+				Operation: &Operation{
+					PlanMode:    plans.NormalMode,
+					Parallelism: 10,
+					Refresh:     true,
+				},
+			},
+		},
 	}
 
 	cmpOpts := cmpopts.IgnoreUnexported(Operation{}, Vars{}, State{})

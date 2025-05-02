@@ -25,6 +25,12 @@ func (v LocalValue) Path() cty.Path {
 	return cty.GetAttrPath("local").GetAttr(v.Name)
 }
 
+// Equal is primarily here for go-cmp to use. Use the == operator directly in
+// normal code, because LocalValue is naturally comparable.
+func (v LocalValue) Equal(other LocalValue) bool {
+	return v == other
+}
+
 func (v LocalValue) UniqueKey() UniqueKey {
 	return v // A LocalValue is its own UniqueKey
 }

@@ -288,6 +288,10 @@ type Operation struct {
 	Variables map[string]UnparsedVariableValue
 	RootCall  configs.StaticModuleCall
 
+	// Watch requests to pass on to the core runtime, typically for module
+	// author debugging purposes.
+	WatchRequests []tofu.WatchRequest
+
 	// Some operations use root module variables only opportunistically or
 	// don't need them at all. If this flag is set, the backend must treat
 	// all variables as optional and provide an unknown value for any required
