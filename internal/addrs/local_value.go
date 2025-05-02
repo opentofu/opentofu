@@ -7,6 +7,8 @@ package addrs
 
 import (
 	"fmt"
+
+	"github.com/zclconf/go-cty/cty"
 )
 
 // LocalValue is the address of a local value.
@@ -17,6 +19,10 @@ type LocalValue struct {
 
 func (v LocalValue) String() string {
 	return "local." + v.Name
+}
+
+func (v LocalValue) Path() cty.Path {
+	return cty.GetAttrPath("local").GetAttr(v.Name)
 }
 
 func (v LocalValue) UniqueKey() UniqueKey {

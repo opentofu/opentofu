@@ -5,7 +5,11 @@
 
 package addrs
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/zclconf/go-cty/cty"
+)
 
 // ResourceInstancePhase is a special kind of reference used only internally
 // during graph building to represent resource instances that are in a
@@ -47,6 +51,11 @@ func (rp ResourceInstancePhase) String() string {
 	// is intentionally something that would fail parsing with ParseRef,
 	// because this special address type should never be exposed in the UI.
 	return fmt.Sprintf("%s#%s", rp.ResourceInstance, rp.Phase)
+}
+
+func (rp ResourceInstancePhase) Path() cty.Path {
+	// FIXME: Do something about this oddity
+	panic("ResourceInstancePhase is a strange thing to implement Referenceable")
 }
 
 func (rp ResourceInstancePhase) UniqueKey() UniqueKey {
@@ -113,6 +122,11 @@ func (rp ResourcePhase) String() string {
 	// is intentionally something that would fail parsing with ParseRef,
 	// because this special address type should never be exposed in the UI.
 	return fmt.Sprintf("%s#%s", rp.Resource, rp.Phase)
+}
+
+func (rp ResourcePhase) Path() cty.Path {
+	// FIXME: Do something about this oddity
+	panic("ResourcePhase is a strange thing to implement Referenceable")
 }
 
 func (rp ResourcePhase) UniqueKey() UniqueKey {

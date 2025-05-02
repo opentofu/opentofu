@@ -10,6 +10,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -28,6 +29,10 @@ type OutputValue struct {
 
 func (v OutputValue) String() string {
 	return "output." + v.Name
+}
+
+func (v OutputValue) Path() cty.Path {
+	return cty.GetAttrPath("output").GetAttr(v.Name)
 }
 
 func (v OutputValue) Equal(o OutputValue) bool {

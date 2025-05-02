@@ -7,6 +7,8 @@ package addrs
 
 import (
 	"fmt"
+
+	"github.com/zclconf/go-cty/cty"
 )
 
 // InputVariable is the address of an input variable.
@@ -17,6 +19,10 @@ type InputVariable struct {
 
 func (v InputVariable) String() string {
 	return "var." + v.Name
+}
+
+func (v InputVariable) Path() cty.Path {
+	return cty.GetAttrPath("var").GetAttr(v.Name)
 }
 
 func (v InputVariable) UniqueKey() UniqueKey {
