@@ -41,43 +41,12 @@ func (b *Backend) Workspaces() ([]string, error) {
 		return nil, err
 	}
 
-	count := 1
 	prefix := b.keyName + keyEnvPrefix
-	params := containers.ListBlobsInput{
-		Prefix: &prefix,
-	}
-	result := []string{backend.DefaultStateName}
-
-	for {
-		log.Printf("[TRACE] Getting page %d of blob results", count)
-		resp, err := client.ListBlobs(ctx, b.armClient.storageAccountName, b.containerName, params)
-		if err != nil {
-			return nil, err
-		}
-
-		// Used to paginate blobs, saving the NextMarker result from ListBlobs
-		params.Marker = resp.NextMarker
-		for _, obj := range resp.Blobs.Blobs {
-			key := obj.Name
-			if !strings.HasPrefix(key, prefix) {
-				continue
-			}
-
-			name := strings.TrimPrefix(key, prefix)
-			// we store the state in a key, not a directory
-			if strings.Contains(name, "/") {
-				continue
-			}
-			result = append(result, name)
-		}
-
-		count++
-		if params.Marker == nil || *params.Marker == "" {
-			break
-		}
+	result, err := getPaginatedResults(ctx, client, prefix, b.armClient.storageAccountName, b.containerName)
+	if err != nil {
+		return nil, err
 	}
 
-	sort.Strings(result[1:])
 	return result, nil
 }
 
@@ -192,3 +161,50 @@ Error: %w
 
 You may have to force-unlock this state in order to use it again.
 `
+
+type azureClient interface {
+	ListBlobs(ctx context.Context, accountName, containerName string, input containers.ListBlobsInput) (result containers.ListBlobsResult, err error)
+}
+
+func getPaginatedResults(ctx context.Context, client azureClient, prefix, accName, containerName string) ([]string, error) {
+	count := 1
+	initialMarker := ""
+
+	params := containers.ListBlobsInput{
+		Prefix: &prefix,
+		Marker: &initialMarker,
+	}
+	result := []string{backend.DefaultStateName}
+
+	for {
+		log.Printf("[TRACE] Getting page %d of blob results", count)
+		resp, err := client.ListBlobs(ctx, accName, containerName, params)
+		if err != nil {
+			return nil, err
+		}
+
+		// Used to paginate blobs, saving the NextMarker result from ListBlobs
+		params.Marker = resp.NextMarker
+		for _, obj := range resp.Blobs.Blobs {
+			key := obj.Name
+			if !strings.HasPrefix(key, prefix) {
+				continue
+			}
+
+			name := strings.TrimPrefix(key, prefix)
+			// we store the state in a key, not a directory
+			if strings.Contains(name, "/") {
+				continue
+			}
+			result = append(result, name)
+		}
+
+		count++
+		if params.Marker == nil || *params.Marker == "" {
+			break
+		}
+	}
+
+	sort.Strings(result[1:])
+	return result, nil
+}
