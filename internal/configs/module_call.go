@@ -169,7 +169,18 @@ func (mc *ModuleCall) decodeStaticSource(eval *StaticEvaluator) hcl.Diagnostics 
 		// NOTE: This code was originally executed as part of decodeModuleBlock and is now deferred until we have the config merged and static context built
 		var err error
 		if mc.VersionAttr != nil {
-			mc.SourceAddr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
+			// Check if version is null before forcing registry module parsing
+			val, valDiags := eval.Evaluate(mc.VersionAttr.Expr, StaticIdentifier{
+				Module:    eval.call.addr,
+				Subject:   fmt.Sprintf("module.%s.version", mc.Name),
+				DeclRange: mc.VersionAttr.Range,
+			})
+			if !valDiags.HasErrors() && val.IsNull() {
+				// If version is null, treat it as if the module is a local module
+				mc.SourceAddr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
+			} else {
+				mc.SourceAddr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
+			}
 		} else {
 			mc.SourceAddr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
 		}
@@ -238,6 +249,12 @@ func (mc *ModuleCall) decodeStaticVersion(eval *StaticEvaluator) hcl.Diagnostics
 	})
 	diags = diags.Extend(valDiags)
 	if diags.HasErrors() {
+		return diags
+	}
+
+	// If the version evaluates to null, treat it as if no version was specified
+	if val.IsNull() {
+		mc.VersionAttr = nil
 		return diags
 	}
 
