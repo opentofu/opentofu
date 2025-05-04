@@ -114,9 +114,12 @@ func TestAccBackendAccessKeyBasic(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
-		armClient.destroyTestResources(t, ctx, res)
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
 
@@ -140,7 +143,11 @@ func TestAccBackendSASTokenBasic(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -170,7 +177,11 @@ func TestAccBackendOIDCBasic(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -198,7 +209,11 @@ func TestAccBackendManagedServiceIdentityBasic(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -233,7 +248,11 @@ func TestAccBackendServicePrincipalClientCertificateBasic(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -263,7 +282,11 @@ func TestAccBackendServicePrincipalClientSecretBasic(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -299,7 +322,11 @@ func TestAccBackendServicePrincipalClientSecretCustomEndpoint(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -328,7 +355,11 @@ func TestAccBackendAccessKeyLocked(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -366,7 +397,11 @@ func TestAccBackendServicePrincipalLocked(t *testing.T) {
 
 	ctx := context.TODO()
 	err := armClient.buildTestResources(t, ctx, &res)
-	defer armClient.destroyTestResources(t, ctx, res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -435,7 +470,7 @@ func TestBackendPagination(t *testing.T) {
 	client := &mockClient{}
 	result, err := getPaginatedResults(ctx, client, "env", "acc-name", "storage-name")
 	if err != nil {
-		t.Fatalf("error getting paginated results %s", err)
+		t.Fatalf("error getting paginated results %q", err)
 	}
 
 	// default is always on the list + 10k generated blobs from the mocked ListBlobs
