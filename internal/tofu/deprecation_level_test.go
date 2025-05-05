@@ -17,7 +17,7 @@ func TestParseDeprecatedWarningLevel(t *testing.T) {
 		{want: DeprecationWarningLevelAll, in: ""},
 		{want: DeprecationWarningLevelAll, in: "all"},
 		{want: DeprecationWarningLevelLocal, in: "local"},
-		{want: DeprecationWarningLevelAll, in: "none"},
+		{want: DeprecationWarningLevelNone, in: "none"},
 		{want: DeprecationWarningLevelAll, in: "off"},
 		{want: DeprecationWarningLevelAll, in: "remote"},
 		{want: DeprecationWarningLevelAll, in: "wrongLevel"},

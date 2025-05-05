@@ -50,6 +50,8 @@ func ParseDeprecatedWarningLevel(s string) DeprecationWarningLevel {
 		return DeprecationWarningLevelAll
 	case "local":
 		return DeprecationWarningLevelLocal
+	case "none":
+		return DeprecationWarningLevelNone
 	default:
 		log.Printf(
 			"[WARN] ParseDeprecatedWarningLevel: returning %s deprecation warn level since the given value is unknown: %s",
