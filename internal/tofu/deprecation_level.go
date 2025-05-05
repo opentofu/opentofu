@@ -8,6 +8,8 @@ package tofu
 //go:generate go run golang.org/x/tools/cmd/stringer -type=DeprecationWarningLevel deprecation_level.go
 
 import (
+	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -30,6 +32,29 @@ func variableDeprecationWarnAllowed(lvl DeprecationWarningLevel, source addrs.Mo
 	case DeprecationWarningLevelLocal:
 		_, ok := source.(addrs.ModuleSourceLocal)
 		return ok
+	default:
+		return true
+	}
+}
+
+func DeprecatedOutputDiagAllowed(lvl DeprecationWarningLevel, diagnostic tfdiags.Diagnostic) bool {
+	switch lvl {
+	case DeprecationWarningLevelAll:
+		return true
+	case DeprecationWarningLevelLocal:
+		cause, ok := marks.DiagnosticDeprecationCause(diagnostic)
+		if !ok {
+			// If it's not a deprecation warning diagnostic, always allow it to not filter out diagnostics unrelated with deprecation
+			return true
+		}
+		if cause.IsFromRemoteModule { // do not allow deprecation warnings for outputs from remote module calls
+			return false
+		}
+		return true
+	case DeprecationWarningLevelNone:
+		_, ok := marks.DiagnosticDeprecationCause(diagnostic)
+		// Always ignore the deprecation warnings if it's having a deprecation cause
+		return !ok
 	default:
 		return true
 	}

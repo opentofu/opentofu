@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // View is the base layer for command views, encapsulating a set of I/O
@@ -35,6 +36,9 @@ type View struct {
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
 	concise bool
+
+	// ModuleDeprecationWarnLvl is used to filter out deprecation warnings for outputs in case it's requested by the user
+	ModuleDeprecationWarnLvl tofu.DeprecationWarningLevel
 
 	// showSensitive is used to display the value of variables marked as sensitive.
 	showSensitive bool
@@ -83,6 +87,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.consolidateWarnings = view.ConsolidateWarnings
 	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
+	v.ModuleDeprecationWarnLvl = view.ModuleDeprecationWarnLvl
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -98,6 +103,18 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	if len(diags) == 0 {
 		return
+	}
+
+	// Filter the deprecation warnings based on the cli arg
+	if v.ModuleDeprecationWarnLvl != tofu.DeprecationWarningLevelAll {
+		var newDiags tfdiags.Diagnostics
+		for _, diag := range diags {
+			if !tofu.DeprecatedOutputDiagAllowed(v.ModuleDeprecationWarnLvl, diag) {
+				continue
+			}
+			newDiags = append(newDiags, diag)
+		}
+		diags = newDiags
 	}
 
 	if v.consolidateWarnings {

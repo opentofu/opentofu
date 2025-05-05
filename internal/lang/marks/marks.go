@@ -52,6 +52,10 @@ const Sensitive = valueMark("Sensitive")
 // `type` function.
 const TypeType = valueMark("TypeType")
 
+var (
+	_ diagnosticExtraDeprecationCause = DeprecationCause{}
+)
+
 type DeprecationCause struct {
 	By      addrs.Referenceable
 	Message string
@@ -120,12 +124,17 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 	for _, pm := range deprecatedPathMarks {
 		for m := range pm.Marks {
 			cause := m.(deprecationMark).Cause
-			diags = diags.Append(tfdiags.AttributeValue(
+			diag := tfdiags.AttributeValue(
 				tfdiags.Warning,
 				"Value derived from a deprecated source",
 				fmt.Sprintf("This value is derived from %v, which is deprecated with the following message:\n\n%s", cause.By, cause.Message),
 				pm.Path,
-			))
+			)
+			diags = diags.Append(tfdiags.Override(diag, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+				return &DeprecatedOutputDiagnosticExtra{
+					Cause: cause,
+				}
+			}))
 		}
 	}
 
@@ -156,6 +165,7 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 				Detail:     fmt.Sprintf("%s is derived from %v, which is deprecated with the following message:\n\n%s", source, cause.By, cause.Message),
 				Subject:    expr.Range().Ptr(),
 				Expression: expr,
+				Extra:      cause,
 			})
 		}
 	}
