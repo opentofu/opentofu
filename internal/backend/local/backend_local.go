@@ -83,7 +83,6 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	coreOpts.UIInput = op.UIIn
 	coreOpts.Hooks = op.Hooks
 	coreOpts.Encryption = op.Encryption
-	coreOpts.ModuleDeprecationWarnLevel = op.ModuleDeprecationWarnLevel
 
 	var ctxDiags tfdiags.Diagnostics
 	var configSnap *configload.Snapshot
@@ -205,14 +204,13 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 	}
 
 	planOpts := &tofu.PlanOpts{
-		Mode:                       op.PlanMode,
-		Targets:                    op.Targets,
-		Excludes:                   op.Excludes,
-		ForceReplace:               op.ForceReplace,
-		SetVariables:               variables,
-		SkipRefresh:                op.Type != backend.OperationTypeRefresh && !op.PlanRefresh,
-		GenerateConfigPath:         op.GenerateConfigOut,
-		ModuleDeprecationWarnLevel: op.ModuleDeprecationWarnLevel,
+		Mode:               op.PlanMode,
+		Targets:            op.Targets,
+		Excludes:           op.Excludes,
+		ForceReplace:       op.ForceReplace,
+		SetVariables:       variables,
+		SkipRefresh:        op.Type != backend.OperationTypeRefresh && !op.PlanRefresh,
+		GenerateConfigPath: op.GenerateConfigOut,
 	}
 	run.PlanOpts = planOpts
 

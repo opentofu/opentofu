@@ -59,7 +59,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	var diags tfdiags.Diagnostics
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx,configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -139,7 +139,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		ErrorWriter: os.Stderr,
 	}
 
-	evalOpts := &tofu.EvalOpts{ModuleDeprecationWarnLevel: tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning)}
+	evalOpts := &tofu.EvalOpts{}
 	if lr.PlanOpts != nil {
 		// the LocalRun type is built primarily to support the main operations,
 		// so the variable values end up in the "PlanOpts" even though we're

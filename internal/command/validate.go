@@ -112,8 +112,6 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 			diags = diags.Append(err)
 			return diags
 		}
-		// Disables variables deprecation checks for the validate action
-		opts.ModuleDeprecationWarnLevel = tofu.DeprecationWarningLevelNone
 
 		tfCtx, ctxDiags := tofu.NewContext(opts)
 		diags = diags.Append(ctxDiags)

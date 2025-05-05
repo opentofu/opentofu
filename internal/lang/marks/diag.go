@@ -2,10 +2,10 @@ package marks
 
 import "github.com/opentofu/opentofu/internal/tfdiags"
 
-// DiagnosticDeprecationCause checks whether the given diagnostic is
+// DiagnosticOutputDeprecationCause checks whether the given diagnostic is
 // a deprecation warning, and if so returns the deprecation cause and
 // true. If not, returns the zero value of DeprecationCause and false.
-func DiagnosticDeprecationCause(diag tfdiags.Diagnostic) (DeprecationCause, bool) {
+func DiagnosticOutputDeprecationCause(diag tfdiags.Diagnostic) (DeprecationCause, bool) {
 	maybe := tfdiags.ExtraInfo[diagnosticExtraDeprecationCause](diag)
 	if maybe == nil {
 		return DeprecationCause{}, false

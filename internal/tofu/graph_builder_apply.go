@@ -67,9 +67,6 @@ type ApplyGraphBuilder struct {
 	ExternalReferences []*addrs.Reference
 
 	ProviderFunctionTracker ProviderFunctionMapping
-
-	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show.
-	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 // See GraphBuilder
@@ -114,7 +111,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 
 		// Add dynamic values
 		&RootVariableTransformer{Config: b.Config, RawValues: b.RootVariableValues},
-		&ModuleVariableTransformer{Config: b.Config, ModuleDeprecationWarnLevel: b.ModuleDeprecationWarnLevel},
+		&ModuleVariableTransformer{Config: b.Config},
 		&LocalTransformer{Config: b.Config},
 		&OutputTransformer{
 			Config:     b.Config,

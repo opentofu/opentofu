@@ -70,13 +70,12 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
 	graph, moreDiags := (&PlanGraphBuilder{
-		Config:                     config,
-		Plugins:                    c.plugins,
-		State:                      states.NewState(),
-		RootVariableValues:         varValues,
-		Operation:                  walkValidate,
-		ProviderFunctionTracker:    providerFunctionTracker,
-		ModuleDeprecationWarnLevel: c.ModuleDeprecationWarnLevel,
+		Config:                  config,
+		Plugins:                 c.plugins,
+		State:                   states.NewState(),
+		RootVariableValues:      varValues,
+		Operation:               walkValidate,
+		ProviderFunctionTracker: providerFunctionTracker,
 	}).Build(addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {

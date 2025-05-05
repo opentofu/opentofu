@@ -1572,22 +1572,4 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			}
 		})
 	}
-	t.Run("remote-mod-called-from-root", func(t *testing.T) {
-		varAddr := addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil))
-		ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
-			if got, want := addr.String(), varAddr.String(); got != want {
-				t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
-			}
-			// NOTE: the value itself doesn't matter. The value itself is not part of the processing so it can be whatever value we want
-			return cty.StringVal("bar baz")
-		}
-		varCfg := cfg.Children["foo-call"].Module.Variables["foo"]
-		// NOTE: this is just to test that diags are not returned when remote are excluded
-		varCfg.DeclRange.Filename = ".terraform/modules/" + varCfg.DeclRange.Filename
-		gotDiags := evalVariableDeprecation(varAddr, varCfg, cfg.Module.ModuleCalls["foo-call"].Source, ctx, variableDeprecationWarnAllowed(DeprecationWarningLevelLocal, nil))
-		if len(gotDiags) != 0 {
-			t.Fatalf("unexpected diags returned. %+v", gotDiags)
-		}
-	})
-
 }

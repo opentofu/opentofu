@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // ApplyCommand is a Command implementation that applies a OpenTofu
@@ -124,7 +123,7 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, args.ModuleDeprecationWarnings, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
 	diags = diags.Append(opDiags)
 
 	// Before we delegate to the backend, we'll print any warning diagnostics
@@ -270,7 +269,6 @@ func (c *ApplyCommand) OperationRequest(
 	planFile *planfile.WrappedPlanFile,
 	args *arguments.Operation,
 	autoApprove bool,
-	moduleDeprecatedWarning string,
 	enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -291,7 +289,6 @@ func (c *ApplyCommand) OperationRequest(
 	opReq.Targets = args.Targets
 	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace
-	opReq.ModuleDeprecationWarnLevel = tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning)
 	opReq.Type = backend.OperationTypeApply
 	opReq.View = view.Operation()
 

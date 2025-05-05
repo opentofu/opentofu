@@ -15,7 +15,6 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // PlanCommand is a Command implementation that compares a OpenTofu
@@ -171,7 +170,6 @@ func (c *PlanCommand) OperationRequest(
 	opReq.PlanRefresh = args.Refresh
 	opReq.PlanOutPath = planOutPath
 	opReq.GenerateConfigOut = generateConfigOut
-	opReq.ModuleDeprecationWarnLevel = tofu.ParseDeprecatedWarningLevel(moduleDeprecatedWarning)
 	opReq.Targets = args.Targets
 	opReq.Excludes = args.Excludes
 	opReq.ForceReplace = args.ForceReplace

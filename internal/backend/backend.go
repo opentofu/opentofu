@@ -320,9 +320,6 @@ type Operation struct {
 	// for unmatched import targets and where any generated config should be
 	// written to.
 	GenerateConfigOut string
-
-	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show.
-	ModuleDeprecationWarnLevel tofu.DeprecationWarningLevel
 }
 
 // HasConfig returns true if and only if the operation has a ConfigDir value

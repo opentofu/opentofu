@@ -112,6 +112,9 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 			if !tofu.DeprecatedOutputDiagAllowed(v.ModuleDeprecationWarnLvl, diag) {
 				continue
 			}
+			if !tofu.DeprecatedVariableDiagAllowed(v.ModuleDeprecationWarnLvl, diag) {
+				continue
+			}
 			newDiags = append(newDiags, diag)
 		}
 		diags = newDiags

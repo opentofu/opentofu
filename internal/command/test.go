@@ -258,8 +258,6 @@ func (c *TestCommand) Run(rawArgs []string) int {
 	// Don't use encryption during testing
 	opts.Encryption = encryption.Disabled()
 
-	opts.ModuleDeprecationWarnLevel = tofu.ParseDeprecatedWarningLevel(args.ModuleDeprecationWarnLevel)
-
 	// Print out all the diagnostics we have from the setup. These will just be
 	// warnings, and we want them out of the way before we start the actual
 	// testing.

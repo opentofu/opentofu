@@ -207,18 +207,17 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerF
 	}
 
 	graph, moreDiags := (&ApplyGraphBuilder{
-		Config:                     config,
-		Changes:                    plan.Changes,
-		State:                      plan.PriorState,
-		RootVariableValues:         variables,
-		Plugins:                    c.plugins,
-		Targets:                    plan.TargetAddrs,
-		Excludes:                   plan.ExcludeAddrs,
-		ForceReplace:               plan.ForceReplaceAddrs,
-		Operation:                  operation,
-		ExternalReferences:         plan.ExternalReferences,
-		ProviderFunctionTracker:    providerFunctionTracker,
-		ModuleDeprecationWarnLevel: c.ModuleDeprecationWarnLevel,
+		Config:                  config,
+		Changes:                 plan.Changes,
+		State:                   plan.PriorState,
+		RootVariableValues:      variables,
+		Plugins:                 c.plugins,
+		Targets:                 plan.TargetAddrs,
+		Excludes:                plan.ExcludeAddrs,
+		ForceReplace:            plan.ForceReplaceAddrs,
+		Operation:               operation,
+		ExternalReferences:      plan.ExternalReferences,
+		ProviderFunctionTracker: providerFunctionTracker,
 	}).Build(addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {

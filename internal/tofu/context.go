@@ -47,8 +47,6 @@ type ContextOpts struct {
 	Encryption   encryption.Encryption
 
 	UIInput UIInput
-
-	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 // ContextMeta is metadata about the running context. This is information
@@ -95,8 +93,6 @@ type Context struct {
 	runContextCancel    context.CancelFunc
 
 	encryption encryption.Encryption
-
-	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 // (additional methods on Context can be found in context_*.go files.)
@@ -154,8 +150,6 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		sh:                  sh,
 
 		encryption: opts.Encryption,
-
-		ModuleDeprecationWarnLevel: opts.ModuleDeprecationWarnLevel,
 	}, diags
 }
 

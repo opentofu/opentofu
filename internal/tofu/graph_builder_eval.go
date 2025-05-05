@@ -45,10 +45,6 @@ type EvalGraphBuilder struct {
 	Plugins *contextPlugins
 
 	ProviderFunctionTracker ProviderFunctionMapping
-
-	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show for
-	// variables and outputs.
-	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 // See GraphBuilder
@@ -76,7 +72,7 @@ func (b *EvalGraphBuilder) Steps() []GraphTransformer {
 
 		// Add dynamic values
 		&RootVariableTransformer{Config: b.Config, RawValues: b.RootVariableValues},
-		&ModuleVariableTransformer{Config: b.Config, ModuleDeprecationWarnLevel: b.ModuleDeprecationWarnLevel},
+		&ModuleVariableTransformer{Config: b.Config},
 		&LocalTransformer{Config: b.Config},
 		&OutputTransformer{
 			Config:   b.Config,
