@@ -110,7 +110,9 @@ func TestProviderGlobalCache(t *testing.T) {
 	}
 
 	rcLoc := filepath.Join(tmpDir, ".tofurc")
-	rcData := fmt.Sprintf(`plugin_cache_dir = "%s"`, tmpDir)
+	// We use forward slashes consistently, even on Windows, because backslashes
+	// require escaping for valid HCL syntax.
+	rcData := fmt.Sprintf(`plugin_cache_dir = "%s"`, filepath.ToSlash(tmpDir))
 	err = os.WriteFile(rcLoc, []byte(rcData), 0600)
 	if err != nil {
 		t.Fatal(err)
