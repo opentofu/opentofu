@@ -157,7 +157,6 @@ func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
 func (n *nodeVariableReferenceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
 	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, evalCtx)
-	diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, evalCtx, n.VariableFromRemoteModule))
 
 	if op == walkValidate {
 		var filtered tfdiags.Diagnostics
@@ -168,6 +167,9 @@ func (n *nodeVariableReferenceInstance) Execute(_ context.Context, evalCtx EvalC
 			}
 		}
 		return filtered
+	} else {
+		// do not run this during the "validate" phase to ensure that the diagnostics are not duplicated
+		diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, evalCtx, n.VariableFromRemoteModule))
 	}
 
 	return diags

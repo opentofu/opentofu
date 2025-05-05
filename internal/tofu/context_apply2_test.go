@@ -5330,8 +5330,8 @@ module "call" {
 	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{}.Append(
 		&hcl.Diagnostic{
 			Severity: hcl.DiagWarning,
-			Summary:  `The variable "input" is marked as deprecated by module author`,
-			Detail:   "This variable is marked as deprecated with the following message:\nThis variable is deprecated",
+			Summary:  `Variable marked as deprecated by the module author`,
+			Detail:   "Variable \"input\" is marked as deprecated with the following message:\nThis variable is deprecated",
 			Subject: &hcl.Range{
 				Filename: fmt.Sprintf("%s/main.tf", m.Module.SourceDir),
 				Start:    hcl.Pos{Line: 8, Column: 10, Byte: 113},
