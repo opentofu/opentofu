@@ -183,7 +183,8 @@ func (ctx *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig, key addrs.
 }
 
 func (ctx *BuiltinEvalContext) ProviderSchema(addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	return ctx.Plugins.ProviderSchema(addr.Provider)
+	// TODO: Update the EvalContext interface to expect context.Context on most/all methods.
+	return ctx.Plugins.ProviderSchema(context.TODO(), addr.Provider)
 }
 
 func (ctx *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
