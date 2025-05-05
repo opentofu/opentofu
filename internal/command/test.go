@@ -591,7 +591,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		}
 
 		if runner.Suite.Verbose {
-			schemas, diags := planCtx.Schemas(config, plan.PlannedState)
+			schemas, diags := planCtx.Schemas(ctx, config, plan.PlannedState)
 
 			// If we're going to fail to render the plan, let's not fail the overall
 			// test. It can still have succeeded. So we'll add the diagnostics, but
@@ -668,7 +668,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	}
 
 	if runner.Suite.Verbose {
-		schemas, diags := planCtx.Schemas(config, plan.PlannedState)
+		schemas, diags := planCtx.Schemas(ctx, config, plan.PlannedState)
 
 		// If we're going to fail to render the plan, let's not fail the overall
 		// test. It can still have succeeded. So we'll add the diagnostics, but

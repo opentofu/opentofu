@@ -945,7 +945,7 @@ func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config 
 			return nil, diags
 		}
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags := tfCtx.Schemas(config, state)
+		schemas, schemaDiags := tfCtx.Schemas(ctx, config, state)
 		diags = diags.Append(schemaDiags)
 		if schemaDiags.HasErrors() {
 			return nil, diags
