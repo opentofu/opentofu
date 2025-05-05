@@ -37,12 +37,12 @@ func variableDeprecationWarnAllowed(lvl DeprecationWarningLevel, source addrs.Mo
 	}
 }
 
-func DeprecatedOutputDiagAllowed(lvl DeprecationWarningLevel, diagnostic tfdiags.Diagnostic) bool {
+func DeprecatedVariableDiagAllowed(lvl DeprecationWarningLevel, diagnostic tfdiags.Diagnostic) bool {
 	switch lvl {
 	case DeprecationWarningLevelAll:
 		return true
 	case DeprecationWarningLevelLocal:
-		cause, ok := marks.DiagnosticDeprecationCause(diagnostic)
+		cause, ok := DiagnosticVariableDeprecationCause(diagnostic)
 		if !ok {
 			// If it's not a deprecation warning diagnostic, always allow it to not filter out diagnostics unrelated with deprecation
 			return true
@@ -52,7 +52,30 @@ func DeprecatedOutputDiagAllowed(lvl DeprecationWarningLevel, diagnostic tfdiags
 		}
 		return true
 	case DeprecationWarningLevelNone:
-		_, ok := marks.DiagnosticDeprecationCause(diagnostic)
+		_, ok := DiagnosticVariableDeprecationCause(diagnostic)
+		// Always ignore the deprecation warnings if it's having a deprecation cause
+		return !ok
+	default:
+		return true
+	}
+}
+
+func DeprecatedOutputDiagAllowed(lvl DeprecationWarningLevel, diagnostic tfdiags.Diagnostic) bool {
+	switch lvl {
+	case DeprecationWarningLevelAll:
+		return true
+	case DeprecationWarningLevelLocal:
+		cause, ok := marks.DiagnosticOutputDeprecationCause(diagnostic)
+		if !ok {
+			// If it's not a deprecation warning diagnostic, always allow it to not filter out diagnostics unrelated with deprecation
+			return true
+		}
+		if cause.IsFromRemoteModule { // do not allow deprecation warnings for outputs from remote module calls
+			return false
+		}
+		return true
+	case DeprecationWarningLevelNone:
+		_, ok := marks.DiagnosticOutputDeprecationCause(diagnostic)
 		// Always ignore the deprecation warnings if it's having a deprecation cause
 		return !ok
 	default:

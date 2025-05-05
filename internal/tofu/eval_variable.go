@@ -494,13 +494,9 @@ func evalVariableDeprecation(
 	config *configs.Variable,
 	expr hcl.Expression,
 	ctx EvalContext,
-	deprecationWarningAllowed bool) tfdiags.Diagnostics {
+	variableFromRemoteModule bool) tfdiags.Diagnostics {
 	if config.Deprecated == "" {
 		log.Printf("[TRACE] evalVariableDeprecation: variable %q does not have deprecation configured", addr)
-		return nil
-	}
-	if !deprecationWarningAllowed {
-		log.Printf("[TRACE] evalVariableDeprecation: variable %q is excluded from generating deprecation warnings", addr)
 		return nil
 	}
 	// if the variable is not given in the module call, do not show a warning
@@ -520,5 +516,30 @@ func evalVariableDeprecation(
 		Summary:  fmt.Sprintf(`The variable %q is marked as deprecated by module author`, config.Name),
 		Detail:   fmt.Sprintf("This variable is marked as deprecated with the following message:\n%s", config.Deprecated),
 		Subject:  expr.Range().Ptr(),
+		Extra:    VariableDeprecationCause{IsFromRemoteModule: variableFromRemoteModule},
 	})
+}
+
+type VariableDeprecationCause struct {
+	IsFromRemoteModule bool
+}
+
+// DiagnosticVariableDeprecationCause checks whether the given diagnostic is
+// a deprecation warning, and if so returns the deprecation cause and
+// true. If not, returns the zero value of DeprecationCause and false.
+func DiagnosticVariableDeprecationCause(diag tfdiags.Diagnostic) (VariableDeprecationCause, bool) {
+	maybe := tfdiags.ExtraInfo[diagnosticExtraVariableDeprecationCause](diag)
+	if maybe == nil {
+		return VariableDeprecationCause{}, false
+	}
+	return maybe.diagnosticDeprecationCause(), true
+}
+
+type diagnosticExtraVariableDeprecationCause interface {
+	diagnosticDeprecationCause() VariableDeprecationCause
+}
+
+// diagnosticDeprecationCause implements diagnosticExtraVariableDeprecationCause
+func (c VariableDeprecationCause) diagnosticDeprecationCause() VariableDeprecationCause {
+	return c
 }

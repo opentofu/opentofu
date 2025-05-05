@@ -7,6 +7,7 @@ package tofu
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -31,9 +32,6 @@ import (
 // steps for validating module blocks, separate from this transform.
 type ModuleVariableTransformer struct {
 	Config *configs.Config
-
-	// ModuleDeprecationWarnLevel is used to control if the variable deprecation warning should be shown or not.
-	ModuleDeprecationWarnLevel DeprecationWarningLevel
 }
 
 func (t *ModuleVariableTransformer) Transform(g *Graph) error {
@@ -128,7 +126,7 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 			Config: v,
 			Expr:   expr,
 
-			DeprecationWarnAllowed: variableDeprecationWarnAllowed(t.ModuleDeprecationWarnLevel, callConfig.SourceAddr),
+			VariableFromRemoteModule: moduleImportedFromRemote(c, callConfig),
 		}
 		g.Add(ref)
 
@@ -137,4 +135,29 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 	}
 
 	return nil
+}
+
+func moduleImportedFromRemote(c *configs.Config, call *configs.ModuleCall) bool {
+	if _, ok := c.SourceAddr.(addrs.ModuleSourceRemote); ok {
+		return true
+	}
+	calledModuleName := call.Name
+	parent := c.Parent
+	for parent != nil {
+		refCallCfg, ok := parent.Module.ModuleCalls[calledModuleName]
+		if !ok {
+			log.Printf("[ERROR] could not find module call %q in module %q. This should not happen. Please report this to OpenTofu", calledModuleName, parent.Path)
+			return false
+		}
+		if _, ok := refCallCfg.SourceAddr.(addrs.ModuleSourceRemote); ok {
+			return true
+		}
+		if parent.Path.IsRoot() {
+			return false
+		}
+		_, call := parent.Path.Call()
+		calledModuleName = call.Name
+		parent = parent.Parent
+	}
+	return false
 }
