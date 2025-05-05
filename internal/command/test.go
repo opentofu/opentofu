@@ -61,60 +61,54 @@ Usage: tofu [global options] test [options]
   this cleanup process is successful.
 
 Options:
-                                    
-  -compact-warnings                 If OpenTofu produces any warnings that are not
-                                    accompanied by errors, show them in a more compact
-                                    form that includes only the summary messages.
-                                    
-  -consolidate-warnings             If OpenTofu produces any warnings, no consolidation
-                                    will be performed. All locations, for all warnings
-                                    will be listed. Enabled by default.
-                                    
-  -consolidate-errors               If OpenTofu produces any errors, no consolidation
-                                    will be performed. All locations, for all errors
-                                    will be listed. Disabled by default
-                                    
-  -filter=testfile                  If specified, OpenTofu will only execute the test files
-                                    specified by this flag. You can use this option multiple
-                                    times to execute more than one test file. The path should
-                                    be relative to the current working directory, even if
-                                    -test-directory is set.
-                                    
-  -json                             If specified, machine readable output will be printed in
-                                    JSON format
-                                    
-  -no-color                         If specified, output won't contain any color.
-                                    
-  -test-directory=path              Set the OpenTofu test directory, defaults to "tests". When set, the
-                                    test command will search for test files in the current directory and
-                                    in the one specified by the flag.
-                                    
-  -var 'foo=bar'                    Set a value for one of the input variables in the root
-                                    module of the configuration. Use this option more than
-                                    once to set more than one variable.
-                                    
-  -var-file=filename                Load variable values from the given file, in addition
-                                    to the default files terraform.tfvars and *.auto.tfvars.
-                                    Use this option more than once to include more than one
-                                    variables file.
 
-  -module-deprecation-warnings=all  Specify what type of warnings are shown. Accepted
-                                    values: all, local. When "all" is selected, OpenTofu
-                                    will show the deprecation warnings for all modules.
-                                    When "local" is selected, the warns will be shown
-                                    only for the local modules.
-                                    
-  -verbose                          Print the plan or state for each test run block as it
-                                    executes.
-                                    
-  -var 'foo=bar'                    Set a value for one of the input variables in the root
-                                    module of the configuration. Use this option more than
-                                    once to set more than one variable.
-                                    
-  -var-file=filename                Load variable values from the given file, in addition
-                                    to the default files terraform.tfvars and *.auto.tfvars.
-                                    Use this option more than once to include more than one
-                                    variables file.
+  -compact-warnings     If OpenTofu produces any warnings that are not
+                        accompanied by errors, show them in a more compact
+                        form that includes only the summary messages.
+
+  -consolidate-warnings If OpenTofu produces any warnings, no consolidation
+                        will be performed. All locations, for all warnings
+                        will be listed. Enabled by default.
+
+  -consolidate-errors   If OpenTofu produces any errors, no consolidation
+                        will be performed. All locations, for all errors
+                        will be listed. Disabled by default
+
+  -filter=testfile      If specified, OpenTofu will only execute the test files
+                        specified by this flag. You can use this option multiple
+                        times to execute more than one test file. The path should
+                        be relative to the current working directory, even if
+                        -test-directory is set.
+
+  -json                 If specified, machine readable output will be printed in
+                        JSON format
+
+  -no-color             If specified, output won't contain any color.
+
+  -test-directory=path  Set the OpenTofu test directory, defaults to "tests". When set, the
+                        test command will search for test files in the current directory and
+                        in the one specified by the flag.
+
+  -var 'foo=bar'        Set a value for one of the input variables in the root
+                        module of the configuration. Use this option more than
+                        once to set more than one variable.
+
+  -var-file=filename    Load variable values from the given file, in addition
+                        to the default files terraform.tfvars and *.auto.tfvars.
+                        Use this option more than once to include more than one
+                        variables file.
+
+  -verbose              Print the plan or state for each test run block as it
+                        executes.
+
+  -var 'foo=bar'        Set a value for one of the input variables in the root
+                        module of the configuration. Use this option more than
+                        once to set more than one variable.
+
+  -var-file=filename    Load variable values from the given file, in addition
+                        to the default files terraform.tfvars and *.auto.tfvars.
+                        Use this option more than once to include more than one
+                        variables file.
 `
 	return strings.TrimSpace(helpText)
 }

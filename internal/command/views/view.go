@@ -37,7 +37,7 @@ type View struct {
 	// only the important details.
 	concise bool
 
-	// ModuleDeprecationWarnLvl is used to filter out deprecation warnings for outputs in case it's requested by the user
+	// ModuleDeprecationWarnLvl is used to filter out deprecation warnings for outputs and variables as requested by the user.
 	ModuleDeprecationWarnLvl tofu.DeprecationWarningLevel
 
 	// showSensitive is used to display the value of variables marked as sensitive.

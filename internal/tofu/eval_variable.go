@@ -513,15 +513,17 @@ func evalVariableDeprecation(
 	var diags tfdiags.Diagnostics
 	return diags.Append(&hcl.Diagnostic{
 		Severity: hcl.DiagWarning,
-		Summary:  fmt.Sprintf(`The variable %q is marked as deprecated by module author`, config.Name),
-		Detail:   fmt.Sprintf("This variable is marked as deprecated with the following message:\n%s", config.Deprecated),
+		Summary:  `Variable marked as deprecated by the module author`,
+		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
 		Subject:  expr.Range().Ptr(),
 		Extra:    VariableDeprecationCause{IsFromRemoteModule: variableFromRemoteModule},
 	})
 }
 
-type VariableDeprecationCause struct {
-	IsFromRemoteModule bool
+// diagnosticExtraVariableDeprecationCause is defining the contract a struct needs to fulfill
+// to be able to mark a diagnostic as one carrying information about a deprecated variable.
+type diagnosticExtraVariableDeprecationCause interface {
+	diagnosticDeprecationCause() VariableDeprecationCause
 }
 
 // DiagnosticVariableDeprecationCause checks whether the given diagnostic is
@@ -535,11 +537,14 @@ func DiagnosticVariableDeprecationCause(diag tfdiags.Diagnostic) (VariableDeprec
 	return maybe.diagnosticDeprecationCause(), true
 }
 
-type diagnosticExtraVariableDeprecationCause interface {
-	diagnosticDeprecationCause() VariableDeprecationCause
+// VariableDeprecationCause is just a container that it holds the flag that the deprecated variable was marked with.
+// This flag is going to be used later to decide on showing this diagnostic or not based on the level that the user
+// has provided in the CLI args.
+type VariableDeprecationCause struct {
+	IsFromRemoteModule bool
 }
 
-// diagnosticDeprecationCause implements diagnosticExtraVariableDeprecationCause
+// VariableDeprecationCause implements diagnosticExtraVariableDeprecationCause
 func (c VariableDeprecationCause) diagnosticDeprecationCause() VariableDeprecationCause {
 	return c
 }

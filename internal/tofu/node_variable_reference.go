@@ -28,7 +28,8 @@ type nodeVariableReference struct {
 	Config *configs.Variable
 	Expr   hcl.Expression // Used for diagnostics only
 
-	// VariableFromRemoteModule controls if a deprecation warning is meant to be shown for this variable or not.
+	// VariableFromRemoteModule is indicating if this variable is coming from a module that is referenced from the root module
+	// in "local" or "remote" manner.
 	VariableFromRemoteModule bool
 }
 
@@ -125,7 +126,8 @@ type nodeVariableReferenceInstance struct {
 	Config *configs.Variable // Config is the var in the config
 	Expr   hcl.Expression    // Used for diagnostics only
 
-	// VariableFromRemoteModule controls if a deprecation warning is meant to be shown for this variable or not.
+	// VariableFromRemoteModule is indicating if this variable is coming from a module that is referenced from the root module
+	// in "local" or "remote" manner.
 	VariableFromRemoteModule bool
 }
 

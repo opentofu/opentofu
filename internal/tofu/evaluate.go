@@ -352,6 +352,9 @@ func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.S
 	return val, diags
 }
 
+// isCallFromRemote is traversing upwards from the given module call to the root module and is looking for any
+// module on the path for which configs.Module.EntersNewPackage=true.
+// This is needed to know if a variable is referenced from a module imported from a remote source or from a local one.
 func isCallFromRemote(parentCfg *configs.Config, moduleCall addrs.ModuleCall) bool {
 	if _, ok := parentCfg.SourceAddr.(addrs.ModuleSourceRemote); ok {
 		return true
@@ -361,10 +364,10 @@ func isCallFromRemote(parentCfg *configs.Config, moduleCall addrs.ModuleCall) bo
 	for parent != nil {
 		refCallCfg, ok := parent.Module.ModuleCalls[calledModuleName]
 		if !ok {
-			log.Printf("[ERROR] no module call found in %q for %q. This should not happen. Please report this to OpenTofu", parent.Path, calledModuleName)
+			log.Printf("[ERROR] no module call found in %q for %q", parent.Path, calledModuleName)
 			return false
 		}
-		if _, ok := refCallCfg.SourceAddr.(addrs.ModuleSourceRemote); ok {
+		if refCallCfg.EntersNewPackage() {
 			return true
 		}
 		if parent.Path.IsRoot() {

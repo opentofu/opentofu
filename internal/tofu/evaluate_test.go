@@ -668,43 +668,65 @@ func TestIsCallFromRemote(t *testing.T) {
 		}
 		return s
 	}
-	root := &configs.Config{
-		Module: &configs.Module{
-			ModuleCalls: map[string]*configs.ModuleCall{
-				childName: {SourceAddr: parseModuleSource(t, "git::https://github.com/user/repo//child")},
-			},
+	tests := map[string]struct {
+		childModulePath string
+		expectedRes     bool
+	}{
+		"from git repo": {
+			childModulePath: "git::https://github.com/user/repo//child",
+			expectedRes:     true,
+		},
+		"from registry": {
+			childModulePath: "registry.example.com/foo/bar/baz",
+			expectedRes:     true,
+		},
+		"from local": {
+			childModulePath: "../mod",
+			expectedRes:     false,
 		},
 	}
-	child := &configs.Config{
-		Parent: root,
-		Path:   []string{childName},
-		Module: &configs.Module{
-			ModuleCalls: map[string]*configs.ModuleCall{
-				gchildName: {SourceAddr: parseModuleSource(t, "../gchild-module")},
-			},
-		},
-	}
-	gchild := &configs.Config{
-		Parent: child,
-		Path:   []string{gchildName},
-		Module: &configs.Module{
-			ModuleCalls: map[string]*configs.ModuleCall{
-				ggchildName: {SourceAddr: parseModuleSource(t, "../ggchild-module")},
-			},
-		},
-	}
-	ggchild := &configs.Config{
-		Parent: gchild,
-		Path:   []string{ggchildName},
-		Module: &configs.Module{
-			ModuleCalls: map[string]*configs.ModuleCall{
-				gggchildName: {SourceAddr: parseModuleSource(t, "../gggchild-module")},
-			},
-		},
+	for ttn, tt := range tests {
+		t.Run(ttn, func(t *testing.T) {
+			root := &configs.Config{
+				Module: &configs.Module{
+					ModuleCalls: map[string]*configs.ModuleCall{
+						childName: {SourceAddr: parseModuleSource(t, tt.childModulePath)},
+					},
+				},
+			}
+			child := &configs.Config{
+				Parent: root,
+				Path:   []string{childName},
+				Module: &configs.Module{
+					ModuleCalls: map[string]*configs.ModuleCall{
+						gchildName: {SourceAddr: parseModuleSource(t, "../gchild-module")},
+					},
+				},
+			}
+			gchild := &configs.Config{
+				Parent: child,
+				Path:   []string{gchildName},
+				Module: &configs.Module{
+					ModuleCalls: map[string]*configs.ModuleCall{
+						ggchildName: {SourceAddr: parseModuleSource(t, "../ggchild-module")},
+					},
+				},
+			}
+			ggchild := &configs.Config{
+				Parent: gchild,
+				Path:   []string{ggchildName},
+				Module: &configs.Module{
+					ModuleCalls: map[string]*configs.ModuleCall{
+						gggchildName: {SourceAddr: parseModuleSource(t, "../gggchild-module")},
+					},
+				},
+			}
+
+			call := addrs.ModuleCall{Name: ggchildName}
+			if want, got := tt.expectedRes, isCallFromRemote(ggchild, call); want != got {
+				t.Fatalf("expected isCallFromRemote to return %t but got %t", want, got)
+			}
+		})
 	}
 
-	call := addrs.ModuleCall{Name: ggchildName}
-	if got := isCallFromRemote(ggchild, call); !got {
-		t.Fatalf("expected to report this as being remote module")
-	}
 }

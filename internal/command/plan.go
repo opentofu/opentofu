@@ -94,7 +94,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, args.ModuleDeprecationWarnLevel, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -157,7 +157,6 @@ func (c *PlanCommand) OperationRequest(
 	args *arguments.Operation,
 	planOutPath string,
 	generateConfigOut string,
-	moduleDeprecatedWarning string,
 	enc encryption.Encryption,
 ) (*backend.Operation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
@@ -331,10 +330,12 @@ Other Options:
                                     integrations and other automated systems.
   
   -module-deprecation-warnings=all  Specify what type of warnings are shown. Accepted
-                                    values: all, local. When "all" is selected, OpenTofu
+                                    values: all, local, none. When "all" is selected, OpenTofu
                                     will show the deprecation warnings for all modules.
                                     When "local" is selected, the warns will be shown
-                                    only for the local modules.
+                                    only for the modules that are imported with a relative path.
+                                    When "none" is selected, all the deprecation warnings
+                                    will be dismissed.
 
   -json                             Produce output in a machine-readable JSON format, 
                                     suitable for use in text editor integrations and 

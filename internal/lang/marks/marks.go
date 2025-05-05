@@ -62,7 +62,7 @@ type DeprecationCause struct {
 
 	// IsFromRemoteModule indicates if the cause of deprecation is coming from a remotely
 	// imported module relative to the root module.
-	// This is useful when the user wants to control the type of deprecation warnings that OpenTofu will emit.
+	// This is useful when the user wants to control the type of deprecation warnings OpenTofu will show.
 	IsFromRemoteModule bool
 }
 

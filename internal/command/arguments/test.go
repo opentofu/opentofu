@@ -32,9 +32,6 @@ type Test struct {
 	// human-readable format or JSON for each run step depending on the
 	// ViewType.
 	Verbose bool
-
-	// ModuleDeprecationWarnLevel stores the level that will be used for selecting what deprecation warnings to show.
-	ModuleDeprecationWarnLevel string
 }
 
 func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
@@ -48,7 +45,6 @@ func ParseTest(args []string) (*Test, tfdiags.Diagnostics) {
 	cmdFlags := extendedFlagSet("test", nil, nil, test.Vars)
 	cmdFlags.Var((*flagStringSlice)(&test.Filter), "filter", "filter")
 	cmdFlags.StringVar(&test.TestDirectory, "test-directory", configs.DefaultTestDirectory, "test-directory")
-	cmdFlags.StringVar(&test.ModuleDeprecationWarnLevel, "module-deprecation-warnings", "", "control the level of deprecation warnings")
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&test.Verbose, "verbose", false, "verbose")
 

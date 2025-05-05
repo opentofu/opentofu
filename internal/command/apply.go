@@ -397,10 +397,12 @@ Options:
   -show-sensitive                   If specified, sensitive values will be displayed.
 
   -module-deprecation-warnings=all  Specify what type of warnings are shown. Accepted
-                                    values: all, local. When "all" is selected, OpenTofu
+                                    values: all, local, none. When "all" is selected, OpenTofu
                                     will show the deprecation warnings for all modules.
                                     When "local" is selected, the warns will be shown
-                                    only for the local modules.
+                                    only for the modules that are imported with a relative path.
+                                    When "none" is selected, all the deprecation warnings
+                                    will be dismissed.
 
   -json                             Produce output in a machine-readable JSON format,
                                     suitable for use in text editor integrations and 
