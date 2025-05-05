@@ -197,7 +197,7 @@ func TestModuleSourceAddrEntersNewPackage(t *testing.T) {
 }
 
 func TestModuleCallWithNullVersion(t *testing.T) {
-	src, err := os.ReadFile("testdata/invalid-files/null-version-module.tf")
+	src, err := os.ReadFile("testdata/valid-files/null-version-module.tf")
 	if err != nil {
 		t.Fatal(err)
 	}
