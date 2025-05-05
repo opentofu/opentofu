@@ -56,7 +56,7 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 	)
 	defer span.End()
 
-	schemas, moreDiags := c.Schemas(config, nil)
+	schemas, moreDiags := c.Schemas(ctx, config, nil)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags
