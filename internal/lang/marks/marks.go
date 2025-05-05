@@ -55,6 +55,11 @@ const TypeType = valueMark("TypeType")
 type DeprecationCause struct {
 	By      addrs.Referenceable
 	Message string
+
+	// IsFromRemoteModule indicates if the cause of deprecation is coming from a remotely
+	// imported module relative to the root module.
+	// This is useful when the user wants to control the type of deprecation warnings that OpenTofu will emit.
+	IsFromRemoteModule bool
 }
 
 type deprecationMark struct {
@@ -95,11 +100,12 @@ func Deprecated(v cty.Value, cause DeprecationCause) cty.Value {
 
 // DeprecatedOutput marks a given values as deprecated constructing a DeprecationCause
 // from module output specific data.
-func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string) cty.Value {
+func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFromRemoteModule bool) cty.Value {
 	_, callOutAddr := addr.ModuleCallOutput()
 	return Deprecated(v, DeprecationCause{
-		By:      callOutAddr,
-		Message: msg,
+		IsFromRemoteModule: isFromRemoteModule,
+		By:                 callOutAddr,
+		Message:            msg,
 	})
 }
 

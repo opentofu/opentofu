@@ -64,6 +64,8 @@ type ContextGraphWalker struct {
 
 	provisionerLock  sync.Mutex
 	provisionerCache map[string]provisioners.Interface
+
+	ModuleDeprecationWarningLevel DeprecationWarningLevel
 }
 
 var _ GraphWalker = (*ContextGraphWalker)(nil)

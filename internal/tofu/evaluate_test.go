@@ -648,3 +648,63 @@ func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesS
 		Changes: changesSync,
 	}
 }
+
+// This test is checking that by giving the outermost called module, the method called is
+// returning correctly that is a remote module relatively to the root module.
+// This is because root module is calling the child module from a remote source
+// but all the other calls are done from local modules.
+// Eg: Root module is calling a module from a git repo in a particular directory,
+// but that module is calling other modules from the same repo by referencing those
+// with a relative path.
+func TestIsCallFromRemote(t *testing.T) {
+	childName := "call-to-child"
+	gchildName := "call-to-gchild"
+	ggchildName := "call-to-ggchild"
+	gggchildName := "call-to-gggchild"
+	parseModuleSource := func(t *testing.T, source string) addrs.ModuleSource {
+		s, err := addrs.ParseModuleSource(source)
+		if err != nil {
+			t.Fatalf("failed to parse module source %q: %s", source, err)
+		}
+		return s
+	}
+	root := &configs.Config{
+		Module: &configs.Module{
+			ModuleCalls: map[string]*configs.ModuleCall{
+				childName: {SourceAddr: parseModuleSource(t, "git::https://github.com/user/repo//child")},
+			},
+		},
+	}
+	child := &configs.Config{
+		Parent: root,
+		Path:   []string{childName},
+		Module: &configs.Module{
+			ModuleCalls: map[string]*configs.ModuleCall{
+				gchildName: {SourceAddr: parseModuleSource(t, "../gchild-module")},
+			},
+		},
+	}
+	gchild := &configs.Config{
+		Parent: child,
+		Path:   []string{gchildName},
+		Module: &configs.Module{
+			ModuleCalls: map[string]*configs.ModuleCall{
+				ggchildName: {SourceAddr: parseModuleSource(t, "../ggchild-module")},
+			},
+		},
+	}
+	ggchild := &configs.Config{
+		Parent: gchild,
+		Path:   []string{ggchildName},
+		Module: &configs.Module{
+			ModuleCalls: map[string]*configs.ModuleCall{
+				gggchildName: {SourceAddr: parseModuleSource(t, "../gggchild-module")},
+			},
+		},
+	}
+
+	call := addrs.ModuleCall{Name: ggchildName}
+	if got := isCallFromRemote(ggchild, call); !got {
+		t.Fatalf("expected to report this as being remote module")
+	}
+}

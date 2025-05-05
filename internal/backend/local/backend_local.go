@@ -83,7 +83,6 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	coreOpts.UIInput = op.UIIn
 	coreOpts.Hooks = op.Hooks
 	coreOpts.Encryption = op.Encryption
-	// TODO andrei should we do this in remote/backend too?
 	coreOpts.ModuleDeprecationWarnLevel = op.ModuleDeprecationWarnLevel
 
 	var ctxDiags tfdiags.Diagnostics

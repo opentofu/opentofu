@@ -352,9 +352,33 @@ func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.S
 	return val, diags
 }
 
+func isCallFromRemote(parentCfg *configs.Config, moduleCall addrs.ModuleCall) bool {
+	if _, ok := parentCfg.SourceAddr.(addrs.ModuleSourceRemote); ok {
+		return true
+	}
+	calledModuleName := moduleCall.Name
+	parent := parentCfg.Parent
+	for parent != nil {
+		refCallCfg, ok := parent.Module.ModuleCalls[calledModuleName]
+		if !ok {
+			log.Printf("[ERROR] no module call found in %q for %q. This should not happen. Please report this to OpenTofu", parent.Path, calledModuleName)
+			return false
+		}
+		if _, ok := refCallCfg.SourceAddr.(addrs.ModuleSourceRemote); ok {
+			return true
+		}
+		if parent.Path.IsRoot() {
+			return false
+		}
+		_, call := parent.Path.Call()
+		calledModuleName = call.Name
+		parent = parent.Parent
+	}
+	return false
+}
+
 func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
 	// Output results live in the module that declares them, which is one of
 	// the child module instances of our current module path.
 	moduleAddr := d.ModulePath.Module().Child(addr.Name)
@@ -393,7 +417,7 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 		}
 
 		if output.Deprecated != "" {
-			val = marks.DeprecatedOutput(val, output.Addr, output.Deprecated)
+			val = marks.DeprecatedOutput(val, output.Addr, output.Deprecated, isCallFromRemote(parentCfg, addr))
 		}
 
 		_, callInstance := output.Addr.Module.CallInstance()
@@ -478,7 +502,7 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 			}
 
 			if cfg.Deprecated != "" {
-				instance[cfg.Name] = marks.DeprecatedOutput(change.After, change.Addr, cfg.Deprecated)
+				instance[cfg.Name] = marks.DeprecatedOutput(change.After, change.Addr, cfg.Deprecated, isCallFromRemote(parentCfg, addr))
 			}
 		}
 	}
@@ -1005,7 +1029,12 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 		}
 
 		if config.Deprecated != "" {
-			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated)
+			isRemote := false
+			if p := moduleConfig.Path; p != nil && !p.IsRoot() {
+				_, call := p.Call()
+				isRemote = isCallFromRemote(moduleConfig, call)
+			}
+			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated, isRemote) // TODO andrei test this part
 		}
 
 		return val, diags
