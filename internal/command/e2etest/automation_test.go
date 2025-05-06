@@ -189,8 +189,6 @@ func TestAutoApplyInAutomation(t *testing.T) {
 	}
 }
 
-// TODO andrei add one test here
-
 // TestPlanOnlyInAutomation tests the scenario of creating a "throwaway" plan,
 // which we recommend as a way to verify a pull request.
 func TestPlanOnlyInAutomation(t *testing.T) {
@@ -243,5 +241,44 @@ func TestPlanOnlyInAutomation(t *testing.T) {
 
 	if tf.FileExists("tfplan") {
 		t.Error("plan file was created, but was not expected")
+	}
+}
+
+func TestPlanOnDeprecated(t *testing.T) {
+	t.Parallel()
+
+	// This test reaches out to registry.opentofu.org to download the
+	// template and null providers, so it can only run if network access is
+	// allowed.
+	skipIfCannotAccessNetwork(t)
+
+	fixturePath := filepath.Join("testdata", "deprecated-values")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+
+	//// INIT
+	_, stderr, err := tf.Run("init", "-input=false")
+	if err != nil {
+		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+	}
+
+	//// PLAN
+	stdout, stderr, err := tf.Run("plan")
+	if err != nil {
+		t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
+	}
+
+	expected := []string{
+		`Variable marked as deprecated by the module author`,
+		`Variable "input" is marked as deprecated with the following message`,
+		`This var is deprecated`,
+		`Value derived from a deprecated source`,
+		`This value is derived from module.call.output, which is deprecated with the`,
+		`following message:`,
+		`this output is deprecated`,
+	}
+	for _, want := range expected {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("invalid plan output. expected to contain %q but it does not:\n%s", want, stdout)
+		}
 	}
 }

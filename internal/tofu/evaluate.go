@@ -1037,7 +1037,7 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 				_, call := p.Call()
 				isRemote = isCallFromRemote(moduleConfig, call)
 			}
-			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated, isRemote) // TODO andrei test this part
+			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated, isRemote)
 		}
 
 		return val, diags
