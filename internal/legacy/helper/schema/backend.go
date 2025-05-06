@@ -146,7 +146,7 @@ func (b *Backend) PrepareConfig(configVal cty.Value) (cty.Value, tfdiags.Diagnos
 	return configVal, diags
 }
 
-func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	if b == nil {
 		return nil
 	}

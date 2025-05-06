@@ -6,6 +6,7 @@
 package tf
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"testing"
@@ -396,7 +397,7 @@ func (b backendFailsConfigure) PrepareConfig(given cty.Value) (cty.Value, tfdiag
 	return given, nil
 }
 
-func (b backendFailsConfigure) Configure(config cty.Value) tfdiags.Diagnostics {
+func (b backendFailsConfigure) Configure(ctx context.Context, config cty.Value) tfdiags.Diagnostics {
 	log.Printf("[TRACE] backendFailsConfigure.Configure(%#v)", config)
 	var diags tfdiags.Diagnostics
 	diags = diags.Append(fmt.Errorf("Configure should never be called"))

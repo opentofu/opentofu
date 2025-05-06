@@ -143,7 +143,7 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 				t.Fatal(diags.ErrWithWarnings())
 			}
 
-			confDiags := b.Configure(configSchema)
+			confDiags := b.Configure(t.Context(), configSchema)
 			diags = diags.Append(confDiags)
 
 			if diff := cmp.Diff(diags, tc.expectedDiags, cmp.Comparer(diagnosticComparer)); diff != "" {
@@ -364,7 +364,7 @@ func TestBackendConfig_STSEndpoint(t *testing.T) {
 				t.Fatal(diags.ErrWithWarnings())
 			}
 
-			confDiags := b.Configure(configSchema)
+			confDiags := b.Configure(t.Context(), configSchema)
 			diags = diags.Append(confDiags)
 
 			if diff := cmp.Diff(diags, tc.expectedDiags, cmp.Comparer(diagnosticSummaryComparer)); diff != "" {
@@ -595,7 +595,7 @@ func TestBackendConfig_AssumeRole(t *testing.T) {
 			testCase.Config["sts_endpoint"] = endpoint
 
 			b := New(encryption.StateEncryptionDisabled())
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
+			diags := b.Configure(t.Context(), populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
 
 			if diags.HasErrors() {
 				for _, diag := range diags {
@@ -1046,7 +1046,7 @@ func TestBackendConfig_proxy(t *testing.T) {
 
 			b := New(encryption.StateEncryptionDisabled())
 
-			got := b.Configure(populateSchema(t, b.ConfigSchema(), tc.config))
+			got := b.Configure(t.Context(), populateSchema(t, b.ConfigSchema(), tc.config))
 			if got.HasErrors() != (tc.wantErrSubstr != "") {
 				t.Fatalf("unexpected error: %v", got.Err())
 			}
@@ -1156,7 +1156,7 @@ func TestBackendSSECustomerKeyConfig(t *testing.T) {
 			}
 
 			b := New(encryption.StateEncryptionDisabled()).(*Backend)
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(t.Context(), populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {
@@ -1219,7 +1219,7 @@ func TestBackendSSECustomerKeyEnvVar(t *testing.T) {
 			t.Setenv("AWS_SSE_CUSTOMER_KEY", testCase.customerKey)
 
 			b := New(encryption.StateEncryptionDisabled()).(*Backend)
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(t.Context(), populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {

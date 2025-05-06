@@ -647,7 +647,7 @@ func (b *Backend) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) 
 // The given configuration is assumed to have already been validated
 // against the schema returned by ConfigSchema and passed validation
 // via PrepareConfig.
-func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -718,7 +718,6 @@ func (b *Backend) Configure(obj cty.Value) tfdiags.Diagnostics {
 		}
 	}
 
-	ctx := context.TODO()
 	ctx, baselog := attachLoggerToContext(ctx)
 
 	cfg := &awsbase.Config{

@@ -228,7 +228,7 @@ func (b *Remote) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 }
 
 // Configure implements backend.Enhanced.
-func (b *Remote) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Remote) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags

@@ -6,6 +6,7 @@
 package tf
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -114,7 +115,9 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption, path
 		return cty.NilVal, diags
 	}
 
-	configureDiags := b.Configure(cfg)
+	// TODO: Plumb a real context in here, once [providers.Interface] has
+	// been updated to allow one to pass through its API.
+	configureDiags := b.Configure(context.TODO(), cfg)
 	if configureDiags.HasErrors() {
 		diags = diags.Append(configureDiags.Err())
 		return cty.NilVal, diags
