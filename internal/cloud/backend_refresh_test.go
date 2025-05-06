@@ -76,7 +76,7 @@ func TestCloud_refreshBasicActuallyRunsApplyRefresh(t *testing.T) {
 		t.Fatalf("expected TFC header in output: %s", output)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())

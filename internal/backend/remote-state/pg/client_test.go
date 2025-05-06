@@ -49,7 +49,7 @@ func TestRemoteClient(t *testing.T) {
 		t.Fatal("Backend could not be configured")
 	}
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,13 +77,13 @@ func TestRemoteLocks(t *testing.T) {
 	})
 
 	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), config).(*Backend)
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -643,7 +643,7 @@ func (b *Cloud) DeleteWorkspace(name string, force bool) error {
 }
 
 // StateMgr implements backend.Enhanced.
-func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
+func (b *Cloud) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	var remoteTFVersion string
 
 	if name == backend.DefaultStateName {
@@ -654,7 +654,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
 
-	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
+	workspace, err := b.client.Workspaces.Read(ctx, b.organization, name)
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return nil, fmt.Errorf("Failed to retrieve workspace %s: %w", name, err)
 	}
@@ -669,7 +669,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		listOpts := &tfe.ProjectListOptions{
 			Name: b.WorkspaceMapping.Project,
 		}
-		projects, err := b.client.Projects.List(context.Background(), b.organization, listOpts)
+		projects, err := b.client.Projects.List(ctx, b.organization, listOpts)
 		if err != nil && err != tfe.ErrResourceNotFound {
 			// This is a failure to make an API request, fail to initialize
 			return nil, fmt.Errorf("Attempted to find configured project %s but was unable to.", b.WorkspaceMapping.Project)
@@ -708,7 +708,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 				}
 				// didn't find project, create it instead
 				log.Printf("[TRACE] cloud: Creating cloud backend project %s/%s", b.organization, b.WorkspaceMapping.Project)
-				project, err := b.client.Projects.Create(context.Background(), b.organization, createOpts)
+				project, err := b.client.Projects.Create(ctx, b.organization, createOpts)
 				if err != nil && err != tfe.ErrResourceNotFound {
 					return nil, fmt.Errorf("failed to create project %s: %w", b.WorkspaceMapping.Project, err)
 				}
@@ -719,7 +719,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 
 		// Create a workspace
 		log.Printf("[TRACE] cloud: Creating cloud backend workspace %s/%s", b.organization, name)
-		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, workspaceCreateOptions)
+		workspace, err = b.client.Workspaces.Create(ctx, b.organization, workspaceCreateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("error creating workspace %s: %w", name, err)
 		}
@@ -732,7 +732,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		versionOptions := tfe.WorkspaceUpdateOptions{
 			TerraformVersion: tfe.String(tfversion.String()),
 		}
-		_, err := b.client.Workspaces.UpdateByID(context.Background(), workspace.ID, versionOptions)
+		_, err := b.client.Workspaces.UpdateByID(ctx, workspace.ID, versionOptions)
 		if err == nil {
 			remoteTFVersion = tfversion.String()
 		} else {
@@ -754,7 +754,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 			Tags: b.WorkspaceMapping.tfeTags(),
 		}
 		log.Printf("[TRACE] cloud: Adding tags for cloud backend workspace %s/%s", b.organization, name)
-		err = b.client.Workspaces.AddTags(context.Background(), workspace.ID, options)
+		err = b.client.Workspaces.AddTags(ctx, workspace.ID, options)
 		if err != nil {
 			return nil, fmt.Errorf("Error updating workspace %s: %w", name, err)
 		}

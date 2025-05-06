@@ -111,7 +111,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 	}
 
 	expectedA := "test_A"
-	if _, err := b.StateMgr(expectedA); err != nil {
+	if _, err := b.StateMgr(t.Context(), expectedA); err != nil {
 		t.Fatal(err)
 	}
 
@@ -126,7 +126,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 	}
 
 	expectedB := "test_B"
-	if _, err := b.StateMgr(expectedB); err != nil {
+	if _, err := b.StateMgr(t.Context(), expectedB); err != nil {
 		t.Fatal(err)
 	}
 
@@ -188,7 +188,7 @@ var errTestDelegateState = errors.New("state called")
 var errTestDelegateStates = errors.New("states called")
 var errTestDelegateDeleteState = errors.New("delete called")
 
-func (b *testDelegateBackend) StateMgr(name string) (statemgr.Full, error) {
+func (b *testDelegateBackend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	if b.stateErr {
 		return nil, errTestDelegateState
 	}
@@ -219,7 +219,7 @@ func TestLocal_multiStateBackend(t *testing.T) {
 		deleteErr: true,
 	}, nil)
 
-	if _, err := b.StateMgr("test"); err != errTestDelegateState {
+	if _, err := b.StateMgr(t.Context(), "test"); err != errTestDelegateState {
 		t.Fatal("expected errTestDelegateState, got:", err)
 	}
 

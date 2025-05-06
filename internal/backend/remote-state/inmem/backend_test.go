@@ -39,7 +39,7 @@ func TestBackendConfig(t *testing.T) {
 
 	b := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(config)).(*Backend)
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestRemoteState(t *testing.T) {
 	workspace := "workspace"
 
 	// create a new workspace in this backend
-	s, err := b.StateMgr(workspace)
+	s, err := b.StateMgr(t.Context(), workspace)
 	if err != nil {
 		t.Fatal(err)
 	}

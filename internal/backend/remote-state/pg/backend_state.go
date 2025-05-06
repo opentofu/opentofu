@@ -57,7 +57,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	// Build the state client
 	var stateMgr statemgr.Full = remote.NewState(
 		&RemoteClient{
@@ -73,7 +73,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	// Check to see if this state already exists.
 	// If the state doesn't exist, we have to assume this
 	// is a normal create operation, and take the lock at that point.
-	existing, err := b.Workspaces(context.TODO())
+	existing, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

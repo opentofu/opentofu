@@ -47,7 +47,7 @@ func TestRemoteClient(t *testing.T) {
 			}))
 
 			// Grab the client
-			state, err := b.StateMgr(backend.DefaultStateName)
+			state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -72,7 +72,7 @@ func TestRemoteClient_gzipUpgrade(t *testing.T) {
 	}))
 
 	// Grab the client
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -88,7 +88,7 @@ func TestRemoteClient_gzipUpgrade(t *testing.T) {
 	}))
 
 	// Grab the client
-	state, err = b.StateMgr(backend.DefaultStateName)
+	state, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -111,7 +111,7 @@ func TestConsul_largeState(t *testing.T) {
 		"path":    path,
 	}))
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,7 +198,7 @@ func TestConsul_largeState(t *testing.T) {
 		"gzip":    true,
 	}))
 
-	s, err = b.StateMgr(backend.DefaultStateName)
+	s, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -257,7 +257,7 @@ func TestConsul_stateLock(t *testing.T) {
 			sA, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 				"address": srv.HTTPAddr,
 				"path":    path,
-			})).StateMgr(backend.DefaultStateName)
+			})).StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -265,7 +265,7 @@ func TestConsul_stateLock(t *testing.T) {
 			sB, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 				"address": srv.HTTPAddr,
 				"path":    path,
-			})).StateMgr(backend.DefaultStateName)
+			})).StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -304,7 +304,7 @@ func TestConsul_destroyLock(t *testing.T) {
 			}))
 
 			// Grab the client
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -327,7 +327,7 @@ func TestConsul_destroyLock(t *testing.T) {
 
 			// The release the lock from a second client to test the
 			// `tofu force-unlock <lock_id>` functionality
-			s, err = b.StateMgr(backend.DefaultStateName)
+			s, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatalf("err: %s", err)
 			}
@@ -368,7 +368,7 @@ func TestConsul_lostLock(t *testing.T) {
 	sA, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path,
-	})).StateMgr(backend.DefaultStateName)
+	})).StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -376,7 +376,7 @@ func TestConsul_lostLock(t *testing.T) {
 	sB, err := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"address": srv.HTTPAddr,
 		"path":    path + "-not-used",
-	})).StateMgr(backend.DefaultStateName)
+	})).StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,7 +428,7 @@ func TestConsul_lostLockConnection(t *testing.T) {
 		"path":    path,
 	}))
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -114,7 +114,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return client.Delete()
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	client, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err
@@ -122,7 +122,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	stateMgr := remote.NewState(client, b.encryption)
 
 	// Check to see if this state already exists.
-	existing, err := b.Workspaces(context.TODO())
+	existing, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

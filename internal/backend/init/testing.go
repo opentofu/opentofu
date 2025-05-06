@@ -182,7 +182,7 @@ func (m *MockBackend) PrepareConfig(configObj cty.Value) (cty.Value, tfdiags.Dia
 }
 
 // StateMgr implements Backend.
-func (m *MockBackend) StateMgr(workspace string) (statemgr.Full, error) {
+func (m *MockBackend) StateMgr(_ context.Context, workspace string) (statemgr.Full, error) {
 	m.StateMgrCalled = true
 	m.StateMgrWorkspace = workspace
 

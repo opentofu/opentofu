@@ -114,7 +114,7 @@ func TestCloud_applyBasic(t *testing.T) {
 		t.Fatalf("expected apply summery in output: %s", output)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
@@ -172,7 +172,7 @@ func TestCloud_applyJSONBasic(t *testing.T) {
 		t.Fatalf("expected apply summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
@@ -259,7 +259,7 @@ func TestCloud_applyJSONWithOutputs(t *testing.T) {
 	if !strings.Contains(gotOut, expectedComplexOutput) {
 		t.Fatalf("expected output: %s, got: %s", expectedComplexOutput, gotOut)
 	}
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
@@ -288,7 +288,7 @@ func TestCloud_applyCanceled(t *testing.T) {
 		t.Fatal("expected apply operation to fail")
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelling apply: %s", err.Error())
 	}
@@ -494,7 +494,7 @@ func TestCloud_applyWithCloudPlan(t *testing.T) {
 		t.Fatalf("expected apply summary in output: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
@@ -642,7 +642,7 @@ func TestCloud_applyWithExclude(t *testing.T) {
 		t.Fatalf("expected -exclude option is not supported error, got: %v", errOutput)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
@@ -742,7 +742,7 @@ func TestCloud_applyNoConfig(t *testing.T) {
 		t.Fatalf("expected configuration files error, got: %v", errOutput)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
@@ -1403,7 +1403,7 @@ func TestCloud_applyJSONWithProvisioner(t *testing.T) {
 		t.Fatalf("expected provisioner local-exec output in logs: %s", gotOut)
 	}
 
-	stateMgr, _ := b.StateMgr(testBackendSingleWorkspaceName)
+	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
 	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())

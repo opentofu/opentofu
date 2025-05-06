@@ -404,7 +404,7 @@ func (b backendFailsConfigure) Configure(ctx context.Context, config cty.Value) 
 	return diags
 }
 
-func (b backendFailsConfigure) StateMgr(workspace string) (statemgr.Full, error) {
+func (b backendFailsConfigure) StateMgr(_ context.Context, workspace string) (statemgr.Full, error) {
 	return nil, fmt.Errorf("StateMgr not implemented")
 }
 

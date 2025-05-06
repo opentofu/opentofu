@@ -472,7 +472,7 @@ func getStateFromPath(path string, enc encryption.Encryption) (*statefile.File, 
 // getStateFromBackend returns the State for the current workspace, if available.
 func getStateFromBackend(b backend.Backend, workspace string) (*statefile.File, error) {
 	// Get the state store for the given workspace
-	stateStore, err := b.StateMgr(workspace)
+	stateStore, err := b.StateMgr(context.TODO(), workspace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load state manager: %w", err)
 	}
