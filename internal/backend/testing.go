@@ -69,7 +69,7 @@ func TestBackendConfigWarningsAndErrors(t *testing.T, b Backend, c hcl.Body) (Ba
 
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(t.Context(), obj)
 	if len(confDiags) != 0 {
 		confDiags = confDiags.InConfigBody(c, "")
 		warnings, errors := separateWarningsAndErrors(confDiags)
@@ -110,7 +110,7 @@ func TestBackendConfig(t *testing.T, b Backend, c hcl.Body) Backend {
 
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(t.Context(), obj)
 	if len(confDiags) != 0 {
 		confDiags = confDiags.InConfigBody(c, "")
 		t.Fatal(confDiags.ErrWithWarnings())

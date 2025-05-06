@@ -328,7 +328,7 @@ func (m *Meta) BackendForLocalPlan(ctx context.Context, settings plans.Backend, 
 		return nil, diags
 	}
 
-	configureDiags := b.Configure(newVal)
+	configureDiags := b.Configure(ctx, newVal)
 	diags = diags.Append(configureDiags)
 	if configureDiags.HasErrors() {
 		return nil, diags
@@ -838,7 +838,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 		return nil, diags
 	}
 
-	configDiags := b.Configure(newVal)
+	configDiags := b.Configure(ctx, newVal)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, diags
@@ -1296,7 +1296,7 @@ func (m *Meta) savedBackend(sMgr *clistate.LocalState, enc encryption.StateEncry
 		return nil, diags
 	}
 
-	configDiags := b.Configure(newVal)
+	configDiags := b.Configure(context.TODO(), newVal)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, diags
@@ -1441,7 +1441,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend, enc encryption.StateEnc
 		return nil, cty.NilVal, diags
 	}
 
-	configureDiags := b.Configure(newVal)
+	configureDiags := b.Configure(context.TODO(), newVal)
 	diags = diags.Append(configureDiags.InConfigBody(c.Config, ""))
 
 	// If the result of loading the backend is an enhanced backend,

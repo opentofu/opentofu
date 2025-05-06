@@ -259,7 +259,7 @@ func (b *Cloud) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 }
 
 // Configure implements backend.Enhanced.
-func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Cloud) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags

@@ -216,7 +216,7 @@ func TestBackendConfig(t *testing.T) {
 
 			obj = newObj
 
-			confDiags := b.Configure(obj)
+			confDiags := b.Configure(t.Context(), obj)
 			if tc.ExpectConnectionError != "" {
 				err := confDiags.InConfigBody(config, "").ErrWithWarnings()
 				if err == nil {

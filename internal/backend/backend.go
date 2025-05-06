@@ -98,7 +98,7 @@ type Backend interface {
 	//
 	// If error diagnostics are returned, the internal state of the instance
 	// is undefined and no other methods may be called.
-	Configure(cty.Value) tfdiags.Diagnostics
+	Configure(context.Context, cty.Value) tfdiags.Diagnostics
 
 	// StateMgr returns the state manager for the given workspace name.
 	//

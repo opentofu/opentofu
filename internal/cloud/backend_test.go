@@ -76,7 +76,7 @@ func TestCloud_backendWithoutHost(t *testing.T) {
 	}
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(t.Context(), obj)
 
 	if !confDiags.HasErrors() {
 		t.Fatalf("testBackend: backend.Configure() should have failed")
@@ -479,7 +479,7 @@ func TestCloud_config(t *testing.T) {
 			}
 
 			// Configure
-			confDiags := b.Configure(tc.config)
+			confDiags := b.Configure(t.Context(), tc.config)
 			if (confDiags.Err() != nil || tc.confErr != "") &&
 				(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.confErr)) {
 				t.Fatalf("unexpected configure result: %v", confDiags.Err())
@@ -514,7 +514,7 @@ func TestCloud_configVerifyMinimumTFEVersion(t *testing.T) {
 
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
-	confDiags := b.Configure(config)
+	confDiags := b.Configure(t.Context(), config)
 	if confDiags.Err() == nil {
 		t.Fatalf("expected configure to error")
 	}
@@ -552,7 +552,7 @@ func TestCloud_configVerifyMinimumTFEVersionInAutomation(t *testing.T) {
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 	b.runningInAutomation = true
 
-	confDiags := b.Configure(config)
+	confDiags := b.Configure(t.Context(), config)
 	if confDiags.Err() == nil {
 		t.Fatalf("expected configure to error")
 	}
@@ -1311,7 +1311,7 @@ func TestCloud_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
-	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
+	diag := b.Configure(t.Context(), cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(tfeHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),

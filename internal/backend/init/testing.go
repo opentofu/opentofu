@@ -6,6 +6,7 @@
 package init
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -144,7 +145,7 @@ func (m *MockBackend) ConfigSchema() *configschema.Block {
 }
 
 // Configure implements Backend.
-func (m *MockBackend) Configure(configObj cty.Value) tfdiags.Diagnostics {
+func (m *MockBackend) Configure(ctx context.Context, configObj cty.Value) tfdiags.Diagnostics {
 	m.ConfigureCalled = true
 	m.ConfigureConfigObj = configObj
 

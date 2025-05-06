@@ -164,7 +164,7 @@ func TestRemote_config(t *testing.T) {
 		}
 
 		// Configure
-		confDiags := b.Configure(tc.config)
+		confDiags := b.Configure(t.Context(), tc.config)
 		if (confDiags.Err() != nil || tc.confErr != "") &&
 			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.confErr)) {
 			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
@@ -242,7 +242,7 @@ func TestRemote_versionConstraints(t *testing.T) {
 		}
 
 		// Configure
-		confDiags := b.Configure(tc.config)
+		confDiags := b.Configure(t.Context(), tc.config)
 		if (confDiags.Err() != nil || tc.result != "") &&
 			(confDiags.Err() == nil || !strings.Contains(confDiags.Err().Error(), tc.result)) {
 			t.Fatalf("%s: unexpected configure result: %v", name, confDiags.Err())
@@ -786,7 +786,7 @@ func TestRemote_ServiceDiscoveryAliases(t *testing.T) {
 	s := testServer(t)
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
-	diag := b.Configure(cty.ObjectVal(map[string]cty.Value{
+	diag := b.Configure(t.Context(), cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("hashicorp"),
 		"token":        cty.NullVal(cty.String),
