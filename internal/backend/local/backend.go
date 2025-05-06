@@ -228,10 +228,10 @@ func (b *Local) Workspaces(ctx context.Context) ([]string, error) {
 // DeleteWorkspace removes a workspace.
 //
 // The "default" workspace cannot be removed.
-func (b *Local) DeleteWorkspace(name string, force bool) error {
+func (b *Local) DeleteWorkspace(ctx context.Context, name string, force bool) error {
 	// If we have a backend handling state, defer to that.
 	if b.Backend != nil {
-		return b.Backend.DeleteWorkspace(name, force)
+		return b.Backend.DeleteWorkspace(ctx, name, force)
 	}
 
 	if name == "" {
