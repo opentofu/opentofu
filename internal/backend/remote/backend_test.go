@@ -269,7 +269,7 @@ func TestRemote_addAndRemoveWorkspacesDefault(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	if _, err := b.Workspaces(); err != backend.ErrWorkspacesNotSupported {
+	if _, err := b.Workspaces(t.Context()); err != backend.ErrWorkspacesNotSupported {
 		t.Fatalf("expected error %v, got %v", backend.ErrWorkspacesNotSupported, err)
 	}
 
@@ -294,7 +294,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 	b, bCleanup := testBackendNoDefault(t)
 	defer bCleanup()
 
-	states, err := b.Workspaces()
+	states, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +313,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +328,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +346,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -360,7 +360,7 @@ func TestRemote_addAndRemoveWorkspacesNoDefault(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

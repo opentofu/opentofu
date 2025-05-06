@@ -24,7 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	const maxKeys = 1000
 
 	prefix := ""
@@ -38,8 +38,6 @@ func (b *Backend) Workspaces() ([]string, error) {
 		Prefix:  aws.String(prefix),
 		MaxKeys: aws.Int32(maxKeys),
 	}
-
-	ctx := context.TODO()
 
 	ctx, _ = attachLoggerToContext(ctx)
 
@@ -166,7 +164,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	// If we need to force-unlock, but for some reason the state no longer
 	// exists, the user will have to use aws tools to manually fix the
 	// situation.
-	existing, err := b.Workspaces()
+	existing, err := b.Workspaces(context.TODO())
 	if err != nil {
 		return nil, err
 	}

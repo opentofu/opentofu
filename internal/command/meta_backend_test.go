@@ -1340,7 +1340,7 @@ func TestMetaBackend_configuredChangeCopy_multiToMulti(t *testing.T) {
 	}
 
 	// Check resulting states
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1438,7 +1438,7 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithDefault(t *testing
 	}
 
 	// Check resulting states
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -1512,7 +1512,7 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithoutDefault(t *test
 	}
 
 	// Check resulting states
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}

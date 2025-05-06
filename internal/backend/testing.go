@@ -146,7 +146,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		}
 	}
 
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(t.Context())
 	if err != nil {
 		if err == ErrWorkspacesNotSupported {
 			t.Logf("TestBackend: workspaces not supported in %T, skipping", b)
@@ -266,7 +266,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	// Verify we can now list them
 	{
 		// we determined that named stated are supported earlier
-		workspaces, err := b.Workspaces()
+		workspaces, err := b.Workspaces(t.Context())
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}
@@ -311,7 +311,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 
 	// Verify deletion
 	{
-		workspaces, err := b.Workspaces()
+		workspaces, err := b.Workspaces(t.Context())
 		if err != nil {
 			t.Fatalf("err: %s", err)
 		}

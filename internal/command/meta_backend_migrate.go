@@ -189,7 +189,7 @@ func (m *Meta) backendMigrateState_S_S(ctx context.Context, opts *backendMigrate
 	}
 
 	// Read all the states
-	sourceWorkspaces, err := opts.Source.Workspaces()
+	sourceWorkspaces, err := opts.Source.Workspaces(ctx)
 	if err != nil {
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateLoadStates), opts.SourceType, err)
@@ -538,7 +538,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 func retrieveWorkspaces(back backend.Backend, sourceType string) ([]string, bool, error) {
 	var singleState bool
 	var err error
-	workspaces, err := back.Workspaces()
+	workspaces, err := back.Workspaces(context.TODO())
 	if err == backend.ErrWorkspacesNotSupported {
 		singleState = true
 		err = nil
@@ -757,7 +757,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 
 	// After migrating multiple workspaces, we need to reselect the current workspace as it may
 	// have been renamed. Query the backend first to be sure it now exists.
-	workspaces, err := opts.Destination.Workspaces()
+	workspaces, err := opts.Destination.Workspaces(ctx)
 	if err != nil {
 		return err
 	}

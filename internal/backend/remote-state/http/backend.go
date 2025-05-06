@@ -311,7 +311,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	return remote.NewState(b.client, b.encryption), nil
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	return nil, backend.ErrWorkspacesNotSupported
 }
 

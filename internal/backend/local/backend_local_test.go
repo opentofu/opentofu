@@ -232,7 +232,7 @@ func (b backendWithStateStorageThatFailsRefresh) DeleteWorkspace(name string, fo
 	return fmt.Errorf("unimplemented")
 }
 
-func (b backendWithStateStorageThatFailsRefresh) Workspaces() ([]string, error) {
+func (b backendWithStateStorageThatFailsRefresh) Workspaces(context.Context) ([]string, error) {
 	return []string{"default"}, nil
 }
 

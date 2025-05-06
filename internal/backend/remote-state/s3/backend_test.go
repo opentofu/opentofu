@@ -1586,7 +1586,7 @@ func testGetWorkspaceForKey(b *Backend, key string, expected string) error {
 }
 
 func checkStateList(b backend.Backend, expected []string) error {
-	states, err := b.Workspaces()
+	states, err := b.Workspaces(context.TODO())
 	if err != nil {
 		return err
 	}

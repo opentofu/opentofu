@@ -194,7 +194,7 @@ func (m *MockBackend) StateMgr(workspace string) (statemgr.Full, error) {
 }
 
 // Workspaces implements Backend.
-func (m *MockBackend) Workspaces() ([]string, error) {
+func (m *MockBackend) Workspaces(context.Context) ([]string, error) {
 	m.WorkspacesCalled = true
 
 	if m.WorkspacesFn == nil {

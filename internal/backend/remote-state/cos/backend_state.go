@@ -6,6 +6,7 @@
 package cos
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"path"
@@ -25,7 +26,7 @@ const (
 )
 
 // Workspaces returns a list of names for the workspaces
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	c, err := b.client("tencentcloud")
 	if err != nil {
 		return nil, err
@@ -87,7 +88,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	}
 	stateMgr := remote.NewState(c, b.encryption)
 
-	ws, err := b.Workspaces()
+	ws, err := b.Workspaces(context.TODO())
 	if err != nil {
 		return nil, err
 	}

@@ -557,7 +557,7 @@ func (b *Remote) retryLogHook(attemptNum int, resp *http.Response) {
 }
 
 // Workspaces implements backend.Enhanced.
-func (b *Remote) Workspaces() ([]string, error) {
+func (b *Remote) Workspaces(context.Context) ([]string, error) {
 	if b.prefix == "" {
 		return nil, backend.ErrWorkspacesNotSupported
 	}

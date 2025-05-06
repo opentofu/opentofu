@@ -20,14 +20,14 @@ import (
 
 // Workspaces returns a list of names for the workspaces found in k8s. The default
 // workspace is always returned as the first element in the slice.
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	secretClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		return nil, err
 	}
 
 	secrets, err := secretClient.List(
-		context.Background(),
+		ctx,
 		metav1.ListOptions{
 			LabelSelector: tfstateKey + "=true",
 		},

@@ -6,6 +6,7 @@
 package local
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -120,7 +121,7 @@ func TestNewLocalSingle(enc encryption.StateEncryption) backend.Backend {
 	return &TestLocalSingleState{Local: New(encryption.StateEncryptionDisabled())}
 }
 
-func (b *TestLocalSingleState) Workspaces() ([]string, error) {
+func (b *TestLocalSingleState) Workspaces(context.Context) ([]string, error) {
 	return nil, backend.ErrWorkspacesNotSupported
 }
 
@@ -150,8 +151,8 @@ func TestNewLocalNoDefault(enc encryption.StateEncryption) backend.Backend {
 	return &TestLocalNoDefaultState{Local: New(encryption.StateEncryptionDisabled())}
 }
 
-func (b *TestLocalNoDefaultState) Workspaces() ([]string, error) {
-	workspaces, err := b.Local.Workspaces()
+func (b *TestLocalNoDefaultState) Workspaces(ctx context.Context) ([]string, error) {
+	workspaces, err := b.Local.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

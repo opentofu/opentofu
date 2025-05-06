@@ -92,7 +92,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	return nil
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	states.Lock()
 	defer states.Unlock()
 

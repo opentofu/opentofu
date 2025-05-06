@@ -32,7 +32,7 @@ func TestCloud_backendWithName(t *testing.T) {
 	b, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -101,7 +101,7 @@ func TestCloud_backendWithTags(t *testing.T) {
 		}
 	}
 
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -1248,7 +1248,7 @@ func TestCloudBackend_DeleteWorkspace_SafeAndForce(t *testing.T) {
 	}
 
 	// sanity check that the mock now contains two workspaces
-	wl, err := b.Workspaces()
+	wl, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatalf("error fetching workspace names: %v", err)
 	}
