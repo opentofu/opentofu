@@ -6,6 +6,7 @@
 package gcs
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"sort"
@@ -27,7 +28,7 @@ const (
 
 // Workspaces returns a list of names for the workspaces found on GCS. The default
 // state is always returned as the first element in the slice.
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	states := []string{backend.DefaultStateName}
 
 	bucket := b.storageClient.Bucket(b.bucketName)

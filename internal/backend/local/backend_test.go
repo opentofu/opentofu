@@ -6,6 +6,7 @@
 package local
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -100,7 +101,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 	expectedStates := []string{dflt}
 
 	b := New(encryption.StateEncryptionDisabled())
-	states, err := b.Workspaces()
+	states, err := b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +115,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +130,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -143,7 +144,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +158,7 @@ func TestLocal_addAndRemoveStates(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	states, err = b.Workspaces()
+	states, err = b.Workspaces(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +196,7 @@ func (b *testDelegateBackend) StateMgr(name string) (statemgr.Full, error) {
 	return s, nil
 }
 
-func (b *testDelegateBackend) Workspaces() ([]string, error) {
+func (b *testDelegateBackend) Workspaces(context.Context) ([]string, error) {
 	if b.statesErr {
 		return nil, errTestDelegateStates
 	}
@@ -222,7 +223,7 @@ func TestLocal_multiStateBackend(t *testing.T) {
 		t.Fatal("expected errTestDelegateState, got:", err)
 	}
 
-	if _, err := b.Workspaces(); err != errTestDelegateStates {
+	if _, err := b.Workspaces(t.Context()); err != errTestDelegateStates {
 		t.Fatal("expected errTestDelegateStates, got:", err)
 	}
 

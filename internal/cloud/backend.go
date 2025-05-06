@@ -558,7 +558,7 @@ func (b *Cloud) retryLogHook(attemptNum int, resp *http.Response) {
 
 // Workspaces implements backend.Enhanced, returning a filtered list of workspace names according to
 // the workspace mapping strategy configured.
-func (b *Cloud) Workspaces() ([]string, error) {
+func (b *Cloud) Workspaces(ctx context.Context) ([]string, error) {
 	// Create a slice to contain all the names.
 	var names []string
 
@@ -581,7 +581,7 @@ func (b *Cloud) Workspaces() ([]string, error) {
 		listOpts := &tfe.ProjectListOptions{
 			Name: b.WorkspaceMapping.Project,
 		}
-		projects, err := b.client.Projects.List(context.Background(), b.organization, listOpts)
+		projects, err := b.client.Projects.List(ctx, b.organization, listOpts)
 		if err != nil && err != tfe.ErrResourceNotFound {
 			return nil, fmt.Errorf("failed to retrieve project %s: %w", listOpts.Name, err)
 		}
@@ -594,7 +594,7 @@ func (b *Cloud) Workspaces() ([]string, error) {
 	}
 
 	for {
-		wl, err := b.client.Workspaces.List(context.Background(), b.organization, options)
+		wl, err := b.client.Workspaces.List(ctx, b.organization, options)
 		if err != nil {
 			return nil, err
 		}

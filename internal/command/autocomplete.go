@@ -70,7 +70,7 @@ func (m *Meta) completePredictWorkspaceName(ctx context.Context) complete.Predic
 			return nil
 		}
 
-		names, _ := b.Workspaces()
+		names, _ := b.Workspaces(ctx)
 		return names
 	})
 }

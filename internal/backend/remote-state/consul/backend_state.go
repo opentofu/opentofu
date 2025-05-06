@@ -6,6 +6,7 @@
 package consul
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -19,7 +20,7 @@ const (
 	keyEnvPrefix = "-env:"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	// List our raw path
 	prefix := b.configData.Get("path").(string) + keyEnvPrefix
 	keys, _, err := b.client.KV().Keys(prefix, "/", nil)

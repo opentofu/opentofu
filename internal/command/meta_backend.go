@@ -217,7 +217,7 @@ func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.St
 // if the currently selected workspace is valid. If not, it will ask
 // the user to select a workspace from the list.
 func (m *Meta) selectWorkspace(ctx context.Context, b backend.Backend) error {
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(ctx)
 	if err == backend.ErrWorkspacesNotSupported {
 		return nil
 	}
@@ -972,7 +972,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 		return nil, diags
 	}
 
-	workspaces, err := localB.Workspaces()
+	workspaces, err := localB.Workspaces(ctx)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf(errBackendLocalRead, err))
 		return nil, diags

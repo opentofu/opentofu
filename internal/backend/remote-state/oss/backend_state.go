@@ -6,6 +6,7 @@
 package oss
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -54,7 +55,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 	return client, nil
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	bucket, err := b.ossClient.Bucket(b.bucketName)
 	if err != nil {
 		return []string{""}, fmt.Errorf("error getting bucket: %w", err)
@@ -121,7 +122,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	stateMgr := remote.NewState(client, b.encryption)
 
 	// Check to see if this state already exists.
-	existing, err := b.Workspaces()
+	existing, err := b.Workspaces(context.TODO())
 	if err != nil {
 		return nil, err
 	}

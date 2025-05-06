@@ -32,7 +32,7 @@ func (b *Backend) getContextWithTimeout() (context.Context, context.CancelFunc) 
 	return context.WithTimeout(context.Background(), time.Duration(b.armClient.timeoutSeconds)*time.Second)
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(_ context.Context) ([]string, error) {
 	ctx, cancel := b.getContextWithTimeout()
 	defer cancel()
 
