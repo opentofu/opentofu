@@ -229,7 +229,7 @@ output "examle" {
 }
 ```
 
-The caller of the module will receive a warning, if the depreacted output is referenced in
+The caller of the module will receive a warning if the deprecated output is referenced in
 their configuration:
 
 ```
@@ -243,3 +243,5 @@ their configuration:
 │ 
 │ 'examle' output must no longer be used due to a typo, use 'example' instead
 ```
+Deprecation warnings can be filtered or disabled by using the `-deprecation-warns` CLI argument. For more details, check its description
+in the command options for [plan](../../cli/commands/plan.mdx#other-options) and [apply](../../cli/commands/apply.mdx#apply-options).

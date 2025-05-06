@@ -316,20 +316,21 @@ variable "examle" {
 }
 ```
 
-The caller of the module will receive a warning, if the depreacted variable is used in
+The caller of the module will receive a warning if the deprecated variable is used in
 their configuration:
 
 ```
-╷
-│ Warning: The variable "examle" is marked as deprecated by module author
-│ 
+│ Warning: Variable marked as deprecated by the module author
+│
 │   on main.tf line 3, in module "mod":
 │    3:   examle = "a"
-│ 
-│ This variable is marked as deprecated with the following message:
+│
+│ Variable "examle" is marked as deprecated with the following message:
 │ 'examle' variable must no longer be used due to a typo, use 'example' instead
 ```
 
+Deprecation warnings can be filtered or disabled by using the `-deprecation-warns` CLI argument. For more details, check its description
+in the command options for [plan](../../cli/commands/plan.mdx#other-options) and [apply](../../cli/commands/apply.mdx#apply-options).
 ## Using Input Variable Values
 
 Within the module that declared a variable, its value can be accessed from
