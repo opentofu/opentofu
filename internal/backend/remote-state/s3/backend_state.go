@@ -149,7 +149,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 	return client, nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	client, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err
@@ -164,7 +164,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	// If we need to force-unlock, but for some reason the state no longer
 	// exists, the user will have to use aws tools to manually fix the
 	// situation.
-	existing, err := b.Workspaces(context.TODO())
+	existing, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

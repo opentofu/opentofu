@@ -138,7 +138,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	t.Helper()
 
 	noDefault := false
-	if _, err := b.StateMgr(DefaultStateName); err != nil {
+	if _, err := b.StateMgr(t.Context(), DefaultStateName); err != nil {
 		if err == ErrDefaultWorkspaceNotSupported {
 			noDefault = true
 		} else {
@@ -161,7 +161,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	}
 
 	// Create a couple states
-	foo, err := b.StateMgr("foo")
+	foo, err := b.StateMgr(t.Context(), "foo")
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -172,7 +172,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		t.Fatalf("should be empty: %s", v)
 	}
 
-	bar, err := b.StateMgr("bar")
+	bar, err := b.StateMgr(t.Context(), "bar")
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -237,7 +237,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		}
 
 		// fetch foo again from the backend
-		foo, err = b.StateMgr("foo")
+		foo, err = b.StateMgr(t.Context(), "foo")
 		if err != nil {
 			t.Fatal("error re-fetching state:", err)
 		}
@@ -250,7 +250,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		}
 
 		// fetch the bar again from the backend
-		bar, err = b.StateMgr("bar")
+		bar, err = b.StateMgr(t.Context(), "bar")
 		if err != nil {
 			t.Fatal("error re-fetching state:", err)
 		}
@@ -294,7 +294,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	// Create and delete the foo workspace again.
 	// Make sure that there are no leftover artifacts from a deleted state
 	// preventing re-creation.
-	foo, err = b.StateMgr("foo")
+	foo, err = b.StateMgr(t.Context(), "foo")
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -367,7 +367,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	t.Helper()
 
 	// Get the default state for each
-	b1StateMgr, err := b1.StateMgr(DefaultStateName)
+	b1StateMgr, err := b1.StateMgr(t.Context(), DefaultStateName)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -383,7 +383,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 
 	t.Logf("TestBackend: testing state locking for %T", b1)
 
-	b2StateMgr, err := b2.StateMgr(DefaultStateName)
+	b2StateMgr, err := b2.StateMgr(t.Context(), DefaultStateName)
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
@@ -411,7 +411,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	// Make sure we can still get the statemgr.Full from another instance even
 	// when locked.  This should only happen when a state is loaded via the
 	// backend, and as a remote state.
-	_, err = b2.StateMgr(DefaultStateName)
+	_, err = b2.StateMgr(t.Context(), DefaultStateName)
 	if err != nil {
 		t.Errorf("failed to read locked state from another backend instance: %s", err)
 	}

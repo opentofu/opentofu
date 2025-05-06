@@ -649,7 +649,7 @@ func (b *Remote) DeleteWorkspace(name string, _ bool) error {
 }
 
 // StateMgr implements backend.Enhanced.
-func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
+func (b *Remote) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	if b.workspace == "" && name == backend.DefaultStateName {
 		return nil, backend.ErrDefaultWorkspaceNotSupported
 	}
@@ -665,7 +665,7 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 		name = b.prefix + name
 	}
 
-	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
+	workspace, err := b.client.Workspaces.Read(ctx, b.organization, name)
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return nil, fmt.Errorf("Failed to retrieve workspace %s: %w", name, err)
 	}
@@ -681,7 +681,7 @@ func (b *Remote) StateMgr(name string) (statemgr.Full, error) {
 			options.TerraformVersion = tfe.String(tfversion.String())
 		}
 
-		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, options)
+		workspace, err = b.client.Workspaces.Create(ctx, b.organization, options)
 		if err != nil {
 			return nil, fmt.Errorf("Error creating workspace %s: %w", name, err)
 		}

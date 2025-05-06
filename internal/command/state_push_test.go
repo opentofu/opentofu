@@ -266,7 +266,7 @@ func TestStatePush_forceRemoteState(t *testing.T) {
 
 	// put a dummy state in place, so we have something to force
 	b := backend.TestBackendConfig(t, inmem.New(encryption.StateEncryptionDisabled()), nil)
-	sMgr, err := b.StateMgr("test")
+	sMgr, err := b.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}

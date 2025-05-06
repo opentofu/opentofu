@@ -97,7 +97,7 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 	}
 
 	// Get the state
-	stateStore, err := b.StateMgr(env)
+	stateStore, err := b.StateMgr(ctx, env)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags

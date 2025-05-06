@@ -246,10 +246,10 @@ func (b *Local) DeleteWorkspace(name string, force bool) error {
 	return os.RemoveAll(filepath.Join(b.stateWorkspaceDir(), name))
 }
 
-func (b *Local) StateMgr(name string) (statemgr.Full, error) {
+func (b *Local) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	// If we have a backend handling state, delegate to that.
 	if b.Backend != nil {
-		return b.Backend.StateMgr(name)
+		return b.Backend.StateMgr(ctx, name)
 	}
 
 	if s, ok := b.states[name]; ok {

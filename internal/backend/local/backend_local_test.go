@@ -138,7 +138,7 @@ func TestLocalRun_stalePlan(t *testing.T) {
 	}
 
 	// Refresh the state
-	sm, err := b.StateMgr("")
+	sm, err := b.StateMgr(t.Context(), "")
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -212,7 +212,7 @@ type backendWithStateStorageThatFailsRefresh struct {
 
 var _ backend.Backend = backendWithStateStorageThatFailsRefresh{}
 
-func (b backendWithStateStorageThatFailsRefresh) StateMgr(workspace string) (statemgr.Full, error) {
+func (b backendWithStateStorageThatFailsRefresh) StateMgr(_ context.Context, workspace string) (statemgr.Full, error) {
 	return &stateStorageThatFailsRefresh{}, nil
 }
 

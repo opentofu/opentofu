@@ -99,7 +99,7 @@ func (c *TaintCommand) Run(args []string) int {
 	}
 
 	// Get the state
-	stateMgr, err := b.StateMgr(workspace)
+	stateMgr, err := b.StateMgr(ctx, workspace)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1

@@ -57,7 +57,7 @@ func (c *StateMeta) State(ctx context.Context, enc encryption.Encryption) (state
 		}
 
 		// Get the state
-		s, err := b.StateMgr(workspace)
+		s, err := b.StateMgr(ctx, workspace)
 		if err != nil {
 			return nil, err
 		}

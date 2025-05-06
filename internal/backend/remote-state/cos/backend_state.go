@@ -79,7 +79,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 }
 
 // StateMgr manage the state, if the named state not exists, a new file will created
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	log.Printf("[DEBUG] state manager, current workspace: %v", name)
 
 	c, err := b.client(name)
@@ -88,7 +88,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	}
 	stateMgr := remote.NewState(c, b.encryption)
 
-	ws, err := b.Workspaces(context.TODO())
+	ws, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

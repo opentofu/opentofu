@@ -69,7 +69,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return err
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	// Determine the path of the data
 	path := b.path(name)
 

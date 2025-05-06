@@ -137,7 +137,7 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption, path
 		workspaceName = workspaceVal.AsString()
 	}
 
-	state, err := b.StateMgr(workspaceName)
+	state, err := b.StateMgr(context.TODO(), workspaceName)
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,

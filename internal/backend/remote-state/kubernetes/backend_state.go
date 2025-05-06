@@ -78,7 +78,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return client.Delete()
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	c, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err

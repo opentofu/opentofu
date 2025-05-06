@@ -280,7 +280,7 @@ func TestWorkspace_createWithState(t *testing.T) {
 	}
 
 	b := backend.TestBackendConfig(t, inmem.New(encryption.StateEncryptionDisabled()), nil)
-	sMgr, err := b.StateMgr(workspace)
+	sMgr, err := b.StateMgr(t.Context(), workspace)
 	if err != nil {
 		t.Fatal(err)
 	}

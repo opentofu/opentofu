@@ -112,7 +112,7 @@ func (c *WorkspaceSelectCommand) Run(args []string) int {
 
 	if !found {
 		if orCreate {
-			_, err = b.StateMgr(name)
+			_, err = b.StateMgr(ctx, name)
 			if err != nil {
 				c.Ui.Error(err.Error())
 				return 1
