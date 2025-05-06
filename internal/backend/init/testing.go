@@ -157,7 +157,7 @@ func (m *MockBackend) Configure(ctx context.Context, configObj cty.Value) tfdiag
 }
 
 // DeleteWorkspace implements Backend.
-func (m *MockBackend) DeleteWorkspace(name string, force bool) error {
+func (m *MockBackend) DeleteWorkspace(_ context.Context, name string, force bool) error {
 	m.DeleteWorkspaceCalled = true
 	m.DeleteWorkspaceName = name
 	m.DeleteWorkspaceForce = force

@@ -65,7 +65,7 @@ func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	return states, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}

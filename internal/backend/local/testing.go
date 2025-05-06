@@ -125,7 +125,7 @@ func (b *TestLocalSingleState) Workspaces(context.Context) ([]string, error) {
 	return nil, backend.ErrWorkspacesNotSupported
 }
 
-func (b *TestLocalSingleState) DeleteWorkspace(string, bool) error {
+func (b *TestLocalSingleState) DeleteWorkspace(context.Context, string, bool) error {
 	return backend.ErrWorkspacesNotSupported
 }
 
@@ -167,11 +167,11 @@ func (b *TestLocalNoDefaultState) Workspaces(ctx context.Context) ([]string, err
 	return filtered, nil
 }
 
-func (b *TestLocalNoDefaultState) DeleteWorkspace(name string, force bool) error {
+func (b *TestLocalNoDefaultState) DeleteWorkspace(ctx context.Context, name string, force bool) error {
 	if name == backend.DefaultStateName {
 		return backend.ErrDefaultWorkspaceNotSupported
 	}
-	return b.Local.DeleteWorkspace(name, force)
+	return b.Local.DeleteWorkspace(ctx, name, force)
 }
 
 func (b *TestLocalNoDefaultState) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {

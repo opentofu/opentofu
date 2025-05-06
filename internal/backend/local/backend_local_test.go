@@ -228,7 +228,7 @@ func (b backendWithStateStorageThatFailsRefresh) Configure(context.Context, cty.
 	return nil
 }
 
-func (b backendWithStateStorageThatFailsRefresh) DeleteWorkspace(name string, force bool) error {
+func (b backendWithStateStorageThatFailsRefresh) DeleteWorkspace(_ context.Context, name string, force bool) error {
 	return fmt.Errorf("unimplemented")
 }
 
