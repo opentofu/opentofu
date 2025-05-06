@@ -48,7 +48,7 @@ func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta,
 // in the set must match the package that "entry" refers to. If none of the
 // hashes match then the returned error message assumes that the hashes came
 // from a lock file.
-func (d *Dir) LinkFromOtherCache(entry *CachedProvider, allowedHashes []getproviders.Hash) error {
+func (d *Dir) LinkFromOtherCache(ctx context.Context, entry *CachedProvider, allowedHashes []getproviders.Hash) error {
 	if len(allowedHashes) > 0 {
 		if matches, err := entry.MatchesAnyHash(allowedHashes); err != nil {
 			return fmt.Errorf(
@@ -88,6 +88,6 @@ func (d *Dir) LinkFromOtherCache(entry *CachedProvider, allowedHashes []getprovi
 	}
 	// No further hash check here because we already checked the hash
 	// of the source directory above.
-	_, err := meta.Location.InstallProviderPackage(context.TODO(), meta, newPath, nil)
+	_, err := meta.Location.InstallProviderPackage(ctx, meta, newPath, nil)
 	return err
 }
