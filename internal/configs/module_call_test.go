@@ -211,6 +211,12 @@ func TestModuleCallWithNullVersion(t *testing.T) {
 		t.Fatalf("unexpected errors: %s", diags.Error())
 	}
 
+	// Create a module from the loaded file
+	mod, diags := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "testdata", SelectiveLoadAll)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors creating module: %s", diags.Error())
+	}
+
 	gotModules := file.ModuleCalls
 	wantModules := []*ModuleCall{
 		{
@@ -220,23 +226,15 @@ func TestModuleCallWithNullVersion(t *testing.T) {
 			SourceSet:     true,
 			DeclRange: hcl.Range{
 				Filename: "null-version-module.tf",
-				Start:    hcl.Pos{Line: 6, Column: 1, Byte: 67},
-				End:      hcl.Pos{Line: 6, Column: 13, Byte: 79},
+				Start:    hcl.Pos{Line: 4, Column: 1, Byte: 35},
+				End:      hcl.Pos{Line: 4, Column: 13, Byte: 47},
 			},
 		},
 	}
 
-	// Create a StaticModuleCall with variable handling
-	call := NullVersionModuleCallForTesting()
-
-	// Create a module from the loaded file
-	mod, diags := NewModule([]*File{file}, nil, call, "testdata", SelectiveLoadAll)
-	if diags.HasErrors() {
-		t.Fatalf("unexpected errors creating module: %s", diags.Error())
-	}
-
 	for _, m := range gotModules {
-		eval := NewStaticEvaluator(mod, call)
+		// Create a static evaluator with the module context
+		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 		diags := m.decodeStaticFields(eval)
 		if diags.HasErrors() {
 			t.Fatal(diags.Error())

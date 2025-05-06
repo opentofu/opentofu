@@ -151,8 +151,8 @@ func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics 
 	mc.decodeStaticVariables(eval)
 
 	var diags hcl.Diagnostics
-	diags = diags.Extend(mc.decodeStaticSource(eval))
 	diags = diags.Extend(mc.decodeStaticVersion(eval))
+	diags = diags.Extend(mc.decodeStaticSource(eval))
 	return diags
 }
 
@@ -169,18 +169,7 @@ func (mc *ModuleCall) decodeStaticSource(eval *StaticEvaluator) hcl.Diagnostics 
 		// NOTE: This code was originally executed as part of decodeModuleBlock and is now deferred until we have the config merged and static context built
 		var err error
 		if mc.VersionAttr != nil {
-			// Check if version is null before forcing registry module parsing
-			val, valDiags := eval.Evaluate(mc.VersionAttr.Expr, StaticIdentifier{
-				Module:    eval.call.addr,
-				Subject:   fmt.Sprintf("module.%s.version", mc.Name),
-				DeclRange: mc.VersionAttr.Range,
-			})
-			if !valDiags.HasErrors() && val.IsNull() {
-				// If version is null, treat it as if the module is a local module
-				mc.SourceAddr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
-			} else {
-				mc.SourceAddr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
-			}
+			mc.SourceAddr, err = addrs.ParseModuleSourceRegistry(mc.SourceAddrRaw)
 		} else {
 			mc.SourceAddr, err = addrs.ParseModuleSource(mc.SourceAddrRaw)
 		}

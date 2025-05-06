@@ -67,28 +67,6 @@ func RootModuleCallForTesting() StaticModuleCall {
 	}, "<testing>", "")
 }
 
-// This is used in testing module version handling.
-func NullVersionModuleCallForTesting() StaticModuleCall {
-	return NewStaticModuleCall(
-		addrs.RootModule,
-		func(v *Variable) (cty.Value, hcl.Diagnostics) {
-			// For module_version, return its default value (null)
-			if v.Name == "module_version" {
-				return v.Default, nil
-			}
-			// For any other variable, return an error
-			return cty.NilVal, hcl.Diagnostics{&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Variable value not provided",
-				Detail:   fmt.Sprintf("var.%s not included", v.Name),
-				Subject:  v.DeclRange.Ptr(),
-			}}
-		},
-		"testdata",
-		"",
-	)
-}
-
 // A static evaluator contains the information required to build a EvalContext
 // which only understands "static" (non-state) data. Internally, it relies
 // on staticData

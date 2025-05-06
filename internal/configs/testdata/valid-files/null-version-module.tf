@@ -1,9 +1,7 @@
-variable "module_version" {
-  type    = string
-  default = null
+locals {
+  module_version = null
 }
-
 module "foo" {
   source  = "./foo"
-  version = var.module_version
+  version = local.module_version
 } 
