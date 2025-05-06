@@ -105,14 +105,16 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 		return
 	}
 
-	// Filter the deprecation warnings based on the cli arg
+	// Filter the deprecation warnings based on the cli arg.
+	// For safety and performance reasons, we are filtering the deprecation related diagnostics only when
+	// the filtering level is not tofu.DeprecationWarningLevelAll.
+	// This filtering is implemented only in here, and not in meta.go#showDiagnostics because there are meant to be
+	// shown only during apply and plan phases. These 2 phases are using this implementation to interact with the user
+	// while meta.go#showDiagnostics is used by other commands that are not meant to show the deprecation diagnostics.
 	if v.ModuleDeprecationWarnLvl != tofu.DeprecationWarningLevelAll {
 		var newDiags tfdiags.Diagnostics
 		for _, diag := range diags {
-			if !tofu.DeprecatedOutputDiagAllowed(v.ModuleDeprecationWarnLvl, diag) {
-				continue
-			}
-			if !tofu.DeprecatedVariableDiagAllowed(v.ModuleDeprecationWarnLvl, diag) {
+			if !tofu.DeprecationDiagnosticAllowed(v.ModuleDeprecationWarnLvl, diag) {
 				continue
 			}
 			newDiags = append(newDiags, diag)
