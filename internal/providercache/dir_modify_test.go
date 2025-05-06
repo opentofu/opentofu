@@ -122,7 +122,7 @@ func TestLinkFromOtherCache(t *testing.T) {
 		t.Fatalf("null provider has no latest version in source directory")
 	}
 
-	err = tmpDir.LinkFromOtherCache(cacheEntry, nil)
+	err = tmpDir.LinkFromOtherCache(t.Context(), cacheEntry, nil)
 	if err != nil {
 		t.Fatalf("LinkFromOtherCache failed: %s", err)
 	}

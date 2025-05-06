@@ -629,7 +629,7 @@ func (i *Installer) ensureProviderVersionInstall(
 		// series here (and that's why we use FetchPackageFailure below).
 		// We also don't do a hash check here because we already did that
 		// as part of the installTo.InstallPackage call above.
-		err := linkTo.LinkFromOtherCache(new, nil)
+		err := linkTo.LinkFromOtherCache(ctx, new, nil)
 		if err != nil {
 			if cb := evts.FetchPackageFailure; cb != nil {
 				cb(provider, version, err)
@@ -869,7 +869,7 @@ func tryInstallPackageFromCacheDir(
 		return false, err
 	}
 
-	err = destDir.LinkFromOtherCache(cached, preferredHashes)
+	err = destDir.LinkFromOtherCache(ctx, cached, preferredHashes)
 	if err != nil {
 		if cb := evts.LinkFromCacheFailure; cb != nil {
 			cb(provider, version, err)
