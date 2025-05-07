@@ -36,14 +36,14 @@ func (c *Config) Build() (method.Method, error) {
 	if len(c.DecryptCommand) < 1 {
 		return nil, &method.ErrInvalidConfiguration{
 			Cause: &method.ErrCryptoFailure{
-				Message: "the first entry of encrypt_command must not be empty",
+				Message: "the decrypt_command option is required",
 			},
 		}
 	}
 	if len(c.DecryptCommand[0]) == 0 {
 		return nil, &method.ErrInvalidConfiguration{
 			Cause: &method.ErrCryptoFailure{
-				Message: "the decrypt_command option is required",
+				Message: "the first entry of decrypt_command must not be empty",
 			},
 		}
 	}

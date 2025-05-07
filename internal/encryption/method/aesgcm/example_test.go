@@ -111,9 +111,9 @@ func Example_config_json() {
 	}
 
 	// Now you can build a method:
-	method, diags := config.Build()
-	if diags != nil {
-		panic(diags)
+	method, err := config.Build()
+	if err != nil {
+		panic(err)
 	}
 
 	// Encrypt something:
