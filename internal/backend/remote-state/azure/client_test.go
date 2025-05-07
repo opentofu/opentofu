@@ -29,8 +29,12 @@ func TestRemoteClientAccessKeyBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -59,8 +63,12 @@ func TestRemoteClientManagedServiceIdentityBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -92,8 +100,12 @@ func TestRemoteClientSasTokenBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -127,8 +139,12 @@ func TestRemoteClientServicePrincipalBasic(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -161,8 +177,12 @@ func TestRemoteClientAccessKeyLocks(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -205,8 +225,12 @@ func TestRemoteClientServicePrincipalLocks(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}
@@ -257,8 +281,12 @@ func TestPutMaintainsMetaData(t *testing.T) {
 	armClient := buildTestClient(t, res)
 
 	ctx := context.TODO()
-	err := armClient.buildTestResources(ctx, &res)
-	defer armClient.destroyTestResources(ctx, res)
+	err := armClient.buildTestResources(t, ctx, &res)
+	t.Cleanup(func() {
+		if err := armClient.destroyTestResources(t, ctx, res); err != nil {
+			t.Fatalf("error when destroying resources: %q", err)
+		}
+	})
 	if err != nil {
 		t.Fatalf("Error creating Test Resources: %q", err)
 	}

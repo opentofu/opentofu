@@ -8,8 +8,10 @@ package azure
 import (
 	"context"
 	"fmt"
+	"log"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
@@ -25,41 +27,26 @@ const (
 	keyEnvPrefix = "env:"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
-	prefix := b.keyName + keyEnvPrefix
-	params := containers.ListBlobsInput{
-		Prefix: &prefix,
-	}
+// getContextWithTimeout returns a context with timeout based on the timeoutSeconds
+func (b *Backend) getContextWithTimeout() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), time.Duration(b.armClient.timeoutSeconds)*time.Second)
+}
 
-	ctx := context.TODO()
+func (b *Backend) Workspaces() ([]string, error) {
+	ctx, cancel := b.getContextWithTimeout()
+	defer cancel()
+
 	client, err := b.armClient.getContainersClient(ctx)
 	if err != nil {
 		return nil, err
 	}
-	resp, err := client.ListBlobs(ctx, b.armClient.storageAccountName, b.containerName, params)
+
+	prefix := b.keyName + keyEnvPrefix
+	result, err := getPaginatedResults(ctx, client, prefix, b.armClient.storageAccountName, b.containerName)
 	if err != nil {
 		return nil, err
 	}
 
-	envs := map[string]struct{}{}
-	for _, obj := range resp.Blobs.Blobs {
-		key := obj.Name
-		if strings.HasPrefix(key, prefix) {
-			name := strings.TrimPrefix(key, prefix)
-			// we store the state in a key, not a directory
-			if strings.Contains(name, "/") {
-				continue
-			}
-
-			envs[name] = struct{}{}
-		}
-	}
-
-	result := []string{backend.DefaultStateName}
-	for name := range envs {
-		result = append(result, name)
-	}
-	sort.Strings(result[1:])
 	return result, nil
 }
 
@@ -68,7 +55,8 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 		return fmt.Errorf("can't delete default state")
 	}
 
-	ctx := context.TODO()
+	ctx, cancel := b.getContextWithTimeout()
+	defer cancel()
 	client, err := b.armClient.getBlobClient(ctx)
 	if err != nil {
 		return err
@@ -84,7 +72,9 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 }
 
 func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
-	ctx := context.TODO()
+	ctx, cancel := b.getContextWithTimeout()
+	defer cancel()
+
 	blobClient, err := b.armClient.getBlobClient(ctx)
 	if err != nil {
 		return nil, err
@@ -171,3 +161,50 @@ Error: %w
 
 You may have to force-unlock this state in order to use it again.
 `
+
+type azureClient interface {
+	ListBlobs(ctx context.Context, accountName, containerName string, input containers.ListBlobsInput) (result containers.ListBlobsResult, err error)
+}
+
+func getPaginatedResults(ctx context.Context, client azureClient, prefix, accName, containerName string) ([]string, error) {
+	count := 1
+	initialMarker := ""
+
+	params := containers.ListBlobsInput{
+		Prefix: &prefix,
+		Marker: &initialMarker,
+	}
+	result := []string{backend.DefaultStateName}
+
+	for {
+		log.Printf("[TRACE] Getting page %d of blob results", count)
+		resp, err := client.ListBlobs(ctx, accName, containerName, params)
+		if err != nil {
+			return nil, err
+		}
+
+		// Used to paginate blobs, saving the NextMarker result from ListBlobs
+		params.Marker = resp.NextMarker
+		for _, obj := range resp.Blobs.Blobs {
+			key := obj.Name
+			if !strings.HasPrefix(key, prefix) {
+				continue
+			}
+
+			name := strings.TrimPrefix(key, prefix)
+			// we store the state in a key, not a directory
+			if strings.Contains(name, "/") {
+				continue
+			}
+			result = append(result, name)
+		}
+
+		count++
+		if params.Marker == nil || *params.Marker == "" {
+			break
+		}
+	}
+
+	sort.Strings(result[1:])
+	return result, nil
+}
