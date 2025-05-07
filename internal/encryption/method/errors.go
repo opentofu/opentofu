@@ -70,3 +70,18 @@ func (e ErrDecryptionKeyUnavailable) Error() string {
 	return "no decryption key available"
 }
 
+// ErrInvalidConfiguration indicates that the method configuration is incorrect.
+type ErrInvalidConfiguration struct {
+	Cause error
+}
+
+func (e ErrInvalidConfiguration) Error() string {
+	if e.Cause != nil {
+		return fmt.Sprintf("invalid method configuration: %v", e.Cause)
+	}
+	return "invalid method configuration"
+}
+
+func (e ErrInvalidConfiguration) Unwrap() error {
+	return e.Cause
+}

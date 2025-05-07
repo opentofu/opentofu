@@ -10,16 +10,15 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
+	"github.com/opentofu/opentofu/internal/encryption/method"
 )
 
 func TestConfig_Build(t *testing.T) {
 	var testCases = []struct {
 		name      string
 		config    *Config
-		errorType hcl.Diagnostics
+		errorType any
 		expected  aesgcm
 	}{
 		{
@@ -67,7 +66,7 @@ func TestConfig_Build(t *testing.T) {
 		{
 			name:      "no-key",
 			config:    &Config{},
-			errorType: hcl.Diagnostics{},
+			errorType: &method.ErrInvalidConfiguration{},
 		},
 		{
 			name: "encryption-key-15-bytes",
@@ -77,7 +76,7 @@ func TestConfig_Build(t *testing.T) {
 					DecryptionKey: []byte("bohwu9zoo7Zod16"),
 				},
 			},
-			errorType: hcl.Diagnostics{},
+			errorType: &method.ErrInvalidConfiguration{},
 		},
 		{
 			name: "decryption-key-15-bytes",
@@ -87,7 +86,7 @@ func TestConfig_Build(t *testing.T) {
 					DecryptionKey: []byte("bohwu9zoo7Zod15"),
 				},
 			},
-			errorType: hcl.Diagnostics{},
+			errorType: &method.ErrInvalidConfiguration{},
 		},
 		{
 			name: "aad",

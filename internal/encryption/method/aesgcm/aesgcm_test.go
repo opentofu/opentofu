@@ -23,12 +23,12 @@ var config = &aesgcm.Config{
 }
 
 func TestDecryptEmptyData(t *testing.T) {
-	m, diags := config.Build()
-	if diags != nil {
-		t.Fatalf("unexpected error (%v)", diags)
+	m, err := config.Build()
+	if err != nil {
+		t.Fatalf("unexpected error (%v)", err)
 	}
 
-	_, err := m.Decrypt(nil)
+	_, err = m.Decrypt(nil)
 	if err == nil {
 		t.Fatalf("Expected error, none returned.")
 	}
@@ -40,13 +40,13 @@ func TestDecryptEmptyData(t *testing.T) {
 }
 
 func TestDecryptShortData(t *testing.T) {
-	m, diags := config.Build()
-	if diags != nil {
-		t.Fatalf("unexpected error (%v)", diags)
+	m, err := config.Build()
+	if err != nil {
+		t.Fatalf("unexpected error (%v)", err)
 	}
 
 	// Passing a non-empty, but shorter-than-nonce data
-	_, err := m.Decrypt([]byte("1"))
+	_, err = m.Decrypt([]byte("1"))
 	if err == nil {
 		t.Fatalf("Expected error, none returned.")
 	}
@@ -58,13 +58,13 @@ func TestDecryptShortData(t *testing.T) {
 }
 
 func TestDecryptInvalidData(t *testing.T) {
-	m, diags := config.Build()
-	if diags != nil {
-		t.Fatalf("unexpected error (%v)", diags)
+	m, err := config.Build()
+	if err != nil {
+		t.Fatalf("unexpected error (%v)", err)
 	}
 
 	// Passing a non-empty, but shorter-than-nonce data
-	_, err := m.Decrypt([]byte("abcdefghijklmnopqrstuvwxyz"))
+	_, err = m.Decrypt([]byte("abcdefghijklmnopqrstuvwxyz"))
 	if err == nil {
 		t.Fatalf("Expected error, none returned.")
 	}
@@ -76,9 +76,9 @@ func TestDecryptInvalidData(t *testing.T) {
 }
 
 func TestDecryptCorruptData(t *testing.T) {
-	m, diags := config.Build()
-	if diags != nil {
-		t.Fatalf("unexpected error (%v)", diags)
+	m, err := config.Build()
+	if err != nil {
+		t.Fatalf("unexpected error (%v)", err)
 	}
 
 	encrypted, err := m.Encrypt([]byte("Hello world!"))

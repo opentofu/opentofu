@@ -6,7 +6,6 @@
 package external
 
 import (
-	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/encryption/keyprovider"
 	"github.com/opentofu/opentofu/internal/encryption/method"
 )
@@ -19,36 +18,32 @@ type Config struct {
 }
 
 // Build checks the validity of the configuration and returns a ready-to-use AES-GCM implementation.
-func (c *Config) Build() (method.Method, hcl.Diagnostics) {
+func (c *Config) Build() (method.Method, error) {
 	if len(c.EncryptCommand) < 1 {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Detail:   "the encrypt_command option is required",
+		return nil, &method.ErrInvalidConfiguration{
+			Cause: &method.ErrCryptoFailure{
+				Message: "the encrypt_command option is required",
 			},
 		}
 	}
 	if len(c.EncryptCommand[0]) == 0 {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Detail:   "the first entry of encrypt_command must not be empty",
+		return nil, &method.ErrInvalidConfiguration{
+			Cause: &method.ErrCryptoFailure{
+				Message: "the first entry of encrypt_command must not be empty",
 			},
 		}
 	}
 	if len(c.DecryptCommand) < 1 {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Detail:   "the decrypt_command option is required",
+		return nil, &method.ErrInvalidConfiguration{
+			Cause: &method.ErrCryptoFailure{
+				Message: "the first entry of encrypt_command must not be empty",
 			},
 		}
 	}
 	if len(c.DecryptCommand[0]) == 0 {
-		return nil, hcl.Diagnostics{
-			&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Detail:   "the first entry of decrypt_command must not be empty",
+		return nil, &method.ErrInvalidConfiguration{
+			Cause: &method.ErrCryptoFailure{
+				Message: "the decrypt_command option is required",
 			},
 		}
 	}
