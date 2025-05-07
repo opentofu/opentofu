@@ -39,17 +39,17 @@ better based on experience with this experiment.
 // then we'll enable an experimental OTLP trace exporter.
 const OTELExporterEnvVar = "OTEL_TRACES_EXPORTER"
 
-// OTELTraceParentEnvVar is the env var that should be used to instruct opentofu which
+// traceParentEnvVar is the env var that should be used to instruct opentofu which
 // trace parent to use.
 // If this environment variable is set when running OpenTofu CLI
 // then we'll extract the traceparent from the environment and add it to the context.
 // This ensures that all opentofu traces are linked to the trace that invoked
 // this command.
-const OTELTraceParentEnvVar = "TRACEPARENT"
+const traceParentEnvVar = "TRACEPARENT"
 
-// OTELTraceStateEnvVar is the env var that should be used to instruct opentofu which
+// traceStateEnvVar is the env var that should be used to instruct opentofu which
 // trace state to use.
-const OTELTraceStateEnvVar = "TRACESTATE"
+const traceStateEnvVar = "TRACESTATE"
 
 // isTracingEnabled is true if OpenTelemetry is enabled.
 var isTracingEnabled bool
@@ -116,24 +116,21 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 	}
 
 	// Check if the trace parent/state environment variable is set and extract it into our context
-	if traceparent := os.Getenv(OTELTraceParentEnvVar); traceparent != "" {
+	if traceparent := os.Getenv(traceParentEnvVar); traceparent != "" {
 		log.Printf("[TRACE] OpenTelemetry: found trace parent in environment: %s", traceparent)
 		// Create a carrier that contains the traceparent from environment variables
 		// The key is lowercase because the TraceContext propagator expects lowercase keys
-		envCarrier := &envMapCarrier{
-			values: map[string]string{
-				"traceparent": traceparent,
-			},
-		}
+		propCarrier := make(propagation.MapCarrier)
+		propCarrier.Set("traceparent", traceparent)
 
-		if tracestate := os.Getenv(OTELTraceStateEnvVar); tracestate != "" {
+		if tracestate := os.Getenv(traceStateEnvVar); tracestate != "" {
 			log.Printf("[TRACE] OpenTelemetry: found trace state in environment: %s", traceparent)
-			envCarrier.values["tracestate"] = tracestate
+			propCarrier.Set("tracestate", tracestate)
 		}
 
 		// Extract the trace context into the context
 		tc := propagation.TraceContext{}
-		ctx = tc.Extract(ctx, envCarrier)
+		ctx = tc.Extract(ctx, propCarrier)
 	}
 
 	exporter, err := autoexport.NewSpanExporter(ctx)
@@ -164,30 +161,4 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 	}))
 
 	return ctx, nil
-}
-
-// envMapCarrier is a simple implementation of the TextMapCarrier interface
-// that uses a map to store the key-value pairs.
-// This is used to carry the extracted traceparent and tracestate
-// from the environment variables into the context.
-type envMapCarrier struct {
-	values map[string]string
-}
-
-var _ propagation.TextMapCarrier = (*envMapCarrier)(nil)
-
-func (c *envMapCarrier) Get(key string) string {
-	return c.values[key]
-}
-
-func (c *envMapCarrier) Set(key, value string) {
-	c.values[key] = value
-}
-
-func (c *envMapCarrier) Keys() []string {
-	keys := make([]string, 0, len(c.values))
-	for k := range c.values {
-		keys = append(keys, k)
-	}
-	return keys
 }
