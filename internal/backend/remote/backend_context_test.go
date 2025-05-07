@@ -211,7 +211,10 @@ func TestRemoteContextWithVars(t *testing.T) {
 				key := "key"
 				v.Key = &key
 			}
-			b.client.Variables.Create(context.TODO(), workspaceID, *v)
+			_, err = b.client.Variables.Create(context.TODO(), workspaceID, *v)
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			_, _, diags := b.LocalRun(context.Background(), op)
 
@@ -430,7 +433,10 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 			}
 
 			for _, v := range test.remoteVariables {
-				b.client.Variables.Create(context.TODO(), workspaceID, *v)
+				_, err = b.client.Variables.Create(context.TODO(), workspaceID, *v)
+				if err != nil {
+					t.Fatal(err)
+				}
 			}
 
 			lr, _, diags := b.LocalRun(context.Background(), op)
