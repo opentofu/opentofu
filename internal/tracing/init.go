@@ -83,7 +83,7 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 	// that exporting should always be enabled and so will expect to find
 	// an OTLP server on localhost if no environment variables are set at all.
 	if os.Getenv(OTELExporterEnvVar) != "otlp" {
-		log.Printf(fmt.Sprintf("[TRACE] OpenTelemetry: %s not set, OTel tracing is not enabled", OTELExporterEnvVar))
+		log.Printf("[TRACE] OpenTelemetry: %s not set, OTel tracing is not enabled", OTELExporterEnvVar)
 		return ctx, nil // By default, we just discard all telemetry calls
 	}
 
