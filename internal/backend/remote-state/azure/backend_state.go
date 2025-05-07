@@ -28,12 +28,12 @@ const (
 )
 
 // getContextWithTimeout returns a context with timeout based on the timeoutSeconds
-func (b *Backend) getContextWithTimeout() (context.Context, context.CancelFunc) {
-	return context.WithTimeout(context.Background(), time.Duration(b.armClient.timeoutSeconds)*time.Second)
+func (b *Backend) getContextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(ctx, time.Duration(b.armClient.timeoutSeconds)*time.Second)
 }
 
-func (b *Backend) Workspaces(_ context.Context) ([]string, error) {
-	ctx, cancel := b.getContextWithTimeout()
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
+	ctx, cancel := b.getContextWithTimeout(ctx)
 	defer cancel()
 
 	client, err := b.armClient.getContainersClient(ctx)
@@ -50,12 +50,12 @@ func (b *Backend) Workspaces(_ context.Context) ([]string, error) {
 	return result, nil
 }
 
-func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
 
-	ctx, cancel := b.getContextWithTimeout()
+	ctx, cancel := b.getContextWithTimeout(ctx)
 	defer cancel()
 	client, err := b.armClient.getBlobClient(ctx)
 	if err != nil {
@@ -71,8 +71,8 @@ func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error 
 	return nil
 }
 
-func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
-	ctx, cancel := b.getContextWithTimeout()
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
+	ctx, cancel := b.getContextWithTimeout(ctx)
 	defer cancel()
 
 	blobClient, err := b.armClient.getBlobClient(ctx)
