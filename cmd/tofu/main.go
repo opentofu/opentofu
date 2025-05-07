@@ -70,7 +70,7 @@ func main() {
 func realMain() int {
 	defer logging.PanicHandler()
 
-	err := tracing.OpenTelemetryInit()
+	ctx, err := tracing.OpenTelemetryInit(context.Background())
 	if err != nil {
 		// openTelemetryInit can only fail if OpenTofu was run with an
 		// explicit environment variable to enable telemetry collection,
@@ -81,7 +81,6 @@ func realMain() int {
 		return 1
 	}
 	defer tracing.ForceFlush(5 * time.Second)
-	ctx := context.Background()
 
 	// At minimum, we emit a span covering the entire command execution.
 	ctx, span := tracing.Tracer().Start(ctx, "tofu")
