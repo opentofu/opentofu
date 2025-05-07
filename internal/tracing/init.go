@@ -174,6 +174,8 @@ type envMapCarrier struct {
 	values map[string]string
 }
 
+var _ propagation.TextMapCarrier = (*envMapCarrier)(nil)
+
 func (c *envMapCarrier) Get(key string) string {
 	return c.values[key]
 }
