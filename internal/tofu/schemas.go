@@ -95,9 +95,8 @@ func loadProviderSchemas(_ context.Context, schemas map[addrs.Provider]providers
 	ensure := func(fqn addrs.Provider) {
 		name := fqn.String()
 
-		// This span should be moved inside plugins.ProviderSchema, but that
-		// would require a lot of refactoring.
-		// For now, we should leave this commented out until the context is plumbed all the way through].
+		// TODO: move this span to be a part of the plugins.ProviderSchema call.
+		// For now, we should leave this commented out until the context is plumbed all the way through.
 		// If we introduce this span here now, it will create a lot of noise when schema's is re-fetched from the global cache.
 		// And this is not helpful for end users.
 		//_, span := tracing.Tracer().Start(ctx, "Get Provider Schema",
