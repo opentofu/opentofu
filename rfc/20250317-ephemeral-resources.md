@@ -137,6 +137,14 @@ locals {
 ```
 Because variable `b` is marked as `ephemeral`, then the local `a_and_b` is marked as `ephemeral` too.
 
+Locals marked as ephemeral are available during plan and apply phase and can be referenced only in specific contexts:
+* ephemeral variables
+* other ephemeral locals
+* write-only attributes
+* ephemeral resources
+* provider blocks configuration
+* `connection` and `provisioner` blocks
+
 ### Ephemeral resource
 In contrast with the write-only arguments where only specifically tagged attributes are skipped from the state/plan file, `ephemeral` resources are skipped entirely.
 This is adding a new idea of generating a resource every time. 
@@ -196,6 +204,65 @@ On the OpenTofu side the following needs to be tackled:
   * Test this in-depth for all the block types except sets of any kind (Investigate and understand why sets are not allowed by the plugin framework).
     * Add a new validation on the provider schema to check against, set nested attributes and set nested blocks with writeOnly=true. Tested this with a version of terraform-plugin-framework that allowed writeOnly on sets and there is an error returned. (set attributes are allowed based on my tests)
     In order to understand this better, maybe we should allow this for the moment and test OpenTofu with the [plugin-framework version](https://github.com/hashicorp/terraform-plugin-framework/commit/0724df105602e6b6676e201b7c0c5e1d187df990) that allows sets to be write-only=true.
+
+> [!INFO]
+>
+> Write-only attributes will be presented in the OpenTofu's UI as `(write-only attribute)` instead of the actual value.
+
+### Variables
+
+For enabling ephemeral variables, these are the basic steps that need to be taken:
+* Update config to support the `ephemeral` attribute.
+* Mark the variables with a new mark ensure that the marks are propagated correctly.
+* Based on the marks, ensure that the variable cannot be used in other contexts than the ephemeral ones (see the User Documentation section for more details on where this is allowed).
+
+We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
+
+### Outputs
+
+For enabling ephemeral outputs, these are the basic steps that need to be taken:
+* Update config to support the `ephemeral` attribute.
+* Mark the outputs with a new mark and ensure that the marks are propagated correctly.
+  * We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
+* Based on the marks, ensure that the output cannot be used in other contexts than the ephemeral ones (see the User Documentation section for more details on where this is allowed).
+
+> [!TIP]
+>
+> For an example on how to properly introduce a new mark in the outputs, you can check the [PR](https://github.com/opentofu/opentofu/pull/2633) for the deprecated outputs.
+
+Strict rules:
+* A root module cannot define ephemeral outputs since are useless.
+* Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too.
+
+Considering the rules above, root modules cannot have any ephemeral outputs defined.
+
+### Locals
+Any `local` declaration will be marked as ephemeral if in the expression that initialises it an ephemeral value is used:
+```hcl
+variable "var1" {
+  type = string
+}
+
+variable "var2" {
+  type = string
+}
+
+variable "var3" {
+  type      = string
+  ephemeral = true
+}
+
+locals {
+  eg1 = var.var1 == "" ? var.var2 : var.var1 // not ephemeral
+  eg2 = var.var2 // not ephemeral
+  eg3 = var.var3 == "" ? var.var2 : var.var1 // ephemeral because of var3 conditional
+  eg4 = var.var1 == "" ? var.var2 : var.var3 // ephemeral because of var3 usage
+  eg5 = "${var.var3}-${var.var1}" // ephemeral because of var3 usage
+  eg6 = local.eg4 // ephemeral because of eg4 is ephemeral
+}
+```
+
+Once a local is marked as ephemeral, this can be used only in other ephemeral contexts. Check the `User Documentation` section for more details on the allowed contexts.
 
 ## Open Questions
 
