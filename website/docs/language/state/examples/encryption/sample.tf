@@ -6,17 +6,17 @@ variable "passphrase" {
 terraform {
   encryption {
     ## Step 1: Add the desired key provider:
-    key_provider "pbkdf2" "mykey" {
+    key_provider "pbkdf2" "my_key_provider_name" {
       passphrase = var.passphrase
     }
     ## Step 2: Set up your encryption method:
-    method "aes_gcm" "new_method" {
-      keys = key_provider.pbkdf2.mykey
+    method "aes_gcm" "my_method_name" {
+      keys = key_provider.pbkdf2.my_key_provider_name
     }
 
     state {
       ## Step 3: Link the desired encryption method:
-      method = method.aes_gcm.new_method
+      method = method.aes_gcm.my_method_name
 
       ## Step 4: Run "tofu apply".
 
