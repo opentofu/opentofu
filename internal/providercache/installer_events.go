@@ -43,7 +43,7 @@ type InstallerEvents struct {
 	// This event can also appear after the QueryPackages... series if
 	// querying determines that a version already available is the newest
 	// available version.
-	ProviderAlreadyInstalled func(provider addrs.Provider, selectedVersion getproviders.Version)
+	ProviderAlreadyInstalled func(provider addrs.Provider, selectedVersion getproviders.Version, inProviderCache bool)
 
 	// The BuiltInProvider... family of events describe the outcome for any
 	// requested providers that are built in to OpenTofu. Only one of these
@@ -108,7 +108,7 @@ type InstallerEvents struct {
 	// The Query, Begin, Success, and Failure events will each occur only once
 	// per distinct provider.
 	FetchPackageMeta    func(provider addrs.Provider, version getproviders.Version) // fetching metadata prior to real download
-	FetchPackageBegin   func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation)
+	FetchPackageBegin   func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation, inProviderCache bool)
 	FetchPackageSuccess func(provider addrs.Provider, version getproviders.Version, localDir string, authResult *getproviders.PackageAuthenticationResult)
 	FetchPackageFailure func(provider addrs.Provider, version getproviders.Version, err error)
 

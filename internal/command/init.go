@@ -656,8 +656,12 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				"\n[reset][bold]Initializing provider plugins...",
 			))
 		},
-		ProviderAlreadyInstalled: func(provider addrs.Provider, selectedVersion getproviders.Version) {
-			c.Ui.Info(fmt.Sprintf("- Using previously-installed %s v%s", provider.ForDisplay(), selectedVersion))
+		ProviderAlreadyInstalled: func(provider addrs.Provider, selectedVersion getproviders.Version, inProviderCache bool) {
+			if inProviderCache {
+				c.Ui.Info(fmt.Sprintf("- Detected previously-installed %s v%s in the shared cache directory", provider.ForDisplay(), selectedVersion))
+			} else {
+				c.Ui.Info(fmt.Sprintf("- Using previously-installed %s v%s", provider.ForDisplay(), selectedVersion))
+			}
 		},
 		BuiltInProviderAvailable: func(provider addrs.Provider) {
 			c.Ui.Info(fmt.Sprintf("- %s is built in to OpenTofu", provider.ForDisplay()))
@@ -683,8 +687,12 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		LinkFromCacheBegin: func(provider addrs.Provider, version getproviders.Version, cacheRoot string) {
 			c.Ui.Info(fmt.Sprintf("- Using %s v%s from the shared cache directory", provider.ForDisplay(), version))
 		},
-		FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation) {
-			c.Ui.Info(fmt.Sprintf("- Installing %s v%s...", provider.ForDisplay(), version))
+		FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation, inProviderCache bool) {
+			if inProviderCache {
+				c.Ui.Info(fmt.Sprintf("- Installing %s v%s to the shared cache directory...", provider.ForDisplay(), version))
+			} else {
+				c.Ui.Info(fmt.Sprintf("- Installing %s v%s...", provider.ForDisplay(), version))
+			}
 		},
 		QueryPackagesFailure: func(provider addrs.Provider, err error) {
 			switch errorTy := err.(type) {

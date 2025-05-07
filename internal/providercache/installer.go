@@ -465,7 +465,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 			return nil, err
 		}
 
-		authResult, err := i.ensureProviderVersionInstall(traceCtx, locks, reqs, mode, provider, version, targetPlatform)
+		authResult, err := i.ensureProviderVersionInstalled(traceCtx, locks, reqs, mode, provider, version, targetPlatform)
 		if authResult != nil {
 			authResults[provider] = authResult
 		}
@@ -477,7 +477,7 @@ func (i *Installer) ensureProviderVersionsInstall(
 	return authResults, nil
 }
 
-func (i *Installer) ensureProviderVersionInstall(
+func (i *Installer) ensureProviderVersionInstalled(
 	ctx context.Context,
 	locks *depsfile.Locks,
 	reqs getproviders.Requirements,
@@ -488,6 +488,7 @@ func (i *Installer) ensureProviderVersionInstall(
 ) (*getproviders.PackageAuthenticationResult, error) {
 	evts := installerEventsForContext(ctx)
 	lock := locks.Provider(provider)
+
 	var preferredHashes []getproviders.Hash
 	if lock != nil && lock.Version() == version { // hash changes are expected if the version is also changing
 		preferredHashes = lock.PreferredHashes()
@@ -498,8 +499,107 @@ func (i *Installer) ensureProviderVersionInstall(
 		if len(preferredHashes) > 0 {
 			if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
 				if cb := evts.ProviderAlreadyInstalled; cb != nil {
-					cb(provider, version)
+					cb(provider, version, false)
 				}
+
+				// Even though the package is installed, the requirements in the lockfile may still need to be updated
+				locks.SetProvider(provider, version, reqs[provider], lock.AllHashes())
+
+				return nil, nil
+			}
+		}
+	}
+
+	var installTo, linkTo *Dir
+	if i.globalCacheDir != nil {
+		installTo = i.globalCacheDir
+		linkTo = i.targetDir
+	} else {
+		installTo = i.targetDir
+		linkTo = nil // no linking needed
+	}
+
+	result, err := i.ensureProviderVersionInDirectory(ctx, locks, reqs, mode, provider, version, targetPlatform, installTo)
+
+	if err != nil {
+		return result, err
+	}
+
+	if linkTo != nil {
+		if cb := evts.LinkFromCacheBegin; cb != nil {
+			cb(provider, version, installTo.BasePath())
+		}
+
+		// We don't do a hash check here because we already did that
+		// as part of the ensureProviderVersionInDirectory call above.
+		new := installTo.ProviderVersion(provider, version)
+		err := linkTo.LinkFromOtherCache(ctx, new, nil)
+		if err != nil {
+			if cb := evts.LinkFromCacheFailure; cb != nil {
+				cb(provider, version, err)
+			}
+			return nil, err
+		}
+
+		// We should now also find the package in the linkTo dir, which
+		// gives us the final value of "new" where the path points in to
+		// the true target directory, rather than possibly the global
+		// cache directory.
+		new = linkTo.ProviderVersion(provider, version)
+		if new == nil {
+			err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, linkTo.BasePath())
+			if cb := evts.LinkFromCacheFailure; cb != nil {
+				cb(provider, version, err)
+			}
+			return nil, err
+		}
+		if _, err := new.ExecutableFile(); err != nil {
+			err := fmt.Errorf("provider binary not found: %w", err)
+			if cb := evts.LinkFromCacheFailure; cb != nil {
+				cb(provider, version, err)
+			}
+			return nil, err
+		}
+
+		if cb := evts.LinkFromCacheSuccess; cb != nil {
+			cb(provider, version, new.PackageDir)
+		}
+	}
+
+	return result, err
+}
+
+func (i *Installer) ensureProviderVersionInDirectory(
+	ctx context.Context,
+	locks *depsfile.Locks,
+	reqs getproviders.Requirements,
+	mode InstallMode,
+	provider addrs.Provider,
+	version getproviders.Version,
+	targetPlatform getproviders.Platform,
+	installTo *Dir,
+) (*getproviders.PackageAuthenticationResult, error) {
+	evts := installerEventsForContext(ctx)
+	lock := locks.Provider(provider)
+
+	var preferredHashes []getproviders.Hash
+	if lock != nil && lock.Version() == version { // hash changes are expected if the version is also changing
+		preferredHashes = lock.PreferredHashes()
+	}
+
+	isGlobalCache := installTo == i.globalCacheDir
+
+	// If our target directory already has the provider version that fulfills the lock file, carry on
+	if installed := installTo.ProviderVersion(provider, version); installed != nil {
+		if len(preferredHashes) > 0 {
+			if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
+				if cb := evts.ProviderAlreadyInstalled; cb != nil {
+					cb(provider, version, isGlobalCache)
+				}
+
+				// Even though the package is installed, the requirements in the lockfile may still need to be updated
+				locks.SetProvider(provider, version, reqs[provider], lock.AllHashes())
+
 				return nil, nil
 			}
 		}
@@ -525,15 +625,7 @@ func (i *Installer) ensureProviderVersionInstall(
 	// either directly into our target directory or via the global cache
 	// directory.
 	if cb := evts.FetchPackageBegin; cb != nil {
-		cb(provider, version, meta.Location)
-	}
-	var installTo, linkTo *Dir
-	if i.globalCacheDir != nil {
-		installTo = i.globalCacheDir
-		linkTo = i.targetDir
-	} else {
-		installTo = i.targetDir
-		linkTo = nil // no linking needed
+		cb(provider, version, meta.Location, isGlobalCache)
 	}
 
 	allowedHashes := preferredHashes
@@ -541,7 +633,7 @@ func (i *Installer) ensureProviderVersionInstall(
 		allowedHashes = []getproviders.Hash{}
 	}
 
-	allowSkippingInstallWithoutHashes := i.globalCacheDirMayBreakDependencyLockFile && i.globalCacheDir != nil
+	allowSkippingInstallWithoutHashes := i.globalCacheDirMayBreakDependencyLockFile && isGlobalCache
 	authResult, err := installTo.InstallPackage(ctx, meta, allowedHashes, allowSkippingInstallWithoutHashes)
 	if err != nil {
 		// TODO: Consider retrying for certain kinds of error that seem
@@ -566,54 +658,6 @@ func (i *Installer) ensureProviderVersionInstall(
 			cb(provider, version, err)
 		}
 		return nil, err
-	}
-	if linkTo != nil {
-		if cb := evts.LinkFromCacheBegin; cb != nil {
-			cb(provider, version, installTo.BasePath())
-		}
-
-		// We don't do a hash check here because we already did that
-		// as part of the installTo.InstallPackage call above.
-		err := linkTo.LinkFromOtherCache(ctx, new, nil)
-		if err != nil {
-			if cb := evts.LinkFromCacheFailure; cb != nil {
-				cb(provider, version, err)
-			}
-			if cb := evts.FetchPackageFailure; cb != nil {
-				cb(provider, version, fmt.Errorf("installation failed due issues encountered using the cache"))
-			}
-			return nil, err
-		}
-
-		// We should now also find the package in the linkTo dir, which
-		// gives us the final value of "new" where the path points in to
-		// the true target directory, rather than possibly the global
-		// cache directory.
-		new = linkTo.ProviderVersion(provider, version)
-		if new == nil {
-			err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, linkTo.BasePath())
-			if cb := evts.LinkFromCacheFailure; cb != nil {
-				cb(provider, version, err)
-			}
-			if cb := evts.FetchPackageFailure; cb != nil {
-				cb(provider, version, fmt.Errorf("installation failed due issues encountered using the cache"))
-			}
-			return nil, err
-		}
-		if _, err := new.ExecutableFile(); err != nil {
-			err := fmt.Errorf("provider binary not found: %w", err)
-			if cb := evts.LinkFromCacheFailure; cb != nil {
-				cb(provider, version, err)
-			}
-			if cb := evts.FetchPackageFailure; cb != nil {
-				cb(provider, version, fmt.Errorf("installation failed due issues encountered using the cache"))
-			}
-			return nil, err
-		}
-
-		if cb := evts.LinkFromCacheSuccess; cb != nil {
-			cb(provider, version, new.PackageDir)
-		}
 	}
 
 	// The InstallPackage call above should've verified that
