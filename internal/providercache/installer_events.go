@@ -80,7 +80,7 @@ type InstallerEvents struct {
 	// a selected provider package from the system-wide shared cache into the
 	// current configuration's local cache.
 	//
-	// This sequence occurs within the FetchPackage... sequence if the
+	// This sequence occurs after the FetchPackage... sequence if the
 	// QueryPackages... sequence selects a version that is already in the
 	// system-wide cache, and thus we will skip fetching it from the
 	// originating provider source and take it from the shared cache instead.
@@ -102,7 +102,7 @@ type InstallerEvents struct {
 	// identifier to correlate between successive events.
 	//
 	// For each provider there will be a FetchPackage... sequence which may
-	// or may not contain a LinkFromCache... sequence, depending on whether
+	// or may not be followed by a LinkFromCache... sequence, depending on whether
 	// the "fetch" is coming from a real source or from an upstream cache.
 	//
 	// The Query, Begin, Success, and Failure events will each occur only once
