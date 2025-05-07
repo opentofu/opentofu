@@ -8,7 +8,7 @@ package method
 import "fmt"
 
 // ErrCryptoFailure indicates a generic cryptographic failure. This error should be embedded into
-// ErrEncryptionFailed or ErrDecryptionFailed.
+// ErrEncryptionFailed, ErrDecryptionFailed, or ErrInvalidConfiguration.
 type ErrCryptoFailure struct {
 	Message          string
 	Cause            error
