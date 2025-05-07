@@ -47,12 +47,6 @@ func (d *Dir) installPackageWithLock(ctx context.Context, meta getproviders.Pack
 
 	log.Printf("[TRACE] providercache.Dir.InstallPackage: installing %s v%s from %s", meta.Provider, meta.Version, meta.Location)
 
-	unlock, err := d.lock(ctx, meta.Provider, meta.Version)
-	if err != nil {
-		return nil, err
-	}
-	defer unlock()
-
 	// Check to see if it is already installed
 	if entry := d.ProviderVersion(meta.Provider, meta.Version); entry != nil {
 		if allowSkippingInstallWithoutHashes && len(allowedHashes) == 0 {
