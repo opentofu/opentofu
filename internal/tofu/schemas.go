@@ -10,9 +10,6 @@ import (
 	"fmt"
 	"log"
 
-	otelAttr "go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -20,7 +17,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
-	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // Schemas is a container for various kinds of schema that OpenTofu needs
@@ -93,18 +89,23 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 	return schemas, diags.Err()
 }
 
-func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
+func loadProviderSchemas(_ context.Context, schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	ensure := func(fqn addrs.Provider) {
 		name := fqn.String()
 
-		_, span := tracing.Tracer().Start(ctx, "Get Provider Schema",
-			trace.WithAttributes(
-				otelAttr.String(traceattrs.ProviderAddress, name),
-			),
-		)
-		defer span.End()
+		// This span should be moved inside plugins.ProviderSchema, but that
+		// would require a lot of refactoring.
+		// For now, we should leave this commented out until the context is plumbed all the way through].
+		// If we introduce this span here now, it will create a lot of noise when schema's is re-fetched from the global cache.
+		// And this is not helpful for end users.
+		//_, span := tracing.Tracer().Start(ctx, "Get Provider Schema",
+		//	trace.WithAttributes(
+		//		otelAttr.String(traceattrs.ProviderAddress, name),
+		//	),
+		//)
+		//defer span.End()
 
 		if _, exists := schemas[fqn]; exists {
 			return
@@ -124,7 +125,7 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 					fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
 				),
 			)
-			tracing.SetSpanError(span, diags)
+			//tracing.SetSpanError(span, diags)
 			return
 		}
 
