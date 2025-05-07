@@ -2457,8 +2457,6 @@ func TestEnsureProviderVersions_local_source(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			ctx := context.TODO()
-
 			provider := addrs.MustParseProviderSourceString(test.provider)
 			versionConstraint := getproviders.MustParseVersionConstraints(test.version)
 			version := getproviders.MustParseVersion(test.version)
@@ -2466,7 +2464,7 @@ func TestEnsureProviderVersions_local_source(t *testing.T) {
 				provider: versionConstraint,
 			}
 
-			newLocks, err := installer.EnsureProviderVersions(ctx, depsfile.NewLocks(), reqs, InstallNewProvidersOnly)
+			newLocks, err := installer.EnsureProviderVersions(t.Context(), depsfile.NewLocks(), reqs, InstallNewProvidersOnly)
 			gotProviderlocks := newLocks.AllProviders()
 			wantProviderLocks := map[addrs.Provider]*depsfile.ProviderLock{
 				provider: depsfile.NewProviderLock(
@@ -2553,8 +2551,7 @@ func TestEnsureProviderVersions_protocol_errors(t *testing.T) {
 			reqs := getproviders.Requirements{
 				test.provider: test.inputVersion,
 			}
-			ctx := context.TODO()
-			_, err := installer.EnsureProviderVersions(ctx, depsfile.NewLocks(), reqs, InstallNewProvidersOnly)
+			_, err := installer.EnsureProviderVersions(t.Context(), depsfile.NewLocks(), reqs, InstallNewProvidersOnly)
 
 			switch err := err.(type) {
 			case nil:
