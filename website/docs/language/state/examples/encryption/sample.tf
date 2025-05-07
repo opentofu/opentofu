@@ -1,6 +1,7 @@
 variable "passphrase" {
   # Change passphrase to be at least 16 characters long:
-  default = "changeme!"
+  default   = "changeme!"
+  sensitive = true
 }
 
 terraform {
