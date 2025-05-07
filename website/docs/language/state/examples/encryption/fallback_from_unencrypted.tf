@@ -9,18 +9,18 @@ terraform {
     method "unencrypted" "migrate" {}
 
     ## Step 2: Add the desired key provider:
-    key_provider "pbkdf2" "mykey" {
+    key_provider "pbkdf2" "my_key_provider_name" {
       passphrase = var.passphrase
     }
 
     ## Step 3: Add the desired encryption method:
-    method "aes_gcm" "new_method" {
-      keys = key_provider.pbkdf2.mykey
+    method "aes_gcm" "my_method_name" {
+      keys = key_provider.pbkdf2.my_key_provider_name
     }
 
     state {
       ## Step 4: Link the desired encryption method:
-      method = method.aes_gcm.new_method
+      method = method.aes_gcm.my_method_name
 
       ## Step 5: Add the "fallback" block referencing the
       ## "unencrypted" method.

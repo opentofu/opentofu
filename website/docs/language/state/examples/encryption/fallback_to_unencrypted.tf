@@ -1,7 +1,7 @@
 terraform {
   encryption {
     ## Step 1: Leave the original encryption method unchanged:
-    method "some_method" "old_method" {
+    method "some_method_type" "old_method_name" {
       ## Parameters for the old method here.
     }
 
@@ -14,7 +14,7 @@ terraform {
 
       ## Step 4: Move the original encryption method into the "fallback" block:
       fallback {
-        method = method.some_method.old_method
+        method = method.some_method_type.old_method_name
       }
 
       ## Step 5: Reference the unencrypted method as your primary "encryption" method.
