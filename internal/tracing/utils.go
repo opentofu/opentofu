@@ -81,14 +81,14 @@ func ForceFlush(timeout time.Duration) {
 
 	provider, ok := otel.GetTracerProvider().(*sdktrace.TracerProvider)
 	if !ok {
-		log.Printf("[DEBUG] OpenTelemetry: tracer provider is not an SDK provider, can't force flush")
+		log.Printf("[TRACE] OpenTelemetry: tracer provider is not an SDK provider, can't force flush")
 		return
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	log.Printf("[DEBUG] OpenTelemetry: flushing spans")
+	log.Printf("[TRACE] OpenTelemetry: flushing spans")
 	if err := provider.ForceFlush(ctx); err != nil {
 		log.Printf("[WARN] OpenTelemetry: error flushing spans: %v", err)
 	}

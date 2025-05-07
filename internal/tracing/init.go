@@ -39,6 +39,18 @@ better based on experience with this experiment.
 // then we'll enable an experimental OTLP trace exporter.
 const OTELExporterEnvVar = "OTEL_TRACES_EXPORTER"
 
+// traceParentEnvVar is the env var that should be used to instruct opentofu which
+// trace parent to use.
+// If this environment variable is set when running OpenTofu CLI
+// then we'll extract the traceparent from the environment and add it to the context.
+// This ensures that all opentofu traces are linked to the trace that invoked
+// this command.
+const traceParentEnvVar = "TRACEPARENT"
+
+// traceStateEnvVar is the env var that should be used to instruct opentofu which
+// trace state to use.
+const traceStateEnvVar = "TRACESTATE"
+
 // isTracingEnabled is true if OpenTelemetry is enabled.
 var isTracingEnabled bool
 
@@ -60,14 +72,19 @@ var isTracingEnabled bool
 // means another relatively-heavy external dependency. OTLP happens to use
 // protocol buffers and gRPC, which OpenTofu would depend on for other reasons
 // anyway.
-func OpenTelemetryInit() error {
+//
+// Returns the context with trace context extracted from environment variables
+// if TRACEPARENT is set.
+func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 	isTracingEnabled = false
+
 	// We'll check the environment variable ourselves first, because the
 	// "autoexport" helper we're about to use is built under the assumption
 	// that exporting should always be enabled and so will expect to find
 	// an OTLP server on localhost if no environment variables are set at all.
 	if os.Getenv(OTELExporterEnvVar) != "otlp" {
-		return nil // By default, we just discard all telemetry calls
+		log.Printf("[TRACE] OpenTelemetry: %s not set, OTel tracing is not enabled", OTELExporterEnvVar)
+		return ctx, nil // By default, we just discard all telemetry calls
 	}
 
 	isTracingEnabled = true
@@ -95,12 +112,30 @@ func OpenTelemetryInit() error {
 		),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to create resource: %w", err)
+		return ctx, fmt.Errorf("failed to create resource: %w", err)
 	}
 
-	exporter, err := autoexport.NewSpanExporter(context.Background())
+	// Check if the trace parent/state environment variable is set and extract it into our context
+	if traceparent := os.Getenv(traceParentEnvVar); traceparent != "" {
+		log.Printf("[TRACE] OpenTelemetry: found trace parent in environment: %s", traceparent)
+		// Create a carrier that contains the traceparent from environment variables
+		// The key is lowercase because the TraceContext propagator expects lowercase keys
+		propCarrier := make(propagation.MapCarrier)
+		propCarrier.Set("traceparent", traceparent)
+
+		if tracestate := os.Getenv(traceStateEnvVar); tracestate != "" {
+			log.Printf("[TRACE] OpenTelemetry: found trace state in environment: %s", traceparent)
+			propCarrier.Set("tracestate", tracestate)
+		}
+
+		// Extract the trace context into the context
+		tc := propagation.TraceContext{}
+		ctx = tc.Extract(ctx, propCarrier)
+	}
+
+	exporter, err := autoexport.NewSpanExporter(ctx)
 	if err != nil {
-		return err
+		return ctx, err
 	}
 
 	// Set the global tracer provider, this allows us to use this global TracerProvider
@@ -114,6 +149,7 @@ func OpenTelemetryInit() error {
 	)
 	otel.SetTracerProvider(provider)
 
+	// Create a composite propagator that includes both TraceContext and Baggage
 	prop := propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{})
 	otel.SetTextMapPropagator(prop)
 
@@ -124,5 +160,5 @@ func OpenTelemetryInit() error {
 		panic(fmt.Sprintf("OpenTelemetry error: %v", err))
 	}))
 
-	return nil
+	return ctx, nil
 }
