@@ -880,7 +880,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			GenerateConfigPath:      opts.GenerateConfigPath,
 			RemoveStatements:        opts.RemoveStatements,
 			ProviderFunctionTracker: providerFunctionTracker,
-		}).Build(addrs.RootModuleInstance)
+		}).Build(context.TODO(), addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.RefreshOnlyMode:
 		graph, diags := (&PlanGraphBuilder{
@@ -895,7 +895,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			Operation:               walkPlan,
 			ExternalReferences:      opts.ExternalReferences,
 			ProviderFunctionTracker: providerFunctionTracker,
-		}).Build(addrs.RootModuleInstance)
+		}).Build(context.TODO(), addrs.RootModuleInstance)
 		return graph, walkPlan, diags
 	case plans.DestroyMode:
 		graph, diags := (&PlanGraphBuilder{
@@ -908,7 +908,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 			skipRefresh:             opts.SkipRefresh,
 			Operation:               walkPlanDestroy,
 			ProviderFunctionTracker: providerFunctionTracker,
-		}).Build(addrs.RootModuleInstance)
+		}).Build(context.TODO(), addrs.RootModuleInstance)
 		return graph, walkPlanDestroy, diags
 	default:
 		// The above should cover all plans.Mode values

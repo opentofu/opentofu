@@ -266,7 +266,7 @@ func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunSta
 	}
 
 	// Build the graph
-	graph, graphDiags := builder.Build(addrs.RootModuleInstance)
+	graph, graphDiags := builder.Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(graphDiags)
 	if graphDiags.HasErrors() {
 		return state, diags

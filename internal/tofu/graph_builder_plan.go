@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -101,12 +102,12 @@ type PlanGraphBuilder struct {
 }
 
 // See GraphBuilder
-func (b *PlanGraphBuilder) Build(path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
+func (b *PlanGraphBuilder) Build(ctx context.Context, path addrs.ModuleInstance) (*Graph, tfdiags.Diagnostics) {
 	log.Printf("[TRACE] building graph for %s", b.Operation)
 	return (&BasicGraphBuilder{
 		Steps: b.Steps(),
 		Name:  "PlanGraphBuilder",
-	}).Build(path)
+	}).Build(ctx, path)
 }
 
 // See GraphBuilder

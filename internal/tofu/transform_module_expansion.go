@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -31,7 +32,7 @@ type ModuleExpansionTransformer struct {
 	closers map[string]*nodeCloseModule
 }
 
-func (t *ModuleExpansionTransformer) Transform(g *Graph) error {
+func (t *ModuleExpansionTransformer) Transform(_ context.Context, g *Graph) error {
 	t.closers = make(map[string]*nodeCloseModule)
 
 	// Construct a tree for fast lookups of Vertices based on their ModulePath.

@@ -112,7 +112,7 @@ type ProviderTransformer struct {
 	Config *configs.Config
 }
 
-func (t *ProviderTransformer) Transform(g *Graph) error {
+func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	// We need to find a provider configuration address for each resource
 	// either directly represented by a node or referenced by a node in
 	// the graph, and then create graph edges from provider to provider user
@@ -292,7 +292,7 @@ type ProviderFunctionTransformer struct {
 	ProviderFunctionTracker ProviderFunctionMapping
 }
 
-func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
+func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) error {
 	var diags tfdiags.Diagnostics
 
 	if t.Config == nil {
@@ -426,7 +426,7 @@ func (t *ProviderFunctionTransformer) Transform(g *Graph) error {
 // in the graph are evaluated.
 type CloseProviderTransformer struct{}
 
-func (t *CloseProviderTransformer) Transform(g *Graph) error {
+func (t *CloseProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	pm := providerVertexMap(g)
 	cpm := make(map[string]*graphNodeCloseProvider)
 	var err error
@@ -485,7 +485,7 @@ type MissingProviderTransformer struct {
 	Concrete ConcreteProviderNodeFunc
 }
 
-func (t *MissingProviderTransformer) Transform(g *Graph) error {
+func (t *MissingProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	// Initialize factory
 	if t.Concrete == nil {
 		t.Concrete = func(a *NodeAbstractProvider) dag.Vertex {
@@ -538,7 +538,7 @@ func (t *MissingProviderTransformer) Transform(g *Graph) error {
 // configuration may imply initialization which may require auth.
 type PruneProviderTransformer struct{}
 
-func (t *PruneProviderTransformer) Transform(g *Graph) error {
+func (t *PruneProviderTransformer) Transform(_ context.Context, g *Graph) error {
 	for _, v := range g.Vertices() {
 		// We only care about providers
 		_, ok := v.(GraphNodeProvider)
@@ -688,7 +688,7 @@ type ProviderConfigTransformer struct {
 	Config *configs.Config
 }
 
-func (t *ProviderConfigTransformer) Transform(g *Graph) error {
+func (t *ProviderConfigTransformer) Transform(_ context.Context, g *Graph) error {
 	// If no configuration is given, we don't do anything
 	if t.Config == nil {
 		return nil

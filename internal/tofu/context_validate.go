@@ -76,7 +76,7 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		RootVariableValues:      varValues,
 		Operation:               walkValidate,
 		ProviderFunctionTracker: providerFunctionTracker,
-	}).Build(addrs.RootModuleInstance)
+	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags

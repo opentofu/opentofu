@@ -55,7 +55,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -109,7 +109,7 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -163,7 +163,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -227,7 +227,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{mustResourceInstanceAddr("aws_instance.foo[0]")},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -291,7 +291,7 @@ func TestOrphanResourceCountTransformer_ForEachEdgesAdded(t *testing.T) {
 			InstanceAddrs: []addrs.AbsResourceInstance{},
 			State:         state,
 		}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}

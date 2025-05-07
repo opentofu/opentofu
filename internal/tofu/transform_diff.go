@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -48,7 +49,7 @@ func (t *DiffTransformer) hasConfigConditions(addr addrs.AbsResourceInstance) bo
 	return len(res.Preconditions) > 0 || len(res.Postconditions) > 0
 }
 
-func (t *DiffTransformer) Transform(g *Graph) error {
+func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.Changes == nil || len(t.Changes.Resources) == 0 {
 		// Nothing to do!
 		return nil

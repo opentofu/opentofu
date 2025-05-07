@@ -24,7 +24,7 @@ import (
 func TestDiffTransformer_nilDiff(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	tf := &DiffTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -67,7 +67,7 @@ func TestDiffTransformer(t *testing.T) {
 			},
 		},
 	}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -162,7 +162,7 @@ resource "aws_instance" "foo" {
 			},
 		},
 	}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -181,7 +181,7 @@ func TestTransformRemovedProvisioners(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	module := testModule(t, "transform-diff-creates-destroy-node")
 
-	err := (&ConfigTransformer{Config: module}).Transform(&g)
+	err := (&ConfigTransformer{Config: module}).Transform(t.Context(), &g)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +200,7 @@ func TestTransformRemovedProvisioners(t *testing.T) {
 				},
 			},
 		},
-	}).Transform(&g)
+	}).Transform(t.Context(), &g)
 	if err != nil {
 		t.Fatal(err)
 	}

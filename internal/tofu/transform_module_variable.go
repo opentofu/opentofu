@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/zclconf/go-cty/cty"
@@ -33,7 +34,7 @@ type ModuleVariableTransformer struct {
 	Config *configs.Config
 }
 
-func (t *ModuleVariableTransformer) Transform(g *Graph) error {
+func (t *ModuleVariableTransformer) Transform(_ context.Context, g *Graph) error {
 	return t.transform(g, nil, t.Config)
 }
 

@@ -218,7 +218,7 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerF
 		Operation:               operation,
 		ExternalReferences:      plan.ExternalReferences,
 		ProviderFunctionTracker: providerFunctionTracker,
-	}).Build(addrs.RootModuleInstance)
+	}).Build(context.TODO(), addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, walkApply, diags
