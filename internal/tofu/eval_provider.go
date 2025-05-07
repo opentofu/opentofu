@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -140,7 +141,7 @@ func getProvider(ctx EvalContext, addr addrs.AbsProviderConfig, providerKey addr
 	}
 	// Not all callers require a schema, so we will leave checking for a nil
 	// schema to the callers.
-	schema, err := ctx.ProviderSchema(addr)
+	schema, err := ctx.ProviderSchema(context.TODO(), addr)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, fmt.Errorf("failed to read schema for provider %s: %w", addr, err)
 	}
