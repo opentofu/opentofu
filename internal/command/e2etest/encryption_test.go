@@ -45,10 +45,22 @@ func (r tofuResult) Failure() tofuResult {
 	return r
 }
 
+func SanitizeStderr(msg string) string {
+	// ANSI escape sequence regex for removing terminal color codes and control characters
+	msg = stripAnsi(msg)
+	//Pipe and carriage return replacement in order to correctly sanitze the stderr output
+	msg = strings.ReplaceAll(
+		strings.ReplaceAll(msg, "│", ""),
+		"\n", "",
+	)
+	return msg
+}
+
 func (r tofuResult) StderrContains(msg string) tofuResult {
-	if !strings.Contains(r.stderr, msg) {
+	stdErrSanitized := SanitizeStderr(r.stderr)
+	if !strings.Contains(stdErrSanitized, msg) {
 		debug.PrintStack()
-		r.t.Fatalf("expected stderr output %q:\n%s", msg, r.stderr)
+		r.t.Fatalf("expected stderr output %q:\n%s", msg, stdErrSanitized)
 	}
 	return r
 }
@@ -204,6 +216,7 @@ func TestEncryptionFlow(t *testing.T) {
 		requireEncryptedState()
 
 		applyPlan(encryptedPlan).Failure().StderrContains("decryption failed: cipher: message authentication failed")
+
 		requireEncryptedState()
 	})
 
