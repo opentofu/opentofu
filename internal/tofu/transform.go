@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/logging"
@@ -14,18 +15,18 @@ import (
 // GraphTransformer is the interface that transformers implement. This
 // interface is only for transforms that need entire graph visibility.
 type GraphTransformer interface {
-	Transform(*Graph) error
+	Transform(context.Context, *Graph) error
 }
 
 type graphTransformerMulti struct {
 	Transforms []GraphTransformer
 }
 
-func (t *graphTransformerMulti) Transform(g *Graph) error {
+func (t *graphTransformerMulti) Transform(ctx context.Context, g *Graph) error {
 	var lastStepStr string
 	for _, t := range t.Transforms {
 		log.Printf("[TRACE] (graphTransformerMulti) Executing graph transform %T", t)
-		if err := t.Transform(g); err != nil {
+		if err := t.Transform(ctx, g); err != nil {
 			return err
 		}
 

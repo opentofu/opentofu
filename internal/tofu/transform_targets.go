@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -35,7 +36,7 @@ type TargetingTransformer struct {
 	Excludes []addrs.Targetable
 }
 
-func (t *TargetingTransformer) Transform(g *Graph) error {
+func (t *TargetingTransformer) Transform(_ context.Context, g *Graph) error {
 	var targetedNodes dag.Set
 	if len(t.Targets) > 0 {
 		targetedNodes = t.selectTargetedNodes(g, t.Targets)

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -434,6 +435,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 		Steps: steps,
 		Name:  "nodeExpandPlannableResource",
 	}
-	graph, graphDiags := b.Build(addr.Module)
+	graph, graphDiags := b.Build(context.TODO(), addr.Module)
 	return graph, diags.Append(graphDiags).ErrWithWarnings()
 }

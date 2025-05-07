@@ -53,7 +53,7 @@ type AttachSchemaTransformer struct {
 	Config  *configs.Config
 }
 
-func (t *AttachSchemaTransformer) Transform(g *Graph) error {
+func (t *AttachSchemaTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.Plugins == nil {
 		// Should never happen with a reasonable caller, but we'll return a
 		// proper error here anyway so that we'll fail gracefully.

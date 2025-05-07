@@ -79,7 +79,7 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 		RootVariableValues:      variables,
 		Plugins:                 c.plugins,
 		ProviderFunctionTracker: providerFunctionTracker,
-	}).Build(addrs.RootModuleInstance)
+	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags

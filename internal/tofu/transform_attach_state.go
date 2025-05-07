@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/dag"
@@ -34,7 +35,7 @@ type AttachStateTransformer struct {
 	State *states.State // State is the root state
 }
 
-func (t *AttachStateTransformer) Transform(g *Graph) error {
+func (t *AttachStateTransformer) Transform(_ context.Context, g *Graph) error {
 	// If no state, then nothing to do
 	if t.State == nil {
 		log.Printf("[DEBUG] Not attaching any node states: overall state is nil")

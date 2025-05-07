@@ -18,12 +18,12 @@ func TestModuleTransformAttachConfigTransformer(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	module := testModule(t, "transform-attach-config")
 
-	err := (&ConfigTransformer{Config: module}).Transform(&g)
+	err := (&ConfigTransformer{Config: module}).Transform(t.Context(), &g)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = (&AttachResourceConfigTransformer{Config: module}).Transform(&g)
+	err = (&AttachResourceConfigTransformer{Config: module}).Transform(t.Context(), &g)
 	if err != nil {
 		t.Fatal(err)
 	}
