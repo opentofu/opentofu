@@ -227,6 +227,12 @@ func TestNodeApplyableOutputExecute_sensitiveValueAndOutput(t *testing.T) {
 	}
 }
 
+func TestNodeSensitiveValueChange(t *testing.T) {
+	if got, want := "", "Warning: Previously sensitive output variable is now made insensitive."; !strings.Contains(got, want) {
+		t.Errorf("sensitivity warning not respected\n got: %#v\nwant: %#v", got, want)
+	}
+}
+
 func TestNodeDestroyableOutputExecute(t *testing.T) {
 	outputAddr := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
 
