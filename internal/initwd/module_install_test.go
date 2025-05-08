@@ -183,7 +183,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 	// the esoteric legacy support for treating an absolute filesystem path
 	// as if it were a "remote package". This should not use any of the
 	// truly-"remote" module sources, even though it technically has access to.
-	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(nil))
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(t.Context(), nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -223,7 +223,7 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 	// the esoteric legacy support for treating an absolute filesystem path
 	// as if it were a "remote package". This should not use any of the
 	// truly-"remote" module sources, even though it technically has access to.
-	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(nil))
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(t.Context(), nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if diags.HasErrors() {
