@@ -507,10 +507,10 @@ func getStateFromPath(path string, enc encryption.Encryption) (*statefile.File, 
 
 // getStateFromBackend returns the State for the current workspace, if available.
 func getStateFromBackend(ctx context.Context, b backend.Backend, workspace string) (*statefile.File, error) {
-	_, span := tracing.Tracer().Start(ctx, "Get State from Backend")
+	ctx, span := tracing.Tracer().Start(ctx, "Get State from Backend")
 	defer span.End()
 	// Get the state store for the given workspace
-	stateStore, err := b.StateMgr(context.TODO(), workspace)
+	stateStore, err := b.StateMgr(ctx, workspace)
 	if err != nil {
 		tracing.SetSpanError(span, err)
 		return nil, fmt.Errorf("failed to load state manager: %w", err)

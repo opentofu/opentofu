@@ -95,7 +95,7 @@ type BackendWithRemoteTerraformVersion interface {
 func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	_, span := tracing.Tracer().Start(ctx, "Initialize Backend")
+	ctx, span := tracing.Tracer().Start(ctx, "Initialize Backend")
 	defer span.End()
 
 	// If no opts are set, then initialize
