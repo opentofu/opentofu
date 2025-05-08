@@ -50,11 +50,14 @@ func installerLogEventsForTests(into chan<- *testInstallerEventLogItem) *Install
 				Args:  reqs,
 			}
 		},
-		ProviderAlreadyInstalled: func(provider addrs.Provider, selectedVersion getproviders.Version) {
+		ProviderAlreadyInstalled: func(provider addrs.Provider, selectedVersion getproviders.Version, inCache bool) {
 			into <- &testInstallerEventLogItem{
 				Event:    "ProviderAlreadyInstalled",
 				Provider: provider,
-				Args:     selectedVersion,
+				Args: struct {
+					Version getproviders.Version
+					InCache bool
+				}{Version: selectedVersion, InCache: inCache},
 			}
 		},
 		BuiltInProviderAvailable: func(provider addrs.Provider) {
@@ -138,14 +141,15 @@ func installerLogEventsForTests(into chan<- *testInstallerEventLogItem) *Install
 				Args:     version.String(),
 			}
 		},
-		FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation) {
+		FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation, inCache bool) {
 			into <- &testInstallerEventLogItem{
 				Event:    "FetchPackageBegin",
 				Provider: provider,
 				Args: struct {
 					Version  string
 					Location getproviders.PackageLocation
-				}{version.String(), location},
+					InCache  bool
+				}{version.String(), location, inCache},
 			}
 		},
 		FetchPackageSuccess: func(provider addrs.Provider, version getproviders.Version, localDir string, authResult *getproviders.PackageAuthenticationResult) {

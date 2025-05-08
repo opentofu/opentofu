@@ -7,9 +7,15 @@ package providercache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
+	"time"
 
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/flock"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
@@ -21,7 +27,17 @@ import (
 // in the set must match the package that "entry" refers to. If none of the
 // hashes match then the returned error message assumes that the hashes came
 // from a lock file.
-func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta, allowedHashes []getproviders.Hash) (*getproviders.PackageAuthenticationResult, error) {
+func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta, allowedHashes []getproviders.Hash, allowSkippingInstallWithoutHashes bool) (*getproviders.PackageAuthenticationResult, error) {
+	unlock, err := d.lock(ctx, meta.Provider, meta.Version)
+	if err != nil {
+		return nil, err
+	}
+
+	install, installErr := d.installPackageWithLock(ctx, meta, allowedHashes, allowSkippingInstallWithoutHashes)
+
+	return install, errors.Join(installErr, unlock())
+}
+func (d *Dir) installPackageWithLock(ctx context.Context, meta getproviders.PackageMeta, allowedHashes []getproviders.Hash, allowSkippingInstallWithoutHashes bool) (*getproviders.PackageAuthenticationResult, error) {
 	if meta.TargetPlatform != d.targetPlatform {
 		return nil, fmt.Errorf("can't install %s package into cache directory expecting %s", meta.TargetPlatform, d.targetPlatform)
 	}
@@ -30,6 +46,22 @@ func (d *Dir) InstallPackage(ctx context.Context, meta getproviders.PackageMeta,
 	)
 
 	log.Printf("[TRACE] providercache.Dir.InstallPackage: installing %s v%s from %s", meta.Provider, meta.Version, meta.Location)
+
+	// Check to see if it is already installed
+	if entry := d.ProviderVersion(meta.Provider, meta.Version); entry != nil {
+		if allowSkippingInstallWithoutHashes && len(allowedHashes) == 0 {
+			// Ensure that the provider exists
+			if _, err := entry.ExecutableFile(); err == nil {
+				return nil, nil
+			}
+		}
+
+		if matches, err := entry.MatchesAnyHash(allowedHashes); err == nil && matches {
+			// No auth result needed, package is valid
+			return getproviders.NewPackageHashAuthentication(meta.TargetPlatform, allowedHashes).AuthenticatePackage(entry.PackageLocation())
+		}
+	}
+
 	return meta.Location.InstallProviderPackage(ctx, meta, newPath, allowedHashes)
 }
 
@@ -90,4 +122,74 @@ func (d *Dir) LinkFromOtherCache(ctx context.Context, entry *CachedProvider, all
 	// of the source directory above.
 	_, err := meta.Location.InstallProviderPackage(ctx, meta, newPath, nil)
 	return err
+}
+
+func (d *Dir) lock(ctx context.Context, provider addrs.Provider, version getproviders.Version) (func() error, error) {
+	providerPath := getproviders.UnpackedDirectoryPathForPackage(d.baseDir, provider, version, d.targetPlatform)
+
+	// If the lockfile is put within the target directory, it can mess with hashing
+	// Instead we add a suffix to the last part of the path (targetplatform) and lock that file instead.
+	dirPath := filepath.Dir(providerPath)
+	lockFileName := filepath.Base(providerPath) + ".lock"
+	lockFile := filepath.Join(dirPath, lockFileName)
+
+	log.Printf("[TRACE] Attempting to acquire global provider lock %s", lockFile)
+
+	// Ensure the provider directory exists
+	//nolint: mnd // directory permissions
+	if err := os.MkdirAll(dirPath, 0755); err != nil {
+		return nil, err
+	}
+
+	// Try to get a handle to the file (or create if it does not exist)
+	// They will all end up with the same file handle on any correctly implemented filesystem.
+	// This is one of the many reasons we recommend users look at the flock support of their
+	// networked filesystems when using the global provider cache.
+	// Windows: even though out flock creates an exclusive lock, we are still able to open a handle to this file and wait below for the actual lock to be provided.
+	f, err := os.OpenFile(lockFile, os.O_RDWR|os.O_CREATE, 0644)
+	if err != nil {
+		return nil, err
+	}
+
+	// Wait for the file lock for up to 60s.  Might make sense to have the timeout be configurable for different network conditions / package sizes.
+	for timeout := time.After(time.Second * 60); ; {
+		// We have a valid file handle, let's try to lock it (nonblocking)
+		err := flock.Lock(f)
+		if err == nil {
+			// Lock succeeded
+			break
+		}
+
+		select {
+		case <-timeout:
+			if f != nil {
+				f.Close()
+			}
+			return nil, fmt.Errorf("unable to acquire file lock on %q: %w", lockFile, err)
+		case <-ctx.Done():
+			if f != nil {
+				f.Close()
+			}
+			return nil, ctx.Err()
+		default:
+			// Chill for a bit before trying again
+			time.Sleep(100 * time.Millisecond)
+		}
+
+	}
+
+	log.Printf("[TRACE] Acquired global provider lock %s", lockFile)
+
+	return func() error {
+		log.Printf("[TRACE] Releasing global provider lock %s", lockFile)
+
+		unlockErr := flock.Unlock(f)
+
+		// Prefer close error over unlock error
+		err := f.Close()
+		if err != nil {
+			return err
+		}
+		return unlockErr
+	}, nil
 }

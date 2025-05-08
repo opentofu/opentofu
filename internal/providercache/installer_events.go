@@ -43,7 +43,7 @@ type InstallerEvents struct {
 	// This event can also appear after the QueryPackages... series if
 	// querying determines that a version already available is the newest
 	// available version.
-	ProviderAlreadyInstalled func(provider addrs.Provider, selectedVersion getproviders.Version)
+	ProviderAlreadyInstalled func(provider addrs.Provider, selectedVersion getproviders.Version, inProviderCache bool)
 
 	// The BuiltInProvider... family of events describe the outcome for any
 	// requested providers that are built in to OpenTofu. Only one of these
@@ -80,7 +80,7 @@ type InstallerEvents struct {
 	// a selected provider package from the system-wide shared cache into the
 	// current configuration's local cache.
 	//
-	// This sequence occurs instead of the FetchPackage... sequence if the
+	// This sequence occurs after the FetchPackage... sequence if the
 	// QueryPackages... sequence selects a version that is already in the
 	// system-wide cache, and thus we will skip fetching it from the
 	// originating provider source and take it from the shared cache instead.
@@ -101,13 +101,14 @@ type InstallerEvents struct {
 	// provider, so a caller can use the provider argument as a unique
 	// identifier to correlate between successive events.
 	//
-	// A particular provider will either notify the LinkFromCache... events
-	// or the FetchPackage... events, never both in the same install operation.
+	// For each provider there will be a FetchPackage... sequence which may
+	// or may not be followed by a LinkFromCache... sequence, depending on whether
+	// the "fetch" is coming from a real source or from an upstream cache.
 	//
 	// The Query, Begin, Success, and Failure events will each occur only once
 	// per distinct provider.
 	FetchPackageMeta    func(provider addrs.Provider, version getproviders.Version) // fetching metadata prior to real download
-	FetchPackageBegin   func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation)
+	FetchPackageBegin   func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation, inProviderCache bool)
 	FetchPackageSuccess func(provider addrs.Provider, version getproviders.Version, localDir string, authResult *getproviders.PackageAuthenticationResult)
 	FetchPackageFailure func(provider addrs.Provider, version getproviders.Version, err error)
 

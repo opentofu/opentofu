@@ -213,7 +213,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
-							}{"2.1.0", beepProviderDir},
+								InCache  bool
+							}{"2.1.0", beepProviderDir, false},
 						},
 						{
 							Event:    "ProvidersLockUpdated",
@@ -343,7 +344,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
-							}{"2.1.0", beepProviderZip},
+								InCache  bool
+							}{"2.1.0", beepProviderZip, false},
 						},
 						{
 							Event:    "ProvidersLockUpdated",
@@ -475,7 +477,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
-							}{"2.1.0", beepProviderDir},
+								InCache  bool
+							}{"2.1.0", beepProviderDir, true},
 						},
 						{
 							Event:    "ProvidersLockUpdated",
@@ -501,8 +504,30 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.Join(inst.globalCacheDir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
 								"unauthenticated",
+							},
+						},
+						{
+							Event:    "LinkFromCacheBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Version   string
+								CacheRoot string
+							}{
+								"2.1.0",
+								inst.globalCacheDir.BasePath(),
+							},
+						},
+						{
+							Event:    "LinkFromCacheSuccess",
+							Provider: beepProvider,
+							Args: struct {
+								Version  string
+								LocalDir string
+							}{
+								"2.1.0",
+								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
 							},
 						},
 					},
@@ -539,6 +564,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						Location:       beepProviderDir,
 					},
 					nil,
+					false,
 				)
 				if err != nil {
 					t.Fatalf("failed to populate global cache: %s", err)
@@ -617,9 +643,11 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
+								InCache  bool
 							}{
 								"2.1.0",
 								beepProviderDir,
+								true,
 							},
 						},
 						{
@@ -646,8 +674,30 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.Join(inst.globalCacheDir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
 								"unauthenticated",
+							},
+						},
+						{
+							Event:    "LinkFromCacheBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Version   string
+								CacheRoot string
+							}{
+								"2.1.0",
+								inst.globalCacheDir.BasePath(),
+							},
+						},
+						{
+							Event:    "LinkFromCacheSuccess",
+							Provider: beepProvider,
+							Args: struct {
+								Version  string
+								LocalDir string
+							}{
+								"2.1.0",
+								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
 							},
 						},
 					},
@@ -695,6 +745,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						Location:       beepProviderDir,
 					},
 					nil,
+					false,
 				)
 				if err != nil {
 					t.Fatalf("failed to populate global cache: %s", err)
@@ -759,6 +810,14 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args:     "2.1.0",
 						},
 						{
+							Event:    "ProviderAlreadyInstalled",
+							Provider: beepProvider,
+							Args: struct {
+								Version getproviders.Version
+								InCache bool
+							}{Version: getproviders.MustParseVersion("2.1.0"), InCache: true},
+						},
+						{
 							Event:    "LinkFromCacheBegin",
 							Provider: beepProvider,
 							Args: struct {
@@ -767,21 +826,6 @@ func TestEnsureProviderVersions(t *testing.T) {
 							}{
 								"2.1.0",
 								inst.globalCacheDir.BasePath(),
-							},
-						},
-						{
-							Event:    "ProvidersLockUpdated",
-							Provider: beepProvider,
-							Args: struct {
-								Version string
-								Local   []getproviders.Hash
-								Signed  []getproviders.Hash
-								Prior   []getproviders.Hash
-							}{
-								"2.1.0",
-								[]getproviders.Hash{"h1:2y06Ykj0FRneZfGCTxI9wRTori8iB7ZL5kQ6YyEnh84="},
-								nil,
-								[]getproviders.Hash{"h1:2y06Ykj0FRneZfGCTxI9wRTori8iB7ZL5kQ6YyEnh84="},
 							},
 						},
 						{
@@ -860,6 +904,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						Location:       beepProviderOtherPlatformDir,
 					},
 					nil,
+					false,
 				)
 				if err != nil {
 					t.Fatalf("failed to populate global cache: %s", err)
@@ -934,9 +979,11 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
+								InCache  bool
 							}{
 								"2.1.0",
 								beepProviderDir,
+								true,
 							},
 						},
 						{
@@ -963,8 +1010,30 @@ func TestEnsureProviderVersions(t *testing.T) {
 								AuthResult string
 							}{
 								"2.1.0",
-								filepath.Join(dir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
+								filepath.Join(inst.globalCacheDir.BasePath(), "/example.com/foo/beep/2.1.0/bleep_bloop"),
 								"unauthenticated",
+							},
+						},
+						{
+							Event:    "LinkFromCacheBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Version   string
+								CacheRoot string
+							}{
+								"2.1.0",
+								inst.globalCacheDir.BasePath(),
+							},
+						},
+						{
+							Event:    "LinkFromCacheSuccess",
+							Provider: beepProvider,
+							Args: struct {
+								Version  string
+								LocalDir string
+							}{
+								"2.1.0",
+								filepath.Join(dir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
 							},
 						},
 					},
@@ -1004,6 +1073,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						Location:       beepProviderDir,
 					},
 					nil,
+					false,
 				)
 				if err != nil {
 					t.Fatalf("failed to populate global cache: %s", err)
@@ -1069,15 +1139,18 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args:     "2.1.0",
 						},
 						{
-							Event:    "LinkFromCacheBegin",
+							Event:    "FetchPackageMeta",
+							Provider: beepProvider,
+							Args:     "2.1.0",
+						},
+						{
+							Event:    "FetchPackageBegin",
 							Provider: beepProvider,
 							Args: struct {
-								Version   string
-								CacheRoot string
-							}{
-								"2.1.0",
-								inst.globalCacheDir.BasePath(),
-							},
+								Version  string
+								Location getproviders.PackageLocation
+								InCache  bool
+							}{"2.1.0", beepProviderDir, true},
 						},
 						{
 							Event:    "ProvidersLockUpdated",
@@ -1092,6 +1165,30 @@ func TestEnsureProviderVersions(t *testing.T) {
 								[]getproviders.Hash{"h1:2y06Ykj0FRneZfGCTxI9wRTori8iB7ZL5kQ6YyEnh84="},
 								nil,
 								nil,
+							},
+						},
+						{
+							Event:    "FetchPackageSuccess",
+							Provider: beepProvider,
+							Args: struct {
+								Version    string
+								LocalDir   string
+								AuthResult string
+							}{
+								"2.1.0",
+								filepath.Join(inst.globalCacheDir.BasePath(), "example.com/foo/beep/2.1.0/bleep_bloop"),
+								"unauthenticated",
+							},
+						},
+						{
+							Event:    "LinkFromCacheBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Version   string
+								CacheRoot string
+							}{
+								"2.1.0",
+								inst.globalCacheDir.BasePath(),
 							},
 						},
 						{
@@ -1151,6 +1248,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						Location:       beepProviderDir,
 					},
 					nil,
+					false,
 				)
 				if err != nil {
 					t.Fatalf("failed to populate global cache: %s", err)
@@ -1218,18 +1316,21 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args:     "2.1.0",
 						},
 						{
-							Event:    "LinkFromCacheBegin",
+							Event:    "FetchPackageMeta",
 							Provider: beepProvider,
-							Args: struct {
-								Version   string
-								CacheRoot string
-							}{
-								"2.1.0",
-								inst.globalCacheDir.BasePath(),
-							},
+							Args:     "2.1.0",
 						},
 						{
-							Event:    "LinkFromCacheFailure",
+							Event:    "FetchPackageBegin",
+							Provider: beepProvider,
+							Args: struct {
+								Version  string
+								Location getproviders.PackageLocation
+								InCache  bool
+							}{"2.1.0", beepProviderDir, true},
+						},
+						{
+							Event:    "FetchPackageFailure",
 							Provider: beepProvider,
 							Args: struct {
 								Version string
@@ -1237,8 +1338,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							}{
 								"2.1.0",
 								fmt.Sprintf(
-									"the provider cache at %s has a copy of example.com/foo/beep 2.1.0 that doesn't match any of the checksums recorded in the dependency lock file",
-									dir.BasePath(),
+									"the local package for %s 2.1.0 doesn't match any of the checksums previously recorded in the dependency lock file (this might be because the available checksums are for packages targeting different platforms); for more information: https://opentofu.org/docs/language/files/dependency-lock/#checksum-verification",
+									beepProvider,
 								),
 							},
 						},
@@ -1347,7 +1448,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
-							}{"2.0.0", beepProviderDir},
+								InCache  bool
+							}{"2.0.0", beepProviderDir, false},
 						},
 						{
 							Event:    "ProvidersLockUpdated",
@@ -1412,6 +1514,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 						Location:       beepProviderDir,
 					},
 					nil,
+					false,
 				)
 				if err != nil {
 					t.Fatalf("installation to the test dir failed: %s", err)
@@ -1477,7 +1580,10 @@ func TestEnsureProviderVersions(t *testing.T) {
 						{
 							Event:    "ProviderAlreadyInstalled",
 							Provider: beepProvider,
-							Args:     versions.Version{Major: 2, Minor: 0, Patch: 0},
+							Args: struct {
+								Version getproviders.Version
+								InCache bool
+							}{versions.Version{Major: 2, Minor: 0, Patch: 0}, false},
 						},
 					},
 				}
@@ -1584,7 +1690,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
-							}{"2.1.0", beepProviderDir},
+								InCache  bool
+							}{"2.1.0", beepProviderDir, false},
 						},
 						{
 							Event:    "ProvidersLockUpdated",
@@ -1759,7 +1866,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
-							}{"1.0.0", beepProviderDir},
+								InCache  bool
+							}{"1.0.0", beepProviderDir, false},
 						},
 						{
 							Event:    "ProvidersLockUpdated",
@@ -2194,7 +2302,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
-							}{"1.0.0", beepProviderDir},
+								InCache  bool
+							}{"1.0.0", beepProviderDir, false},
 						},
 						{
 							Event:    "FetchPackageFailure",
@@ -2300,7 +2409,8 @@ func TestEnsureProviderVersions(t *testing.T) {
 							Args: struct {
 								Version  string
 								Location getproviders.PackageLocation
-							}{"1.0.0", beepProviderDir},
+								InCache  bool
+							}{"1.0.0", beepProviderDir, false},
 						},
 						{
 							Event:    "ProvidersLockUpdated",

@@ -227,7 +227,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		evts := &providercache.InstallerEvents{
 			// Our output from this command is minimal just to show that
 			// we're making progress, rather than just silently hanging.
-			FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, loc getproviders.PackageLocation) {
+			FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, loc getproviders.PackageLocation, inCacheDirectory bool) {
 				c.Ui.Output(fmt.Sprintf("- Fetching %s %s for %s...", provider.ForDisplay(), version, platform))
 				if prevVersion, exists := selectedVersions[provider]; exists && version != prevVersion {
 					// This indicates a weird situation where we ended up
