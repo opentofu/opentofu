@@ -959,3 +959,84 @@ func TestTransformForTest(t *testing.T) {
 		})
 	}
 }
+
+// This test is checking that by giving the outermost called module, the method called is
+// returning correctly that is a remote module relatively to the root module.
+// This is because root module is calling the child module from a remote source
+// but all the other calls are done from local modules.
+// Eg: Root module is calling a module from a git repo in a particular directory,
+// but that module is calling other modules from the same repo by referencing those
+// with a relative path.
+func TestIsCallFromRemote(t *testing.T) {
+	childName := "call-to-child"
+	gchildName := "call-to-gchild"
+	ggchildName := "call-to-ggchild"
+	gggchildName := "call-to-gggchild"
+	parseModuleSource := func(t *testing.T, source string) addrs.ModuleSource {
+		s, err := addrs.ParseModuleSource(source)
+		if err != nil {
+			t.Fatalf("failed to parse module source %q: %s", source, err)
+		}
+		return s
+	}
+	tests := map[string]struct {
+		childModulePath string
+		expectedRes     bool
+	}{
+		"from git repo": {
+			childModulePath: "git::https://github.com/user/repo//child",
+			expectedRes:     true,
+		},
+		"from registry": {
+			childModulePath: "registry.example.com/foo/bar/baz",
+			expectedRes:     true,
+		},
+		"from local": {
+			childModulePath: "../mod",
+			expectedRes:     false,
+		},
+	}
+	for ttn, tt := range tests {
+		t.Run(ttn, func(t *testing.T) {
+			root := &Config{
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						childName: {SourceAddr: parseModuleSource(t, tt.childModulePath)},
+					},
+				},
+			}
+			child := &Config{
+				Parent: root,
+				Path:   []string{childName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						gchildName: {SourceAddr: parseModuleSource(t, "../gchild-module")},
+					},
+				},
+			}
+			gchild := &Config{
+				Parent: child,
+				Path:   []string{gchildName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						ggchildName: {SourceAddr: parseModuleSource(t, "../ggchild-module")},
+					},
+				},
+			}
+			ggchild := &Config{
+				Parent: gchild,
+				Path:   []string{ggchildName},
+				Module: &Module{
+					ModuleCalls: map[string]*ModuleCall{
+						gggchildName: {SourceAddr: parseModuleSource(t, "../gggchild-module")},
+					},
+				},
+			}
+
+			if want, got := tt.expectedRes, ggchild.IsModuleCallFromRemoteModule(ggchildName); want != got {
+				t.Fatalf("expected IsModuleCallFromRemoteModule to return %t but got %t", want, got)
+			}
+		})
+	}
+
+}

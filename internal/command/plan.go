@@ -328,6 +328,16 @@ Other Options:
   -json                        Produce output in a machine-readable JSON
                                format, suitable for use in text editor
                                integrations and other automated systems.
+
+  -deprecation-warns=lvl       Specify what type of warnings are shown.
+                               Accepted values for lvl: all, local, none. 
+                               Default: all. When "all" is selected, OpenTofu
+                               will show the deprecation warnings for all
+                               modules. When "local" is selected, the warns
+                               will be shown only for the modules that are
+                               imported with a relative path. When "none" is
+                               selected, all the deprecation warnings will be
+                               dropped.
 `
 	return strings.TrimSpace(helpText)
 }

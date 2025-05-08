@@ -354,7 +354,6 @@ func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.S
 
 func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
 	// Output results live in the module that declares them, which is one of
 	// the child module instances of our current module path.
 	moduleAddr := d.ModulePath.Module().Child(addr.Name)
@@ -393,7 +392,7 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 		}
 
 		if output.Deprecated != "" {
-			val = marks.DeprecatedOutput(val, output.Addr, output.Deprecated)
+			val = marks.DeprecatedOutput(val, output.Addr, output.Deprecated, parentCfg.IsModuleCallFromRemoteModule(addr.Name))
 		}
 
 		_, callInstance := output.Addr.Module.CallInstance()
@@ -478,7 +477,7 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 			}
 
 			if cfg.Deprecated != "" {
-				instance[cfg.Name] = marks.DeprecatedOutput(change.After, change.Addr, cfg.Deprecated)
+				instance[cfg.Name] = marks.DeprecatedOutput(change.After, change.Addr, cfg.Deprecated, parentCfg.IsModuleCallFromRemoteModule(addr.Name))
 			}
 		}
 	}
@@ -1005,7 +1004,12 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 		}
 
 		if config.Deprecated != "" {
-			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated)
+			isRemote := false
+			if p := moduleConfig.Path; p != nil && !p.IsRoot() {
+				_, call := p.Call()
+				isRemote = moduleConfig.IsModuleCallFromRemoteModule(call.Name)
+			}
+			val = marks.DeprecatedOutput(val, output.Addr, config.Deprecated, isRemote)
 		}
 
 		return val, diags

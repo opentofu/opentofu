@@ -95,7 +95,7 @@ Silencing deprecation warnings could be presented in two different ways: globall
 basis. This setting shouldn't be a part of a module call block since there could be multiple calls for the same module and each such
 call should either produce or silence the warnings.
 
-In this RFC I suggest to allow users to control module deprecation warnings via a CLI flag: `module-deprecation-warnings`, which may
+In this RFC I suggest to allow users to control module deprecation warnings via a CLI flag: `deprecation-warns`, which may
 have the following values: `all` (default) or `local` (raise deprecation warnings only from module calls inside the local modules).
 This could be extended later to include other options such as `none` to disable the deprecation warnings altogether.
 
@@ -123,7 +123,7 @@ presence.
 
 We would need to extend module output nodes to also mark values as deprecated if the user specified so. Then, the mark should
 be checked where `tofu.EvalContext` is used to evaluate expressions and blocks (i.e. `EvalContext.EvaluateBlock` and
-`EvalContext.EvaluateExpr`). The deprecation mark check must take into account the value of `module-deprecation-warnings` flag
+`EvalContext.EvaluateExpr`). The deprecation mark check must take into account the value of `deprecation-warns` flag
 and also it shouldn't fire if the value is used inside the module, which marked this value as deprecated.
 
 This approach would also allow us to reuse the implementation, if we want to mark more values as deprecated from different

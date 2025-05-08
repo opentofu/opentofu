@@ -1484,9 +1484,10 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 	}
 
 	tests := map[string]struct {
-		varAddr addrs.AbsInputVariableInstance
-		varCfg  *configs.Variable
-		expr    hcl.Expression
+		varAddr    addrs.AbsInputVariableInstance
+		varCfg     *configs.Variable
+		expr       hcl.Expression
+		fromRemote bool
 
 		expectedDiags tfdiags.Diagnostics
 	}{
@@ -1496,25 +1497,28 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			expr:    cfg.Module.ModuleCalls["foo-call"].Source,
 			expectedDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  `The variable "foo" is marked as deprecated by module author`,
+				Summary:  `Variable marked as deprecated by the module author`,
 				Detail: fmt.Sprintf(
-					"This variable is marked as deprecated with the following message:\n%s",
+					"Variable \"foo\" is marked as deprecated with the following message:\n%s",
 					cfg.Children["foo-call"].Module.Variables["foo"].Deprecated,
 				),
 				Subject: cfg.Module.ModuleCalls["foo-call"].Source.Range().Ptr(),
 			}),
+			fromRemote: false,
 		},
 		"local-mod-called-from-root-with-no-var": {
 			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-no-var", nil)),
 			varCfg:        cfg.Children["foo-call-no-var"].Module.Variables["foo"],
 			expr:          nil,
 			expectedDiags: tfdiags.Diagnostics{},
+			fromRemote:    false,
 		},
 		"local-mod-called-from-root-with-null-var": {
 			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-null", nil)),
 			varCfg:        cfg.Children["foo-call-null"].Module.Variables["foo"],
 			expr:          nil,
 			expectedDiags: tfdiags.Diagnostics{},
+			fromRemote:    false,
 		},
 		"local-mod-called-from-direct-child": {
 			varAddr: addrs.InputVariable{Name: "bar"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil).Child("bar-call", nil)),
@@ -1522,13 +1526,14 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			expr:    cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source,
 			expectedDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
-				Summary:  `The variable "bar" is marked as deprecated by module author`,
+				Summary:  `Variable marked as deprecated by the module author`,
 				Detail: fmt.Sprintf(
-					"This variable is marked as deprecated with the following message:\n%s",
+					"Variable \"bar\" is marked as deprecated with the following message:\n%s",
 					cfg.Children["foo-call"].Children["bar-call"].Module.Variables["bar"].Deprecated,
 				),
 				Subject: cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source.Range().Ptr(),
 			}),
+			fromRemote: false,
 		},
 	}
 	for name, tt := range tests {
@@ -1544,12 +1549,7 @@ func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
 			}
 
 			expr := tt.expr
-			gotDiags := evalVariableDeprecation(
-				varAddr,
-				tt.varCfg,
-				expr,
-				ctx,
-			)
+			gotDiags := evalVariableDeprecation(varAddr, tt.varCfg, expr, ctx, tt.fromRemote)
 
 			if gotLen, expectedLen := len(gotDiags), len(tt.expectedDiags); gotLen != expectedLen {
 				t.Fatalf("expected %d diagnostics; got %d", expectedLen, gotLen)

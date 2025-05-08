@@ -124,6 +124,8 @@ func (t *ModuleVariableTransformer) transformSingle(g *Graph, parent, c *configs
 			Module: c.Path,
 			Config: v,
 			Expr:   expr,
+
+			VariableFromRemoteModule: c.IsModuleCallFromRemoteModule(callConfig.Name),
 		}
 		g.Add(ref)
 

@@ -310,6 +310,13 @@ The available options are:
   at least one error and thus the warning text might be useful context for
   the errors.
 
+* `-consolidate-warnings` - If OpenTofu produces any warnings, do not attempt
+  to consolidate similar messages. All locations for all warnings will be
+  listed.
+
+* `-consolidate-errors` - If OpenTofu produces any errors, attempt to
+  consolidate similar messages into a single item.
+
 * `-detailed-exitcode` - Returns a detailed exit code when the command exits.
   When provided, this argument changes the exit codes and their meanings to
   provide more granular information about what the resulting plan contains:
@@ -368,6 +375,21 @@ The available options are:
 * `-parallelism=n` - Limit the number of concurrent operations as OpenTofu
   [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults
   to 10.
+
+* `-state=statefile` - A legacy option used for the local backend only.
+  Refer to the local backend's documentation for more information.
+
+* `-show-sensitive` - If specified, sensitive values will not be
+  redacted in te UI output.
+
+* `-json` - Produce output in a machine-readable JSON format, suitable for
+  use in text editor integrations and other automated systems.
+
+* `-deprecation-warns` - Specify what type of warnings are shown.
+  Accepted values: all, local, none. Default: all. When "all" is selected,
+  OpenTofu will show the deprecation warnings for all modules. When "local" is selected,
+  the warnings will be shown only for the modules that are imported with a relative
+  path. When "none" is selected, all the deprecation warnings will be dropped.
 
 For configurations using
 [the `local` backend](../../language/settings/backends/local.mdx) only,

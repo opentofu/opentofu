@@ -5,6 +5,12 @@
 
 package arguments
 
+import (
+	"strings"
+
+	"github.com/opentofu/opentofu/internal/tofu"
+)
+
 // View represents the global command-line arguments which configure the view.
 type View struct {
 	// NoColor is used to disable the use of terminal color codes in all
@@ -22,6 +28,9 @@ type View struct {
 	// only the important details.
 	Concise bool
 
+	// ModuleDeprecationWarnLvl is used to filter out deprecation warnings for outputs and variables as requested by the user.
+	ModuleDeprecationWarnLvl tofu.DeprecationWarningLevel
+
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
 }
@@ -35,9 +44,13 @@ func ParseView(args []string) (*View, []string) {
 	}
 
 	// Keep track of the length of the returned slice. When we find an
-	// argument we support, i will not be incremented.
+	// argument we support, "i" will not be incremented.
 	i := 0
 	for _, v := range args {
+		if prefix := "-deprecation-warns"; strings.HasPrefix(v, prefix) {
+			common.ModuleDeprecationWarnLvl = tofu.ParseDeprecatedWarningLevel(strings.ReplaceAll(v, prefix, ""))
+			continue // continue to ensure that the counter is not incremented
+		}
 		switch v {
 		case "-no-color":
 			common.NoColor = true
@@ -66,7 +79,7 @@ func ParseView(args []string) (*View, []string) {
 	}
 
 	// Reduce the slice to the number of unsupported arguments. Any remaining
-	// to the right of i have already been moved left.
+	// to the right of "i" have already been moved left.
 	args = args[:i]
 
 	return common, args

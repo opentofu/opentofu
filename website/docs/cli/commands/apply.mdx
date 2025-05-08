@@ -57,6 +57,14 @@ The following options change how the apply command executes and reports on the a
   at least one error and thus the warning text might be useful context for
   the errors.
 
+- `-consolidate-warnings` - If OpenTofu produces any warnings, do not attempt
+  to consolidate similar messages. All locations for all warnings will be
+  listed.
+
+- `-consolidate-errors` - If OpenTofu produces any errors, attempt to
+  consolidate similar messages into a single item.
+
+
 - `-input=false` - Disables all of OpenTofu's interactive prompts. Note that
   this also prevents OpenTofu from prompting for interactive approval of a
   plan, so OpenTofu will conservatively assume that you do not wish to
@@ -85,6 +93,15 @@ The following options change how the apply command executes and reports on the a
 - `-parallelism=n` - Limit the number of concurrent operation as OpenTofu
   [walks the graph](../../internals/graph.mdx#walking-the-graph). Defaults to
   10\.
+
+- `-show-sensitive` - If specified, sensitive values will not be
+  redacted in te UI output.
+
+- `-deprecation-warns` - Specify what type of warnings are shown.
+  Accepted values: all, local, none. Default: all. When "all" is selected,
+  OpenTofu will show the deprecation warnings for all modules. When "local" is selected,
+  the warnings will be shown only for the modules that are imported with a relative
+  path. When "none" is selected, all the deprecation warnings will be dropped.
 
 - All [planning modes](plan.mdx#planning-modes) and
 [planning options](plan.mdx#planning-options) for

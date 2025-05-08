@@ -55,7 +55,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 	var diags tfdiags.Diagnostics
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(ctx,configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
