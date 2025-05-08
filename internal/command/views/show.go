@@ -22,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 type Show interface {
@@ -60,10 +59,7 @@ type ShowHuman struct {
 
 var _ Show = (*ShowHuman)(nil)
 
-func (v *ShowHuman) DisplayState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
-	_, span := tracing.Tracer().Start(ctx, "Display")
-	defer span.End()
-
+func (v *ShowHuman) DisplayState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
 	renderer := jsonformat.Renderer{
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
@@ -73,14 +69,12 @@ func (v *ShowHuman) DisplayState(ctx context.Context, stateFile *statefile.File,
 
 	if stateFile == nil {
 		v.view.streams.Println("No state.")
-		tracing.SetSpanError(span, fmt.Errorf("no state"))
 		return 0
 	}
 
 	root, outputs, err := jsonstate.MarshalForRenderer(stateFile, schemas)
 	if err != nil {
 		v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
-		tracing.SetSpanError(span, err)
 		return 1
 	}
 
@@ -96,10 +90,7 @@ func (v *ShowHuman) DisplayState(ctx context.Context, stateFile *statefile.File,
 	return 0
 }
 
-func (v *ShowHuman) DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
-	_, span := tracing.Tracer().Start(ctx, "Display")
-	defer span.End()
-
+func (v *ShowHuman) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
 	renderer := jsonformat.Renderer{
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
@@ -112,7 +103,6 @@ func (v *ShowHuman) DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON 
 	if planJSON != nil {
 		if !planJSON.Redacted {
 			v.view.streams.Eprintf("Didn't get renderable JSON plan format for human display")
-			tracing.SetSpanError(span, fmt.Errorf("didn't get renderable JSON plan format for human display"))
 			return 1
 		}
 		// The redacted json plan format can be decoded into a jsonformat.Plan
@@ -120,7 +110,6 @@ func (v *ShowHuman) DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON 
 		r := bytes.NewReader(planJSON.JSONBytes)
 		if err := json.NewDecoder(r).Decode(&p); err != nil {
 			v.view.streams.Eprintf("Couldn't decode renderable JSON plan format: %s", err)
-			tracing.SetSpanError(span, err)
 		}
 
 		v.view.streams.Print(v.view.colorize.Color(planJSON.RunHeader + "\n"))
@@ -130,7 +119,6 @@ func (v *ShowHuman) DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON 
 		outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas)
 		if err != nil {
 			v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
-			tracing.SetSpanError(span, err)
 			return 1
 		}
 
@@ -169,30 +157,22 @@ type ShowJSON struct {
 
 var _ Show = (*ShowJSON)(nil)
 
-func (v *ShowJSON) DisplayState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
-	_, span := tracing.Tracer().Start(ctx, "Display")
-	defer span.End()
-
+func (v *ShowJSON) DisplayState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
 	jsonState, err := jsonstate.Marshal(stateFile, schemas)
 	if err != nil {
 		v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
-		tracing.SetSpanError(span, err)
 		return 1
 	}
 	v.view.streams.Println(string(jsonState))
 	return 0
 }
 
-func (v *ShowJSON) DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
-	_, span := tracing.Tracer().Start(ctx, "Display")
-	defer span.End()
-
+func (v *ShowJSON) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
 	// Prefer to display a pre-built JSON plan, if we got one; then, fall back
 	// to building one ourselves.
 	if planJSON != nil {
 		if planJSON.Redacted {
 			v.view.streams.Eprintf("Didn't get external JSON plan format")
-			tracing.SetSpanError(span, fmt.Errorf("didn't get external JSON plan format"))
 			return 1
 		}
 		v.view.streams.Println(string(planJSON.JSONBytes))
@@ -201,7 +181,6 @@ func (v *ShowJSON) DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *
 
 		if err != nil {
 			v.view.streams.Eprintf("Failed to marshal plan to json: %s", err)
-			tracing.SetSpanError(span, err)
 			return 1
 		}
 		v.view.streams.Println(string(planJSON))
