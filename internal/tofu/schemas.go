@@ -88,46 +88,72 @@ func loadSchemas(config *configs.Config, state *states.State, plugins *contextPl
 }
 
 func loadProviderSchemas(schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
-	var diags tfdiags.Diagnostics
 
-	ensure := func(fqn addrs.Provider) {
-		name := fqn.String()
-
-		if _, exists := schemas[fqn]; exists {
-			return
-		}
-
-		log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", name)
-		schema, err := plugins.ProviderSchema(fqn)
-		if err != nil {
-			// We'll put a stub in the map so we won't re-attempt this on
-			// future calls, which would then repeat the same error message
-			// multiple times.
-			schemas[fqn] = providers.ProviderSchema{}
-			diags = diags.Append(
-				tfdiags.Sourceless(
-					tfdiags.Error,
-					"Failed to obtain provider schema",
-					fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
-				),
-			)
-			return
-		}
-
-		schemas[fqn] = schema
-	}
-
+	references := make(map[addrs.Provider]bool)
 	if config != nil {
 		for _, fqn := range config.ProviderTypes() {
-			ensure(fqn)
+			references[fqn] = true
 		}
 	}
 
 	if state != nil {
 		needed := providers.AddressedTypesAbs(state.ProviderAddrs())
 		for _, typeAddr := range needed {
-			ensure(typeAddr)
+			references[typeAddr] = true
 		}
+	}
+
+	var required []addrs.Provider
+	for fqn := range references {
+		if _, exists := schemas[fqn]; exists {
+			continue
+		}
+
+		required = append(required, fqn)
+	}
+
+	getProviderSchema := func(fqn addrs.Provider) (providers.ProviderSchema, tfdiags.Diagnostic) {
+		log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", fqn)
+
+		schema, err := plugins.ProviderSchema(fqn)
+		if err != nil {
+			return schema, tfdiags.Sourceless(
+				tfdiags.Error,
+				"Failed to obtain provider schema",
+				fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
+			)
+		}
+		return schema, nil
+	}
+
+	type schemaResult struct {
+		fqn    addrs.Provider
+		schema providers.ProviderSchema
+		diag   tfdiags.Diagnostic
+	}
+	results := make(chan schemaResult, len(required))
+	for _, fqn := range required {
+		go func(fqn addrs.Provider) {
+			schema, diag := getProviderSchema(fqn)
+			results <- schemaResult{
+				fqn:    fqn,
+				schema: schema,
+				diag:   diag,
+			}
+		}(fqn)
+	}
+
+	var diags tfdiags.Diagnostics
+	for range required {
+		r := <-results
+		if r.diag != nil {
+			diags = diags.Append(r.diag)
+			// Even if there are errors/diagnostics:
+			// We'll put a stub in the map so we won't re-attempt this on
+			// future calls, which would then repeat the same error message
+			// multiple times.
+		}
+		schemas[r.fqn] = r.schema
 	}
 
 	return diags
