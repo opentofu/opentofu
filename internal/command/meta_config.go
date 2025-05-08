@@ -441,7 +441,6 @@ func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 	if m.configLoader == nil {
 		loader, err := configload.NewLoader(&configload.Config{
 			ModulesDir: m.modulesDir(),
-			Services:   m.Services,
 		})
 		if err != nil {
 			return nil, err
