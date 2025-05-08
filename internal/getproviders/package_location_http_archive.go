@@ -15,7 +15,6 @@ import (
 
 	"github.com/hashicorp/go-getter"
 	"github.com/hashicorp/go-retryablehttp"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.opentelemetry.io/otel/trace"
 
@@ -53,7 +52,6 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 
 	retryableClient := retryablehttp.NewClient()
 	retryableClient.HTTPClient = httpclient.New(ctx)
-	retryableClient.HTTPClient.Transport = otelhttp.NewTransport(retryableClient.HTTPClient.Transport)
 	retryableClient.RetryMax = maxHTTPPackageRetryCount
 	retryableClient.RequestLogHook = func(logger retryablehttp.Logger, _ *http.Request, i int) {
 		if i > 0 {
