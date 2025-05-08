@@ -59,11 +59,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				func() tfdiags.DiagnosticExtraWrapper {
-					return &marks.DeprecatedOutputDiagnosticExtra{
-						Cause: marks.DeprecationCause{IsFromRemoteModule: true},
-					}
-				},
+				marks.DeprecatedOutputDiagnosticOverride(marks.DeprecationCause{IsFromRemoteModule: true}),
 			)),
 			lvl:  DeprecationWarningLevelAll,
 			want: true,
@@ -72,11 +68,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				func() tfdiags.DiagnosticExtraWrapper {
-					return &marks.DeprecatedOutputDiagnosticExtra{
-						Cause: marks.DeprecationCause{IsFromRemoteModule: true},
-					}
-				},
+				marks.DeprecatedOutputDiagnosticOverride(marks.DeprecationCause{IsFromRemoteModule: true}),
 			)),
 			lvl:  DeprecationWarningLevelLocal,
 			want: false,
@@ -85,11 +77,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				func() tfdiags.DiagnosticExtraWrapper {
-					return &marks.DeprecatedOutputDiagnosticExtra{
-						Cause: marks.DeprecationCause{IsFromRemoteModule: true},
-					}
-				},
+				marks.DeprecatedOutputDiagnosticOverride(marks.DeprecationCause{IsFromRemoteModule: true}),
 			)),
 			lvl:  DeprecationWarningLevelNone,
 			want: false,
@@ -98,11 +86,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				func() tfdiags.DiagnosticExtraWrapper {
-					return &marks.DeprecatedOutputDiagnosticExtra{
-						Cause: marks.DeprecationCause{IsFromRemoteModule: false},
-					}
-				},
+				marks.DeprecatedOutputDiagnosticOverride(marks.DeprecationCause{IsFromRemoteModule: false}),
 			)),
 			lvl:  DeprecationWarningLevelAll,
 			want: true,
@@ -111,11 +95,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				func() tfdiags.DiagnosticExtraWrapper {
-					return &marks.DeprecatedOutputDiagnosticExtra{
-						Cause: marks.DeprecationCause{IsFromRemoteModule: false},
-					}
-				},
+				marks.DeprecatedOutputDiagnosticOverride(marks.DeprecationCause{IsFromRemoteModule: false}),
 			)),
 			lvl:  DeprecationWarningLevelLocal,
 			want: true,
@@ -124,11 +104,7 @@ func TestDeprecationDiagnosticAllowed(t *testing.T) {
 			diag: tfdiags.Diagnostics{}.Append(tfdiags.Override(
 				tfdiags.AttributeValue(tfdiags.Warning, "summary", "details", nil),
 				tfdiags.Warning,
-				func() tfdiags.DiagnosticExtraWrapper {
-					return &marks.DeprecatedOutputDiagnosticExtra{
-						Cause: marks.DeprecationCause{IsFromRemoteModule: false},
-					}
-				},
+				marks.DeprecatedOutputDiagnosticOverride(marks.DeprecationCause{IsFromRemoteModule: false}),
 			)),
 			lvl:  DeprecationWarningLevelNone,
 			want: false,

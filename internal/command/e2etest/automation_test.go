@@ -247,11 +247,6 @@ func TestPlanOnlyInAutomation(t *testing.T) {
 func TestPlanOnDeprecated(t *testing.T) {
 	t.Parallel()
 
-	// This test reaches out to registry.opentofu.org to download the
-	// template and null providers, so it can only run if network access is
-	// allowed.
-	skipIfCannotAccessNetwork(t)
-
 	fixturePath := filepath.Join("testdata", "deprecated-values")
 	tf := e2e.NewBinary(t, tofuBin, fixturePath)
 

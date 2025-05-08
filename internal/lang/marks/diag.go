@@ -27,27 +27,41 @@ func (c DeprecationCause) diagnosticDeprecationCause() DeprecationCause {
 	return c
 }
 
-// DeprecatedOutputDiagnosticExtra is a container for the DeprecationCause used to decide later if the diagnostic
-// needs to be shown or not
-type DeprecatedOutputDiagnosticExtra struct {
+// deprecatedOutputDiagnosticExtra is a container for the DeprecationCause used to decide later if the diagnostic
+// needs to be shown or not.
+// This definition is needed because in ExtractDeprecationDiagnosticsWithBody, we return tfdiags.AttributeValue which does
+// not support adding extra information. Therefore, we wrap tfdiags.AttributeValue in tfdiags.Override that allows to
+// add extraInfo the diagnostic. So this struct is actually a container for the extraInfo that we want to propagate in the
+// diagnostic.
+type deprecatedOutputDiagnosticExtra struct {
 	Cause DeprecationCause
 
 	wrapped interface{}
 }
 
 var (
-	_ diagnosticExtraDeprecationCause = (*DeprecatedOutputDiagnosticExtra)(nil)
-	_ tfdiags.DiagnosticExtraWrapper  = (*DeprecatedOutputDiagnosticExtra)(nil)
+	_ diagnosticExtraDeprecationCause = (*deprecatedOutputDiagnosticExtra)(nil)
+	_ tfdiags.DiagnosticExtraWrapper  = (*deprecatedOutputDiagnosticExtra)(nil)
 )
 
-func (c *DeprecatedOutputDiagnosticExtra) WrapDiagnosticExtra(inner interface{}) {
+func (c *deprecatedOutputDiagnosticExtra) WrapDiagnosticExtra(inner interface{}) {
 	if c.wrapped != nil {
 		// This is a logical inconsistency, the caller should know whether they have already wrapped an extra or not.
-		panic("Attempted to wrap a diagnostic extra into a DeprecatedOutputDiagnosticExtra that is already wrapping a different extra. This is a bug in OpenTofu, please report it.")
+		panic("Attempted to wrap a diagnostic extra into a deprecatedOutputDiagnosticExtra that is already wrapping a different extra. This is a bug in OpenTofu, please report it.")
 	}
 	c.wrapped = inner
 }
 
-func (c *DeprecatedOutputDiagnosticExtra) diagnosticDeprecationCause() DeprecationCause {
+func (c *deprecatedOutputDiagnosticExtra) diagnosticDeprecationCause() DeprecationCause {
 	return c.Cause
+}
+
+// DeprecatedOutputDiagnosticOverride is mainly created for unit testing. This is done this way just to avoid
+// exporting deprecatedOutputDiagnosticExtra from this package, which can create confusion when somebody would like to use this package.
+func DeprecatedOutputDiagnosticOverride(cause DeprecationCause) func() tfdiags.DiagnosticExtraWrapper {
+	return func() tfdiags.DiagnosticExtraWrapper {
+		return &deprecatedOutputDiagnosticExtra{
+			Cause: cause,
+		}
+	}
 }

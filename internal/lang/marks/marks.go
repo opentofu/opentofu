@@ -131,7 +131,7 @@ func ExtractDeprecationDiagnosticsWithBody(val cty.Value, body hcl.Body) (cty.Va
 				pm.Path,
 			)
 			diags = diags.Append(tfdiags.Override(diag, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
-				return &DeprecatedOutputDiagnosticExtra{
+				return &deprecatedOutputDiagnosticExtra{
 					Cause: cause,
 				}
 			}))
