@@ -32,7 +32,7 @@ func TestConfigureDiscoveryRetry(t *testing.T) {
 			t.Fatalf("expected retry %q, got %q", defaultRetry, discoveryRetry)
 		}
 
-		rc := NewClient(nil, nil)
+		rc := NewClient(t.Context(), nil, nil)
 		if rc.client.RetryMax != defaultRetry {
 			t.Fatalf("expected client retry %q, got %q",
 				defaultRetry, rc.client.RetryMax)
@@ -52,7 +52,7 @@ func TestConfigureDiscoveryRetry(t *testing.T) {
 				expected, discoveryRetry)
 		}
 
-		rc := NewClient(nil, nil)
+		rc := NewClient(t.Context(), nil, nil)
 		if rc.client.RetryMax != expected {
 			t.Fatalf("expected client retry %q, got %q",
 				expected, rc.client.RetryMax)
@@ -67,7 +67,7 @@ func TestConfigureRegistryClientTimeout(t *testing.T) {
 				defaultRequestTimeout.String(), requestTimeout.String())
 		}
 
-		rc := NewClient(nil, nil)
+		rc := NewClient(t.Context(), nil, nil)
 		if rc.client.HTTPClient.Timeout != defaultRequestTimeout {
 			t.Fatalf("expected client timeout %q, got %q",
 				defaultRequestTimeout.String(), rc.client.HTTPClient.Timeout.String())
@@ -87,7 +87,7 @@ func TestConfigureRegistryClientTimeout(t *testing.T) {
 				expected, requestTimeout.String())
 		}
 
-		rc := NewClient(nil, nil)
+		rc := NewClient(t.Context(), nil, nil)
 		if rc.client.HTTPClient.Timeout != expected {
 			t.Fatalf("expected client timeout %q, got %q",
 				expected, rc.client.HTTPClient.Timeout.String())
@@ -99,7 +99,7 @@ func TestLookupModuleVersions(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	// test with and without a hostname
 	for _, src := range []string{
@@ -143,7 +143,7 @@ func TestInvalidRegistry(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "non-existent.localhost.localdomain/test-versions/name/provider"
 	modsrc, err := regsrc.ParseModuleSource(src)
@@ -160,7 +160,7 @@ func TestRegistryAuth(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "private/name/provider"
 	mod, err := regsrc.ParseModuleSource(src)
@@ -195,7 +195,7 @@ func TestLookupModuleLocationRelative(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "relative/foo/bar"
 	mod, err := regsrc.ParseModuleSource(src)
@@ -231,7 +231,7 @@ func TestAccLookupModuleVersions(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		s := NewClient(regDisco, nil)
+		s := NewClient(t.Context(), regDisco, nil)
 		resp, err := s.ModuleVersions(context.Background(), modsrc)
 		if err != nil {
 			t.Fatal(err)
@@ -265,7 +265,7 @@ func TestLookupLookupModuleError(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	// this should not be found in the registry
 	src := "bad/local/path"
@@ -300,7 +300,7 @@ func TestLookupModuleRetryError(t *testing.T) {
 	server := test.RegistryRetryableErrorsServer()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "example.com/test-versions/name/provider"
 	modsrc, err := regsrc.ParseModuleSource(src)
@@ -329,7 +329,7 @@ func TestLookupModuleNoRetryError(t *testing.T) {
 	server := test.RegistryRetryableErrorsServer()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "example.com/test-versions/name/provider"
 	modsrc, err := regsrc.ParseModuleSource(src)
@@ -352,7 +352,7 @@ func TestLookupModuleNoRetryError(t *testing.T) {
 
 func TestLookupModuleNetworkError(t *testing.T) {
 	server := test.RegistryRetryableErrorsServer()
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	// Shut down the server to simulate network failure
 	server.Close()
@@ -481,7 +481,7 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			transport := &testTransport{
 				mockURL: mockServer.URL,
 			}
-			client := NewClient(test.Disco(registryServer), &http.Client{
+			client := NewClient(t.Context(), test.Disco(registryServer), &http.Client{
 				Transport: transport,
 			})
 

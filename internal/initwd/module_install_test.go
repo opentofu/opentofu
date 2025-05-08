@@ -144,7 +144,7 @@ func TestModuleInstaller_invalidModuleName(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	if !diags.HasErrors() {
 		t.Fatal("expected error")
@@ -307,7 +307,7 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 			modulesDir := filepath.Join(dir, ".terraform/modules")
 
 			loader := configload.NewLoaderForTests(t)
-			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 			cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 			if tc.shouldError {
@@ -482,7 +482,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -643,7 +643,7 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -813,7 +813,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
 	loader := configload.NewLoaderForTests(t)
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil), nil)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
