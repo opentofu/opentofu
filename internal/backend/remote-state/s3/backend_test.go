@@ -1301,7 +1301,7 @@ func TestBackendExtraPaths(t *testing.T) {
 
 	s2Lineage := stateMgr2.StateSnapshotMeta().Lineage
 
-	if err := checkStateList(b, []string{"default", "s1", "s2"}); err != nil {
+	if err := checkStateList(t.Context(), b, []string{"default", "s1", "s2"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1313,7 +1313,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkStateList(b, []string{"default", "s1", "s2"}); err != nil {
+	if err := checkStateList(t.Context(), b, []string{"default", "s1", "s2"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1325,7 +1325,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.PersistState(nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := checkStateList(b, []string{"default", "s1", "s2"}); err != nil {
+	if err := checkStateList(t.Context(), b, []string{"default", "s1", "s2"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1339,7 +1339,7 @@ func TestBackendExtraPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := checkStateList(b, []string{"default", "s1"}); err != nil {
+	if err := checkStateList(t.Context(), b, []string{"default", "s1"}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1380,7 +1380,7 @@ func TestBackendExtraPaths(t *testing.T) {
 		t.Fatal("we got the wrong state for s2")
 	}
 
-	if err := checkStateList(b, []string{"default", "s1", "s2"}); err != nil {
+	if err := checkStateList(t.Context(), b, []string{"default", "s1", "s2"}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1409,7 +1409,7 @@ func TestBackendPrefixInWorkspace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := checkStateList(b, []string{"default", "env-1"}); err != nil {
+	if err := checkStateList(t.Context(), b, []string{"default", "env-1"}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -1585,8 +1585,8 @@ func testGetWorkspaceForKey(b *Backend, key string, expected string) error {
 	return nil
 }
 
-func checkStateList(b backend.Backend, expected []string) error {
-	states, err := b.Workspaces(context.TODO())
+func checkStateList(ctx context.Context, b backend.Backend, expected []string) error {
+	states, err := b.Workspaces(ctx)
 	if err != nil {
 		return err
 	}

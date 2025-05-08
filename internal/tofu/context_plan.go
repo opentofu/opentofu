@@ -280,7 +280,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 	}
 
 	if plan != nil {
-		relevantAttrs, rDiags := c.relevantResourceAttrsForPlan(config, plan)
+		relevantAttrs, rDiags := c.relevantResourceAttrsForPlan(ctx, config, plan)
 		diags = diags.Append(rDiags)
 		plan.RelevantAttributes = relevantAttrs
 	}
@@ -487,7 +487,7 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 		destroyPlan.PrevRunState = prevRunState
 	}
 
-	relevantAttrs, rDiags := c.relevantResourceAttrsForPlan(config, destroyPlan)
+	relevantAttrs, rDiags := c.relevantResourceAttrsForPlan(ctx, config, destroyPlan)
 	diags = diags.Append(rDiags)
 
 	destroyPlan.RelevantAttributes = relevantAttrs
@@ -842,7 +842,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 	walker.RefreshState.RemovePlannedResourceInstanceObjects()
 	priorState := walker.RefreshState.Close()
 
-	driftedResources, driftDiags := c.driftedResources(config, prevRunState, priorState, moveResults)
+	driftedResources, driftDiags := c.driftedResources(ctx, config, prevRunState, priorState, moveResults)
 	diags = diags.Append(driftDiags)
 
 	plan := &plans.Plan{
@@ -922,7 +922,7 @@ func (c *Context) planGraph(config *configs.Config, prevRunState *states.State, 
 // report. This is known to happen when targeting a subset of resources,
 // because the excluded instances will have been removed from the plan and
 // not upgraded.
-func (c *Context) driftedResources(config *configs.Config, oldState, newState *states.State, moves refactoring.MoveResults) ([]*plans.ResourceInstanceChangeSrc, tfdiags.Diagnostics) {
+func (c *Context) driftedResources(ctx context.Context, config *configs.Config, oldState, newState *states.State, moves refactoring.MoveResults) ([]*plans.ResourceInstanceChangeSrc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if newState.ManagedResourcesEqual(oldState) && moves.Changes.Len() == 0 {
@@ -931,7 +931,7 @@ func (c *Context) driftedResources(config *configs.Config, oldState, newState *s
 		return nil, diags
 	}
 
-	schemas, schemaDiags := c.Schemas(config, newState)
+	schemas, schemaDiags := c.Schemas(ctx, config, newState)
 	diags = diags.Append(schemaDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -1108,8 +1108,8 @@ func blockedMovesWarningDiag(results refactoring.MoveResults) tfdiags.Diagnostic
 // referenceAnalyzer returns a globalref.Analyzer object to help with
 // global analysis of references within the configuration that's attached
 // to the receiving context.
-func (c *Context) referenceAnalyzer(config *configs.Config, state *states.State) (*globalref.Analyzer, tfdiags.Diagnostics) {
-	schemas, diags := c.Schemas(config, state)
+func (c *Context) referenceAnalyzer(ctx context.Context, config *configs.Config, state *states.State) (*globalref.Analyzer, tfdiags.Diagnostics) {
+	schemas, diags := c.Schemas(ctx, config, state)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -1118,8 +1118,8 @@ func (c *Context) referenceAnalyzer(config *configs.Config, state *states.State)
 
 // relevantResourceAttrsForPlan implements the heuristic we use to populate the
 // RelevantResources field of returned plans.
-func (c *Context) relevantResourceAttrsForPlan(config *configs.Config, plan *plans.Plan) ([]globalref.ResourceAttr, tfdiags.Diagnostics) {
-	azr, diags := c.referenceAnalyzer(config, plan.PriorState)
+func (c *Context) relevantResourceAttrsForPlan(ctx context.Context, config *configs.Config, plan *plans.Plan) ([]globalref.ResourceAttr, tfdiags.Diagnostics) {
+	azr, diags := c.referenceAnalyzer(ctx, config, plan.PriorState)
 	if diags.HasErrors() {
 		return nil, diags
 	}

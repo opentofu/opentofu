@@ -88,7 +88,7 @@ func (b *Local) opRefresh(
 	}
 
 	// get schemas before writing state
-	schemas, moreDiags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, moreDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		op.ReportResult(runningOp, diags)

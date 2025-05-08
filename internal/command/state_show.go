@@ -121,7 +121,7 @@ func (c *StateShowCommand) Run(args []string) int {
 	}
 
 	// Get the schemas from the context
-	schemas, diags := lr.Core.Schemas(lr.Config, lr.InputState)
+	schemas, diags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
 	if diags.HasErrors() {
 		c.View.Diagnostics(diags)
 		return 1
