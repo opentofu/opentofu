@@ -79,7 +79,7 @@ type registryClient struct {
 }
 
 func newRegistryClient(baseURL *url.URL, creds svcauth.HostCredentials) *registryClient {
-	httpClient := httpclient.New()
+	httpClient := httpclient.New(context.TODO())
 	httpClient.Timeout = requestTimeout
 
 	retryableClient := retryablehttp.NewClient()

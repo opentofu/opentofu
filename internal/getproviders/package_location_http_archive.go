@@ -52,7 +52,7 @@ func (p PackageHTTPURL) InstallProviderPackage(ctx context.Context, meta Package
 	// files that already exist, etc.)
 
 	retryableClient := retryablehttp.NewClient()
-	retryableClient.HTTPClient = httpclient.New()
+	retryableClient.HTTPClient = httpclient.New(ctx)
 	retryableClient.HTTPClient.Transport = otelhttp.NewTransport(retryableClient.HTTPClient.Transport)
 	retryableClient.RetryMax = maxHTTPPackageRetryCount
 	retryableClient.RequestLogHook = func(logger retryablehttp.Logger, _ *http.Request, i int) {

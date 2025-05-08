@@ -86,7 +86,7 @@ func NewClient(services *disco.Disco, client *http.Client) *Client {
 	}
 
 	if client == nil {
-		client = httpclient.New()
+		client = httpclient.New(context.TODO())
 		client.Timeout = requestTimeout
 	}
 	retryableClient := retryablehttp.NewClient()
