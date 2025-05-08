@@ -3,15 +3,30 @@
 # Copyright (c) 2023 HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-run:
-  timeout: 30m
-
-issues:
-  exclude-files:
-    # We have a few patterns that are excluded from linting completely because
-    # they contain effectively-frozen code that we're preserving for backward
-    # compatibility, where changes would be risky and that risk isn't warranted
-    # since we don't expect to be doing any significant maintenence on these.
-    - "^internal/ipaddr/"
-    - "^internal/legacy/"
-    - "^internal/states/statefile/version\\d+_upgrade\\.go$"
+version: "2"
+linters:
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      # We have a few patterns that are excluded from linting completely because
+      # they contain effectively-frozen code that we're preserving for backward
+      # compatibility, where changes would be risky and that risk isn't warranted
+      # since we don't expect to be doing any significant maintenence on these.
+      - ^internal/ipaddr/
+      - ^internal/legacy/
+      - ^internal/states/statefile/version\d+_upgrade\.go$
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
