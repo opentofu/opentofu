@@ -176,6 +176,9 @@ When the `connection` block is configured, this will be allowed to use ephemeral
 
 Describe what the user would encounter when attempting to interact with what is being proposed. Provide clear and detailed descriptions, code examples, diagrams, etc... Starting point for the documentation that will be added during implementation.
 
+
+
+
 ## Technical Approach
 In this section, as in the "Proposed Solution" section, we'll go over each concept, but this time with a more technical focus.
 
@@ -206,6 +209,11 @@ For enabling ephemeral variables, these are the basic steps that need to be take
 * Mark the variables with a new mark ensure that the marks are propagated correctly.
 * Based on the marks, ensure that the variable cannot be used in other contexts than the ephemeral ones (see the User Documentation section for more details on where this is allowed).
 * Check the state of [#1998](https://github.com/opentofu/opentofu/pull/1998). If that is merged, in the changes where variables from plan are verified against the configuration ones, we also need to add a validation on the ephemerality of variables. If the variable is marked as ephemeral, then the plan value is allowed (expected) to be missing. 
+* Ensure that when the prompt is shown for an ephemeral variable there is an indication of that:
+  ```hcl
+  var.password (ephemeral)
+     Enter a value:
+  ````
 
 We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
 
@@ -223,7 +231,25 @@ For enabling ephemeral outputs, these are the basic steps that need to be taken:
 
 Strict rules:
 * A root module cannot define ephemeral outputs since are useless.
-* Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too.
+* Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too. Otherwise, it needs to show an error:
+   ```hcl
+    │ Error: Output not marked as ephemeral
+    │
+    │   on mod/main.tf line 33, in output "password":
+    │   33:   value = reference.to.ephemeral.value
+    │
+    │ In order to allow this output to store ephemeral values add `ephemeral = true` attribute to it.
+   ```
+* Any output from a root module that is referencing a write only attribute needs to be marked as sensitive too. Otherwise, an error should be raised
+  ```hcl
+    │ Error: An output referencing a sensitive value needs to be marked with sensitive too
+    │
+    │   on main.tf line 32:
+    │   32: output "write_only_out" {
+    │
+    │ For security reasons, OpenTofu requires any output that is referencing a sensitive value to also be configured the same. If the root module really wants to export this sensitive value, you need to annotate it with the following argument:
+    │     sensitive = true
+  ```
 
 Considering the rules above, root modules cannot have any ephemeral outputs defined.
 
