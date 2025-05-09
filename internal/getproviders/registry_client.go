@@ -24,7 +24,6 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	otelAttr "go.opentelemetry.io/otel/attribute"
 	semconv "go.opentelemetry.io/otel/semconv/v1.21.0"
 	"go.opentelemetry.io/otel/trace"
@@ -78,8 +77,8 @@ type registryClient struct {
 	httpClient *retryablehttp.Client
 }
 
-func newRegistryClient(baseURL *url.URL, creds svcauth.HostCredentials) *registryClient {
-	httpClient := httpclient.New()
+func newRegistryClient(ctx context.Context, baseURL *url.URL, creds svcauth.HostCredentials) *registryClient {
+	httpClient := httpclient.New(ctx)
 	httpClient.Timeout = requestTimeout
 
 	retryableClient := retryablehttp.NewClient()
@@ -87,8 +86,6 @@ func newRegistryClient(baseURL *url.URL, creds svcauth.HostCredentials) *registr
 	retryableClient.RetryMax = discoveryRetry
 	retryableClient.RequestLogHook = requestLogHook
 	retryableClient.ErrorHandler = maxRetryErrorHandler
-
-	retryableClient.HTTPClient.Transport = otelhttp.NewTransport(retryableClient.HTTPClient.Transport)
 
 	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
 

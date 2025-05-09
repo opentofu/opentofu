@@ -181,7 +181,7 @@ func realMain() int {
 	}
 	services.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
-	modulePkgFetcher := remoteModulePackageFetcher(config.OCICredentialsPolicy)
+	modulePkgFetcher := remoteModulePackageFetcher(ctx, config.OCICredentialsPolicy)
 
 	providerSrc, diags := providerSource(config.ProviderInstallation, services, config.OCICredentialsPolicy)
 	if len(diags) > 0 {

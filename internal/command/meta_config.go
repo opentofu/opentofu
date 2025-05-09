@@ -287,7 +287,7 @@ func (m *Meta) installModules(ctx context.Context, rootDir, testsDir string, upg
 		return true, diags
 	}
 
-	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient(), m.ModulePackageFetcher)
+	inst := initwd.NewModuleInstaller(m.modulesDir(), loader, m.registryClient(ctx), m.ModulePackageFetcher)
 
 	call, vDiags := m.rootModuleCall(ctx, rootDir)
 	diags = diags.Append(vDiags)
@@ -324,7 +324,7 @@ func (m *Meta) initDirFromModule(ctx context.Context, targetDir string, addr str
 	}
 
 	targetDir = m.normalizePath(targetDir)
-	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.modulesDir(), addr, m.registryClient(), m.ModulePackageFetcher, hooks)
+	moreDiags := initwd.DirFromModule(ctx, loader, targetDir, m.modulesDir(), addr, m.registryClient(ctx), m.ModulePackageFetcher, hooks)
 	diags = diags.Append(moreDiags)
 	if ctx.Err() == context.Canceled {
 		m.showDiagnostics(diags)
@@ -441,7 +441,6 @@ func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 	if m.configLoader == nil {
 		loader, err := configload.NewLoader(&configload.Config{
 			ModulesDir: m.modulesDir(),
-			Services:   m.Services,
 		})
 		if err != nil {
 			return nil, err
@@ -456,8 +455,8 @@ func (m *Meta) initConfigLoader() (*configload.Loader, error) {
 }
 
 // registryClient instantiates and returns a new Registry client.
-func (m *Meta) registryClient() *registry.Client {
-	return registry.NewClient(m.Services, nil)
+func (m *Meta) registryClient(ctx context.Context) *registry.Client {
+	return registry.NewClient(ctx, m.Services, nil)
 }
 
 // configValueFromCLI parses a configuration value that was provided in a

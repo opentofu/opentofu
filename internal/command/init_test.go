@@ -101,7 +101,7 @@ func TestInit_fromModule_cwdDest(t *testing.T) {
 			// treating an absolute filesystem path as if it were a "remote"
 			// source address, and so we need a real package fetcher but the
 			// way we use it here does not cause it to make network requests.
-			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
+			ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 		},
 	}
 
@@ -141,7 +141,7 @@ func TestInit_fromModule_dstInSrc(t *testing.T) {
 			// treating an absolute filesystem path as if it were a "remote"
 			// source address, and so we need a real package fetcher but the
 			// way we use it here does not cause it to make network requests.
-			ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
+			ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 		},
 	}
 
@@ -1866,7 +1866,7 @@ func TestInit_cancelModules(t *testing.T) {
 		// actually making a request to this, but we still need to provide
 		// the fetcher so that it will _attempt_ to make a network request
 		// that can then fail with a cancellation error.
-		ModulePackageFetcher: getmodules.NewPackageFetcher(nil),
+		ModulePackageFetcher: getmodules.NewPackageFetcher(t.Context(), nil),
 	}
 	c := &InitCommand{
 		Meta: m,

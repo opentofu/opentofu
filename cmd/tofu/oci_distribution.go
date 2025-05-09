@@ -130,7 +130,7 @@ func getOCIRepositoryORASClient(ctx context.Context, registryDomain, repositoryN
 		return nil, fmt.Errorf("finding credentials for %q: %w", registryDomain, err)
 	}
 	return &orasAuth.Client{
-		Client: httpclient.New(), // the underlying HTTP client to use, preconfigured with OpenTofu's User-Agent string
+		Client: httpclient.New(ctx), // the underlying HTTP client to use, preconfigured with OpenTofu's User-Agent string
 		Credential: func(ctx context.Context, hostport string) (orasAuth.Credential, error) {
 			if hostport != registryDomain {
 				// We should not send the credentials we selected to any registry

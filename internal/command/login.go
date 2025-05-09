@@ -50,6 +50,8 @@ type LoginCommand struct {
 
 // Run implements cli.Command.
 func (c *LoginCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.extendedFlagSet("login")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -192,12 +194,12 @@ func (c *LoginCommand) Run(args []string) int {
 		switch {
 		case clientConfig.SupportedGrantTypes.Has(disco.OAuthAuthzCodeGrant):
 			// We prefer an OAuth code grant if the server supports it.
-			oauthToken, tokenDiags = c.interactiveGetTokenByCode(hostname, credsCtx, clientConfig)
+			oauthToken, tokenDiags = c.interactiveGetTokenByCode(ctx, hostname, credsCtx, clientConfig)
 		case clientConfig.SupportedGrantTypes.Has(disco.OAuthOwnerPasswordGrant) && hostname == svchost.Hostname(tfeHost):
 			// The password grant type is allowed only for Terraform Cloud SaaS.
 			// Note this case is purely theoretical at this point, as TFC currently uses
 			// its own bespoke login protocol (tfe)
-			oauthToken, tokenDiags = c.interactiveGetTokenByPassword(hostname, credsCtx, clientConfig)
+			oauthToken, tokenDiags = c.interactiveGetTokenByPassword(ctx, hostname, credsCtx, clientConfig)
 		default:
 			tokenDiags = tokenDiags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -209,7 +211,7 @@ func (c *LoginCommand) Run(args []string) int {
 			token = svcauth.HostCredentialsToken(oauthToken.AccessToken)
 		}
 	} else if tfeservice != nil {
-		token, tokenDiags = c.interactiveGetTokenByUI(hostname, credsCtx, tfeservice)
+		token, tokenDiags = c.interactiveGetTokenByUI(ctx, hostname, credsCtx, tfeservice)
 	}
 
 	diags = diags.Append(tokenDiags)
@@ -260,7 +262,7 @@ func (c *LoginCommand) Run(args []string) int {
 
 		req.Header.Set("Authorization", "Bearer "+token.Token())
 
-		resp, err := httpclient.New().Do(req)
+		resp, err := httpclient.New(ctx).Do(req)
 		if err != nil {
 			c.logMOTDError(err)
 			c.outputDefaultTFCLoginSuccess()
@@ -367,9 +369,9 @@ func (c *LoginCommand) defaultOutputFile() string {
 	return filepath.Join(c.CLIConfigDir, "credentials.tfrc.json")
 }
 
-func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient) (*oauth2.Token, tfdiags.Diagnostics) {
+func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient) (*oauth2.Token, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	confirm, confirmDiags := c.interactiveContextConsent(hostname, disco.OAuthAuthzCodeGrant, credsCtx)
+	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthAuthzCodeGrant, credsCtx)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
 		diags = diags.Append(errors.New("Login cancelled"))
@@ -538,7 +540,7 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 		return nil, diags
 	}
 
-	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, httpclient.New())
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, httpclient.New(ctx))
 	token, err := oauthConfig.Exchange(
 		ctx, code,
 		oauth2.SetAuthURLParam("code_verifier", proofKey),
@@ -555,10 +557,10 @@ func (c *LoginCommand) interactiveGetTokenByCode(hostname svchost.Hostname, cred
 	return token, diags
 }
 
-func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient) (*oauth2.Token, tfdiags.Diagnostics) {
+func (c *LoginCommand) interactiveGetTokenByPassword(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, clientConfig *disco.OAuthClient) (*oauth2.Token, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	confirm, confirmDiags := c.interactiveContextConsent(hostname, disco.OAuthOwnerPasswordGrant, credsCtx)
+	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthOwnerPasswordGrant, credsCtx)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
 		diags = diags.Append(errors.New("Login cancelled"))
@@ -568,7 +570,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 	c.Ui.Output("\n---------------------------------------------------------------------------------\n")
 	c.Ui.Output("OpenTofu must temporarily use your password to request an API token.\nThis password will NOT be saved locally.\n")
 
-	username, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
+	username, err := c.UIInput().Input(ctx, &tofu.InputOpts{
 		Id:    "username",
 		Query: fmt.Sprintf("Username for %s:", hostname.ForDisplay()),
 	})
@@ -576,7 +578,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 		diags = diags.Append(fmt.Errorf("Failed to request username: %w", err))
 		return nil, diags
 	}
-	password, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
+	password, err := c.UIInput().Input(ctx, &tofu.InputOpts{
 		Id:     "password",
 		Query:  fmt.Sprintf("Password for %s:", hostname.ForDisplay()),
 		Secret: true,
@@ -591,7 +593,7 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 		Endpoint: clientConfig.Endpoint(),
 		Scopes:   clientConfig.Scopes,
 	}
-	token, err := oauthConfig.PasswordCredentialsToken(context.Background(), username, password)
+	token, err := oauthConfig.PasswordCredentialsToken(ctx, username, password)
 	if err != nil {
 		// FIXME: The OAuth2 library generates errors that are not appropriate
 		// for a Terraform end-user audience, so once we have more experience
@@ -607,10 +609,10 @@ func (c *LoginCommand) interactiveGetTokenByPassword(hostname svchost.Hostname, 
 	return token, diags
 }
 
-func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsCtx *loginCredentialsContext, service *url.URL) (svcauth.HostCredentialsToken, tfdiags.Diagnostics) {
+func (c *LoginCommand) interactiveGetTokenByUI(ctx context.Context, hostname svchost.Hostname, credsCtx *loginCredentialsContext, service *url.URL) (svcauth.HostCredentialsToken, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	confirm, confirmDiags := c.interactiveContextConsent(hostname, disco.OAuthGrantType(""), credsCtx)
+	confirm, confirmDiags := c.interactiveContextConsent(ctx, hostname, disco.OAuthGrantType(""), credsCtx)
 	diags = diags.Append(confirmDiags)
 	if !confirm {
 		diags = diags.Append(errors.New("Login cancelled"))
@@ -659,7 +661,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 		}
 	}
 
-	token, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
+	token, err := c.UIInput().Input(ctx, &tofu.InputOpts{
 		Id:     "token",
 		Query:  fmt.Sprintf("Token for %s:", hostname.ForDisplay()),
 		Secret: true,
@@ -685,7 +687,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 		diags = diags.Append(fmt.Errorf("Failed to create API client: %w", err))
 		return "", diags
 	}
-	user, err := client.Users.ReadCurrent(context.Background())
+	user, err := client.Users.ReadCurrent(ctx)
 	if err == tfe.ErrUnauthorized {
 		diags = diags.Append(fmt.Errorf("Token is invalid: %w", err))
 		return "", diags
@@ -698,7 +700,7 @@ func (c *LoginCommand) interactiveGetTokenByUI(hostname svchost.Hostname, credsC
 	return svcauth.HostCredentialsToken(token), nil
 }
 
-func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, grantType disco.OAuthGrantType, credsCtx *loginCredentialsContext) (bool, tfdiags.Diagnostics) {
+func (c *LoginCommand) interactiveContextConsent(ctx context.Context, hostname svchost.Hostname, grantType disco.OAuthGrantType, credsCtx *loginCredentialsContext) (bool, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	mechanism := "OAuth"
 	if grantType == "" {
@@ -724,7 +726,7 @@ func (c *LoginCommand) interactiveContextConsent(hostname svchost.Hostname, gran
 		}
 	}
 
-	v, err := c.UIInput().Input(context.Background(), &tofu.InputOpts{
+	v, err := c.UIInput().Input(ctx, &tofu.InputOpts{
 		Id:          "approve",
 		Query:       "Do you want to proceed?",
 		Description: `Only 'yes' will be accepted to confirm.`,

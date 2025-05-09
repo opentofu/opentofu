@@ -44,7 +44,7 @@ func TestDirFromModule_registry(t *testing.T) {
 
 	hooks := &testInstallHooks{}
 
-	reg := registry.NewClient(nil, nil)
+	reg := registry.NewClient(t.Context(), nil, nil)
 	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(context.Background(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, nil, hooks)
 	assertNoDiagnostics(t, diags)
@@ -173,7 +173,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 	assertNoDiagnostics(t, diags)
@@ -257,7 +257,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 
@@ -325,7 +325,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 	assertNoDiagnostics(t, diags)

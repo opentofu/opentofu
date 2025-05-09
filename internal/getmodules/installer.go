@@ -13,6 +13,8 @@ import (
 	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
 	"go.opentelemetry.io/otel/trace"
 
+	getter "github.com/hashicorp/go-getter"
+	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/tracing"
 )
 
@@ -40,17 +42,34 @@ type PackageFetcher struct {
 // It's valid to set "env" to nil, but that will make certain module
 // package source types unavailable for use and so that concession is
 // intended only for use in unit tests.
-func NewPackageFetcher(env PackageFetcherEnvironment) *PackageFetcher {
+func NewPackageFetcher(ctx context.Context, env PackageFetcherEnvironment) *PackageFetcher {
 	env = preparePackageFetcherEnvironment(env)
+
+	var httpClient = httpclient.New(ctx)
 
 	// We use goGetterGetters as our starting point for the available
 	// getters, but some need to be instantiated dynamically based on
 	// the given "env". We shallow-copy the source map so that multiple
 	// instances of PackageFetcher don't clobber each other's getters.
 	getters := maps.Clone(goGetterGetters)
+
+	// The OCI Distribution getter needs to acquire credentials based on
+	// centrally-configured policy, encapsulated in env.OCIRepositoryStore.
 	getters["oci"] = &ociDistributionGetter{
 		getOCIRepositoryStore: env.OCIRepositoryStore,
 	}
+
+	// The HTTP getter (used for both "http" and "https" schemes) uses
+	// the HTTP client we instantiated above, whose behavior can be
+	// incluenced by the ctx argument we passed to it, such as by
+	// enabling OpenTelemetry tracing when appropriate.
+	var httpGetter = &getter.HttpGetter{
+		Client:             httpClient,
+		Netrc:              true,
+		XTerraformGetLimit: 10,
+	}
+	getters["http"] = httpGetter
+	getters["https"] = httpGetter
 
 	return &PackageFetcher{
 		getter: newReusingGetter(getters),

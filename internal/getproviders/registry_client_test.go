@@ -6,7 +6,6 @@
 package getproviders
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -29,7 +28,7 @@ func TestConfigureDiscoveryRetry(t *testing.T) {
 			t.Fatalf("expected retry %q, got %q", registryClientDefaultRetry, discoveryRetry)
 		}
 
-		rc := newRegistryClient(nil, nil)
+		rc := newRegistryClient(t.Context(), nil, nil)
 		if rc.httpClient.RetryMax != registryClientDefaultRetry {
 			t.Fatalf("expected client retry %q, got %q",
 				registryClientDefaultRetry, rc.httpClient.RetryMax)
@@ -49,7 +48,7 @@ func TestConfigureDiscoveryRetry(t *testing.T) {
 				expected, discoveryRetry)
 		}
 
-		rc := newRegistryClient(nil, nil)
+		rc := newRegistryClient(t.Context(), nil, nil)
 		if rc.httpClient.RetryMax != expected {
 			t.Fatalf("expected client retry %q, got %q",
 				expected, rc.httpClient.RetryMax)
@@ -64,7 +63,7 @@ func TestConfigureRegistryClientTimeout(t *testing.T) {
 				defaultRequestTimeout.String(), requestTimeout.String())
 		}
 
-		rc := newRegistryClient(nil, nil)
+		rc := newRegistryClient(t.Context(), nil, nil)
 		if rc.httpClient.HTTPClient.Timeout != defaultRequestTimeout {
 			t.Fatalf("expected client timeout %q, got %q",
 				defaultRequestTimeout.String(), rc.httpClient.HTTPClient.Timeout.String())
@@ -84,7 +83,7 @@ func TestConfigureRegistryClientTimeout(t *testing.T) {
 				expected, requestTimeout.String())
 		}
 
-		rc := newRegistryClient(nil, nil)
+		rc := newRegistryClient(t.Context(), nil, nil)
 		if rc.httpClient.HTTPClient.Timeout != expected {
 			t.Fatalf("expected client timeout %q, got %q",
 				expected, rc.httpClient.HTTPClient.Timeout.String())
@@ -342,12 +341,12 @@ func TestProviderVersions(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.provider.String(), func(t *testing.T) {
-			client, err := source.registryClient(test.provider.Hostname)
+			client, err := source.registryClient(t.Context(), test.provider.Hostname)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			gotVersions, _, err := client.ProviderVersions(context.Background(), test.provider)
+			gotVersions, _, err := client.ProviderVersions(t.Context(), test.provider)
 
 			if err != nil {
 				if test.wantErr == "" {
@@ -427,12 +426,12 @@ func TestFindClosestProtocolCompatibleVersion(t *testing.T) {
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			client, err := source.registryClient(test.provider.Hostname)
+			client, err := source.registryClient(t.Context(), test.provider.Hostname)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			got, err := client.findClosestProtocolCompatibleVersion(context.Background(), test.provider, test.version)
+			got, err := client.findClosestProtocolCompatibleVersion(t.Context(), test.provider, test.version)
 
 			if err != nil {
 				if test.wantErr == "" {
