@@ -185,9 +185,13 @@ func FakeInstallablePackageMeta(provider addrs.Provider, version Version, protoc
 
 	// Compute the SHA256 checksum of the generated file, to allow package
 	// authentication code to be exercised.
-	f.Seek(0, io.SeekStart)
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return PackageMeta{}, close, err
+	}
 	h := sha256.New()
-	io.Copy(h, f)
+	if _, err := io.Copy(h, f); err != nil {
+		return PackageMeta{}, close, err
+	}
 	checksum := [32]byte{}
 	h.Sum(checksum[:0])
 
