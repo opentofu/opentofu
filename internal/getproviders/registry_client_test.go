@@ -149,6 +149,13 @@ func testRegistrySource(t *testing.T) (source *RegistrySource, baseURL string, c
 }
 
 func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
+	// Helper that assumes http writes will always succeed
+	write := func(data []byte) {
+		if _, err := resp.Write(data); err != nil {
+			panic(err)
+		}
+	}
+
 	path := req.URL.EscapedPath()
 	if strings.HasPrefix(path, "/fails-immediately/") {
 		// Here we take over the socket and just close it immediately, to
@@ -158,13 +165,13 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			// Not hijackable, so we'll just fail normally.
 			// If this happens, tests relying on this will fail.
 			resp.WriteHeader(500)
-			resp.Write([]byte(`cannot hijack`))
+			write([]byte(`cannot hijack`))
 			return
 		}
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
 			resp.WriteHeader(500)
-			resp.Write([]byte(`hijack failed`))
+			write([]byte(`hijack failed`))
 			return
 		}
 		conn.Close()
@@ -174,28 +181,28 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	if strings.HasPrefix(path, "/pkg/") {
 		switch path {
 		case "/pkg/awesomesauce/happycloud_1.2.0.zip":
-			resp.Write([]byte("some zip file"))
+			write([]byte("some zip file"))
 		case "/pkg/awesomesauce/happycloud_1.2.0_SHA256SUMS":
-			resp.Write([]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n000000000000000000000000000000000000000000000000000000000000face happycloud_1.2.0_face.zip\n"))
+			write([]byte("000000000000000000000000000000000000000000000000000000000000f00d happycloud_1.2.0.zip\n000000000000000000000000000000000000000000000000000000000000face happycloud_1.2.0_face.zip\n"))
 		case "/pkg/awesomesauce/happycloud_1.2.0_SHA256SUMS.sig":
-			resp.Write([]byte("GPG signature"))
+			write([]byte("GPG signature"))
 		default:
 			resp.WriteHeader(404)
-			resp.Write([]byte("unknown package file download"))
+			write([]byte("unknown package file download"))
 		}
 		return
 	}
 
 	if !strings.HasPrefix(path, "/providers/v1/") {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`not a provider registry endpoint`))
+		write([]byte(`not a provider registry endpoint`))
 		return
 	}
 
 	pathParts := strings.Split(path, "/")[3:]
 	if len(pathParts) < 3 {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`unexpected number of path parts`))
+		write([]byte(`unexpected number of path parts`))
 		return
 	}
 	log.Printf("[TRACE] fake provider registry request for %#v", pathParts)
@@ -203,7 +210,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	if pathParts[2] == "versions" {
 		if len(pathParts) != 3 {
 			resp.WriteHeader(404)
-			resp.Write([]byte(`extraneous path parts`))
+			write([]byte(`extraneous path parts`))
 			return
 		}
 
@@ -214,42 +221,42 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			// Note that these version numbers are intentionally misordered
 			// so we can test that the client-side code places them in the
 			// correct order (lowest precedence first).
-			resp.Write([]byte(`{"versions":[{"version":"0.1.0","protocols":["1.0"]},{"version":"2.0.0","protocols":["99.0"]},{"version":"1.2.0","protocols":["5.0"]}, {"version":"1.0.0","protocols":["5.0"]}]}`))
+			write([]byte(`{"versions":[{"version":"0.1.0","protocols":["1.0"]},{"version":"2.0.0","protocols":["99.0"]},{"version":"1.2.0","protocols":["5.0"]}, {"version":"1.0.0","protocols":["5.0"]}]}`))
 		case "weaksauce/unsupported-protocol":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write([]byte(`{"versions":[{"version":"1.0.0","protocols":["0.1"]}]}`))
+			write([]byte(`{"versions":[{"version":"1.0.0","protocols":["0.1"]}]}`))
 		case "weaksauce/protocol-six":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write([]byte(`{"versions":[{"version":"1.0.0","protocols":["6.0"]}]}`))
+			write([]byte(`{"versions":[{"version":"1.0.0","protocols":["6.0"]}]}`))
 		case "weaksauce/no-versions":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write([]byte(`{"versions":[],"warnings":["this provider is weaksauce"]}`))
+			write([]byte(`{"versions":[],"warnings":["this provider is weaksauce"]}`))
 		case "-/legacy":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
 			// This response is used for testing LookupLegacyProvider
-			resp.Write([]byte(`{"id":"legacycorp/legacy"}`))
+			write([]byte(`{"id":"legacycorp/legacy"}`))
 		case "-/moved":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
 			// This response is used for testing LookupLegacyProvider
-			resp.Write([]byte(`{"id":"hashicorp/moved","moved_to":"acme/moved"}`))
+			write([]byte(`{"id":"hashicorp/moved","moved_to":"acme/moved"}`))
 		case "-/changetype":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
 			// This (unrealistic) response is used for error handling code coverage
-			resp.Write([]byte(`{"id":"legacycorp/newtype"}`))
+			write([]byte(`{"id":"legacycorp/newtype"}`))
 		case "-/invalid":
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
 			// This (unrealistic) response is used for error handling code coverage
-			resp.Write([]byte(`{"id":"some/invalid/id/string"}`))
+			write([]byte(`{"id":"some/invalid/id/string"}`))
 		default:
 			resp.WriteHeader(404)
-			resp.Write([]byte(`unknown namespace or provider type`))
+			write([]byte(`unknown namespace or provider type`))
 		}
 		return
 	}
@@ -259,7 +266,7 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 		case "awesomesauce/happycloud":
 			if pathParts[4] == "nonexist" {
 				resp.WriteHeader(404)
-				resp.Write([]byte(`unsupported OS`))
+				write([]byte(`unsupported OS`))
 				return
 			}
 			var protocols []string
@@ -293,20 +300,20 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			enc, err := json.Marshal(body)
 			if err != nil {
 				resp.WriteHeader(500)
-				resp.Write([]byte("failed to encode body"))
+				write([]byte("failed to encode body"))
 			}
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
-			resp.Write(enc)
+			write(enc)
 		default:
 			resp.WriteHeader(404)
-			resp.Write([]byte(`unknown namespace/provider/version/architecture`))
+			write([]byte(`unknown namespace/provider/version/architecture`))
 		}
 		return
 	}
 
 	resp.WriteHeader(404)
-	resp.Write([]byte(`unrecognized path scheme`))
+	write([]byte(`unrecognized path scheme`))
 }
 
 func TestProviderVersions(t *testing.T) {

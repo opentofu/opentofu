@@ -698,8 +698,6 @@ func TestSignatureAuthentication_failure(t *testing.T) {
 	}
 }
 
-const testAuthorKeyID = `37A6AB3BCF2C170A`
-
 // testAuthorKeyArmor is test key ID 5BFEEC4317E746008621970637A6AB3BCF2C170A.
 const testAuthorKeyArmor = `-----BEGIN PGP PUBLIC KEY BLOCK-----
 
