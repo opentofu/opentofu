@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"sort"
 
+	svchost "github.com/hashicorp/terraform-svchost"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
@@ -296,6 +298,59 @@ func (l *Locks) EqualProviderAddress(other *Locks) bool {
 	}
 
 	return true
+}
+
+// UpgradeFromPredecessorProject checks the stored locks for any that seem
+// like they were probably created by the project that OpenTofu forked from,
+// and if so adds similar lock entries for same-named providers in the OpenTofu
+// registry.
+//
+// Because there is no guarantee that hashes would match between providers in
+// the two registries, the replacement lock file entries initially have no
+// hashes at all, and so can be used to select the same version number but
+// not to guarantee that the provider package matches what was previously
+// installed. The lock entries for the "old" providers are retained by this
+// function, but are likely to be discarded if the locks are subsequently used
+// for provider installation, since that discards lock entries for any providers
+// not currently in use.
+//
+// The result is a map from the providers whose entries were replaced to the
+// new provider that was selected to replace each one, so that the caller can
+// explain the changes to the operator. The result is zero-length if no
+// changes were made.
+func (l *Locks) UpgradeFromPredecessorProject() map[addrs.Provider]addrs.Provider {
+	var ret map[addrs.Provider]addrs.Provider // initialized only if we change something
+
+	for oldAddr, oldLock := range l.providers {
+		if oldAddr.Hostname != svchost.Hostname("registry.terraform.io") || oldAddr.Namespace != "hashicorp" {
+			// Only providers in this namespace have corresponding providers
+			// in the OpenTofu registry that are controlled by the OpenTofu
+			// project. We cannot safely make any assumption of equivalence
+			// about providers in any other registry or namespace.
+			continue
+		}
+		newAddr := addrs.NewDefaultProvider(oldAddr.Type)
+		if _, ok := l.providers[newAddr]; ok {
+			continue // we already have an entry for the replacement provider, so we'll keep it
+		}
+
+		// Our new lock file entry retains the same version selection and
+		// version constraints but discards the hashes.
+		newLock := NewProviderLock(newAddr, oldLock.Version(), oldLock.VersionConstraints(), nil)
+		l.providers[newAddr] = newLock
+		// NOTE: We intentionally keep the old entry in here for now, and
+		// let subsequent provider installer work clean it up, because the
+		// provider installer can tell whether anything in the configuration
+		// or state is somehow still referring to the old provider, in which
+		// case we ought to keep the entry for it.
+
+		if ret == nil {
+			ret = make(map[addrs.Provider]addrs.Provider)
+		}
+		ret[oldAddr] = newAddr
+	}
+
+	return ret
 }
 
 // Empty returns true if the given Locks object contains no actual locks.
