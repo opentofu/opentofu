@@ -7,9 +7,14 @@ package command
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"maps"
 	"os"
+	"slices"
+	"strings"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -59,6 +64,39 @@ func (m *Meta) lockedDependencies() (*depsfile.Locks, tfdiags.Diagnostics) {
 	}
 
 	ret, diags := depsfile.LoadLocksFromFile(dependencyLockFilename)
+
+	// If this is the first run after switching from OpenTofu's predecessor,
+	// the lock file might contain some entries from the predecessor's registry
+	// which we can translate into similar entries for OpenTofu's registry.
+	changed := ret.UpgradeFromPredecessorProject()
+	if len(changed) != 0 {
+		oldAddrs := slices.Collect(maps.Keys(changed))
+		slices.SortFunc(oldAddrs, func(a, b addrs.Provider) int {
+			if a.LessThan(b) {
+				return -1
+			} else if b.LessThan(a) {
+				return 1
+			} else {
+				return 0
+			}
+		})
+		var buf strings.Builder // strings.Builder writes cannot fail
+		_, _ = buf.WriteString("OpenTofu automatically rewrote some entries in your dependency lock file:\n")
+		for _, oldAddr := range oldAddrs {
+			newAddr := changed[oldAddr]
+			// We intentionally use String instead of ForDisplay here because
+			// this message won't make much sense without using fully-qualified
+			// addresses with explicit registry hostnames.
+			_, _ = fmt.Fprintf(&buf, "  - %s => %s\n", oldAddr.String(), newAddr.String())
+		}
+		_, _ = buf.WriteString("\nThe version selections were preserved, but the hashes were not because the OpenTofu project's provider releases are not byte-for-byte identical.")
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"Dependency lock file entries automatically updated",
+			buf.String(),
+		))
+	}
+
 	return m.annotateDependencyLocksWithOverrides(ret), diags
 }
 
