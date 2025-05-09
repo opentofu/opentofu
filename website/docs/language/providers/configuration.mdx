@@ -214,6 +214,68 @@ The `for_each` argument can only be used in combination with `alias`, because
 the default configuration for each provider must always have exactly one
 instance so that OpenTofu can select it automatically when appropriate.
 
+
+### Using provider for_each in resources
+
+To create multiple instances of a resource in different environments using `for_each`, you can use the following configuration:
+
+```hcl
+provider "aws" {
+  alias    = "by_region"
+  for_each = local.aws_regions
+  region = each.value
+}
+
+resource "aws_cloudwatch_log_group" "lambda_cloudfront" {
+  name     = "/aws/lambda/${each.key}.lambda"
+  for_each = local.aws_regions
+  provider = aws.by_region[each.key]
+}
+```
+
+
+### Using provider for_each in modules
+
+
+It's possible to add `for_each` providers for modules too, but it's a little bit trickier than using with resources: 
+
+```hcl
+variable "regions" {
+  description = "A list of regions that should have a deployment."
+  type        = set(string)
+  default     = ["us-east-1"]
+}
+variable "disabled_regions" {
+  description = "A list of regions that should be disabled and all resources removed."
+  type        = set(string)
+  default     = ["sa-east-1"]
+}
+
+provider "aws" {
+  alias    = "by_region"
+  for_each = var.regions
+  region = each.value
+}
+
+module "mod" {
+  source   = "./mod"
+  providers = {
+    aws = aws.by_region[each.value]
+  }
+  // Here we make sure that all resources from a region are removed
+  // if the region is disabled. This must be done before removing
+  // a region entirely.
+  for_each = setsubtract(var.regions, var.disabled_regions)
+}
+```
+
+Notice that a set is being used as the result of a setsubtract function. This is necessary since if we want to remove an entire region, if we just remove the region from `var.regions`, OpenTofu loses the reference to the provider and then it's not able to remove the resources. So the process for removing a region would be:
+
+1. Add the region to be removed on `disabled_regions`;
+1. Run plan/apply on the OpenTofu configuration;
+1. Remove the region from `regions`. At that point, you can remove from `disabled_regions` as well.
+1. Run plan/apply again;
+
 ## Selecting Alternate Provider Configurations
 
 Each resource in your OpenTofu configuration must be bound to one
