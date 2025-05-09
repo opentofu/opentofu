@@ -114,7 +114,9 @@ func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) string {
 					}
 
 					if req.WantReply {
-						req.Reply(true, nil)
+						if err := req.Reply(true, nil); err != nil {
+							panic(err)
+						}
 					}
 				}
 			}(requests)
@@ -310,7 +312,9 @@ func TestLostConnection(t *testing.T) {
 	// command to fail.
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		c.Disconnect()
+		if err := c.Disconnect(); err != nil {
+			panic(err)
+		}
 	}()
 
 	err = cmd.Wait()
@@ -590,7 +594,9 @@ func TestAccUploadFile(t *testing.T) {
 	if _, err := source.WriteString(content); err != nil {
 		t.Fatal(err)
 	}
-	source.Seek(0, io.SeekStart)
+	if _, err := source.Seek(0, io.SeekStart); err != nil {
+		t.Fatal(err)
+	}
 
 	tmpFile := filepath.Join(tmpDir, "tempFile.out")
 
