@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -46,10 +46,9 @@ var _ Source = (*HTTPMirrorSource)(nil)
 // (When the URL comes from user input, such as in the CLI config, it's the
 // UI/config layer's responsibility to validate this and return a suitable
 // error message for the end-user audience.)
-func NewHTTPMirrorSource(baseURL *url.URL, creds svcauth.CredentialsSource) *HTTPMirrorSource {
-	httpClient := httpclient.New(context.TODO())
-	httpClient.Timeout = requestTimeout
-	httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+func NewHTTPMirrorSource(baseURL *url.URL, creds svcauth.CredentialsSource, requestTimeout time.Duration) *HTTPMirrorSource {
+	httpClient := httpclient.NewForRegistryRequests(context.TODO(), 0, requestTimeout)
+	httpClient.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		// If we get redirected more than five times we'll assume we're
 		// in a redirect loop and bail out, rather than hanging forever.
 		if len(via) > 5 {
@@ -60,25 +59,14 @@ func NewHTTPMirrorSource(baseURL *url.URL, creds svcauth.CredentialsSource) *HTT
 	return newHTTPMirrorSourceWithHTTPClient(baseURL, creds, httpClient)
 }
 
-func newHTTPMirrorSourceWithHTTPClient(baseURL *url.URL, creds svcauth.CredentialsSource, httpClient *http.Client) *HTTPMirrorSource {
+func newHTTPMirrorSourceWithHTTPClient(baseURL *url.URL, creds svcauth.CredentialsSource, httpClient *retryablehttp.Client) *HTTPMirrorSource {
 	if baseURL.Scheme != "https" {
 		panic("non-https URL for HTTP mirror")
 	}
-
-	// We borrow the retry settings and behaviors from the registry client,
-	// because our needs here are very similar to those of the registry client.
-	retryableClient := retryablehttp.NewClient()
-	retryableClient.HTTPClient = httpClient
-	retryableClient.RetryMax = discoveryRetry
-	retryableClient.RequestLogHook = requestLogHook
-	retryableClient.ErrorHandler = maxRetryErrorHandler
-
-	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
-
 	return &HTTPMirrorSource{
 		baseURL:    baseURL,
 		creds:      creds,
-		httpClient: retryableClient,
+		httpClient: httpClient,
 	}
 }
 

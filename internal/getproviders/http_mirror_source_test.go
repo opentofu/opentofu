@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
 	svcauth "github.com/hashicorp/terraform-svchost/auth"
 
@@ -37,7 +38,9 @@ func TestHTTPMirrorSource(t *testing.T) {
 			"token": "placeholder-token",
 		},
 	})
-	source := newHTTPMirrorSourceWithHTTPClient(baseURL, creds, httpClient)
+	retryHTTPClient := retryablehttp.NewClient()
+	retryHTTPClient.HTTPClient = httpClient
+	source := newHTTPMirrorSourceWithHTTPClient(baseURL, creds, retryHTTPClient)
 
 	existingProvider := addrs.MustParseProviderSourceString("terraform.io/test/exists")
 	missingProvider := addrs.MustParseProviderSourceString("terraform.io/test/missing")
@@ -72,7 +75,7 @@ func TestHTTPMirrorSource(t *testing.T) {
 		}
 	})
 	t.Run("AvailableVersions without required credentials", func(t *testing.T) {
-		unauthSource := newHTTPMirrorSourceWithHTTPClient(baseURL, nil, httpClient)
+		unauthSource := newHTTPMirrorSourceWithHTTPClient(baseURL, nil, retryHTTPClient)
 		_, _, err := unauthSource.AvailableVersions(context.Background(), existingProvider)
 		switch err := err.(type) {
 		case ErrUnauthorized:
