@@ -43,7 +43,9 @@ func TestFilesystemRace(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ls.WriteState(current)
+			if err := ls.WriteState(current); err != nil {
+				panic(err)
+			}
 		}()
 	}
 	wg.Wait()

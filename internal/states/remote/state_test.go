@@ -43,9 +43,15 @@ func TestStateRace(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			s.WriteState(current)
-			s.PersistState(nil)
-			s.RefreshState()
+			if err := s.WriteState(current); err != nil {
+				panic(err)
+			}
+			if err := s.PersistState(nil); err != nil {
+				panic(err)
+			}
+			if err := s.RefreshState(); err != nil {
+				panic(err)
+			}
 		}()
 	}
 	wg.Wait()
@@ -561,8 +567,12 @@ func TestWriteStateForMigration(t *testing.T) {
 
 			// At this point we should just do a normal write and persist
 			// as would happen from the CLI
-			mgr.WriteState(mgr.State())
-			mgr.PersistState(nil)
+			if err := mgr.WriteState(mgr.State()); err != nil {
+				t.Fatal(err)
+			}
+			if err := mgr.PersistState(nil); err != nil {
+				t.Fatal(err)
+			}
 
 			if logIdx >= len(mockClient.log) {
 				t.Fatalf("request lock and index are out of sync on %q: idx=%d len=%d", tc.name, logIdx, len(mockClient.log))
@@ -728,8 +738,12 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 
 			// At this point we should just do a normal write and persist
 			// as would happen from the CLI
-			mgr.WriteState(mgr.State())
-			mgr.PersistState(nil)
+			if err := mgr.WriteState(mgr.State()); err != nil {
+				t.Fatal(err)
+			}
+			if err := mgr.PersistState(nil); err != nil {
+				t.Fatal(err)
+			}
 
 			if logIdx >= len(mockClient.log) {
 				t.Fatalf("request lock and index are out of sync on %q: idx=%d len=%d", tc.name, logIdx, len(mockClient.log))

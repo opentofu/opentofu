@@ -173,7 +173,11 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 			return nil
 		}
 	}
-	defer s.stateFileOut.Sync()
+	defer func() {
+		if err := s.stateFileOut.Sync(); err != nil {
+			log.Printf("[ERROR] Unable to sync statefile %s: %s", s.path, err.Error())
+		}
+	}()
 
 	if s.file == nil {
 		s.file = NewStateFile()
