@@ -13,13 +13,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
-	"strconv"
-	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
@@ -29,8 +25,6 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/tracing"
 	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 	"github.com/opentofu/opentofu/version"
@@ -38,32 +32,7 @@ import (
 
 const (
 	terraformVersionHeader = "X-Terraform-Version"
-
-	// registryDiscoveryRetryEnvName is the name of the environment variable that
-	// can be configured to customize number of retries for module and provider
-	// discovery requests with the remote registry.
-	registryDiscoveryRetryEnvName = "TF_REGISTRY_DISCOVERY_RETRY"
-	registryClientDefaultRetry    = 1
-
-	// registryClientTimeoutEnvName is the name of the environment variable that
-	// can be configured to customize the timeout duration (seconds) for module
-	// and provider discovery with the remote registry.
-	registryClientTimeoutEnvName = "TF_REGISTRY_CLIENT_TIMEOUT"
-
-	// defaultRequestTimeout is the default timeout duration for requests to the
-	// remote registry.
-	defaultRequestTimeout = 10 * time.Second
 )
-
-var (
-	discoveryRetry int
-	requestTimeout time.Duration
-)
-
-func init() {
-	configureDiscoveryRetry()
-	configureRequestTimeout()
-}
 
 var SupportedPluginProtocols = MustParseVersionConstraints(">= 5, <7")
 
@@ -77,22 +46,11 @@ type registryClient struct {
 	httpClient *retryablehttp.Client
 }
 
-func newRegistryClient(ctx context.Context, baseURL *url.URL, creds svcauth.HostCredentials) *registryClient {
-	httpClient := httpclient.New(ctx)
-	httpClient.Timeout = requestTimeout
-
-	retryableClient := retryablehttp.NewClient()
-	retryableClient.HTTPClient = httpClient
-	retryableClient.RetryMax = discoveryRetry
-	retryableClient.RequestLogHook = requestLogHook
-	retryableClient.ErrorHandler = maxRetryErrorHandler
-
-	retryableClient.Logger = log.New(logging.LogOutput(), "", log.Flags())
-
+func newRegistryClient(ctx context.Context, baseURL *url.URL, creds svcauth.HostCredentials, httpClient *retryablehttp.Client) *registryClient {
 	return &registryClient{
 		baseURL:    baseURL,
 		creds:      creds,
-		httpClient: retryableClient,
+		httpClient: httpClient,
 	}
 }
 
@@ -494,50 +452,6 @@ func (c *registryClient) getFile(ctx context.Context, url *url.URL) ([]byte, err
 	return data, nil
 }
 
-// configureDiscoveryRetry configures the number of retries the registry client
-// will attempt for requests with retryable errors, like 502 status codes
-func configureDiscoveryRetry() {
-	discoveryRetry = registryClientDefaultRetry
-
-	if v := os.Getenv(registryDiscoveryRetryEnvName); v != "" {
-		retry, err := strconv.Atoi(v)
-		if err == nil && retry > 0 {
-			discoveryRetry = retry
-		}
-	}
-}
-
-func requestLogHook(logger retryablehttp.Logger, req *http.Request, i int) {
-	if i > 0 {
-		logger.Printf("[INFO] Previous request to the remote registry failed, attempting retry.")
-	}
-}
-
-func maxRetryErrorHandler(resp *http.Response, err error, numTries int) (*http.Response, error) {
-	// Close the body per library instructions
-	if resp != nil {
-		resp.Body.Close()
-	}
-
-	// Additional error detail: if we have a response, use the status code;
-	// if we have an error, use that; otherwise nothing. We will never have
-	// both response and error.
-	var errMsg string
-	if resp != nil {
-		errMsg = fmt.Sprintf(": %s returned from %s", resp.Status, HostFromRequest(resp.Request))
-	} else if err != nil {
-		errMsg = fmt.Sprintf(": %s", err)
-	}
-
-	// This function is always called with numTries=RetryMax+1. If we made any
-	// retry attempts, include that in the error message.
-	if numTries > 1 {
-		return resp, fmt.Errorf("the request failed after %d attempts, please try again later%s",
-			numTries, errMsg)
-	}
-	return resp, fmt.Errorf("the request failed, please try again later%s", errMsg)
-}
-
 // HostFromRequest extracts host the same way net/http Request.Write would,
 // accounting for empty Request.Host
 func HostFromRequest(req *http.Request) string {
@@ -552,17 +466,4 @@ func HostFromRequest(req *http.Request) string {
 	// it will be handled as part of Request.Write()
 	// https://cs.opensource.google/go/go/+/refs/tags/go1.18.4:src/net/http/request.go;l=574
 	return ""
-}
-
-// configureRequestTimeout configures the registry client request timeout from
-// environment variables
-func configureRequestTimeout() {
-	requestTimeout = defaultRequestTimeout
-
-	if v := os.Getenv(registryClientTimeoutEnvName); v != "" {
-		timeout, err := strconv.Atoi(v)
-		if err == nil && timeout > 0 {
-			requestTimeout = time.Duration(timeout) * time.Second
-		}
-	}
 }
