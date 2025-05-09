@@ -7,6 +7,7 @@
 package simple
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -55,7 +56,7 @@ func Provider() providers.Interface {
 	}
 }
 
-func (s simple) GetProviderSchema() providers.GetProviderSchemaResponse {
+func (s simple) GetProviderSchema(_ context.Context) providers.GetProviderSchemaResponse {
 	return s.schema
 }
 

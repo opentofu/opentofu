@@ -41,27 +41,27 @@ func TestState(t *testing.T) {
 		},
 		{
 			State:   basicState(t),
-			Schemas: testSchemas(),
+			Schemas: testSchemas(t),
 			Want:    basicStateOutput,
 		},
 		{
 			State:   nestedState(t),
-			Schemas: testSchemas(),
+			Schemas: testSchemas(t),
 			Want:    nestedStateOutput,
 		},
 		{
 			State:   deposedState(t),
-			Schemas: testSchemas(),
+			Schemas: testSchemas(t),
 			Want:    deposedNestedStateOutput,
 		},
 		{
 			State:   onlyDeposedState(t),
-			Schemas: testSchemas(),
+			Schemas: testSchemas(t),
 			Want:    onlyDeposedOutput,
 		},
 		{
 			State:   stateWithMoreOutputs(t),
-			Schemas: testSchemas(),
+			Schemas: testSchemas(t),
 			Want:    stateWithMoreOutputsOutput,
 		},
 	}
@@ -155,11 +155,11 @@ func testProviderSchema() *providers.GetProviderSchemaResponse {
 	}
 }
 
-func testSchemas() *tofu.Schemas {
+func testSchemas(t *testing.T) *tofu.Schemas {
 	provider := testProvider()
 	return &tofu.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
-			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
+			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(t.Context()),
 		},
 	}
 }
