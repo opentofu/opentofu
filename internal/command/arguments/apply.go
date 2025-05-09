@@ -54,7 +54,7 @@ func ParseApply(args []string) (*Apply, tfdiags.Diagnostics) {
 	cmdFlags.BoolVar(&apply.AutoApprove, "auto-approve", false, "auto-approve")
 	cmdFlags.BoolVar(&apply.InputEnabled, "input", true, "input")
 	cmdFlags.BoolVar(&apply.ShowSensitive, "show-sensitive", false, "displays sensitive values")
-	cmdFlags.StringVar(&apply.ModuleDeprecationWarnings, "deprecation-warns", "", "control the level of deprecation warnings")
+	cmdFlags.StringVar(&apply.ModuleDeprecationWarnings, "deprecation", "", "control the level of deprecation warnings")
 
 	var json bool
 	cmdFlags.BoolVar(&json, "json", false, "json")
