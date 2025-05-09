@@ -178,7 +178,7 @@ func makeTemplateFileFuncImpl(baseDir string, funcsCb func() map[string]function
 	return function.New(&function.Spec{
 		Params: params,
 		Type: func(args []cty.Value) (cty.Type, error) {
-			if !(args[0].IsKnown() && args[1].IsKnown()) {
+			if !args[0].IsKnown() || !args[1].IsKnown() {
 				return cty.DynamicPseudoType, nil
 			}
 

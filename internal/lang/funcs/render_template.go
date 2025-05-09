@@ -15,7 +15,7 @@ import (
 )
 
 func renderTemplate(expr hcl.Expression, varsVal cty.Value, funcs map[string]function.Function) (cty.Value, error) {
-	if varsTy := varsVal.Type(); !(varsTy.IsMapType() || varsTy.IsObjectType()) {
+	if varsTy := varsVal.Type(); !varsTy.IsMapType() && !varsTy.IsObjectType() {
 		return cty.DynamicVal, function.NewArgErrorf(1, "invalid vars value: must be a map") // or an object, but we don't strongly distinguish these most of the time
 	}
 

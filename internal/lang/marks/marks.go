@@ -33,7 +33,8 @@ func Has(val cty.Value, mark valueMark) bool {
 // the given mark.
 func Contains(val cty.Value, mark valueMark) bool {
 	ret := false
-	cty.Walk(val, func(_ cty.Path, v cty.Value) (bool, error) {
+	// We never return an error, so we can ignore the value here
+	_ = cty.Walk(val, func(_ cty.Path, v cty.Value) (bool, error) {
 		if v.HasMark(mark) {
 			ret = true
 			return false, nil
