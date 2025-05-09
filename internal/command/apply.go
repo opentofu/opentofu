@@ -400,8 +400,8 @@ Options:
                          suitable for use in text editor integrations and
                          other automated systems. Always disables color.
 
-  -deprecation-warns=lvl Specify what type of warnings are shown. Accepted
-                         values for lvl: all, local, none. Default: all.
+  -deprecation=module:m  Specify what type of warnings are shown. Accepted
+                         values for "m": all, local, none. Default: all.
                          When "all" is selected, OpenTofu will show the
                          deprecation warnings for all modules. When "local"
                          is selected, the warns will be shown only for the

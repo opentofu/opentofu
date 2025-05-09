@@ -47,7 +47,7 @@ func ParseView(args []string) (*View, []string) {
 	// argument we support, "i" will not be incremented.
 	i := 0
 	for _, v := range args {
-		if prefix := "-deprecation-warns"; strings.HasPrefix(v, prefix) {
+		if prefix := "-deprecation=module:"; strings.HasPrefix(v, prefix) {
 			common.ModuleDeprecationWarnLvl = tofu.ParseDeprecatedWarningLevel(strings.ReplaceAll(v, prefix, ""))
 			continue // continue to ensure that the counter is not incremented
 		}
