@@ -15,6 +15,9 @@ import (
 	"strings"
 
 	plugin "github.com/hashicorp/go-plugin"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	otelAttrs "go.opentelemetry.io/otel/attribute"
+	"google.golang.org/grpc"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	terraformProvider "github.com/opentofu/opentofu/internal/builtin/providers/tf"
@@ -25,6 +28,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 var errUnsupportedProtocolVersion = errors.New("unsupported protocol version")
@@ -367,6 +371,16 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 			VersionedPlugins: tfplugin.VersionedPlugins,
 			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Provider)),
 			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", meta.Provider)),
+
+			// The following causes our grpc clients to generate OpenTelemetry
+			// traces and to propagate trace context to the plugin server,
+			// in case it wants to generate child spans of its own.
+			GRPCDialOptions: []grpc.DialOption{grpc.WithStatsHandler(otelgrpc.NewClientHandler(
+				otelgrpc.WithSpanAttributes(
+					otelAttrs.String(traceattrs.ProviderAddress, meta.Provider.String()),
+					otelAttrs.String(traceattrs.ProviderVersion, meta.Version.String()),
+				),
+			))},
 		}
 
 		client := plugin.NewClient(config)
@@ -436,6 +450,15 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 			Reattach:         reattach,
 			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", provider)),
 			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", provider)),
+
+			// The following causes our grpc clients to generate OpenTelemetry
+			// traces and to propagate trace context to the plugin server,
+			// in case it wants to generate child spans of its own.
+			GRPCDialOptions: []grpc.DialOption{grpc.WithStatsHandler(otelgrpc.NewClientHandler(
+				otelgrpc.WithSpanAttributes(
+					otelAttrs.String(traceattrs.ProviderAddress, provider.String()),
+				),
+			))},
 		}
 
 		if reattach.ProtocolVersion == 0 {
