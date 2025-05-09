@@ -312,3 +312,105 @@ func TestProviderLockContainsAll(t *testing.T) {
 		}
 	})
 }
+
+func TestLocksUpgradeFromPredecessorProject(t *testing.T) {
+	locks, diags := LoadLocksFromBytes([]byte(`
+		provider "registry.terraform.io/hashicorp/a" {
+			version = "1.0.0"
+			constraints = ">= 1.0.0"
+			hashes = [
+				"h1:jsKjBiLb+v3OIC3xuDiY4sR0r1OHUMSWPYKult9MhT0=",
+			]
+		}
+
+		provider "registry.terraform.io/anything-else/b" {
+			version = "2.0.0"
+			hashes = [
+				"h1:jsKjBiLb+v3OIC3xuDiY4sR0r1OHUMSWPYKult9MhT0=",
+			]
+		}
+
+		provider "registry.terraform.io/hashicorp/c" {
+			version = "3.0.0"
+			hashes = [
+				"h1:jsKjBiLb+v3OIC3xuDiY4sR0r1OHUMSWPYKult9MhT0=",
+			]
+		}
+		provider "registry.opentofu.org/hashicorp/c" {
+			version = "4.0.0"
+			hashes = [
+				"h1:jsKjBiLb+v3OIC3xuDiY4sR0r1OHUMSWPYKult9T0Mh=",
+			]
+		}
+	`), "")
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err().Error())
+	}
+
+	gotChanges := locks.UpgradeFromPredecessorProject()
+	wantChanges := map[addrs.Provider]addrs.Provider{
+		addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/a"): addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/a"),
+	}
+	if diff := cmp.Diff(wantChanges, gotChanges); diff != "" {
+		t.Error("wrong reported changes\n" + diff)
+	}
+
+	gotLocks := locks.AllProviders()
+	wantLocks := map[addrs.Provider]*ProviderLock{
+		// This one is still included because we want to let the provider
+		// installer be the one to decide to remove it, once it's convinced
+		// itself that this provider is definitely no longer needed...
+		addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/a"): {
+			addr:               addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/a"),
+			version:            getproviders.MustParseVersion("1.0.0"),
+			versionConstraints: getproviders.MustParseVersionConstraints(">= 1.0.0"),
+			hashes: []getproviders.Hash{
+				getproviders.HashScheme1.New("jsKjBiLb+v3OIC3xuDiY4sR0r1OHUMSWPYKult9MhT0="),
+			},
+		},
+
+		// ...but we now have this new one that describes the OpenTofu equivalent
+		// of it, with the same version but not yet any hashes. The hashes
+		// must be determined by a subsequent installation step.
+		addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/a"): {
+			addr:               addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/a"),
+			version:            getproviders.MustParseVersion("1.0.0"),
+			versionConstraints: getproviders.MustParseVersionConstraints(">= 1.0.0"),
+			// intentionally no hashes here, but the version and versionConstraints
+			// must match the entry above.
+		},
+
+		// This one does not get any special treatment because it's not in
+		// the namespace where the OpenTofu project maintains
+		// directly-corresponding releases.
+		addrs.MustParseProviderSourceString("registry.terraform.io/anything-else/b"): {
+			addr:    addrs.MustParseProviderSourceString("registry.terraform.io/anything-else/b"),
+			version: getproviders.MustParseVersion("2.0.0"),
+			hashes: []getproviders.Hash{
+				getproviders.HashScheme1.New("jsKjBiLb+v3OIC3xuDiY4sR0r1OHUMSWPYKult9MhT0="),
+			},
+		},
+
+		// The following two both survive unchanged because we don't want to
+		// destroy any existing lock file entry for a provider from the
+		// OpenTofu registry even if there's an entry that could potentially
+		// have been translated.
+		addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/c"): {
+			addr:    addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/c"),
+			version: getproviders.MustParseVersion("3.0.0"),
+			hashes: []getproviders.Hash{
+				getproviders.HashScheme1.New("jsKjBiLb+v3OIC3xuDiY4sR0r1OHUMSWPYKult9MhT0="),
+			},
+		},
+		addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/c"): {
+			addr:    addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/c"),
+			version: getproviders.MustParseVersion("4.0.0"),
+			hashes: []getproviders.Hash{
+				getproviders.HashScheme1.New("jsKjBiLb+v3OIC3xuDiY4sR0r1OHUMSWPYKult9T0Mh="),
+			},
+		},
+	}
+	if diff := cmp.Diff(wantLocks, gotLocks, ProviderLockComparer); diff != "" {
+		t.Error("wrong updated locks\n" + diff)
+	}
+}
