@@ -3,7 +3,7 @@
 Issue: https://github.com/opentofu/opentofu/issues/1996
 
 Right now, OpenTofu information for resources and outputs are written to state as it is. This is presenting a security risk
-as some of the information from the stored objects can contain sensitive bits that are visible to whoever is having access to the state file.
+as some of the information from the stored objects can contain sensitive bits that can become visible to whoever is having access to the state file.
 
 In order to provide a better solution for the aforementioned situation, OpenTofu introduces the concept of "ephemerality".
 
@@ -12,7 +12,7 @@ To make this work seamlessly with most of the blocks that OpenTofu supports, the
 * variables
 * outputs
 * locals
-* ephemeral `resource`s
+* `ephemeral` resources
 * providers
 * provisioners
 * `connection` block
@@ -23,7 +23,7 @@ In the attempt of providing to the reader an in-depth understanding of the ephem
 this section will try to explain the functional implications of the new concept in each existing feature.
 
 ### Write-only attributes
-Write-only attributes is a new concept that allows any existing `resource` to define attributes in its schema that can be only written without the ability to retrieve the value afterward.
+This is a new concept that allows any existing `resource` to define attributes in its schema that can be only written without the ability to retrieve the value afterwards.
 
 By not being readable, this also means that an attribute configured by a provider this way, will not be written to the state or plan file either.
 Therefore, these attributes are suitable for configuring specific resources with sensitive data, like passwords, access keys, etc.
@@ -31,11 +31,10 @@ Therefore, these attributes are suitable for configuring specific resources with
 A write-only attribute can accept an ephemeral or a non-ephemeral value, even though it's recommended to use ephemeral values for such attributes.
 
 Because these attributes are not written to the plan file, the update of a write-only attribute it's getting a little bit trickier.
-Provider implementations do generally include also a "version" field linked to the write-only one.
-For example having a write-only field called `secret`, providers should also include
-a non-write-only field called `secret_version`. Every time the user wants to update the value of `secret`, it needs to change the value of `secret_version` to trigger a change.
-The provider implementation is responsible with handling this particular case: because the version field is stored also in the state, the provider needs to compare the value from the state with the one from the configuration
-and in case it differs, it will trigger the update of the `secret` field.
+Provider implementations do generally include also a "version" argument linked to the write-only one.
+For example having a write-only argument called `secret`, providers should also include
+a non-write-only argument called `secret_version`. Every time the user wants to update the value of `secret`, it needs to change the value of `secret_version` to trigger a change.
+The provider implementation is responsible with handling this particular case: because the version attribute is stored also in the state, the provider needs to compare the value from the state with the one from the configuration and in case it differs, it will trigger the update of the `secret` attribute.
 
 The write-only attributes are supported momentarily by a low number of providers and resources.
 Having the `aws_db_instance` as one of those, here is an example on how to use the write-only attributes:
@@ -59,10 +58,6 @@ resource "aws_db_instance" "example" {
 ```
 
 As seen in this particular change of the [terraform-plugin-framework](https://github.com/hashicorp/terraform-plugin-framework/commit/ecd80f67daed0b92b243ae59bb1ee2077f8077c7), the write-only attribute cannot be configured for set attributes, set nested attributes and set nested blocks.
-> [!NOTE]
-> 
-> Why so? I need additional information here. Why MapNestedAttribute can be write-only but not SetAttribute, SetNestedAttribute and SetNestedBlock?
-> Some info [here](https://github.com/hashicorp/terraform-plugin-framework/pull/1095).
 
 Write-only attributes cannot generate a plan diff because the prior state does not contain a value that OpenTofu can use to compare the new value against and also the planned value of a write-only argument will always be empty.
 ### Variables
@@ -83,7 +78,17 @@ OpenTofu will allow usage of these variables only in other ephemeral contexts:
 * connection blocks
 * provider configuration
 
-Usage in any other place will raise an error.
+Usage in any other place will raise an error:
+```shell
+│ Error: Invalid use of an ephemeral value
+│
+│   with playground_secret.store_secret,
+│   on main.tf line 30, in resource "playground_secret" "store_secret":
+│   30:   secret_name = var.password
+│
+│ "secret_name" cannot accept an ephemeral value because it is not a write-only attribute which means that will be written to the state.
+╵
+```
 
 OpenTofu will not store ephemeral variable(s) in plan files. 
 If a plan is generated from a configuration that is having at least one ephemeral variable, 
@@ -95,7 +100,7 @@ An `output` block can be configured as ephemeral as long as it's
 not from the root module. 
 This limitation is natural since ephemeral outputs are meant to be skipped from the state file. Therefore, there is no usage of such a defined output block in a root module.
 
-Ephemeral outputs are useful when a child module returns sensitive data, forcing the caller to use the value of that output only in ephemeral contexts.
+Ephemeral outputs are useful when a child module returns sensitive data, allowing the caller to use the value of that output in other ephemeral contexts.
 
 To mark an output as ephemeral, use the following syntax:
 ```hcl
@@ -110,10 +115,6 @@ The ephemeral outputs are available during plan and apply phase and can be acces
 * other ephemeral outputs
 * write-only attributes
 * ephemeral resources
-
-> [!NOTE]
-> 
-> Check other blocks like `provider`, `provisioner` and `connection` for early evaluated ephemeral values. Maybe with the OpenTofu early eval feature, at least the `provider` should be able to reference ephemeral values  
 
 ### Locals
 Local values are automatically marked as ephemeral if any of value that is used to compute the local is already an ephemeral one.
@@ -148,7 +149,7 @@ Locals marked as ephemeral are available during plan and apply phase and can be 
 ### Ephemeral resource
 In contrast with the write-only arguments where only specifically tagged attributes are skipped from the state/plan file, `ephemeral` resources are skipped entirely.
 This is adding a new idea of generating a resource every time. 
-For example, you can have an ephemeral resource that is retrieving the password from a secret manager, password that can be passed later into a write-only attribute of another ephemeral resource.
+For example, you can have an ephemeral resource that is retrieving the password from a secret manager, password that can be passed later into a write-only attribute of another normal `resource`.
 
 Ephemeral resources can be referenced only in specific contexts:
 * other ephemeral resources
@@ -162,7 +163,7 @@ Ephemeral resources can be referenced only in specific contexts:
 ### Providers
 `provider` block is ephemeral by nature, meaning that the configuration of this is never stored into state/plan file.
 
-Therefore, this block should be able to receive values from ephemeral variables/resources.
+Therefore, this block should be configurable by using also ephemeral values.
 
 ### `provisioner` block
 As `provisioner` information is not stored into the plan/state file, this can reference ephemeral values like ephemeral variables, outputs, locals and values from ephemeral resources.
@@ -175,19 +176,8 @@ When the `connection` block is configured, this will be allowed to use ephemeral
 
 Describe what the user would encounter when attempting to interact with what is being proposed. Provide clear and detailed descriptions, code examples, diagrams, etc... Starting point for the documentation that will be added during implementation.
 
-This documentation will help the community have a better understanding how they will be interacting with this proposal and have an easier time discussing it in depth.
-
 ## Technical Approach
-
-<!-- Technical summary, easy to understand by someone unfamiliar with the codebase. -->
-<!---->
-<!-- Link to existing documentation and code, include diagrams if helpful. -->
-<!---->
-<!-- Include pseudocode or link to a Proof of Concept if applicable. -->
-<!---->
-<!-- Describe potential limitations or impacts on other areas of the codebase. -->
-
-In this section, as in the "Proposed Solution" section, we'll go over each concept, but this time in a more technical point of view.
+In this section, as in the "Proposed Solution" section, we'll go over each concept, but this time with a more technical focus.
 
 ### Write-only arguments
 Most of the write-only arguments logic is already in the [provider-framework](https://github.com/hashicorp/terraform-plugin-framework):
@@ -205,7 +195,7 @@ On the OpenTofu side the following needs to be tackled:
     * Add a new validation on the provider schema to check against, set nested attributes and set nested blocks with writeOnly=true. Tested this with a version of terraform-plugin-framework that allowed writeOnly on sets and there is an error returned. (set attributes are allowed based on my tests)
     In order to understand this better, maybe we should allow this for the moment and test OpenTofu with the [plugin-framework version](https://github.com/hashicorp/terraform-plugin-framework/commit/0724df105602e6b6676e201b7c0c5e1d187df990) that allows sets to be write-only=true.
 
-> [!INFO]
+> [!NOTE]
 >
 > Write-only attributes will be presented in the OpenTofu's UI as `(write-only attribute)` instead of the actual value.
 
@@ -215,6 +205,7 @@ For enabling ephemeral variables, these are the basic steps that need to be take
 * Update config to support the `ephemeral` attribute.
 * Mark the variables with a new mark ensure that the marks are propagated correctly.
 * Based on the marks, ensure that the variable cannot be used in other contexts than the ephemeral ones (see the User Documentation section for more details on where this is allowed).
+* Check the state of [#1998](https://github.com/opentofu/opentofu/pull/1998). If that is merged, in the changes where variables from plan are verified against the configuration ones, we also need to add a validation on the ephemerality of variables. If the variable is marked as ephemeral, then the plan value is allowed (expected) to be missing. 
 
 We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
 
@@ -397,16 +388,16 @@ This function should work perfectly fine also with a non-ephemeral value.
 
 ## Open Questions
 
-List questions that should be discussed and answered during the RFC process.
+Some questions that are also scattered across the RFC:
+* Any ideas why the terraform-plugin-framework does not allow write-only SetAttribute, SetNestedAttribute and SetNestedBlock?
+  * Based on my tests, MapNestedAttribute is allowed (together with other types).
+  * Some info [here](https://github.com/hashicorp/terraform-plugin-framework/pull/1095).
+* Considering the early evaluation supported in OpenTofu, could blocks like `provider`, `provisioner` and `connection` be configured with such outputs? Or there is no such thing as "early evaluating a module"? 
+
 
 ## Future Considerations
 
-What are some potential future paths this solution could take?  What other features may interact with this solution, what should be kept in mind during implementation?
-
-Docs to be added:
+Website documentation that needs to be updated later:
 * write-only - add also some hands-on with generating an ephemeral value and pass it into a write-only attribute
 * variables - add an in-depth description of the ephemeral attribute in the variables page
 * outputs - add an in-depth description of the ephemeral attribute in the outputs page
-## Potential Alternatives
-
-List different approaches and briefly compare with the proposal in this RFC. It's important to explore and understand possible alternatives before agreeing on a solution.
