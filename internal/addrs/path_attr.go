@@ -5,6 +5,8 @@
 
 package addrs
 
+import "github.com/zclconf/go-cty/cty"
+
 // PathAttr is the address of an attribute of the "path" object in
 // the interpolation scope, like "path.module".
 type PathAttr struct {
@@ -14,6 +16,10 @@ type PathAttr struct {
 
 func (pa PathAttr) String() string {
 	return "path." + pa.Name
+}
+
+func (pa PathAttr) Path() cty.Path {
+	return cty.GetAttrPath("path").GetAttr(pa.Name)
 }
 
 func (pa PathAttr) UniqueKey() UniqueKey {

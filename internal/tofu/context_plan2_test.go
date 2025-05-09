@@ -17,6 +17,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/hashicorp/hcl/v2"
@@ -7569,6 +7570,84 @@ locals {
 
 	if module.ResourceInstance(addr.Resource).Current.Status != states.ObjectPlanned {
 		t.Errorf("expected resource to be in planned state")
+	}
+}
+
+func TestContext2Plan_watch(t *testing.T) {
+	tofuCtx := testContext2(t, &ContextOpts{})
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			module "child" {
+				source = "./child"
+
+				greeting = "Hello, world"
+			}
+		`,
+		"child/main.tf": `
+			variable "greeting" {
+				type = string
+			}
+
+			locals {
+				test = {
+					greeting = var.greeting
+				}
+			}
+
+			output "loud_greeting" {
+				value = upper(local.test.greeting)
+			}
+		`,
+	})
+
+	refStrs := []string{
+		`module.child`,
+		`module.child:var.greeting`,
+		`module.child:local.test.greeting`,
+	}
+	refs := make(map[string]*addrs.AbsReference, len(refStrs))
+	for _, refStr := range refStrs {
+		ref, diags := addrs.ParseAbsRefStr(refStr)
+		assertNoErrors(t, diags)
+		refs[refStr] = ref
+	}
+
+	wantResults := map[string]cty.Value{
+		`module.child`: cty.ObjectVal(map[string]cty.Value{
+			"loud_greeting": cty.StringVal("HELLO, WORLD"),
+		}),
+		`module.child:var.greeting`:        cty.StringVal("Hello, world"),
+		`module.child:local.test.greeting`: cty.StringVal("Hello, world"),
+	}
+	gotResults := make(map[string]cty.Value, len(refs))
+	var mu sync.Mutex
+	report := func(ref *addrs.AbsReference, val cty.Value) {
+		mu.Lock()
+		gotResults[ref.DisplayString()] = val
+		mu.Unlock()
+	}
+
+	_, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		WatchRequests: []WatchRequest{
+			{
+				Ref:    refs[`module.child`],
+				Notify: report,
+			},
+			{
+				Ref:    refs[`module.child:var.greeting`],
+				Notify: report,
+			},
+			{
+				Ref:    refs[`module.child:local.test.greeting`],
+				Notify: report,
+			},
+		},
+	})
+	assertNoErrors(t, diags)
+
+	if diff := cmp.Diff(wantResults, gotResults, ctydebug.CmpOptions); diff != "" {
+		t.Error("wrong results\n" + diff)
 	}
 }
 

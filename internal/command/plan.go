@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // PlanCommand is a Command implementation that compares a OpenTofu
@@ -94,7 +95,7 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	}
 
 	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
+	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, args, args.OutPath, args.GenerateConfigPath, enc)
 	diags = diags.Append(opDiags)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
@@ -154,7 +155,7 @@ func (c *PlanCommand) OperationRequest(
 	be backend.Enhanced,
 	view views.Plan,
 	viewType arguments.ViewType,
-	args *arguments.Operation,
+	args *arguments.Plan,
 	planOutPath string,
 	generateConfigOut string,
 	enc encryption.Encryption,
@@ -164,16 +165,23 @@ func (c *PlanCommand) OperationRequest(
 	// Build the operation
 	opReq := c.Operation(ctx, be, viewType, enc)
 	opReq.ConfigDir = "."
-	opReq.PlanMode = args.PlanMode
+	opReq.PlanMode = args.Operation.PlanMode
 	opReq.Hooks = view.Hooks()
-	opReq.PlanRefresh = args.Refresh
+	opReq.PlanRefresh = args.Operation.Refresh
 	opReq.PlanOutPath = planOutPath
 	opReq.GenerateConfigOut = generateConfigOut
-	opReq.Targets = args.Targets
-	opReq.Excludes = args.Excludes
-	opReq.ForceReplace = args.ForceReplace
+	opReq.Targets = args.Operation.Targets
+	opReq.Excludes = args.Operation.Excludes
+	opReq.ForceReplace = args.Operation.ForceReplace
 	opReq.Type = backend.OperationTypePlan
 	opReq.View = view.Operation()
+
+	for _, watchRef := range args.Watches {
+		opReq.WatchRequests = append(opReq.WatchRequests, tofu.WatchRequest{
+			Ref:    watchRef,
+			Notify: view.WatchResult,
+		})
+	}
 
 	var err error
 	opReq.ConfigLoader, err = c.initConfigLoader()
