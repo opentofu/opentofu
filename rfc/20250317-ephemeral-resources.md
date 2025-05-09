@@ -340,10 +340,14 @@ There is not much to say here, since this is the same lifecycle that a datasourc
 #### Testing support
 The testing support will be documented later into a different RFC, or as amendment to this one.
 
-### TODO Utilities
-terraform.applying
-ephemeralasnull
-provider "echo" (https://developer.hashicorp.com/terraform/plugin/testing/acceptance-tests/ephemeral-resources)
+### Support in already ephemeral contexts
+There are already OpenTofu contexts that are not saved in state/plan file:
+* `provider` configuration
+* `provisioner` blocks
+* `connection` blocks
+
+In all of these, referencing an ephemeral value should work as normal.
+
 ## Open Questions
 
 List questions that should be discussed and answered during the RFC process.
