@@ -13,7 +13,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
@@ -21,75 +20,6 @@ import (
 	disco "github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/opentofu/internal/addrs"
 )
-
-func TestConfigureDiscoveryRetry(t *testing.T) {
-	t.Run("default retry", func(t *testing.T) {
-		if discoveryRetry != registryClientDefaultRetry {
-			t.Fatalf("expected retry %q, got %q", registryClientDefaultRetry, discoveryRetry)
-		}
-
-		rc := newRegistryClient(t.Context(), nil, nil)
-		if rc.httpClient.RetryMax != registryClientDefaultRetry {
-			t.Fatalf("expected client retry %q, got %q",
-				registryClientDefaultRetry, rc.httpClient.RetryMax)
-		}
-	})
-
-	t.Run("configured retry", func(t *testing.T) {
-		defer func() {
-			discoveryRetry = registryClientDefaultRetry
-		}()
-		t.Setenv(registryDiscoveryRetryEnvName, "2")
-
-		configureDiscoveryRetry()
-		expected := 2
-		if discoveryRetry != expected {
-			t.Fatalf("expected retry %q, got %q",
-				expected, discoveryRetry)
-		}
-
-		rc := newRegistryClient(t.Context(), nil, nil)
-		if rc.httpClient.RetryMax != expected {
-			t.Fatalf("expected client retry %q, got %q",
-				expected, rc.httpClient.RetryMax)
-		}
-	})
-}
-
-func TestConfigureRegistryClientTimeout(t *testing.T) {
-	t.Run("default timeout", func(t *testing.T) {
-		if requestTimeout != defaultRequestTimeout {
-			t.Fatalf("expected timeout %q, got %q",
-				defaultRequestTimeout.String(), requestTimeout.String())
-		}
-
-		rc := newRegistryClient(t.Context(), nil, nil)
-		if rc.httpClient.HTTPClient.Timeout != defaultRequestTimeout {
-			t.Fatalf("expected client timeout %q, got %q",
-				defaultRequestTimeout.String(), rc.httpClient.HTTPClient.Timeout.String())
-		}
-	})
-
-	t.Run("configured timeout", func(t *testing.T) {
-		defer func() {
-			requestTimeout = defaultRequestTimeout
-		}()
-		t.Setenv(registryClientTimeoutEnvName, "20")
-
-		configureRequestTimeout()
-		expected := 20 * time.Second
-		if requestTimeout != expected {
-			t.Fatalf("expected timeout %q, got %q",
-				expected, requestTimeout.String())
-		}
-
-		rc := newRegistryClient(t.Context(), nil, nil)
-		if rc.httpClient.HTTPClient.Timeout != expected {
-			t.Fatalf("expected client timeout %q, got %q",
-				expected, rc.httpClient.HTTPClient.Timeout.String())
-		}
-	})
-}
 
 // testRegistryServices starts up a local HTTP server running a fake provider registry
 // service and returns a service discovery object pre-configured to consider
@@ -144,7 +74,7 @@ func testRegistryServices(t *testing.T) (services *disco.Disco, baseURL string, 
 // of your test in order to shut down the test server.
 func testRegistrySource(t *testing.T) (source *RegistrySource, baseURL string, cleanup func()) {
 	services, baseURL, close := testRegistryServices(t)
-	source = NewRegistrySource(services)
+	source = NewRegistrySource(services, nil)
 	return source, baseURL, close
 }
 
