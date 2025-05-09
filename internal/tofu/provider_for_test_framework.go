@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 
@@ -120,8 +121,8 @@ func (p providerForTest) ValidateProviderConfig(_ providers.ValidateProviderConf
 // is being transformed for testing framework and original provider configuration is not
 // accessible so it is safe to wipe metadata as well. See Config.transformProviderConfigsForTest
 // for more details.
-func (p providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
-	providerSchema := p.internal.GetProviderSchema()
+func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetProviderSchemaResponse {
+	providerSchema := p.internal.GetProviderSchema(ctx)
 	providerSchema.Provider = providers.Schema{}
 	providerSchema.ProviderMeta = providers.Schema{}
 	return providerSchema

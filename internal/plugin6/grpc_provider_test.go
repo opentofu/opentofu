@@ -129,7 +129,7 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 		client: mockProviderClient(t),
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 	checkDiags(t, resp.Diagnostics)
 }
 
@@ -149,7 +149,7 @@ func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -180,7 +180,7 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -213,7 +213,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -224,7 +224,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -260,7 +260,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -271,7 +271,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {

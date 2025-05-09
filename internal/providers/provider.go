@@ -6,6 +6,8 @@
 package providers
 
 import (
+	"context"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -22,7 +24,7 @@ type Unconfigured interface {
 	// memory savings.
 
 	// GetSchema returns the complete schema for the provider.
-	GetProviderSchema() GetProviderSchemaResponse
+	GetProviderSchema(context.Context) GetProviderSchemaResponse
 
 	// ValidateProviderConfig allows the provider to validate the configuration.
 	// The ValidateProviderConfigResponse.PreparedConfig field is unused. The

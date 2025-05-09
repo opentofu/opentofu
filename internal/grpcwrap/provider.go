@@ -22,7 +22,7 @@ import (
 func Provider(p providers.Interface) tfplugin5.ProviderServer {
 	return &provider{
 		provider: p,
-		schema:   p.GetProviderSchema(),
+		schema:   p.GetProviderSchema(context.TODO()),
 	}
 }
 

@@ -505,7 +505,7 @@ func TestApplyGraphBuilder_excludeModule(t *testing.T) {
 // Ensure that an update resulting from the removal of a resource happens after
 // that resource is destroyed.
 func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
-	schemas := simpleTestSchemas()
+	schemas := simpleTestSchemas(t)
 	instanceSchema := schemas.Providers[addrs.NewDefaultProvider("test")].ResourceTypes["test_object"]
 
 	bBefore, _ := plans.NewDynamicValue(
@@ -612,7 +612,7 @@ test_object.b
 // Ensure that an update resulting from the removal of a resource happens before
 // a CBD resource is destroyed.
 func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
-	schemas := simpleTestSchemas()
+	schemas := simpleTestSchemas(t)
 	instanceSchema := schemas.Providers[addrs.NewDefaultProvider("test")].ResourceTypes["test_object"]
 
 	bBefore, _ := plans.NewDynamicValue(

@@ -132,11 +132,11 @@ func testPlanWithDatasource(t *testing.T) *plans.Plan {
 	return plan
 }
 
-func testSchemas() *tofu.Schemas {
+func testSchemas(t *testing.T) *tofu.Schemas {
 	provider := testProvider()
 	return &tofu.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
-			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
+			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(t.Context()),
 		},
 	}
 }

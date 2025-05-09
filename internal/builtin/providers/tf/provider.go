@@ -6,6 +6,7 @@
 package tf
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -37,7 +38,7 @@ func (p *Provider) getFunctionSpecs() map[string]providers.FunctionSpec {
 }
 
 // GetSchema returns the complete schema for the provider.
-func (p *Provider) GetProviderSchema() providers.GetProviderSchemaResponse {
+func (p *Provider) GetProviderSchema(_ context.Context) providers.GetProviderSchemaResponse {
 	return providers.GetProviderSchemaResponse{
 		DataSources: map[string]providers.Schema{
 			"terraform_remote_state": dataSourceRemoteStateGetSchema(),

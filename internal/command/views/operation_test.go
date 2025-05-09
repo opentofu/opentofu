@@ -319,7 +319,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 		},
 	}
 
-	schemas := testSchemas()
+	schemas := testSchemas(t)
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			streams, done := terminal.StreamsForTesting(t)
@@ -339,7 +339,7 @@ func TestOperation_plan(t *testing.T) {
 	v := NewOperation(arguments.ViewHuman, true, NewView(streams))
 
 	plan := testPlan(t)
-	schemas := testSchemas()
+	schemas := testSchemas(t)
 	v.Plan(plan, schemas)
 
 	want := `
@@ -368,7 +368,7 @@ func TestOperation_planWithDatasource(t *testing.T) {
 	v := NewOperation(arguments.ViewHuman, true, NewView(streams))
 
 	plan := testPlanWithDatasource(t)
-	schemas := testSchemas()
+	schemas := testSchemas(t)
 	v.Plan(plan, schemas)
 
 	want := `
@@ -404,7 +404,7 @@ func TestOperation_planWithDatasourceAndDrift(t *testing.T) {
 	v := NewOperation(arguments.ViewHuman, true, NewView(streams))
 
 	plan := testPlanWithDatasource(t)
-	schemas := testSchemas()
+	schemas := testSchemas(t)
 	v.Plan(plan, schemas)
 
 	want := `
@@ -641,7 +641,7 @@ func TestOperationJSON_plan(t *testing.T) {
 			},
 		},
 	}
-	v.Plan(plan, testSchemas())
+	v.Plan(plan, testSchemas(t))
 
 	want := []map[string]interface{}{
 		// Create-then-delete should result in replace
@@ -798,7 +798,7 @@ func TestOperationJSON_planWithImport(t *testing.T) {
 			},
 		},
 	}
-	v.Plan(plan, testSchemas())
+	v.Plan(plan, testSchemas(t))
 
 	want := []map[string]interface{}{
 		// Simple import
@@ -948,7 +948,7 @@ func TestOperationJSON_planDriftWithMove(t *testing.T) {
 			},
 		},
 	}
-	v.Plan(plan, testSchemas())
+	v.Plan(plan, testSchemas(t))
 
 	want := []map[string]interface{}{
 		// Drift detected: delete
@@ -1080,7 +1080,7 @@ func TestOperationJSON_planDriftWithMoveRefreshOnly(t *testing.T) {
 			},
 		},
 	}
-	v.Plan(plan, testSchemas())
+	v.Plan(plan, testSchemas(t))
 
 	want := []map[string]interface{}{
 		// Drift detected: delete
@@ -1216,7 +1216,7 @@ func TestOperationJSON_planOutputChanges(t *testing.T) {
 			},
 		},
 	}
-	v.Plan(plan, testSchemas())
+	v.Plan(plan, testSchemas(t))
 
 	want := []map[string]interface{}{
 		// No resource changes

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 
@@ -93,7 +94,7 @@ type MockProvider struct {
 	CloseError  error
 }
 
-func (p *MockProvider) GetProviderSchema() providers.GetProviderSchemaResponse {
+func (p *MockProvider) GetProviderSchema(_ context.Context) providers.GetProviderSchemaResponse {
 	p.Lock()
 	defer p.Unlock()
 	p.GetSchemaCalled = true

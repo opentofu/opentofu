@@ -95,9 +95,9 @@ type GRPCProvider struct {
 
 var _ providers.Interface = new(GRPCProvider)
 
-func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResponse) {
+func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
 	logger.Trace("GRPCProvider: GetProviderSchema")
-	ctx := p.requestContext(context.TODO())
+	ctx = p.requestContext(ctx)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -198,7 +198,7 @@ func (p *GRPCProvider) ValidateProviderConfig(r providers.ValidateProviderConfig
 	logger.Trace("GRPCProvider: ValidateProviderConfig")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -237,7 +237,7 @@ func (p *GRPCProvider) ValidateResourceConfig(r providers.ValidateResourceConfig
 	logger.Trace("GRPCProvider: ValidateResourceConfig")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -274,7 +274,7 @@ func (p *GRPCProvider) ValidateDataResourceConfig(r providers.ValidateDataResour
 	logger.Trace("GRPCProvider: ValidateDataResourceConfig")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -310,7 +310,7 @@ func (p *GRPCProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 	logger.Trace("GRPCProvider: UpgradeResourceState")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -358,7 +358,7 @@ func (p *GRPCProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (
 	logger.Trace("GRPCProvider: ConfigureProvider")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -408,7 +408,7 @@ func (p *GRPCProvider) ReadResource(r providers.ReadResourceRequest) (resp provi
 	logger.Trace("GRPCProvider: ReadResource")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -465,7 +465,7 @@ func (p *GRPCProvider) PlanResourceChange(r providers.PlanResourceChangeRequest)
 	logger.Trace("GRPCProvider: PlanResourceChange")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -552,7 +552,7 @@ func (p *GRPCProvider) ApplyResourceChange(r providers.ApplyResourceChangeReques
 	logger.Trace("GRPCProvider: ApplyResourceChange")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -624,7 +624,7 @@ func (p *GRPCProvider) ImportResourceState(r providers.ImportResourceStateReques
 	logger.Trace("GRPCProvider: ImportResourceState")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -671,7 +671,7 @@ func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) p
 	logger.Trace("GRPCProvider: MoveResourceState")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -717,7 +717,7 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	logger.Trace("GRPCProvider: ReadDataSource")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -794,7 +794,7 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 	logger.Trace("GRPCProvider: CallFunction")
 	ctx := p.requestContext(context.TODO())
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		// This should be unreachable
 		resp.Error = schema.Diagnostics.Err()
