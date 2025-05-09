@@ -9,11 +9,11 @@ import (
 	"crypto/md5"
 	"database/sql"
 	"fmt"
-	"github.com/lib/pq"
 	"hash/fnv"
 
+	"github.com/lib/pq"
+
 	uuid "github.com/hashicorp/go-uuid"
-	_ "github.com/lib/pq"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
