@@ -267,10 +267,10 @@ func FlatmapKeyFromPath(path cty.Path) string {
 		case cty.GetAttrStep:
 			parts = append(parts, step.Name)
 		case cty.IndexStep:
-			switch ty := step.Key.Type(); {
-			case ty == cty.String:
+			switch ty := step.Key.Type(); ty {
+			case cty.String:
 				parts = append(parts, step.Key.AsString())
-			case ty == cty.Number:
+			case cty.Number:
 				i, _ := step.Key.AsBigFloat().Int64()
 				parts = append(parts, strconv.Itoa(int(i)))
 			}
