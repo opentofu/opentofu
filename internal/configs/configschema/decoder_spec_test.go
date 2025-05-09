@@ -876,7 +876,11 @@ func TestAttributeDecoderSpec_panic(t *testing.T) {
 		Optional:   true,
 	}
 
-	defer func() { recover() }()
+	defer func() {
+		// We only care that a panic prevents reaching the t.Errorf call
+		// below; we don't care what the panic value actually is.
+		_ = recover()
+	}()
 	attrS.decoderSpec("attr")
 	t.Errorf("expected panic")
 }
@@ -901,7 +905,11 @@ func TestAttributeDecoderSpecDecode_panic(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			spec := tt.inputSchema.decoderSpec("attr")
 
-			defer func() { recover() }()
+			defer func() {
+				// We only care that a panic prevents reaching the t.Errorf call
+				// below; we don't care what the panic value actually is.
+				_ = recover()
+			}()
 			_, _ = hcldec.Decode(nil, spec, nil)
 			t.Errorf(`expected panic when execute hcldec.Decode`)
 		})
