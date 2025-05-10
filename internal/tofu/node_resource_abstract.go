@@ -677,7 +677,7 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx 
 func graphNodesAreResourceInstancesInDifferentInstancesOfSameModule(a, b dag.Vertex) bool {
 	aRI, aOK := a.(GraphNodeResourceInstance)
 	bRI, bOK := b.(GraphNodeResourceInstance)
-	if !(aOK && bOK) {
+	if !aOK || !bOK {
 		return false
 	}
 	aModInst := aRI.ResourceInstanceAddr().Module

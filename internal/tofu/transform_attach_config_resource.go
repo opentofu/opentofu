@@ -53,11 +53,12 @@ func (t *AttachResourceConfigTransformer) Transform(_ context.Context, g *Graph)
 			continue
 		}
 		var m map[string]*configs.Resource
-		if addr.Resource.Mode == addrs.ManagedResourceMode {
+		switch addr.Resource.Mode {
+		case addrs.ManagedResourceMode:
 			m = config.Module.ManagedResources
-		} else if addr.Resource.Mode == addrs.DataResourceMode {
+		case addrs.DataResourceMode:
 			m = config.Module.DataResources
-		} else {
+		default:
 			panic("unknown resource mode: " + addr.Resource.Mode.String())
 		}
 		coord := addr.Resource.String()

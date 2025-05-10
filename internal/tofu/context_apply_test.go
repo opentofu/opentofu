@@ -926,7 +926,7 @@ func TestContext2Apply_emptyModule(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(state.String())
-	actual = strings.Replace(actual, "  ", "", -1)
+	actual = strings.ReplaceAll(actual, "  ", "")
 	expected := strings.TrimSpace(testTofuApplyEmptyModuleStr)
 	if actual != expected {
 		t.Fatalf("bad: \n%s\nexpect:\n%s", actual, expected)
@@ -1938,10 +1938,8 @@ func TestContext2Apply_cancel(t *testing.T) {
 			stopped = true
 			go ctx.Stop()
 
-			for {
-				if ctx.sh.Stopped() {
-					break
-				}
+			for !ctx.sh.Stopped() {
+
 				time.Sleep(10 * time.Millisecond)
 			}
 		}

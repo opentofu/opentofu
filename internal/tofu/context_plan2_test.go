@@ -4284,15 +4284,16 @@ output "a" {
 	}
 	for _, diag := range diags {
 		desc := diag.Description()
-		if desc.Summary == "Module output value precondition failed" {
+		switch desc.Summary {
+		case "Module output value precondition failed":
 			if got, want := desc.Detail, "This check failed, but has an invalid error message as described in the other accompanying messages."; !strings.Contains(got, want) {
 				t.Errorf("unexpected detail\ngot: %s\nwant to contain %q", got, want)
 			}
-		} else if desc.Summary == "Error message refers to sensitive values" {
+		case "Error message refers to sensitive values":
 			if got, want := desc.Detail, "The error expression used to explain this condition refers to sensitive values, so OpenTofu will not display the resulting message."; !strings.Contains(got, want) {
 				t.Errorf("unexpected detail\ngot: %s\nwant to contain %q", got, want)
 			}
-		} else {
+		default:
 			t.Errorf("unexpected summary\ngot: %s", desc.Summary)
 		}
 	}

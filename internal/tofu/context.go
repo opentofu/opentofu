@@ -306,7 +306,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
 				// advisory: OpenTofu will exit once the graph node completes.
-				p.Stop()
+				_ = p.Stop()
 			}
 		}
 
@@ -323,7 +323,7 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
 				// advisory: OpenTofu will exit once the graph node completes.
-				p.Stop()
+				_ = p.Stop()
 			}
 		}
 	}()

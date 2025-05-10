@@ -2353,7 +2353,8 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 
 		// The output function
 		outputFn := func(msg string) {
-			ctx.Hook(func(h Hook) (HookAction, error) {
+			// Given that we return nil below, this will never error
+			_ = ctx.Hook(func(h Hook) (HookAction, error) {
 				h.ProvisionOutput(n.Addr, prov.Type, msg)
 				return HookActionContinue, nil
 			})
@@ -2372,7 +2373,8 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 		// provisioners ought not to be logging anyway.
 		if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive {
 			outputFn = func(msg string) {
-				ctx.Hook(func(h Hook) (HookAction, error) {
+				// Given that we return nil below, this will never error
+				_ = ctx.Hook(func(h Hook) (HookAction, error) {
 					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to sensitive value in config)")
 					return HookActionContinue, nil
 				})
@@ -2500,7 +2502,8 @@ func (n *NodeAbstractResourceInstance) apply(
 		// such a rare error, we can just drop the raw GoString values in here
 		// to make sure we have something to debug with.
 		var unknownPaths []string
-		cty.Transform(configVal, func(p cty.Path, v cty.Value) (cty.Value, error) {
+		// We don't care about the error return here as it's only to help build a more detailed error message
+		_, _ = cty.Transform(configVal, func(p cty.Path, v cty.Value) (cty.Value, error) {
 			if !v.IsKnown() {
 				unknownPaths = append(unknownPaths, fmt.Sprintf("%#v", p))
 			}
@@ -2641,7 +2644,8 @@ func (n *NodeAbstractResourceInstance) apply(
 		// To generate better error messages, we'll go for a walk through the
 		// value and make a separate diagnostic for each unknown value we
 		// find.
-		cty.Walk(newVal, func(path cty.Path, val cty.Value) (bool, error) {
+		// We don't care about the error return here as it's only to help build a more detailed error message
+		_ = cty.Walk(newVal, func(path cty.Path, val cty.Value) (bool, error) {
 			if !val.IsKnown() {
 				pathStr := tfdiags.FormatCtyPath(path)
 				diags = diags.Append(tfdiags.Sourceless(
