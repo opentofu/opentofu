@@ -24,7 +24,9 @@ func newMockWinRMServer(t *testing.T) *winrmtest.Remote {
 	wrm.CommandFunc(
 		winrmtest.MatchText("echo foo"),
 		func(out, err io.Writer) int {
-			out.Write([]byte("foo"))
+			if _, err := out.Write([]byte("foo")); err != nil {
+				panic(err)
+			}
 			return 0
 		})
 
@@ -76,7 +78,9 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error executing remote command: %s", err)
 	}
-	cmd.Wait()
+	if err := cmd.Wait(); err != nil {
+		t.Fatal(err)
+	}
 
 	if stdout.String() != "foo" {
 		t.Fatalf("bad command response: expected %q, got %q", "foo", stdout.String())
@@ -104,7 +108,11 @@ func TestUpload(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error connecting communicator: %s", err)
 	}
-	defer c.Disconnect()
+	defer func() {
+		if err := c.Disconnect(); err != nil {
+			panic(err)
+		}
+	}()
 
 	err = c.Upload("C:/Temp/terraform.cmd", bytes.NewReader([]byte("something")))
 	if err != nil {
@@ -171,7 +179,11 @@ func TestNoTransportDecorator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error connecting communicator: %s", err)
 	}
-	defer c.Disconnect()
+	defer func() {
+		if err := c.Disconnect(); err != nil {
+			panic(err)
+		}
+	}()
 
 	if c.client.TransportDecorator != nil {
 		t.Fatal("bad TransportDecorator: expected nil, got non-nil")
@@ -201,7 +213,11 @@ func TestTransportDecorator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error connecting communicator: %s", err)
 	}
-	defer c.Disconnect()
+	defer func() {
+		if err := c.Disconnect(); err != nil {
+			panic(err)
+		}
+	}()
 
 	if c.client.TransportDecorator == nil {
 		t.Fatal("bad TransportDecorator: expected non-nil, got nil")
