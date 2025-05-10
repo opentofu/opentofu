@@ -11,7 +11,9 @@ import (
 	"testing"
 
 	"github.com/go-test/deep"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
@@ -196,17 +198,17 @@ func TestModuleSourceAddrEntersNewPackage(t *testing.T) {
 	}
 }
 
-func TestModuleCallWithNullVersion(t *testing.T) {
-	src, err := os.ReadFile("testdata/valid-files/null-version-module.tf")
+func TestModuleCallWithVersion(t *testing.T) {
+	src, err := os.ReadFile("testdata/valid-files/modules-with-version.tf")
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	parser := testParser(map[string]string{
-		"null-version-module.tf": string(src),
+		"modules-with-version.tf": string(src),
 	})
 
-	file, diags := parser.LoadConfigFile("null-version-module.tf")
+	file, diags := parser.LoadConfigFile("modules-with-version.tf")
 	if diags.HasErrors() {
 		t.Fatalf("unexpected errors: %s", diags.Error())
 	}
@@ -225,9 +227,73 @@ func TestModuleCallWithNullVersion(t *testing.T) {
 			SourceAddrRaw: "./foo",
 			SourceSet:     true,
 			DeclRange: hcl.Range{
-				Filename: "null-version-module.tf",
+				Filename: "modules-with-version.tf",
 				Start:    hcl.Pos{Line: 4, Column: 1, Byte: 35},
 				End:      hcl.Pos{Line: 4, Column: 13, Byte: 47},
+			},
+		},
+		{
+			Name: "foo_remote",
+			SourceAddr: addrs.ModuleSourceRegistry{
+				Package: addrs.ModuleRegistryPackage{
+					Host:         addrs.DefaultModuleRegistryHost,
+					Namespace:    "hashicorp",
+					Name:         "foo",
+					TargetSystem: "bar",
+				},
+			},
+			SourceAddrRaw: "hashicorp/foo/bar",
+			SourceSet:     true,
+			VersionAttr: &hcl.Attribute{
+				Name: "version",
+				Expr: &hclsyntax.ScopeTraversalExpr{
+					SrcRange: hcl.Range{
+						Filename: "modules-with-version.tf",
+						Start:    hcl.Pos{Line: 14, Column: 13, Byte: 214},
+						End:      hcl.Pos{Line: 14, Column: 37, Byte: 238},
+					},
+					Traversal: hcl.Traversal{
+						hcl.TraverseRoot{
+							Name: "local",
+							SrcRange: hcl.Range{
+								Filename: "modules-with-version.tf",
+								Start:    hcl.Pos{Line: 14, Column: 13, Byte: 214},
+								End:      hcl.Pos{Line: 14, Column: 18, Byte: 219},
+							},
+						},
+						hcl.TraverseAttr{
+							Name: "module_version_set",
+							SrcRange: hcl.Range{
+								Filename: "modules-with-version.tf",
+								Start:    hcl.Pos{Line: 14, Column: 18, Byte: 219},
+								End:      hcl.Pos{Line: 14, Column: 37, Byte: 238},
+							},
+						},
+					},
+				},
+				Range: hcl.Range{
+					Filename: "modules-with-version.tf",
+					Start:    hcl.Pos{Line: 14, Column: 3, Byte: 204},
+					End:      hcl.Pos{Line: 14, Column: 37, Byte: 238},
+				},
+				NameRange: hcl.Range{
+					Filename: "modules-with-version.tf",
+					Start:    hcl.Pos{Line: 14, Column: 3, Byte: 204},
+					End:      hcl.Pos{Line: 14, Column: 10, Byte: 211},
+				},
+			},
+			Version: VersionConstraint{
+				Required: version.MustConstraints(version.NewConstraint("1.0.0")),
+				DeclRange: hcl.Range{
+					Filename: "modules-with-version.tf",
+					Start:    hcl.Pos{Line: 14, Column: 3, Byte: 204},
+					End:      hcl.Pos{Line: 14, Column: 37, Byte: 238},
+				},
+			},
+			DeclRange: hcl.Range{
+				Filename: "modules-with-version.tf",
+				Start:    hcl.Pos{Line: 12, Column: 1, Byte: 148},
+				End:      hcl.Pos{Line: 12, Column: 20, Byte: 167},
 			},
 		},
 	}
