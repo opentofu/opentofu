@@ -1,0 +1,20 @@
+---
+sidebar_position: 8
+sidebar_label: MacPorts
+description: |-
+  Install OpenTofu on MacOS.
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import PortScript from '!!raw-loader!./examples/install-macports.sh'
+import ValidateInstall from '!!raw-loader!./examples/verify-installation.sh'
+
+# Installing OpenTofu via MacPorts
+
+You can use OpenTofu as a [standalone binary](standalone.mdx) or you can install it using [MacPorts](https://ports.macports.org/port/opentofu-1.9). OpenTofu is available in the MacPorts ports tree, so you can install it by running:
+
+<CodeBlock language={"bash"}>{PortScript}</CodeBlock>
+
+Validate the installation by running:
+
+<CodeBlock language={"bash"}>{ValidateInstall}</CodeBlock>
