@@ -21,6 +21,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -63,7 +64,7 @@ const testServerHostCert = `ssh-rsa-cert-v01@openssh.com AAAAHHNzaC1yc2EtY2VydC1
 
 const testCAPublicKey = `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCrozyZIhdEvalCn+eSzHH94cO9ykiywA13ntWI7mJcHBwYTeCYWG8E9zGXyp2iDOjCGudM0Tdt8o0OofKChk9Z/qiUN0G8y1kmaXBlBM3qA5R9NPpvMYMNkYLfX6ivtZCnqrsbzaoqN2Oc/7H2StHzJWh/XCGu9otQZA6vdv1oSmAsZOjw/xIGaGQqDUaLq21J280PP1qSbdJHf76iSHE+TWe3YpqV946JWM5tCh0DykZ10VznvxYpUjzhr07IN3tVKxOXbPnnU7lX6IaLIWgfzLqwSyheeux05c3JLF9iF4sFu8ou4hwQz1iuUTU1jxgwZP0w/bkXgFFs0949lW81`
 
-func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) string {
+func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) (string, func()) {
 	serverConfig := &ssh.ServerConfig{
 		PasswordCallback:  acceptUserPass("user", "pass"),
 		PublicKeyCallback: acceptPublicKey(pubKey),
@@ -83,6 +84,8 @@ func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) string {
 		t.Fatalf("Unable to listen for connection: %s", err)
 	}
 
+	var wg sync.WaitGroup
+
 	go func() {
 		defer l.Close()
 		c, err := l.Accept()
@@ -97,6 +100,7 @@ func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) string {
 		t.Log("Accepted SSH connection")
 
 		for newChannel := range chans {
+			wg.Add(1)
 			channel, requests, err := newChannel.Accept()
 			if err != nil {
 				t.Errorf("Unable to accept channel.")
@@ -105,30 +109,41 @@ func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) string {
 
 			go func(in <-chan *ssh.Request) {
 				defer channel.Close()
+				defer wg.Done()
+
 				for req := range in {
+					t.Log("Start request")
 					// since this channel's requests are serviced serially,
 					// this will block keepalive probes, and can simulate a
 					// hung connection.
 					if bytes.Contains(req.Payload, []byte("sleep")) {
-						time.Sleep(time.Second * 2)
+						t.Log("Sleep")
+						time.Sleep(time.Second)
 					}
 
 					if req.WantReply {
+						t.Log("Reply")
 						if err := req.Reply(true, nil); err != nil {
-							panic(err)
+							// For now, we are allowing this reply error for the TestFailedKeepAlives test as the connection disappears between sleep and reply
+							t.Log("Ignoring: " + err.Error())
 						}
 					}
 				}
 			}(requests)
 		}
+
+		wg.Wait()
+		t.Log("Close")
+
 		conn.Close()
 	}()
 
-	return l.Addr().String()
+	return l.Addr().String(), func() { wg.Wait() }
 }
 
 func TestNew_Invalid(t *testing.T) {
-	address := newMockLineServer(t, nil, testClientPublicKey)
+	address, sclose := newMockLineServer(t, nil, testClientPublicKey)
+	defer sclose()
 	parts := strings.Split(address, ":")
 
 	v := cty.ObjectVal(map[string]cty.Value{
@@ -167,7 +182,8 @@ func TestNew_InvalidHost(t *testing.T) {
 }
 
 func TestStart(t *testing.T) {
-	address := newMockLineServer(t, nil, testClientPublicKey)
+	address, sclose := newMockLineServer(t, nil, testClientPublicKey)
+	defer sclose()
 	parts := strings.Split(address, ":")
 
 	v := cty.ObjectVal(map[string]cty.Value{
@@ -183,6 +199,7 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating communicator: %s", err)
 	}
+	defer c.Disconnect()
 
 	var cmd remote.Cmd
 	stdout := new(bytes.Buffer)
@@ -202,7 +219,8 @@ func TestKeepAlives(t *testing.T) {
 	keepAliveInterval = 250 * time.Millisecond
 	defer func() { keepAliveInterval = ivl }()
 
-	address := newMockLineServer(t, nil, testClientPublicKey)
+	address, sclose := newMockLineServer(t, nil, testClientPublicKey)
+	defer sclose()
 	parts := strings.Split(address, ":")
 
 	v := cty.ObjectVal(map[string]cty.Value{
@@ -217,6 +235,7 @@ func TestKeepAlives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating communicator: %s", err)
 	}
+	defer c.Disconnect()
 
 	if err := c.Connect(nil); err != nil {
 		t.Fatal(err)
@@ -248,7 +267,8 @@ func TestFailedKeepAlives(t *testing.T) {
 		maxKeepAliveDelay = del
 	}()
 
-	address := newMockLineServer(t, nil, testClientPublicKey)
+	address, sclose := newMockLineServer(t, nil, testClientPublicKey)
+	defer sclose()
 	parts := strings.Split(address, ":")
 
 	v := cty.ObjectVal(map[string]cty.Value{
@@ -264,6 +284,7 @@ func TestFailedKeepAlives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating communicator: %s", err)
 	}
+	defer c.Disconnect()
 
 	if err := c.Connect(nil); err != nil {
 		t.Fatal(err)
@@ -280,7 +301,8 @@ func TestFailedKeepAlives(t *testing.T) {
 }
 
 func TestLostConnection(t *testing.T) {
-	address := newMockLineServer(t, nil, testClientPublicKey)
+	address, sclose := newMockLineServer(t, nil, testClientPublicKey)
+	defer sclose()
 	parts := strings.Split(address, ":")
 
 	v := cty.ObjectVal(map[string]cty.Value{
@@ -296,6 +318,7 @@ func TestLostConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating communicator: %s", err)
 	}
+	defer c.Disconnect()
 
 	var cmd remote.Cmd
 	stdout := new(bytes.Buffer)
@@ -331,7 +354,7 @@ func TestHostKey(t *testing.T) {
 	}
 	pubKey := fmt.Sprintf("ssh-rsa %s", base64.StdEncoding.EncodeToString(signer.PublicKey().Marshal()))
 
-	address := newMockLineServer(t, nil, testClientPublicKey)
+	address, sclose := newMockLineServer(t, nil, testClientPublicKey)
 	host, p, _ := net.SplitHostPort(address)
 	port, _ := strconv.Atoi(p)
 
@@ -366,8 +389,11 @@ func TestHostKey(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	sclose()
+
 	// now check with the wrong HostKey
-	address = newMockLineServer(t, nil, testClientPublicKey)
+	address, sclose = newMockLineServer(t, nil, testClientPublicKey)
+	defer sclose()
 	_, p, _ = net.SplitHostPort(address)
 	port, _ = strconv.Atoi(p)
 
@@ -406,7 +432,7 @@ func TestHostCert(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	address := newMockLineServer(t, signer, testClientPublicKey)
+	address, sclose := newMockLineServer(t, signer, testClientPublicKey)
 	host, p, _ := net.SplitHostPort(address)
 	port, _ := strconv.Atoi(p)
 
@@ -441,8 +467,11 @@ func TestHostCert(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	sclose()
+
 	// now check with the wrong HostKey
-	address = newMockLineServer(t, signer, testClientPublicKey)
+	address, sclose = newMockLineServer(t, signer, testClientPublicKey)
+	defer sclose()
 	_, p, _ = net.SplitHostPort(address)
 	port, _ = strconv.Atoi(p)
 
@@ -528,7 +557,8 @@ func TestCertificateBasedAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unable to parse private key: %v", err)
 	}
-	address := newMockLineServer(t, signer, CLIENT_CERT_SIGNED_BY_SERVER)
+	address, sclose := newMockLineServer(t, signer, CLIENT_CERT_SIGNED_BY_SERVER)
+	defer sclose()
 	host, p, _ := net.SplitHostPort(address)
 	port, _ := strconv.Atoi(p)
 
