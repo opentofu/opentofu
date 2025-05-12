@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -133,7 +134,7 @@ func (t *DestroyEdgeTransformer) tryInterProviderDestroyEdge(g *Graph, from, to 
 	}
 }
 
-func (t *DestroyEdgeTransformer) Transform(g *Graph) error {
+func (t *DestroyEdgeTransformer) Transform(_ context.Context, g *Graph) error {
 	// Build a map of what is being destroyed (by address string) to
 	// the list of destroyers.
 	destroyers := make(map[string][]GraphNodeDestroyer)
@@ -283,7 +284,7 @@ type pruneUnusedNodesTransformer struct {
 	skip bool
 }
 
-func (t *pruneUnusedNodesTransformer) Transform(g *Graph) error {
+func (t *pruneUnusedNodesTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.skip {
 		return nil
 	}

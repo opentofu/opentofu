@@ -127,6 +127,9 @@ func (t *PackageAuthenticationResult) HashesWithDisposition(cond func(*HashDispo
 // GPG key IDs that asserted the validity of at least one of the hashes
 // related to this package's provider version.
 func (t *PackageAuthenticationResult) GPGKeyIDsString() string {
+	if t == nil {
+		return ""
+	}
 	return t.hashes.AllGPGSigningKeysString()
 }
 
@@ -141,7 +144,7 @@ func (t *PackageAuthenticationResult) Signed() bool {
 // SigningSkipped returns whether the package was authenticated but the key
 // validation was skipped.
 func (t *PackageAuthenticationResult) SigningSkipped() bool {
-	if t == nil {
+	if t == nil || t.Signed() {
 		return false
 	}
 	return t.hashes.HasAnyReportedByRegistry()

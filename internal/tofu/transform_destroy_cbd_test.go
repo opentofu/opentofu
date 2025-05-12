@@ -28,7 +28,7 @@ func cbdTestGraph(t *testing.T, mod string, changes *plans.Changes, state *state
 	g, err := (&BasicGraphBuilder{
 		Steps: cbdTestSteps(applyBuilder.Steps()),
 		Name:  "ApplyGraphBuilder",
-	}).Build(addrs.RootModuleInstance)
+	}).Build(t.Context(), addrs.RootModuleInstance)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

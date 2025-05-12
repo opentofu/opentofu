@@ -3,15 +3,29 @@
 # Copyright (c) 2023 HashiCorp, Inc.
 # SPDX-License-Identifier: MPL-2.0
 
-run:
-  timeout: 30m
-
-issues:
-  exclude-files:
-    # We have a few patterns that are excluded from linting completely because
-    # they contain effectively-frozen code that we're preserving for backward
-    # compatibility, where changes would be risky and that risk isn't warranted
-    # since we don't expect to be doing any significant maintenence on these.
-    - "^internal/ipaddr/"
-    - "^internal/legacy/"
-    - "^internal/states/statefile/version\\d+_upgrade\\.go$"
+version: "2"
+linters:
+  settings:
+    staticcheck:
+      # For now, we will disable some static checks to match golang-ci-lint@v1 functionality.
+      # These should be addressed once the --new-from-rev work is taken care of.
+      checks: ["all", "-QF1008", "-ST1003", "-ST1005", "-ST1012", "-ST1016"]
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    paths:
+      # We have a few patterns that are excluded from linting completely because
+      # they contain effectively-frozen code that we're preserving for backward
+      # compatibility, where changes would be risky and that risk isn't warranted
+      # since we don't expect to be doing any significant maintenence on these.
+      - ^internal/ipaddr/
+      - ^internal/legacy/
+      - ^internal/states/statefile/version\d+_upgrade\.go$
+      - ^website/
+formatters:
+  exclusions:
+    generated: lax

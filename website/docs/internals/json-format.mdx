@@ -91,7 +91,8 @@ For ease of consumption by callers, the plan representation includes a partial r
   // additional fields in later.
   "variables": {
     "varname": {
-      "value": "varvalue"
+      "value": "varvalue",
+      "deprecated": "The variable is deprecated, use another one instead"
     },
   },
 
@@ -252,7 +253,8 @@ The following example illustrates the structure of a `<values-representation>`:
     "private_ip": {
       "value": "192.168.3.2",
       "type": "string",
-      "sensitive": false
+      "sensitive": false,
+      "deprecated": "This output is deprecated, use another one instead"
     }
   },
 
@@ -399,7 +401,8 @@ Because the configuration models are produced at a stage prior to expression eva
       // Property names here are the output value names
       "example": {
         "expression": <expression-representation>,
-        "sensitive": false
+        "sensitive": false,
+        "deprecated": "This output is deprecated, use another one instead"
       }
     },
 

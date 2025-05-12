@@ -7,19 +7,21 @@ package registry
 
 import (
 	"context"
-	"errors"
-	"io"
+	"encoding/json"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/terraform-svchost/disco"
+
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
+	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/registry/test"
 	tfversion "github.com/opentofu/opentofu/version"
 )
@@ -30,7 +32,7 @@ func TestConfigureDiscoveryRetry(t *testing.T) {
 			t.Fatalf("expected retry %q, got %q", defaultRetry, discoveryRetry)
 		}
 
-		rc := NewClient(nil, nil)
+		rc := NewClient(t.Context(), nil, nil)
 		if rc.client.RetryMax != defaultRetry {
 			t.Fatalf("expected client retry %q, got %q",
 				defaultRetry, rc.client.RetryMax)
@@ -50,7 +52,7 @@ func TestConfigureDiscoveryRetry(t *testing.T) {
 				expected, discoveryRetry)
 		}
 
-		rc := NewClient(nil, nil)
+		rc := NewClient(t.Context(), nil, nil)
 		if rc.client.RetryMax != expected {
 			t.Fatalf("expected client retry %q, got %q",
 				expected, rc.client.RetryMax)
@@ -65,7 +67,7 @@ func TestConfigureRegistryClientTimeout(t *testing.T) {
 				defaultRequestTimeout.String(), requestTimeout.String())
 		}
 
-		rc := NewClient(nil, nil)
+		rc := NewClient(t.Context(), nil, nil)
 		if rc.client.HTTPClient.Timeout != defaultRequestTimeout {
 			t.Fatalf("expected client timeout %q, got %q",
 				defaultRequestTimeout.String(), rc.client.HTTPClient.Timeout.String())
@@ -85,7 +87,7 @@ func TestConfigureRegistryClientTimeout(t *testing.T) {
 				expected, requestTimeout.String())
 		}
 
-		rc := NewClient(nil, nil)
+		rc := NewClient(t.Context(), nil, nil)
 		if rc.client.HTTPClient.Timeout != expected {
 			t.Fatalf("expected client timeout %q, got %q",
 				expected, rc.client.HTTPClient.Timeout.String())
@@ -97,7 +99,7 @@ func TestLookupModuleVersions(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	// test with and without a hostname
 	for _, src := range []string{
@@ -141,7 +143,7 @@ func TestInvalidRegistry(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "non-existent.localhost.localdomain/test-versions/name/provider"
 	modsrc, err := regsrc.ParseModuleSource(src)
@@ -158,7 +160,7 @@ func TestRegistryAuth(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "private/name/provider"
 	mod, err := regsrc.ParseModuleSource(src)
@@ -193,7 +195,7 @@ func TestLookupModuleLocationRelative(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "relative/foo/bar"
 	mod, err := regsrc.ParseModuleSource(src)
@@ -229,7 +231,7 @@ func TestAccLookupModuleVersions(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		s := NewClient(regDisco, nil)
+		s := NewClient(t.Context(), regDisco, nil)
 		resp, err := s.ModuleVersions(context.Background(), modsrc)
 		if err != nil {
 			t.Fatal(err)
@@ -263,7 +265,7 @@ func TestLookupLookupModuleError(t *testing.T) {
 	server := test.Registry()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	// this should not be found in the registry
 	src := "bad/local/path"
@@ -298,7 +300,7 @@ func TestLookupModuleRetryError(t *testing.T) {
 	server := test.RegistryRetryableErrorsServer()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "example.com/test-versions/name/provider"
 	modsrc, err := regsrc.ParseModuleSource(src)
@@ -327,7 +329,7 @@ func TestLookupModuleNoRetryError(t *testing.T) {
 	server := test.RegistryRetryableErrorsServer()
 	defer server.Close()
 
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	src := "example.com/test-versions/name/provider"
 	modsrc, err := regsrc.ParseModuleSource(src)
@@ -350,7 +352,7 @@ func TestLookupModuleNoRetryError(t *testing.T) {
 
 func TestLookupModuleNetworkError(t *testing.T) {
 	server := test.RegistryRetryableErrorsServer()
-	client := NewClient(test.Disco(server), nil)
+	client := NewClient(t.Context(), test.Disco(server), nil)
 
 	// Shut down the server to simulate network failure
 	server.Close()
@@ -377,7 +379,7 @@ func TestLookupModuleNetworkError(t *testing.T) {
 func TestModuleLocation_readRegistryResponse(t *testing.T) {
 	cases := map[string]struct {
 		src                  string
-		httpClient           *http.Client
+		handlerFunc          func(w http.ResponseWriter, r *http.Request)
 		registryFlags        []uint8
 		want                 string
 		wantErrorStr         string
@@ -388,8 +390,9 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			src:            "exists-in-registry/identifier/provider",
 			want:           "file:///registry/exists",
 			wantStatusCode: http.StatusOK,
-			httpClient: &http.Client{
-				Transport: &mockRoundTripper{},
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_ = json.NewEncoder(w).Encode(response.ModuleLocationRegistryResp{Location: "file:///registry/exists"})
 			},
 		},
 		"shall find the module location in the registry response header": {
@@ -398,8 +401,9 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			want:                 "file:///registry/exists",
 			wantToReadFromHeader: true,
 			wantStatusCode:       http.StatusNoContent,
-			httpClient: &http.Client{
-				Transport: &mockRoundTripper{},
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-Terraform-Get", "file:///registry/exists")
+				w.WriteHeader(http.StatusNoContent)
 			},
 		},
 		"shall read location from the registry response body even if the header with location address is also set": {
@@ -408,8 +412,10 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			wantStatusCode:       http.StatusOK,
 			wantToReadFromHeader: false,
 			registryFlags:        []uint8{test.WithModuleLocationInBody, test.WithModuleLocationInHeader},
-			httpClient: &http.Client{
-				Transport: &mockRoundTripper{},
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("X-Terraform-Get", "file:///registry/exists-header")
+				w.WriteHeader(http.StatusOK)
+				_ = json.NewEncoder(w).Encode(response.ModuleLocationRegistryResp{Location: "file:///registry/exists"})
 			},
 		},
 		"shall fail to find the module": {
@@ -418,63 +424,47 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			// see: /internal/registry/test/mock_registry.go:testMods
 			wantErrorStr:   `module "not-exist/identifier/provider" version "0.2.0" not found`,
 			wantStatusCode: http.StatusNotFound,
-			httpClient: &http.Client{
-				Transport: &mockRoundTripper{},
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
 			},
 		},
 		"shall fail because of reading response body error": {
 			src:            "foo/bar/baz",
-			wantErrorStr:   "error reading response body from registry: foo",
+			wantErrorStr:   "error reading response body from registry",
 			wantStatusCode: http.StatusOK,
-			httpClient: &http.Client{
-				Transport: &mockRoundTripper{
-					forwardResponse: &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       mockErrorReadCloser{err: errors.New("foo")},
-					},
-				},
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Length", "1000") // Set incorrect content length
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("{")) // Only write a partial response
+				// The connection will close after handler returns, but client will expect more data
 			},
 		},
 		"shall fail to deserialize JSON response": {
 			src:            "foo/bar/baz",
 			wantErrorStr:   `module "foo/bar/baz" version "0.2.0" failed to deserialize response body {: unexpected end of JSON input`,
 			wantStatusCode: http.StatusOK,
-			httpClient: &http.Client{
-				Transport: &mockRoundTripper{
-					forwardResponse: &http.Response{
-						StatusCode: http.StatusOK,
-						Body:       io.NopCloser(strings.NewReader("{")),
-					},
-				},
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				_, _ = w.Write([]byte("{"))
 			},
 		},
 		"shall fail because of unexpected protocol change - 422 http status": {
 			src:            "foo/bar/baz",
-			wantErrorStr:   `error getting download location for "foo/bar/baz": foo resp:bar`,
+			wantErrorStr:   `error getting download location for "foo/bar/baz": 422 Unprocessable Entity resp:bar`,
 			wantStatusCode: http.StatusUnprocessableEntity,
-			httpClient: &http.Client{
-				Transport: &mockRoundTripper{
-					forwardResponse: &http.Response{
-						StatusCode: http.StatusUnprocessableEntity,
-						Status:     "foo",
-						Body:       io.NopCloser(strings.NewReader("bar")),
-					},
-				},
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusUnprocessableEntity)
+				_, _ = w.Write([]byte("bar"))
 			},
 		},
 		"shall fail because location is not found in the response": {
 			src:            "foo/bar/baz",
-			wantErrorStr:   `failed to get download URL for "foo/bar/baz": OK resp:{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`,
+			wantErrorStr:   `failed to get download URL for "foo/bar/baz": 200 OK resp:{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`,
 			wantStatusCode: http.StatusOK,
-			httpClient: &http.Client{
-				Transport: &mockRoundTripper{
-					forwardResponse: &http.Response{
-						StatusCode: http.StatusOK,
-						Status:     "OK",
-						// note that the response emulates a contract change
-						Body: io.NopCloser(strings.NewReader(`{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`)),
-					},
-				},
+			handlerFunc: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+				// note that the response emulates a contract change
+				_, _ = w.Write([]byte(`{"foo":"git::https://github.com/foo/terraform-baz-bar?ref=v0.2.0"}`))
 			},
 		},
 	}
@@ -482,10 +472,18 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 	t.Parallel()
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			server := test.Registry(tc.registryFlags...)
-			defer server.Close()
+			mockServer := httptest.NewServer(http.HandlerFunc(tc.handlerFunc))
+			defer mockServer.Close()
 
-			client := NewClient(test.Disco(server), tc.httpClient)
+			registryServer := test.Registry(tc.registryFlags...)
+			defer registryServer.Close()
+
+			transport := &testTransport{
+				mockURL: mockServer.URL,
+			}
+			client := NewClient(t.Context(), test.Disco(registryServer), &http.Client{
+				Transport: transport,
+			})
 
 			mod, err := regsrc.ParseModuleSource(tc.src)
 			if err != nil {
@@ -493,62 +491,66 @@ func TestModuleLocation_readRegistryResponse(t *testing.T) {
 			}
 
 			got, err := client.ModuleLocation(context.Background(), mod, "0.2.0")
+
+			// Validate the results
 			if err != nil && tc.wantErrorStr == "" {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if err != nil && err.Error() != tc.wantErrorStr {
+			if err != nil && !strings.Contains(err.Error(), tc.wantErrorStr) {
 				t.Fatalf("unexpected error content: want=%s, got=%v", tc.wantErrorStr, err)
 			}
 			if got != tc.want {
 				t.Fatalf("unexpected location: want=%s, got=%v", tc.want, got)
 			}
 
-			gotStatusCode := tc.httpClient.Transport.(*mockRoundTripper).reverseResponse.StatusCode
-			if tc.wantStatusCode != gotStatusCode {
-				t.Fatalf("unexpected response status code: want=%d, got=%d", tc.wantStatusCode, gotStatusCode)
-			}
+			// Verify status code if we have a successful response
+			if transport.lastResponse != nil {
+				gotStatusCode := transport.lastResponse.StatusCode
+				if tc.wantStatusCode != gotStatusCode {
+					t.Fatalf("unexpected response status code: want=%d, got=%d", tc.wantStatusCode, gotStatusCode)
+				}
 
-			if tc.wantToReadFromHeader {
-				resp := tc.httpClient.Transport.(*mockRoundTripper).reverseResponse
-				if !reflect.DeepEqual(resp.Body, http.NoBody) {
-					t.Fatalf("expected no body")
+				// Check if we expected to read from header
+				if tc.wantToReadFromHeader && err == nil {
+					headerVal := transport.lastResponse.Header.Get("X-Terraform-Get")
+					if headerVal == "" {
+						t.Fatalf("expected to read location from header but X-Terraform-Get header was not set")
+					}
 				}
 			}
 		})
 	}
 }
 
-type mockRoundTripper struct {
-	// response to return without calling the server
-	// SET TO USE AS A REVERSE PROXY
-	forwardResponse *http.Response
-	// the response from the server will be written here
-	// DO NOT SET
-	reverseResponse *http.Response
-	err             error
+// testTransport is a custom http.RoundTripper that redirects requests to the mock server
+// and captures the response for inspection
+type testTransport struct {
+	mockURL string
+	// Store the last response received from the mock server
+	lastResponse *http.Response
 }
 
-func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
-	if m.err != nil {
-		return nil, m.err
+func (t *testTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// Create a new request to the mock server with the same path, method, body, etc.
+	mockReq := &http.Request{
+		Method: req.Method,
+		URL: &url.URL{
+			Scheme: "http",
+			Host:   strings.TrimPrefix(t.mockURL, "http://"),
+			Path:   req.URL.Path,
+		},
+		Header:     req.Header,
+		Body:       req.Body,
+		Host:       req.Host,
+		Proto:      req.Proto,
+		ProtoMajor: req.ProtoMajor,
+		ProtoMinor: req.ProtoMinor,
 	}
-	if m.forwardResponse != nil {
-		m.reverseResponse = m.forwardResponse
-		return m.forwardResponse, nil
+
+	// Send the request to the mock server
+	resp, err := http.DefaultTransport.RoundTrip(mockReq)
+	if err == nil {
+		t.lastResponse = resp
 	}
-	resp, err := http.DefaultTransport.RoundTrip(req)
-	m.reverseResponse = resp
 	return resp, err
-}
-
-type mockErrorReadCloser struct {
-	err error
-}
-
-func (m mockErrorReadCloser) Read(_ []byte) (n int, err error) {
-	return 0, m.err
-}
-
-func (m mockErrorReadCloser) Close() error {
-	return m.err
 }

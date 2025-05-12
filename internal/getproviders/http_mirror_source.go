@@ -47,7 +47,7 @@ var _ Source = (*HTTPMirrorSource)(nil)
 // UI/config layer's responsibility to validate this and return a suitable
 // error message for the end-user audience.)
 func NewHTTPMirrorSource(baseURL *url.URL, creds svcauth.CredentialsSource) *HTTPMirrorSource {
-	httpClient := httpclient.New()
+	httpClient := httpclient.New(context.TODO())
 	httpClient.Timeout = requestTimeout
 	httpClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		// If we get redirected more than five times we'll assume we're

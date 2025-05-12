@@ -1,6 +1,7 @@
 
 output "foo" {
-  value = "hello"
+  value      = "hello"
+  deprecated = "Please, use `bar` output instead."
 }
 
 output "bar" {

@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/copy"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
@@ -38,15 +38,13 @@ func TestMain(m *testing.M) {
 
 func TestModuleInstaller(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/local-modules")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -78,7 +76,7 @@ func TestModuleInstaller(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -101,16 +99,14 @@ func TestModuleInstaller(t *testing.T) {
 
 func TestModuleInstaller_error(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/local-module-error")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -122,16 +118,14 @@ func TestModuleInstaller_error(t *testing.T) {
 
 func TestModuleInstaller_emptyModuleName(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/empty-module-name")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -143,16 +137,14 @@ func TestModuleInstaller_emptyModuleName(t *testing.T) {
 
 func TestModuleInstaller_invalidModuleName(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/invalid-module-name")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	if !diags.HasErrors() {
 		t.Fatal("expected error")
@@ -163,8 +155,7 @@ func TestModuleInstaller_invalidModuleName(t *testing.T) {
 
 func TestModuleInstaller_packageEscapeError(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/load-module-package-escape")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	// For this particular test we need an absolute path in the root module
 	// that must actually resolve to our temporary directory in "dir", so
@@ -187,9 +178,12 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	// This test needs a real getmodules.PackageFetcher because it makes use of
+	// the esoteric legacy support for treating an absolute filesystem path
+	// as if it were a "remote package". This should not use any of the
+	// truly-"remote" module sources, even though it technically has access to.
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(t.Context(), nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -201,8 +195,7 @@ func TestModuleInstaller_packageEscapeError(t *testing.T) {
 
 func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/load-module-package-prefix")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	// For this particular test we need an absolute path in the root module
 	// that must actually resolve to our temporary directory in "dir", so
@@ -225,9 +218,12 @@ func TestModuleInstaller_explicitPackageBoundary(t *testing.T) {
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	// This test needs a real getmodules.PackageFetcher because it makes use of
+	// the esoteric legacy support for treating an absolute filesystem path
+	// as if it were a "remote package". This should not use any of the
+	// truly-"remote" module sources, even though it technically has access to.
+	inst := NewModuleInstaller(modulesDir, loader, nil, getmodules.NewPackageFetcher(t.Context(), nil))
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if diags.HasErrors() {
@@ -304,16 +300,14 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			fixtureDir := filepath.Clean(tc.modulePath)
-			dir, done := tempChdir(t, fixtureDir)
-			defer done()
+			dir := tempChdir(t, fixtureDir)
 
 			hooks := &testInstallHooks{}
 
 			modulesDir := filepath.Join(dir, ".terraform/modules")
 
-			loader, closeLoader := configload.NewLoaderForTests(t)
-			defer closeLoader()
-			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+			loader := configload.NewLoaderForTests(t)
+			inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 			cfg, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 			if tc.shouldError {
@@ -336,16 +330,14 @@ func TestModuleInstaller_Prerelease(t *testing.T) {
 
 func TestModuleInstaller_invalid_version_constraint_error(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/invalid-version-constraint")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -362,16 +354,14 @@ func TestModuleInstaller_invalid_version_constraint_error(t *testing.T) {
 
 func TestModuleInstaller_invalidVersionConstraintGetter(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/invalid-version-constraint")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -388,16 +378,14 @@ func TestModuleInstaller_invalidVersionConstraintGetter(t *testing.T) {
 
 func TestModuleInstaller_invalidVersionConstraintLocal(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/invalid-version-constraint-local")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 
 	if !diags.HasErrors() {
@@ -414,16 +402,14 @@ func TestModuleInstaller_invalidVersionConstraintLocal(t *testing.T) {
 
 func TestModuleInstaller_symlink(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/local-module-symlink")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -455,7 +441,7 @@ func TestModuleInstaller_symlink(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -482,7 +468,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 	}
 
 	fixtureDir := filepath.Clean("testdata/registry-modules")
-	tmpDir, done := tempChdir(t, fixtureDir)
+	tmpDir := tempChdir(t, fixtureDir)
 	// the module installer runs filepath.EvalSymlinks() on the destination
 	// directory before copying files, and the resultant directory is what is
 	// returned by the install hooks. Without this, tests could fail on machines
@@ -492,14 +478,11 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 		t.Error(err)
 	}
 
-	defer done()
-
 	hooks := &testInstallHooks{}
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -614,7 +597,7 @@ func TestLoaderInstallModules_registry(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -646,7 +629,7 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 	}
 
 	fixtureDir := filepath.Clean("testdata/go-getter-modules")
-	tmpDir, done := tempChdir(t, fixtureDir)
+	tmpDir := tempChdir(t, fixtureDir)
 	// the module installer runs filepath.EvalSymlinks() on the destination
 	// directory before copying files, and the resultant directory is what is
 	// returned by the install hooks. Without this, tests could fail on machines
@@ -655,14 +638,12 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	defer done()
 
 	hooks := &testInstallHooks{}
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -744,7 +725,7 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	wantTraces := map[string]string{
@@ -772,15 +753,13 @@ func TestLoaderInstallModules_goGetter(t *testing.T) {
 
 func TestModuleInstaller_fromTests(t *testing.T) {
 	fixtureDir := filepath.Clean("testdata/local-module-from-test")
-	dir, done := tempChdir(t, fixtureDir)
-	defer done()
+	dir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 
 	modulesDir := filepath.Join(dir, ".terraform/modules")
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, nil)
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, nil, nil)
 	_, diags := inst.InstallModules(context.Background(), ".", "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -806,7 +785,7 @@ func TestModuleInstaller_fromTests(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfigWithTests(".", "tests", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfigWithTests(t.Context(), ".", "tests", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	if config.Module.Tests[filepath.Join("tests", "main.tftest.hcl")].Runs[0].ConfigUnderTest == nil {
@@ -820,7 +799,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 	}
 
 	fixtureDir := filepath.Clean("testdata/registry-module-from-test")
-	tmpDir, done := tempChdir(t, fixtureDir)
+	tmpDir := tempChdir(t, fixtureDir)
 	// the module installer runs filepath.EvalSymlinks() on the destination
 	// directory before copying files, and the resultant directory is what is
 	// returned by the install hooks. Without this, tests could fail on machines
@@ -830,14 +809,11 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 		t.Error(err)
 	}
 
-	defer done()
-
 	hooks := &testInstallHooks{}
 	modulesDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, close := configload.NewLoaderForTests(t)
-	defer close()
-	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(nil, nil))
+	loader := configload.NewLoaderForTests(t)
+	inst := NewModuleInstaller(modulesDir, loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, diags := inst.InstallModules(context.Background(), dir, "tests", false, false, hooks, configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, diags)
 
@@ -915,7 +891,7 @@ func TestLoadInstallModules_registryFromTest(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfigWithTests(".", "tests", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfigWithTests(t.Context(), ".", "tests", configs.RootModuleCallForTesting())
 	assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags))
 
 	if config.Module.Tests["main.tftest.hcl"].Runs[0].ConfigUnderTest == nil {
@@ -955,52 +931,28 @@ func (h *testInstallHooks) Install(moduleAddr string, version *version.Version, 
 
 // tempChdir copies the contents of the given directory to a temporary
 // directory and changes the test process's current working directory to
-// point to that directory. Also returned is a function that should be
-// called at the end of the test (e.g. via "defer") to restore the previous
-// working directory.
+// point to that directory. The temporary directory is deleted and the
+// working directory restored after the calling test is complete.
 //
 // Tests using this helper cannot safely be run in parallel with other tests.
-func tempChdir(t *testing.T, sourceDir string) (string, func()) {
+func tempChdir(t testing.TB, sourceDir string) string {
 	t.Helper()
 
-	tmpDir, err := os.MkdirTemp("", "terraform-configload")
-	if err != nil {
-		t.Fatalf("failed to create temporary directory: %s", err)
-		return "", nil
-	}
-
+	tmpDir := t.TempDir()
 	if err := copy.CopyDir(tmpDir, sourceDir); err != nil {
 		t.Fatalf("failed to copy fixture to temporary directory: %s", err)
-		return "", nil
+		return ""
 	}
-
-	oldDir, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("failed to determine current working directory: %s", err)
-		return "", nil
-	}
-
-	err = os.Chdir(tmpDir)
-	if err != nil {
-		t.Fatalf("failed to switch to temp dir %s: %s", tmpDir, err)
-		return "", nil
-	}
+	t.Chdir(tmpDir)
 
 	// Most of the tests need this, so we'll make it just in case.
-	os.MkdirAll(filepath.Join(tmpDir, ".terraform/modules"), os.ModePerm)
+	if err := os.MkdirAll(filepath.Join(tmpDir, ".terraform/modules"), os.ModePerm); err != nil {
+		t.Fatalf("failed to make module cache directory: %s", err)
+		return ""
+	}
 
 	t.Logf("tempChdir switched to %s after copying from %s", tmpDir, sourceDir)
-
-	return tmpDir, func() {
-		err := os.Chdir(oldDir)
-		if err != nil {
-			panic(fmt.Errorf("failed to restore previous working directory %s: %w", oldDir, err))
-		}
-
-		if os.Getenv("TF_CONFIGLOAD_TEST_KEEP_TMP") == "" {
-			os.RemoveAll(tmpDir)
-		}
-	}
+	return tmpDir
 }
 
 func assertNoDiagnostics(t *testing.T, diags tfdiags.Diagnostics) bool {
@@ -1013,7 +965,8 @@ func assertDiagnosticCount(t *testing.T, diags tfdiags.Diagnostics, want int) bo
 	if len(diags) != want {
 		t.Errorf("wrong number of diagnostics %d; want %d", len(diags), want)
 		for _, diag := range diags {
-			t.Logf("- %#v", diag)
+			desc := diag.Description()
+			t.Logf("- %s: %s", desc.Summary, desc.Detail)
 		}
 		return true
 	}
@@ -1031,7 +984,8 @@ func assertDiagnosticSummary(t *testing.T, diags tfdiags.Diagnostics, want strin
 
 	t.Errorf("missing diagnostic summary %q", want)
 	for _, diag := range diags {
-		t.Logf("- %#v", diag)
+		desc := diag.Description()
+		t.Logf("- %s: %s", desc.Summary, desc.Detail)
 	}
 	return true
 }

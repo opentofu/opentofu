@@ -51,6 +51,9 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 		v.Sensitive = ov.Sensitive
 		v.SensitiveSet = ov.SensitiveSet
 	}
+	if ov.Deprecated != "" {
+		v.Deprecated = ov.Deprecated
+	}
 	if ov.Default != cty.NilVal {
 		v.Default = ov.Default
 	}
@@ -149,6 +152,9 @@ func (o *Output) merge(oo *Output) hcl.Diagnostics {
 	if oo.SensitiveSet {
 		o.Sensitive = oo.Sensitive
 		o.SensitiveSet = oo.SensitiveSet
+	}
+	if oo.Deprecated != "" {
+		o.Deprecated = oo.Deprecated
 	}
 
 	// We don't allow depends_on to be overridden because that is likely to

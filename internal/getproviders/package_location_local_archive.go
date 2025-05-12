@@ -8,8 +8,13 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"log"
+	"os"
 
 	"github.com/hashicorp/go-getter"
+	semconv "go.opentelemetry.io/otel/semconv/v1.30.0"
+
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // We borrow the "unpack a zip file into a target directory" logic from
@@ -31,7 +36,10 @@ var _ PackageLocation = PackageLocalArchive("")
 
 func (p PackageLocalArchive) String() string { return string(p) }
 
-func (p PackageLocalArchive) InstallProviderPackage(_ context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
+func (p PackageLocalArchive) InstallProviderPackage(ctx context.Context, meta PackageMeta, targetDir string, allowedHashes []Hash) (*PackageAuthenticationResult, error) {
+	_, span := tracing.Tracer().Start(ctx, "Decompress (local archive)")
+	defer span.End()
+
 	var authResult *PackageAuthenticationResult
 	if meta.Authentication != nil {
 		var err error
@@ -42,31 +50,50 @@ func (p PackageLocalArchive) InstallProviderPackage(_ context.Context, meta Pack
 
 	if len(allowedHashes) > 0 {
 		if matches, err := meta.MatchesAnyHash(allowedHashes); err != nil {
-			return authResult, fmt.Errorf(
+			err := fmt.Errorf(
 				"failed to calculate checksum for %s %s package at %s: %w",
 				meta.Provider, meta.Version, meta.Location, err,
 			)
+			tracing.SetSpanError(span, err)
+			return authResult, err
 		} else if !matches {
-			return authResult, fmt.Errorf(
+			err := fmt.Errorf(
 				"the current package for %s %s doesn't match any of the checksums previously recorded in the dependency lock file; for more information: https://opentofu.org/docs/language/files/dependency-lock/#checksum-verification",
 				meta.Provider, meta.Version,
 			)
+			tracing.SetSpanError(span, err)
+			return authResult, err
 		}
 	}
 
 	filename := meta.Location.String()
+	span.SetAttributes(semconv.FilePath(filename))
 
-	// NOTE: We're not checking whether there's already a directory at
-	// targetDir with some files in it. Packages are supposed to be immutable
-	// and therefore we'll just be overwriting all of the existing files with
-	// their same contents unless something unusual is happening. If something
-	// unusual _is_ happening then this will produce something that doesn't
-	// match the allowed hashes and so our caller should catch that after
-	// we return if so.
+	// NOTE: Packages are immutable, but we may want to skip overwriting the existing
+	// files in due to specific scenarios defined below.
+
+	if _, err := os.Stat(targetDir); err == nil {
+		// If the package might already be installed, we should try to skip overwriting the contents.
+		// When run with TF_PLUGIN_CACHE_DIR or similar, a given provider might already be executing
+		// and therefore locking the provider binary in the target directory (preventing the overwrite below)
+		//
+		// This does incur the overhead of two additional hash computations and could be
+		// skipped with smarter checks around re-use scenarios in the future.
+
+		targetHash, targetErr := PackageHashV1(PackageLocalDir(targetDir))
+		fileHash, fileErr := PackageHashV1(meta.Location)
+
+		if targetHash == fileHash && fileErr == nil && targetErr == nil {
+			// Package is properly installed, bad or missing lock file will be caught elsewhere
+			log.Printf("[INFO] Skipping local installation of provider %s %s as the existing contents already match the new contents", meta.Provider, meta.Version)
+			return authResult, nil
+		}
+	}
 
 	//nolint:mnd // magic number predates us using this linter
 	err := unzip.Decompress(targetDir, filename, true, 0000)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return authResult, err
 	}
 

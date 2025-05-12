@@ -6,11 +6,13 @@
 package configs
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/hcltest"
 )
 
 func TestTestRun_Validate(t *testing.T) {
@@ -96,4 +98,83 @@ func parseTraversal(t *testing.T, addr string) hcl.Traversal {
 		t.Fatalf("invalid address: %s", diags.Error())
 	}
 	return traversal
+}
+
+func assertDiagsSummaryMatch(t *testing.T, want hcl.Diagnostics, got hcl.Diagnostics) {
+	t.Helper()
+
+	for i := range want {
+		if want[i].Summary != got[i].Summary {
+			t.Errorf("wanted %s as summary, got %s instead", want[i].Summary, got[i].Summary)
+		}
+	}
+}
+
+func TestDecodeTestRunModuleBlock(t *testing.T) {
+	tcs := map[string]struct {
+		inputModuleSource string
+		wantModuleSource string
+		expectedDiags hcl.Diagnostics
+	}{
+		"invalid": {
+			inputModuleSource: "hg",
+			wantModuleSource: "",
+			expectedDiags: hcl.Diagnostics{
+				{
+					Summary: "Invalid module source address",
+				},
+			},
+		},
+		"generic_git_url": {
+			inputModuleSource: "git@github.com:opentofu/terraform-module-test.git",
+			wantModuleSource: "git::ssh://git@github.com/opentofu/terraform-module-test.git",
+			expectedDiags: nil,
+		},
+		"github_url": {
+			inputModuleSource: "github.com/opentofu/terraform-module-test",
+			wantModuleSource: "git::https://github.com/opentofu/terraform-module-test.git",
+			expectedDiags: nil,
+		},
+	}
+
+	for name, tc := range tcs {
+		t.Run(name, func(t *testing.T) {
+			pos := hcl.Pos{Line: 1, Column: 1}
+			exprName := fmt.Sprintf("\"%s\"", tc.inputModuleSource)
+			expr, _ :=  hclsyntax.ParseExpression([]byte(exprName), "", pos)
+
+			block := &hcl.Block{
+				Type: "module",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"source": {
+							Name: "source",
+							Expr: expr,
+						},
+					},
+				}),
+				DefRange: blockRange,
+			}
+
+			trcm, diags := decodeTestRunModuleBlock(block)
+
+			if tc.expectedDiags != nil || diags != nil {
+				assertDiagsSummaryMatch(t, tc.expectedDiags, diags)
+				return
+			}
+
+			if len(diags) > 1 {
+				t.Fatalf("not expecting errors, but got: %d", len(diags))
+			}
+
+			if trcm.Source == nil {
+				t.Fatalf("was expecting to have a source, but did not: %d", trcm.Source)
+			}
+
+
+			if trcm.Source.String() != tc.wantModuleSource  {
+				t.Fatalf("got %#v; want %#v", trcm.Source.String(), tc.wantModuleSource)
+			}
+		})
+	}
 }

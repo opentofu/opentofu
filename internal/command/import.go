@@ -14,6 +14,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
@@ -105,7 +106,7 @@ func (c *ImportCommand) Run(args []string) int {
 
 	// Load the full config, so we can verify that the target resource is
 	// already configured.
-	config, configDiags := c.loadConfig(configPath)
+	config, configDiags := c.loadConfig(ctx, configPath)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -113,7 +114,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -175,7 +176,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: config.Module.Backend,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -196,7 +197,7 @@ func (c *ImportCommand) Run(args []string) int {
 	}
 
 	// Build the operation
-	opReq := c.Operation(b, arguments.ViewHuman, enc)
+	opReq := c.Operation(ctx, b, arguments.ViewHuman, enc)
 	opReq.ConfigDir = configPath
 	opReq.ConfigLoader, err = c.initConfigLoader()
 	if err != nil {
@@ -209,7 +210,7 @@ func (c *ImportCommand) Run(args []string) int {
 		// Setup required variables/call for operation (usually done in Meta.RunOperation)
 		var moreDiags, callDiags tfdiags.Diagnostics
 		opReq.Variables, moreDiags = c.collectVariableValues()
-		opReq.RootCall, callDiags = c.rootModuleCall(opReq.ConfigDir)
+		opReq.RootCall, callDiags = c.rootModuleCall(ctx, opReq.ConfigDir)
 		diags = diags.Append(moreDiags).Append(callDiags)
 		if moreDiags.HasErrors() {
 			c.showDiagnostics(diags)
@@ -270,7 +271,7 @@ func (c *ImportCommand) Run(args []string) int {
 	var schemas *tofu.Schemas
 	if isCloudMode(b) {
 		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags = c.MaybeGetSchemas(newState, nil)
+		schemas, schemaDiags = c.MaybeGetSchemas(ctx, newState, nil)
 		diags = diags.Append(schemaDiags)
 	}
 

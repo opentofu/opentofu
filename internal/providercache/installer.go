@@ -14,12 +14,15 @@ import (
 	"strings"
 
 	"github.com/apparentlymart/go-versions/versions"
-	"github.com/apparentlymart/go-versions/versions/constraints"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	copydir "github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // Installer is the main type in this package, representing a provider installer
@@ -184,6 +187,9 @@ func (i *Installer) SetUnmanagedProviderTypes(types map[addrs.Provider]struct{})
 // in the final returned error value so callers should show either one or the
 // other, and not both.
 func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.Locks, reqs getproviders.Requirements, mode InstallMode) (*depsfile.Locks, error) {
+	ctx, span := tracing.Tracer().Start(ctx, "Install Providers") // TODO: Discuss span name
+	defer span.End()
+
 	evts := installerEventsForContext(ctx)
 
 	// Whenever possible we prefer to collect separate errors for each
@@ -229,13 +235,15 @@ func (i *Installer) EnsureProviderVersions(ctx context.Context, locks *depsfile.
 	// Step 3: For each provider version we've decided we need to install,
 	// install its package into our target cache (possibly via the global cache).
 	targetPlatform := i.targetDir.targetPlatform // we inherit this to behave correctly in unit tests
+	span.SetAttributes(otelAttr.String(traceattrs.TargetPlatform, targetPlatform.String()))
+	span.SetName("Install Providers - " + targetPlatform.String())
 	authResults, err := i.ensureProviderVersionsInstall(ctx, locks, reqs, mode, need, targetPlatform, errs)
 	if err != nil {
 		return nil, err
 	}
 
 	// Emit final event for fetching if any were successfully fetched
-	if cb := evts.ProvidersFetched; cb != nil && len(authResults) > 0 {
+	if cb := evts.ProvidersAuthenticated; cb != nil && len(authResults) > 0 {
 		cb(authResults)
 	}
 
@@ -436,398 +444,237 @@ func (i *Installer) ensureProviderVersionsInstall(
 	targetPlatform getproviders.Platform,
 	errs map[addrs.Provider]error,
 ) (map[addrs.Provider]*getproviders.PackageAuthenticationResult, error) {
-	evts := installerEventsForContext(ctx)
 	authResults := map[addrs.Provider]*getproviders.PackageAuthenticationResult{} // record auth results for all successfully fetched providers
 
 	for provider, version := range need {
-		if err := ctx.Err(); err != nil {
+		traceCtx, span := tracing.Tracer().Start(ctx,
+			fmt.Sprintf("Install Provider %q", provider.String()),
+			trace.WithAttributes(
+				otelAttr.String(traceattrs.ProviderAddress, provider.String()),
+				otelAttr.String(traceattrs.ProviderVersion, version.String()),
+				otelAttr.String(traceattrs.TargetPlatform, targetPlatform.String()),
+			),
+		)
+
+		if err := traceCtx.Err(); err != nil {
 			// If our context has been cancelled or reached a timeout then
 			// we'll abort early, because subsequent operations against
 			// that context will fail immediately anyway.
+			tracing.SetSpanError(span, err)
+			span.End()
 			return nil, err
 		}
 
-		lock := locks.Provider(provider)
-		var preferredHashes []getproviders.Hash
-		if lock != nil && lock.Version() == version { // hash changes are expected if the version is also changing
-			preferredHashes = lock.PreferredHashes()
+		authResult, err := i.ensureProviderVersionInstalled(traceCtx, locks, reqs, mode, provider, version, targetPlatform)
+		if authResult != nil {
+			authResults[provider] = authResult
 		}
-
-		// If our target directory already has the provider version that fulfills the lock file, carry on
-		if installed := i.targetDir.ProviderVersion(provider, version); installed != nil {
-			if len(preferredHashes) > 0 {
-				if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
-					if cb := evts.ProviderAlreadyInstalled; cb != nil {
-						cb(provider, version)
-					}
-					continue
-				}
-			}
-		}
-
-		if i.globalCacheDir != nil {
-			// If our global cache already has this version available then
-			// we'll just link it in.
-			installed, err := tryInstallPackageFromCacheDir(
-				ctx,
-				i.globalCacheDir,
-				i.targetDir,
-				provider, version,
-				reqs[provider],
-				lock, locks,
-				preferredHashes,
-				i.globalCacheDirMayBreakDependencyLockFile,
-			)
-			if err != nil {
-				errs[provider] = err
-				continue
-			}
-			if installed {
-				continue // nothing left to do for this provider, then
-			}
-		}
-
-		// Step 3b: Get the package metadata for the selected version from our
-		// provider source.
-		//
-		// This is the step where we might detect and report that the provider
-		// isn't available for the current platform.
-		if cb := evts.FetchPackageMeta; cb != nil {
-			cb(provider, version)
-		}
-		meta, err := i.source.PackageMeta(ctx, provider, version, targetPlatform)
 		if err != nil {
 			errs[provider] = err
-			if cb := evts.FetchPackageFailure; cb != nil {
-				cb(provider, version, err)
-			}
-			continue
 		}
-
-		// Step 3c: Retrieve the package indicated by the metadata we received,
-		// either directly into our target directory or via the global cache
-		// directory.
-		if cb := evts.FetchPackageBegin; cb != nil {
-			cb(provider, version, meta.Location)
-		}
-		var installTo, linkTo *Dir
-		if i.globalCacheDir != nil {
-			installTo = i.globalCacheDir
-			linkTo = i.targetDir
-		} else {
-			installTo = i.targetDir
-			linkTo = nil // no linking needed
-		}
-
-		allowedHashes := preferredHashes
-		if mode.forceInstallChecksums() {
-			allowedHashes = []getproviders.Hash{}
-		}
-
-		authResult, err := installTo.InstallPackage(ctx, meta, allowedHashes)
-		if err != nil {
-			// TODO: Consider retrying for certain kinds of error that seem
-			// likely to be transient. For now, we just treat all errors equally.
-			errs[provider] = err
-			if cb := evts.FetchPackageFailure; cb != nil {
-				cb(provider, version, err)
-			}
-			continue
-		}
-		new := installTo.ProviderVersion(provider, version)
-		if new == nil {
-			err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, installTo.BasePath())
-			errs[provider] = err
-			if cb := evts.FetchPackageFailure; cb != nil {
-				cb(provider, version, err)
-			}
-			continue
-		}
-		if _, err := new.ExecutableFile(); err != nil {
-			err := fmt.Errorf("provider binary not found: %w", err)
-			errs[provider] = err
-			if cb := evts.FetchPackageFailure; cb != nil {
-				cb(provider, version, err)
-			}
-			continue
-		}
-		if linkTo != nil {
-			// We skip emitting the "LinkFromCache..." events here because
-			// it's simpler for the caller to treat them as mutually exclusive.
-			// We can just subsume the linking step under the "FetchPackage..."
-			// series here (and that's why we use FetchPackageFailure below).
-			// We also don't do a hash check here because we already did that
-			// as part of the installTo.InstallPackage call above.
-			err := linkTo.LinkFromOtherCache(new, nil)
-			if err != nil {
-				errs[provider] = err
-				if cb := evts.FetchPackageFailure; cb != nil {
-					cb(provider, version, err)
-				}
-				continue
-			}
-
-			// We should now also find the package in the linkTo dir, which
-			// gives us the final value of "new" where the path points in to
-			// the true target directory, rather than possibly the global
-			// cache directory.
-			new = linkTo.ProviderVersion(provider, version)
-			if new == nil {
-				err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, linkTo.BasePath())
-				errs[provider] = err
-				if cb := evts.FetchPackageFailure; cb != nil {
-					cb(provider, version, err)
-				}
-				continue
-			}
-			if _, err := new.ExecutableFile(); err != nil {
-				err := fmt.Errorf("provider binary not found: %w", err)
-				errs[provider] = err
-				if cb := evts.FetchPackageFailure; cb != nil {
-					cb(provider, version, err)
-				}
-				continue
-			}
-		}
-		authResults[provider] = authResult
-
-		// The InstallPackage call above should've verified that
-		// the package matches one of the hashes previously recorded,
-		// if any. We'll now augment those hashes with a new set populated
-		// with the hashes returned by the upstream source and from the
-		// package we've just installed, which allows the lock file to
-		// gradually transition to newer hash schemes when they become
-		// available.
-		//
-		// This is assuming that if a package matches both a hash we saw before
-		// _and_ a new hash then the new hash is a valid substitute for
-		// the previous hash.
-		//
-		// The hashes slice gets deduplicated in the lock file
-		// implementation, so we don't worry about potentially
-		// creating duplicates here.
-		var priorHashes []getproviders.Hash
-		if lock != nil && lock.Version() == version {
-			// If the version we're installing is identical to the
-			// one we previously locked then we'll keep all of the
-			// hashes we saved previously and add to it. Otherwise
-			// we'll be starting fresh, because each version has its
-			// own set of packages and thus its own hashes.
-			priorHashes = append(priorHashes, preferredHashes...)
-		}
-		newHash, err := new.Hash()
-		if err != nil {
-			err := fmt.Errorf("after installing %s, failed to compute a checksum for it: %w", provider, err)
-			errs[provider] = err
-			if cb := evts.FetchPackageFailure; cb != nil {
-				cb(provider, version, err)
-			}
-			continue
-		}
-
-		// localHashes is the set of hashes that we were able to verify locally
-		// based on the data we downloaded.
-		localHashes := slices.Collect(authResult.HashesWithDisposition(func(hd *getproviders.HashDisposition) bool {
-			return hd.VerifiedLocally
-		}))
-		localHashes = append(localHashes, newHash) // the hash we calculated above was _also_ verified locally
-
-		// We have different rules for what subset of hashes we track in
-		// the dependency lock file depending on the provider. Refer to
-		// the documentation of the following function for more information.
-		signingRequired := getproviders.ShouldEnforceGPGValidationForProvider(provider)
-		signedHashes := slices.Collect(authResult.HashesWithDisposition(func(hd *getproviders.HashDisposition) bool {
-			if !signingRequired {
-				// When signing isn't required, we pretend that anything
-				// that was reported by the origin registry was "signed",
-				// just for the purposes of updating the lock file and
-				// reporting that lock file update to the UI layer through
-				// the evts object.
-				// Note that the "tofu init" UI relies on us pretending
-				// that these are "signed" to avoid generating its warning
-				// that the dependency lock file might be incomplete.
-				return hd.ReportedByRegistry
-			}
-			return hd.SignedByAnyGPGKeys()
-		}))
-
-		var newHashes []getproviders.Hash
-		newHashes = append(newHashes, newHash)
-		newHashes = append(newHashes, priorHashes...)
-		newHashes = append(newHashes, localHashes...)
-		newHashes = append(newHashes, signedHashes...)
-
-		locks.SetProvider(provider, version, reqs[provider], newHashes)
-		if cb := evts.ProvidersLockUpdated; cb != nil {
-			// priorHashes is already sorted, but we do need to sort
-			// the newly-generated localHashes and signedHashes.
-			sort.Slice(localHashes, func(i, j int) bool {
-				return localHashes[i].String() < localHashes[j].String()
-			})
-			sort.Slice(signedHashes, func(i, j int) bool {
-				return signedHashes[i].String() < signedHashes[j].String()
-			})
-
-			cb(provider, version, localHashes, signedHashes, priorHashes)
-		}
-
-		if cb := evts.FetchPackageSuccess; cb != nil {
-			cb(provider, version, new.PackageDir, authResult)
-		}
+		span.End()
 	}
-
 	return authResults, nil
 }
 
-// tryInstallPackageFromCacheDir attempts to satisfy a provider selection from
-// the upstream cache sourceDir.
-//
-// If successful it returns (true, nil) and updates "locks" to contain the
-// checksum of the package that was installed.
-//
-// If sourceDir does not have a suitable package for the selected provider
-// version then it returns (false, nil), after which the caller can attempt
-// to install a suitable provider package from some other location.
-//
-// If sourceDir has a package that appears to be for the selected provider
-// version but there are any problems with that package that prevent it from
-// being installed then it returns a non-nil error describing the problem.
-func tryInstallPackageFromCacheDir(
+func (i *Installer) ensureProviderVersionInstalled(
 	ctx context.Context,
-	sourceDir *Dir,
-	destDir *Dir,
-	provider addrs.Provider,
-	version versions.Version,
-	versionConstraints constraints.IntersectionSpec,
-	lock *depsfile.ProviderLock,
 	locks *depsfile.Locks,
-	preferredHashes []getproviders.Hash,
-	mayBreakDependencyLockFile bool,
-
-	// FIXME: The above set of arguments came from exhaustively including
-	// everything that a previously-inline version of this chunk of code
-	// referred to, to minimize the risk of factoring it out. In future
-	// we should try to separate these concerns a little better so that
-	// this doesn't need so many arguments. For example, it might be better
-	// for the caller to be responsible for updating "locks" when
-	// installation is successful, but that would likely require changing
-	// the order of emitted events so that the locks-update event
-	// comes after the successful-linking event.
-) (installed bool, err error) {
+	reqs getproviders.Requirements,
+	mode InstallMode,
+	provider addrs.Provider,
+	version getproviders.Version,
+	targetPlatform getproviders.Platform,
+) (*getproviders.PackageAuthenticationResult, error) {
 	evts := installerEventsForContext(ctx)
+	lock := locks.Provider(provider)
 
-	cached := sourceDir.ProviderVersion(provider, version)
-	if cached == nil {
-		// If we don't have a cache entry then we can't install from cache.
-		return false, nil
+	var preferredHashes []getproviders.Hash
+	if lock != nil && lock.Version() == version { // hash changes are expected if the version is also changing
+		preferredHashes = lock.PreferredHashes()
 	}
 
-	// An existing cache entry is only an acceptable choice
-	// if there is already a lock file entry for this provider
-	// and the cache entry matches its checksums.
-	//
-	// If there was no lock file entry at all then we need to
-	// install the package for real so that we can lock as complete
-	// as possible a set of checksums for all of this provider's
-	// packages.
-	//
-	// If there was a lock file entry but the cache doesn't match
-	// it then we assume that the lock file checksums were only
-	// partially populated (e.g. from a local mirror where we can
-	// only see one package to checksum it) and so we'll fetch
-	// from upstream to see if the origin can give us a package
-	// that _does_ match. This might still not work out, but if
-	// it does then it allows us to avoid returning a checksum
-	// mismatch error.
-	acceptablePackage := false
-	if len(preferredHashes) != 0 {
-		acceptablePackage, err = cached.MatchesAnyHash(preferredHashes)
-		if err != nil {
-			// If we can't calculate the checksum for the cached
-			// package then we'll just treat it as a checksum failure.
-			acceptablePackage = false
+	// If our target directory already has the provider version that fulfills the lock file, carry on
+	if installed := i.targetDir.ProviderVersion(provider, version); installed != nil {
+		if len(preferredHashes) > 0 {
+			if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
+				if cb := evts.ProviderAlreadyInstalled; cb != nil {
+					cb(provider, version, false)
+				}
+
+				// Even though the package is installed, the requirements in the lockfile may still need to be updated
+				locks.SetProvider(provider, version, reqs[provider], lock.AllHashes())
+
+				return nil, nil
+			}
 		}
 	}
 
-	if !acceptablePackage && mayBreakDependencyLockFile {
-		// The "may break dependency lock file" setting effectively
-		// means that we'll accept any matching package that's
-		// already in the cache, regardless of whether it matches
-		// what's in the dependency lock file.
-		//
-		// That means two less-ideal situations might occur:
-		// - If this provider is not currently tracked in the lock
-		//   file at all then after installation the lock file will
-		//   only accept the package that was already present in
-		//   the cache as a valid checksum. That means the generated
-		//   lock file won't be portable to other operating systems
-		//   or CPU architectures.
-		// - If the provider _is_ currently tracked in the lock file
-		//   but the checksums there don't match what was in the
-		//   cache then the LinkFromOtherCache call below will
-		//   fail with a checksum error, and the user will need to
-		//   either manually remove the entry from the lock file
-		//   or remove the mismatching item from the cache,
-		//   depending on which of these they prefer to use as the
-		//   source of truth for the expected contents of the
-		//   package.
-		//
-		// If the lock file already includes this provider and the
-		// cache entry matches one of the locked checksums then
-		// there's no problem, but in that case we wouldn't enter
-		// this branch because acceptablePackage would already be
-		// true from the check above.
-		log.Printf(
-			"[WARN] plugin_cache_may_break_dependency_lock_file: Using global cache dir package for %s v%s even though it doesn't match this configuration's dependency lock file",
-			provider.String(), version.String(),
-		)
-		acceptablePackage = true
+	var installTo, linkTo *Dir
+	if i.globalCacheDir != nil {
+		installTo = i.globalCacheDir
+		linkTo = i.targetDir
+	} else {
+		installTo = i.targetDir
+		linkTo = nil // no linking needed
 	}
 
-	if !acceptablePackage {
-		// TODO: Should we emit an event through the events object
-		// for "there was an entry in the cache but we ignored it
-		// because the checksum didn't match"? We can't use
-		// LinkFromCacheFailure in that case because this isn't a
-		// failure. For now we'll just be quiet about it.
-		return false, nil
-	}
+	result, err := i.ensureProviderVersionInDirectory(ctx, locks, reqs, mode, provider, version, targetPlatform, installTo)
 
-	if cb := evts.LinkFromCacheBegin; cb != nil {
-		cb(provider, version, sourceDir.baseDir)
-	}
-	if _, err = cached.ExecutableFile(); err != nil {
-		err = fmt.Errorf("provider binary not found: %w", err)
-		if cb := evts.LinkFromCacheFailure; cb != nil {
-			cb(provider, version, err)
-		}
-		return false, err
-	}
-
-	err = destDir.LinkFromOtherCache(cached, preferredHashes)
 	if err != nil {
-		if cb := evts.LinkFromCacheFailure; cb != nil {
-			cb(provider, version, err)
-		}
-		return false, err
-	}
-	// We'll fetch what we just linked to make sure it actually
-	// did show up there.
-	newCached := destDir.ProviderVersion(provider, version)
-	if newCached == nil {
-		err = fmt.Errorf("after linking %s from provider cache at %s it is still not detected in the target directory; this is a bug in OpenTofu", provider, sourceDir.baseDir)
-		if cb := evts.LinkFromCacheFailure; cb != nil {
-			cb(provider, version, err)
-		}
-		return false, err
+		return result, err
 	}
 
-	// The LinkFromOtherCache call above should've verified that
+	if linkTo != nil {
+		if cb := evts.LinkFromCacheBegin; cb != nil {
+			cb(provider, version, installTo.BasePath())
+		}
+
+		// We don't do a hash check here because we already did that
+		// as part of the ensureProviderVersionInDirectory call above.
+		new := installTo.ProviderVersion(provider, version)
+		err := linkTo.LinkFromOtherCache(ctx, new, nil)
+		if err != nil {
+			if cb := evts.LinkFromCacheFailure; cb != nil {
+				cb(provider, version, err)
+			}
+			return nil, err
+		}
+
+		// We should now also find the package in the linkTo dir, which
+		// gives us the final value of "new" where the path points in to
+		// the true target directory, rather than possibly the global
+		// cache directory.
+		new = linkTo.ProviderVersion(provider, version)
+		if new == nil {
+			err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, linkTo.BasePath())
+			if cb := evts.LinkFromCacheFailure; cb != nil {
+				cb(provider, version, err)
+			}
+			return nil, err
+		}
+		if _, err := new.ExecutableFile(); err != nil {
+			err := fmt.Errorf("provider binary not found: %w", err)
+			if cb := evts.LinkFromCacheFailure; cb != nil {
+				cb(provider, version, err)
+			}
+			return nil, err
+		}
+
+		if cb := evts.LinkFromCacheSuccess; cb != nil {
+			cb(provider, version, new.PackageDir)
+		}
+	}
+
+	return result, err
+}
+
+func (i *Installer) ensureProviderVersionInDirectory(
+	ctx context.Context,
+	locks *depsfile.Locks,
+	reqs getproviders.Requirements,
+	mode InstallMode,
+	provider addrs.Provider,
+	version getproviders.Version,
+	targetPlatform getproviders.Platform,
+	installTo *Dir,
+) (*getproviders.PackageAuthenticationResult, error) {
+	evts := installerEventsForContext(ctx)
+	lock := locks.Provider(provider)
+
+	var preferredHashes []getproviders.Hash
+	if lock != nil && lock.Version() == version { // hash changes are expected if the version is also changing
+		preferredHashes = lock.PreferredHashes()
+	}
+
+	isGlobalCache := installTo == i.globalCacheDir
+
+	// If our target directory already has the provider version that fulfills the lock file, carry on
+	if installed := installTo.ProviderVersion(provider, version); installed != nil {
+		if len(preferredHashes) > 0 {
+			if matches, _ := installed.MatchesAnyHash(preferredHashes); matches {
+				if cb := evts.ProviderAlreadyInstalled; cb != nil {
+					cb(provider, version, isGlobalCache)
+				}
+
+				// Even though the package is installed, the requirements in the lockfile may still need to be updated
+				locks.SetProvider(provider, version, reqs[provider], lock.AllHashes())
+
+				return nil, nil
+			}
+		}
+	}
+
+	// Step 3b: Get the package metadata for the selected version from our
+	// provider source.
+	//
+	// This is the step where we might detect and report that the provider
+	// isn't available for the current platform.
+	if cb := evts.FetchPackageMeta; cb != nil {
+		cb(provider, version)
+	}
+	meta, err := i.source.PackageMeta(ctx, provider, version, targetPlatform)
+	if err != nil {
+		if cb := evts.FetchPackageFailure; cb != nil {
+			cb(provider, version, err)
+		}
+		return nil, err
+	}
+
+	// Step 3c: Retrieve the package indicated by the metadata we received,
+	// either directly into our target directory or via the global cache
+	// directory.
+	if cb := evts.FetchPackageBegin; cb != nil {
+		cb(provider, version, meta.Location, isGlobalCache)
+	}
+
+	allowedHashes := preferredHashes
+	if mode.forceInstallChecksums() {
+		allowedHashes = []getproviders.Hash{}
+	}
+
+	allowSkippingInstallWithoutHashes := i.globalCacheDirMayBreakDependencyLockFile && isGlobalCache
+	authResult, err := installTo.InstallPackage(ctx, meta, allowedHashes, allowSkippingInstallWithoutHashes)
+	if err != nil {
+		// TODO: Consider retrying for certain kinds of error that seem
+		// likely to be transient. For now, we just treat all errors equally.
+		if cb := evts.FetchPackageFailure; cb != nil {
+			cb(provider, version, err)
+		}
+		return nil, err
+	}
+
+	new := installTo.ProviderVersion(provider, version)
+	if new == nil {
+		err := fmt.Errorf("after installing %s it is still not detected in %s; this is a bug in OpenTofu", provider, installTo.BasePath())
+		if cb := evts.FetchPackageFailure; cb != nil {
+			cb(provider, version, err)
+		}
+		return nil, err
+	}
+	if _, err := new.ExecutableFile(); err != nil {
+		err := fmt.Errorf("provider binary not found: %w", err)
+		if cb := evts.FetchPackageFailure; cb != nil {
+			cb(provider, version, err)
+		}
+		return nil, err
+	}
+
+	// The InstallPackage call above should've verified that
 	// the package matches one of the hashes previously recorded,
-	// if any. We'll now augment those hashes with one freshly
-	// calculated from the package we just linked, which allows
-	// the lock file to gradually transition to recording newer hash
-	// schemes when they become available.
+	// if any. We'll now augment those hashes with a new set populated
+	// with the hashes returned by the upstream source and from the
+	// package we've just installed, which allows the lock file to
+	// gradually transition to newer hash schemes when they become
+	// available.
+	//
+	// This is assuming that if a package matches both a hash we saw before
+	// _and_ a new hash then the new hash is a valid substitute for
+	// the previous hash.
+	//
+	// The hashes slice gets deduplicated in the lock file
+	// implementation, so we don't worry about potentially
+	// creating duplicates here.
 	var priorHashes []getproviders.Hash
 	if lock != nil && lock.Version() == version {
 		// If the version we're installing is identical to the
@@ -836,51 +683,72 @@ func tryInstallPackageFromCacheDir(
 		// we'll be starting fresh, because each version has its
 		// own set of packages and thus its own hashes.
 		priorHashes = append(priorHashes, preferredHashes...)
-
-		// NOTE: The behavior here is unfortunate when a particular
-		// provider version was already cached on the first time
-		// the current configuration requested it, because that
-		// means we don't currently get the opportunity to fetch
-		// and verify the checksums for the new package from
-		// upstream. That's currently unavoidable because upstream
-		// checksums are in the "ziphash" format and so we can't
-		// verify them against our cache directory's unpacked
-		// packages: we'd need to go fetch the package from the
-		// origin and compare against it, which would defeat the
-		// purpose of the global cache.
-		//
-		// If we fetch from upstream on the first encounter with
-		// a particular provider then we'll end up in the other
-		// codepath below where we're able to also include the
-		// checksums from the origin registry.
 	}
-	newHash, err := cached.Hash()
+	newHash, err := new.Hash()
 	if err != nil {
-		err = fmt.Errorf("after linking %s from provider cache at %s, failed to compute a checksum for it: %w", provider, sourceDir.baseDir, err)
-		if cb := evts.LinkFromCacheFailure; cb != nil {
+		err := fmt.Errorf("after installing %s, failed to compute a checksum for it: %w", provider, err)
+		if cb := evts.FetchPackageFailure; cb != nil {
 			cb(provider, version, err)
 		}
-		return false, err
-	}
-	// The hashes slice gets deduplicated in the lock file
-	// implementation, so we don't worry about potentially
-	// creating a duplicate here.
-	var newHashes []getproviders.Hash
-	newHashes = append(newHashes, priorHashes...)
-	newHashes = append(newHashes, newHash)
-	locks.SetProvider(provider, version, versionConstraints, newHashes)
-	if cb := evts.ProvidersLockUpdated; cb != nil {
-		// We want to ensure that newHash and priorHashes are
-		// sorted. newHash is a single value, so it's definitely
-		// sorted. priorHashes are pulled from the lock file, so
-		// are also already sorted.
-		cb(provider, version, []getproviders.Hash{newHash}, nil, priorHashes)
+		return authResult, err
 	}
 
-	if cb := evts.LinkFromCacheSuccess; cb != nil {
-		cb(provider, version, newCached.PackageDir)
+	// localHashes is the set of hashes that we were able to verify locally
+	// based on the data we downloaded.
+	localHashes := slices.Collect(authResult.HashesWithDisposition(func(hd *getproviders.HashDisposition) bool {
+		return hd.VerifiedLocally
+	}))
+	localHashes = append(localHashes, newHash) // the hash we calculated above was _also_ verified locally
+
+	// We have different rules for what subset of hashes we track in
+	// the dependency lock file depending on the provider. Refer to
+	// the documentation of the following function for more information.
+	signingRequired := getproviders.ShouldEnforceGPGValidationForProvider(provider)
+	signedHashes := slices.Collect(authResult.HashesWithDisposition(func(hd *getproviders.HashDisposition) bool {
+		if !signingRequired {
+			// When signing isn't required, we pretend that anything
+			// that was reported by the origin registry was "signed",
+			// just for the purposes of updating the lock file and
+			// reporting that lock file update to the UI layer through
+			// the evts object.
+			// Note that the "tofu init" UI relies on us pretending
+			// that these are "signed" to avoid generating its warning
+			// that the dependency lock file might be incomplete.
+			return hd.ReportedByRegistry
+		}
+		return hd.SignedByAnyGPGKeys()
+	}))
+
+	var newHashes []getproviders.Hash
+	newHashes = append(newHashes, newHash)
+	newHashes = append(newHashes, priorHashes...)
+	newHashes = append(newHashes, localHashes...)
+	newHashes = append(newHashes, signedHashes...)
+
+	locks.SetProvider(provider, version, reqs[provider], newHashes)
+	if cb := evts.ProvidersLockUpdated; cb != nil {
+		// priorHashes is already sorted, but we do need to sort
+		// the newly-generated localHashes and signedHashes.
+		sort.Slice(localHashes, func(i, j int) bool {
+			return localHashes[i].String() < localHashes[j].String()
+		})
+		sort.Slice(signedHashes, func(i, j int) bool {
+			return signedHashes[i].String() < signedHashes[j].String()
+		})
+		// these slices might also contain duplicates if the
+		// same hash was found in two different ways, so we'll
+		// adjust for that. This relies on the sorting above
+		// and modifies the underlying arrays in-place.
+		localHashes = slices.Compact(localHashes)
+		signedHashes = slices.Compact(signedHashes)
+		cb(provider, version, localHashes, signedHashes, priorHashes)
 	}
-	return true, nil
+
+	if cb := evts.FetchPackageSuccess; cb != nil {
+		cb(provider, version, new.PackageDir, authResult)
+	}
+
+	return authResult, nil
 }
 
 // checkUnspecifiedVersion Check the presence of version 0.0.0 and return an error with a tip

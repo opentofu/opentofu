@@ -20,10 +20,10 @@ import (
 )
 
 func TestNodeApplyableOutputExecute_knownValue(t *testing.T) {
-	ctx := new(MockEvalContext)
-	ctx.StateState = states.NewState().SyncWrapper()
-	ctx.RefreshStateState = states.NewState().SyncWrapper()
-	ctx.ChecksState = checks.NewState(nil)
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = states.NewState().SyncWrapper()
+	evalCtx.RefreshStateState = states.NewState().SyncWrapper()
+	evalCtx.ChecksState = checks.NewState(nil)
 
 	config := &configs.Output{Name: "map-output"}
 	addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
@@ -31,29 +31,29 @@ func TestNodeApplyableOutputExecute_knownValue(t *testing.T) {
 	val := cty.MapVal(map[string]cty.Value{
 		"a": cty.StringVal("b"),
 	})
-	ctx.EvaluateExprResult = val
+	evalCtx.EvaluateExprResult = val
 
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(t.Context(), evalCtx, walkApply)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %s", err)
 	}
 
-	outputVal := ctx.StateState.OutputValue(addr)
+	outputVal := evalCtx.StateState.OutputValue(addr)
 	if got, want := outputVal.Value, val; !got.RawEquals(want) {
 		t.Errorf("wrong output value in state\n got: %#v\nwant: %#v", got, want)
 	}
 
-	if !ctx.RefreshStateCalled {
+	if !evalCtx.RefreshStateCalled {
 		t.Fatal("should have called RefreshState, but didn't")
 	}
-	refreshOutputVal := ctx.RefreshStateState.OutputValue(addr)
+	refreshOutputVal := evalCtx.RefreshStateState.OutputValue(addr)
 	if got, want := refreshOutputVal.Value, val; !got.RawEquals(want) {
 		t.Fatalf("wrong output value in refresh state\n got: %#v\nwant: %#v", got, want)
 	}
 }
 
 func TestNodeApplyableOutputExecute_noState(t *testing.T) {
-	ctx := new(MockEvalContext)
+	evalCtx := new(MockEvalContext)
 
 	config := &configs.Output{Name: "map-output"}
 	addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
@@ -61,18 +61,18 @@ func TestNodeApplyableOutputExecute_noState(t *testing.T) {
 	val := cty.MapVal(map[string]cty.Value{
 		"a": cty.StringVal("b"),
 	})
-	ctx.EvaluateExprResult = val
+	evalCtx.EvaluateExprResult = val
 
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(t.Context(), evalCtx, walkApply)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %s", err)
 	}
 }
 
 func TestNodeApplyableOutputExecute_invalidDependsOn(t *testing.T) {
-	ctx := new(MockEvalContext)
-	ctx.StateState = states.NewState().SyncWrapper()
-	ctx.ChecksState = checks.NewState(nil)
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = states.NewState().SyncWrapper()
+	evalCtx.ChecksState = checks.NewState(nil)
 
 	config := &configs.Output{
 		Name: "map-output",
@@ -89,9 +89,9 @@ func TestNodeApplyableOutputExecute_invalidDependsOn(t *testing.T) {
 	val := cty.MapVal(map[string]cty.Value{
 		"a": cty.StringVal("b"),
 	})
-	ctx.EvaluateExprResult = val
+	evalCtx.EvaluateExprResult = val
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(t.Context(), evalCtx, walkApply)
 	if !diags.HasErrors() {
 		t.Fatal("expected execute error, but there was none")
 	}
@@ -101,9 +101,9 @@ func TestNodeApplyableOutputExecute_invalidDependsOn(t *testing.T) {
 }
 
 func TestNodeApplyableOutputExecute_sensitiveValueNotOutput(t *testing.T) {
-	ctx := new(MockEvalContext)
-	ctx.StateState = states.NewState().SyncWrapper()
-	ctx.ChecksState = checks.NewState(nil)
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = states.NewState().SyncWrapper()
+	evalCtx.ChecksState = checks.NewState(nil)
 
 	config := &configs.Output{Name: "map-output"}
 	addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
@@ -111,9 +111,9 @@ func TestNodeApplyableOutputExecute_sensitiveValueNotOutput(t *testing.T) {
 	val := cty.MapVal(map[string]cty.Value{
 		"a": cty.StringVal("b").Mark(marks.Sensitive),
 	})
-	ctx.EvaluateExprResult = val
+	evalCtx.EvaluateExprResult = val
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(t.Context(), evalCtx, walkApply)
 	if !diags.HasErrors() {
 		t.Fatal("expected execute error, but there was none")
 	}
@@ -122,20 +122,24 @@ func TestNodeApplyableOutputExecute_sensitiveValueNotOutput(t *testing.T) {
 	}
 }
 
-func TestNodeApplyableOutputExecute_alternativelyMarkedValue(t *testing.T) {
-	ctx := new(MockEvalContext)
-	ctx.StateState = states.NewState().SyncWrapper()
-	ctx.ChecksState = checks.NewState(nil)
+func TestNodeApplyableOutputExecute_deprecatedOutput(t *testing.T) {
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = states.NewState().SyncWrapper()
+	evalCtx.ChecksState = checks.NewState(nil)
 
 	config := &configs.Output{Name: "map-output"}
 	addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
 	node := &NodeApplyableOutput{Config: config, Addr: addr}
 	val := cty.MapVal(map[string]cty.Value{
-		"a": cty.StringVal("b").Mark("alternative-mark"),
+		"a": marks.Deprecated(cty.StringVal("b"), marks.DeprecationCause{}),
 	})
-	ctx.EvaluateExprResult = val
+	evalCtx.EvaluateExprResult = val
 
-	diags := node.Execute(ctx, walkApply)
+	// We set a value with no deprecation marks to check if the marks
+	// will be updated in the state.
+	evalCtx.StateState.SetOutputValue(addr, marks.RemoveDeepDeprecated(val), false, "")
+
+	diags := node.Execute(t.Context(), evalCtx, walkApply)
 	if diags.HasErrors() {
 		t.Fatalf("Got unexpected error: %v", diags)
 	}
@@ -145,17 +149,59 @@ func TestNodeApplyableOutputExecute_alternativelyMarkedValue(t *testing.T) {
 		t.Fatalf("Invalid mod addr in test: %v", diags)
 	}
 
-	stateVal := ctx.StateState.OutputValue(modOutputAddr)
+	stateVal := evalCtx.StateState.OutputValue(modOutputAddr)
 
-	if !stateVal.Value.HasMark("alternative-mark") {
-		t.Fatalf("Non-sensitive mark has been erased")
+	_, pvms := stateVal.Value.UnmarkDeepWithPaths()
+	if len(pvms) != 1 {
+		t.Fatalf("Expected a single mark to be present, got: %v", pvms)
+	}
+
+	if !marks.HasDeprecated(stateVal.Value.AsValueMap()["a"]) {
+		t.Fatalf("No deprecated mark found")
+	}
+}
+
+func TestNodeApplyableOutputExecute_alternativelyMarkedValue(t *testing.T) {
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = states.NewState().SyncWrapper()
+	evalCtx.ChecksState = checks.NewState(nil)
+
+	config := &configs.Output{Name: "map-output"}
+	addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
+	node := &NodeApplyableOutput{Config: config, Addr: addr}
+	val := cty.MapVal(map[string]cty.Value{
+		"a": cty.StringVal("b").Mark("alternative-mark"),
+	})
+	evalCtx.EvaluateExprResult = val
+
+	diags := node.Execute(t.Context(), evalCtx, walkApply)
+	if diags.HasErrors() {
+		t.Fatalf("Got unexpected error: %v", diags)
+	}
+
+	modOutputAddr, diags := addrs.ParseAbsOutputValueStr("output.map-output")
+	if diags.HasErrors() {
+		t.Fatalf("Invalid mod addr in test: %v", diags)
+	}
+
+	stateVal := evalCtx.StateState.OutputValue(modOutputAddr)
+
+	_, pvms := stateVal.Value.UnmarkDeepWithPaths()
+	if len(pvms) != 1 {
+		t.Fatalf("Expected a single mark to be present, got: %v", pvms)
+	}
+
+	// We want to check if the mark is still under the same path.
+	if !pvms[0].Path.Equals(cty.IndexStringPath("a")) ||
+		!pvms[0].Marks.Equal(cty.NewValueMarks("alternative-mark")) {
+		t.Fatalf("Expected an alternativeMark with preserved path (a). Got: %v", pvms)
 	}
 }
 
 func TestNodeApplyableOutputExecute_sensitiveValueAndOutput(t *testing.T) {
-	ctx := new(MockEvalContext)
-	ctx.StateState = states.NewState().SyncWrapper()
-	ctx.ChecksState = checks.NewState(nil)
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = states.NewState().SyncWrapper()
+	evalCtx.ChecksState = checks.NewState(nil)
 
 	config := &configs.Output{
 		Name:      "map-output",
@@ -166,15 +212,15 @@ func TestNodeApplyableOutputExecute_sensitiveValueAndOutput(t *testing.T) {
 	val := cty.MapVal(map[string]cty.Value{
 		"a": cty.StringVal("b").Mark(marks.Sensitive),
 	})
-	ctx.EvaluateExprResult = val
+	evalCtx.EvaluateExprResult = val
 
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(t.Context(), evalCtx, walkApply)
 	if err != nil {
 		t.Fatalf("unexpected execute error: %s", err)
 	}
 
 	// Unmarked value should be stored in state
-	outputVal := ctx.StateState.OutputValue(addr)
+	outputVal := evalCtx.StateState.OutputValue(addr)
 	want, _ := val.UnmarkDeep()
 	if got := outputVal.Value; !got.RawEquals(want) {
 		t.Errorf("wrong output value in state\n got: %#v\nwant: %#v", got, want)
@@ -185,15 +231,15 @@ func TestNodeDestroyableOutputExecute(t *testing.T) {
 	outputAddr := addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
 
 	state := states.NewState()
-	state.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false)
+	state.Module(addrs.RootModuleInstance).SetOutputValue("foo", cty.StringVal("bar"), false, "")
 	state.OutputValue(outputAddr)
 
-	ctx := &MockEvalContext{
+	evalCtx := &MockEvalContext{
 		StateState: state.SyncWrapper(),
 	}
 	node := NodeDestroyableOutput{Addr: outputAddr}
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(t.Context(), evalCtx, walkApply)
 	if diags.HasErrors() {
 		t.Fatalf("Unexpected error: %s", diags.Err())
 	}
@@ -207,12 +253,12 @@ func TestNodeDestroyableOutputExecute_notInState(t *testing.T) {
 
 	state := states.NewState()
 
-	ctx := &MockEvalContext{
+	evalCtx := &MockEvalContext{
 		StateState: state.SyncWrapper(),
 	}
 	node := NodeDestroyableOutput{Addr: outputAddr}
 
-	diags := node.Execute(ctx, walkApply)
+	diags := node.Execute(t.Context(), evalCtx, walkApply)
 	if diags.HasErrors() {
 		t.Fatalf("Unexpected error: %s", diags.Err())
 	}

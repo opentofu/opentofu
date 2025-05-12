@@ -1,13 +1,14 @@
 # OpenTofu
 
-- [Manifesto](https://opentofu.org/manifesto)
-- [About the OpenTofu fork](https://opentofu.org/fork)
+- [HomePage](https://opentofu.org/)
 - [How to install](https://opentofu.org/docs/intro/install)
 - [Join our Slack community!](https://opentofu.org/slack)
 - [Weekly OpenTofu Status Updates](WEEKLY_UPDATES.md)
 
 ![](https://raw.githubusercontent.com/opentofu/brand-artifacts/main/full/transparent/SVG/on-dark.svg#gh-dark-mode-only)
 ![](https://raw.githubusercontent.com/opentofu/brand-artifacts/main/full/transparent/SVG/on-light.svg#gh-light-mode-only)
+
+[![OpenSSF Best Practices](https://www.bestpractices.dev/projects/10508/badge)](https://www.bestpractices.dev/projects/10508)
 
 OpenTofu is an OSS tool for building, changing, and versioning infrastructure safely and efficiently. OpenTofu can manage existing and popular service providers as well as custom in-house solutions.
 

@@ -86,7 +86,7 @@ func TestBackendConfig_original(t *testing.T) {
 		t.Fatalf("Incorrect keyName was populated")
 	}
 
-	credentials, err := b.awsConfig.Credentials.Retrieve(context.TODO())
+	credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 	if err != nil {
 		t.Fatalf("Error when requesting credentials")
 	}
@@ -143,7 +143,7 @@ func TestBackendConfig_InvalidRegion(t *testing.T) {
 				t.Fatal(diags.ErrWithWarnings())
 			}
 
-			confDiags := b.Configure(configSchema)
+			confDiags := b.Configure(t.Context(), configSchema)
 			diags = diags.Append(confDiags)
 
 			if diff := cmp.Diff(diags, tc.expectedDiags, cmp.Comparer(diagnosticComparer)); diff != "" {
@@ -364,7 +364,7 @@ func TestBackendConfig_STSEndpoint(t *testing.T) {
 				t.Fatal(diags.ErrWithWarnings())
 			}
 
-			confDiags := b.Configure(configSchema)
+			confDiags := b.Configure(t.Context(), configSchema)
 			diags = diags.Append(confDiags)
 
 			if diff := cmp.Diff(diags, tc.expectedDiags, cmp.Comparer(diagnosticSummaryComparer)); diff != "" {
@@ -595,7 +595,7 @@ func TestBackendConfig_AssumeRole(t *testing.T) {
 			testCase.Config["sts_endpoint"] = endpoint
 
 			b := New(encryption.StateEncryptionDisabled())
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
+			diags := b.Configure(t.Context(), populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(testCase.Config)))
 
 			if diags.HasErrors() {
 				for _, diag := range diags {
@@ -1046,7 +1046,7 @@ func TestBackendConfig_proxy(t *testing.T) {
 
 			b := New(encryption.StateEncryptionDisabled())
 
-			got := b.Configure(populateSchema(t, b.ConfigSchema(), tc.config))
+			got := b.Configure(t.Context(), populateSchema(t, b.ConfigSchema(), tc.config))
 			if got.HasErrors() != (tc.wantErrSubstr != "") {
 				t.Fatalf("unexpected error: %v", got.Err())
 			}
@@ -1085,9 +1085,8 @@ func TestBackend(t *testing.T) {
 		"region":  "us-west-1",
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
 	backend.TestBackendStates(t, b)
 }
@@ -1114,11 +1113,10 @@ func TestBackendLocked(t *testing.T) {
 		"region":         "us-west-1",
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
 	backend.TestBackendStateLocks(t, b1, b2)
 	backend.TestBackendStateForceUnlock(t, b1, b2)
@@ -1158,7 +1156,7 @@ func TestBackendSSECustomerKeyConfig(t *testing.T) {
 			}
 
 			b := New(encryption.StateEncryptionDisabled()).(*Backend)
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(t.Context(), populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {
@@ -1177,9 +1175,8 @@ func TestBackendSSECustomerKeyConfig(t *testing.T) {
 					t.Fatal("unexpected value for customer encryption key")
 				}
 
-				ctx := context.TODO()
-				createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-				defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
+				createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+				defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
 				backend.TestBackendStates(t, b)
 			}
@@ -1222,7 +1219,7 @@ func TestBackendSSECustomerKeyEnvVar(t *testing.T) {
 			t.Setenv("AWS_SSE_CUSTOMER_KEY", testCase.customerKey)
 
 			b := New(encryption.StateEncryptionDisabled()).(*Backend)
-			diags := b.Configure(populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
+			diags := b.Configure(t.Context(), populateSchema(t, b.ConfigSchema(), hcl2shim.HCL2ValueFromConfigValue(config)))
 
 			if testCase.expectedErr != "" {
 				if diags.Err() != nil {
@@ -1241,9 +1238,8 @@ func TestBackendSSECustomerKeyEnvVar(t *testing.T) {
 					t.Fatal("unexpected value for customer encryption key")
 				}
 
-				ctx := context.TODO()
-				createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-				defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
+				createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+				defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
 				backend.TestBackendStates(t, b)
 			}
@@ -1263,9 +1259,8 @@ func TestBackendExtraPaths(t *testing.T) {
 		"encrypt": true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
 	// put multiple states in old env paths.
 	s1 := states.NewState()
@@ -1340,7 +1335,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	}
 
 	// delete the real workspace
-	if err := b.DeleteWorkspace("s2", true); err != nil {
+	if err := b.DeleteWorkspace(t.Context(), "s2", true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1349,7 +1344,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	}
 
 	// fetch that state again, which should produce a new lineage
-	s2Mgr, err := b.StateMgr("s2")
+	s2Mgr, err := b.StateMgr(t.Context(), "s2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1373,7 +1368,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	}
 
 	// make sure s2 is OK
-	s2Mgr, err = b.StateMgr("s2")
+	s2Mgr, err = b.StateMgr(t.Context(), "s2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1402,12 +1397,11 @@ func TestBackendPrefixInWorkspace(t *testing.T) {
 		"workspace_key_prefix": "env",
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
 	// get a state that contains the prefix as a substring
-	sMgr, err := b.StateMgr("env-1")
+	sMgr, err := b.StateMgr(t.Context(), "env-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1432,9 +1426,8 @@ func TestKeyEnv(t *testing.T) {
 		"workspace_key_prefix": "",
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b0.s3Client, bucket0Name, b0.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b0.s3Client, bucket0Name)
+	createS3Bucket(t.Context(), t, b0.s3Client, bucket0Name, b0.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b0.s3Client, bucket0Name)
 
 	bucket1Name := fmt.Sprintf("%s-%x-1", testBucketPrefix, time.Now().Unix())
 	b1 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
@@ -1444,8 +1437,8 @@ func TestKeyEnv(t *testing.T) {
 		"workspace_key_prefix": "project/env:",
 	})).(*Backend)
 
-	createS3Bucket(ctx, t, b1.s3Client, bucket1Name, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucket1Name)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucket1Name, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucket1Name)
 
 	bucket2Name := fmt.Sprintf("%s-%x-2", testBucketPrefix, time.Now().Unix())
 	b2 := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
@@ -1454,8 +1447,8 @@ func TestKeyEnv(t *testing.T) {
 		"encrypt": true,
 	})).(*Backend)
 
-	createS3Bucket(ctx, t, b2.s3Client, bucket2Name, b2.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b2.s3Client, bucket2Name)
+	createS3Bucket(t.Context(), t, b2.s3Client, bucket2Name, b2.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b2.s3Client, bucket2Name)
 
 	if err := testGetWorkspaceForKey(b0, "some/paths/tfstate", ""); err != nil {
 		t.Fatal(err)
@@ -1593,7 +1586,7 @@ func testGetWorkspaceForKey(b *Backend, key string, expected string) error {
 }
 
 func checkStateList(b backend.Backend, expected []string) error {
-	states, err := b.Workspaces()
+	states, err := b.Workspaces(context.TODO())
 	if err != nil {
 		return err
 	}

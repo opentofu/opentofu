@@ -108,6 +108,15 @@ func (c *dockerCLIStyleCredentialsConfig) CredentialsSourcesForRepository(_ cont
 		// names match the requested domain/repository, and return any that do
 		// as static credentials.
 		for propName, auth := range c.content.Auths {
+			if auth == nil || len(auth.Auth) == 0 {
+				// We silently ignore null or invalid auth objects, since
+				// some tools apparently generate such entries when using
+				// their "login" commands when a credential helper is
+				// configured, and thus when the actual username/password
+				// were stored in the credential helper instead of directly
+				// in the configuration file.
+				continue
+			}
 			spec := ContainersAuthPropertyNameMatch(propName, registryDomain, repositoryPath)
 			if spec == NoCredentialsSpecificity {
 				continue // doesn't match at all

@@ -29,6 +29,10 @@ func FormatValue(v cty.Value, indent int) string {
 		return formatNullValue(v.Type())
 	}
 
+	// To be safe, while formatting, we should remove potential
+	// marks so functions like AsString don't panic.
+	v = marks.RemoveDeepDeprecated(v)
+
 	ty := v.Type()
 	switch {
 	case ty.IsPrimitiveType():

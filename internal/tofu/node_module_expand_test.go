@@ -17,10 +17,10 @@ import (
 )
 
 func TestNodeExpandModuleExecute(t *testing.T) {
-	ctx := &MockEvalContext{
+	evalCtx := &MockEvalContext{
 		InstanceExpanderExpander: instances.NewExpander(),
 	}
-	ctx.installSimpleEval()
+	evalCtx.installSimpleEval()
 
 	node := nodeExpandModule{
 		Addr: addrs.Module{"child"},
@@ -29,12 +29,12 @@ func TestNodeExpandModuleExecute(t *testing.T) {
 		},
 	}
 
-	err := node.Execute(ctx, walkApply)
+	err := node.Execute(t.Context(), evalCtx, walkApply)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
-	if !ctx.InstanceExpanderCalled {
+	if !evalCtx.InstanceExpanderCalled {
 		t.Fatal("did not expand")
 	}
 }
@@ -43,11 +43,11 @@ func TestNodeCloseModuleExecute(t *testing.T) {
 	t.Run("walkApply", func(t *testing.T) {
 		state := states.NewState()
 		state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-		ctx := &MockEvalContext{
+		evalCtx := &MockEvalContext{
 			StateState: state.SyncWrapper(),
 		}
 		node := nodeCloseModule{Addr: addrs.Module{"child"}}
-		diags := node.Execute(ctx, walkApply)
+		diags := node.Execute(t.Context(), evalCtx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
@@ -59,7 +59,7 @@ func TestNodeCloseModuleExecute(t *testing.T) {
 
 		// the root module should do all the module cleanup
 		node = nodeCloseModule{Addr: addrs.RootModule}
-		diags = node.Execute(ctx, walkApply)
+		diags = node.Execute(t.Context(), evalCtx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
@@ -74,12 +74,12 @@ func TestNodeCloseModuleExecute(t *testing.T) {
 	t.Run("walkImport", func(t *testing.T) {
 		state := states.NewState()
 		state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
-		ctx := &MockEvalContext{
+		evalCtx := &MockEvalContext{
 			StateState: state.SyncWrapper(),
 		}
 		node := nodeCloseModule{Addr: addrs.Module{"child"}}
 
-		diags := node.Execute(ctx, walkImport)
+		diags := node.Execute(t.Context(), evalCtx, walkImport)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %s", diags.Err())
 		}
@@ -91,10 +91,10 @@ func TestNodeCloseModuleExecute(t *testing.T) {
 
 func TestNodeValidateModuleExecute(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		ctx := &MockEvalContext{
+		evalCtx := &MockEvalContext{
 			InstanceExpanderExpander: instances.NewExpander(),
 		}
-		ctx.installSimpleEval()
+		evalCtx.installSimpleEval()
 		node := nodeValidateModule{
 			nodeExpandModule{
 				Addr: addrs.Module{"child"},
@@ -104,17 +104,17 @@ func TestNodeValidateModuleExecute(t *testing.T) {
 			},
 		}
 
-		diags := node.Execute(ctx, walkApply)
+		diags := node.Execute(t.Context(), evalCtx, walkApply)
 		if diags.HasErrors() {
 			t.Fatalf("unexpected error: %v", diags.Err())
 		}
 	})
 
 	t.Run("invalid count", func(t *testing.T) {
-		ctx := &MockEvalContext{
+		evalCtx := &MockEvalContext{
 			InstanceExpanderExpander: instances.NewExpander(),
 		}
-		ctx.installSimpleEval()
+		evalCtx.installSimpleEval()
 		node := nodeValidateModule{
 			nodeExpandModule{
 				Addr: addrs.Module{"child"},
@@ -124,7 +124,7 @@ func TestNodeValidateModuleExecute(t *testing.T) {
 			},
 		}
 
-		err := node.Execute(ctx, walkApply)
+		err := node.Execute(t.Context(), evalCtx, walkApply)
 		if err == nil {
 			t.Fatal("expected error, got success")
 		}

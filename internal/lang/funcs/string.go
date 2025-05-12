@@ -127,7 +127,7 @@ var ReplaceFunc = function.New(&function.Spec{
 			return cty.StringVal(re.ReplaceAllString(str, replace)), nil
 		}
 
-		return cty.StringVal(strings.Replace(str, substr, replace, -1)), nil
+		return cty.StringVal(strings.ReplaceAll(str, substr, replace)), nil
 	},
 })
 
@@ -203,7 +203,7 @@ func MakeTemplateStringFunc(content string, funcsCb func() map[string]function.F
 	return function.New(&function.Spec{
 		Params: params,
 		Type: func(args []cty.Value) (cty.Type, error) {
-			if !(args[0].IsKnown() && args[1].IsKnown()) {
+			if !args[0].IsKnown() || !args[1].IsKnown() {
 				return cty.DynamicPseudoType, nil
 			}
 

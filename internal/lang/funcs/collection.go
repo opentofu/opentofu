@@ -192,7 +192,7 @@ var IndexFunc = function.New(&function.Spec{
 	Type:         function.StaticReturnType(cty.Number),
 	RefineResult: refineNotNull,
 	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
-		if !(args[0].Type().IsListType() || args[0].Type().IsTupleType()) {
+		if !args[0].Type().IsListType() && !args[0].Type().IsTupleType() {
 			return cty.NilVal, errors.New("argument must be a list or tuple")
 		}
 

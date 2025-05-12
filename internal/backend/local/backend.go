@@ -164,9 +164,9 @@ func (b *Local) PrepareConfig(obj cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	return obj, diags
 }
 
-func (b *Local) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Local) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	if b.Backend != nil {
-		return b.Backend.Configure(obj)
+		return b.Backend.Configure(ctx, obj)
 	}
 
 	var diags tfdiags.Diagnostics
@@ -194,10 +194,10 @@ func (b *Local) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 	return []backend.HostAlias{}, nil
 }
 
-func (b *Local) Workspaces() ([]string, error) {
+func (b *Local) Workspaces(ctx context.Context) ([]string, error) {
 	// If we have a backend handling state, defer to that.
 	if b.Backend != nil {
-		return b.Backend.Workspaces()
+		return b.Backend.Workspaces(ctx)
 	}
 
 	// the listing always start with "default"
@@ -228,10 +228,10 @@ func (b *Local) Workspaces() ([]string, error) {
 // DeleteWorkspace removes a workspace.
 //
 // The "default" workspace cannot be removed.
-func (b *Local) DeleteWorkspace(name string, force bool) error {
+func (b *Local) DeleteWorkspace(ctx context.Context, name string, force bool) error {
 	// If we have a backend handling state, defer to that.
 	if b.Backend != nil {
-		return b.Backend.DeleteWorkspace(name, force)
+		return b.Backend.DeleteWorkspace(ctx, name, force)
 	}
 
 	if name == "" {
@@ -246,10 +246,10 @@ func (b *Local) DeleteWorkspace(name string, force bool) error {
 	return os.RemoveAll(filepath.Join(b.stateWorkspaceDir(), name))
 }
 
-func (b *Local) StateMgr(name string) (statemgr.Full, error) {
+func (b *Local) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	// If we have a backend handling state, delegate to that.
 	if b.Backend != nil {
-		return b.Backend.StateMgr(name)
+		return b.Backend.StateMgr(ctx, name)
 	}
 
 	if s, ok := b.states[name]; ok {
@@ -447,7 +447,7 @@ func (b *Local) StatePaths(name string) (stateIn, stateOut, backupOut string) {
 // in the same files as the "new" state snapshots.
 func (b *Local) PathsConflictWith(other *Local) bool {
 	otherPaths := map[string]struct{}{}
-	otherWorkspaces, err := other.Workspaces()
+	otherWorkspaces, err := other.Workspaces(context.TODO())
 	if err != nil {
 		// If we can't enumerate the workspaces then we'll conservatively
 		// assume that paths _do_ overlap, since we can't be certain.
@@ -458,7 +458,7 @@ func (b *Local) PathsConflictWith(other *Local) bool {
 		otherPaths[p] = struct{}{}
 	}
 
-	ourWorkspaces, err := other.Workspaces()
+	ourWorkspaces, err := other.Workspaces(context.TODO())
 	if err != nil {
 		// If we can't enumerate the workspaces then we'll conservatively
 		// assume that paths _do_ overlap, since we can't be certain.

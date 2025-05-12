@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 type EvalOpts struct {
@@ -46,6 +47,11 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("eval")()
 
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Evaluation phase",
+	)
+	defer span.End()
+
 	// Start with a copy of state so that we don't affect the instance that
 	// the caller is holding.
 	state = state.DeepCopy()
@@ -73,7 +79,7 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 		RootVariableValues:      variables,
 		Plugins:                 c.plugins,
 		ProviderFunctionTracker: providerFunctionTracker,
-	}).Build(addrs.RootModuleInstance)
+	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags

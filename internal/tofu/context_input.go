@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Input asks for input to fill unset required arguments in provider
@@ -50,7 +51,12 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("input")()
 
-	schemas, moreDiags := c.Schemas(config, nil)
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Gather input",
+	)
+	defer span.End()
+
+	schemas, moreDiags := c.Schemas(ctx, config, nil)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags

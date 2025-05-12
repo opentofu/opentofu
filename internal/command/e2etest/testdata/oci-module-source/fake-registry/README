@@ -1,0 +1,12 @@
+This directory contains "image layout" directories, as described in this
+specification:
+    https://github.com/opencontainers/image-spec/blob/v1.0/image-layout.md
+
+We use these in conjunction with the fake OCI registry implementation in
+package fakeocireg as part of end-to-end testing the module installer's
+"oci" source address scheme.
+
+These fake repositories each contain valid metadata for some module packages,
+though the module packages just contain placeholder configuration since this
+is only intended for testing module package installation and not for testing
+module evaluation.

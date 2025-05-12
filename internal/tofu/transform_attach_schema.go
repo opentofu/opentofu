@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -52,7 +53,7 @@ type AttachSchemaTransformer struct {
 	Config  *configs.Config
 }
 
-func (t *AttachSchemaTransformer) Transform(g *Graph) error {
+func (t *AttachSchemaTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.Plugins == nil {
 		// Should never happen with a reasonable caller, but we'll return a
 		// proper error here anyway so that we'll fail gracefully.
@@ -67,7 +68,8 @@ func (t *AttachSchemaTransformer) Transform(g *Graph) error {
 			typeName := addr.Resource.Type
 			providerFqn := tv.Provider()
 
-			schema, version, err := t.Plugins.ResourceTypeSchema(providerFqn, mode, typeName)
+			// TODO: Plumb a useful context.Context through to here.
+			schema, version, err := t.Plugins.ResourceTypeSchema(context.TODO(), providerFqn, mode, typeName)
 			if err != nil {
 				return fmt.Errorf("failed to read schema for %s in %s: %w", addr, providerFqn, err)
 			}
@@ -81,7 +83,8 @@ func (t *AttachSchemaTransformer) Transform(g *Graph) error {
 
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
 			providerAddr := tv.ProviderAddr()
-			schema, err := t.Plugins.ProviderConfigSchema(providerAddr.Provider)
+			// TODO: Plumb a useful context.Context through to here.
+			schema, err := t.Plugins.ProviderConfigSchema(context.TODO(), providerAddr.Provider)
 			if err != nil {
 				return fmt.Errorf("failed to read provider configuration schema for %s: %w", providerAddr.Provider, err)
 			}

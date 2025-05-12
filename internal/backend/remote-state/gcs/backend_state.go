@@ -6,6 +6,7 @@
 package gcs
 
 import (
+	"context"
 	"fmt"
 	"path"
 	"sort"
@@ -27,7 +28,7 @@ const (
 
 // Workspaces returns a list of names for the workspaces found on GCS. The default
 // state is always returned as the first element in the slice.
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	states := []string{backend.DefaultStateName}
 
 	bucket := b.storageClient.Bucket(b.bucketName)
@@ -60,7 +61,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 }
 
 // DeleteWorkspace deletes the named workspaces. The "default" state cannot be deleted.
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName {
 		return fmt.Errorf("cowardly refusing to delete the %q state", name)
 	}
@@ -92,7 +93,7 @@ func (b *Backend) client(name string) (*remoteClient, error) {
 
 // StateMgr reads and returns the named state from GCS. If the named state does
 // not yet exist, a new state file is created.
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	c, err := b.client(name)
 	if err != nil {
 		return nil, err

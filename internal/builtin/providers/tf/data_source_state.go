@@ -6,13 +6,16 @@
 package tf
 
 import (
+	"context"
 	"fmt"
 	"log"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/backend/remote"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -103,7 +106,7 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 	return diags
 }
 
-func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty.Value, tfdiags.Diagnostics) {
+func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption, path addrs.AbsResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	b, cfg, moreDiags := getBackend(d, enc)
@@ -112,7 +115,9 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty
 		return cty.NilVal, diags
 	}
 
-	configureDiags := b.Configure(cfg)
+	// TODO: Plumb a real context in here, once [providers.Interface] has
+	// been updated to allow one to pass through its API.
+	configureDiags := b.Configure(context.TODO(), cfg)
 	if configureDiags.HasErrors() {
 		diags = diags.Append(configureDiags.Err())
 		return cty.NilVal, diags
@@ -132,7 +137,7 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty
 		workspaceName = workspaceVal.AsString()
 	}
 
-	state, err := b.StateMgr(workspaceName)
+	state, err := b.StateMgr(context.TODO(), workspaceName)
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
@@ -175,7 +180,16 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption) (cty
 	mod := remoteState.RootModule()
 	if mod != nil { // should always have a root module in any valid state
 		for k, os := range mod.OutputValues {
-			outputs[k] = os.Value
+			v := os.Value
+
+			if os.Deprecated != "" {
+				v = marks.Deprecated(v, marks.DeprecationCause{
+					By:      path.Resource,
+					Message: os.Deprecated,
+				})
+			}
+
+			outputs[k] = v
 		}
 	}
 

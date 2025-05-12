@@ -81,7 +81,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	ctx, done := c.InterruptibleContext(c.CommandContext())
 	defer done()
 
-	config, confDiags := c.loadConfig(".")
+	config, confDiags := c.loadConfig(ctx, ".")
 	diags = diags.Append(confDiags)
 	reqs, _, moreDiags := config.ProviderRequirements()
 	diags = diags.Append(moreDiags)
@@ -119,7 +119,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	// generality of go-getter but it's still handy to use the HTTP getter
 	// as an easy way to download over HTTP into a file on disk.
 	httpGetter := getter.HttpGetter{
-		Client:                httpclient.New(),
+		Client:                httpclient.New(ctx),
 		Netrc:                 true,
 		XTerraformGetDisabled: true,
 	}

@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/command/webbrowser"
+	"github.com/opentofu/opentofu/internal/getmodules"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	pluginDiscovery "github.com/opentofu/opentofu/internal/plugin/discovery"
 	"github.com/opentofu/opentofu/internal/terminal"
@@ -60,6 +61,7 @@ func initCommands(
 	streams *terminal.Streams,
 	config *cliconfig.Config,
 	services *disco.Disco,
+	modulePkgFetcher *getmodules.PackageFetcher,
 	providerSrc getproviders.Source,
 	providerDevOverrides map[addrs.Provider]getproviders.PackageLocalDir,
 	unmanagedProviders map[addrs.Provider]*plugin.ReattachConfig,
@@ -107,6 +109,7 @@ func initCommands(
 		ShutdownCh:    makeShutdownCh(),
 		CallerContext: ctx,
 
+		ModulePackageFetcher: modulePkgFetcher,
 		ProviderSource:       providerSrc,
 		ProviderDevOverrides: providerDevOverrides,
 		UnmanagedProviders:   unmanagedProviders,

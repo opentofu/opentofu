@@ -17,6 +17,7 @@ import (
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
+
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -221,9 +222,9 @@ func (b *Remote) waitForRun(stopCtx, cancelCtx context.Context, op *backend.Oper
 // individual variable values are invalid. That's okay because we only use this
 // result to hint the user to set variables a different way. It's always the
 // remote system's responsibility to do final validation of the input.
-func (b *Remote) hasExplicitVariableValues(op *backend.Operation) bool {
+func (b *Remote) hasExplicitVariableValues(ctx context.Context, op *backend.Operation) bool {
 	// Load the configuration using the caller-provided configuration loader.
-	config, _, configDiags := op.ConfigLoader.LoadConfigWithSnapshot(op.ConfigDir, op.RootCall)
+	config, _, configDiags := op.ConfigLoader.LoadConfigWithSnapshot(ctx, op.ConfigDir, op.RootCall)
 	if configDiags.HasErrors() {
 		// If we can't load the configuration then we'll assume no explicit
 		// variable values just to let the remote operation start and let

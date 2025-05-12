@@ -51,8 +51,8 @@ func ParseTarget(traversal hcl.Traversal) (*Target, tfdiags.Diagnostics) {
 	}
 
 	var subject Targetable
-	switch {
-	case riAddr.Resource.Key == NoKey:
+	switch riAddr.Resource.Key {
+	case NoKey:
 		// We always assume that a no-key instance is meant to
 		// be referring to the whole resource, because the distinction
 		// doesn't really matter for targets anyway.

@@ -17,6 +17,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -93,6 +94,88 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 	}
 	if gen := hook.PreApplyGen; gen != deposedKey {
 		t.Errorf("expected gen to be %q, but was %q", deposedKey, gen)
+	}
+}
+
+// This tests that when a CBD (C) resource depends on a non-CBD (B) resource that depends on another CBD resource (A)
+// Check that create_before_destroy is still set on the B resource after only the B resource is updated
+func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
+	m := testModule(t, "apply-cbd-depends-non-cbd-update")
+	p := simpleMockProvider()
+
+	// Set plan resource change to replace on test_number change
+	p.PlanResourceChangeFn = func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+		return providers.PlanResourceChangeResponse{
+			PlannedState:    req.ProposedNewState,
+			RequiresReplace: []cty.Path{cty.GetAttrPath("test_number")},
+		}
+	}
+	state := states.NewState()
+	root := state.EnsureModule(addrs.RootModuleInstance)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_object.A").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"test_string": "A"
+			}`),
+			CreateBeforeDestroy: true,
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_object.B").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"test_number": 0,
+				"test_string": "A"
+			}`),
+			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+	root.SetResourceInstanceCurrent(
+		mustResourceInstanceAddr("test_object.C").Resource,
+		&states.ResourceInstanceObjectSrc{
+			Status: states.ObjectReady,
+			AttrsJSON: []byte(`
+			{
+				"test_string": "C"
+			}`),
+			Dependencies:        []addrs.ConfigResource{mustConfigResourceAddr("test_object.A"), mustConfigResourceAddr("terraform_data.B")},
+			CreateBeforeDestroy: true,
+		},
+		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		addrs.NoKey,
+	)
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	} else {
+		t.Log(legacyDiffComparisonString(plan.Changes))
+	}
+
+	state, diags = ctx.Apply(context.Background(), plan, m)
+	if diags.HasErrors() {
+		t.Fatalf("diags: %s", diags.Err())
+	}
+
+	// Check that create_before_destroy was set on the foo resource
+	foo := state.RootModule().Resources["test_object.B"].Instances[addrs.NoKey].Current
+	if !foo.CreateBeforeDestroy {
+		t.Fatalf("B resource should have create_before_destroy set")
 	}
 }
 
@@ -1810,7 +1893,7 @@ output "from_resource" {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
-	mod.SetOutputValue("from_resource", cty.StringVal("wrong val"), false)
+	mod.SetOutputValue("from_resource", cty.StringVal("wrong val"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -4965,4 +5048,308 @@ variable "res_data" {
 	if got, want := diags[0].Description().Summary, "Invalid value for variable"; got != want {
 		t.Fatalf("Expected: %q, got %q", want, got)
 	}
+}
+
+func TestContext2Apply_deprecationWarnings(t *testing.T) {
+	const singleDeprecatedOutput = `
+output "test-child" {
+	value = "test-child"
+	deprecated = "Don't use me"
+}`
+
+	tests := map[string]struct {
+		module       map[string]string
+		expectedWarn tfdiags.Description
+	}{
+		"simpleModCall": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+		module "mod" {
+			source = "./mod"
+		}
+
+		resource "test_object" "test" {
+			test_string = module.mod.test-child
+		}
+		`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"modCallThroughLocal": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value's attribute test-child is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+		module "mod" {
+			source = "./mod"
+		}
+
+		locals {
+			a = module.mod
+		}
+
+		resource "test_object" "test" {
+			test_string = "a-${local.a.test-child}.txt"
+		}
+		`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"modForEach": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod[\"a\"].test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+		module "mod" {
+			for_each = toset([ "a" ])
+			source = "./mod"
+		}
+
+		resource "test_object" "test" {
+			test_string = "a-${module.mod["a"].test-child}.txt"
+		}`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"multipleModCalls": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+	source = "./mod"
+}
+
+resource "test_object" "test" {
+	test_string = module.mod.test
+}`,
+				"./mod/mod/main.tf": singleDeprecatedOutput,
+				"./mod/main.tf": `
+module "mod" {
+	source = "./mod"
+}
+
+output "test" {
+	value = module.mod.test-child
+}
+				`,
+			},
+		},
+		"variableCondition": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+variable "a" {
+  default = "a"
+  validation {
+    condition     = var.a != module.mod.test-child
+	error_message = "invalid"
+  }
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"variableErrorMessage": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+variable "a" {
+  default = "a"
+  validation {
+    condition     = var.a == "a"
+	error_message = module.mod.test-child
+  }
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"checkCondition": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+check "test" {
+  assert {
+    condition = module.mod.test-child != "a"
+    error_message = "invalid"
+  }
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"checkErrorMessage": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+locals {
+  a = "a"
+}
+
+check "test" {
+  assert {
+    condition = local.a == "a"
+    error_message = module.mod.test-child
+  }
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+		"deprecatedInForEach": {
+			expectedWarn: tfdiags.Description{
+				Summary: "Value derived from a deprecated source",
+				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
+			},
+			module: map[string]string{
+				"main.tf": `
+module "mod" {
+  source = "./mod"
+}
+
+module "modfe" {
+  source = "./mod"
+  for_each = toset([ module.mod.test-child ])
+}
+`,
+				"./mod/main.tf": singleDeprecatedOutput,
+			},
+		},
+	}
+
+	p := simpleMockProvider()
+	p.ApplyResourceChangeFn = func(arcr providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+		return providers.ApplyResourceChangeResponse{
+			NewState: arcr.PlannedState,
+		}
+	}
+
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			ctx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+				},
+			})
+
+			mod := testModuleInline(t, test.module)
+
+			_, diags := ctx.Plan(context.Background(), mod, states.NewState(), SimplePlanOpts(plans.NormalMode, testInputValuesUnset(mod.Module.Variables)))
+			if diags.HasErrors() {
+				t.Fatalf("Unexpected error(s) during plan: %v", diags.Err())
+			}
+
+			if len(diags) != 1 {
+				t.Fatalf("Expected a single warning, got: %v", diags.ErrWithWarnings())
+			}
+
+			if diags[0].Severity() != tfdiags.Warning {
+				t.Fatalf("Expected a warning, got: %v", diags.ErrWithWarnings())
+			}
+
+			if !diags[0].Description().Equal(test.expectedWarn) {
+				t.Fatalf("Unexpected warning: %v", diags.ErrWithWarnings())
+			}
+		})
+	}
+}
+
+func TestContext2Apply_variableDeprecation(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+variable "var" {
+	type = string
+	deprecated = "this is deprecated"
+}
+module "call" {
+	source = "./mod"
+	input = "val"
+}
+`,
+		"mod/main.tf": `
+	variable "input" {
+		type = string
+		deprecated = "This variable is deprecated"
+	}
+	output "out" {
+		value = "output the variable 'input' value: ${var.input}"
+	}
+`,
+	})
+
+	ctx := testContext2(t, &ContextOpts{})
+	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), &PlanOpts{
+		Mode: plans.NormalMode,
+		SetVariables: InputValues{
+			"var": {
+				Value:      cty.StringVal("from cli"),
+				SourceType: ValueFromCLIArg,
+			},
+		},
+	})
+	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{}.Append(
+		&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  `Variable marked as deprecated by the module author`,
+			Detail:   "Variable \"input\" is marked as deprecated with the following message:\nThis variable is deprecated",
+			Subject: &hcl.Range{
+				Filename: fmt.Sprintf("%s/main.tf", m.Module.SourceDir),
+				Start:    hcl.Pos{Line: 8, Column: 10, Byte: 113},
+				End:      hcl.Pos{Line: 8, Column: 15, Byte: 118},
+			},
+		},
+		&hcl.Diagnostic{
+			Severity: hcl.DiagWarning,
+			Summary:  `Deprecated variable used from the root module`,
+			Detail:   `The root variable "var" is deprecated with the following message: this is deprecated`,
+			Subject: &hcl.Range{
+				Filename: fmt.Sprintf("%s/main.tf", m.Module.SourceDir),
+				Start:    hcl.Pos{Line: 2, Column: 1, Byte: 1},
+				End:      hcl.Pos{Line: 2, Column: 15, Byte: 15},
+			},
+		},
+	))
+
+	_, diags = ctx.Apply(context.Background(), plan, m)
+	assertDiagnosticsMatch(t, diags, tfdiags.Diagnostics{})
 }

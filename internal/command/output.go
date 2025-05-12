@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -23,6 +24,7 @@ type OutputCommand struct {
 }
 
 func (c *OutputCommand) Run(rawArgs []string) int {
+	ctx := c.CommandContext()
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -43,7 +45,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.View.Diagnostics(diags)
@@ -51,7 +53,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	}
 
 	// Fetch data from state
-	outputs, diags := c.Outputs(args.StatePath, enc)
+	outputs, diags := c.Outputs(ctx, args.StatePath, enc)
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -70,7 +72,7 @@ func (c *OutputCommand) Run(rawArgs []string) int {
 	return 0
 }
 
-func (c *OutputCommand) Outputs(statePath string, enc encryption.Encryption) (map[string]*states.OutputValue, tfdiags.Diagnostics) {
+func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encryption.Encryption) (map[string]*states.OutputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Allow state path override
@@ -79,7 +81,7 @@ func (c *OutputCommand) Outputs(statePath string, enc encryption.Encryption) (ma
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -88,14 +90,14 @@ func (c *OutputCommand) Outputs(statePath string, enc encryption.Encryption) (ma
 	// This is a read-only command
 	c.ignoreRemoteVersionConflict(b)
 
-	env, err := c.Workspace()
+	env, err := c.Workspace(ctx)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Error selecting workspace: %w", err))
 		return nil, diags
 	}
 
 	// Get the state
-	stateStore, err := b.StateMgr(env)
+	stateStore, err := b.StateMgr(ctx, env)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags

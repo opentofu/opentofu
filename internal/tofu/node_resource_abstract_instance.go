@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -26,6 +27,36 @@ import (
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+// traceNamePlanResourceInstance is a standardize trace span name we use for the
+// overall execution of all graph nodes that somehow represent the planning
+// phase for a resource instance.
+const traceNamePlanResourceInstance = "Plan resource instance changes"
+
+// traceNameApplyResourceInstance is a standardize trace span name we use for
+// the overall execution of all graph nodes that somehow represent the apply
+// phase for a resource instance.
+const traceNameApplyResourceInstance = "Apply resource instance changes"
+
+// traceAttrResourceInstanceAddr is a standardized trace span attribute
+// name that we use for recording the address of the main resource instance that
+// a particular span is concerned with.
+//
+// The value of this should be populated by calling the String method on
+// a value of type [addrs.AbsResourceInstance].
+const traceAttrResourceInstanceAddr = "opentofu.resource_instance.address"
+
+// traceAttrPlanRefresh is a standardized trace span attribute name that we use
+// for a boolean attribute describing whether the refresh step is enabled
+// for the main resource instance associated with the span during the planning
+// phase.
+const traceAttrPlanRefresh = "opentofu.plan.refresh"
+
+// traceAttrPlanPlanChanges is a standardized trace span attribute name that we
+// use for a boolean attribute describing whether the plan step is enabled
+// for the main resource instance associated with the span during the planning
+// phase. (This is false in refresh-only mode.)
+const traceAttrPlanPlanChanges = "opentofu.plan.plan_changes"
 
 // NodeAbstractResourceInstance represents a resource instance with no
 // associated operations. It embeds NodeAbstractResource but additionally
@@ -1298,11 +1329,11 @@ func (n *NodeAbstractResourceInstance) plan(
 	_, plannedNewValMarks := plannedNewVal.UnmarkDeepWithPaths()
 	_, priorValMarks := priorVal.UnmarkDeepWithPaths()
 
-	marksAreEqual := marksEqual(plannedNewValMarks, priorValMarks)
+	sensitiveMarksAreEqual := sensitiveMarksEqual(plannedNewValMarks, priorValMarks)
 
 	// If we plan to update sensitive paths from state,
 	// this is an Update action instead of a NoOp.
-	if action == plans.NoOp && !marksAreEqual {
+	if action == plans.NoOp && !sensitiveMarksAreEqual {
 		action = plans.Update
 	}
 
@@ -2169,7 +2200,7 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx EvalContext, st
 		return nil
 	}
 
-	provs := filterProvisioners(n.Config, when)
+	provs := filterResourceProvisioners(n.Config, n.removedBlockProvisioners, when)
 	if len(provs) == 0 {
 		// We have no provisioners, so don't do anything
 		return nil
@@ -2197,20 +2228,30 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx EvalContext, st
 	}))
 }
 
-// filterProvisioners filters the provisioners on the resource to only
-// the provisioners specified by the "when" option.
-func filterProvisioners(config *configs.Resource, when configs.ProvisionerWhen) []*configs.Provisioner {
+// filterResourceProvisioners is filtering the providers based on the "when" option.
+// In case the given resource is nil or is having no configuration defined (aka destroy/removed from the config files),
+// then this function tries to filter the removedProvisioners.
+// If the resource is having a configuration (aka config.Managed != nil), then the removedProvisioners is ignored since
+// a "removed" block cannot coexist with the "resource" config that is targeting.
+func filterResourceProvisioners(config *configs.Resource, removedProvisioners []*configs.Provisioner, when configs.ProvisionerWhen) []*configs.Provisioner {
 	// Fast path the zero case
 	if config == nil || config.Managed == nil {
-		return nil
+		return filterProvisioners(removedProvisioners, when)
 	}
 
 	if len(config.Managed.Provisioners) == 0 {
+		// This shouldn't be reached because if there is a config.Managed object, then a "removed" block should not be allowed
+		// to coexist with the resource one. This error should have been returned way before getting at this logic.
 		return nil
 	}
+	// Filter the resource defined provisioners if any
+	return filterProvisioners(config.Managed.Provisioners, when)
+}
 
-	result := make([]*configs.Provisioner, 0, len(config.Managed.Provisioners))
-	for _, p := range config.Managed.Provisioners {
+// filterProvisioners filters the provisioners to only the provisioners specified by the "when" option.
+func filterProvisioners(provisioners []*configs.Provisioner, when configs.ProvisionerWhen) []*configs.Provisioner {
+	result := make([]*configs.Provisioner, 0, len(provisioners))
+	for _, p := range provisioners {
 		if p.When == when {
 			result = append(result, p)
 		}
@@ -2239,7 +2280,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 	// then it'll serve as a base connection configuration for all of the
 	// provisioners.
 	var baseConn hcl.Body
-	if n.Config.Managed != nil && n.Config.Managed.Connection != nil {
+	if n.Config != nil && n.Config.Managed != nil && n.Config.Managed.Connection != nil {
 		baseConn = n.Config.Managed.Connection.Config
 	}
 
@@ -2329,7 +2370,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 		// provisioner logging, so we conservatively suppress all output in
 		// this case. This should not apply to connection info values, which
 		// provisioners ought not to be logging anyway.
-		if len(configMarks) > 0 {
+		if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive {
 			outputFn = func(msg string) {
 				ctx.Hook(func(h Hook) (HookAction, error) {
 					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to sensitive value in config)")
@@ -2500,7 +2541,7 @@ func (n *NodeAbstractResourceInstance) apply(
 	// persisted.
 	eqV := unmarkedBefore.Equals(unmarkedAfter)
 	eq := eqV.IsKnown() && eqV.True()
-	if change.Action == plans.Update && eq && !marksEqual(beforePaths, afterPaths) {
+	if change.Action == plans.Update && eq && !sensitiveMarksEqual(beforePaths, afterPaths) {
 		// Copy the previous state, changing only the value
 		newState := &states.ResourceInstanceObject{
 			CreateBeforeDestroy: state.CreateBeforeDestroy,

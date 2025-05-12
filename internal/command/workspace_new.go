@@ -28,6 +28,7 @@ type WorkspaceNewCommand struct {
 }
 
 func (c *WorkspaceNewCommand) Run(args []string) int {
+	ctx := c.CommandContext()
 	args = c.Meta.process(args)
 	envCommandShowWarning(c.Ui, c.LegacyName)
 
@@ -60,7 +61,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 
 	// You can't ask to create a workspace when you're overriding the
 	// workspace name to be something different.
-	if current, isOverridden := c.WorkspaceOverridden(); current != workspace && isOverridden {
+	if current, isOverridden := c.WorkspaceOverridden(ctx); current != workspace && isOverridden {
 		c.Ui.Error(envIsOverriddenNewError)
 		return 1
 	}
@@ -73,7 +74,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 
 	var diags tfdiags.Diagnostics
 
-	backendConfig, backendDiags := c.loadBackendConfig(configPath)
+	backendConfig, backendDiags := c.loadBackendConfig(ctx, configPath)
 	diags = diags.Append(backendDiags)
 	if diags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -81,7 +82,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	}
 
 	// Load the encryption configuration
-	enc, encDiags := c.EncryptionFromPath(configPath)
+	enc, encDiags := c.EncryptionFromPath(ctx, configPath)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -89,7 +90,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	}
 
 	// Load the backend
-	b, backendDiags := c.Backend(&BackendOpts{
+	b, backendDiags := c.Backend(ctx, &BackendOpts{
 		Config: backendConfig,
 	}, enc.State())
 	diags = diags.Append(backendDiags)
@@ -101,7 +102,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	// This command will not write state
 	c.ignoreRemoteVersionConflict(b)
 
-	workspaces, err := b.Workspaces()
+	workspaces, err := b.Workspaces(ctx)
 	if err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to get configured named states: %s", err))
 		return 1
@@ -113,7 +114,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		}
 	}
 
-	_, err = b.StateMgr(workspace)
+	_, err = b.StateMgr(ctx, workspace)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1
@@ -134,7 +135,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 	}
 
 	// load the new Backend state
-	stateMgr, err := b.StateMgr(workspace)
+	stateMgr, err := b.StateMgr(ctx, workspace)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

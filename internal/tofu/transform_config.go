@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -51,7 +52,7 @@ type ConfigTransformer struct {
 	generateConfigPathForImportTargets string
 }
 
-func (t *ConfigTransformer) Transform(g *Graph) error {
+func (t *ConfigTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.skip {
 		return nil
 	}

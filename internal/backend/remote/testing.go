@@ -114,7 +114,7 @@ func testRemoteClient(t *testing.T) remote.Client {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	raw, err := b.StateMgr(backend.DefaultStateName)
+	raw, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
@@ -133,7 +133,7 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 	}
 	obj = newObj
 
-	confDiags := b.Configure(obj)
+	confDiags := b.Configure(t.Context(), obj)
 	if len(confDiags) != 0 {
 		t.Fatal(confDiags.ErrWithWarnings())
 	}

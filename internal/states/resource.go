@@ -202,8 +202,8 @@ func (k DeposedKey) String() string {
 
 func (k DeposedKey) GoString() string {
 	ks := string(k)
-	switch {
-	case ks == "":
+	switch ks {
+	case "":
 		return "states.NotDeposed"
 	default:
 		return fmt.Sprintf("states.DeposedKey(%s)", ks)

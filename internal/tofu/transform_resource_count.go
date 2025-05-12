@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -25,7 +26,7 @@ type ResourceCountTransformer struct {
 	InstanceAddrs []addrs.AbsResourceInstance
 }
 
-func (t *ResourceCountTransformer) Transform(g *Graph) error {
+func (t *ResourceCountTransformer) Transform(_ context.Context, g *Graph) error {
 	for _, addr := range t.InstanceAddrs {
 		abstract := NewNodeAbstractResourceInstance(addr)
 		abstract.Schema = t.Schema

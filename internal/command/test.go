@@ -9,12 +9,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/opentofu/opentofu/internal/lang"
 	"log"
 	"path"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/opentofu/opentofu/internal/lang"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -75,7 +76,9 @@ Options:
 
   -filter=testfile      If specified, OpenTofu will only execute the test files
                         specified by this flag. You can use this option multiple
-                        times to execute more than one test file.
+                        times to execute more than one test file. The path should
+                        be relative to the current working directory, even if
+                        -test-directory is set.
 
   -json                 If specified, machine readable output will be printed in
                         JSON format
@@ -148,7 +151,7 @@ func (c *TestCommand) Run(rawArgs []string) int {
 		return 1
 	}
 
-	config, configDiags := c.loadConfigWithTests(".", args.TestDirectory)
+	config, configDiags := c.loadConfigWithTests(ctx, ".", args.TestDirectory)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		view.Diagnostics(nil, nil, diags)
@@ -225,13 +228,21 @@ func (c *TestCommand) Run(rawArgs []string) int {
 
 	log.Printf("[DEBUG] TestCommand: found %d files with %d run blocks", fileCount, runCount)
 
+	if len(args.Filter) > 0 && len(suite.Files) == 0 {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Warning,
+			"No tests were found",
+			"-filter is being used but no tests were found. Make sure you're using a relative path to the current working directory.",
+		))
+	}
+
 	diags = diags.Append(fileDiags)
 	if fileDiags.HasErrors() {
 		view.Diagnostics(nil, nil, diags)
 		return 1
 	}
 
-	opts, err := c.contextOpts()
+	opts, err := c.contextOpts(ctx)
 	if err != nil {
 		diags = diags.Append(err)
 		view.Diagnostics(nil, nil, diags)
@@ -580,7 +591,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		}
 
 		if runner.Suite.Verbose {
-			schemas, diags := planCtx.Schemas(config, plan.PlannedState)
+			schemas, diags := planCtx.Schemas(ctx, config, plan.PlannedState)
 
 			// If we're going to fail to render the plan, let's not fail the overall
 			// test. It can still have succeeded. So we'll add the diagnostics, but
@@ -657,7 +668,7 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	}
 
 	if runner.Suite.Verbose {
-		schemas, diags := planCtx.Schemas(config, plan.PlannedState)
+		schemas, diags := planCtx.Schemas(ctx, config, plan.PlannedState)
 
 		// If we're going to fail to render the plan, let's not fail the overall
 		// test. It can still have succeeded. So we'll add the diagnostics, but

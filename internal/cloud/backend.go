@@ -259,7 +259,7 @@ func (b *Cloud) ServiceDiscoveryAliases() ([]backend.HostAlias, error) {
 }
 
 // Configure implements backend.Enhanced.
-func (b *Cloud) Configure(obj cty.Value) tfdiags.Diagnostics {
+func (b *Cloud) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if obj.IsNull() {
 		return diags
@@ -558,7 +558,7 @@ func (b *Cloud) retryLogHook(attemptNum int, resp *http.Response) {
 
 // Workspaces implements backend.Enhanced, returning a filtered list of workspace names according to
 // the workspace mapping strategy configured.
-func (b *Cloud) Workspaces() ([]string, error) {
+func (b *Cloud) Workspaces(ctx context.Context) ([]string, error) {
 	// Create a slice to contain all the names.
 	var names []string
 
@@ -581,7 +581,7 @@ func (b *Cloud) Workspaces() ([]string, error) {
 		listOpts := &tfe.ProjectListOptions{
 			Name: b.WorkspaceMapping.Project,
 		}
-		projects, err := b.client.Projects.List(context.Background(), b.organization, listOpts)
+		projects, err := b.client.Projects.List(ctx, b.organization, listOpts)
 		if err != nil && err != tfe.ErrResourceNotFound {
 			return nil, fmt.Errorf("failed to retrieve project %s: %w", listOpts.Name, err)
 		}
@@ -594,7 +594,7 @@ func (b *Cloud) Workspaces() ([]string, error) {
 	}
 
 	for {
-		wl, err := b.client.Workspaces.List(context.Background(), b.organization, options)
+		wl, err := b.client.Workspaces.List(ctx, b.organization, options)
 		if err != nil {
 			return nil, err
 		}
@@ -619,7 +619,7 @@ func (b *Cloud) Workspaces() ([]string, error) {
 }
 
 // DeleteWorkspace implements backend.Enhanced.
-func (b *Cloud) DeleteWorkspace(name string, force bool) error {
+func (b *Cloud) DeleteWorkspace(ctx context.Context, name string, force bool) error {
 	if name == backend.DefaultStateName {
 		return backend.ErrDefaultWorkspaceNotSupported
 	}
@@ -628,7 +628,7 @@ func (b *Cloud) DeleteWorkspace(name string, force bool) error {
 		return backend.ErrWorkspacesNotSupported
 	}
 
-	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
+	workspace, err := b.client.Workspaces.Read(ctx, b.organization, name)
 	if err == tfe.ErrResourceNotFound {
 		return nil // If the workspace does not exist, succeed
 	}
@@ -643,7 +643,7 @@ func (b *Cloud) DeleteWorkspace(name string, force bool) error {
 }
 
 // StateMgr implements backend.Enhanced.
-func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
+func (b *Cloud) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	var remoteTFVersion string
 
 	if name == backend.DefaultStateName {
@@ -654,7 +654,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
 
-	workspace, err := b.client.Workspaces.Read(context.Background(), b.organization, name)
+	workspace, err := b.client.Workspaces.Read(ctx, b.organization, name)
 	if err != nil && err != tfe.ErrResourceNotFound {
 		return nil, fmt.Errorf("Failed to retrieve workspace %s: %w", name, err)
 	}
@@ -669,7 +669,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		listOpts := &tfe.ProjectListOptions{
 			Name: b.WorkspaceMapping.Project,
 		}
-		projects, err := b.client.Projects.List(context.Background(), b.organization, listOpts)
+		projects, err := b.client.Projects.List(ctx, b.organization, listOpts)
 		if err != nil && err != tfe.ErrResourceNotFound {
 			// This is a failure to make an API request, fail to initialize
 			return nil, fmt.Errorf("Attempted to find configured project %s but was unable to.", b.WorkspaceMapping.Project)
@@ -708,7 +708,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 				}
 				// didn't find project, create it instead
 				log.Printf("[TRACE] cloud: Creating cloud backend project %s/%s", b.organization, b.WorkspaceMapping.Project)
-				project, err := b.client.Projects.Create(context.Background(), b.organization, createOpts)
+				project, err := b.client.Projects.Create(ctx, b.organization, createOpts)
 				if err != nil && err != tfe.ErrResourceNotFound {
 					return nil, fmt.Errorf("failed to create project %s: %w", b.WorkspaceMapping.Project, err)
 				}
@@ -719,7 +719,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 
 		// Create a workspace
 		log.Printf("[TRACE] cloud: Creating cloud backend workspace %s/%s", b.organization, name)
-		workspace, err = b.client.Workspaces.Create(context.Background(), b.organization, workspaceCreateOptions)
+		workspace, err = b.client.Workspaces.Create(ctx, b.organization, workspaceCreateOptions)
 		if err != nil {
 			return nil, fmt.Errorf("error creating workspace %s: %w", name, err)
 		}
@@ -732,7 +732,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 		versionOptions := tfe.WorkspaceUpdateOptions{
 			TerraformVersion: tfe.String(tfversion.String()),
 		}
-		_, err := b.client.Workspaces.UpdateByID(context.Background(), workspace.ID, versionOptions)
+		_, err := b.client.Workspaces.UpdateByID(ctx, workspace.ID, versionOptions)
 		if err == nil {
 			remoteTFVersion = tfversion.String()
 		} else {
@@ -754,7 +754,7 @@ func (b *Cloud) StateMgr(name string) (statemgr.Full, error) {
 			Tags: b.WorkspaceMapping.tfeTags(),
 		}
 		log.Printf("[TRACE] cloud: Adding tags for cloud backend workspace %s/%s", b.organization, name)
-		err = b.client.Workspaces.AddTags(context.Background(), workspace.ID, options)
+		err = b.client.Workspaces.AddTags(ctx, workspace.ID, options)
 		if err != nil {
 			return nil, fmt.Errorf("Error updating workspace %s: %w", name, err)
 		}
@@ -806,7 +806,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 	op.Workspace = w.Name
 
 	// Determine the function to call for our operation
-	var f func(context.Context, context.Context, *backend.Operation, *tfe.Workspace) (*tfe.Run, error)
+	var f func(context.Context, context.Context, context.Context, *backend.Operation, *tfe.Workspace) (*tfe.Run, error)
 	switch op.Type {
 	case backend.OperationTypePlan:
 		f = b.opPlan
@@ -856,7 +856,7 @@ func (b *Cloud) Operation(ctx context.Context, op *backend.Operation) (*backend.
 
 		defer b.opLock.Unlock()
 
-		r, opErr := f(stopCtx, cancelCtx, op, w)
+		r, opErr := f(ctx, stopCtx, cancelCtx, op, w)
 		if opErr != nil && opErr != context.Canceled {
 			var diags tfdiags.Diagnostics
 			diags = diags.Append(opErr)

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"sort"
 
@@ -237,8 +238,9 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 		})
 	}
 
+	// TODO: Plugin a suitable context.Context through to here.
 	providerFqn := modCfg.Module.ProviderForLocalConfig(cfg.ProviderConfigAddr())
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(providerFqn, addr.Mode, addr.Type)
+	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(context.TODO(), providerFqn, addr.Mode, addr.Type)
 	if err != nil {
 		// Prior validation should've taken care of a schema lookup error,
 		// so we should never get here but we'll handle it here anyway for

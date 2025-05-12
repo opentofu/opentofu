@@ -19,28 +19,28 @@ func TestRootTransformer(t *testing.T) {
 		g := Graph{Path: addrs.RootModuleInstance}
 		{
 			tf := &ConfigTransformer{Config: mod}
-			if err := tf.Transform(&g); err != nil {
+			if err := tf.Transform(t.Context(), &g); err != nil {
 				t.Fatalf("err: %s", err)
 			}
 		}
 
 		{
 			transform := &MissingProviderTransformer{}
-			if err := transform.Transform(&g); err != nil {
+			if err := transform.Transform(t.Context(), &g); err != nil {
 				t.Fatalf("err: %s", err)
 			}
 		}
 
 		{
 			transform := &ProviderTransformer{}
-			if err := transform.Transform(&g); err != nil {
+			if err := transform.Transform(t.Context(), &g); err != nil {
 				t.Fatalf("err: %s", err)
 			}
 		}
 
 		{
 			transform := &RootTransformer{}
-			if err := transform.Transform(&g); err != nil {
+			if err := transform.Transform(t.Context(), &g); err != nil {
 				t.Fatalf("err: %s", err)
 			}
 		}

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -37,7 +38,7 @@ type GraphNodeDestroyerCBD interface {
 type ForcedCBDTransformer struct {
 }
 
-func (t *ForcedCBDTransformer) Transform(g *Graph) error {
+func (t *ForcedCBDTransformer) Transform(_ context.Context, g *Graph) error {
 	for _, v := range g.Vertices() {
 		dn, ok := v.(GraphNodeDestroyerCBD)
 		if !ok {
@@ -115,7 +116,7 @@ func (t *ForcedCBDTransformer) hasCBDDescendent(g *Graph, v dag.Vertex) bool {
 // DiffTransformer when building the apply graph.
 type CBDEdgeTransformer struct{}
 
-func (t *CBDEdgeTransformer) Transform(g *Graph) error {
+func (t *CBDEdgeTransformer) Transform(_ context.Context, g *Graph) error {
 	// Go through and reverse any destroy edges
 	for _, v := range g.Vertices() {
 		dn, ok := v.(GraphNodeDestroyerCBD)

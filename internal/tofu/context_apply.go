@@ -11,12 +11,15 @@ import (
 	"log"
 
 	"github.com/zclconf/go-cty/cty"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Apply performs the actions described by the given Plan object and returns
@@ -33,6 +36,14 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
 
 	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Apply phase",
+		otelTrace.WithAttributes(
+			otelAttr.String("opentofu.plan.mode", plan.UIMode.UIName()),
+		),
+	)
+	defer span.End()
 
 	if plan.Errored {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -78,7 +89,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
-	graph, operation, diags := c.applyGraph(plan, config, providerFunctionTracker)
+	graph, operation, diags := c.applyGraph(ctx, plan, config, providerFunctionTracker)
 	if diags.HasErrors() {
 		return nil, diags
 	}
@@ -144,7 +155,7 @@ Note that the -target and -exclude options are not suitable for routine use, and
 	return newState, diags
 }
 
-func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
+func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *configs.Config, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	variables := InputValues{}
@@ -207,7 +218,7 @@ func (c *Context) applyGraph(plan *plans.Plan, config *configs.Config, providerF
 		Operation:               operation,
 		ExternalReferences:      plan.ExternalReferences,
 		ProviderFunctionTracker: providerFunctionTracker,
-	}).Build(addrs.RootModuleInstance)
+	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, walkApply, diags
@@ -231,7 +242,7 @@ func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Gr
 
 	var diags tfdiags.Diagnostics
 
-	graph, _, moreDiags := c.applyGraph(plan, config, make(ProviderFunctionMapping))
+	graph, _, moreDiags := c.applyGraph(context.TODO(), plan, config, make(ProviderFunctionMapping))
 	diags = diags.Append(moreDiags)
 	return graph, diags
 }

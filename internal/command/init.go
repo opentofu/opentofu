@@ -17,8 +17,7 @@ import (
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
+	otelAttr "go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -36,6 +35,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tofumigrate"
+	"github.com/opentofu/opentofu/internal/tracing"
 	tfversion "github.com/opentofu/opentofu/version"
 )
 
@@ -46,6 +46,11 @@ type InitCommand struct {
 }
 
 func (c *InitCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
+	ctx, span := tracing.Tracer().Start(ctx, "Init")
+	defer span.End()
+
 	var flagFromModule, flagLockfile, testsDirectory string
 	var flagBackend, flagCloud, flagGet, flagUpgrade bool
 	var flagPluginPath FlagStringSlice
@@ -129,7 +134,7 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	// Initialization can be aborted by interruption signals
-	ctx, done := c.InterruptibleContext(c.CommandContext())
+	ctx, done := c.InterruptibleContext(ctx)
 	defer done()
 
 	// This will track whether we outputted anything so that we know whether
@@ -159,19 +164,19 @@ func (c *InitCommand) Run(args []string) int {
 			ShowLocalPaths: false, // since they are in a weird location for init
 		}
 
-		ctx, span := tracer.Start(ctx, "-from-module=...", trace.WithAttributes(
-			attribute.String("module_source", src),
+		ctx, span := tracing.Tracer().Start(ctx, "From module", trace.WithAttributes(
+			otelAttr.String("opentofu.module_source", src),
 		))
+		defer span.End()
 
 		initDirFromModuleAbort, initDirFromModuleDiags := c.initDirFromModule(ctx, path, src, hooks)
 		diags = diags.Append(initDirFromModuleDiags)
 		if initDirFromModuleAbort || initDirFromModuleDiags.HasErrors() {
 			c.showDiagnostics(diags)
-			span.SetStatus(codes.Error, "module installation failed")
+			tracing.SetSpanError(span, initDirFromModuleDiags)
 			span.End()
 			return 1
 		}
-		span.End()
 
 		c.Ui.Output("")
 	}
@@ -190,7 +195,7 @@ func (c *InitCommand) Run(args []string) int {
 	}
 
 	// Load just the root module to begin backend and module initialization
-	rootModEarly, earlyConfDiags := c.loadSingleModuleWithTests(path, testsDirectory)
+	rootModEarly, earlyConfDiags := c.loadSingleModuleWithTests(ctx, path, testsDirectory)
 
 	// There may be parsing errors in config loading but these will be shown later _after_
 	// checking for core version requirement errors. Not meeting the version requirement should
@@ -246,12 +251,12 @@ func (c *InitCommand) Run(args []string) int {
 	// of provider dependencies.
 	if back != nil {
 		c.ignoreRemoteVersionConflict(back)
-		workspace, err := c.Workspace()
+		workspace, err := c.Workspace(ctx)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
 			return 1
 		}
-		sMgr, err := back.StateMgr(workspace)
+		sMgr, err := back.StateMgr(ctx, workspace)
 		if err != nil {
 			c.Ui.Error(fmt.Sprintf("Error loading state: %s", err))
 			return 1
@@ -279,7 +284,7 @@ func (c *InitCommand) Run(args []string) int {
 
 	// With all of the modules (hopefully) installed, we can now try to load the
 	// whole configuration tree.
-	config, confDiags := c.loadConfigWithTests(path, testsDirectory)
+	config, confDiags := c.loadConfigWithTests(ctx, path, testsDirectory)
 	// configDiags will be handled after the version constraint check, since an
 	// incorrect version of tofu may be producing errors for configuration
 	// constructs added in later versions.
@@ -402,8 +407,8 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 		return false, false, nil
 	}
 
-	ctx, span := tracer.Start(ctx, "install modules", trace.WithAttributes(
-		attribute.Bool("upgrade", upgrade),
+	ctx, span := tracing.Tracer().Start(ctx, "Get Modules", trace.WithAttributes(
+		otelAttr.Bool("opentofu.modules.upgrade", upgrade),
 	))
 	defer span.End()
 
@@ -442,7 +447,7 @@ func (c *InitCommand) getModules(ctx context.Context, path, testsDir string, ear
 }
 
 func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "initialize cloud backend")
+	ctx, span := tracing.Tracer().Start(ctx, "Cloud backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
 
@@ -464,13 +469,13 @@ func (c *InitCommand) initCloud(ctx context.Context, root *configs.Module, extra
 		Init:   true,
 	}
 
-	back, backDiags := c.Backend(opts, enc.State())
+	back, backDiags := c.Backend(ctx, opts, enc.State())
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }
 
 func (c *InitCommand) initBackend(ctx context.Context, root *configs.Module, extraConfig rawFlags, enc encryption.Encryption) (be backend.Backend, output bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "initialize backend")
+	ctx, span := tracing.Tracer().Start(ctx, "Backend init")
 	_ = ctx // prevent staticcheck from complaining to avoid a maintenance hazard of having the wrong ctx in scope here
 	defer span.End()
 
@@ -547,7 +552,7 @@ the backend configuration is present and valid.
 		Init:           true,
 	}
 
-	back, backDiags := c.Backend(opts, enc.State())
+	back, backDiags := c.Backend(ctx, opts, enc.State())
 	diags = diags.Append(backDiags)
 	return back, true, diags
 }
@@ -555,7 +560,7 @@ the backend configuration is present and valid.
 // Load the complete module tree, and fetch any missing providers.
 // This method outputs its own Ui.
 func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, state *states.State, upgrade bool, pluginDirs []string, flagLockfile string) (output, abort bool, diags tfdiags.Diagnostics) {
-	ctx, span := tracer.Start(ctx, "install providers")
+	ctx, span := tracing.Tracer().Start(ctx, "Get Providers")
 	defer span.End()
 
 	// Dev overrides cause the result of "tofu init" to be irrelevant for
@@ -651,8 +656,12 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 				"\n[reset][bold]Initializing provider plugins...",
 			))
 		},
-		ProviderAlreadyInstalled: func(provider addrs.Provider, selectedVersion getproviders.Version) {
-			c.Ui.Info(fmt.Sprintf("- Using previously-installed %s v%s", provider.ForDisplay(), selectedVersion))
+		ProviderAlreadyInstalled: func(provider addrs.Provider, selectedVersion getproviders.Version, inProviderCache bool) {
+			if inProviderCache {
+				c.Ui.Info(fmt.Sprintf("- Detected previously-installed %s v%s in the shared cache directory", provider.ForDisplay(), selectedVersion))
+			} else {
+				c.Ui.Info(fmt.Sprintf("- Using previously-installed %s v%s", provider.ForDisplay(), selectedVersion))
+			}
 		},
 		BuiltInProviderAvailable: func(provider addrs.Provider) {
 			c.Ui.Info(fmt.Sprintf("- %s is built in to OpenTofu", provider.ForDisplay()))
@@ -678,8 +687,12 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		LinkFromCacheBegin: func(provider addrs.Provider, version getproviders.Version, cacheRoot string) {
 			c.Ui.Info(fmt.Sprintf("- Using %s v%s from the shared cache directory", provider.ForDisplay(), version))
 		},
-		FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation) {
-			c.Ui.Info(fmt.Sprintf("- Installing %s v%s...", provider.ForDisplay(), version))
+		FetchPackageBegin: func(provider addrs.Provider, version getproviders.Version, location getproviders.PackageLocation, inProviderCache bool) {
+			if inProviderCache {
+				c.Ui.Info(fmt.Sprintf("- Installing %s v%s to the shared cache directory...", provider.ForDisplay(), version))
+			} else {
+				c.Ui.Info(fmt.Sprintf("- Installing %s v%s...", provider.ForDisplay(), version))
+			}
 		},
 		QueryPackagesFailure: func(provider addrs.Provider, err error) {
 			switch errorTy := err.(type) {
@@ -927,7 +940,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 			// Either way, this is bad. Let's complain/warn.
 			incompleteProviders = append(incompleteProviders, provider.ForDisplay())
 		},
-		ProvidersFetched: func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult) {
+		ProvidersAuthenticated: func(authResults map[addrs.Provider]*getproviders.PackageAuthenticationResult) {
 			thirdPartySigned := false
 			for _, authResult := range authResults {
 				if authResult.Signed() {
@@ -1035,7 +1048,7 @@ in the .terraform.lock.hcl file. Review those changes and commit them to your
 version control system if they represent changes you intended to make.`))
 		}
 
-		moreDiags = c.replaceLockedDependencies(newLocks)
+		moreDiags = c.replaceLockedDependencies(ctx, newLocks)
 		diags = diags.Append(moreDiags)
 	}
 

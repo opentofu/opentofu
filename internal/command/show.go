@@ -28,7 +28,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/internal/tofumigrate"
 )
 
 // Many of the methods we get data from can emit special error types if they're
@@ -57,6 +56,8 @@ type ShowCommand struct {
 }
 
 func (c *ShowCommand) Run(rawArgs []string) int {
+	ctx := c.CommandContext()
+
 	// Parse and apply global view arguments
 	common, rawArgs := arguments.ParseView(rawArgs)
 	c.View.Configure(common)
@@ -86,38 +87,47 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	c.GatherVariables(args.Vars)
 
 	// Load the encryption configuration
-	enc, encDiags := c.Encryption()
+	enc, encDiags := c.Encryption(ctx)
 	diags = diags.Append(encDiags)
 	if encDiags.HasErrors() {
 		c.showDiagnostics(diags)
 		return 1
 	}
 
-	// Get the data we need to display
-	plan, jsonPlan, stateFile, config, schemas, showDiags := c.show(args.Path, enc)
+	renderResult, showDiags := c.show(ctx, args.TargetType, args.TargetArg, enc)
 	diags = diags.Append(showDiags)
 	if showDiags.HasErrors() {
+		// "tofu show" intentionally ignores warnings unless there is at
+		// least one error, because view.Diagnostics produces human output
+		// even in the JSON view and so would cause the JSON output to
+		// be invalid if only warnings were returned.
 		view.Diagnostics(diags)
 		return 1
 	}
-
-	// Display the data
-	return view.Display(config, plan, jsonPlan, stateFile, schemas)
+	return renderResult(view)
 }
 
 func (c *ShowCommand) Help() string {
 	helpText := `
-Usage: tofu [global options] show [options] [path]
+Usage: tofu [global options] show [target-selection-option] [other-options]
 
   Reads and outputs a OpenTofu state or plan file in a human-readable
   form. If no path is specified, the current state will be shown.
 
-Options:
+Target selection options:
 
-  -no-color           If specified, output won't contain any color.
+  Use one of the following options to specify what to show.
 
-  -json               If specified, output the OpenTofu plan or state in
-                      a machine-readable form.
+    -state          The latest state snapshot, if any.
+    -plan=FILENAME  The plan from a saved plan file.
+
+  If no target selection options are provided, -state is the default.
+
+Other options:
+
+  -no-color           Disable terminal escape sequences.
+
+  -json               Show the information in a machine-readable form.
 
   -show-sensitive     If specified, sensitive values will be displayed.
 
@@ -155,58 +165,31 @@ func (c *ShowCommand) GatherVariables(args *arguments.Vars) {
 	c.Meta.variableArgs = rawFlags{items: &items}
 }
 
-func (c *ShowCommand) show(path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, *tofu.Schemas, tfdiags.Diagnostics) {
-	var diags, showDiags, migrateDiags tfdiags.Diagnostics
-	var plan *plans.Plan
-	var jsonPlan *cloudplan.RemotePlanJSON
-	var stateFile *statefile.File
-	var config *configs.Config
-	var schemas *tofu.Schemas
+type showRenderFunc func(view views.Show) int
 
-	// No plan file or state file argument provided,
-	// so get the latest state snapshot
-	if path == "" {
-		stateFile, showDiags = c.showFromLatestStateSnapshot(enc)
-		diags = diags.Append(showDiags)
-		if showDiags.HasErrors() {
-			return plan, jsonPlan, stateFile, config, schemas, diags
-		}
+func (c *ShowCommand) show(ctx context.Context, targetType arguments.ShowTargetType, targetArg string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
+	switch targetType {
+	case arguments.ShowState:
+		return c.showFromLatestStateSnapshot(ctx, enc)
+	case arguments.ShowPlan:
+		return c.showFromSavedPlanFile(ctx, targetArg, enc)
+	case arguments.ShowUnknownType:
+		// This is a legacy case where we just have a filename and need to
+		// try treating it as either a saved plan file or a local state
+		// snapshot file.
+		return c.legacyShowFromPath(ctx, targetArg, enc)
+	default:
+		// Should not get here because the above cases should cover all
+		// possible values of [arguments.ShowTargetType].
+		panic(fmt.Sprintf("unsupported show target type %s", targetType))
 	}
-
-	// Plan file or state file argument provided,
-	// so try to load the argument as a plan file first.
-	// If that fails, try to load it as a statefile.
-	if path != "" {
-		plan, jsonPlan, stateFile, config, showDiags = c.showFromPath(path, enc)
-		diags = diags.Append(showDiags)
-		if showDiags.HasErrors() {
-			return plan, jsonPlan, stateFile, config, schemas, diags
-		}
-	}
-
-	if stateFile != nil {
-		stateFile.State, migrateDiags = tofumigrate.MigrateStateProviderAddresses(config, stateFile.State)
-		diags = diags.Append(migrateDiags)
-		if migrateDiags.HasErrors() {
-			return plan, jsonPlan, stateFile, config, schemas, diags
-		}
-	}
-
-	// Get schemas, if possible
-	if config != nil || stateFile != nil {
-		schemas, diags = c.MaybeGetSchemas(stateFile.State, config)
-		if diags.HasErrors() {
-			return plan, jsonPlan, stateFile, config, schemas, diags
-		}
-	}
-
-	return plan, jsonPlan, stateFile, config, schemas, diags
 }
-func (c *ShowCommand) showFromLatestStateSnapshot(enc encryption.Encryption) (*statefile.File, tfdiags.Diagnostics) {
+
+func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Load the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
 	if backendDiags.HasErrors() {
 		return nil, diags
@@ -214,7 +197,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(enc encryption.Encryption) (*s
 	c.ignoreRemoteVersionConflict(b)
 
 	// Load the workspace
-	workspace, err := c.Workspace()
+	workspace, err := c.Workspace(ctx)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("error selecting workspace: %w", err))
 		return nil, diags
@@ -227,10 +210,43 @@ func (c *ShowCommand) showFromLatestStateSnapshot(enc encryption.Encryption) (*s
 		return nil, diags
 	}
 
-	return stateFile, diags
+	schemas, schemaDiags := c.maybeGetSchemas(ctx, stateFile, nil)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		return nil, diags
+	}
+	return func(view views.Show) int {
+		return view.DisplayState(stateFile, schemas)
+	}, diags
 }
 
-func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, tfdiags.Diagnostics) {
+func (c *ShowCommand) showFromSavedPlanFile(ctx context.Context, filename string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	rootCall, callDiags := c.rootModuleCall(ctx, ".")
+	diags = diags.Append(callDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	plan, jsonPlan, stateFile, config, err := c.getPlanFromPath(ctx, filename, enc, rootCall)
+	if err != nil {
+		diags = diags.Append(err)
+		return nil, diags
+	}
+
+	schemas, schemaDiags := c.maybeGetSchemas(ctx, stateFile, config)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		return nil, diags
+	}
+
+	return func(view views.Show) int {
+		return view.DisplayPlan(plan, jsonPlan, config, stateFile, schemas)
+	}, diags
+}
+
+func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var planErr, stateErr error
 	var plan *plans.Plan
@@ -238,17 +254,17 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 	var stateFile *statefile.File
 	var config *configs.Config
 
-	rootCall, callDiags := c.rootModuleCall(".")
+	rootCall, callDiags := c.rootModuleCall(ctx, ".")
 	diags = diags.Append(callDiags)
 	if diags.HasErrors() {
-		return nil, nil, nil, nil, diags
+		return nil, diags
 	}
 
 	// Path might be a local plan file, a bookmark to a saved cloud plan, or a
 	// state file. First, try to get a plan and associated data from a local
 	// plan file. If that fails, try to get a json plan from the path argument.
 	// If that fails, try to get the statefile from the path argument.
-	plan, jsonPlan, stateFile, config, planErr = c.getPlanFromPath(path, enc, rootCall)
+	plan, jsonPlan, stateFile, config, planErr = c.getPlanFromPath(ctx, path, enc, rootCall)
 	if planErr != nil {
 		stateFile, stateErr = getStateFromPath(path, enc)
 		if stateErr != nil {
@@ -304,10 +320,30 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 				)
 			}
 
-			return nil, nil, nil, nil, diags
+			return nil, diags
 		}
 	}
-	return plan, jsonPlan, stateFile, config, diags
+
+	schemas, schemaDiags := c.maybeGetSchemas(ctx, stateFile, config)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		return nil, diags
+	}
+
+	// If we successfully loaded some things then the show mode we
+	// choose depends on what we loaded.
+	switch {
+	case plan != nil || jsonPlan != nil:
+		return func(view views.Show) int {
+			return view.DisplayPlan(plan, jsonPlan, config, stateFile, schemas)
+		}, diags
+	default:
+		// We treat all other cases as a state, and DisplayState
+		// tolerates stateFile being nil.
+		return func(view views.Show) int {
+			return view.DisplayState(stateFile, schemas)
+		}, diags
+	}
 }
 
 // getPlanFromPath returns a plan, json plan, statefile, and config if the
@@ -316,7 +352,7 @@ func (c *ShowCommand) showFromPath(path string, enc encryption.Encryption) (*pla
 // yield a json plan, and cloud plans do not yield real plan/state/config
 // structs. An error generally suggests that the given path is either a
 // directory or a statefile.
-func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption, rootCall configs.StaticModuleCall) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, error) {
+func (c *ShowCommand) getPlanFromPath(ctx context.Context, path string, enc encryption.Encryption, rootCall configs.StaticModuleCall) (*plans.Plan, *cloudplan.RemotePlanJSON, *statefile.File, *configs.Config, error) {
 	var err error
 	var plan *plans.Plan
 	var jsonPlan *cloudplan.RemotePlanJSON
@@ -329,18 +365,18 @@ func (c *ShowCommand) getPlanFromPath(path string, enc encryption.Encryption, ro
 	}
 
 	if lp, ok := pf.Local(); ok {
-		plan, stateFile, config, err = getDataFromPlanfileReader(lp, rootCall)
+		plan, stateFile, config, err = getDataFromPlanfileReader(ctx, lp, rootCall)
 	} else if cp, ok := pf.Cloud(); ok {
 		redacted := c.viewType != arguments.ViewJSON
-		jsonPlan, err = c.getDataFromCloudPlan(cp, redacted, enc)
+		jsonPlan, err = c.getDataFromCloudPlan(ctx, cp, redacted, enc)
 	}
 
 	return plan, jsonPlan, stateFile, config, err
 }
 
-func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
+func (c *ShowCommand) getDataFromCloudPlan(ctx context.Context, plan *cloudplan.SavedPlanBookmark, redacted bool, enc encryption.Encryption) (*cloudplan.RemotePlanJSON, error) {
 	// Set up the backend
-	b, backendDiags := c.Backend(nil, enc.State())
+	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	if backendDiags.HasErrors() {
 		return nil, errUnusable(backendDiags.Err(), "cloud plan")
 	}
@@ -357,8 +393,19 @@ func (c *ShowCommand) getDataFromCloudPlan(plan *cloudplan.SavedPlanBookmark, re
 	return result, err
 }
 
+// maybeGetSchemas is a thin wrapper around [Meta.MaybeGetSchemas] that
+// takes a [*statefile.File] instead of a [*states.State] and tolerates
+// the state file being nil, since that's more convenient for the
+// "tofu show" methods that may or may not have a state file to use.
+func (c *ShowCommand) maybeGetSchemas(ctx context.Context, stateFile *statefile.File, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+	if stateFile == nil {
+		return nil, nil
+	}
+	return c.MaybeGetSchemas(ctx, stateFile.State, config)
+}
+
 // getDataFromPlanfileReader returns a plan, statefile, and config, extracted from a local plan file.
-func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.StaticModuleCall) (*plans.Plan, *statefile.File, *configs.Config, error) {
+func getDataFromPlanfileReader(ctx context.Context, planReader *planfile.Reader, rootCall configs.StaticModuleCall) (*plans.Plan, *statefile.File, *configs.Config, error) {
 	// Get plan
 	plan, err := planReader.ReadPlan()
 	if err != nil {
@@ -398,7 +445,7 @@ func getDataFromPlanfileReader(planReader *planfile.Reader, rootCall configs.Sta
 	})
 
 	// Get config
-	config, diags := planReader.ReadConfig(subCall)
+	config, diags := planReader.ReadConfig(ctx, subCall)
 	if diags.HasErrors() {
 		return nil, nil, nil, errUnusable(diags.Err(), "local plan")
 	}
@@ -425,14 +472,14 @@ func getStateFromPath(path string, enc encryption.Encryption) (*statefile.File, 
 // getStateFromBackend returns the State for the current workspace, if available.
 func getStateFromBackend(b backend.Backend, workspace string) (*statefile.File, error) {
 	// Get the state store for the given workspace
-	stateStore, err := b.StateMgr(workspace)
+	stateStore, err := b.StateMgr(context.TODO(), workspace)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to load state manager: %w", err)
+		return nil, fmt.Errorf("failed to load state manager: %w", err)
 	}
 
 	// Refresh the state store with the latest state snapshot from persistent storage
 	if err := stateStore.RefreshState(); err != nil {
-		return nil, fmt.Errorf("Failed to load state: %w", err)
+		return nil, fmt.Errorf("failed to load state: %w", err)
 	}
 
 	// Get the latest state snapshot and return it

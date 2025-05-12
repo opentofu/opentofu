@@ -538,10 +538,8 @@ A chain of move statements must end with an address that doesn't appear in any o
 func loadRefactoringFixture(t *testing.T, dir string) (*configs.Config, instances.Set) {
 	t.Helper()
 
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
-
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil))
+	loader := configload.NewLoaderForTests(t)
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
@@ -553,7 +551,7 @@ func loadRefactoringFixture(t *testing.T, dir string) (*configs.Config, instance
 		t.Fatalf("failed to refresh modules after installation: %s", err)
 	}
 
-	rootCfg, diags := loader.LoadConfig(dir, configs.RootModuleCallForTesting())
+	rootCfg, diags := loader.LoadConfig(t.Context(), dir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatalf("failed to load root module: %s", diags.Error())
 	}

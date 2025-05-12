@@ -6,7 +6,9 @@
 package pg
 
 import (
+	"context"
 	"fmt"
+
 	"github.com/lib/pq"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -15,7 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	query := fmt.Sprintf(`SELECT name FROM %s.%s WHERE name != 'default' ORDER BY name`, pq.QuoteIdentifier(b.schemaName), pq.QuoteIdentifier(b.tableName))
 	rows, err := b.db.Query(query)
 	if err != nil {
@@ -41,7 +43,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 	return result, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -55,7 +57,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	// Build the state client
 	var stateMgr statemgr.Full = remote.NewState(
 		&RemoteClient{
@@ -71,7 +73,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	// Check to see if this state already exists.
 	// If the state doesn't exist, we have to assume this
 	// is a normal create operation, and take the lock at that point.
-	existing, err := b.Workspaces()
+	existing, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -127,6 +127,10 @@ func TestOutput_all(t *testing.T) {
 				"beep": cty.StringVal("true"),
 			}),
 		},
+		"foobar": {
+			Value:      cty.StringVal("abcde"),
+			Deprecated: "iamdeprecated",
+		},
 	}
 
 	testCases := map[string]struct {
@@ -145,6 +149,7 @@ baz = {
   "boop" = 5
 }
 foo = <sensitive>
+foobar = "abcde"
 `,
 		},
 		"json": {
@@ -180,6 +185,12 @@ foo = <sensitive>
     "sensitive": true,
     "type": "string",
     "value": "secret"
+  },
+  "foobar": {
+    "sensitive": false,
+    "deprecated": "iamdeprecated",
+    "type": "string",
+    "value": "abcde"
   }
 }
 `,

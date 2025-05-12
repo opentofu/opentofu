@@ -124,7 +124,7 @@ func tempWorkingDir(t *testing.T) *workdir.Dir {
 func tempWorkingDirFixture(t *testing.T, fixtureName string) *workdir.Dir {
 	t.Helper()
 
-	dirPath := testTempDir(t)
+	dirPath := testTempDirRealpath(t)
 	t.Logf("temporary directory %s with fixture %q", dirPath, fixtureName)
 
 	fixturePath := testFixturePath(fixtureName)
@@ -153,21 +153,18 @@ func testModuleWithSnapshot(t *testing.T, name string) (*configs.Config, *config
 	t.Helper()
 
 	dir := filepath.Join(fixtureDir, name)
-	// FIXME: We're not dealing with the cleanup function here because
-	// this testModule function is used all over and so we don't want to
-	// change its interface at this late stage.
-	loader, _ := configload.NewLoaderForTests(t)
+	loader := configload.NewLoaderForTests(t)
 
 	// Test modules usually do not refer to remote sources, and for local
 	// sources only this ultimately just records all of the module paths
 	// in a JSON file so that we can load them below.
-	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(nil, nil))
+	inst := initwd.NewModuleInstaller(loader.ModulesDir(), loader, registry.NewClient(t.Context(), nil, nil), nil)
 	_, instDiags := inst.InstallModules(context.Background(), dir, "tests", true, false, initwd.ModuleInstallHooksImpl{}, configs.RootModuleCallForTesting())
 	if instDiags.HasErrors() {
 		t.Fatal(instDiags.Err())
 	}
 
-	config, snap, diags := loader.LoadConfigWithSnapshot(dir, configs.RootModuleCallForTesting())
+	config, snap, diags := loader.LoadConfigWithSnapshot(t.Context(), dir, configs.RootModuleCallForTesting())
 	if diags.HasErrors() {
 		t.Fatal(diags.Error())
 	}
@@ -357,7 +354,7 @@ func testStateMgrCurrentLineage(mgr statemgr.Persistent) string {
 //	// (do stuff to the state)
 //	assertStateHasMarker(state, mark)
 func markStateForMatching(state *states.State, mark string) string {
-	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false)
+	state.RootModule().SetOutputValue("testing_mark", cty.StringVal(mark), false, "")
 	return mark
 }
 
@@ -544,62 +541,29 @@ func testProvider() *tofu.MockProvider {
 func testTempFile(t *testing.T) string {
 	t.Helper()
 
-	return filepath.Join(testTempDir(t), "state.tfstate")
+	return filepath.Join(testTempDirRealpath(t), "state.tfstate")
 }
 
-func testTempDir(t *testing.T) string {
+// testTempDirRealpath is like [testing.T.TempDir] but takes the
+// extra step of ensuring that the result is a path that does not
+// include any symlinks.
+func testTempDirRealpath(t *testing.T) string {
 	t.Helper()
 	d, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-
 	return d
 }
 
-// testChdir changes the directory and returns a function to defer to
-// revert the old cwd.
-func testChdir(t *testing.T, new string) func() {
-	t.Helper()
-
-	old, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-
-	if err := os.Chdir(new); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	return func() {
-		// Re-run the function ignoring the defer result
-		testChdir(t, old)
-	}
-}
-
-// testCwd is used to change the current working directory into a temporary
+// testCwdTemp is used to change the current working directory into a temporary
 // directory. The cleanup is performed automatically after the test and all its
 // subtests complete.
-func testCwd(t *testing.T) string {
+func testCwdTemp(t testing.TB) string {
 	t.Helper()
 
 	tmp := t.TempDir()
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatalf("err: %v", err)
-	}
-
-	t.Cleanup(func() {
-		if err := os.Chdir(cwd); err != nil {
-			t.Fatalf("err: %v", err)
-		}
-	})
-
+	t.Chdir(tmp)
 	return tmp
 }
 
@@ -1184,4 +1148,73 @@ func deleteMapField(fieldMap map[string]interface{}, rootField, field string) ma
 
 	delete(rootMap, field)
 	return rootMap
+}
+
+// testHangServer starts a local HTTP server that accepts incoming requests
+// but then intentionally leaves the connection hanging without responding,
+// writing the request to the returned channel so that the caller can then
+// trigger some mechanism for cancelling that hung request.
+//
+// This is intended for testing anything that needs to be able to cancel
+// slow requests to remote HTTP servers, so that the test can be sure that
+// the request definitely will be "slow enough" that cancellation is
+// definitely the only way the request could've halted.
+//
+// The returned server is automatically closed when the calling test
+// is complete, but the caller is also allowed to optionally call Close
+// directly itself. Note that the Close method alone will not close
+// any active requests, but testHangServer guarantees that it will
+// eventually terminate active requests once the calling test is
+// complete.
+func testHangServer(t testing.TB) (server *httptest.Server, reqs <-chan *http.Request) {
+	t.Helper()
+
+	// We'll use this channel to signal any active requests to terminate
+	// during test cleanup, so that the active requests can't remain
+	// running indefinitely.
+	cleanupCh := make(chan struct{})
+
+	// This channel is how we'll notify the caller when we get a request.
+	// This has a buffer so that in the assumed-typical case where the
+	// test server will only start serving a few requests before they
+	// get cancelled the server's handler can be decoupled from the
+	// channel reads in the caller.
+	reqsCh := make(chan *http.Request, 8)
+
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		// We intentionally don't take any action on this request until
+		// the test cleanup function runs, but we will notify our
+		// caller that the request was started.
+		//
+		// We'll also accept getting told to clean up before the
+		// channel write succeeds just in case the calling test exits
+		// before it reads from reqsCh.
+		select {
+		case reqsCh <- req:
+		case <-cleanupCh:
+		}
+		// If we managed to send req to reqsCh above then we still
+		// need to wait for cleanupCh to close. The following is
+		// no-op if the channel is already closed.
+		<-cleanupCh
+		// If any client is still connected by the time we get here then
+		// we'll respond quickly just to get their connection closed.
+		// This is unlikely but could potentially happen if a new client
+		// connects in the narrow time window between us closing the
+		// existing client connections and fully closing the server,
+		// after cleanupCh is already closed: in that case the new client
+		// will get a 500 Internal Server Error response immediately.
+		w.WriteHeader(500)
+	}))
+	t.Logf("testHangServer is running at %s", server.URL)
+
+	t.Cleanup(func() {
+		t.Helper()
+		t.Log("shutting down testHangServer")
+		close(cleanupCh)                // terminate any active handlers
+		close(reqsCh)                   // unblock any test that's awaiting a request notification
+		server.CloseClientConnections() // force any active clients to disconnect
+		server.Close()                  // stop accepting new requests and wait for existing ones to stop
+	})
+	return server, reqsCh
 }

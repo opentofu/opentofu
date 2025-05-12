@@ -216,7 +216,7 @@ func TestBackendConfig(t *testing.T) {
 
 			obj = newObj
 
-			confDiags := b.Configure(obj)
+			confDiags := b.Configure(t.Context(), obj)
 			if tc.ExpectConnectionError != "" {
 				err := confDiags.InConfigBody(config, "").ErrWithWarnings()
 				if err == nil {
@@ -292,12 +292,12 @@ func TestBackendConfig(t *testing.T) {
 				}
 			}
 
-			_, err = b.StateMgr(backend.DefaultStateName)
+			_, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -484,12 +484,12 @@ func TestBackendConfigSkipOptions(t *testing.T) {
 				}
 			}
 
-			_, err = b.StateMgr(backend.DefaultStateName)
+			_, err = b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			s, err := b.StateMgr(backend.DefaultStateName)
+			s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -602,7 +602,7 @@ func TestBackendConcurrentLock(t *testing.T) {
 		if b == nil {
 			t.Fatal("Backend could not be configured")
 		}
-		stateMgr, err := b.StateMgr(backend.DefaultStateName)
+		stateMgr, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 		if err != nil {
 			t.Fatalf("Failed to get the state manager: %v", err)
 		}
