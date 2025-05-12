@@ -25,9 +25,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/opentofu/opentofu/internal/communicator/remote"
 	"github.com/zclconf/go-cty/cty"
 	"golang.org/x/crypto/ssh"
+
+	"github.com/opentofu/opentofu/internal/communicator/remote"
 )
 
 // private key for mock server
@@ -326,7 +327,9 @@ func TestLostConnection(t *testing.T) {
 		t.Fatalf("error creating communicator: %s", err)
 	}
 	defer func() {
-		if err := c.Disconnect(); err != nil {
+		// On Darwin systems it seems that calling Disconnect on a closed
+		// connection will return an error.  This is not the case on other platforms.
+		if err := c.Disconnect(); err != nil && !strings.Contains(err.Error(), "use of closed network connection") {
 			t.Fatal(err)
 		}
 	}()
