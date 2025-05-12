@@ -93,7 +93,7 @@ func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) (string, 
 			t.Errorf("Unable to accept incoming connection: %s", err)
 		}
 		defer c.Close()
-		conn, chans, _, err := ssh.NewServerConn(c, serverConfig)
+		_, chans, _, err := ssh.NewServerConn(c, serverConfig)
 		if err != nil {
 			t.Logf("Handshaking error: %v", err)
 		}
@@ -131,11 +131,6 @@ func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) (string, 
 				}
 			}(requests)
 		}
-
-		wg.Wait()
-		t.Log("Close")
-
-		conn.Close()
 	}()
 
 	return l.Addr().String(), func() { wg.Wait() }
