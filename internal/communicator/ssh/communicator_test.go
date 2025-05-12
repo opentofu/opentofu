@@ -110,7 +110,7 @@ func newMockLineServer(t *testing.T, signer ssh.Signer, pubKey string) string {
 					// this will block keepalive probes, and can simulate a
 					// hung connection.
 					if bytes.Contains(req.Payload, []byte("sleep")) {
-						time.Sleep(time.Second)
+						time.Sleep(time.Second * 2)
 					}
 
 					if req.WantReply {
