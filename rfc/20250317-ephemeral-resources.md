@@ -173,11 +173,218 @@ Whenever doing so, the output of the provisioner execution should be suppressed.
 When the `connection` block is configured, this will be allowed to use ephemeral values from variables, outputs, locals and values from ephemeral resources. 
 
 ## User Documentation
+For a better understanding on what to expect from this proposal, let's start with an example.
+### Configuration
+#### `./mod/main.tf`
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.0.0-beta1"
+    }
+  }
+}
 
-Describe what the user would encounter when attempting to interact with what is being proposed. Provide clear and detailed descriptions, code examples, diagrams, etc... Starting point for the documentation that will be added during implementation.
+variable "secret_map" {
+  type      = map(string)
+  default   = {
+    "key_from_module": "default value from module"
+  }
+  ephemeral = true # (1)
+}
 
+variable "secret_version" { # (2)
+  type    = number
+  default = 1
+}
 
+resource "aws_secretsmanager_secret" "manager" {
+  name = "ephemeral-rfc-example"
+}
 
+resource "aws_secretsmanager_secret_version" "secret_creation" {
+  secret_id                = aws_secretsmanager_secret.manager.arn
+  secret_string_wo         = jsonencode(var.secret_map)
+  secret_string_wo_version = var.secret_version
+}
+
+ephemeral "aws_secretsmanager_secret_version" "secret_retrieval" { # (3)
+  secret_id  = aws_secretsmanager_secret.manager.arn
+  depends_on = [
+    aws_secretsmanager_secret_version.secret_creation
+  ]
+}
+
+output "secrets" {
+  ephemeral = true # (4)
+  value     = jsondecode(ephemeral.aws_secretsmanager_secret_version.secret_retrieval.secret_string)
+}```
+
+#### `./main.tf`
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.0.0-beta1"
+    }
+  }
+}
+provider "aws" {}
+
+variable "secrets" {
+  type = map(string)
+  default = {
+    "key_from_root" : "default value from root"
+  }
+  ephemeral = false # (5)
+}
+
+module "secret_management" {
+  source         = "./mod"
+  secret_map     = var.secrets
+  secret_version = 1
+}
+
+resource "aws_secretsmanager_secret" "store_ephemeral_in_here" { # (6)
+  name = "ephemeral-rfc-example-just-store" 
+}
+
+resource "aws_secretsmanager_secret_version" "store_from_ephemeral_output" {
+  secret_id                = aws_secretsmanager_secret.store_ephemeral_in_here.arn
+  secret_string_wo         = jsonencode(module.secret_management.secrets) # (7)
+  secret_string_wo_version = 1
+}
+
+output "write_only_out" { # (8)
+  value     = aws_secretsmanager_secret_version.store_from_ephemeral_output.secret_string_wo
+  sensitive = true
+}
+
+resource "aws_s3_object" "obj" {
+  bucket = "opentofu-yottta-tofu-state"
+  key    = "test"
+
+  provisioner "local-exec" {
+    when    = create
+    command = "echo non-ephemeral value: ${aws_secretsmanager_secret.store_ephemeral_in_here.arn}"
+  }
+
+  # provisioner "local-exec" { # (9)
+  #   when    = create
+  #   command = "echo write-only value: ${aws_secretsmanager_secret_version.store_from_ephemeral_output.secret_string_wo}"
+  # }
+
+  provisioner "local-exec" { # (10)
+    when    = create
+    command = "echo ephemeral value from module: #${jsonencode(module.secret_management.secrets)}#"
+  }
+
+  provisioner "local-exec" {
+    when    = create
+    command = "echo non-ephemeral variable from root: #${jsonencode(var.secrets)}#"
+  }
+}```
+
+1. Variables will be able to be marked as ephemeral. By doing so, those will be able to be used only in ephemeral contexts.
+2. Version field that is going together with the actual write-only argument to be able to update the value of it. To upgrade the secret, the version field needs to be updated, otherwise OpenTofu will generate not diff for it.
+3. Using ephemeral resource to retrieve the secret. Maybe looks a little bit weird, because right above we are having the resource of the same type that is looking like it should be able to be used to get the secret. In reality, because that `resource` is using `secret_string_wo` to store the information, that field is going to be null when referenced. Check (8) for more details.
+4. Module output that is referencing an ephemeral value, it needs to be marked as ephemeral too. Otherwise, OpenTofu will generate an error.
+5. To be able to call a module with an ephemeral variable, the variable used for it doesn't need to be ephemeral. The value can also be a hardcoded value without being ephemeral.
+6. Here we used another `aws_secretsmanager_secret` just having an easier example on how ephemeral/write-only/(ephemeral variables)/(ephemeral outputs) are working together. But there will be more and more resources that will allow to work with this new concept.
+7. Referencing a module ephemeral output to ensure that the ephemeral information is passed correctly between two modules.
+8. Creating an output that is referencing a write-only argument *requires* the output to be marked as sensitive. 
+  > [!WARNING]
+  >
+  > Shouldn't we also show an error similar to the error that is proposed to be shown when the root module is having an output marked as ephemeral?
+9. That is commented out because interpolation on null values does not work. Reminder: a write-only argument will always be returned as null from the provider even when the configuration was actually having a value.
+10. A provisioner that is referencing an ephemeral value (module output) will have its output supressed. See more details in the next chapter.
+
+### CLI Output
+
+```
+module.secret_management.ephemeral.aws_secretsmanager_secret_version.secret_retrieval: Configuration unknown, deferring... (11)
+
+  # aws_s3_object.obj will be created
+  + resource "aws_s3_object" "obj" {
+      + bucket                 = "bucket-name"
+      + force_destroy          = false
+      + key                    = "test"
+      + region                 = "eu-central-1"
+      # ...
+    }
+
+  # aws_secretsmanager_secret.store_ephemeral_in_here will be created
+  + resource "aws_secretsmanager_secret" "store_ephemeral_in_here" {
+      + force_overwrite_replica_secret = false
+      + name                           = "ephemeral-rfc-example-just-store"
+      + recovery_window_in_days        = 30
+      + region                         = "eu-central-1"
+      # ...
+    }
+
+  # aws_secretsmanager_secret_version.store_from_ephemeral_output will be created
+  + resource "aws_secretsmanager_secret_version" "store_from_ephemeral_output" {
+      + region                   = "eu-central-1"
+      + secret_string_wo         = (write-only attribute)
+      + secret_string_wo_version = 1
+      # ...
+    }
+
+  # module.secret_management.aws_secretsmanager_secret.manager will be created
+  + resource "aws_secretsmanager_secret" "manager" {
+      + force_overwrite_replica_secret = false
+      + name                           = "ephemeral-rfc-example"
+      + recovery_window_in_days        = 30
+      + region                         = "eu-central-1"
+      # ...
+    }
+
+  # module.secret_management.aws_secretsmanager_secret_version.secret_creation will be created
+  + resource "aws_secretsmanager_secret_version" "secret_creation" {
+      + region                   = "eu-central-1"
+      + secret_string_wo         = (write-only attribute)
+      + secret_string_wo_version = 2
+      # ...
+    } 
+^^^ (12)
+
+Plan: 5 to add, 0 to change, 0 to destroy.
+
+module.secret_management.aws_secretsmanager_secret.manager: Creating...
+aws_secretsmanager_secret.store_ephemeral_in_here: Creating...
+module.secret_management.aws_secretsmanager_secret.manager: Creation complete after 1s [id=arn:aws:secretsmanager:eu-central-1:ACC_ID:secret:ephemeral-rfc-example-xxxxxx]
+module.secret_management.aws_secretsmanager_secret_version.secret_creation: Creating...
+aws_secretsmanager_secret.store_ephemeral_in_here: Creation complete after 1s [id=arn:aws:secretsmanager:eu-central-1:ACC_ID:secret:ephemeral-rfc-example-just-store-xxxxxx]
+module.secret_management.aws_secretsmanager_secret_version.secret_creation: Creation complete after 0s [id=arn:aws:secretsmanager:eu-central-1:ACC_ID:secret:ephemeral-rfc-example-xxxxxx]
+module.secret_management.ephemeral.aws_secretsmanager_secret_version.secret_retrieval: Opening... <--- (13)
+module.secret_management.ephemeral.aws_secretsmanager_secret_version.secret_retrieval: Opening complete after 0s
+aws_secretsmanager_secret_version.store_from_ephemeral_output: Creating...
+aws_s3_object.obj: Creating...
+aws_secretsmanager_secret_version.store_from_ephemeral_output: Creation complete after 0s [id=arn:aws:secretsmanager:eu-central-1:ACC_ID:secret:ephemeral-rfc-example-just-store-xxxxxx]
+aws_s3_object.obj: Provisioning with 'local-exec'...
+aws_s3_object.obj (local-exec): Executing: ["/bin/sh" "-c" "echo non-ephemeral value: arn:aws:secretsmanager:eu-central-1:ACC_ID:secret:ephemeral-rfc-example-just-store-xxxxxx"]
+aws_s3_object.obj (local-exec): non-ephemeral value: arn:aws:secretsmanager:eu-central-1:ACC_ID:secret:ephemeral-rfc-example-just-store-xxxxxx
+aws_s3_object.obj: Provisioning with 'local-exec'...
+aws_s3_object.obj (local-exec): (output suppressed due to ephemeral value in config) <--- (14)
+aws_s3_object.obj (local-exec): (output suppressed due to ephemeral value in config)
+aws_s3_object.obj: Provisioning with 'local-exec'...
+aws_s3_object.obj (local-exec): Executing: ["/bin/sh" "-c" "echo ephemeral value from root: #{\"key_from_root\":\"default value from root\"}#"]
+aws_s3_object.obj (local-exec): ephemeral value from root:
+aws_s3_object.obj: Creation complete after 0s [id=test]
+module.secret_management.ephemeral.aws_secretsmanager_secret_version.secret_retrieval: Closing... <--- (15)
+module.secret_management.ephemeral.aws_secretsmanager_secret_version.secret_retrieval: Closing complete after 0s
+
+Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+```
+
+Breakdown:
+11. If an ephemeral block is referencing any unknown value, the opening is deferred for later, when the value will be known.
+12. As can be seen, the ephemeral resources are not shown in the list of changes. The only mention of those is in the actual action logs where we can see that it opens and closing those.
+13. This will be visible in the action logs, while an ephemeral resource will be opened.
+14. This is how a provisioner output should look like when an ephemeral value is used inside.
+15. This will be visible in the action logs, while an ephemeral resource will be closed.
 
 ## Technical Approach
 In this section, as in the "Proposed Solution" section, we'll go over each concept, but this time with a more technical focus.
@@ -214,6 +421,7 @@ For enabling ephemeral variables, these are the basic steps that need to be take
   var.password (ephemeral)
      Enter a value:
   ````
+* If a module is having an ephemeral variable declared, that variable can get values from any source, even another non-ephemeral variable.
 
 We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
 
@@ -336,7 +544,7 @@ Observations:
 
 > [!NOTE]
 >
-> If any information in the configuration of an ephemeral resource is unknown during the `plan` phase, OpenTofu needs to defer the provisioning of the resource for the `apply` phase.
+> If any information in the configuration of an ephemeral resource is unknown during the `plan` phase, OpenTofu will defer the provisioning of the resource for the `apply` phase.
 
 #### `Renew` method details
 The `Renew` method is called only if the response from `Open` or another `Renew` call is containing a `RenewAt`.
