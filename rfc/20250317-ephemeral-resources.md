@@ -6,6 +6,7 @@ Right now, OpenTofu information for resources and outputs are written to state a
 as some of the information from the stored objects can contain sensitive bits that can become visible to whoever is having access to the state file.
 
 In order to provide a better solution for the aforementioned situation, OpenTofu introduces the concept of "ephemerality".
+Any new feature under this new concept will provide ways to skip values from being written to the state and plan files.
 
 To make this work seamlessly with most of the blocks that OpenTofu supports, the following functionalities need to be able to work with the ephemeral concept:
 * `resource`'s `write-only` attributes
@@ -20,7 +21,7 @@ To make this work seamlessly with most of the blocks that OpenTofu supports, the
 ## Proposed Solution
 
 In the attempt of providing to the reader an in-depth understanding of the ephemerality implications in OpenTofu,
-this section will try to explain the functional implications of the new concept in each existing feature.
+this section will try to explain the functional approach of the new concept in each existing feature.
 
 ### Write-only attributes
 This is a new concept that allows any existing `resource` to define attributes in its schema that can be only written without the ability to retrieve the value afterwards.
@@ -115,9 +116,11 @@ The ephemeral outputs are available during plan and apply phase and can be acces
 * other ephemeral outputs
 * write-only attributes
 * ephemeral resources
+* `provisioner` block
+* `connection` block
 
 ### Locals
-Local values are automatically marked as ephemeral if any of value that is used to compute the local is already an ephemeral one.
+Local values are automatically marked as ephemeral if any of the value that is used to compute the local is already an ephemeral one.
 
 Eg:
 ```hcl
@@ -143,12 +146,13 @@ Locals marked as ephemeral are available during plan and apply phase and can be 
 * other ephemeral locals
 * write-only attributes
 * ephemeral resources
-* provider blocks configuration
+* `provider` blocks configuration
 * `connection` and `provisioner` blocks
 
 ### Ephemeral resource
 In contrast with the write-only arguments where only specifically tagged attributes are skipped from the state/plan file, `ephemeral` resources are skipped entirely.
-This is adding a new idea of generating a resource every time. 
+The ephemeral blocks are behaving similar to `data`, where it reads the indicated resource and once it's done with it, is going to close it.
+
 For example, you can have an ephemeral resource that is retrieving the password from a secret manager, password that can be passed later into a write-only attribute of another normal `resource`.
 
 Ephemeral resources can be referenced only in specific contexts:
@@ -163,12 +167,15 @@ Ephemeral resources can be referenced only in specific contexts:
 ### Providers
 `provider` block is ephemeral by nature, meaning that the configuration of this is never stored into state/plan file.
 
-Therefore, this block should be configurable by using also ephemeral values.
+Therefore, this block should be configurable by using ephemeral values.
 
 ### `provisioner` block
 As `provisioner` information is not stored into the plan/state file, this can reference ephemeral values like ephemeral variables, outputs, locals and values from ephemeral resources.
 
-Whenever doing so, the output of the provisioner execution should be suppressed.
+Whenever doing so, the output of the provisioner execution should be suppressed:
+```shell
+(local-exec): (output suppressed due to ephemeral value in config)
+```
 ### `connection` block
 When the `connection` block is configured, this will be allowed to use ephemeral values from variables, outputs, locals and values from ephemeral resources. 
 
@@ -219,7 +226,8 @@ ephemeral "aws_secretsmanager_secret_version" "secret_retrieval" { # (3)
 output "secrets" {
   ephemeral = true # (4)
   value     = jsondecode(ephemeral.aws_secretsmanager_secret_version.secret_retrieval.secret_string)
-}```
+}
+```
 
 #### `./main.tf`
 ```hcl
@@ -285,26 +293,27 @@ resource "aws_s3_object" "obj" {
     when    = create
     command = "echo non-ephemeral variable from root: #${jsonencode(var.secrets)}#"
   }
-}```
+}
+```
 
-1. Variables will be able to be marked as ephemeral. By doing so, those will be able to be used only in ephemeral contexts.
-2. Version field that is going together with the actual write-only argument to be able to update the value of it. To upgrade the secret, the version field needs to be updated, otherwise OpenTofu will generate not diff for it.
-3. Using ephemeral resource to retrieve the secret. Maybe looks a little bit weird, because right above we are having the resource of the same type that is looking like it should be able to be used to get the secret. In reality, because that `resource` is using `secret_string_wo` to store the information, that field is going to be null when referenced. Check (8) for more details.
-4. Module output that is referencing an ephemeral value, it needs to be marked as ephemeral too. Otherwise, OpenTofu will generate an error.
-5. To be able to call a module with an ephemeral variable, the variable used for it doesn't need to be ephemeral. The value can also be a hardcoded value without being ephemeral.
-6. Here we used another `aws_secretsmanager_secret` just having an easier example on how ephemeral/write-only/(ephemeral variables)/(ephemeral outputs) are working together. But there will be more and more resources that will allow to work with this new concept.
-7. Referencing a module ephemeral output to ensure that the ephemeral information is passed correctly between two modules.
-8. Creating an output that is referencing a write-only argument *requires* the output to be marked as sensitive. 
+- (1) Variables will be able to be marked as ephemeral. By doing so, those will be able to be used only in ephemeral contexts.
+- (2) Version field that is going together with the actual write-only argument to be able to update the value of it. To upgrade the secret, the version field needs to be updated, otherwise OpenTofu will generate no diff for it.
+- (3) Using ephemeral resource to retrieve the secret. Maybe looks a little bit weird, because right above we are having the resource of the same type that is looking like it should be able to be used to get the secret. In reality, because that `resource` is using `secret_string_wo` to store the information, that field is going to be null when referenced. Check (9) for more details.
+- (4) Module output that is referencing an ephemeral value, it needs to be marked as ephemeral too. Otherwise, OpenTofu will generate an error.
+- (5) The variable that is going to be used in an ephemeral variable, is not required to be ephemeral. The value can also be a hardcoded value without being ephemeral.
+- (6) Here we used another `aws_secretsmanager_secret` just to have an easier example on how ephemeral/write-only/(ephemeral variables)/(ephemeral outputs) are working together. But there will be more and more resources that will allow to work with this new concept.
+- (7) Referencing a module ephemeral output to ensure that the ephemeral information is passed correctly between two modules.
+- (8) Creating an output that is referencing a write-only argument *requires* the output to be marked as sensitive. 
   > [!WARNING]
   >
   > Shouldn't we also show an error similar to the error that is proposed to be shown when the root module is having an output marked as ephemeral?
-9. That is commented out because interpolation on null values does not work. Reminder: a write-only argument will always be returned as null from the provider even when the configuration was actually having a value.
-10. A provisioner that is referencing an ephemeral value (module output) will have its output supressed. See more details in the next chapter.
+- (9) That is commented out because interpolation on null values is not allowed in OpenTofu. Reminder: a write-only argument will always be returned as null from the provider even when the configuration is actually having a value.
+- (10) A provisioner that is referencing an ephemeral value (module output) will have its output supressed. See more details in the next section.
 
 ### CLI Output
 
 ```
-module.secret_management.ephemeral.aws_secretsmanager_secret_version.secret_retrieval: Configuration unknown, deferring... (11)
+module.secret_management.ephemeral.aws_secretsmanager_secret_version.secret_retrieval: Configuration unknown, deferring... <--- (11)
 
   # aws_s3_object.obj will be created
   + resource "aws_s3_object" "obj" {
@@ -380,11 +389,11 @@ Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
 ```
 
 Breakdown:
-11. If an ephemeral block is referencing any unknown value, the opening is deferred for later, when the value will be known.
-12. As can be seen, the ephemeral resources are not shown in the list of changes. The only mention of those is in the actual action logs where we can see that it opens and closing those.
-13. This will be visible in the action logs, while an ephemeral resource will be opened.
-14. This is how a provisioner output should look like when an ephemeral value is used inside.
-15. This will be visible in the action logs, while an ephemeral resource will be closed.
+- (11) - If an ephemeral block is referencing any unknown value, the opening is deferred for later, when the value will be known.
+- (12).  As can be seen, the ephemeral resources are not shown in the list of changes. The only mention of those is in the actual action logs where we can see that it opens and closing those.
+- (13).  This will be visible in the action logs, while an ephemeral resource will be opened.
+- (14).  This is how a provisioner output should look like when an ephemeral value is used inside.
+- (15).  This will be visible in the action logs, while an ephemeral resource will be closed.
 
 ## Technical Approach
 In this section, as in the "Proposed Solution" section, we'll go over each concept, but this time with a more technical focus.
