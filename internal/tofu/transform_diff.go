@@ -116,7 +116,7 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 		// A deposed instance may only have a change of Delete, Forget or NoOp.
 		// A NoOp can happen if the provider shows it no longer exists during
 		// the most recent ReadResource operation.
-		if dk != states.NotDeposed && !(rc.Action == plans.Delete || rc.Action == plans.NoOp || rc.Action == plans.Forget) {
+		if dk != states.NotDeposed && rc.Action != plans.Delete && rc.Action != plans.NoOp && rc.Action != plans.Forget {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid planned change for deposed object",
