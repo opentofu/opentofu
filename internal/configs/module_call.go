@@ -151,8 +151,9 @@ func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics 
 	mc.decodeStaticVariables(eval)
 
 	var diags hcl.Diagnostics
-	diags = diags.Extend(mc.decodeStaticSource(eval))
 	diags = diags.Extend(mc.decodeStaticVersion(eval))
+	// decodeStaticSource depends on mc.VersionAttr, so it must be called after decodeStaticVersion
+	diags = diags.Extend(mc.decodeStaticSource(eval))
 	return diags
 }
 
@@ -238,6 +239,12 @@ func (mc *ModuleCall) decodeStaticVersion(eval *StaticEvaluator) hcl.Diagnostics
 	})
 	diags = diags.Extend(valDiags)
 	if diags.HasErrors() {
+		return diags
+	}
+
+	// If the version evaluates to null, treat it as if no version was specified
+	if val.IsNull() {
+		mc.VersionAttr = nil
 		return diags
 	}
 

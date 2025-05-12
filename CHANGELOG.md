@@ -43,6 +43,7 @@ ENHANCEMENTS:
 * The `tofu show` command now supports a new explicit and extensible usage style, with `-state` and `-plan=PLANFILE` options. The old style with zero or one positional arguments is still supported for backward-compatibility. ([#2699](https://github.com/opentofu/opentofu/pull/2699))
 * `removed` now supports `lifecycle` and `provisioner` configuration. ([#2556](https://github.com/opentofu/opentofu/issues/2556))
 * "force-unlock" option is now supported by the HTTP backend. ([#2381](https://github.com/opentofu/opentofu/pull/2381))
+* Module version constraints now support `null` values, which are treated as if no version was specified. ([#2660](https://github.com/opentofu/opentofu/pull/2660))
 
 BUG FIXES:
 

@@ -11,7 +11,9 @@ import (
 	"testing"
 
 	"github.com/go-test/deep"
+	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 
@@ -193,5 +195,123 @@ func TestModuleSourceAddrEntersNewPackage(t *testing.T) {
 				t.Errorf("wrong result for %q\ngot:  %#v\nwant:  %#v", addr, got, test.Want)
 			}
 		})
+	}
+}
+
+func TestModuleCallWithVersion(t *testing.T) {
+	src, err := os.ReadFile("testdata/valid-files/modules-with-version.tf")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	parser := testParser(map[string]string{
+		"modules-with-version.tf": string(src),
+	})
+
+	file, diags := parser.LoadConfigFile("modules-with-version.tf")
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Error())
+	}
+
+	// Create a module from the loaded file
+	mod, diags := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "testdata", SelectiveLoadAll)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors creating module: %s", diags.Error())
+	}
+
+	gotModules := file.ModuleCalls
+	wantModules := []*ModuleCall{
+		{
+			Name:          "foo",
+			SourceAddr:    addrs.ModuleSourceLocal("./foo"),
+			SourceAddrRaw: "./foo",
+			SourceSet:     true,
+			DeclRange: hcl.Range{
+				Filename: "modules-with-version.tf",
+				Start:    hcl.Pos{Line: 4, Column: 1, Byte: 35},
+				End:      hcl.Pos{Line: 4, Column: 13, Byte: 47},
+			},
+		},
+		{
+			Name: "foo_remote",
+			SourceAddr: addrs.ModuleSourceRegistry{
+				Package: addrs.ModuleRegistryPackage{
+					Host:         addrs.DefaultModuleRegistryHost,
+					Namespace:    "hashicorp",
+					Name:         "foo",
+					TargetSystem: "bar",
+				},
+			},
+			SourceAddrRaw: "hashicorp/foo/bar",
+			SourceSet:     true,
+			VersionAttr: &hcl.Attribute{
+				Name: "version",
+				Expr: &hclsyntax.ScopeTraversalExpr{
+					SrcRange: hcl.Range{
+						Filename: "modules-with-version.tf",
+						Start:    hcl.Pos{Line: 14, Column: 13, Byte: 214},
+						End:      hcl.Pos{Line: 14, Column: 37, Byte: 238},
+					},
+					Traversal: hcl.Traversal{
+						hcl.TraverseRoot{
+							Name: "local",
+							SrcRange: hcl.Range{
+								Filename: "modules-with-version.tf",
+								Start:    hcl.Pos{Line: 14, Column: 13, Byte: 214},
+								End:      hcl.Pos{Line: 14, Column: 18, Byte: 219},
+							},
+						},
+						hcl.TraverseAttr{
+							Name: "module_version_set",
+							SrcRange: hcl.Range{
+								Filename: "modules-with-version.tf",
+								Start:    hcl.Pos{Line: 14, Column: 18, Byte: 219},
+								End:      hcl.Pos{Line: 14, Column: 37, Byte: 238},
+							},
+						},
+					},
+				},
+				Range: hcl.Range{
+					Filename: "modules-with-version.tf",
+					Start:    hcl.Pos{Line: 14, Column: 3, Byte: 204},
+					End:      hcl.Pos{Line: 14, Column: 37, Byte: 238},
+				},
+				NameRange: hcl.Range{
+					Filename: "modules-with-version.tf",
+					Start:    hcl.Pos{Line: 14, Column: 3, Byte: 204},
+					End:      hcl.Pos{Line: 14, Column: 10, Byte: 211},
+				},
+			},
+			Version: VersionConstraint{
+				Required: version.MustConstraints(version.NewConstraint("1.0.0")),
+				DeclRange: hcl.Range{
+					Filename: "modules-with-version.tf",
+					Start:    hcl.Pos{Line: 14, Column: 3, Byte: 204},
+					End:      hcl.Pos{Line: 14, Column: 37, Byte: 238},
+				},
+			},
+			DeclRange: hcl.Range{
+				Filename: "modules-with-version.tf",
+				Start:    hcl.Pos{Line: 12, Column: 1, Byte: 148},
+				End:      hcl.Pos{Line: 12, Column: 20, Byte: 167},
+			},
+		},
+	}
+
+	for _, m := range gotModules {
+		// Create a static evaluator with the module context
+		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
+		diags := m.decodeStaticFields(eval)
+		if diags.HasErrors() {
+			t.Fatal(diags.Error())
+		}
+		m.Source = nil
+		m.Config = nil
+		m.Count = nil
+		m.ForEach = nil
+	}
+
+	for _, problem := range deep.Equal(gotModules, wantModules) {
+		t.Error(problem)
 	}
 }
