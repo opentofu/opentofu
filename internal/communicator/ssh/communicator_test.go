@@ -199,7 +199,11 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating communicator: %s", err)
 	}
-	defer c.Disconnect()
+	defer func() {
+		if err := c.Disconnect(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	var cmd remote.Cmd
 	stdout := new(bytes.Buffer)
@@ -235,7 +239,11 @@ func TestKeepAlives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating communicator: %s", err)
 	}
-	defer c.Disconnect()
+	defer func() {
+		if err := c.Disconnect(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	if err := c.Connect(nil); err != nil {
 		t.Fatal(err)
@@ -284,7 +292,11 @@ func TestFailedKeepAlives(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating communicator: %s", err)
 	}
-	defer c.Disconnect()
+	defer func() {
+		if err := c.Disconnect(); err == nil {
+			t.Fatal("Disconnect error expected")
+		}
+	}()
 
 	if err := c.Connect(nil); err != nil {
 		t.Fatal(err)
@@ -318,7 +330,11 @@ func TestLostConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error creating communicator: %s", err)
 	}
-	defer c.Disconnect()
+	defer func() {
+		if err := c.Disconnect(); err != nil {
+			t.Fatal(err)
+		}
+	}()
 
 	var cmd remote.Cmd
 	stdout := new(bytes.Buffer)
