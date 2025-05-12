@@ -34,6 +34,7 @@ ENHANCEMENTS:
 * Remove progress messages from commands using -concise argument ([#2549](https://github.com/opentofu/opentofu/issues/2549))
 * Upgrade aws-sdk version to include `mx-central-1` region. ([#2596](https://github.com/opentofu/opentofu/pull/2596))
 * When installing a provider from a source that offers a `.zip` archive of a provider package but that cannot also offer a signed set of official checksums for the provider, OpenTofu will now include its locally-verified zip archive checksum (`zh:` scheme) in the dependency lock file in addition to the package contents checksum (`h1:` checksum) previously recorded. This makes it more likely that a future reinstall of the same package from a different source will be verified successfully. ([#2656](https://github.com/opentofu/opentofu/pull/2656))
+* Module version constraints now support `null` values, which are treated as if no version was specified. ([#2660](https://github.com/opentofu/opentofu/pull/2660))
 
 BUG FIXES:
 
