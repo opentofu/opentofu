@@ -188,8 +188,6 @@ Locals marked as ephemeral are available during plan and apply phase and can be 
 In contrast with the write-only arguments where only specifically tagged attributes are not stored in the state/plan file, `ephemeral` resources are not stored entirely.
 The ephemeral blocks are behaving similar to `data`, where it reads the indicated resource and once it's done with it, is going to close it.
 
-For example, you can have an ephemeral resource that is retrieving the password from a secret manager, password that can be passed later into a write-only attribute of another normal `resource`.
-
 Ephemeral resources can be referenced only in specific contexts:
 * other ephemeral resources
 * ephemeral variables
@@ -199,6 +197,25 @@ Ephemeral resources can be referenced only in specific contexts:
 * in `provisioner` and `connection` blocks
 * in write-only arguments
 
+For example, you can have an ephemeral resource that is retrieving the password from a secret manager, password that can be passed later into a write-only attribute of another normal `resource`.
+To do so, the flow of an ephemeral resource should look similar to the following:
+* Requests the information from the provider.
+* Is passing it into the evaluation context that will be used to evaluate expressions that are referencing it.
+  * Is not storing the value in plan or state file.
+* When accessing the value, OpenTofu will have to check for the presence of the `RenewAt`:
+  * If the timestamp is having a value and the current timestamp is at or over the timestamp indicated by `RenewAt`, call the provider `Renew` method.
+* When a reference is found to an ephemeral resource, OpenTofu should double check that the attribute referencing it is allowed to do so.
+  * See the contexts above where an ephemeral resource can be referenced.
+* At the end, the ephemeral resource needs to be closed. OpenTofu should call `Close` on the provider for all opened ephemeral resources.
+
+Beside the attributes in a schema of an ephemeral resource, the block should support also the meta-arguments existing in OpenTofu:
+* `depends_on`
+* `count`
+* `for_each`
+* `provider`
+* `lifecycle`
+
+The meta-argument `provisioner` should not be supported.
 ### Providers
 `provider` block is ephemeral by nature, meaning that the configuration of this is never stored into state/plan file.
 
