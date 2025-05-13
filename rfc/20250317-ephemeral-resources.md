@@ -483,6 +483,17 @@ For enabling ephemeral variables, these are the basic steps that need to be take
      Enter a value:
   ```
 * If a module is having an ephemeral variable declared, that variable can get values from any source, even another non-ephemeral variable.
+* A variable that is not marked as ephemeral should not be able to reference an ephemeral value. A non-ephemeral variable will not become ephemeral when referencing an ephemeral value. Instead, OpenTofu should show an error:
+  ```shell
+  │ Error: Invalid usage of ephemeral value
+  │
+  │   on main.tf line 21, in module "secret_management":
+  │   21:   secret_map     = var.secrets
+  │
+  │ Variable `secret_map` is not marked as ephemeral. Therefore, it cannot reference an ephemeral value. In case this is actually wanted, you can add the following attribute to its declaration:
+  │   ephemeral = true
+
+  ```
 
 We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
 
@@ -554,7 +565,7 @@ locals {
 }
 ```
 
-Once a local is marked as ephemeral, this can be used only in other ephemeral contexts. Check the `User Documentation` section for more details on the allowed contexts.
+Once a local is marked as ephemeral, this can be used only in other ephemeral contexts. Check the `Proposed Solution` section for more details on the allowed contexts.
 
 ### Ephemeral resources
 Due to the fact ephemeral resources are not stored in the state/plan file, this block is not creating a diff in the OpenTofu's UI.
