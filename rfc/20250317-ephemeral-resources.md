@@ -627,8 +627,8 @@ Observations:
 > If any information in the configuration of an ephemeral resource is unknown during the `plan` phase, OpenTofu should defer the provisioning of the resource for the `apply` phase. This means that inconsistency can occur between the plan and the apply phase.
 
 #### `Renew` method details
-The `Renew` method is called only if the response from `Open` or another `Renew` call is containing a `RenewAt`.
-When `RenewAt` is present, OpenTofu, before using the `Result` from the `Open` method response, should check if the current timestamp is at or over `RenewAt` and should call the `Renew` method by providing the previously returned `Private` information.
+The `Renew` method is called only if the response from `Open` or another `Renew` call is containing a valid `RenewAt` value.
+When `RenewAt` is present, OpenTofu, before using the `Result` from the `Open` method response, should check if the current timestamp is at or over `RenewAt` and should call the `Renew` method by providing the previously returned `Private` information, that could be from the `Open` call or a previous `Renew` call.
 
 > [!NOTE]
 > 
@@ -636,8 +636,7 @@ When `RenewAt` is present, OpenTofu, before using the `Result` from the `Open` m
 > Due to this, `Renew` is only useful for systems where an entity can be renewed without generating new data.
 
 #### `Close` method details
-When OpenTofu is done using an ephemeral resource, it needs to call its `Close` method to ensure that any remote data associated with the data returned in `OpenResponse.Result` is released and/or cleaned up properly.
-The `Renew` request is requiring the latest `Private` data returned by the call to `Open` or `Renew` method.
+Right before closing the provider, all the ephemeral resources that were open during the operation should be cleaned up. This means that OpenTofu needs to call `Close` on every opened ephemeral resource to ensure that any remote data associated with the data returned in `OpenResponse.Result` is released and/or cleaned up properly.
 
 #### `ConfigValidators` and `ValidateConfig` methods details
 There is not much to say here, since this is the same lifecycle that a datasource is having.
