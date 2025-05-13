@@ -624,7 +624,7 @@ Observations:
 
 > [!NOTE]
 >
-> If any information in the configuration of an ephemeral resource is unknown during the `plan` phase, OpenTofu should defer the provisioning of the resource for the `apply` phase.
+> If any information in the configuration of an ephemeral resource is unknown during the `plan` phase, OpenTofu should defer the provisioning of the resource for the `apply` phase. This means that inconsistency can occur between the plan and the apply phase.
 
 #### `Renew` method details
 The `Renew` method is called only if the response from `Open` or another `Renew` call is containing a `RenewAt`.
@@ -633,7 +633,7 @@ When `RenewAt` is present, OpenTofu, before using the `Result` from the `Open` m
 > [!NOTE]
 > 
 > `Renew` does not return a *new* information meant to replace the initial `Result` returned by the `Open` call.
-> Due to this, `Renew` is only useful for systems similar to Vault/OpenBao where the lease can be renewed without generating new data.
+> Due to this, `Renew` is only useful for systems where an entity can be renewed without generating new data.
 
 #### `Close` method details
 When OpenTofu is done using an ephemeral resource, it needs to call its `Close` method to ensure that any remote data associated with the data returned in `OpenResponse.Result` is released and/or cleaned up properly.
