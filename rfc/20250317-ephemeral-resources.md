@@ -505,7 +505,7 @@ For enabling ephemeral outputs, these are the basic steps that need to be taken:
 > For an example on how to properly introduce a new mark in the outputs, you can check the [PR](https://github.com/opentofu/opentofu/pull/2633) for the deprecated outputs.
 
 Strict rules:
-* A root module cannot define ephemeral outputs since are useless.
+* A root module cannot define ephemeral outputs.
 * Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too. Otherwise, it needs to show an error:
    ```hcl
     │ Error: Output not marked as ephemeral
