@@ -42,7 +42,7 @@ this section will try to explain the functional approach of the new concept in e
 ### Write-only attributes
 This is a new concept that allows any existing `resource` to define attributes in its schema that can be only written without the ability to retrieve the value afterwards.
 
-By not being readable, this also means that an attribute configured by a provider this way, will not be written to the state or plan file either.
+By not being readable, this also means that an attribute configured by a provider this way, should not be written to the state or plan file either.
 Therefore, these attributes are suitable for configuring specific resources with sensitive data, like passwords, access keys, etc.
 
 A write-only attribute can accept an ephemeral or a non-ephemeral value, even though it's recommended to use ephemeral values for such attributes.
@@ -63,7 +63,7 @@ resource "aws_db_instance" "example" {
   // ...
 }
 ```
-By updating **only** the `password_wo`, on the `tofu apply`, the password will not be updated.
+By updating **only** the `password_wo`, on the `tofu apply`, the password should not be updated.
 To do so, the `password_wo_version` needs to be incremented too:
 ```hcl
 resource "aws_db_instance" "example" {
@@ -76,7 +76,7 @@ resource "aws_db_instance" "example" {
 
 As seen in this particular change of the [terraform-plugin-framework](https://github.com/hashicorp/terraform-plugin-framework/commit/ecd80f67daed0b92b243ae59bb1ee2077f8077c7), the write-only attribute cannot be configured for set attributes, set nested attributes and set nested blocks.
 
-Write-only attributes cannot generate a plan diff because the prior state does not contain a value that OpenTofu can use to compare the new value against and also the planned value of a write-only argument will always be empty.
+Write-only attributes cannot generate a plan diff because the prior state does not contain a value that OpenTofu can use to compare the new value against and also the planned value of a write-only argument should always be empty.
 ### Variables
 Any `variable` block can be marked as ephemeral.
 ```hcl
@@ -85,7 +85,7 @@ variable "ephemeral_var" {
   ephemeral = true
 }
 ```
-OpenTofu will allow usage of these variables only in other ephemeral contexts:
+OpenTofu should allow usage of these variables only in other ephemeral contexts:
 * write-only arguments
 * other ephemeral variables
 * ephemeral outputs
@@ -95,7 +95,7 @@ OpenTofu will allow usage of these variables only in other ephemeral contexts:
 * connection blocks
 * provider configuration
 
-Usage in any other place will raise an error:
+Usage in any other place should raise an error:
 ```shell
 │ Error: Invalid use of an ephemeral value
 │
@@ -107,7 +107,7 @@ Usage in any other place will raise an error:
 ╵
 ```
 
-OpenTofu will not store ephemeral variable(s) in plan files. 
+OpenTofu should not store ephemeral variable(s) in plan files. 
 If a plan is generated from a configuration that is having at least one ephemeral variable, 
 when the planfile will be applied, the value(s) for the ephemeral variable(s) needs to passed again by 
 using `-var` or `-var-file` arguments.
@@ -193,7 +193,7 @@ Whenever doing so, the output of the provisioner execution should be suppressed:
 (local-exec): (output suppressed due to ephemeral value in config)
 ```
 ### `connection` block
-When the `connection` block is configured, this will be allowed to use ephemeral values from variables, outputs, locals and values from ephemeral resources. 
+When the `connection` block is configured, this should be allowed to use ephemeral values from variables, outputs, locals and values from ephemeral resources. 
 
 ## User Documentation
 For a better understanding on what to expect from this proposal, let's start with an example.
@@ -312,10 +312,10 @@ resource "aws_s3_object" "obj" {
 }
 ```
 
-- (1) Variables will be able to be marked as ephemeral. By doing so, those will be able to be used only in ephemeral contexts.
-- (2) Version field that is going together with the actual write-only argument to be able to update the value of it. To upgrade the secret, the version field needs to be updated, otherwise OpenTofu will generate no diff for it.
+- (1) Variables should be able to be marked as ephemeral. By doing so, those should be able to be used only in ephemeral contexts.
+- (2) Version field that is going together with the actual write-only argument to be able to update the value of it. To upgrade the secret, the version field needs to be updated, otherwise OpenTofu should generate no diff for it.
 - (3) Using ephemeral resource to retrieve the secret. Maybe looks a little bit weird, because right above we are having the resource of the same type that is looking like it should be able to be used to get the secret. In reality, because that `resource` is using `secret_string_wo` to store the information, that field is going to be null when referenced. Check (9) for more details.
-- (4) Module output that is referencing an ephemeral value, it needs to be marked as ephemeral too. Otherwise, OpenTofu will generate an error.
+- (4) Module output that is referencing an ephemeral value, it needs to be marked as ephemeral too. Otherwise, OpenTofu should generate an error.
 - (5) The variable that is going to be used in an ephemeral variable, is not required to be ephemeral. The value can also be a hardcoded value without being ephemeral.
 - (6) Here we used another `aws_secretsmanager_secret` just to have an easier example on how ephemeral/write-only/(ephemeral variables)/(ephemeral outputs) are working together. But there will be more and more resources that will allow to work with this new concept.
 - (7) Referencing a module ephemeral output to ensure that the ephemeral information is passed correctly between two modules.
@@ -324,7 +324,7 @@ resource "aws_s3_object" "obj" {
   >
   > Shouldn't we also show an error similar to the error that is proposed to be shown when the root module is having an output marked as ephemeral?
 - (9) That is commented out because interpolation on null values is not allowed in OpenTofu. Reminder: a write-only argument will always be returned as null from the provider even when the configuration is actually having a value.
-- (10) A provisioner that is referencing an ephemeral value (module output) will have its output supressed. See more details in the next section.
+- (10) A provisioner that is referencing an ephemeral value (module output) should have its output supressed. See more details in the next section.
 
 ### CLI Output
 
@@ -407,9 +407,9 @@ Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
 Breakdown:
 - (11) - If an ephemeral block is referencing any unknown value, the opening is deferred for later, when the value will be known.
 - (12).  As can be seen, the ephemeral resources are not shown in the list of changes. The only mention of those is in the actual action logs where we can see that it opens and closing those.
-- (13).  This will be visible in the action logs, while an ephemeral resource will be opened.
+- (13).  This should be visible in the action logs, while an ephemeral resource will be opened.
 - (14).  This is how a provisioner output should look like when an ephemeral value is used inside.
-- (15).  This will be visible in the action logs, while an ephemeral resource will be closed.
+- (15).  This should be visible in the action logs, while an ephemeral resource will be closed.
 
 ## Technical Approach
 In this section, as in the "Proposed Solution" section, we'll go over each concept, but this time with a more technical focus.
@@ -432,7 +432,7 @@ On the OpenTofu side the following needs to be tackled:
 
 > [!NOTE]
 >
-> Write-only attributes will be presented in the OpenTofu's UI as `(write-only attribute)` instead of the actual value.
+> Write-only attributes should be presented in the OpenTofu's UI as `(write-only attribute)` instead of the actual value.
 
 ### Variables
 
@@ -487,7 +487,7 @@ Strict rules:
 Considering the rules above, root modules cannot have any ephemeral outputs defined.
 
 ### Locals
-Any `local` declaration will be marked as ephemeral if in the expression that initialises it an ephemeral value is used:
+Any `local` declaration should be marked as ephemeral if in the expression that initialises it an ephemeral value is used:
 ```hcl
 variable "var1" {
   type = string
@@ -516,7 +516,7 @@ Once a local is marked as ephemeral, this can be used only in other ephemeral co
 
 ### Ephemeral resources
 Due to the fact ephemeral resources are not stored in the state/plan file, this block is not creating a diff in the OpenTofu's UI.
-Instead, OpenTofu will notify the user of opening/renewing/closing an ephemeral resource with messages similar to the following:
+Instead, OpenTofu should notify the user of opening/renewing/closing an ephemeral resource with messages similar to the following:
 ```bash
 ephemeral.playground_random.password: Opening...
 ephemeral.playground_random.password: Opening succeeded after 0s
@@ -525,7 +525,7 @@ ephemeral.playground_random.password: Closing succeeded after 0s
 ```
 
 Ephemeral resources lifecycle is similar with the data blocks:
-* Both basic implementations require the same methods (`Metadata` and `Schema`) while datasource is defining `Read` compared with the ephemeral resource that is defining `Open`. When talking about the basic functionality of the ephemeral resources, the `Read` method will behave similarly with the `Read` on a datasource, where it reads the data.
+* Both basic implementations require the same methods (`Metadata` and `Schema`) while datasource is defining `Read` compared with the ephemeral resource that is defining `Open`. When talking about the basic functionality of the ephemeral resources, the `Read` method should behave similarly with the `Read` on a datasource, where it reads the data.
 * Also, both blocks support `Configure`, `ConfigValidators` and `ValidateConfig` as extensions of the basic definition.
 * Ephemeral resources do support two more operations in contrast with datasources:
   * `Renew`
@@ -560,20 +560,20 @@ When OpenTofu will have to use an ephemeral resource, it needs to call its `Open
 
 The call to the `Open` method will return the following data:
 * `Private` that OpenTofu is not going to use in other contexts than calling the provider `Close` or `Renew` optionally defined methods.
-* `Result` that will contain the actual ephemeral information. This is what OpenTofu needs to handle to make it available to other ephemeral contexts to reference.
-* `RenewAt` being an optional timestamp indicating when OpenTofu will have to call `Renew` method on the provider before using again the data from the `Result`.
+* `Result` will contain the actual ephemeral information. This is what OpenTofu needs to handle to make it available to other ephemeral contexts to reference.
+* `RenewAt` timestamp indicating when OpenTofu should call `Renew` method on the provider before using the data from the `Result`.
 
 Observations:
-* In the `Result`, OpenTofu is epecting to find any non-computed given values in the request, otherwise will return an error.
-* In the `Result`, the fields marked as computed can be either null or have an actual value. If an unknown if found, OpenTofu will return an error.
+* In the `Result`, OpenTofu is expecting to find any non-computed given values in the request, otherwise should return an error.
+* In the `Result`, the fields marked as computed can be either null or have an actual value. If an unknown if found, OpenTofu should return an error.
 
 > [!NOTE]
 >
-> If any information in the configuration of an ephemeral resource is unknown during the `plan` phase, OpenTofu will defer the provisioning of the resource for the `apply` phase.
+> If any information in the configuration of an ephemeral resource is unknown during the `plan` phase, OpenTofu should defer the provisioning of the resource for the `apply` phase.
 
 #### `Renew` method details
 The `Renew` method is called only if the response from `Open` or another `Renew` call is containing a `RenewAt`.
-When `RenewAt` is present, OpenTofu, before using the `Result` from the `Open` method response, will check if the current timestamp is at or over `RenewAt` and will call the `Renew` method by providing the previously returned `Private` information.
+When `RenewAt` is present, OpenTofu, before using the `Result` from the `Open` method response, should check if the current timestamp is at or over `RenewAt` and should call the `Renew` method by providing the previously returned `Private` information.
 
 > [!NOTE]
 > 
@@ -603,11 +603,11 @@ In all of these, referencing an ephemeral value should work as normal.
 The `terraform.applying` needs to be introduced to allow the user to check if the current command that is running is `apply` or not.
 This is useful when user wants to configure different properties between write operations and read operations.
 
-`terraform.applying` will be set to `true` when `tofu apply` is executed and `false` in any other command.
+`terraform.applying` should be set to `true` when `tofu apply` is executed and `false` in any other command.
 
 > [!NOTE]
 >
-> This keyword is related to the `apply` command and not to the `apply` phase, meaning that when running `tofu apply`, `terraform.applying` will still be `true` also during the `plan` phase of the `apply` command.
+> This keyword is related to the `apply` command and not to the `apply` phase, meaning that when running `tofu apply`, `terraform.applying` should still be `true` also during the `plan` phase of the `apply` command.
 
 This is an ephemeral value that should be handled correctly and ensure that its value or any other value generate from it will not end up in a plan/state file.
 
