@@ -2,11 +2,23 @@
 
 Issue: https://github.com/opentofu/opentofu/issues/1996
 
-Right now, OpenTofu information for resources and outputs are written to state as it is. This is presenting a security risk
-as some of the information from the stored objects can contain sensitive bits that can become visible to whoever is having access to the state file.
+Right now, OpenTofu information for resources and outputs are written to state and plan files as it is. This is presenting a security risk
+as some of the information from the stored objects can contain sensitive bits that can become visible to whoever is having access to the state or plan files.
 
-In order to provide a better solution for the aforementioned situation, OpenTofu introduces the concept of "ephemerality".
-Any new feature under this new concept will provide ways to skip values from being written to the state and plan files.
+In order to provide a better solution for the aforementioned situation, OpenTofu introduces the concept of "ephemerality" which is meant to make use of the already existing functionality in terraform-plugin-framework.
+Any new feature under this new concept should provide ways to skip values from being written to the state and plan files.
+
+This new concept is going to offer another way to tackle the aforementioned issue, adding one more option in OpenTofu to choose for securing the plan and state files.
+Here are the other existing options, providing different levels of safety:
+* sensitive marked outputs and variables
+  * The values marked this way ensures only that the information is sanitized from the user interface, but these are still stored in plaintext in the state and plan files.
+* state encryption (recommended way)
+  * This is meant to provide in transit and at rest encryption of the state and plan files, regardless of what providers/modules offer.
+  * By using this you don't need to choose what to store and what not, but everything is safely stored.
+  * This is also preventing state tempering and [privilege escalation](https://www.plerion.com/blog/hacking-terraform-state-for-privilege-escalation).
+
+
+
 
 To make this work seamlessly with most of the blocks that OpenTofu supports, the following functionalities need to be able to work with the ephemeral concept:
 * `resource`'s `write-only` attributes
@@ -17,6 +29,10 @@ To make this work seamlessly with most of the blocks that OpenTofu supports, the
 * providers
 * provisioners
 * `connection` block
+
+> [!NOTE]
+>
+> In order to provide a similar and familiar UX for the users, the proposal in this RFC is heavily inspired by the Terraform public documentation and available blog posts on the matter.
 
 ## Proposed Solution
 
