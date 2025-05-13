@@ -115,6 +115,15 @@ when the planfile will be applied, the value(s) for the ephemeral variable(s) ne
 ### Outputs
 An `output` block can be configured as ephemeral as long as it's not from the root module.
 This limitation is natural since ephemeral outputs are meant to be skipped from the state file. Therefore, there is no usage of such a defined output block in a root module.
+When encountering an ephemeral output in a root module, an error similar to this one should be shown:
+```shell
+│ Error: Unallowed ephemeral output
+│ 
+│   on main.tf line 36:
+│   36: output "write_only_out" {
+│ 
+│ Root module is not allowed to have ephemeral outputs
+```
 
 Ephemeral outputs are useful when a child module returns sensitive data, allowing the caller to use the value of that output in other ephemeral contexts.
 When using outputs in non-ephemeral contexts, OpenTofu should show an error similar to the following:
