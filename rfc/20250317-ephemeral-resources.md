@@ -113,11 +113,21 @@ If a plan is generated from a configuration that is having at least one ephemera
 when the planfile will be applied, the value(s) for the ephemeral variable(s) needs to be provided again.
 
 ### Outputs
-An `output` block can be configured as ephemeral as long as it's
-not from the root module. 
+An `output` block can be configured as ephemeral as long as it's not from the root module.
 This limitation is natural since ephemeral outputs are meant to be skipped from the state file. Therefore, there is no usage of such a defined output block in a root module.
 
 Ephemeral outputs are useful when a child module returns sensitive data, allowing the caller to use the value of that output in other ephemeral contexts.
+When using outputs in non-ephemeral contexts, OpenTofu should show an error similar to the following:
+```shell
+│ Error: Invalid use of an ephemeral value
+│
+│   with aws_secretsmanager_secret_version.store_from_ephemeral_output,
+│   on main.tf line 31, in resource "aws_secretsmanager_secret_version" "store_from_ephemeral_output":
+│   31:   secret_string = module.secret_management.secrets
+│
+│ "secret_string" cannot accept an ephemeral value because it is not a write-only attribute which means that will be written to the state.
+╵
+```
 
 To mark an output as ephemeral, use the following syntax:
 ```hcl
