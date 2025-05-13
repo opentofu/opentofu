@@ -454,7 +454,7 @@ In this section, as in the "Proposed Solution" section, we'll go over each conce
 ### Write-only arguments
 Most of the write-only arguments logic is already in the [provider-framework](https://github.com/hashicorp/terraform-plugin-framework):
 * [Initial implementation](https://github.com/hashicorp/terraform-plugin-framework/pull/1044)
-* [Sets comparisson enhancement](https://github.com/hashicorp/terraform-plugin-framework/pull/1064)
+* [Sets comparison enhancement](https://github.com/hashicorp/terraform-plugin-framework/pull/1064)
   * This seems to be related to the reason why sets of any kind are not allowed to be marked as write-only
 * [Dynamic attribute validation](https://github.com/hashicorp/terraform-plugin-framework/pull/1090)
 * [Prevent write-only for sets](https://github.com/hashicorp/terraform-plugin-framework/pull/1095)
