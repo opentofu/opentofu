@@ -110,8 +110,7 @@ Usage in any other place should raise an error:
 
 OpenTofu should not store ephemeral variable(s) in plan files. 
 If a plan is generated from a configuration that is having at least one ephemeral variable, 
-when the planfile will be applied, the value(s) for the ephemeral variable(s) needs to passed again by 
-using `-var` or `-var-file` arguments.
+when the planfile will be applied, the value(s) for the ephemeral variable(s) needs to be provided again.
 
 ### Outputs
 An `output` block can be configured as ephemeral as long as it's
