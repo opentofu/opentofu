@@ -352,6 +352,7 @@ resource "aws_s3_object" "obj" {
 - (2) Version field that is going together with the actual write-only argument to be able to update the value of it. To upgrade the secret, the version field needs to be updated, otherwise OpenTofu should generate no diff for it.
 - (3) Using ephemeral resource to retrieve the secret. Maybe looks a little bit weird, because right above we are having the resource of the same type that is looking like it should be able to be used to get the secret. In reality, because that `resource` is using `secret_string_wo` to store the information, that field is going to be null when referenced. Check (9) for more details.
 - (4) Module output that is referencing an ephemeral value, it needs to be marked as ephemeral too. Otherwise, OpenTofu should generate an error.
+  - This is similar to the behavior that is already present for `sensitive` values.
 - (5) The variable that is going to be used in an ephemeral variable, is not required to be ephemeral. The value can also be a hardcoded value without being ephemeral.
 - (6) Here we used another `aws_secretsmanager_secret` just to have an easier example on how ephemeral/write-only/(ephemeral variables)/(ephemeral outputs) are working together. But there will be more and more resources that will allow to work with this new concept.
 - (7) Referencing a module ephemeral output to ensure that the ephemeral information is passed correctly between two modules.
@@ -481,7 +482,7 @@ For enabling ephemeral variables, these are the basic steps that need to be take
   ```hcl
   var.password (ephemeral)
      Enter a value:
-  ````
+  ```
 * If a module is having an ephemeral variable declared, that variable can get values from any source, even another non-ephemeral variable.
 
 We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
