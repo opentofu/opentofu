@@ -356,10 +356,9 @@ resource "aws_s3_object" "obj" {
 - (5) The variable that is going to be used in an ephemeral variable, is not required to be ephemeral. The value can also be a hardcoded value without being ephemeral.
 - (6) Here we used another `aws_secretsmanager_secret` just to have an easier example on how ephemeral/write-only/(ephemeral variables)/(ephemeral outputs) are working together. But there will be more and more resources that will allow to work with this new concept.
 - (7) Referencing a module ephemeral output to ensure that the ephemeral information is passed correctly between two modules.
-- (8) Creating an output that is referencing a write-only argument *requires* the output to be marked as sensitive. 
-  > [!WARNING]
-  >
-  > Shouldn't we also show an error similar to the error that is proposed to be shown when the root module is having an output marked as ephemeral?
+- (8) Creating an output in the root module that is referencing a write-only argument *requires* the output to be marked as sensitive.
+  - This is strictly for the root module. The purpose of this is to force the user to clearly configure the intention of that.
+  - The reason on why this is only required for the root module is to prevent bleeding into the state information that is marked incorrectly.
 - (9) That is commented out because interpolation on null values is not allowed in OpenTofu. Reminder: a write-only argument will always be returned as null from the provider even when the configuration is actually having a value.
 - (10) A provisioner that is referencing an ephemeral value (module output) should have its output supressed. See more details in the next section.
 
