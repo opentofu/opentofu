@@ -37,7 +37,7 @@ For example having a write-only argument called `secret`, providers should also 
 a non-write-only argument called `secret_version`. Every time the user wants to update the value of `secret`, it needs to change the value of `secret_version` to trigger a change.
 The provider implementation is responsible with handling this particular case: because the version attribute is stored also in the state, the provider needs to compare the value from the state with the one from the configuration and in case it differs, it will trigger the update of the `secret` attribute.
 
-The write-only attributes are supported momentarily by a low number of providers and resources.
+At the time of writing this RFC, write-only attributes are supported by a low number of providers and resources.
 Having the `aws_db_instance` as one of those, here is an example on how to use the write-only attributes:
 ```hcl
 resource "aws_db_instance" "example" {
