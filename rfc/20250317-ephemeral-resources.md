@@ -76,7 +76,8 @@ resource "aws_db_instance" "example" {
 
 As seen in this particular change of the [terraform-plugin-framework](https://github.com/hashicorp/terraform-plugin-framework/commit/ecd80f67daed0b92b243ae59bb1ee2077f8077c7), the write-only attribute cannot be configured for set attributes, set nested attributes and set nested blocks.
 
-Write-only attributes cannot generate a plan diff because the prior state does not contain a value that OpenTofu can use to compare the new value against and also the planned value of a write-only argument should always be empty.
+Write-only attributes cannot generate a plan diff because the prior state does not contain a value that OpenTofu can use to compare the new value against and also the value provider returns during planning of a write-only argument should always be null. 
+This means that the there may be inconsistencies between plan and apply for the write-only arguments.
 ### Variables
 Any `variable` block can be marked as ephemeral.
 ```hcl
