@@ -3,9 +3,9 @@
 Issue: https://github.com/opentofu/opentofu/issues/1996
 
 Right now, OpenTofu information for resources and outputs are written to state and plan files as it is. This is presenting a security risk
-as some of the information from the stored objects can contain sensitive bits that can become visible to whoever is having access to the state or plan files.
+as some information from the stored objects can contain sensitive bits that can become visible to whoever is having access to the state or plan files.
 
-In order to provide a better solution for the aforementioned situation, OpenTofu introduces the concept of "ephemerality" which is meant to make use of the already existing functionality in terraform-plugin-framework.
+To provide a better solution for the aforementioned situation, OpenTofu introduces the concept of "ephemerality" which is meant to make use of the already existing functionality in terraform-plugin-framework.
 Any new feature under this new concept should provide ways to skip values from being written to the state and plan files.
 
 This new concept is going to offer another way to tackle the aforementioned issue, adding one more option in OpenTofu to choose for securing the plan and state files.
@@ -16,9 +16,6 @@ Here are the other existing options, providing different levels of safety:
   * This is meant to provide in transit and at rest encryption of the state and plan files, regardless of what providers/modules offer.
   * By using this you don't need to choose what to store and what not, but everything is safely stored.
   * This is also preventing state tempering and [privilege escalation](https://www.plerion.com/blog/hacking-terraform-state-for-privilege-escalation).
-
-
-
 
 To make this work seamlessly with most of the blocks that OpenTofu supports, the following functionalities need to be able to work with the ephemeral concept:
 * `resource`'s `write-only` attributes
@@ -97,7 +94,7 @@ OpenTofu should allow usage of these variables only in other ephemeral contexts:
 * provider configuration
 
 Usage in any other place should raise an error:
-```shell
+```hcl
 │ Error: Invalid use of an ephemeral value
 │
 │   with playground_secret.store_secret,
@@ -116,7 +113,7 @@ when the planfile will be applied, the value(s) for the ephemeral variable(s) ne
 An `output` block can be configured as ephemeral as long as it's not from the root module.
 This limitation is natural since ephemeral outputs are meant to be skipped from the state file. Therefore, there is no usage of such a defined output block in a root module.
 When encountering an ephemeral output in a root module, an error similar to this one should be shown:
-```shell
+```hcl
 │ Error: Unallowed ephemeral output
 │ 
 │   on main.tf line 36:
@@ -127,7 +124,7 @@ When encountering an ephemeral output in a root module, an error similar to this
 
 Ephemeral outputs are useful when a child module returns sensitive data, allowing the caller to use the value of that output in other ephemeral contexts.
 When using outputs in non-ephemeral contexts, OpenTofu should show an error similar to the following:
-```shell
+```hcl
 │ Error: Invalid use of an ephemeral value
 │
 │   with aws_secretsmanager_secret_version.store_from_ephemeral_output,
@@ -232,6 +229,7 @@ Whenever doing so, the output of the provisioner execution should be suppressed:
 When the `connection` block is configured, this should be allowed to use ephemeral values from variables, outputs, locals and values from ephemeral resources. 
 
 ## User Documentation
+
 For a better understanding on what to expect from this proposal, let's start with an example.
 ### Configuration
 #### `./mod/main.tf`
@@ -484,7 +482,7 @@ For enabling ephemeral variables, these are the basic steps that need to be take
   ```
 * If a module is having an ephemeral variable declared, that variable can get values from any source, even another non-ephemeral variable.
 * A variable that is not marked as ephemeral should not be able to reference an ephemeral value. A non-ephemeral variable will not become ephemeral when referencing an ephemeral value. Instead, OpenTofu should show an error:
-  ```shell
+  ```hcl
   │ Error: Invalid usage of ephemeral value
   │
   │   on main.tf line 21, in module "secret_management":
