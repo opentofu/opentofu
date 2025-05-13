@@ -474,7 +474,7 @@ On the OpenTofu side the following needs to be tackled:
 
 For enabling ephemeral variables, these are the basic steps that need to be taken:
 * Update config to support the `ephemeral` attribute.
-* Mark the variables with a new mark ensure that the marks are propagated correctly.
+* Mark the variables with a new mark and ensure that the marks are propagated correctly.
 * Based on the marks, ensure that the variable cannot be used in other contexts than the ephemeral ones (see the User Documentation section for more details on where this is allowed).
 * Check the state of [#1998](https://github.com/opentofu/opentofu/pull/1998). If that is merged, in the changes where variables from plan are verified against the configuration ones, we also need to add a validation on the ephemerality of variables. If the variable is marked as ephemeral, then the plan value is allowed (expected) to be missing. 
 * Ensure that when the prompt is shown for an ephemeral variable there is an indication of that:
@@ -485,6 +485,12 @@ For enabling ephemeral variables, these are the basic steps that need to be take
 * If a module is having an ephemeral variable declared, that variable can get values from any source, even another non-ephemeral variable.
 
 We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
+
+> [!NOTE]
+>
+> When adding the mark for ephemeral, ensure that there are unit tests to confirm that multiple mark types can work together:
+> * When an ephemeral marked value is marked also with deprecated/sensitive, all marks are present on the value.
+> * When an ephemeral marked value is unmarked for some operations, the other marks are still carried over.
 
 ### Outputs
 
