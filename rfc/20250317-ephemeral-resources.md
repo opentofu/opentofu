@@ -661,12 +661,12 @@ This is useful when user wants to configure different properties between write o
 
 > [!NOTE]
 >
-> This keyword is related to the `apply` command and not to the `apply` phase, meaning that when running `tofu apply`, `terraform.applying` should still be `true` also during the `plan` phase of the `apply` command.
+> This keyword is related to the `apply` command and not to the `apply` phase, meaning that when running `tofu apply`, `terraform.applying` should still be `true` also during the `plan` phase of the `apply` command. This is `true` also when running a destroy operation.
 
 This is an ephemeral value that should be handled correctly and ensure that its value or any other value generate from it will not end up in a plan/state file.
 
 #### `ephemeralasnull` function
-`ephemeralsnull` function is useful when an object that was built by referencing an ephemeral value wants to be used into a non-ephemeral context.
+`ephemeralasnull` function is useful when an object that was built by referencing an ephemeral value wants to be used into a non-ephemeral context.
 This is getting a dynamic value and by traversing it, is looking for any ephemeral value and is nullifying it, but it does not nullify any non-ephemeral value within the object.
 
 For example:
@@ -698,6 +698,11 @@ test = {
 ```
 
 This function should work perfectly fine also with a non-ephemeral value.
+
+> [!NOTE]
+>
+> When we encounter an output in the root module that is referencing an ephemeral value, we could recommend to use `ephemeralasnull` to be able to store that information in the state.
+> This would be a warning that will come together with the error diagnostic discussed in the ephemeral outputs section.
 
 ## Open Questions
 
