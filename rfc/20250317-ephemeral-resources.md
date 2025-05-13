@@ -584,7 +584,7 @@ Ephemeral resources lifecycle is similar with the data blocks:
   * `Renew`
     * Together with the data returned by the `Open` method call, the provider can also specify a `RenewAt` which will be a specific moment in time when OpenTofu should call the `Renew` method to get an updated information from the ephemeral resource. OpenTofu will have to check for `RenewAt` value anytime it intends to use the value returned by the ephemeral resource.
   * `Close`
-    * When an ephemeral resource is having this method defined, it is expecting it to be called in order to release a possible held resource. A good example of this is with a Vault provider that could provide a secret by obtaining a lease, and when the secret is done being used, OpenTofu should call `Close` on that ephemeral resource to instruct on releasing the lease and revoking the secret.
+    * When an ephemeral resource is having this method defined, it is expecting it to be called in order to release a possible held resource. A good example of this is with a Vault/OpenBao provider that could provide a secret by obtaining a lease, and when the secret is done being used, OpenTofu should call `Close` on that ephemeral resource to instruct on releasing the lease and revoking the secret.
 
 To sum the above details, ephemeral resources are having 1 mandatory method and several optional methods:
 * required
