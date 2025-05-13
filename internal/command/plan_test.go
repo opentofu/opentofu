@@ -677,7 +677,9 @@ func TestPlan_stateDefault(t *testing.T) {
 	// Generate state and move it to the default path
 	originalState := testState()
 	statePath := testStateFile(t, originalState)
-	os.Rename(statePath, path.Join(td, "terraform.tfstate"))
+	if err := os.Rename(statePath, path.Join(td, "terraform.tfstate")); err != nil {
+		t.Fatal(err)
+	}
 
 	p := planFixtureProvider()
 	view, done := testView(t)
@@ -1345,7 +1347,7 @@ func TestPlan_init_required(t *testing.T) {
 		t.Fatalf("expected error, got success")
 	}
 	got := output.Stderr()
-	if !(strings.Contains(got, "tofu init") && strings.Contains(got, "provider registry.opentofu.org/hashicorp/test: required by this configuration but no version is selected")) {
+	if !strings.Contains(got, "tofu init") || !strings.Contains(got, "provider registry.opentofu.org/hashicorp/test: required by this configuration but no version is selected") {
 		t.Fatal("wrong error message in output:", got)
 	}
 }
@@ -1613,6 +1615,8 @@ func TestPlan_parallelism(t *testing.T) {
 	// called once we reach the desired concurrency, allowing all apply calls
 	// to proceed in unison.
 	beginCtx, begin := context.WithCancel(context.Background())
+	// Ensure cancel is fired regardless of test
+	defer begin()
 
 	// Since our mock provider has its own mutex preventing concurrent calls
 	// to ApplyResourceChange, we need to use a number of separate providers

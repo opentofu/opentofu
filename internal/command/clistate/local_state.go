@@ -68,6 +68,15 @@ func (s *LocalState) State() *tofu.State {
 //
 // StateWriter impl.
 func (s *LocalState) WriteState(state *tofu.State) error {
+	err := s.writeState(state)
+	if err != nil {
+		return err
+	}
+
+	// Sync after write
+	return s.stateFileOut.Sync()
+}
+func (s *LocalState) writeState(state *tofu.State) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -76,7 +85,6 @@ func (s *LocalState) WriteState(state *tofu.State) error {
 			return nil
 		}
 	}
-	defer s.stateFileOut.Sync()
 
 	s.state = state.DeepCopy() // don't want mutations before we actually get this written to disk
 
@@ -160,7 +168,9 @@ func (s *LocalState) RefreshState() error {
 		}
 
 		// we have a state file, make sure we're at the start
-		s.stateFileOut.Seek(0, io.SeekStart)
+		if _, err := s.stateFileOut.Seek(0, io.SeekStart); err != nil {
+			return err
+		}
 		reader = s.stateFileOut
 	}
 

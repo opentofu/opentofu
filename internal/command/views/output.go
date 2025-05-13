@@ -86,12 +86,12 @@ func (v *OutputHuman) Output(name string, outputs map[string]*states.OutputValue
 		for _, k := range ks {
 			vs := outputs[k]
 			if vs.Sensitive && !v.view.showSensitive {
-				outputBuf.WriteString(fmt.Sprintf("%s = <sensitive>\n", k))
+				fmt.Fprintf(outputBuf, "%s = <sensitive>\n", k)
 				continue
 			}
 
 			result := repl.FormatValue(vs.Value, 0)
-			outputBuf.WriteString(fmt.Sprintf("%s = %s\n", k, result))
+			fmt.Fprintf(outputBuf, "%s = %s\n", k, result)
 		}
 	}
 

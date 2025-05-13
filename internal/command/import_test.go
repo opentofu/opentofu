@@ -309,7 +309,9 @@ func TestImport_initializationErrorShouldUnlock(t *testing.T) {
 	}
 
 	// overwrite the config with one including a resource from an invalid provider
-	copy.CopyFile(filepath.Join(testFixturePath("import-provider-invalid"), "main.tf"), filepath.Join(td, "main.tf"))
+	if err := copy.CopyFile(filepath.Join(testFixturePath("import-provider-invalid"), "main.tf"), filepath.Join(td, "main.tf")); err != nil {
+		t.Fatal(err)
+	}
 
 	p := testProvider()
 	ui = new(cli.MockUi)

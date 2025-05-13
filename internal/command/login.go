@@ -277,7 +277,11 @@ func (c *LoginCommand) Run(args []string) int {
 		}
 
 		defer resp.Body.Close()
-		json.Unmarshal(body, &motd)
+		if err := json.Unmarshal(body, &motd); err != nil {
+			c.logMOTDError(fmt.Errorf("platform responded with invalid motd payload: %w", err))
+			c.outputDefaultTFCLoginSuccess()
+			return 0
+		}
 
 		if motd.Errors == nil && motd.Message != "" {
 			c.Ui.Output(
@@ -453,7 +457,10 @@ func (c *LoginCommand) interactiveGetTokenByCode(ctx context.Context, hostname s
 
 			resp.Header().Add("Content-Type", "text/html")
 			resp.WriteHeader(200)
-			resp.Write([]byte(callbackSuccessMessage))
+			if _, err := resp.Write([]byte(callbackSuccessMessage)); err != nil {
+				log.Printf("[ERROR] login: cannot write response: %s", err)
+				return
+			}
 		}),
 	}
 	panicHandler := logging.PanicHandlerWithTraceFn()

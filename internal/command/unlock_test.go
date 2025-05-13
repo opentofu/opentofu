@@ -19,7 +19,6 @@ import (
 // doesn't fail.
 func TestUnlock(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// Write the legacy state
