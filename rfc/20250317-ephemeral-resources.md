@@ -577,22 +577,24 @@ ephemeral.playground_random.password: Closing...
 ephemeral.playground_random.password: Closing succeeded after 0s
 ```
 
+Methods that an ephemeral resource should/could have:
+* Required:
+  * Open - should be called on the provider to read the information of the indicated resource.
+  * Metadata - returns the type name of the ephemeral resource.
+  * Schema - should be called on the provider to get the schema defined for the ephemeral resource.
+* Optional:
+  * Renew - if the response from `Open` contains a valid `RenewAt`, OpenTofu should call this method in order to instruct the provider to renew any possible remote information related to the secret returned from the `Open` call.
+  * Close - should be called on the provider to clean any possible remote information related to the secret returned in the response from `Open`.
+  * ValidateConfig - validates the configuration provided for the ephemeral resource.
+
 Ephemeral resources lifecycle is similar with the data blocks:
-* Both basic implementations require the same methods (`Metadata` and `Schema`) while datasource is defining `Read` compared with the ephemeral resource that is defining `Open`. When talking about the basic functionality of the ephemeral resources, the `Read` method should behave similarly with the `Read` on a datasource, where it reads the data.
-* Also, both blocks support `Configure`, `ConfigValidators` and `ValidateConfig` as extensions of the basic definition.
+* Both basic implementations require the same methods (`Metadata` and `Schema`) while datasource is defining `Read` compared with the ephemeral resource that is defining `Open`. When talking about the basic functionality of the ephemeral resources, the `Open` method should behave similarly with the `Read` on a datasource, where it asks the provider for the data associated with that particular ephemeral resource.
+* Both also include `ValidateConfig` as extension of the basic definition.
 * Ephemeral resources do support two more operations in contrast with datasources:
   * `Renew`
-    * Together with the data returned by the `Open` method call, the provider can also specify a `RenewAt` which will be a specific moment in time when OpenTofu should call the `Renew` method to get an updated information from the ephemeral resource. OpenTofu will have to check for `RenewAt` value anytime it intends to use the value returned by the ephemeral resource.
+    * Together with the data returned by the `Open` method call, the provider can also specify a `RenewAt` which will be a specific moment in time when OpenTofu should call the `Renew` method to trigger an update on the remote information related with the secret returned from the `Open` call. OpenTofu will have to check for `RenewAt` value anytime it intends to use the value returned by the ephemeral resource.
   * `Close`
-    * When an ephemeral resource is having this method defined, it is expecting it to be called in order to release a possible held resource. A good example of this is with a Vault/OpenBao provider that could provide a secret by obtaining a lease, and when the secret is done being used, OpenTofu should call `Close` on that ephemeral resource to instruct on releasing the lease and revoking the secret.
-
-To sum the above details, ephemeral resources are having 1 mandatory method and several optional methods:
-* required
-  * Schema - will not get in details of this in this RFC since the usage of this is similar with what we are doing for any other data types from a provider
-  * Open
-* optional
-  * Renew
-  * Close
+    * When an ephemeral resource is having this method defined, OpenTofu should call it in order to release a possible held resource before the `provider.Close` is called. A good example of this is with a Vault/OpenBao provider that could provide a secret by obtaining a lease, and when the secret is done being used, OpenTofu should call `Close` on that ephemeral resource to instruct on releasing the lease and revoking the secret.
 
 #### Basic OpenTofu handling of ephemeral resources
 As per an initial analysis, the ephemeral blocks should be handled similarly to a data source block by allowing [ConfigTransformer](https://github.com/opentofu/opentofu/blob/26a77c91560d51f951aa760bdcbeecd93f9ef6b0/internal/tofu/transform_config.go#L100) to generate a NodeAbstractResource. This is needed because ephemeral resources lifecycle needs to follow the ones for resources and data sources where they need to have a graph vertices in order to allow other concepts of OpenTofu to create depedencies on it. 
@@ -631,7 +633,7 @@ When `RenewAt` is present, OpenTofu, before using the `Result` from the `Open` m
 > [!NOTE]
 > 
 > `Renew` does not return a *new* information meant to replace the initial `Result` returned by the `Open` call.
-> Due to this, `Renew` is only useful for system similar to Vault where the lease can be renewed without generating new data.
+> Due to this, `Renew` is only useful for systems similar to Vault/OpenBao where the lease can be renewed without generating new data.
 
 #### `Close` method details
 When OpenTofu is done using an ephemeral resource, it needs to call its `Close` method to ensure that any remote data associated with the data returned in `OpenResponse.Result` is released and/or cleaned up properly.
