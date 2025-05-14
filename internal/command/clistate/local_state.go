@@ -68,6 +68,9 @@ func (s *LocalState) State() *tofu.State {
 //
 // StateWriter impl.
 func (s *LocalState) WriteState(state *tofu.State) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	err := s.writeState(state)
 	if err != nil {
 		return err
@@ -77,9 +80,6 @@ func (s *LocalState) WriteState(state *tofu.State) error {
 	return s.stateFileOut.Sync()
 }
 func (s *LocalState) writeState(state *tofu.State) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	if s.stateFileOut == nil {
 		if err := s.createStateFiles(); err != nil {
 			return nil
