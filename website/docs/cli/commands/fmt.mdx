@@ -59,3 +59,5 @@ The command-line flags are all optional. The following flags are available:
 * `-diff` - Display diffs of formatting changes.
 * `-check` - Check if the input is formatted. Exit status will be 0 if all input is properly formatted. If not, exit status will be non-zero and the command will output a list of filenames whose files are not properly formatted.
 * `-recursive` - Also process files in subdirectories. By default, only the given directory (or current directory) is processed.
+
+For providing a better user experience, this command is having an external dependency on `diff`. Ensure that this is installed on the system where you use `tofu fmt` command.
