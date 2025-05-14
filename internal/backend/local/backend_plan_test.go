@@ -302,6 +302,7 @@ func TestLocal_planOutputSensitivityChanged(t *testing.T) {
 	}
 
 	// The plan should include changes to sensitivity even when the value itself didn't change
+	// TODO: Open question here on whether `sensitive_before` should actually show the value during the plan
 	expectedOutput := strings.TrimSpace(`
 Changes to Outputs:
   + added            = "after"
