@@ -51,7 +51,7 @@ do
   reported_issues="$(echo $reported_issues| jq -r '.[] | .number' | xargs)"
   [[ ${no_of_issues} -ge 1 ]] && echo "Vulnerabilties found but already reported for ${vuln_key} in: ${reported_issues}" && continue
 
-  echo "This vulnerability is affecting the following versions: ${affected_versions}" > ticket_content
+  echo "This vulnerability might affect the following versions: ${affected_versions}" > ticket_content
   echo "" >> ticket_content
   echo "*Vulnerability info:* https://pkg.go.dev/vuln/${vuln_key}" >> ticket_content
   echo "*Pipeline run:* ${github_run_url}" >> ticket_content
