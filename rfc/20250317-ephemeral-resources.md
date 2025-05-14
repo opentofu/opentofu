@@ -17,12 +17,15 @@ Here are the other existing options, providing different levels of safety:
   * By using this you don't need to choose what to store and what not, but everything is safely stored.
   * This is also preventing state tempering and [privilege escalation](https://www.plerion.com/blog/hacking-terraform-state-for-privilege-escalation).
 
-To make this work seamlessly with most of the blocks that OpenTofu supports, the following functionalities need to be able to work with the ephemeral concept:
+## Proposed Solution
+Two new concepts will be introduced:
+* `ephemeral` resources
 * `resource`'s `write-only` attributes
+
+Several existing features will have to be able to be updated with the new functionality:
 * variables
 * outputs
 * locals
-* `ephemeral` resources
 * providers
 * provisioners
 * `connection` block
@@ -31,12 +34,11 @@ To make this work seamlessly with most of the blocks that OpenTofu supports, the
 >
 > In order to provide a similar and familiar UX for the users, the proposal in this RFC is heavily inspired by the Terraform public documentation and available blog posts on the matter.
 
-## Proposed Solution
-
-In the attempt of providing to the reader an in-depth understanding of the ephemerality implications in OpenTofu,
+In the attempt to provide to the reader an in-depth understanding of the ephemerality implications in OpenTofu,
 this section will try to explain the functional approach of the new concept in each existing feature.
 
-### Write-only attributes
+### User Documentation
+#### Write-only attributes
 This is a new concept that allows any existing `resource` to define attributes in its schema that can be only written without the ability to retrieve the value afterwards.
 
 By not being readable, this also means that an attribute configured by a provider this way, should not be written to the state or plan file either.
@@ -75,7 +77,8 @@ As seen in this particular change of the [terraform-plugin-framework](https://gi
 
 Write-only attributes cannot generate a plan diff because the prior state does not contain a value that OpenTofu can use to compare the new value against and also the value provider returns during planning of a write-only argument should always be null. 
 This means that the there may be inconsistencies between plan and apply for the write-only arguments.
-### Variables
+
+#### Variables
 Any `variable` block can be marked as ephemeral.
 ```hcl
 variable "ephemeral_var" {
@@ -105,35 +108,25 @@ Usage in any other place should raise an error:
 ╵
 ```
 
+For being able to use ephemeral variables, the module's authors need to mark those as so. 
+If OpenTofu finds an ephemeral value given to a non-ephemeral variable in a module call, an error will be shown:
+```hcl
+│ Error: Invalid usage of ephemeral value
+│
+│   on main.tf line 21, in module "secret_management":
+│   21:   secret_map     = var.secrets
+│
+│ Variable `secret_map` is not marked as ephemeral. Therefore, it cannot reference an ephemeral value. In case this is actually wanted, you can add the following attribute to its declaration:
+│   ephemeral = true
+```
+
+
 OpenTofu should not store ephemeral variable(s) in plan files. 
 If a plan is generated from a configuration that is having at least one ephemeral variable, 
 when the planfile will be applied, the value(s) for the ephemeral variable(s) needs to be provided again.
 
-### Outputs
-An `output` block can be configured as ephemeral as long as it's not from the root module.
-This limitation is natural since ephemeral outputs are meant to be skipped from the state file. Therefore, there is no usage of such a defined output block in a root module.
-When encountering an ephemeral output in a root module, an error similar to this one should be shown:
-```hcl
-│ Error: Unallowed ephemeral output
-│ 
-│   on main.tf line 36:
-│   36: output "write_only_out" {
-│ 
-│ Root module is not allowed to have ephemeral outputs
-```
-
-Ephemeral outputs are useful when a child module returns sensitive data, allowing the caller to use the value of that output in other ephemeral contexts.
-When using outputs in non-ephemeral contexts, OpenTofu should show an error similar to the following:
-```hcl
-│ Error: Invalid use of an ephemeral value
-│
-│   with aws_secretsmanager_secret_version.store_from_ephemeral_output,
-│   on main.tf line 31, in resource "aws_secretsmanager_secret_version" "store_from_ephemeral_output":
-│   31:   secret_string = module.secret_management.secrets
-│
-│ "secret_string" cannot accept an ephemeral value because it is not a write-only attribute which means that will be written to the state.
-╵
-```
+#### Outputs
+Most `output` blocks can be configured as ephemeral.
 
 To mark an output as ephemeral, use the following syntax:
 ```hcl
@@ -151,7 +144,63 @@ The ephemeral outputs are available during plan and apply phase and can be acces
 * `provisioner` block
 * `connection` block
 
-### Locals
+An `output` block from a root module cannot be marked as ephemeral. 
+This limitation is natural since ephemeral outputs are meant to be skipped from the state file. 
+Therefore, there is no usage of such a defined output block in a root module.
+When encountering an ephemeral output in a root module, an error similar to this one should be shown:
+```hcl
+│ Error: Unallowed ephemeral output
+│ 
+│   on main.tf line 36:
+│   36: output "write_only_out" {
+│ 
+│ Root module is not allowed to have ephemeral outputs
+```
+
+Ephemeral outputs are useful when a child module returns sensitive data, 
+allowing the caller to use the value of that output in other ephemeral contexts.
+When using outputs in non-ephemeral contexts, OpenTofu should show an error similar to the following:
+```hcl
+│ Error: Invalid use of an ephemeral value
+│
+│   with aws_secretsmanager_secret_version.store_from_ephemeral_output,
+│   on main.tf line 31, in resource "aws_secretsmanager_secret_version" "store_from_ephemeral_output":
+│   31:   secret_string = module.secret_management.secrets
+│
+│ "secret_string" cannot accept an ephemeral value because it is not a write-only attribute which means that will be written to the state.
+╵
+```
+
+Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too. 
+Otherwise, it needs to show an error:
+```hcl
+│ Error: Output not marked as ephemeral
+│
+│   on mod/main.tf line 33, in output "password":
+│   33:   value = reference.to.ephemeral.value
+│
+│ In order to allow this output to store ephemeral values add `ephemeral = true` attribute to it.
+```
+
+Even though a write-only argument of a `resource` block will be always null when referenced, it can still be referenced by an output. 
+In case there is such an attribute referenced by an output of the root module, the block needs to be marked with as sensitive:
+```hcl
+output "test" {
+  // ...
+  sensitive = true
+}
+```
+In case the output is not marked accordingly, an error will be shown:
+```hcl
+  │ Error: An output referencing a sensitive value needs to be marked with sensitive too
+  │
+  │   on main.tf line 32:
+  │   32: output "write_only_out" {
+  │
+  │ For security reasons, OpenTofu requires any output that is referencing a sensitive value to also be configured the same. If the root module really wants to export this sensitive value, you need to annotate it with the following argument:
+  │     sensitive = true
+```
+#### Locals
 Local values are automatically marked as ephemeral if any of the value that is used to compute the local is already an ephemeral one.
 
 Eg:
@@ -181,7 +230,7 @@ Locals marked as ephemeral are available during plan and apply phase and can be 
 * `provider` blocks configuration
 * `connection` and `provisioner` blocks
 
-### Ephemeral resource
+#### Ephemeral resource
 In contrast with the write-only arguments where only specifically tagged attributes are not stored in the state/plan file, `ephemeral` resources are not stored entirely.
 The ephemeral blocks are behaving similar to `data`, where it reads the indicated resource and once it's done with it, is going to close it.
 
@@ -213,26 +262,25 @@ Beside the attributes in a schema of an ephemeral resource, the block should sup
 * `lifecycle`
 
 The meta-argument `provisioner` should not be supported.
-### Providers
+#### Providers
 `provider` block is ephemeral by nature, meaning that the configuration of this is never stored into state/plan file.
 
 Therefore, this block should be configurable by using ephemeral values.
 
-### `provisioner` block
+#### `provisioner` block
 As `provisioner` information is not stored into the plan/state file, this can reference ephemeral values like ephemeral variables, outputs, locals and values from ephemeral resources.
 
 Whenever doing so, the output of the provisioner execution should be suppressed:
-```shell
+```
 (local-exec): (output suppressed due to ephemeral value in config)
 ```
-### `connection` block
+#### `connection` block
 When the `connection` block is configured, this should be allowed to use ephemeral values from variables, outputs, locals and values from ephemeral resources. 
 
-## User Documentation
-
-For a better understanding on what to expect from this proposal, let's start with an example.
-### Configuration
-#### `./mod/main.tf`
+### Example on how the new changes will work together
+To better understand how all of this should work in OpenTofu, let's take a look at a comprehensive example.
+#### Configuration
+##### `./mod/main.tf`
 ```hcl
 terraform {
   required_providers {
@@ -279,7 +327,7 @@ output "secrets" {
 }
 ```
 
-#### `./main.tf`
+##### `./main.tf`
 ```hcl
 terraform {
   required_providers {
@@ -360,7 +408,7 @@ resource "aws_s3_object" "obj" {
 - (9) That is commented out because interpolation on null values is not allowed in OpenTofu. Reminder: a write-only argument will always be returned as null from the provider even when the configuration is actually having a value.
 - (10) A provisioner that is referencing an ephemeral value (module output) should have its output supressed. See more details in the next section.
 
-### CLI Output
+#### CLI Output
 
 ```
 module.secret_management.ephemeral.aws_secretsmanager_secret_version.secret_retrieval: Configuration unknown, deferring... <--- (11)
@@ -446,6 +494,10 @@ Breakdown:
 - (15).  This should be visible in the action logs, while an ephemeral resource will be closed.
 
 ## Technical Approach
+> [!NOTE]
+>
+> Any rule ended with `If any found, an error will be raised.` is having an error defined in the [User Documentation](#user-documentation) section.
+
 In this section, as in the "Proposed Solution" section, we'll go over each concept, but this time with a more technical focus.
 
 ### Write-only arguments
@@ -473,25 +525,15 @@ On the OpenTofu side the following needs to be tackled:
 For enabling ephemeral variables, these are the basic steps that need to be taken:
 * Update config to support the `ephemeral` attribute.
 * Mark the variables with a new mark and ensure that the marks are propagated correctly.
-* Based on the marks, ensure that the variable cannot be used in other contexts than the ephemeral ones (see the User Documentation section for more details on where this is allowed).
+* Based on the marks, ensure that the variable cannot be used in other contexts than the ephemeral ones (see the [User Documentation](#user-documentation) section for more details on where this is allowed). If any found, an error will be raised.
 * Check the state of [#1998](https://github.com/opentofu/opentofu/pull/1998). If that is merged, in the changes where variables from plan are verified against the configuration ones, we also need to add a validation on the ephemerality of variables. If the variable is marked as ephemeral, then the plan value is allowed (expected) to be missing. 
-* Ensure that when the prompt is shown for an ephemeral variable there is an indication of that:
+* Ensure that when the prompt is shown for an ephemeral variable, there is indication of that:
   ```hcl
   var.password (ephemeral)
      Enter a value:
   ```
 * If a module is having an ephemeral variable declared, that variable can get values from any source, even another non-ephemeral variable.
-* A variable that is not marked as ephemeral should not be able to reference an ephemeral value. A non-ephemeral variable will not become ephemeral when referencing an ephemeral value. Instead, OpenTofu should show an error:
-  ```hcl
-  │ Error: Invalid usage of ephemeral value
-  │
-  │   on main.tf line 21, in module "secret_management":
-  │   21:   secret_map     = var.secrets
-  │
-  │ Variable `secret_map` is not marked as ephemeral. Therefore, it cannot reference an ephemeral value. In case this is actually wanted, you can add the following attribute to its declaration:
-  │   ephemeral = true
-
-  ```
+* A variable not marked as ephemeral should not be able to reference an ephemeral value. A non-ephemeral variable will not become ephemeral when referencing an ephemeral value. If any found, an error will be raised.
 
 We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
 
@@ -507,33 +549,17 @@ For enabling ephemeral outputs, these are the basic steps that need to be taken:
 * Update config to support the `ephemeral` attribute.
 * Mark the outputs with a new mark and ensure that the marks are propagated correctly.
   * We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
-* Based on the marks, ensure that the output cannot be used in other contexts than the ephemeral ones (see the User Documentation section for more details on where this is allowed).
+* Based on the marks, ensure that the output cannot be used in other contexts than the ephemeral ones (see the [User Documentation](#user-documentation) section for more details on where this is allowed). If any found, an error will be raised.
 
-> [!TIP]
+> [!INFO]
 >
 > For an example on how to properly introduce a new mark in the outputs, you can check the [PR](https://github.com/opentofu/opentofu/pull/2633) for the deprecated outputs.
 
 Strict rules:
-* A root module cannot define ephemeral outputs.
-* Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too. Otherwise, it needs to show an error:
-   ```hcl
-    │ Error: Output not marked as ephemeral
-    │
-    │   on mod/main.tf line 33, in output "password":
-    │   33:   value = reference.to.ephemeral.value
-    │
-    │ In order to allow this output to store ephemeral values add `ephemeral = true` attribute to it.
-   ```
-* Any output from a root module that is referencing a write only attribute needs to be marked as sensitive too. Otherwise, an error should be raised
-  ```hcl
-    │ Error: An output referencing a sensitive value needs to be marked with sensitive too
-    │
-    │   on main.tf line 32:
-    │   32: output "write_only_out" {
-    │
-    │ For security reasons, OpenTofu requires any output that is referencing a sensitive value to also be configured the same. If the root module really wants to export this sensitive value, you need to annotate it with the following argument:
-    │     sensitive = true
-  ```
+* A root module cannot define ephemeral outputs. If any found, an error will be raised.
+* Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too. If any found, an error will be raised.
+* Any output referencing an ephemeral value needs to be marked as ephemeral too. If any found, an error will be raised.
+* Any output from a root module that is referencing a write-only attribute needs to be marked as sensitive. If any found, an error will be raised.
 
 Considering the rules above, root modules cannot have any ephemeral outputs defined.
 
