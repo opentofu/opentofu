@@ -104,8 +104,7 @@ func (c *FmtCommand) Run(args []string) int {
 		ok := buf.Len() == 0
 		if list {
 			if _, err := io.Copy(&cli.UiWriter{Ui: c.Ui}, buf); err != nil {
-				// Should never happen
-				panic(err)
+				log.Printf("[ERROR] Unable to write UI output: %s", err)
 			}
 		}
 		if ok {
