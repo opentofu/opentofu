@@ -51,17 +51,18 @@ do
   reported_issues="$(echo $reported_issues| jq -r '.[] | .number' | xargs)"
   [[ ${no_of_issues} -ge 1 ]] && echo "Vulnerabilties found but already reported for ${vuln_key} in: ${reported_issues}" && continue
 
+  echo "--> Creating issue <--"
   echo "This vulnerability might affect the following versions: ${affected_versions}" > ticket_content
   echo "" >> ticket_content
   echo "*Vulnerability info:* https://pkg.go.dev/vuln/${vuln_key}" >> ticket_content
   echo "*Pipeline run:* ${github_run_url}" >> ticket_content
-  # gh issue create --repo opentofu/opentofu --label "govulncheck" --title "${ticket_title}" --body-file ticket_content
   echo "Create issue..."
   echo "Title: ${ticket_title}"
   echo "Content:"
   cat ticket_content
-  echo "---------"
-  echo "---------"
+
+  gh issue create --repo opentofu/opentofu --label "govulncheck" --title "${ticket_title}" --body-file ticket_content
+  echo "--> Creating issue (END) <--"
 done <<< "$(echo "$vuln_to_versions"  | jq -c 'to_entries[]')"
 # ^ This is converting a json object that looks something like:
 # {"GO-2024-2947":["v1.7"],"GO-2024-2948":["v1.7"],...}

@@ -14,9 +14,6 @@ on:
   schedule:
     - cron: '00 15 * * MON'
   workflow_dispatch: {}
-  push:
-    branches:
-      - govulncheck-action
 
 jobs:
   govulncheck:
@@ -74,7 +71,7 @@ jobs:
     needs:
     - govulncheck
     runs-on: ubuntu-latest
-    #if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main'
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
