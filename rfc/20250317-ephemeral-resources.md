@@ -75,8 +75,10 @@ resource "aws_db_instance" "example" {
 
 As seen in this particular change of the [terraform-plugin-framework](https://github.com/hashicorp/terraform-plugin-framework/commit/ecd80f67daed0b92b243ae59bb1ee2077f8077c7), the write-only attribute cannot be configured for set attributes, set nested attributes and set nested blocks.
 
-Write-only attributes cannot generate a plan diff because the prior state does not contain a value that OpenTofu can use to compare the new value against and also the value provider returns during planning of a write-only argument should always be null. 
-This means that the there may be inconsistencies between plan and apply for the write-only arguments.
+Write-only attributes cannot generate a plan diff. 
+This is because the prior state does not contain a value that OpenTofu can use to compare the new value against and 
+also the value provider returns during planning of a write-only argument should always be null. 
+This means that there could be inconsistencies between plan and apply for the write-only arguments.
 
 #### Variables
 Any `variable` block can be marked as ephemeral.
@@ -180,25 +182,6 @@ Otherwise, it needs to show an error:
 │   33:   value = reference.to.ephemeral.value
 │
 │ In order to allow this output to store ephemeral values add `ephemeral = true` attribute to it.
-```
-
-Even though a write-only argument of a `resource` block will be always null when referenced, it can still be referenced by an output. 
-In case there is such an attribute referenced by an output of the root module, the block needs to be marked with as sensitive:
-```hcl
-output "test" {
-  // ...
-  sensitive = true
-}
-```
-In case the output is not marked accordingly, an error will be shown:
-```hcl
-  │ Error: An output referencing a sensitive value needs to be marked with sensitive too
-  │
-  │   on main.tf line 32:
-  │   32: output "write_only_out" {
-  │
-  │ For security reasons, OpenTofu requires any output that is referencing a sensitive value to also be configured the same. If the root module really wants to export this sensitive value, you need to annotate it with the following argument:
-  │     sensitive = true
 ```
 #### Locals
 Local values are automatically marked as ephemeral if any of the value that is used to compute the local is already an ephemeral one.
