@@ -859,9 +859,10 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		if err := locker.Process.Signal(syscall.SIGTERM); err != nil {
 			t.Fatal(err)
 		}
-		if err := locker.Wait(); err != nil {
-			t.Fatal(err)
-		}
+		// Assume the sigterm above succeeds. The error here may represent
+		// the signal sent above, but is difficult to check in a platform
+		// agostic way
+		_ = locker.Wait()
 	}
 
 	// wait for the process to lock
