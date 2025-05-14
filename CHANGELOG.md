@@ -65,6 +65,7 @@ BUG FIXES:
 - Provider GPG Expiration warnings no longer show when only one of the keys have expired. Only once all are expired or invalid. ([#2475](https://github.com/opentofu/opentofu/issues/2475))
 - The "oss" backend, for state storage in Alibaba Cloud OSS, now fully supports all of the typical environment variables for HTTP/HTTPS proxy configuration. Previously it supported configuring a proxy using variables like `HTTPS_PROXY`, but did not support per-origin opt-out using the `NO_PROXY` environment variable. ([#2675](https://github.com/opentofu/opentofu/pull/2675))
 - `AzureRM` backend now supports pagination when retrieving workspaces. `timeout_seconds` backend configuration is also used in these operations. ([#2720](https://github.com/opentofu/opentofu/pull/2720))
+- Fix potential loss of local statefile if file creation failed. ([#2798](https://github.com/opentofu/opentofu/pull/2798))
 
 INTERNAL CHANGES:
 - `skip_s3_checksum=true` now blocks the [aws-sdk new default S3 integrity checks](https://github.com/aws/aws-sdk-go-v2/discussions/2960) ([#2596](https://github.com/opentofu/opentofu/pull/2596))
