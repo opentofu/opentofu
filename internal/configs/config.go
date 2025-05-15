@@ -817,6 +817,59 @@ func (c *Config) ProviderTypes() []addrs.Provider {
 	return ret
 }
 
+func (c *Config) ResourceTypes() map[addrs.Provider]map[string]int {
+	m := make(map[addrs.Provider]map[string]int)
+	addResource := func(r *Resource) {
+		if r == nil {
+			return
+		}
+
+		pm, ok := m[r.Provider]
+		if !ok {
+			pm = make(map[string]int)
+			m[r.Provider] = pm
+		}
+		pm[r.Type] += 1
+	}
+
+	for _, r := range c.Module.ManagedResources {
+		addResource(r)
+	}
+
+	return m
+}
+
+func (c *Config) DatasourceTypes() map[addrs.Provider]map[string]int {
+	m := make(map[addrs.Provider]map[string]int)
+	addResource := func(r *Resource) {
+		if r == nil {
+			return
+		}
+
+		pm, ok := m[r.Provider]
+		if !ok {
+			pm = make(map[string]int)
+			m[r.Provider] = pm
+		}
+		pm[r.Type] += 1
+	}
+
+	for _, d := range c.Module.DataResources {
+		addResource(d)
+	}
+	for _, c := range c.Module.Checks {
+		addResource(c.DataResource)
+	}
+
+	/* TODO
+	Moved   []*Moved
+	Import  []*Import
+	Removed []*Removed
+	*/
+
+	return m
+}
+
 // ResolveAbsProviderAddr returns the AbsProviderConfig represented by the given
 // ProviderConfig address, which must not be nil or this method will panic.
 //
