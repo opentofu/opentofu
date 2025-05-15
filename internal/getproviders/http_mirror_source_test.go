@@ -15,8 +15,8 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/go-retryablehttp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/svcauth"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -33,10 +33,8 @@ func TestHTTPMirrorSource(t *testing.T) {
 	if err != nil {
 		t.Fatalf("httptest.NewTLSServer returned a server with an invalid URL")
 	}
-	creds := svcauth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		svchost.Hostname(baseURL.Host): {
-			"token": "placeholder-token",
-		},
+	creds := svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		svchost.Hostname(baseURL.Host): svcauth.HostCredentialsToken("placeholder-token"),
 	})
 	retryHTTPClient := retryablehttp.NewClient()
 	retryHTTPClient.HTTPClient = httpClient

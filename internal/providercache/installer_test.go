@@ -22,8 +22,8 @@ import (
 	"github.com/apparentlymart/go-versions/versions/constraints"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"

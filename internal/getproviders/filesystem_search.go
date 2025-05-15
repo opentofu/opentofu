@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )

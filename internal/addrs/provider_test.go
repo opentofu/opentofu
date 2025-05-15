@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/go-test/deep"
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 )
 
 func TestProviderString(t *testing.T) {

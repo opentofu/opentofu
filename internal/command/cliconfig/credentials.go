@@ -7,6 +7,7 @@ package cliconfig
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -14,12 +15,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/svcauth"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	svcauth "github.com/hashicorp/terraform-svchost/auth"
-
+	"github.com/opentofu/opentofu/internal/command/cliconfig/svcauthconfig"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	pluginDiscovery "github.com/opentofu/opentofu/internal/plugin/discovery"
 	"github.com/opentofu/opentofu/internal/replacefile"
@@ -47,7 +48,7 @@ func (c *Config) CredentialsSource(helperPlugins pluginDiscovery.PluginMetaSet) 
 		return nil, fmt.Errorf("can't locate credentials file: %w", err)
 	}
 
-	var helper svcauth.CredentialsSource
+	var helper svcauth.CredentialsStore
 	var helperType string
 	for givenType, givenConfig := range c.CredentialsHelpers {
 		available := helperPlugins.WithName(givenType)
@@ -58,8 +59,8 @@ func (c *Config) CredentialsSource(helperPlugins pluginDiscovery.PluginMetaSet) 
 
 		selected := available.Newest()
 
-		helperSource := svcauth.HelperProgramCredentialsSource(selected.Path, givenConfig.Args...)
-		helper = svcauth.CachingCredentialsSource(helperSource) // cached because external operation may be slow/expensive
+		helperSource := svcauthconfig.NewHelperProgramCredentialsStore(selected.Path, givenConfig.Args...)
+		helper = svcauth.CachingCredentialsStore(helperSource)
 		helperType = givenType
 
 		// There should only be zero or one "credentials_helper" blocks. We
@@ -85,7 +86,7 @@ func EmptyCredentialsSourceForTests(credentialsFilePath string) *CredentialsSour
 // credentialsSource is an internal factory for the credentials source which
 // allows overriding the credentials file path, which allows setting it to
 // a temporary file location when testing.
-func (c *Config) credentialsSource(helperType string, helper svcauth.CredentialsSource, credentialsFilePath string) *CredentialsSource {
+func (c *Config) credentialsSource(helperType string, helper svcauth.CredentialsStore, credentialsFilePath string) *CredentialsSource {
 	configured := map[svchost.Hostname]cty.Value{}
 	for userHost, creds := range c.Credentials {
 		host, err := svchost.ForComparison(userHost)
@@ -221,7 +222,7 @@ type CredentialsSource struct {
 	// hostnames not explicitly represented in "configured". Any writes to
 	// the credentials store will also be sent to a configured helper instead
 	// of the credentials.tfrc.json file.
-	helper svcauth.CredentialsSource
+	helper svcauth.CredentialsStore
 
 	// helperType is the name of the type of credentials helper that is
 	// referenced in "helper", or the empty string if "helper" is nil.
@@ -231,7 +232,7 @@ type CredentialsSource struct {
 // Assertion that credentialsSource implements CredentialsSource
 var _ svcauth.CredentialsSource = (*CredentialsSource)(nil)
 
-func (s *CredentialsSource) ForHost(host svchost.Hostname) (svcauth.HostCredentials, error) {
+func (s *CredentialsSource) ForHost(ctx context.Context, host svchost.Hostname) (svcauth.HostCredentials, error) {
 	// The first order of precedence for credentials is a host-specific environment variable
 	if envCreds := hostCredentialsFromEnv(host); envCreds != nil {
 		return envCreds, nil
@@ -240,23 +241,23 @@ func (s *CredentialsSource) ForHost(host svchost.Hostname) (svcauth.HostCredenti
 	// Then, any credentials block present in the CLI config
 	v, ok := s.configured[host]
 	if ok {
-		return svcauth.HostCredentialsFromObject(v), nil
+		return svcauthconfig.HostCredentialsFromObject(v), nil
 	}
 
 	// And finally, the credentials helper
 	if s.helper != nil {
-		return s.helper.ForHost(host)
+		return s.helper.ForHost(ctx, host)
 	}
 
 	return nil, nil
 }
 
-func (s *CredentialsSource) StoreForHost(host svchost.Hostname, credentials svcauth.HostCredentialsWritable) error {
-	return s.updateHostCredentials(host, credentials)
+func (s *CredentialsSource) StoreForHost(ctx context.Context, host svchost.Hostname, credentials svcauth.NewHostCredentials) error {
+	return s.updateHostCredentials(ctx, host, credentials)
 }
 
-func (s *CredentialsSource) ForgetForHost(host svchost.Hostname) error {
-	return s.updateHostCredentials(host, nil)
+func (s *CredentialsSource) ForgetForHost(ctx context.Context, host svchost.Hostname) error {
+	return s.updateHostCredentials(ctx, host, nil)
 }
 
 // HostCredentialsLocation returns a value indicating what type of storage is
@@ -297,7 +298,7 @@ func (s *CredentialsSource) CredentialsHelperType() string {
 	return s.helperType
 }
 
-func (s *CredentialsSource) updateHostCredentials(host svchost.Hostname, new svcauth.HostCredentialsWritable) error {
+func (s *CredentialsSource) updateHostCredentials(ctx context.Context, host svchost.Hostname, new svcauth.NewHostCredentials) error {
 	switch loc := s.HostCredentialsLocation(host); loc {
 	case CredentialsInOtherFile:
 		return ErrUnwritableHostCredentials(host)
@@ -311,16 +312,16 @@ func (s *CredentialsSource) updateHostCredentials(host svchost.Hostname, new svc
 	case CredentialsViaHelper:
 		// Delegate entirely to the helper, then.
 		if new == nil {
-			return s.helper.ForgetForHost(host)
+			return s.helper.ForgetForHost(ctx, host)
 		}
-		return s.helper.StoreForHost(host, new)
+		return s.helper.StoreForHost(ctx, host, new)
 	default:
 		// Should never happen because the above cases are exhaustive
 		return fmt.Errorf("invalid credentials location %#v", loc)
 	}
 }
 
-func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, new svcauth.HostCredentialsWritable) error {
+func (s *CredentialsSource) updateLocalHostCredentials(host svchost.Hostname, new svcauth.NewHostCredentials) error {
 	// This function updates the local credentials file in particular,
 	// regardless of whether a credentials helper is active. It should be
 	// called only indirectly via updateHostCredentials.

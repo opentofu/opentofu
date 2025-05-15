@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"net/url"
 
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )

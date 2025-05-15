@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 
 	"github.com/apparentlymart/go-userdirs/userdirs"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"

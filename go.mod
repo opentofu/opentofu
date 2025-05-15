@@ -58,7 +58,6 @@ require (
 	github.com/hashicorp/hcl v1.0.0
 	github.com/hashicorp/hcl/v2 v2.20.1
 	github.com/hashicorp/jsonapi v1.3.1
-	github.com/hashicorp/terraform-svchost v0.1.1
 	github.com/jmespath/go-jmespath v0.4.0
 	github.com/kardianos/osext v0.0.0-20190222173326-2bc1f35cddc0
 	github.com/lib/pq v1.10.3
@@ -78,7 +77,8 @@ require (
 	github.com/openbao/openbao/api/v2 v2.1.0
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.0
-	github.com/opentofu/registry-address v0.0.0-20230920144404-f1e51167f633
+	github.com/opentofu/registry-address/v2 v2.0.0-20250611143131-d0a99bd8acdd
+	github.com/opentofu/svchost v0.0.0-20250610175836-86c9e5e3d8c8
 	github.com/packer-community/winrmcp v0.0.0-20180921211025-c76d91c1e7db
 	github.com/pkg/errors v0.9.1
 	github.com/posener/complete v1.2.3
@@ -99,14 +99,14 @@ require (
 	go.opentelemetry.io/otel/sdk v1.35.0
 	go.opentelemetry.io/otel/trace v1.35.0
 	go.uber.org/mock v0.4.0
-	golang.org/x/crypto v0.35.0
+	golang.org/x/crypto v0.38.0
 	golang.org/x/exp v0.0.0-20230905200255-921286631fa9
 	golang.org/x/mod v0.21.0
-	golang.org/x/net v0.36.0
-	golang.org/x/oauth2 v0.16.0
-	golang.org/x/sys v0.30.0
-	golang.org/x/term v0.29.0
-	golang.org/x/text v0.22.0
+	golang.org/x/net v0.40.0
+	golang.org/x/oauth2 v0.30.0
+	golang.org/x/sys v0.33.0
+	golang.org/x/term v0.32.0
+	golang.org/x/text v0.25.0
 	golang.org/x/tools v0.25.0
 	google.golang.org/api v0.155.0
 	google.golang.org/grpc v1.62.1
@@ -122,8 +122,7 @@ require (
 
 require (
 	cloud.google.com/go v0.112.0 // indirect
-	cloud.google.com/go/compute v1.23.3 // indirect
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	cloud.google.com/go/iam v1.1.5 // indirect
 	github.com/AlecAivazis/survey/v2 v2.3.6 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -258,9 +257,8 @@ require (
 	go.opentelemetry.io/otel/metric v1.35.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.0.0 // indirect
 	golang.org/x/exp/typeparams v0.0.0-20221208152030-732eee02a75a // indirect
-	golang.org/x/sync v0.11.0 // indirect
+	golang.org/x/sync v0.14.0 // indirect
 	golang.org/x/time v0.9.0 // indirect
-	google.golang.org/appengine v1.6.8 // indirect
 	google.golang.org/genproto v0.0.0-20240123012728-ef4313101c80 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240123012728-ef4313101c80 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240123012728-ef4313101c80 // indirect

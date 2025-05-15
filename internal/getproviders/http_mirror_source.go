@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/svcauth"
 	"golang.org/x/net/idna"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -254,7 +254,7 @@ func (s *HTTPMirrorSource) mirrorHost() (svchost.Hostname, error) {
 //
 // It might return an error if the mirror base URL is invalid, or if the
 // credentials lookup itself fails.
-func (s *HTTPMirrorSource) mirrorHostCredentials() (svcauth.HostCredentials, error) {
+func (s *HTTPMirrorSource) mirrorHostCredentials(ctx context.Context) (svcauth.HostCredentials, error) {
 	hostname, err := s.mirrorHost()
 	if err != nil {
 		return nil, fmt.Errorf("invalid provider mirror base URL %s: %w", s.baseURL.String(), err)
@@ -265,7 +265,7 @@ func (s *HTTPMirrorSource) mirrorHostCredentials() (svcauth.HostCredentials, err
 		return nil, nil
 	}
 
-	return s.creds.ForHost(hostname)
+	return s.creds.ForHost(ctx, hostname)
 }
 
 // get is the shared functionality for querying a JSON index from a mirror.
@@ -292,7 +292,7 @@ func (s *HTTPMirrorSource) get(ctx context.Context, relativePath string) (status
 	}
 	req = req.WithContext(ctx)
 	req.Request.Header.Set(terraformVersionHeader, version.String())
-	creds, err := s.mirrorHostCredentials()
+	creds, err := s.mirrorHostCredentials(ctx)
 	if err != nil {
 		return 0, nil, endpointURL, fmt.Errorf("failed to determine request credentials: %w", err)
 	}

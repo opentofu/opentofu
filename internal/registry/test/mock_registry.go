@@ -10,13 +10,12 @@ import (
 	"regexp"
 	"strings"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/httpclient"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
+
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
-	tfversion "github.com/opentofu/opentofu/version"
 )
 
 // Disco return a *disco.Disco mapping registry.opentofu.org, localhost,
@@ -28,8 +27,10 @@ func Disco(s *httptest.Server) *disco.Disco {
 		"modules.v1":   fmt.Sprintf("%s/v1/modules", s.URL),
 		"providers.v1": fmt.Sprintf("%s/v1/providers", s.URL),
 	}
-	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.OpenTofuUserAgent(tfversion.String()))
+	d := disco.New(
+		disco.WithCredentials(credsSrc),
+		disco.WithHTTPClient(s.Client()),
+	)
 
 	d.ForceHostServices(svchost.Hostname("registry.opentofu.org"), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)
@@ -58,8 +59,8 @@ const (
 
 var (
 	regHost  = svchost.Hostname(regsrc.PublicRegistryHost.Normalized())
-	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		regHost: {"token": testCred},
+	credsSrc = svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		regHost: svcauth.HostCredentialsToken(testCred),
 	})
 )
 

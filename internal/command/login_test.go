@@ -13,16 +13,15 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
-
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
+	"github.com/opentofu/opentofu/internal/command/cliconfig/svcauthconfig"
 	oauthserver "github.com/opentofu/opentofu/internal/command/testdata/login-oauth-server"
 	tfeserver "github.com/opentofu/opentofu/internal/command/testdata/login-tfe-server"
 	"github.com/opentofu/opentofu/internal/command/webbrowser"
 	"github.com/opentofu/opentofu/internal/httpclient"
-	"github.com/opentofu/opentofu/version"
 )
 
 func TestLogin(t *testing.T) {
@@ -57,8 +56,10 @@ func TestLogin(t *testing.T) {
 			}
 
 			creds := cliconfig.EmptyCredentialsSourceForTests(filepath.Join(workDir, "credentials.tfrc.json"))
-			svcs := disco.NewWithCredentialsSource(creds)
-			svcs.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
+			svcs := disco.New(
+				disco.WithCredentials(creds),
+				disco.WithHTTPClient(httpclient.New(t.Context())),
+			)
 
 			svcs.ForceHostServices(svchost.Hostname("example.com"), map[string]interface{}{
 				"login.v1": map[string]interface{}{
@@ -135,11 +136,11 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname(tfeHost))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname(tfeHost))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
-		if got, want := creds.Token(), "good-token"; got != want {
+		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 		if got, want := ui.OutputWriter.String(), "Welcome to the cloud backend!"; !strings.Contains(got, want) {
@@ -158,11 +159,11 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("example.com"))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("example.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
-		if got, want := creds.Token(), "good-token"; got != want {
+		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
@@ -173,7 +174,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("example.com results in no scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 
-		host, _ := c.Services.Discover("example.com")
+		host, _ := c.Services.Discover(t.Context(), "example.com")
 		client, _ := host.ServiceOAuthClient("login.v1")
 		if len(client.Scopes) != 0 {
 			t.Errorf("unexpected scopes %q; expected none", client.Scopes)
@@ -191,13 +192,13 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("with-scopes.example.com"))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("with-scopes.example.com"))
 
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
 
-		if got, want := creds.Token(), "good-token"; got != want {
+		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
@@ -208,7 +209,7 @@ func TestLogin(t *testing.T) {
 
 	t.Run("with-scopes.example.com results in expected scopes", loginTestCase(func(t *testing.T, c *LoginCommand, ui *cli.MockUi) {
 
-		host, _ := c.Services.Discover("with-scopes.example.com")
+		host, _ := c.Services.Discover(t.Context(), "with-scopes.example.com")
 		client, _ := host.ServiceOAuthClient("login.v1")
 
 		expectedScopes := [2]string{"app1.full_access", "app2.read_only"}
@@ -234,11 +235,11 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("tfe.acme.com"))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("tfe.acme.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
-		if got, want := creds.Token(), "good-token"; got != want {
+		if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "good-token"; got != want {
 			t.Errorf("wrong token %q; want %q", got, want)
 		}
 
@@ -259,12 +260,12 @@ func TestLogin(t *testing.T) {
 		}
 
 		credsSrc := c.Services.CredentialsSource()
-		creds, err := credsSrc.ForHost(svchost.Hostname("tfe.acme.com"))
+		creds, err := credsSrc.ForHost(t.Context(), svchost.Hostname("tfe.acme.com"))
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
 		if creds != nil {
-			t.Errorf("wrong token %q; should have no token", creds.Token())
+			t.Errorf("wrong token %q; should have no token", svcauthconfig.HostCredentialsBearerToken(t, creds))
 		}
 	}, true))
 

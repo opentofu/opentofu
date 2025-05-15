@@ -11,11 +11,12 @@ import (
 	"testing"
 
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	svcauth "github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
+	"github.com/opentofu/opentofu/internal/command/cliconfig/svcauthconfig"
 )
 
 func TestLogout(t *testing.T) {
@@ -26,8 +27,10 @@ func TestLogout(t *testing.T) {
 
 	c := &LogoutCommand{
 		Meta: Meta{
-			Ui:       ui,
-			Services: disco.NewWithCredentialsSource(credsSrc),
+			Ui: ui,
+			Services: disco.New(
+				disco.WithCredentials(credsSrc),
+			),
 		},
 	}
 
@@ -61,7 +64,7 @@ func TestLogout(t *testing.T) {
 	for _, tc := range testCases {
 		host := svchost.Hostname(tc.hostname)
 		token := svcauth.HostCredentialsToken("some-token")
-		err := credsSrc.StoreForHost(host, token)
+		err := credsSrc.StoreForHost(t.Context(), host, token)
 		if err != nil {
 			t.Fatalf("unexpected error storing credentials: %s", err)
 		}
@@ -71,16 +74,16 @@ func TestLogout(t *testing.T) {
 			t.Fatalf("unexpected error code %d\nstderr:\n%s", status, ui.ErrorWriter.String())
 		}
 
-		creds, err := credsSrc.ForHost(host)
+		creds, err := credsSrc.ForHost(t.Context(), host)
 		if err != nil {
 			t.Errorf("failed to retrieve credentials: %s", err)
 		}
 		if tc.shouldRemove {
 			if creds != nil {
-				t.Errorf("wrong token %q; should have no token", creds.Token())
+				t.Errorf("wrong token %q; should have no token", svcauthconfig.HostCredentialsBearerToken(t, creds))
 			}
 		} else {
-			if got, want := creds.Token(), "some-token"; got != want {
+			if got, want := svcauthconfig.HostCredentialsBearerToken(t, creds), "some-token"; got != want {
 				t.Errorf("wrong token %q; want %q", got, want)
 			}
 		}
