@@ -12,11 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	tfaddr "github.com/opentofu/registry-address"
-
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
-	svchost "github.com/hashicorp/terraform-svchost"
+	regaddr "github.com/opentofu/registry-address/v2"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )
@@ -142,7 +141,7 @@ func TestSourcePackageMeta(t *testing.T) {
 			[]SigningKey{
 				{ASCIIArmor: TestingPublicKey},
 			},
-			tfaddr.Provider{Hostname: "example.com", Namespace: "awesomesauce", Type: "happycloud"},
+			regaddr.Provider{Hostname: "example.com", Namespace: "awesomesauce", Type: "happycloud"},
 		),
 	)
 

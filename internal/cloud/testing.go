@@ -21,26 +21,23 @@ import (
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/version"
-
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 )
 
 const (
@@ -49,8 +46,8 @@ const (
 
 var (
 	tfeHost  = "app.terraform.io"
-	credsSrc = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		svchost.Hostname(tfeHost): {"token": testCred},
+	credsSrc = svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		svchost.Hostname(tfeHost): svcauth.HostCredentialsToken("testCred"),
 	})
 	testBackendSingleWorkspaceName = "app-prod"
 	defaultTFCPing                 = map[string]func(http.ResponseWriter, *http.Request){
@@ -598,8 +595,10 @@ func testDisco(s *httptest.Server) *disco.Disco {
 	services := map[string]interface{}{
 		"tfe.v2": fmt.Sprintf("%s/api/v2/", s.URL),
 	}
-	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
+	d := disco.New(
+		disco.WithCredentials(credsSrc),
+		disco.WithHTTPClient(s.Client()),
+	)
 
 	d.ForceHostServices(svchost.Hostname(tfeHost), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)

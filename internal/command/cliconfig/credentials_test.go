@@ -6,15 +6,18 @@
 package cliconfig
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/svcauth"
 	"github.com/zclconf/go-cty/cty"
 
-	svchost "github.com/hashicorp/terraform-svchost"
-	svcauth "github.com/hashicorp/terraform-svchost/auth"
+	"github.com/opentofu/opentofu/internal/command/cliconfig/svcauthconfig"
 )
 
 func TestCredentialsForHost(t *testing.T) {
@@ -32,17 +35,15 @@ func TestCredentialsForHost(t *testing.T) {
 		// a credentials helper program, since we're only testing the logic
 		// for choosing when to delegate to the helper here. The logic for
 		// interacting with a helper program is tested in the svcauth package.
-		helper: svcauth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-			"from-helper.example.com": {
-				"token": "from-helper",
-			},
+		helper: readOnlyCredentialsStore{
+			svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+				"from-helper.example.com": svcauth.HostCredentialsToken("from-helper"),
 
-			// This should be shadowed by the "configured" entry with the same
-			// hostname above.
-			"configured.example.com": {
-				"token": "incorrectly-from-helper",
-			},
-		}),
+				// This should be shadowed by the "configured" entry with the same
+				// hostname above.
+				"configured.example.com": svcauth.HostCredentialsToken("incorrectly-from-helper"),
+			}),
+		},
 		helperType: "fake",
 	}
 
@@ -62,7 +63,7 @@ func TestCredentialsForHost(t *testing.T) {
 	}
 
 	t.Run("configured", func(t *testing.T) {
-		creds, err := credSrc.ForHost(svchost.Hostname("configured.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("configured.example.com"))
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -71,7 +72,7 @@ func TestCredentialsForHost(t *testing.T) {
 		}
 	})
 	t.Run("from helper", func(t *testing.T) {
-		creds, err := credSrc.ForHost(svchost.Hostname("from-helper.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("from-helper.example.com"))
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -80,7 +81,7 @@ func TestCredentialsForHost(t *testing.T) {
 		}
 	})
 	t.Run("not available", func(t *testing.T) {
-		creds, err := credSrc.ForHost(svchost.Hostname("unavailable.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("unavailable.example.com"))
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -94,7 +95,7 @@ func TestCredentialsForHost(t *testing.T) {
 		expectedToken := "configured-by-env"
 		t.Setenv(envName, expectedToken)
 
-		creds, err := credSrc.ForHost(svchost.Hostname("configured.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("configured.example.com"))
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -103,7 +104,7 @@ func TestCredentialsForHost(t *testing.T) {
 			t.Fatal("no credentials found")
 		}
 
-		if got := creds.Token(); got != expectedToken {
+		if got := svcauthconfig.HostCredentialsBearerToken(t, creds); got != expectedToken {
 			t.Errorf("wrong result\ngot: %s\nwant: %s", got, expectedToken)
 		}
 	})
@@ -115,7 +116,7 @@ func TestCredentialsForHost(t *testing.T) {
 		t.Setenv(envName, expectedToken)
 
 		hostname, _ := svchost.ForComparison("env.ドメイン名例.com")
-		creds, err := credSrc.ForHost(hostname)
+		creds, err := credSrc.ForHost(t.Context(), hostname)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -125,7 +126,7 @@ func TestCredentialsForHost(t *testing.T) {
 			t.Fatal("no credentials found")
 		}
 
-		if got := creds.Token(); got != expectedToken {
+		if got := svcauthconfig.HostCredentialsBearerToken(t, creds); got != expectedToken {
 			t.Errorf("wrong result\ngot: %s\nwant: %s", got, expectedToken)
 		}
 	})
@@ -137,7 +138,7 @@ func TestCredentialsForHost(t *testing.T) {
 		t.Setenv(envName, expectedToken)
 
 		hostname, _ := svchost.ForComparison("env.café.fr")
-		creds, err := credSrc.ForHost(hostname)
+		creds, err := credSrc.ForHost(t.Context(), hostname)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -147,7 +148,7 @@ func TestCredentialsForHost(t *testing.T) {
 			t.Fatal("no credentials found")
 		}
 
-		if got := creds.Token(); got != expectedToken {
+		if got := svcauthconfig.HostCredentialsBearerToken(t, creds); got != expectedToken {
 			t.Errorf("wrong result\ngot: %s\nwant: %s", got, expectedToken)
 		}
 	})
@@ -159,7 +160,7 @@ func TestCredentialsForHost(t *testing.T) {
 		t.Setenv(envName, expectedToken)
 
 		hostname, _ := svchost.ForComparison("configured.example.com")
-		creds, err := credSrc.ForHost(hostname)
+		creds, err := credSrc.ForHost(t.Context(), hostname)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -169,7 +170,7 @@ func TestCredentialsForHost(t *testing.T) {
 			t.Fatal("no credentials found")
 		}
 
-		if got := creds.Token(); got != expectedToken {
+		if got := svcauthconfig.HostCredentialsBearerToken(t, creds); got != expectedToken {
 			t.Errorf("wrong result\ngot: %s\nwant: %s", got, expectedToken)
 		}
 	})
@@ -181,7 +182,7 @@ func TestCredentialsForHost(t *testing.T) {
 		t.Setenv(envName, expectedToken)
 
 		hostname, _ := svchost.ForComparison("configureduppercase.example.com")
-		creds, err := credSrc.ForHost(hostname)
+		creds, err := credSrc.ForHost(t.Context(), hostname)
 
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
@@ -191,7 +192,7 @@ func TestCredentialsForHost(t *testing.T) {
 			t.Fatal("no credentials found")
 		}
 
-		if got := creds.Token(); got != expectedToken {
+		if got := svcauthconfig.HostCredentialsBearerToken(t, creds); got != expectedToken {
 			t.Errorf("wrong result\ngot: %s\nwant: %s", got, expectedToken)
 		}
 	})
@@ -239,6 +240,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 	// Otherwise downstream tests might fail in confusing ways.
 	{
 		err := credSrc.StoreForHost(
+			t.Context(),
 			svchost.Hostname("manually-configured.example.com"),
 			svcauth.HostCredentialsToken("not-manually-configured"),
 		)
@@ -251,6 +253,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 	}
 	{
 		err := credSrc.ForgetForHost(
+			t.Context(),
 			svchost.Hostname("manually-configured.example.com"),
 		)
 		if err == nil {
@@ -264,6 +267,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 		// We don't have a credentials file at all yet, so this first call
 		// must create it.
 		err := credSrc.StoreForHost(
+			t.Context(),
 			svchost.Hostname("stored-locally.example.com"),
 			svcauth.HostCredentialsToken("stored-locally"),
 		)
@@ -271,7 +275,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 			t.Fatalf("unexpected error storing locally: %s", err)
 		}
 
-		creds, err := credSrc.ForHost(svchost.Hostname("stored-locally.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("stored-locally.example.com"))
 		if err != nil {
 			t.Fatalf("failed to read back stored-locally credentials: %s", err)
 		}
@@ -303,6 +307,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 	)
 	{
 		err := credSrc.StoreForHost(
+			t.Context(),
 			svchost.Hostname("manually-configured.example.com"),
 			svcauth.HostCredentialsToken("not-manually-configured"),
 		)
@@ -312,6 +317,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 	}
 	{
 		err := credSrc.StoreForHost(
+			t.Context(),
 			svchost.Hostname("stored-in-helper.example.com"),
 			svcauth.HostCredentialsToken("stored-in-helper"),
 		)
@@ -319,7 +325,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 			t.Fatalf("unexpected error storing in helper: %s", err)
 		}
 
-		creds, err := credSrc.ForHost(svchost.Hostname("stored-in-helper.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("stored-in-helper.example.com"))
 		if err != nil {
 			t.Fatalf("failed to read back stored-in-helper credentials: %s", err)
 		}
@@ -341,6 +347,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 		// Because stored-locally is already in the credentials file, a new
 		// store should be sent there rather than to the credentials helper.
 		err := credSrc.StoreForHost(
+			t.Context(),
 			svchost.Hostname("stored-locally.example.com"),
 			svcauth.HostCredentialsToken("stored-locally-again"),
 		)
@@ -348,7 +355,7 @@ func TestCredentialsStoreForget(t *testing.T) {
 			t.Fatalf("unexpected error storing locally again: %s", err)
 		}
 
-		creds, err := credSrc.ForHost(svchost.Hostname("stored-locally.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("stored-locally.example.com"))
 		if err != nil {
 			t.Fatalf("failed to read back stored-locally credentials: %s", err)
 		}
@@ -361,13 +368,14 @@ func TestCredentialsStoreForget(t *testing.T) {
 		// Forgetting a host already in the credentials file should remove it
 		// from the credentials file, not from the helper.
 		err := credSrc.ForgetForHost(
+			t.Context(),
 			svchost.Hostname("stored-locally.example.com"),
 		)
 		if err != nil {
 			t.Fatalf("unexpected error forgetting locally: %s", err)
 		}
 
-		creds, err := credSrc.ForHost(svchost.Hostname("stored-locally.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("stored-locally.example.com"))
 		if err != nil {
 			t.Fatalf("failed to read back stored-locally credentials: %s", err)
 		}
@@ -385,13 +393,14 @@ func TestCredentialsStoreForget(t *testing.T) {
 	}
 	{
 		err := credSrc.ForgetForHost(
+			t.Context(),
 			svchost.Hostname("stored-in-helper.example.com"),
 		)
 		if err != nil {
 			t.Fatalf("unexpected error forgetting in helper: %s", err)
 		}
 
-		creds, err := credSrc.ForHost(svchost.Hostname("stored-in-helper.example.com"))
+		creds, err := credSrc.ForHost(t.Context(), svchost.Hostname("stored-in-helper.example.com"))
 		if err != nil {
 			t.Fatalf("failed to read back stored-in-helper credentials: %s", err)
 		}
@@ -434,15 +443,15 @@ type mockCredentialsHelper struct {
 // Assertion that mockCredentialsHelper implements svcauth.CredentialsSource
 var _ svcauth.CredentialsSource = (*mockCredentialsHelper)(nil)
 
-func (s *mockCredentialsHelper) ForHost(hostname svchost.Hostname) (svcauth.HostCredentials, error) {
+func (s *mockCredentialsHelper) ForHost(_ context.Context, hostname svchost.Hostname) (svcauth.HostCredentials, error) {
 	v, ok := s.current[hostname]
 	if !ok {
 		return nil, nil
 	}
-	return svcauth.HostCredentialsFromObject(v), nil
+	return svcauthconfig.HostCredentialsFromObject(v), nil
 }
 
-func (s *mockCredentialsHelper) StoreForHost(hostname svchost.Hostname, new svcauth.HostCredentialsWritable) error {
+func (s *mockCredentialsHelper) StoreForHost(_ context.Context, hostname svchost.Hostname, new svcauth.NewHostCredentials) error {
 	s.log = append(s.log, mockCredentialsHelperChange{
 		Host:   hostname,
 		Action: "store",
@@ -451,11 +460,37 @@ func (s *mockCredentialsHelper) StoreForHost(hostname svchost.Hostname, new svca
 	return nil
 }
 
-func (s *mockCredentialsHelper) ForgetForHost(hostname svchost.Hostname) error {
+func (s *mockCredentialsHelper) ForgetForHost(_ context.Context, hostname svchost.Hostname) error {
 	s.log = append(s.log, mockCredentialsHelperChange{
 		Host:   hostname,
 		Action: "forget",
 	})
 	delete(s.current, hostname)
 	return nil
+}
+
+// readOnlyCredentialsStore is an adapter to make a [svcauth.CredentialsSource]
+// appear to implement [svcauth.CredentialsStore] for testing purposes.
+//
+// It only statically implements that larger set of methods. If any of the
+// store-specific methods are called they will immediately return an error.
+type readOnlyCredentialsStore struct {
+	source svcauth.CredentialsSource
+}
+
+var _ svcauth.CredentialsStore = readOnlyCredentialsStore{}
+
+// ForHost implements svcauth.CredentialsStore.
+func (r readOnlyCredentialsStore) ForHost(ctx context.Context, host svchost.Hostname) (svcauth.HostCredentials, error) {
+	return r.source.ForHost(ctx, host)
+}
+
+// ForgetForHost implements svcauth.CredentialsStore.
+func (r readOnlyCredentialsStore) ForgetForHost(ctx context.Context, host svchost.Hostname) error {
+	return fmt.Errorf("this credentials store is actually read-only, despite implementing svcauth.CredentialsSource")
+}
+
+// StoreForHost implements svcauth.CredentialsStore.
+func (r readOnlyCredentialsStore) StoreForHost(ctx context.Context, host svchost.Hostname, credentials svcauth.NewHostCredentials) error {
+	return fmt.Errorf("this credentials store is actually read-only, despite implementing svcauth.CredentialsSource")
 }

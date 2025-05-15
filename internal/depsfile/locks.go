@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"sort"
 
-	svchost "github.com/hashicorp/terraform-svchost"
+	svchost "github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getproviders"

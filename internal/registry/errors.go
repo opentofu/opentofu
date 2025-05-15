@@ -8,7 +8,8 @@ package registry
 import (
 	"fmt"
 
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost/disco"
+
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 )
 

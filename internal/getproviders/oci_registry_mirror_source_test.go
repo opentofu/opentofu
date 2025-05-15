@@ -17,10 +17,10 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	svchost "github.com/hashicorp/terraform-svchost"
 	ociDigest "github.com/opencontainers/go-digest"
 	ociSpecs "github.com/opencontainers/image-spec/specs-go"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opentofu/svchost"
 	orasContent "oras.land/oras-go/v2/content"
 	orasOCI "oras.land/oras-go/v2/content/oci"
 	orasErrors "oras.land/oras-go/v2/errdef"

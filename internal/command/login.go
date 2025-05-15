@@ -22,9 +22,9 @@ import (
 	"strings"
 
 	tfe "github.com/hashicorp/go-tfe"
-	svchost "github.com/hashicorp/terraform-svchost"
-	svcauth "github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -98,7 +98,7 @@ func (c *LoginCommand) Run(args []string) int {
 	// working as expected. (Perhaps the normalization is part of the cause.)
 	dispHostname := hostname.ForDisplay()
 
-	host, err := c.Services.Discover(hostname)
+	host, err := c.Services.Discover(ctx, hostname)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
@@ -220,7 +220,7 @@ func (c *LoginCommand) Run(args []string) int {
 		return 1
 	}
 
-	err = creds.StoreForHost(hostname, token)
+	err = creds.StoreForHost(ctx, hostname, token)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

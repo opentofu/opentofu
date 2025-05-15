@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	regaddr "github.com/opentofu/registry-address/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -20,7 +21,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/version"
-	tfaddr "github.com/opentofu/registry-address"
 )
 
 func TestState_impl(t *testing.T) {
@@ -103,7 +103,7 @@ func TestStatePersist(t *testing.T) {
 						Status: states.ObjectReady,
 					},
 					addrs.AbsProviderConfig{
-						Provider: tfaddr.Provider{Namespace: "local"},
+						Provider: regaddr.Provider{Namespace: "local"},
 					},
 					addrs.NoKey,
 				)

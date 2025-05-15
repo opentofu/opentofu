@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/getmodules"
-	tfaddr "github.com/opentofu/registry-address"
+	regaddr "github.com/opentofu/registry-address/v2"
 )
 
 // ModuleSource is the general type for all three of the possible module source
@@ -201,11 +201,11 @@ func (s ModuleSourceLocal) ForDisplay() string {
 // combination of a ModuleSourceRegistry and a module version number into
 // a concrete ModuleSourceRemote that OpenTofu will then download and
 // install.
-type ModuleSourceRegistry tfaddr.Module
+type ModuleSourceRegistry regaddr.Module
 
 // DefaultModuleRegistryHost is the hostname used for registry-based module
 // source addresses that do not have an explicit hostname.
-const DefaultModuleRegistryHost = tfaddr.DefaultModuleRegistryHost
+const DefaultModuleRegistryHost = regaddr.DefaultModuleRegistryHost
 
 // ParseModuleSourceRegistry is a variant of ParseModuleSource which only
 // accepts module registry addresses, and will reject any other address type.
@@ -222,7 +222,7 @@ func ParseModuleSourceRegistry(raw string) (ModuleSource, error) {
 		return ModuleSourceRegistry{}, fmt.Errorf("can't use local directory %q as a module registry address", raw)
 	}
 
-	src, err := tfaddr.ParseModuleSource(raw)
+	src, err := regaddr.ParseModuleSource(raw)
 	if err != nil {
 		return nil, err
 	}

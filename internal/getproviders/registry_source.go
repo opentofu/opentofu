@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	disco "github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	disco "github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/httpclient"
@@ -122,7 +122,7 @@ func (s *RegistrySource) PackageMeta(ctx context.Context, provider addrs.Provide
 }
 
 func (s *RegistrySource) registryClient(ctx context.Context, hostname svchost.Hostname) (*registryClient, error) {
-	host, err := s.services.Discover(hostname)
+	host, err := s.services.Discover(ctx, hostname)
 	if err != nil {
 		return nil, ErrHostUnreachable{
 			Hostname: hostname,
@@ -151,7 +151,7 @@ func (s *RegistrySource) registryClient(ctx context.Context, hostname svchost.Ho
 	}
 
 	// Check if we have credentials configured for this hostname.
-	creds, err := s.services.CredentialsForHost(hostname)
+	creds, err := s.services.CredentialsForHost(ctx, hostname)
 	if err != nil {
 		// This indicates that a credentials helper failed, which means we
 		// can't do anything better than just pass through the helper's

@@ -18,8 +18,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
 	otelAttr "go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
@@ -71,8 +71,8 @@ func NewClient(ctx context.Context, services *disco.Disco, client *retryablehttp
 }
 
 // Discover queries the host, and returns the url for the registry.
-func (c *Client) Discover(host svchost.Hostname, serviceID string) (*url.URL, error) {
-	service, err := c.services.DiscoverServiceURL(host, serviceID)
+func (c *Client) Discover(ctx context.Context, host svchost.Hostname, serviceID string) (*url.URL, error) {
+	service, err := c.services.DiscoverServiceURL(ctx, host, serviceID)
 	if err != nil {
 		return nil, &ServiceUnreachableError{err}
 	}
@@ -96,7 +96,7 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 		return nil, err
 	}
 
-	service, err := c.Discover(host, modulesServiceID)
+	service, err := c.Discover(ctx, host, modulesServiceID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,7 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 	}
 	req = req.WithContext(ctx)
 
-	c.addRequestCreds(host, req.Request)
+	c.addRequestCreds(ctx, host, req.Request)
 	req.Header.Set(xTerraformVersion, tfVersion)
 
 	resp, err := c.client.Do(req)
@@ -150,8 +150,8 @@ func (c *Client) ModuleVersions(ctx context.Context, module *regsrc.Module) (*re
 	return &versions, nil
 }
 
-func (c *Client) addRequestCreds(host svchost.Hostname, req *http.Request) {
-	creds, err := c.services.CredentialsForHost(host)
+func (c *Client) addRequestCreds(ctx context.Context, host svchost.Hostname, req *http.Request) {
+	creds, err := c.services.CredentialsForHost(ctx, host)
 	if err != nil {
 		log.Printf("[WARN] Failed to get credentials for %s: %s (ignoring)", host, err)
 		return
@@ -179,7 +179,7 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 		return "", err
 	}
 
-	service, err := c.Discover(host, modulesServiceID)
+	service, err := c.Discover(ctx, host, modulesServiceID)
 	if err != nil {
 		return "", err
 	}
@@ -204,7 +204,7 @@ func (c *Client) ModuleLocation(ctx context.Context, module *regsrc.Module, vers
 
 	req = req.WithContext(ctx)
 
-	c.addRequestCreds(host, req.Request)
+	c.addRequestCreds(ctx, host, req.Request)
 	req.Header.Set(xTerraformVersion, tfVersion)
 
 	resp, err := c.client.Do(req)

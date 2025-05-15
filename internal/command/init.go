@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 	"github.com/posener/complete"
 	"github.com/zclconf/go-cty/cty"
 	otelAttr "go.opentelemetry.io/otel/attribute"
