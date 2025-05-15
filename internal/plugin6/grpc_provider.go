@@ -74,6 +74,8 @@ type GRPCProvider struct {
 	// schema stores the schema for this provider. This is used to properly
 	// serialize the requests for schemas.
 	schema providers.GetProviderSchemaResponse
+
+	ResourceFilter, DatasourceFilter providers.SchemaFilter
 }
 
 var _ providers.Interface = new(GRPCProvider)
@@ -140,11 +142,15 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 	}
 
 	for name, res := range protoResp.ResourceSchemas {
-		resp.ResourceTypes[name] = convert.ProtoToProviderSchema(res)
+		if p.ResourceFilter == nil || p.ResourceFilter(name) {
+			resp.ResourceTypes[name] = convert.ProtoToProviderSchema(res)
+		}
 	}
 
 	for name, data := range protoResp.DataSourceSchemas {
-		resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+		if p.DatasourceFilter == nil || p.DatasourceFilter(name) {
+			resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+		}
 	}
 
 	for name, fn := range protoResp.Functions {

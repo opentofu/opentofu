@@ -96,9 +96,6 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	resourceTypes := make(map[addrs.Provider]map[string]int)
-	datasourceTypes := make(map[addrs.Provider]map[string]int)
-
 	ensure := func(fqn addrs.Provider) {
 		name := fqn.String()
 
@@ -123,19 +120,6 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 			return
 		}
 
-		for rn := range schema.ResourceTypes {
-			_, ok := resourceTypes[fqn][rn]
-			if !ok {
-				delete(schema.ResourceTypes, rn)
-			}
-		}
-		for dn := range schema.DataSources {
-			_, ok := datasourceTypes[fqn][dn]
-			if !ok {
-				delete(schema.DataSources, dn)
-			}
-		}
-
 		schemas[fqn] = schema
 	}
 
@@ -143,20 +127,12 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 		for _, fqn := range config.ProviderTypes() {
 			ensure(fqn)
 		}
-		resourceTypes = config.ResourceTypes()
-		datasourceTypes = config.DatasourceTypes()
 	}
 
 	if state != nil {
 		needed := providers.AddressedTypesAbs(state.ProviderAddrs())
 		for _, typeAddr := range needed {
 			ensure(typeAddr)
-		}
-
-		for p, tm := range state.ResourceTypes() {
-			for t, c := range tm {
-				resourceTypes[p][t] += c
-			}
 		}
 	}
 
