@@ -764,20 +764,27 @@ There are already OpenTofu contexts that are not saved in state/plan file:
 In all of these, referencing an ephemeral value should work as normal.
 
 ### Utilities
-#### `terraform.applying`
-The `terraform.applying` needs to be introduced to allow the user to check if the current command that is running is `apply` or not.
-This is useful when user wants to configure different properties between write operations and read operations.
+#### `tofu.applying`
+The `tofu.applying` needs to be introduced to allow the user to check if the current command that is running is `apply` or not.
+This is useful when the user wants to configure different properties between write operations and read operations.
 
 `terraform.applying` should be set to `true` when `tofu apply` is executed and `false` in any other command.
 
 > [!NOTE]
 >
-> This keyword is related to the `apply` command and not to the `apply` phase, meaning that when running `tofu apply`, `terraform.applying` should still be `true` also during the `plan` phase of the `apply` command. This is `true` also when running a destroy operation.
+> This keyword is related to the `apply` command and not to the `apply` phase, meaning that when
+> running `tofu apply`, `terraform.applying` should still be `true` also during the `plan` phase of 
+> the `apply` command. This is `true` also when running a destroy operation.
 
-This is an ephemeral value that should be handled correctly and ensure that its value or any other value generate from it will not end up in a plan/state file.
+This is an ephemeral value that should be handled accordingly, meaning that its value or any other value generated 
+from it will not end up in a plan/state file.
+
+> [!NOTE]
+> 
+> For feature parity, the same functionality under `tofu.applying` should be available under `terraform.applying` too.
 
 #### `ephemeralasnull` function
-`ephemeralasnull` function is useful when an object that was built by referencing an ephemeral value wants to be used into a non-ephemeral context.
+`ephemeralasnull` function is useful when an object built by referencing an ephemeral value wants to be used into a non-ephemeral context.
 This is getting a dynamic value and by traversing it, is looking for any ephemeral value and is nullifying it, but it does not nullify any non-ephemeral value within the object.
 
 For example:
