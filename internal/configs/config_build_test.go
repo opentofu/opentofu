@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path"
@@ -30,8 +31,8 @@ func TestBuildConfig(t *testing.T) {
 	}
 
 	versionI := 0
-	cfg, diags := BuildConfig(mod, ModuleWalkerFunc(
-		func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	cfg, diags := BuildConfig(t.Context(), mod, ModuleWalkerFunc(
+		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 			// For the sake of this test we're going to just treat our
 			// SourceAddr as a path relative to our fixture directory.
 			// A "real" implementation of ModuleWalker should accept the
@@ -86,8 +87,8 @@ func TestBuildConfigDiags(t *testing.T) {
 	}
 
 	versionI := 0
-	cfg, diags := BuildConfig(mod, ModuleWalkerFunc(
-		func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	cfg, diags := BuildConfig(t.Context(), mod, ModuleWalkerFunc(
+		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 			// For the sake of this test we're going to just treat our
 			// SourceAddr as a path relative to our fixture directory.
 			// A "real" implementation of ModuleWalker should accept the
@@ -130,8 +131,8 @@ func TestBuildConfigChildModuleBackend(t *testing.T) {
 		t.Fatal("got nil root module; want non-nil")
 	}
 
-	cfg, diags := BuildConfig(mod, ModuleWalkerFunc(
-		func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	cfg, diags := BuildConfig(t.Context(), mod, ModuleWalkerFunc(
+		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 			// For the sake of this test we're going to just treat our
 			// SourceAddr as a path relative to our fixture directory.
 			// A "real" implementation of ModuleWalker should accept the
@@ -216,8 +217,8 @@ func TestBuildConfigInvalidModules(t *testing.T) {
 			expectedErrs := readDiags(os.ReadFile(filepath.Join(testDir, name, "errors")))
 			expectedWarnings := readDiags(os.ReadFile(filepath.Join(testDir, name, "warnings")))
 
-			_, buildDiags := BuildConfig(mod, ModuleWalkerFunc(
-				func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+			_, buildDiags := BuildConfig(t.Context(), mod, ModuleWalkerFunc(
+				func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 					// for simplicity, these tests will treat all source
 					// addresses as relative to the root module
 					sourcePath := filepath.Join(path, req.SourceAddr.String())
@@ -302,8 +303,8 @@ func TestBuildConfig_WithNestedTestModules(t *testing.T) {
 		t.Fatal("got nil root module; want non-nil")
 	}
 
-	cfg, diags := BuildConfig(mod, ModuleWalkerFunc(
-		func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	cfg, diags := BuildConfig(t.Context(), mod, ModuleWalkerFunc(
+		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 
 			// Bit of a hack to get the test working, but we know all the source
 			// addresses in this test are locals, so we can just treat them as
@@ -382,8 +383,8 @@ func TestBuildConfig_WithTestModule(t *testing.T) {
 		t.Fatal("got nil root module; want non-nil")
 	}
 
-	cfg, diags := BuildConfig(mod, ModuleWalkerFunc(
-		func(req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
+	cfg, diags := BuildConfig(t.Context(), mod, ModuleWalkerFunc(
+		func(_ context.Context, req *ModuleRequest) (*Module, *version.Version, hcl.Diagnostics) {
 			// For the sake of this test we're going to just treat our
 			// SourceAddr as a path relative to our fixture directory.
 			// A "real" implementation of ModuleWalker should accept the

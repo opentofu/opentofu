@@ -185,7 +185,7 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 	// local copy will take precedence.
 	searchRules = append(searchRules, getproviders.MultiSourceSelector{
 		Source: getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(services),
+			getproviders.NewRegistrySource(services, newRegistryHTTPClient(context.TODO())),
 		),
 		Exclude: directExcluded,
 	})
@@ -196,7 +196,7 @@ func implicitProviderSource(services *disco.Disco) getproviders.Source {
 func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocation, services *disco.Disco, makeOCICredsPolicy ociCredsPolicyBuilder) (getproviders.Source, tfdiags.Diagnostics) {
 	if loc == cliconfig.ProviderInstallationDirect {
 		return getproviders.NewMemoizeSource(
-			getproviders.NewRegistrySource(services),
+			getproviders.NewRegistrySource(services, newRegistryHTTPClient(context.TODO())),
 		), nil
 	}
 
@@ -225,7 +225,12 @@ func providerSourceForCLIConfigLocation(loc cliconfig.ProviderInstallationLocati
 			))
 			return nil, diags
 		}
-		return getproviders.NewHTTPMirrorSource(url, services.CredentialsSource()), nil
+		// For historical reasons, we use the registry client timeout for this
+		// even though this isn't actually a registry. The other behavior of
+		// this client is not suitable for the HTTP mirror source, so we
+		// don't use this client directly.
+		httpTimeout := newRegistryHTTPClient(context.TODO()).HTTPClient.Timeout
+		return getproviders.NewHTTPMirrorSource(url, services.CredentialsSource(), httpTimeout), nil
 
 	case cliconfig.ProviderInstallationOCIMirror:
 		mappingFunc := loc.RepositoryMapping

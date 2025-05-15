@@ -128,30 +128,59 @@ while allowing it to persist in the remote system.
 To achieve this, follow these steps:
 1. Delete the resource from your configuration.
 2. Add a removed block instead, specifying the resource address you want to "forget" in the `from` attribute.
+3. Specify the `lifecycle.destroy = false`
 
 For example:
 ```hcl
 removed {
   from = aws_instance.web
+  lifecycle {
+    destroy = false
+  }
 }
 ```
 
 :::note
-
 The address in the `from` attribute cannot include instance keys (for example, "aws_instance.web[0]").
+:::
+:::note
+The `lifecycle.destroy` can be also `true`, case in which OpenTofu will behave just like the resource was deleted from the configuration.
+Though, we allow this since such a `removed` block can be used as historical hint about the previously existing resource.
+:::
 
+:::warning
+The `lifecycle` block is not required, but it's highly recommended to be added. OpenTofu will also generate a warning if it finds any
+`removed` block without a `lifecycle` block defined inside. This is just to ensure that the user adding the `removed` block
+is indicating clearly what the block is meant to do.
 :::
 
 Upon executing `tofu plan`, OpenTofu will indicate that the resource is slated for removal from the state but will not
 be destroyed.
 
-The `removed` block can be used to remove specific resources or modules containing multiple resources. For example:
+The `removed` blocks do also support inner `provisioner` blocks. This is useful when the `resource` that is targeted to be removed
+was having `provisioner` blocks that the user wants to have executed before destroying the actual resource.
 ```hcl
 removed {
-  from = module.some_module
+  from = aws_s3_bucket.example
+  lifecycle {
+    destroy = true
+  }
+  provisioner "local-exec" {
+    when = destroy
+    command = "echo 'destroying bucket ${self.bucket}'"
+  }
 }
 ```
+The `command` field do support references only the `self` object, `each.key` and `count.index`, which represents the information that OpenTofu is still having
+in the state about the targeted `resource`.
 
+The `provisioner` block will be executed only when the `removed` block is configured in a specific way:
+- `lifecycle.destroy = true`
+- `provisioner.when = destroy`
+
+In any other cases, the execution will be skipped.
+
+For more information about provisioners, you can refer to this [page](./provisioners/syntax.mdx).
 ## Meta-Arguments
 
 The OpenTofu language defines several meta-arguments, which can be used with

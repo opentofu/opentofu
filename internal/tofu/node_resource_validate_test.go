@@ -155,7 +155,7 @@ func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testi
 	}
 
 	errStr := diags.Err().Error()
-	if !(strings.Contains(errStr, "bananananananana") && strings.Contains(errStr, "bazaz")) {
+	if !strings.Contains(errStr, "bananananananana") || !strings.Contains(errStr, "bazaz") {
 		t.Fatalf("wrong errors %q; want something about each of our invalid connInfo keys", errStr)
 	}
 }

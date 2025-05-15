@@ -188,7 +188,7 @@ func TestTest(t *testing.T) {
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
@@ -277,7 +277,7 @@ func TestTest_Full_Output(t *testing.T) {
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
@@ -310,7 +310,7 @@ func TestTest_Full_Output(t *testing.T) {
 func TestTest_Interrupt(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "with_interrupt")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
@@ -342,7 +342,7 @@ func TestTest_Interrupt(t *testing.T) {
 func TestTest_DoubleInterrupt(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "with_double_interrupt")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
@@ -391,7 +391,7 @@ test:
 func TestTest_ProviderAlias(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "with_provider_alias")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 
@@ -446,7 +446,7 @@ func TestTest_ProviderAlias(t *testing.T) {
 func TestTest_ModuleDependencies(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "with_setup_module")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Our two providers will share a common set of values to make things
 	// easier.
@@ -531,7 +531,7 @@ func TestTest_ModuleDependencies(t *testing.T) {
 func TestTest_CatchesErrorsBeforeDestroy(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "invalid_default_state")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
@@ -586,7 +586,7 @@ variable.
 func TestTest_Verbose(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "plan_then_apply")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	view, done := testView(t)
@@ -740,7 +740,7 @@ can remove the provider configuration again.
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 
@@ -889,7 +889,7 @@ func TestTest_Modules(t *testing.T) {
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			providerSource, close := newMockProviderSource(t, map[string][]string{
@@ -965,7 +965,7 @@ func TestTest_Modules(t *testing.T) {
 func TestTest_StatePropagation(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath(path.Join("test", "state_propagation")), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 
@@ -1161,7 +1161,7 @@ Condition expression could not be evaluated at this time.
 		t.Run(file, func(t *testing.T) {
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			view, done := testView(t)
@@ -1262,7 +1262,7 @@ Success! 1 passed, 0 failed.
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			providerSource, providerClose := newMockProviderSource(t, map[string][]string{
@@ -1348,7 +1348,7 @@ func TestTest_InvalidLocalVariables(t *testing.T) {
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			providerSource, providerClose := newMockProviderSource(t, map[string][]string{
@@ -1433,7 +1433,7 @@ digits, underscores, and dashes.
 
 			td := t.TempDir()
 			testCopyDir(t, testFixturePath(path.Join("test", file)), td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			provider := testing_command.NewProvider(nil)
 			providerSource, close := newMockProviderSource(t, map[string][]string{
@@ -1469,7 +1469,7 @@ digits, underscores, and dashes.
 func TestTest_MockProviderValidation(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("test/mock_provider_validation"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	provider := testing_command.NewProvider(nil)
 	providerSource, closePS := newMockProviderSource(t, map[string][]string{

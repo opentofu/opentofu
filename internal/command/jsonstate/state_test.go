@@ -96,6 +96,22 @@ func TestMarshalOutputs(t *testing.T) {
 			},
 			false,
 		},
+		{
+			map[string]*states.OutputValue{
+				"foo": {
+					Value:      cty.StringVal("bar"),
+					Deprecated: "I am deprecated",
+				},
+			},
+			map[string]Output{
+				"foo": {
+					Value:      json.RawMessage(`"bar"`),
+					Type:       json.RawMessage(`"string"`),
+					Deprecated: "I am deprecated",
+				},
+			},
+			false,
+		},
 	}
 
 	for _, test := range tests {

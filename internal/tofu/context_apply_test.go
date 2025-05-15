@@ -926,7 +926,7 @@ func TestContext2Apply_emptyModule(t *testing.T) {
 	}
 
 	actual := strings.TrimSpace(state.String())
-	actual = strings.Replace(actual, "  ", "", -1)
+	actual = strings.ReplaceAll(actual, "  ", "")
 	expected := strings.TrimSpace(testTofuApplyEmptyModuleStr)
 	if actual != expected {
 		t.Fatalf("bad: \n%s\nexpect:\n%s", actual, expected)
@@ -1124,6 +1124,12 @@ aws_instance.foo:
   require_new = yes
   type = aws_instance
 	`)
+
+	// Check that create_before_destroy was set on the foo resource
+	foo := state.RootModule().Resources["aws_instance.foo"].Instances[addrs.NoKey].Current
+	if !foo.CreateBeforeDestroy {
+		t.Fatalf("foo resource should have create_before_destroy set")
+	}
 }
 
 func TestContext2Apply_createBeforeDestroy_hook(t *testing.T) {
@@ -1932,10 +1938,8 @@ func TestContext2Apply_cancel(t *testing.T) {
 			stopped = true
 			go ctx.Stop()
 
-			for {
-				if ctx.sh.Stopped() {
-					break
-				}
+			for !ctx.sh.Stopped() {
+
 				time.Sleep(10 * time.Millisecond)
 			}
 		}
@@ -4117,8 +4121,8 @@ func TestContext2Apply_outputOrphan(t *testing.T) {
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
-	root.SetOutputValue("foo", cty.StringVal("bar"), false)
-	root.SetOutputValue("bar", cty.StringVal("baz"), false)
+	root.SetOutputValue("foo", cty.StringVal("bar"), false, "")
+	root.SetOutputValue("bar", cty.StringVal("baz"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -7633,7 +7637,7 @@ func TestContext2Apply_targetedModuleUnrelatedOutputs(t *testing.T) {
 
 	state := states.NewState()
 	child1 := state.EnsureModule(addrs.RootModuleInstance.Child("child1", addrs.NoKey))
-	child1.SetOutputValue("instance_id", cty.StringVal("something"), false)
+	child1.SetOutputValue("instance_id", cty.StringVal("something"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -8921,7 +8925,7 @@ func TestContext2Apply_destroyWithLocals(t *testing.T) {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
-	root.SetOutputValue("name", cty.StringVal("test-bar"), false)
+	root.SetOutputValue("name", cty.StringVal("test-bar"), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: map[addrs.Provider]providers.Factory{
@@ -9236,7 +9240,7 @@ func TestContext2Apply_plannedDestroyInterpolatedCount(t *testing.T) {
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
-	root.SetOutputValue("out", cty.ListVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("foo")}), false)
+	root.SetOutputValue("out", cty.ListVal([]cty.Value{cty.StringVal("foo"), cty.StringVal("foo")}), false, "")
 
 	ctx := testContext2(t, &ContextOpts{
 		Providers: providers,

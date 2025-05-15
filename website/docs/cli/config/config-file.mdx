@@ -375,9 +375,9 @@ been placed there. Over time, as plugins are upgraded, the cache directory may
 grow to contain several unused versions which you must delete manually.
 
 :::note
-The plugin cache directory is not guaranteed to be concurrency
-safe. The provider installer's behavior in environments with multiple `tofu
-init` calls is undefined.
+The plugin cache directory makes a best effort to be concurrency
+safe. It uses standard file locking practices (fnctl flock or LockFileEx),
+which have different guarantees depending on Operating System and filesystem.
 :::
 
 ### Allowing the Provider Plugin Cache to break the dependency lock file

@@ -6,7 +6,6 @@
 package s3
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -742,7 +741,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				return
 			}
 
-			credentials, err := b.awsConfig.Credentials.Retrieve(context.TODO())
+			credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 			if err != nil {
 				t.Fatalf("Error when requesting credentials: %s", err)
 			}
@@ -1100,8 +1099,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			ctx := context.TODO()
-
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
 			tc.config["bucket"] = "bucket"
@@ -1181,7 +1178,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				return
 			}
 
-			credentials, err := b.awsConfig.Credentials.Retrieve(ctx)
+			credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 			if err != nil {
 				t.Fatalf("Error when requesting credentials: %s", err)
 			}
@@ -1502,8 +1499,6 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			ctx := context.TODO()
-
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
 			tc.config["bucket"] = "bucket"
@@ -1585,7 +1580,7 @@ aws_secret_access_key = DefaultSharedCredentialsSecretKey
 				return
 			}
 
-			credentials, err := b.awsConfig.Credentials.Retrieve(ctx)
+			credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 			if err != nil {
 				t.Fatalf("Error when requesting credentials: %s", err)
 			}
@@ -1775,8 +1770,6 @@ web_identity_token_file = no-such-file
 		t.Run(name, func(t *testing.T) {
 			servicemocks.InitSessionTestEnv(t)
 
-			ctx := context.TODO()
-
 			// Populate required fields
 			tc.config["region"] = "us-east-1"
 			tc.config["bucket"] = "bucket"
@@ -1863,7 +1856,7 @@ web_identity_token_file = no-such-file
 				return
 			}
 
-			credentials, err := b.awsConfig.Credentials.Retrieve(ctx)
+			credentials, err := b.awsConfig.Credentials.Retrieve(t.Context())
 			if err != nil {
 				t.Fatalf("Error when requesting credentials: %s", err)
 			}
@@ -2188,7 +2181,7 @@ func configureBackend(t *testing.T, config map[string]any) (*Backend, tfdiags.Di
 		return b, diags
 	}
 
-	confDiags := b.Configure(configSchema)
+	confDiags := b.Configure(t.Context(), configSchema)
 	diags = diags.Append(confDiags)
 
 	return b, diags

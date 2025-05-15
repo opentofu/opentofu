@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/zclconf/go-cty/cty"
@@ -54,7 +55,7 @@ func (n *NodeRootVariable) ReferenceableAddrs() []addrs.Referenceable {
 }
 
 // GraphNodeExecutable
-func (n *NodeRootVariable) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *NodeRootVariable) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	// Root module variables are special in that they are provided directly
 	// by the caller (usually, the CLI layer) and so we don't really need to
 	// evaluate them in the usual sense, but we do need to process the raw
@@ -98,7 +99,7 @@ func (n *NodeRootVariable) Execute(ctx EvalContext, op walkOperation) tfdiags.Di
 		return diags
 	}
 
-	ctx.SetRootModuleArgument(addr.Variable, finalVal)
+	evalCtx.SetRootModuleArgument(addr.Variable, finalVal)
 
 	return diags
 }

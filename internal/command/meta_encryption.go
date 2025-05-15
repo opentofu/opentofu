@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -17,19 +18,19 @@ import (
 
 const encryptionConfigEnvName = "TF_ENCRYPTION"
 
-func (m *Meta) Encryption() (encryption.Encryption, tfdiags.Diagnostics) {
+func (m *Meta) Encryption(ctx context.Context) (encryption.Encryption, tfdiags.Diagnostics) {
 	path, err := os.Getwd()
 	if err != nil {
 		return nil, tfdiags.Diagnostics{}.Append(fmt.Errorf("Error getting pwd: %w", err))
 	}
 
-	return m.EncryptionFromPath(path)
+	return m.EncryptionFromPath(ctx, path)
 }
 
-func (m *Meta) EncryptionFromPath(path string) (encryption.Encryption, tfdiags.Diagnostics) {
+func (m *Meta) EncryptionFromPath(ctx context.Context, path string) (encryption.Encryption, tfdiags.Diagnostics) {
 	// This is not ideal, but given how fragmented the command package is, loading the root module here is our best option
 	// See other meta commands like version check which do that same.
-	module, diags := m.loadSingleModule(path, configs.SelectiveLoadEncryption)
+	module, diags := m.loadSingleModule(ctx, path, configs.SelectiveLoadEncryption)
 	if diags.HasErrors() {
 		return nil, diags
 	}

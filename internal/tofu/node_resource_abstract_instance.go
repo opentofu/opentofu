@@ -28,6 +28,36 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
+// traceNamePlanResourceInstance is a standardize trace span name we use for the
+// overall execution of all graph nodes that somehow represent the planning
+// phase for a resource instance.
+const traceNamePlanResourceInstance = "Plan resource instance changes"
+
+// traceNameApplyResourceInstance is a standardize trace span name we use for
+// the overall execution of all graph nodes that somehow represent the apply
+// phase for a resource instance.
+const traceNameApplyResourceInstance = "Apply resource instance changes"
+
+// traceAttrResourceInstanceAddr is a standardized trace span attribute
+// name that we use for recording the address of the main resource instance that
+// a particular span is concerned with.
+//
+// The value of this should be populated by calling the String method on
+// a value of type [addrs.AbsResourceInstance].
+const traceAttrResourceInstanceAddr = "opentofu.resource_instance.address"
+
+// traceAttrPlanRefresh is a standardized trace span attribute name that we use
+// for a boolean attribute describing whether the refresh step is enabled
+// for the main resource instance associated with the span during the planning
+// phase.
+const traceAttrPlanRefresh = "opentofu.plan.refresh"
+
+// traceAttrPlanPlanChanges is a standardized trace span attribute name that we
+// use for a boolean attribute describing whether the plan step is enabled
+// for the main resource instance associated with the span during the planning
+// phase. (This is false in refresh-only mode.)
+const traceAttrPlanPlanChanges = "opentofu.plan.plan_changes"
+
 // NodeAbstractResourceInstance represents a resource instance with no
 // associated operations. It embeds NodeAbstractResource but additionally
 // contains an instance key, used to identify one of potentially many
@@ -2170,7 +2200,7 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx EvalContext, st
 		return nil
 	}
 
-	provs := filterProvisioners(n.Config, when)
+	provs := filterResourceProvisioners(n.Config, n.removedBlockProvisioners, when)
 	if len(provs) == 0 {
 		// We have no provisioners, so don't do anything
 		return nil
@@ -2198,20 +2228,30 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx EvalContext, st
 	}))
 }
 
-// filterProvisioners filters the provisioners on the resource to only
-// the provisioners specified by the "when" option.
-func filterProvisioners(config *configs.Resource, when configs.ProvisionerWhen) []*configs.Provisioner {
+// filterResourceProvisioners is filtering the providers based on the "when" option.
+// In case the given resource is nil or is having no configuration defined (aka destroy/removed from the config files),
+// then this function tries to filter the removedProvisioners.
+// If the resource is having a configuration (aka config.Managed != nil), then the removedProvisioners is ignored since
+// a "removed" block cannot coexist with the "resource" config that is targeting.
+func filterResourceProvisioners(config *configs.Resource, removedProvisioners []*configs.Provisioner, when configs.ProvisionerWhen) []*configs.Provisioner {
 	// Fast path the zero case
 	if config == nil || config.Managed == nil {
-		return nil
+		return filterProvisioners(removedProvisioners, when)
 	}
 
 	if len(config.Managed.Provisioners) == 0 {
+		// This shouldn't be reached because if there is a config.Managed object, then a "removed" block should not be allowed
+		// to coexist with the resource one. This error should have been returned way before getting at this logic.
 		return nil
 	}
+	// Filter the resource defined provisioners if any
+	return filterProvisioners(config.Managed.Provisioners, when)
+}
 
-	result := make([]*configs.Provisioner, 0, len(config.Managed.Provisioners))
-	for _, p := range config.Managed.Provisioners {
+// filterProvisioners filters the provisioners to only the provisioners specified by the "when" option.
+func filterProvisioners(provisioners []*configs.Provisioner, when configs.ProvisionerWhen) []*configs.Provisioner {
+	result := make([]*configs.Provisioner, 0, len(provisioners))
+	for _, p := range provisioners {
 		if p.When == when {
 			result = append(result, p)
 		}
@@ -2240,7 +2280,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 	// then it'll serve as a base connection configuration for all of the
 	// provisioners.
 	var baseConn hcl.Body
-	if n.Config.Managed != nil && n.Config.Managed.Connection != nil {
+	if n.Config != nil && n.Config.Managed != nil && n.Config.Managed.Connection != nil {
 		baseConn = n.Config.Managed.Connection.Config
 	}
 
@@ -2313,7 +2353,8 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 
 		// The output function
 		outputFn := func(msg string) {
-			ctx.Hook(func(h Hook) (HookAction, error) {
+			// Given that we return nil below, this will never error
+			_ = ctx.Hook(func(h Hook) (HookAction, error) {
 				h.ProvisionOutput(n.Addr, prov.Type, msg)
 				return HookActionContinue, nil
 			})
@@ -2332,7 +2373,8 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx EvalContext, state 
 		// provisioners ought not to be logging anyway.
 		if _, hasSensitive := configMarks[marks.Sensitive]; hasSensitive {
 			outputFn = func(msg string) {
-				ctx.Hook(func(h Hook) (HookAction, error) {
+				// Given that we return nil below, this will never error
+				_ = ctx.Hook(func(h Hook) (HookAction, error) {
 					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to sensitive value in config)")
 					return HookActionContinue, nil
 				})
@@ -2460,7 +2502,8 @@ func (n *NodeAbstractResourceInstance) apply(
 		// such a rare error, we can just drop the raw GoString values in here
 		// to make sure we have something to debug with.
 		var unknownPaths []string
-		cty.Transform(configVal, func(p cty.Path, v cty.Value) (cty.Value, error) {
+		// We don't care about the error return here as it's only to help build a more detailed error message
+		_, _ = cty.Transform(configVal, func(p cty.Path, v cty.Value) (cty.Value, error) {
 			if !v.IsKnown() {
 				unknownPaths = append(unknownPaths, fmt.Sprintf("%#v", p))
 			}
@@ -2601,7 +2644,8 @@ func (n *NodeAbstractResourceInstance) apply(
 		// To generate better error messages, we'll go for a walk through the
 		// value and make a separate diagnostic for each unknown value we
 		// find.
-		cty.Walk(newVal, func(path cty.Path, val cty.Value) (bool, error) {
+		// We don't care about the error return here as it's only to help build a more detailed error message
+		_ = cty.Walk(newVal, func(path cty.Path, val cty.Value) (bool, error) {
 			if !val.IsKnown() {
 				pathStr := tfdiags.FormatCtyPath(path)
 				diags = diags.Append(tfdiags.Sourceless(

@@ -293,6 +293,10 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 
 	result, moreDiags := validation.Condition.Value(hclCtx)
 	diags = diags.Append(moreDiags)
+
+	result, deprDiags := marks.ExtractDeprecatedDiagnosticsWithExpr(result, validation.Condition)
+	diags = diags.Append(deprDiags)
+
 	errorValue, errorDiags := validation.ErrorMessage.Value(hclCtx)
 
 	// The following error handling is a workaround to preserve backwards
@@ -345,6 +349,9 @@ func evalVariableValidation(validation *configs.CheckRule, hclCtx *hcl.EvalConte
 		// fallback failed, or the warning generated above if it succeeded.
 		diags = diags.Append(errorDiags)
 	}
+
+	errorValue, deprDiags = marks.ExtractDeprecatedDiagnosticsWithExpr(errorValue, validation.ErrorMessage)
+	diags = diags.Append(deprDiags)
 
 	if diags.HasErrors() {
 		log.Printf("[TRACE] evalVariableValidations: %s rule %s check rule evaluation failed: %s", addr, validation.DeclRange, diags.Err().Error())
@@ -435,6 +442,9 @@ You can correct this by removing references to sensitive values, or by carefully
 				})
 				errorMessage = "The error message included a sensitive value, so it will not be displayed."
 			} else {
+				// errorValue could have deprecated marks as well,
+				// so we need to unmark to not get panic from AsString()
+				errorValue = marks.RemoveDeepDeprecated(errorValue)
 				errorMessage = strings.TrimSpace(errorValue.AsString())
 			}
 		}
@@ -476,4 +486,65 @@ You can correct this by removing references to sensitive values, or by carefully
 		Status:         status,
 		FailureMessage: errorMessage,
 	}, diags
+}
+
+// evalVariableDeprecation checks if a variable is deprecated and if so, it returns a warning diagnostic to be shown to the user
+func evalVariableDeprecation(
+	addr addrs.AbsInputVariableInstance,
+	config *configs.Variable,
+	expr hcl.Expression,
+	ctx EvalContext,
+	variableFromRemoteModule bool) tfdiags.Diagnostics {
+	if config.Deprecated == "" {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q does not have deprecation configured", addr)
+		return nil
+	}
+	// if the variable is not given in the module call, do not show a warning
+	if expr == nil {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is marked as deprecated but is not used", addr)
+		return nil
+	}
+	val := ctx.GetVariableValue(addr)
+	if val == cty.NilVal {
+		log.Printf("[TRACE] evalVariableDeprecation: variable %q is marked as deprecated but no value given", addr)
+		return nil
+	}
+	log.Printf("[TRACE] evalVariableDeprecation: usage of deprecated variable %q detected", addr)
+	var diags tfdiags.Diagnostics
+	return diags.Append(&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  `Variable marked as deprecated by the module author`,
+		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
+		Subject:  expr.Range().Ptr(),
+		Extra:    VariableDeprecationCause{IsFromRemoteModule: variableFromRemoteModule},
+	})
+}
+
+// diagnosticExtraVariableDeprecationCause is defining the contract a struct needs to fulfill
+// to be able to mark a diagnostic as one carrying information about a deprecated variable.
+type diagnosticExtraVariableDeprecationCause interface {
+	diagnosticDeprecationCause() VariableDeprecationCause
+}
+
+// DiagnosticVariableDeprecationCause checks whether the given diagnostic is
+// a deprecation warning, and if so returns the deprecation cause and
+// true. If not, returns the zero value of DeprecationCause and false.
+func DiagnosticVariableDeprecationCause(diag tfdiags.Diagnostic) (VariableDeprecationCause, bool) {
+	maybe := tfdiags.ExtraInfo[diagnosticExtraVariableDeprecationCause](diag)
+	if maybe == nil {
+		return VariableDeprecationCause{}, false
+	}
+	return maybe.diagnosticDeprecationCause(), true
+}
+
+// VariableDeprecationCause is just a container that it holds the flag that the deprecated variable was marked with.
+// This flag is going to be used later to decide on showing this diagnostic or not based on the level that the user
+// has provided in the CLI args.
+type VariableDeprecationCause struct {
+	IsFromRemoteModule bool
+}
+
+// VariableDeprecationCause implements diagnosticExtraVariableDeprecationCause
+func (c VariableDeprecationCause) diagnosticDeprecationCause() VariableDeprecationCause {
+	return c
 }

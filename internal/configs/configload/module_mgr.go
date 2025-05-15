@@ -9,10 +9,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/modsdir"
-	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/spf13/afero"
+
+	"github.com/opentofu/opentofu/internal/modsdir"
 )
 
 type moduleMgr struct {
@@ -27,15 +26,6 @@ type moduleMgr struct {
 
 	// Dir is the path where descendent modules are (or will be) installed.
 	Dir string
-
-	// Services is a service discovery client that will be used to find
-	// remote module registry endpoints. This object may be pre-loaded with
-	// cached discovery information.
-	Services *disco.Disco
-
-	// Registry is a client for the module registry protocol, which is used
-	// when a module is requested from a registry source.
-	Registry *registry.Client
 
 	// manifest tracks the currently-installed modules for this manager.
 	//

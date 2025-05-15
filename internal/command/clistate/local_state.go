@@ -73,7 +73,7 @@ func (s *LocalState) WriteState(state *tofu.State) error {
 
 	if s.stateFileOut == nil {
 		if err := s.createStateFiles(); err != nil {
-			return nil
+			return err
 		}
 	}
 	defer s.stateFileOut.Sync()

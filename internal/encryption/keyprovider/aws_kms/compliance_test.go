@@ -132,8 +132,8 @@ func TestKeyProvider(t *testing.T) {
 					return nil
 				},
 				ValidateMetadata: func(meta *keyMeta) error {
-					if meta.CiphertextBlob == nil || len(meta.CiphertextBlob) == 0 {
-						return fmt.Errorf("ciphertext blob is nil")
+					if len(meta.CiphertextBlob) == 0 {
+						return fmt.Errorf("ciphertext blob is empty")
 					}
 					return nil
 				},

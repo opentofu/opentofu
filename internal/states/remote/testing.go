@@ -80,7 +80,9 @@ func TestRemoteLocks(t *testing.T, a, b Client) {
 
 	_, err = lockerB.Lock(infoB)
 	if err == nil {
-		lockerA.Unlock(lockIDA)
+		if err := lockerA.Unlock(lockIDA); err != nil {
+			t.Error(err)
+		}
 		t.Fatal("client B obtained lock while held by client A")
 	}
 	if _, ok := err.(*statemgr.LockError); !ok {

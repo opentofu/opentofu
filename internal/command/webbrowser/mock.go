@@ -16,7 +16,7 @@ import (
 //
 // See the documentation of MockLauncher itself for more information.
 func NewMockLauncher(ctx context.Context) *MockLauncher {
-	client := httpclient.New()
+	client := httpclient.New(ctx)
 	return &MockLauncher{
 		Client:  client,
 		Context: ctx,

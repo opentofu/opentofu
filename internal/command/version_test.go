@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -23,7 +24,7 @@ func TestVersionCommand_implements(t *testing.T) {
 
 func TestVersion(t *testing.T) {
 	td := t.TempDir()
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// We'll create a fixed dependency lock file in our working directory
 	// so we can verify that the version command shows the information
@@ -51,7 +52,7 @@ func TestVersion(t *testing.T) {
 		VersionPrerelease: "foo",
 		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
 	}
-	if err := c.replaceLockedDependencies(locks); err != nil {
+	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
 		t.Fatal(err)
 	}
 	if code := c.Run([]string{}); code != 0 {
@@ -93,7 +94,7 @@ func TestVersion_flags(t *testing.T) {
 
 func TestVersion_json(t *testing.T) {
 	td := t.TempDir()
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	ui := cli.NewMockUi()
 	meta := Meta{
@@ -149,7 +150,7 @@ func TestVersion_json(t *testing.T) {
 		VersionPrerelease: "foo",
 		Platform:          getproviders.Platform{OS: "aros", Arch: "riscv64"},
 	}
-	if err := c.replaceLockedDependencies(locks); err != nil {
+	if err := c.replaceLockedDependencies(context.Background(), locks); err != nil {
 		t.Fatal(err)
 	}
 	if code := c.Run([]string{"-json"}); code != 0 {

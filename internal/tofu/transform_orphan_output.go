@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -22,7 +23,7 @@ type OrphanOutputTransformer struct {
 	Planning bool
 }
 
-func (t *OrphanOutputTransformer) Transform(g *Graph) error {
+func (t *OrphanOutputTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.State == nil {
 		log.Printf("[DEBUG] No state, no orphan outputs")
 		return nil

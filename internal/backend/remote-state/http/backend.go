@@ -303,7 +303,7 @@ func (b *Backend) configure(ctx context.Context) error {
 	return nil
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	if name != backend.DefaultStateName {
 		return nil, backend.ErrWorkspacesNotSupported
 	}
@@ -311,10 +311,10 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	return remote.NewState(b.client, b.encryption), nil
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	return nil, backend.ErrWorkspacesNotSupported
 }
 
-func (b *Backend) DeleteWorkspace(string, bool) error {
+func (b *Backend) DeleteWorkspace(context.Context, string, bool) error {
 	return backend.ErrWorkspacesNotSupported
 }

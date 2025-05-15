@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // View is the base layer for command views, encapsulating a set of I/O
@@ -35,6 +36,9 @@ type View struct {
 	// Concise is used to reduce the level of noise in the output and display
 	// only the important details.
 	concise bool
+
+	// ModuleDeprecationWarnLvl is used to filter out deprecation warnings for outputs and variables as requested by the user.
+	ModuleDeprecationWarnLvl tofu.DeprecationWarningLevel
 
 	// showSensitive is used to display the value of variables marked as sensitive.
 	showSensitive bool
@@ -83,6 +87,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.consolidateWarnings = view.ConsolidateWarnings
 	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
+	v.ModuleDeprecationWarnLvl = view.ModuleDeprecationWarnLvl
 }
 
 // SetConfigSources overrides the default no-op callback with a new function
@@ -98,6 +103,23 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 	if len(diags) == 0 {
 		return
+	}
+
+	// Filter the deprecation warnings based on the cli arg.
+	// For safety and performance reasons, we are filtering the deprecation related diagnostics only when
+	// the filtering level is not tofu.DeprecationWarningLevelAll.
+	// This filtering is implemented only in here, and not in meta.go#showDiagnostics because there are meant to be
+	// shown only during apply and plan phases. These 2 phases are using this implementation to interact with the user
+	// while meta.go#showDiagnostics is used by other commands that are not meant to show the deprecation diagnostics.
+	if v.ModuleDeprecationWarnLvl != tofu.DeprecationWarningLevelAll {
+		var newDiags tfdiags.Diagnostics
+		for _, diag := range diags {
+			if !tofu.DeprecationDiagnosticAllowed(v.ModuleDeprecationWarnLvl, diag) {
+				continue
+			}
+			newDiags = append(newDiags, diag)
+		}
+		diags = newDiags
 	}
 
 	if v.consolidateWarnings {

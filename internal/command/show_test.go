@@ -75,7 +75,7 @@ func TestShow_noArgsNoState(t *testing.T) {
 
 func TestShow_noArgsWithState(t *testing.T) {
 	// Get a temp cwd
-	testCwd(t)
+	testCwdTemp(t)
 	// Create the default state
 	testStateFileDefault(t, testState())
 
@@ -104,9 +104,7 @@ func TestShow_noArgsWithState(t *testing.T) {
 func TestShow_argsWithState(t *testing.T) {
 	// Create the default state
 	statePath := testStateFile(t, testState())
-	stateDir := filepath.Dir(statePath)
-	defer os.RemoveAll(stateDir)
-	defer testChdir(t, stateDir)()
+	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
 	c := &ShowCommand{
@@ -153,9 +151,7 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 	})
 
 	statePath := testStateFile(t, testState)
-	stateDir := filepath.Dir(statePath)
-	defer os.RemoveAll(stateDir)
-	defer testChdir(t, stateDir)()
+	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
 	c := &ShowCommand{
@@ -185,33 +181,38 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 }
 
 func TestShow_argsPlanFileDoesNotExist(t *testing.T) {
-	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	tests := map[string][]string{
+		"modern": {"-plan=doesNotExist.tfplan", "-no-color"},
+		"legacy": {"doesNotExist.tfplan", "-no-color"},
 	}
 
-	args := []string{
-		"doesNotExist.tfplan",
-		"-no-color",
-	}
-	code := c.Run(args)
-	output := done(t)
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ShowCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(testProvider()),
+					View:             view,
+				},
+			}
 
-	if code != 1 {
-		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
-	}
+			code := c.Run(args)
+			output := done(t)
 
-	got := output.Stderr()
-	want1 := `Plan read error: couldn't load the provided path`
-	want2 := `open doesNotExist.tfplan: no such file or directory`
-	if !strings.Contains(got, want1) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
-	}
-	if !strings.Contains(got, want2) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want2)
+			if code != 1 {
+				t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+			}
+
+			got := output.Stderr()
+			want1 := `couldn't load the provided path`
+			want2 := `open doesNotExist.tfplan: no such file or directory`
+			if !strings.Contains(got, want1) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
+			}
+			if !strings.Contains(got, want2) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want2)
+			}
+		})
 	}
 }
 
@@ -243,34 +244,37 @@ func TestShow_argsStatefileDoesNotExist(t *testing.T) {
 }
 
 func TestShow_json_argsPlanFileDoesNotExist(t *testing.T) {
-	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	tests := map[string][]string{
+		"modern": {"-plan=doesNotExist.tfplan", "-json", "-no-color"},
+		"legacy": {"-json", "doesNotExist.tfplan", "-no-color"},
 	}
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ShowCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(testProvider()),
+					View:             view,
+				},
+			}
 
-	args := []string{
-		"-json",
-		"doesNotExist.tfplan",
-		"-no-color",
-	}
-	code := c.Run(args)
-	output := done(t)
+			code := c.Run(args)
+			output := done(t)
 
-	if code != 1 {
-		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
-	}
+			if code != 1 {
+				t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+			}
 
-	got := output.Stderr()
-	want1 := `Plan read error: couldn't load the provided path`
-	want2 := `open doesNotExist.tfplan: no such file or directory`
-	if !strings.Contains(got, want1) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
-	}
-	if !strings.Contains(got, want2) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want2)
+			got := output.Stderr()
+			want1 := `couldn't load the provided path`
+			want2 := `open doesNotExist.tfplan: no such file or directory`
+			if !strings.Contains(got, want1) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want1)
+			}
+			if !strings.Contains(got, want2) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want2)
+			}
+		})
 	}
 }
 
@@ -304,59 +308,65 @@ func TestShow_json_argsStatefileDoesNotExist(t *testing.T) {
 
 func TestShow_planNoop(t *testing.T) {
 	planPath := testPlanFileNoop(t)
-
-	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(testProvider()),
-			View:             view,
-		},
+	tests := map[string][]string{
+		"modern": {"-plan=" + planPath, "-no-color"},
+		"legacy": {planPath, "-no-color"},
 	}
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ShowCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(testProvider()),
+					View:             view,
+				},
+			}
 
-	args := []string{
-		planPath,
-		"-no-color",
-	}
-	code := c.Run(args)
-	output := done(t)
+			code := c.Run(args)
+			output := done(t)
 
-	if code != 0 {
-		t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
-	}
+			if code != 0 {
+				t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
+			}
 
-	got := output.Stdout()
-	want := `No changes. Your infrastructure matches the configuration.`
-	if !strings.Contains(got, want) {
-		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+			got := output.Stdout()
+			want := `No changes. Your infrastructure matches the configuration.`
+			if !strings.Contains(got, want) {
+				t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+			}
+		})
 	}
 }
 
 func TestShow_planWithChanges(t *testing.T) {
 	planPathWithChanges := showFixturePlanFile(t, plans.DeleteThenCreate)
-
-	view, done := testView(t)
-	c := &ShowCommand{
-		Meta: Meta{
-			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
-			View:             view,
-		},
+	tests := map[string][]string{
+		"modern": {"-plan=" + planPathWithChanges, "-no-color"},
+		"legacy": {planPathWithChanges, "-no-color"},
 	}
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			view, done := testView(t)
+			c := &ShowCommand{
+				Meta: Meta{
+					testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+					View:             view,
+				},
+			}
 
-	args := []string{
-		planPathWithChanges,
-		"-no-color",
-	}
-	code := c.Run(args)
-	output := done(t)
+			code := c.Run(args)
+			output := done(t)
 
-	if code != 0 {
-		t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
-	}
+			if code != 0 {
+				t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
+			}
 
-	got := output.Stdout()
-	want := `test_instance.foo must be replaced`
-	if !strings.Contains(got, want) {
-		t.Fatalf("unexpected output\ngot: %s\nwant: %s", got, want)
+			got := output.Stdout()
+			want := `test_instance.foo must be replaced`
+			if !strings.Contains(got, want) {
+				t.Fatalf("unexpected output\ngot: %s\nwant: %s", got, want)
+			}
+		})
 	}
 }
 
@@ -413,7 +423,7 @@ func TestShow_planWithForceReplaceChange(t *testing.T) {
 	}
 
 	args := []string{
-		planFilePath,
+		"-plan=" + planFilePath,
 		"-no-color",
 	}
 	code := c.Run(args)
@@ -455,7 +465,7 @@ func TestShow_planErrored(t *testing.T) {
 	}
 
 	args := []string{
-		planFilePath,
+		"-plan=" + planFilePath,
 		"-no-color",
 	}
 	code := c.Run(args)
@@ -484,8 +494,8 @@ func TestShow_plan_json(t *testing.T) {
 	}
 
 	args := []string{
+		"-plan=" + planPath,
 		"-json",
-		planPath,
 		"-no-color",
 	}
 	code := c.Run(args)
@@ -503,7 +513,7 @@ func TestShow_state(t *testing.T) {
 		"attr": cty.NullVal(cty.DynamicPseudoType),
 		"null": cty.NullVal(cty.String),
 		"list": cty.ListVal([]cty.Value{cty.NullVal(cty.Number)}),
-	}), false)
+	}), false, "")
 
 	statePath := testStateFile(t, originalState)
 	defer os.RemoveAll(filepath.Dir(statePath))
@@ -544,7 +554,7 @@ func TestShow_json_output(t *testing.T) {
 			td := t.TempDir()
 			inputDir := filepath.Join(fixtureDir, entry.Name())
 			testCopyDir(t, inputDir, td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			expectError := strings.Contains(entry.Name(), "error")
 
@@ -657,7 +667,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	td := t.TempDir()
 	inputDir := "testdata/show-json-sensitive"
 	testCopyDir(t, inputDir, td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{"test": {"1.2.3"}})
 	defer close()
@@ -709,7 +719,7 @@ func TestShow_json_output_sensitive(t *testing.T) {
 
 	args = []string{
 		"-json",
-		"tofu.plan",
+		"-plan=tofu.plan",
 	}
 	defer os.Remove("tofu.plan")
 	code = sc.Run(args)
@@ -750,7 +760,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	td := t.TempDir()
 	inputDir := "testdata/show-json/conditions"
 	testCopyDir(t, inputDir, td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{"test": {"1.2.3"}})
 	defer close()
@@ -805,7 +815,7 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 
 	args = []string{
 		"-json",
-		"tofu.plan",
+		"-plan=tofu.plan",
 	}
 	defer os.Remove("tofu.plan")
 	code = sc.Run(args)
@@ -857,7 +867,7 @@ func TestShow_json_output_state(t *testing.T) {
 			td := t.TempDir()
 			inputDir := filepath.Join(fixtureDir, entry.Name())
 			testCopyDir(t, inputDir, td)
-			defer testChdir(t, td)()
+			t.Chdir(td)
 
 			providerSource, close := newMockProviderSource(t, map[string][]string{
 				"test": {"1.2.3"},
@@ -889,7 +899,7 @@ func TestShow_json_output_state(t *testing.T) {
 				},
 			}
 
-			code := sc.Run([]string{"-json"})
+			code := sc.Run([]string{"-state", "-json"})
 			showOutput := showDone(t)
 
 			if code != 0 {
@@ -906,7 +916,10 @@ func TestShow_json_output_state(t *testing.T) {
 			var got, want state
 
 			gotString := showOutput.Stdout()
-			json.Unmarshal([]byte(gotString), &got)
+			err := json.Unmarshal([]byte(gotString), &got)
+			if err != nil {
+				t.Fatalf("invalid JSON output: %s\n%s", err, gotString)
+			}
 
 			wantFile, err := os.Open("output.json")
 			if err != nil {
@@ -930,7 +943,7 @@ func TestShow_planWithNonDefaultStateLineage(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("show"), td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	// Write default state file with a testing lineage ("fake-for-testing")
 	testStateFileDefault(t, testState())
@@ -956,7 +969,7 @@ func TestShow_planWithNonDefaultStateLineage(t *testing.T) {
 	}
 
 	args := []string{
-		planPath,
+		"-plan=" + planPath,
 		"-no-color",
 	}
 	code := c.Run(args)
@@ -977,7 +990,7 @@ func TestShow_corruptStatefile(t *testing.T) {
 	td := t.TempDir()
 	inputDir := "testdata/show-corrupt-statefile"
 	testCopyDir(t, inputDir, td)
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	view, done := testView(t)
 	c := &ShowCommand{
@@ -1003,7 +1016,7 @@ func TestShow_corruptStatefile(t *testing.T) {
 
 func TestShow_showSensitiveArg(t *testing.T) {
 	td := t.TempDir()
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := stateWithSensitiveValueForShow()
 
@@ -1035,7 +1048,7 @@ func TestShow_showSensitiveArg(t *testing.T) {
 
 func TestShow_withoutShowSensitiveArg(t *testing.T) {
 	td := t.TempDir()
-	defer testChdir(t, td)()
+	t.Chdir(td)
 
 	originalState := stateWithSensitiveValueForShow()
 
@@ -1070,6 +1083,7 @@ func stateWithSensitiveValueForShow() *states.State {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			true,
+			"",
 		)
 	})
 	return state

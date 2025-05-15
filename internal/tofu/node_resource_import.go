@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -75,7 +76,7 @@ func (n *graphNodeImportState) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable impl.
-func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *graphNodeImportState) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	// Reset our states
 	n.states = nil
 
@@ -92,24 +93,24 @@ func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags
 			ResolvedProvider: n.ResolvedProvider,
 		},
 	}
-	diags = diags.Append(asAbsNode.resolveProvider(ctx, true, states.NotDeposed))
+	diags = diags.Append(asAbsNode.resolveProvider(evalCtx, true, states.NotDeposed))
 	if diags.HasErrors() {
 		return diags
 	}
 	n.ResolvedProviderKey = asAbsNode.ResolvedProviderKey
 	log.Printf("[TRACE] graphNodeImportState: importing using %s", n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey))
 
-	provider, _, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, _, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
 	}
 
 	// import state
-	absAddr := n.Addr.Resource.Absolute(ctx.Path())
+	absAddr := n.Addr.Resource.Absolute(evalCtx.Path())
 
 	// Call pre-import hook
-	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
 		return h.PreImportState(absAddr, n.ID)
 	}))
 	if diags.HasErrors() {
@@ -132,7 +133,7 @@ func (n *graphNodeImportState) Execute(ctx EvalContext, op walkOperation) (diags
 	n.states = imported
 
 	// Call post-import hook
-	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
 		return h.PostImportState(absAddr, imported)
 	}))
 	return diags
@@ -243,7 +244,7 @@ func (n *graphNodeImportStateSub) Path() addrs.ModuleInstance {
 }
 
 // GraphNodeExecutable impl.
-func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *graphNodeImportStateSub) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	// If the Ephemeral type isn't set, then it is an error
 	if n.State.TypeName == "" {
 		diags = diags.Append(fmt.Errorf("import of %s didn't set type", n.TargetAddr.String()))
@@ -260,7 +261,7 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 		},
 		ResolvedProviderKey: n.ResolvedProviderKey,
 	}
-	state, refreshDiags := riNode.refresh(ctx, states.NotDeposed, state)
+	state, refreshDiags := riNode.refresh(evalCtx, states.NotDeposed, state)
 	diags = diags.Append(refreshDiags)
 	if diags.HasErrors() {
 		return diags
@@ -288,7 +289,7 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 	// Insert marks from configuration
 	if n.Config != nil {
 		// Since the import command allow import resource with incomplete configuration, we ignore diagnostics here
-		valueWithConfigurationSchemaMarks, _, _ := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
+		valueWithConfigurationSchemaMarks, _, _ := evalCtx.EvaluateBlock(n.Config.Config, n.Schema, nil, EvalDataForNoInstanceKey)
 
 		_, stateValueMarks := state.Value.UnmarkDeepWithPaths()
 		_, valueWithConfigurationSchemaMarksPaths := valueWithConfigurationSchemaMarks.UnmarkDeepWithPaths()
@@ -296,6 +297,6 @@ func (n *graphNodeImportStateSub) Execute(ctx EvalContext, op walkOperation) (di
 		state.Value = state.Value.MarkWithPaths(combined)
 	}
 
-	diags = diags.Append(riNode.writeResourceInstanceState(ctx, state, workingState))
+	diags = diags.Append(riNode.writeResourceInstanceState(evalCtx, state, workingState))
 	return diags
 }

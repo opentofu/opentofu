@@ -20,14 +20,14 @@ import (
 
 // Workspaces returns a list of names for the workspaces found in k8s. The default
 // workspace is always returned as the first element in the slice.
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	secretClient, err := b.getKubernetesSecretClient()
 	if err != nil {
 		return nil, err
 	}
 
 	secrets, err := secretClient.List(
-		context.Background(),
+		ctx,
 		metav1.ListOptions{
 			LabelSelector: tfstateKey + "=true",
 		},
@@ -65,7 +65,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 	return states, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -78,7 +78,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return client.Delete()
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
 	c, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err

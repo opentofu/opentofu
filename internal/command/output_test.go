@@ -23,6 +23,7 @@ func TestOutput(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
@@ -58,6 +59,7 @@ func TestOutput_json(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
@@ -122,6 +124,7 @@ func TestOutput_badVar(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -151,11 +154,13 @@ func TestOutput_blank(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 		s.SetOutputValue(
 			addrs.OutputValue{Name: "name"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("john-doe"),
 			false,
+			"",
 		)
 	})
 	statePath := testStateFile(t, originalState)
@@ -275,12 +280,13 @@ func TestOutput_stateDefault(t *testing.T) {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			false,
+			"",
 		)
 	})
 
 	// Write the state file in a temporary directory with the
 	// default filename.
-	td := testTempDir(t)
+	td := testTempDirRealpath(t)
 	statePath := filepath.Join(td, DefaultStateFilename)
 
 	f, err := os.Create(statePath)
@@ -294,14 +300,7 @@ func TestOutput_stateDefault(t *testing.T) {
 	}
 
 	// Change to that directory
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	if err := os.Chdir(filepath.Dir(statePath)); err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(filepath.Dir(statePath))
 
 	view, done := testView(t)
 	c := &OutputCommand{
@@ -391,6 +390,7 @@ func stateWithSensitiveValueForOutput() *states.State {
 			addrs.OutputValue{Name: "foo"}.Absolute(addrs.RootModuleInstance),
 			cty.StringVal("bar"),
 			true,
+			"",
 		)
 	})
 	return state

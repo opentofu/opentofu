@@ -30,12 +30,12 @@ func TestRemoteClient_stateLock(t *testing.T) {
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
-	s1, err := b.StateMgr(backend.DefaultStateName)
+	s1, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
 
-	s2, err := b.StateMgr(backend.DefaultStateName)
+	s2, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}

@@ -21,7 +21,7 @@ func TestTransitiveReductionTransformer(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	{
 		tf := &ConfigTransformer{Config: mod}
-		if err := tf.Transform(&g); err != nil {
+		if err := tf.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 		t.Logf("graph after ConfigTransformer:\n%s", g.String())
@@ -29,7 +29,7 @@ func TestTransitiveReductionTransformer(t *testing.T) {
 
 	{
 		transform := &AttachResourceConfigTransformer{Config: mod}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
@@ -57,14 +57,14 @@ func TestTransitiveReductionTransformer(t *testing.T) {
 				},
 			}, t),
 		}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}
 
 	{
 		transform := &ReferenceTransformer{}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 		t.Logf("graph after ReferenceTransformer:\n%s", g.String())
@@ -72,7 +72,7 @@ func TestTransitiveReductionTransformer(t *testing.T) {
 
 	{
 		transform := &TransitiveReductionTransformer{}
-		if err := transform.Transform(&g); err != nil {
+		if err := transform.Transform(t.Context(), &g); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 		t.Logf("graph after TransitiveReductionTransformer:\n%s", g.String())

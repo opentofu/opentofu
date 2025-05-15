@@ -6,11 +6,14 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -21,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // NodeValidatableResource represents a resource that is used for validation
@@ -46,14 +50,22 @@ func (n *NodeValidatableResource) Path() addrs.ModuleInstance {
 }
 
 // GraphNodeEvalable
-func (n *NodeValidatableResource) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	_, span := tracing.Tracer().Start(
+		ctx, traceNameValidateResource,
+		otelTrace.WithAttributes(
+			otelAttr.String(traceAttrConfigResourceAddr, n.Addr.String()),
+		),
+	)
+	defer span.End()
+
 	if n.Config == nil {
 		return diags
 	}
 
-	diags = diags.Append(n.validateResource(ctx))
+	diags = diags.Append(n.validateResource(evalCtx))
 
-	diags = diags.Append(n.validateCheckRules(ctx, n.Config))
+	diags = diags.Append(n.validateCheckRules(evalCtx, n.Config))
 
 	if managed := n.Config.Managed; managed != nil {
 		// Validate all the provisioners
@@ -74,7 +86,7 @@ func (n *NodeValidatableResource) Execute(ctx EvalContext, op walkOperation) (di
 			}
 
 			// Validate Provisioner Config
-			diags = diags.Append(n.validateProvisioner(ctx, &provisioner))
+			diags = diags.Append(n.validateProvisioner(evalCtx, &provisioner))
 			if diags.HasErrors() {
 				return diags
 			}
@@ -575,9 +587,7 @@ func validateForEach(ctx EvalContext, expr hcl.Expression) (diags tfdiags.Diagno
 		return diags
 	}
 
-	if forEachDiags.HasErrors() {
-		diags = diags.Append(forEachDiags)
-	}
+	diags = diags.Append(forEachDiags)
 
 	return diags
 }

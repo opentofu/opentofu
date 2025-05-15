@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/states"
@@ -30,7 +31,7 @@ type StateTransformer struct {
 	State *states.State
 }
 
-func (t *StateTransformer) Transform(g *Graph) error {
+func (t *StateTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.State == nil {
 		log.Printf("[TRACE] StateTransformer: state is nil, so nothing to do")
 		return nil

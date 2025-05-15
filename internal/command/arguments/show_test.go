@@ -18,25 +18,68 @@ func TestParseShow_valid(t *testing.T) {
 		args []string
 		want *Show
 	}{
-		"defaults": {
+		"no options at all": {
 			nil,
 			&Show{
-				Path:     "",
-				ViewType: ViewHuman,
+				TargetType: ShowState,
+				TargetArg:  "",
+				ViewType:   ViewHuman,
 			},
 		},
-		"json": {
+		"json with no other options": {
 			[]string{"-json"},
 			&Show{
-				Path:     "",
-				ViewType: ViewJSON,
+				TargetType: ShowState,
+				TargetArg:  "",
+				ViewType:   ViewJSON,
 			},
 		},
-		"path": {
+		"latest state snapshot": {
+			[]string{"-state"},
+			&Show{
+				TargetType: ShowState,
+				TargetArg:  "",
+				ViewType:   ViewHuman,
+			},
+		},
+		"latest state snapshot, JSON": {
+			[]string{"-state", "-json"},
+			&Show{
+				TargetType: ShowState,
+				TargetArg:  "",
+				ViewType:   ViewJSON,
+			},
+		},
+		"saved plan file": {
+			[]string{"-plan=tfplan"},
+			&Show{
+				TargetType: ShowPlan,
+				TargetArg:  "tfplan",
+				ViewType:   ViewHuman,
+			},
+		},
+		"saved plan file, JSON": {
+			[]string{"-plan=tfplan", "-json"},
+			&Show{
+				TargetType: ShowPlan,
+				TargetArg:  "tfplan",
+				ViewType:   ViewJSON,
+			},
+		},
+		"legacy positional argument": {
+			[]string{"foo"},
+			&Show{
+				TargetType: ShowUnknownType, // caller must inspect "foo" to decide the type
+				TargetArg:  "foo",
+				ViewType:   ViewHuman,
+			},
+		},
+		"json with legacy positional argument": {
 			[]string{"-json", "foo"},
 			&Show{
-				Path:     "foo",
-				ViewType: ViewJSON,
+				TargetType: ShowUnknownType, // caller must inspect "foo" to decide the type
+				TargetArg:  "foo",
+				ViewType:   ViewJSON,
 			},
 		},
 	}
@@ -61,31 +104,84 @@ func TestParseShow_invalid(t *testing.T) {
 		want      *Show
 		wantDiags tfdiags.Diagnostics
 	}{
-		"unknown flag": {
+		"unknown option": {
 			[]string{"-boop"},
 			&Show{
-				Path:     "",
+				TargetType: ShowState,
+				ViewType:   ViewHuman,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Failed to parse command-line options",
+					"flag provided but not defined: -boop",
+				),
+			},
+		},
+		"positional arguments with state target selection": {
+			[]string{"-state", "bar"},
+			&Show{
 				ViewType: ViewHuman,
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
 					tfdiags.Error,
-					"Failed to parse command-line flags",
-					"flag provided but not defined: -boop",
+					"Unexpected command line arguments",
+					"This command does not expect any positional arguments when using a target-selection option.",
 				),
 			},
 		},
-		"too many arguments": {
+		"positional arguments with planfile target selection": {
+			[]string{"-plan=foo", "bar"},
+			&Show{
+				ViewType: ViewHuman,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Unexpected command line arguments",
+					"This command does not expect any positional arguments when using a target-selection option.",
+				),
+			},
+		},
+		"conflicting target selection options": {
+			[]string{"-state", "-plan=foo"},
+			&Show{
+				TargetType: ShowPlan,
+				TargetArg:  "foo",
+				ViewType:   ViewHuman,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Conflicting object types to show",
+					"The -state and -plan=FILENAME options are mutually-exclusive, to specify which kind of object to show.",
+				),
+			},
+		},
+		"too many arguments in legacy mode": {
+			[]string{"bar", "baz"},
+			&Show{
+				ViewType: ViewHuman,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Too many command line arguments",
+					"Expected at most one positional argument for the legacy positional argument mode.",
+				),
+			},
+		},
+		"too many arguments in legacy mode, json": {
 			[]string{"-json", "bar", "baz"},
 			&Show{
-				Path:     "bar",
 				ViewType: ViewJSON,
 			},
 			tfdiags.Diagnostics{
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Too many command line arguments",
-					"Expected at most one positional argument.",
+					"Expected at most one positional argument for the legacy positional argument mode.",
 				),
 			},
 		},

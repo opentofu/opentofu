@@ -43,7 +43,9 @@ func TestFilesystemRace(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			ls.WriteState(current)
+			if err := ls.WriteState(current); err != nil {
+				panic(err)
+			}
 		}()
 	}
 	wg.Wait()
@@ -200,6 +202,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 			markerOutput,
 			cty.StringVal("from-output-state"),
 			false, // not sensitive
+			"",
 		)
 	})
 	outFile, err := os.Create(filepath.Join(workDir, "output.tfstate"))
@@ -222,6 +225,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 			markerOutput,
 			cty.StringVal("from-input-state"),
 			false, // not sensitive
+			"",
 		)
 	})
 	inFile, err := os.Create(filepath.Join(workDir, "input.tfstate"))
@@ -249,6 +253,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 			markerOutput,
 			cty.StringVal("from-new-state"),
 			false, // not sensitive
+			"",
 		)
 	})
 	err = WriteAndPersist(ls, newState, nil)

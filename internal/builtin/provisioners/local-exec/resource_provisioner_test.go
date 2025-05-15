@@ -90,7 +90,9 @@ func TestResourceProvider_stop(t *testing.T) {
 
 	// Stop it
 	stopTime := time.Now()
-	p.Stop()
+	if err := p.Stop(); err != nil {
+		t.Fatal(err)
+	}
 
 	maxTempl := "expected to finish under %s, finished in %s"
 	finishWithin := (2 * time.Second)
@@ -135,7 +137,9 @@ is not really an interpreter`
 
 func TestResourceProvider_ApplyCustomWorkingDirectory(t *testing.T) {
 	testdir := "working_dir_test"
-	os.Mkdir(testdir, 0755)
+	if err := os.Mkdir(testdir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	defer os.Remove(testdir)
 
 	output := cli.NewMockUi()
@@ -221,7 +225,9 @@ func TestResourceProvider_ApplyCustomEnv(t *testing.T) {
 // Validate that Stop can Close can be called even when not provisioning.
 func TestResourceProvisioner_StopClose(t *testing.T) {
 	p := New()
-	p.Stop()
+	if err := p.Stop(); err != nil {
+		t.Fatal(err)
+	}
 	p.Close()
 }
 

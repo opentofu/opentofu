@@ -231,8 +231,8 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 
 				kw := hcl.ExprAsKeyword(attr.Expr)
 
-				switch {
-				case kw == "all":
+				switch kw {
+				case "all":
 					r.Managed.IgnoreAllChanges = true
 				default:
 					exprs, listDiags := hcl.ExprList(attr.Expr)

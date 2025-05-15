@@ -541,7 +541,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			// This name was not declared somewhere within in the
 			// configuration. We ignore empty configs, because they will
 			// already produce a warning.
-			if !(confOK || localOK) {
+			if !confOK && !localOK {
 				defAddr := addrs.NewDefaultProvider(name)
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagWarning,
@@ -559,7 +559,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			// Now we may have named this provider within the module, but
 			// there won't be a configuration available at runtime if the
 			// parent module did not pass one in.
-			if !cfg.Path.IsRoot() && !(confOK || passedOK) {
+			if !cfg.Path.IsRoot() && !confOK && !passedOK {
 				defAddr := addrs.NewDefaultProvider(name)
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagWarning,
@@ -664,7 +664,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 
 		_, emptyConfig := emptyConfigs[name]
 
-		if !(localName || configAlias || emptyConfig) {
+		if !localName && !configAlias && !emptyConfig {
 
 			// we still allow default configs, so switch to a warning if the incoming provider is a default
 			if addrs.IsDefaultProvider(providerAddr.Provider) {

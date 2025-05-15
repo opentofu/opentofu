@@ -15,14 +15,16 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/copy"
 	"github.com/opentofu/opentofu/internal/getmodules"
-	"github.com/zclconf/go-cty/cty"
 
 	version "github.com/hashicorp/go-version"
+
 	"github.com/opentofu/opentofu/internal/modsdir"
 	"github.com/opentofu/opentofu/internal/registry"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -170,7 +172,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 	}
 
 	walker := inst.moduleInstallWalker(ctx, instManifest, true, wrapHooks, remoteFetcher)
-	_, cDiags := inst.installDescendentModules(fakeRootModule, instManifest, walker, true)
+	_, cDiags := inst.installDescendentModules(ctx, fakeRootModule, instManifest, walker, true)
 	if cDiags.HasErrors() {
 		return diags.Append(cDiags)
 	}

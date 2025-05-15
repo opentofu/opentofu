@@ -170,7 +170,7 @@ func TestFmt_nonexist(t *testing.T) {
 }
 
 func TestFmt_syntaxError(t *testing.T) {
-	tempDir := testTempDir(t)
+	tempDir := testTempDirRealpath(t)
 
 	invalidSrc := `
 a = 1 +
@@ -201,7 +201,7 @@ a = 1 +
 }
 
 func TestFmt_snippetInError(t *testing.T) {
-	tempDir := testTempDir(t)
+	tempDir := testTempDirRealpath(t)
 
 	backendSrc := `terraform {backend "s3" {}}`
 
@@ -274,16 +274,7 @@ func TestFmt_manyArgs(t *testing.T) {
 
 func TestFmt_workingDirectory(t *testing.T) {
 	tempDir := fmtFixtureWriteDir(t)
-
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	err = os.Chdir(tempDir)
-	if err != nil {
-		t.Fatalf("err: %s", err)
-	}
-	defer os.Chdir(cwd)
+	t.Chdir(tempDir)
 
 	ui := new(cli.MockUi)
 	c := &FmtCommand{
@@ -491,7 +482,7 @@ var fmtFixture = struct {
 }
 
 func fmtFixtureWriteDir(t *testing.T) string {
-	dir := testTempDir(t)
+	dir := testTempDirRealpath(t)
 
 	err := os.WriteFile(filepath.Join(dir, fmtFixture.filename), fmtFixture.input, 0600)
 	if err != nil {

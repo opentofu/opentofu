@@ -79,13 +79,55 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 
 	m, err := methodConfig.Build()
 	if err != nil {
-		// TODO this error handling could use some work
-		return nil, diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  "Encryption method configuration failed",
-			Detail:   err.Error(),
-		})
+		// Convert the error to a diagnostic
+		diags = diags.Append(errorToDiagnostic(err))
 	}
 
 	return m, diags
+}
+
+func errorToDiagnostic(err error) *hcl.Diagnostic {
+	originalErr := err
+
+	for e := err; e != nil; e = errors.Unwrap(e) {
+		switch typedErr := e.(type) {
+		case *method.ErrEncryptionFailed:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Encryption operation failed during method setup",
+				Detail:   typedErr.Error(),
+			}
+		case *method.ErrDecryptionFailed:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Decryption operation failed during method setup",
+				Detail:   typedErr.Error(),
+			}
+		case *method.ErrDecryptionKeyUnavailable:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Required key unavailable for method setup",
+				Detail:   typedErr.Error(),
+			}
+		case *method.ErrCryptoFailure:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Cryptographic operation failed during method setup",
+				Detail:   typedErr.Error(),
+			}
+		case *method.ErrInvalidConfiguration:
+			return &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid method configuration",
+				Detail:   typedErr.Error(),
+			}
+		}
+	}
+
+	// Generic fallback if no specific type was matched in the error chain
+	return &hcl.Diagnostic{
+		Severity: hcl.DiagError,
+		Summary:  "Encryption method configuration error",
+		Detail:   originalErr.Error(),
+	}
 }

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -47,7 +49,7 @@ func (t *DiffTransformer) hasConfigConditions(addr addrs.AbsResourceInstance) bo
 	return len(res.Preconditions) > 0 || len(res.Postconditions) > 0
 }
 
-func (t *DiffTransformer) Transform(g *Graph) error {
+func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 	if t.Changes == nil || len(t.Changes.Resources) == 0 {
 		// Nothing to do!
 		return nil
@@ -114,7 +116,7 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 		// A deposed instance may only have a change of Delete, Forget or NoOp.
 		// A NoOp can happen if the provider shows it no longer exists during
 		// the most recent ReadResource operation.
-		if dk != states.NotDeposed && !(rc.Action == plans.Delete || rc.Action == plans.NoOp || rc.Action == plans.Forget) {
+		if dk != states.NotDeposed && rc.Action != plans.Delete && rc.Action != plans.NoOp && rc.Action != plans.Forget {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid planned change for deposed object",
@@ -176,6 +178,26 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 				if dn, ok := node.(GraphNodeDeposer); ok {
 					dn.SetPreallocatedDeposedKey(dk)
 				}
+
+				// We need to set CBD to the node here, otherwise if CBD flag was caused
+				// by the CBD descendant of the node (and not the config) and this is the sole node being updated
+				// in the current apply operation, we will lose the CBD flag in the state file and cause the "cycle" error down the line.
+				// For more details, see the issue https://github.com/opentofu/opentofu/issues/2398
+				if cn, ok := node.(GraphNodeDestroyerCBD); ok {
+					log.Printf("[TRACE] DiffTransformer: %s implements GraphNodeDestroyerCBD, setting CBD to true", addr)
+					// Setting CBD to true
+					// Error handling here is just for future-proofing, since none of the GraphNodeDestroyerCBD current implementations
+					// should return an error when setting CBD to true
+					if err := cn.ModifyCreateBeforeDestroy(true); err != nil {
+						diags = diags.Append(tfdiags.Sourceless(
+							tfdiags.Error,
+							"Invalid planned change",
+							fmt.Sprintf("%s: wasn't able to set CBD, error occured %s", dag.VertexName(node), err.Error())))
+						log.Printf("[TRACE] DiffTransformer: %s: wasn't able to set CBD, error occured %s", addr, err.Error())
+						continue
+					}
+				}
+
 				log.Printf("[TRACE] DiffTransformer: %s will be represented by %s, deposing prior object to %s", addr, dag.VertexName(node), dk)
 			} else {
 				log.Printf("[TRACE] DiffTransformer: %s will be represented by %s", addr, dag.VertexName(node))
@@ -195,6 +217,9 @@ func (t *DiffTransformer) Transform(g *Graph) error {
 			var node GraphNodeResourceInstance
 			abstract := NewNodeAbstractResourceInstance(addr)
 			if dk == states.NotDeposed {
+				// If any removed block is targeting the resource in this node, ensure that any provisioners defined in that block are going to be
+				// executed before actual resource destruction.
+				abstract.removedBlockProvisioners = refactoring.FindResourceRemovedBlockProvisioners(t.Config, abstract.Addr.ConfigResource())
 				node = &NodeDestroyResourceInstance{
 					NodeAbstractResourceInstance: abstract,
 					DeposedKey:                   dk,

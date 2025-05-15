@@ -8,6 +8,7 @@ package planfile
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -213,7 +214,7 @@ func (r *Reader) ReadConfigSnapshot() (*configload.Snapshot, error) {
 // Internally this function delegates to the configs/configload package to
 // parse the embedded configuration and so it returns diagnostics (rather than
 // a native Go error as with other methods on Reader).
-func (r *Reader) ReadConfig(rootCall configs.StaticModuleCall) (*configs.Config, tfdiags.Diagnostics) {
+func (r *Reader) ReadConfig(ctx context.Context, rootCall configs.StaticModuleCall) (*configs.Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	snap, err := r.ReadConfigSnapshot()
@@ -228,7 +229,7 @@ func (r *Reader) ReadConfig(rootCall configs.StaticModuleCall) (*configs.Config,
 
 	loader := configload.NewLoaderFromSnapshot(snap)
 	rootDir := snap.Modules[""].Dir // Root module base directory
-	config, configDiags := loader.LoadConfig(rootDir, rootCall)
+	config, configDiags := loader.LoadConfig(ctx, rootDir, rootCall)
 	diags = diags.Append(configDiags)
 
 	return config, diags

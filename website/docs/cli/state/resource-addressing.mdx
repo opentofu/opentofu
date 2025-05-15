@@ -127,3 +127,97 @@ aws_instance.web["example"]
 ```
 
 Refers to only the "example" instance in the config, and resolves to "value4".
+
+## Resource Addresses on the Command Line
+
+When using resource addresses directly in command line arguments such as
+the `-target`, `-exclude`, and `-replace` planning options, the punctuation
+characters in the resource address syntax might conflict with special
+interpretation of those characters by the shell you are using to run
+OpenTofu.
+
+To avoid this, you must ensure that those characters are properly quoted
+or escaped so that your shell will pass them literally to OpenTofu.
+The syntax for doing so varies depending on your shell or command
+interpreter:
+
+- For Unix-style shells such as `bash`, write the resource address in
+  single quotes (`'`):
+
+    ```bash
+    tofu apply -target='aws_instance.example["foo"]'
+    ```
+
+    If you need to specify an instance key string that includes a
+    single quote character, use two separate single-quoted sequences
+    with an escaped single quote between them. For example,
+    the following includes the instance key `"example'foo"`:
+
+    ```bash
+    tofu apply -target='aws_instance.example["example'\''foo"]'
+    ```
+
+- For PowerShell 7.3 or later, write the resource address in single
+  quotes (`'`):
+
+    ```powershell
+    tofu apply -target='aws_instance.example["foo"]'
+    ```
+
+    Older versions of PowerShell have different requirements. For more
+    information, refer to
+    [Passing arguments that contain quote characters](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_parsing?view=powershell-7.5#passing-arguments-that-contain-quote-characters).
+
+    If you need to specify an instance key string that includes a
+    single quote character, use two consecutive single quotes to
+    represent a single literal quote. For example, the following
+    includes the instance key `"example'foo"`:
+
+    ```powershell
+    tofu apply -target='aws_instance.example["example''foo"]'
+    ```
+
+- For Windows Command Prompt (`cmd.exe`), write the resource address in
+  double quotes (`"`) and escape any quotes from the resource address
+  using a backslash (`\`):
+
+    ```batchfile
+    tofu apply -target="aws_instance.example[\"foo\"]"
+    ```
+
+## Resource Addresses in Targeting Files
+
+The `-target-file` and `-exclude-file`
+[planning options](../commands/plan.mdx#planning-options) read resource
+addresses from a separate file that can contain zero or more resource
+addresses.
+
+OpenTofu interprets a targeting file on a line-by-line basis. The
+content of each line must be one of the following:
+
+- A resource address using the syntax described above, in which case
+  OpenTofu adds the address to the set of target addresses.
+- A comment starting with the `#` character, in which case OpenTofu
+  ignores the line completely.
+- A blank line consisting only of zero or more space characters, in
+  which case OpenTofu also ignores the line completely.
+
+For example, the following is a valid targeting file specifying a
+number of resource addresses that might need to be created first
+when applying a certain configuration for the first time:
+
+```hcl
+# These modules must be targeted during initial creation.
+module.network
+module.cluster
+
+# The following resources must also be included on initial
+# creation.
+aws_iam_role.all["base"]
+aws_iam_role_policy.all["base"]
+```
+
+The targeting file above would match all instances of all resources
+whose addresses begin with `module.network` or `module.cluster`, and
+also the specific resource instances `aws_iam_role.all["base"]` and
+`aws_iam_role_policy.all["base"]`.

@@ -56,13 +56,13 @@ func TestNodeLocalExecute(t *testing.T) {
 					Expr: expr,
 				},
 			}
-			ctx := &MockEvalContext{
+			evalCtx := &MockEvalContext{
 				StateState: states.NewState().SyncWrapper(),
 
 				EvaluateExprResult: hcl2shim.HCL2ValueFromConfigValue(test.Want),
 			}
 
-			err := n.Execute(ctx, walkApply)
+			err := n.Execute(t.Context(), evalCtx, walkApply)
 			if (err != nil) != test.Err {
 				if err != nil {
 					t.Errorf("unexpected error: %s", err)
@@ -71,7 +71,7 @@ func TestNodeLocalExecute(t *testing.T) {
 				}
 			}
 
-			ms := ctx.StateState.Module(addrs.RootModuleInstance)
+			ms := evalCtx.StateState.Module(addrs.RootModuleInstance)
 			gotLocals := ms.LocalValues
 			wantLocals := map[string]cty.Value{}
 			if test.Want != nil {

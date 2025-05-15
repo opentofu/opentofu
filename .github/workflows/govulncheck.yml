@@ -1,0 +1,93 @@
+# This workflow is meant to run govulncheck on all the branches
+# that are containing a maintained version of OpenTofu.
+# For more considerations about this, check this PR: https://github.com/opentofu/opentofu/pull/2600
+#
+# This will try to create an issue for each vulnerability key that is found.
+# If an issue for it already exists, it will skip creating it.
+#
+# This is meant to run _only_ from the main branch, on a scheduled manner.
+# All the other branches will be scanned directly by the run triggered from the main branch.
+
+name: Govulncheck
+
+on:
+  schedule:
+    - cron: '00 15 * * MON'
+  workflow_dispatch: {}
+
+jobs:
+  govulncheck:
+    name: Run govulncheck for ${{ matrix.branch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { branch: main }
+          - { branch: v1.9 }
+          - { branch: v1.8 }
+          - { branch: v1.7 }
+      fail-fast: false
+    steps:
+      - name: Checkout branch to be scanned
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{matrix.branch}}
+
+      - name: Determine Go version
+        id: go
+        uses: ./.github/actions/go-version
+
+      - name: Install Go toolchain
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version: ${{steps.go.outputs.version}}
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@d1f380186385b4f64e00313f31743df8e4b89a77 # v1.1.4
+        shell: bash
+
+      - name: Run and report govulncheck findings
+        run: |
+          govulncheck -format json ./... | tee results
+          # This is parsing the output of govulncheck by:
+          # * extracting only the findings that are affecting the current branch (.finding | select(.trace | length > 1))
+          # * getting only the vulnerability key out of the objects (.osv)
+          # * sorting and deduplicating the generated vulnerability keys (sort -u)
+          # * compacting the result into a json array like ["vulnKey1", "vulnKey2", ...] (jq -cs '.')
+          # * saving the results into a file which name is the version that we are scanning like "v1.8" (> "${{matrix.branch}}")
+          cat results | jq '.finding | select(.trace | length > 1) | .osv' | sort -u | jq -cs '.' > "${{matrix.branch}}"
+        shell: bash
+
+      # Upload the artifact to make it available to the next job.
+      # The artifact will be named as the branch name that we are scanning ("main" or "v1.7"...)
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{matrix.branch}}-results
+          path: ${{matrix.branch}}
+
+  create-issues:
+    name: Compile results and create GH issues
+    needs:
+    - govulncheck
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout branch for running the script
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          sparse-checkout: |
+            .github
+      # By providing the path where to download the artifacts and "merge-multiple: true", the downloader
+      # will gather all the files generated in the job(s) above into a single directory flattening the file tree.
+      # Eg: Instead of writing the results into "results/main-results/main" it will write the results into "results/main"
+      - name: Download vulns results
+        uses: actions/download-artifact@95815c38cf2ff2164869cbab79da8d1f422bc89e # v4
+        with:
+          path: results
+          merge-multiple: true
+      - name: Run and report govulncheck findings
+        run: .github/scripts/govulncheck-submit-issues.sh "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        shell: bash

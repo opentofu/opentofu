@@ -43,11 +43,10 @@ func TestRemoteClient(t *testing.T) {
 		"encrypt": true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
 
-	state, err := b.StateMgr(backend.DefaultStateName)
+	state, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,18 +73,17 @@ func TestRemoteClientLocks(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,16 +110,15 @@ func TestRemoteS3ClientLocks(t *testing.T) {
 		"use_lockfile": true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,18 +147,17 @@ func TestRemoteS3AndDynamoDBClientLocks(t *testing.T) {
 		"use_lockfile":   true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,11 +186,10 @@ func TestRemoteS3AndDynamoDBClientLocksWithNoDBInstance(t *testing.T) {
 		"use_lockfile":   true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,7 +203,7 @@ func TestRemoteS3AndDynamoDBClientLocksWithNoDBInstance(t *testing.T) {
 	}
 
 	expected := 0
-	if actual := numberOfObjectsInBucket(t, ctx, b1.s3Client, bucketName); actual != expected {
+	if actual := numberOfObjectsInBucket(t, t.Context(), b1.s3Client, bucketName); actual != expected {
 		t.Fatalf("expected to have %d objects but got %d", expected, actual)
 	}
 }
@@ -233,14 +228,13 @@ func TestForceUnlock(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
 	// first test with default
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -255,7 +249,7 @@ func TestForceUnlock(t *testing.T) {
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
@@ -266,7 +260,7 @@ func TestForceUnlock(t *testing.T) {
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr("test")
+	s1, err = b1.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,7 +275,7 @@ func TestForceUnlock(t *testing.T) {
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr("test")
+	s2, err = b2.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
@@ -292,7 +286,7 @@ func TestForceUnlock(t *testing.T) {
 
 	// No State lock information found for the new workspace. The client should throw the appropriate error message.
 	secondWorkspace := "new-workspace"
-	s2, err = b2.StateMgr(secondWorkspace)
+	s2, err = b2.StateMgr(t.Context(), secondWorkspace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,12 +320,11 @@ func TestForceUnlockS3Only(t *testing.T) {
 		"use_lockfile": true,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
 
 	// first test with default
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -346,7 +339,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
@@ -357,7 +350,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr("test")
+	s1, err = b1.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -372,7 +365,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr("test")
+	s2, err = b2.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
@@ -383,7 +376,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 
 	// No State lock information found for the new workspace. The client should throw the appropriate error message.
 	secondWorkspace := "new-workspace"
-	s2, err = b2.StateMgr(secondWorkspace)
+	s2, err = b2.StateMgr(t.Context(), secondWorkspace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -419,14 +412,13 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
 	// first test with default
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -441,7 +433,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
@@ -452,7 +444,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 
 	// now try the same thing with a named state
 	// first test with default
-	s1, err = b1.StateMgr("test")
+	s1, err = b1.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -467,7 +459,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 	}
 
 	// s1 is now locked, get the same state through s2 and unlock it
-	s2, err = b2.StateMgr("test")
+	s2, err = b2.StateMgr(t.Context(), "test")
 	if err != nil {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
@@ -478,7 +470,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 
 	// No State lock information found for the new workspace. The client should throw the appropriate error message.
 	secondWorkspace := "new-workspace"
-	s2, err = b2.StateMgr(secondWorkspace)
+	s2, err = b2.StateMgr(t.Context(), secondWorkspace)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -511,14 +503,13 @@ func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
 	// first create both locks: s3 and dynamo
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -534,7 +525,7 @@ func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
 
 	// Remove the dynamo lock to simulate that the lock in s3 was acquired, dynamo failed but s3 release failed in the end.
 	// Therefore, the user is left in the situation with s3 lock existing and dynamo missing.
-	deleteDynamoEntry(ctx, t, b1.dynClient, bucketName, info.Path)
+	deleteDynamoEntry(t.Context(), t, b1.dynClient, bucketName, info.Path)
 	err = s1.Unlock(lockID)
 	if err == nil {
 		t.Fatal("expected to get an error but got nil")
@@ -572,13 +563,12 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b.s3Client, bucketName, b.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b.s3Client, bucketName, b.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b.dynClient, bucketName)
 
-	s, err := b.StateMgr(backend.DefaultStateName)
+	s, err := b.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -586,11 +576,11 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 
 	sum := md5.Sum([]byte("test"))
 
-	if err := client.putMD5(ctx, sum[:]); err != nil {
+	if err := client.putMD5(t.Context(), sum[:]); err != nil {
 		t.Fatal(err)
 	}
 
-	getSum, err := client.getMD5(ctx)
+	getSum, err := client.getMD5(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -599,11 +589,11 @@ func TestRemoteClient_clientMD5(t *testing.T) {
 		t.Fatalf("getMD5 returned the wrong checksum: expected %x, got %x", sum[:], getSum)
 	}
 
-	if err := client.deleteMD5(ctx); err != nil {
+	if err := client.deleteMD5(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
-	if getSum, err := client.getMD5(ctx); err == nil {
+	if getSum, err := client.getMD5(t.Context()); err == nil {
 		t.Fatalf("expected getMD5 error, got none. checksum: %x", getSum)
 	}
 }
@@ -621,13 +611,12 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		"dynamodb_table": bucketName,
 	})).(*Backend)
 
-	ctx := context.TODO()
-	createS3Bucket(ctx, t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(ctx, t, b1.s3Client, bucketName)
-	createDynamoDBTable(ctx, t, b1.dynClient, bucketName)
-	defer deleteDynamoDBTable(ctx, t, b1.dynClient, bucketName)
+	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	createDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
+	defer deleteDynamoDBTable(t.Context(), t, b1.dynClient, bucketName)
 
-	s1, err := b1.StateMgr(backend.DefaultStateName)
+	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -652,7 +641,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 		"bucket": bucketName,
 		"key":    keyName,
 	})).(*Backend)
-	s2, err := b2.StateMgr(backend.DefaultStateName)
+	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
 	if err != nil {
 		t.Fatal(err)
 	}

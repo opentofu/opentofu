@@ -16,7 +16,7 @@ import (
 
 func TestMeta_addVarsFromFile(t *testing.T) {
 	d := t.TempDir()
-	defer testChdir(t, d)()
+	t.Chdir(d)
 
 	hclData := `foo = "bar"`
 	jsonData := `{"foo": "bar"}`

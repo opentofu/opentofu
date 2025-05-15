@@ -6,6 +6,7 @@
 package oss
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -54,7 +55,7 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 	return client, nil
 }
 
-func (b *Backend) Workspaces() ([]string, error) {
+func (b *Backend) Workspaces(context.Context) ([]string, error) {
 	bucket, err := b.ossClient.Bucket(b.bucketName)
 	if err != nil {
 		return []string{""}, fmt.Errorf("error getting bucket: %w", err)
@@ -101,7 +102,7 @@ func (b *Backend) Workspaces() ([]string, error) {
 	return result, nil
 }
 
-func (b *Backend) DeleteWorkspace(name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -113,7 +114,7 @@ func (b *Backend) DeleteWorkspace(name string, _ bool) error {
 	return client.Delete()
 }
 
-func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	client, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err
@@ -121,7 +122,7 @@ func (b *Backend) StateMgr(name string) (statemgr.Full, error) {
 	stateMgr := remote.NewState(client, b.encryption)
 
 	// Check to see if this state already exists.
-	existing, err := b.Workspaces()
+	existing, err := b.Workspaces(ctx)
 	if err != nil {
 		return nil, err
 	}

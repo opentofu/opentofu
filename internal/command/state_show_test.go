@@ -160,7 +160,7 @@ func TestStateShow_multi(t *testing.T) {
 }
 
 func TestStateShow_noState(t *testing.T) {
-	testCwd(t)
+	testCwdTemp(t)
 
 	p := testProvider()
 	streams, done := terminal.StreamsForTesting(t)

@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -19,6 +21,7 @@ type nodeExpandApplyableResource struct {
 }
 
 var (
+	_ GraphNodeExecutable           = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeReferenceable        = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeReferencer           = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeConfigResource       = (*nodeExpandApplyableResource)(nil)
@@ -48,13 +51,13 @@ func (n *nodeExpandApplyableResource) Name() string {
 	return n.NodeAbstractResource.Name() + " (expand)"
 }
 
-func (n *nodeExpandApplyableResource) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *nodeExpandApplyableResource) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 	moduleInstances := expander.ExpandModule(n.Addr.Module)
 	for _, module := range moduleInstances {
-		ctx = ctx.WithPath(module)
-		diags = diags.Append(n.writeResourceState(ctx, n.Addr.Resource.Absolute(module)))
+		evalCtx = evalCtx.WithPath(module)
+		diags = diags.Append(n.writeResourceState(evalCtx, n.Addr.Resource.Absolute(module)))
 	}
 
 	return diags

@@ -1222,3 +1222,31 @@ func mergeOverriddenModules(runModules, fileModules []*OverrideModule) ([]*Overr
 
 	return modules, diags
 }
+
+// IsModuleCallFromRemoteModule is traversing upwards from the module call to the root module and is looking for any
+// module on the path for which configs.Module.EntersNewPackage=true.
+// This is needed to know if a variable is referenced from a module imported from a remote source or from a local one.
+func (c *Config) IsModuleCallFromRemoteModule(callName string) bool {
+	if _, ok := c.SourceAddr.(addrs.ModuleSourceRemote); ok {
+		return true
+	}
+	calledModuleName := callName
+	parent := c.Parent
+	for parent != nil {
+		refCallCfg, ok := parent.Module.ModuleCalls[calledModuleName]
+		if !ok {
+			log.Printf("[ERROR] no module call found in %q for %q", parent.Path, calledModuleName)
+			return false
+		}
+		if refCallCfg.EntersNewPackage() {
+			return true
+		}
+		if parent.Path.IsRoot() {
+			return false
+		}
+		_, call := parent.Path.Call()
+		calledModuleName = call.Name
+		parent = parent.Parent
+	}
+	return false
+}

@@ -178,7 +178,7 @@ func findLegacyProviderLookupSource(host svchost.Hostname, source Source) *Regis
 // depend on it, and this fallback mechanism will likely be removed altogether
 // in a future OpenTofu version.
 func (s *RegistrySource) lookupLegacyProviderNamespace(ctx context.Context, hostname svchost.Hostname, typeName string) (string, string, error) {
-	client, err := s.registryClient(hostname)
+	client, err := s.registryClient(ctx, hostname)
 	if err != nil {
 		return "", "", err
 	}

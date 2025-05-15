@@ -353,7 +353,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 
 			expected := test.ExpectedInstanceId
 
-			if !(got != nil && got.Value.GetAttr("id") == cty.StringVal(expected)) {
+			if got == nil || got.Value.GetAttr("id") != cty.StringVal(expected) {
 				t.Fatalf("[%s] Expected output with ID %#v, got: %#v", test.Name, expected, got)
 			}
 		})
@@ -401,7 +401,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 
 			expected := test.ExpectedInstanceId
 
-			if !(got != nil && got.Value.GetAttr("id") == cty.StringVal(expected)) {
+			if got == nil || got.Value.GetAttr("id") != cty.StringVal(expected) {
 				t.Fatalf("[%s] Expected output with ID %#v, got: %#v", test.Name, expected, got)
 			}
 		})

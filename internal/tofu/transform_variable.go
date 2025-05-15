@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -23,7 +25,7 @@ type RootVariableTransformer struct {
 	RawValues InputValues
 }
 
-func (t *RootVariableTransformer) Transform(g *Graph) error {
+func (t *RootVariableTransformer) Transform(_ context.Context, g *Graph) error {
 	// We can have no variables if we have no config.
 	if t.Config == nil {
 		return nil

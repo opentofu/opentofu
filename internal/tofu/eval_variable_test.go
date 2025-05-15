@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -1124,7 +1125,7 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 		// message with the expression successfully evaluated.
 		{
 			varName: "valid",
-			given:   cty.StringVal("bar"),
+			given:   marks.Deprecated(cty.StringVal("bar"), marks.DeprecationCause{}), // deprecation mark must not cause panic
 			wantErr: []string{
 				"Invalid value for variable",
 				"Valid template string bar",
@@ -1467,5 +1468,108 @@ func TestEvalVariableValidations_sensitiveValueDiagnostics(t *testing.T) {
 		if !gotVal.HasMark(marks.Sensitive) {
 			t.Errorf("var.foo value is not marked as sensitive in diagnostic")
 		}
+	}
+}
+
+// Testing the way variable deprecation diagnostics are generated
+func TestEvalVariableValidations_deprecationDiagnostics(t *testing.T) {
+	cfg := testModule(t, "validate-deprecated-var")
+
+	ctx := &MockEvalContext{}
+	ctx.EvaluationScopeScope = &lang.Scope{
+		Data: &evaluationStateData{Evaluator: &Evaluator{
+			Config:             cfg,
+			VariableValuesLock: &sync.Mutex{},
+		}},
+	}
+
+	tests := map[string]struct {
+		varAddr    addrs.AbsInputVariableInstance
+		varCfg     *configs.Variable
+		expr       hcl.Expression
+		fromRemote bool
+
+		expectedDiags tfdiags.Diagnostics
+	}{
+		"local-mod-called-from-root": {
+			varAddr: addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil)),
+			varCfg:  cfg.Children["foo-call"].Module.Variables["foo"],
+			expr:    cfg.Module.ModuleCalls["foo-call"].Source,
+			expectedDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  `Variable marked as deprecated by the module author`,
+				Detail: fmt.Sprintf(
+					"Variable \"foo\" is marked as deprecated with the following message:\n%s",
+					cfg.Children["foo-call"].Module.Variables["foo"].Deprecated,
+				),
+				Subject: cfg.Module.ModuleCalls["foo-call"].Source.Range().Ptr(),
+			}),
+			fromRemote: false,
+		},
+		"local-mod-called-from-root-with-no-var": {
+			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-no-var", nil)),
+			varCfg:        cfg.Children["foo-call-no-var"].Module.Variables["foo"],
+			expr:          nil,
+			expectedDiags: tfdiags.Diagnostics{},
+			fromRemote:    false,
+		},
+		"local-mod-called-from-root-with-null-var": {
+			varAddr:       addrs.InputVariable{Name: "foo"}.Absolute(addrs.RootModuleInstance.Child("foo-call-null", nil)),
+			varCfg:        cfg.Children["foo-call-null"].Module.Variables["foo"],
+			expr:          nil,
+			expectedDiags: tfdiags.Diagnostics{},
+			fromRemote:    false,
+		},
+		"local-mod-called-from-direct-child": {
+			varAddr: addrs.InputVariable{Name: "bar"}.Absolute(addrs.RootModuleInstance.Child("foo-call", nil).Child("bar-call", nil)),
+			varCfg:  cfg.Children["foo-call"].Children["bar-call"].Module.Variables["bar"],
+			expr:    cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source,
+			expectedDiags: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  `Variable marked as deprecated by the module author`,
+				Detail: fmt.Sprintf(
+					"Variable \"bar\" is marked as deprecated with the following message:\n%s",
+					cfg.Children["foo-call"].Children["bar-call"].Module.Variables["bar"].Deprecated,
+				),
+				Subject: cfg.Children["foo-call"].Module.ModuleCalls["bar-call"].Source.Range().Ptr(),
+			}),
+			fromRemote: false,
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			varAddr := tt.varAddr
+
+			ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+				if got, want := addr.String(), varAddr.String(); got != want {
+					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
+				}
+				// NOTE: the value itself doesn't matter. The value itself is not part of the processing so it can be whatever value we want
+				return cty.StringVal("bar baz")
+			}
+
+			expr := tt.expr
+			gotDiags := evalVariableDeprecation(varAddr, tt.varCfg, expr, ctx, tt.fromRemote)
+
+			if gotLen, expectedLen := len(gotDiags), len(tt.expectedDiags); gotLen != expectedLen {
+				t.Fatalf("expected %d diagnostics; got %d", expectedLen, gotLen)
+			}
+			for i := 0; i < len(gotDiags); i++ {
+				gotDiag := gotDiags[i]
+				expectedDiag := tt.expectedDiags[i]
+				if gotDiag.Severity() != expectedDiag.Severity() {
+					t.Fatalf(`return diagnostic is having the wrong severity. expected "%c"; got: "%c"`, expectedDiag.Severity(), gotDiag.Severity())
+				}
+				if gotDiag.Description().Summary != expectedDiag.Description().Summary {
+					t.Fatalf("invalid diag summary.\n\texpected:\n\t\t%s\n\tactual:\n\t\t%s", expectedDiag.Description().Summary, gotDiag.Description().Summary)
+				}
+				if gotDiag.Description().Detail != expectedDiag.Description().Detail {
+					t.Fatalf("invalid diag detail.\n\texpected:\n\t\t%s\n\tactual:\n\t\t%s", expectedDiag.Description().Detail, gotDiag.Description().Detail)
+				}
+				if !gotDiag.Source().Equal(expectedDiag.Source()) {
+					t.Fatalf("invalid diag source.\n\texpected:\n\t\t%+v\n\tactual:\n\t\t%+v", expectedDiag.Source(), gotDiag.Source())
+				}
+			}
+		})
 	}
 }

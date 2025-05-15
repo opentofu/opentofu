@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -150,10 +151,10 @@ func (n *nodeModuleVariable) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable
-func (n *nodeModuleVariable) Execute(ctx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeModuleVariable) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] nodeModuleVariable: evaluating %s", n.Addr)
 
-	val, err := n.evalModuleVariable(ctx, op == walkValidate)
+	val, err := n.evalModuleVariable(evalCtx, op == walkValidate)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -162,7 +163,7 @@ func (n *nodeModuleVariable) Execute(ctx EvalContext, op walkOperation) (diags t
 	// Set values for arguments of a child module call, for later retrieval
 	// during expression evaluation.
 	_, call := n.Addr.Module.CallInstance()
-	ctx.SetModuleCallArgument(call, n.Addr.Variable, val)
+	evalCtx.SetModuleCallArgument(call, n.Addr.Variable, val)
 	return diags
 }
 

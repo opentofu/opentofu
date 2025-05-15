@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -20,7 +21,7 @@ type RemovedModuleTransformer struct {
 	State  *states.State
 }
 
-func (t *RemovedModuleTransformer) Transform(g *Graph) error {
+func (t *RemovedModuleTransformer) Transform(_ context.Context, g *Graph) error {
 	// nothing to remove if there's no state!
 	if t.State == nil {
 		return nil

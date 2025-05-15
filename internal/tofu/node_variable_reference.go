@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -26,6 +27,10 @@ type nodeVariableReference struct {
 	Module addrs.Module
 	Config *configs.Variable
 	Expr   hcl.Expression // Used for diagnostics only
+
+	// VariableFromRemoteModule is indicating if this variable is coming from a module that is referenced from the root module
+	// in "local" or "remote" manner.
+	VariableFromRemoteModule bool
 }
 
 var (
@@ -68,6 +73,8 @@ func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
 			Addr:   addr,
 			Config: n.Config,
 			Expr:   n.Expr,
+
+			VariableFromRemoteModule: n.VariableFromRemoteModule,
 		}
 		g.Add(o)
 	}
@@ -118,6 +125,10 @@ type nodeVariableReferenceInstance struct {
 	Addr   addrs.AbsInputVariableInstance
 	Config *configs.Variable // Config is the var in the config
 	Expr   hcl.Expression    // Used for diagnostics only
+
+	// VariableFromRemoteModule is indicating if this variable is coming from a module that is referenced from the root module
+	// in "local" or "remote" manner.
+	VariableFromRemoteModule bool
 }
 
 // Ensure that we are implementing all of the interfaces we think we are
@@ -143,9 +154,9 @@ func (n *nodeVariableReferenceInstance) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable
-func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *nodeVariableReferenceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	log.Printf("[TRACE] nodeVariableReferenceInstance: evaluating %s", n.Addr)
-	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, ctx)
+	diags := evalVariableValidations(n.Addr, n.Config, n.Expr, evalCtx)
 
 	if op == walkValidate {
 		var filtered tfdiags.Diagnostics
@@ -156,6 +167,9 @@ func (n *nodeVariableReferenceInstance) Execute(ctx EvalContext, op walkOperatio
 			}
 		}
 		return filtered
+	} else {
+		// do not run this during the "validate" phase to ensure that the diagnostics are not duplicated
+		diags = diags.Append(evalVariableDeprecation(n.Addr, n.Config, n.Expr, evalCtx, n.VariableFromRemoteModule))
 	}
 
 	return diags

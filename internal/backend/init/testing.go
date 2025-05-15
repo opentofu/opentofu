@@ -6,6 +6,7 @@
 package init
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -144,7 +145,7 @@ func (m *MockBackend) ConfigSchema() *configschema.Block {
 }
 
 // Configure implements Backend.
-func (m *MockBackend) Configure(configObj cty.Value) tfdiags.Diagnostics {
+func (m *MockBackend) Configure(ctx context.Context, configObj cty.Value) tfdiags.Diagnostics {
 	m.ConfigureCalled = true
 	m.ConfigureConfigObj = configObj
 
@@ -156,7 +157,7 @@ func (m *MockBackend) Configure(configObj cty.Value) tfdiags.Diagnostics {
 }
 
 // DeleteWorkspace implements Backend.
-func (m *MockBackend) DeleteWorkspace(name string, force bool) error {
+func (m *MockBackend) DeleteWorkspace(_ context.Context, name string, force bool) error {
 	m.DeleteWorkspaceCalled = true
 	m.DeleteWorkspaceName = name
 	m.DeleteWorkspaceForce = force
@@ -181,7 +182,7 @@ func (m *MockBackend) PrepareConfig(configObj cty.Value) (cty.Value, tfdiags.Dia
 }
 
 // StateMgr implements Backend.
-func (m *MockBackend) StateMgr(workspace string) (statemgr.Full, error) {
+func (m *MockBackend) StateMgr(_ context.Context, workspace string) (statemgr.Full, error) {
 	m.StateMgrCalled = true
 	m.StateMgrWorkspace = workspace
 
@@ -193,7 +194,7 @@ func (m *MockBackend) StateMgr(workspace string) (statemgr.Full, error) {
 }
 
 // Workspaces implements Backend.
-func (m *MockBackend) Workspaces() ([]string, error) {
+func (m *MockBackend) Workspaces(context.Context) ([]string, error) {
 	m.WorkspacesCalled = true
 
 	if m.WorkspacesFn == nil {

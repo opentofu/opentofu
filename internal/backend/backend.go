@@ -98,7 +98,7 @@ type Backend interface {
 	//
 	// If error diagnostics are returned, the internal state of the instance
 	// is undefined and no other methods may be called.
-	Configure(cty.Value) tfdiags.Diagnostics
+	Configure(context.Context, cty.Value) tfdiags.Diagnostics
 
 	// StateMgr returns the state manager for the given workspace name.
 	//
@@ -108,18 +108,18 @@ type Backend interface {
 	// If the named workspace doesn't exist, or if it has no state, it will
 	// be created either immediately on this call or the first time
 	// PersistState is called, depending on the state manager implementation.
-	StateMgr(workspace string) (statemgr.Full, error)
+	StateMgr(ctx context.Context, workspace string) (statemgr.Full, error)
 
 	// DeleteWorkspace removes the workspace with the given name if it exists.
 	//
 	// DeleteWorkspace cannot prevent deleting a state that is in use. It is
 	// the responsibility of the caller to hold a Lock for the state manager
 	// belonging to this workspace before calling this method.
-	DeleteWorkspace(name string, force bool) error
+	DeleteWorkspace(ctx context.Context, name string, force bool) error
 
 	// States returns a list of the names of all of the workspaces that exist
 	// in this backend.
-	Workspaces() ([]string, error)
+	Workspaces(context.Context) ([]string, error)
 }
 
 // HostAlias describes a list of aliases that should be used when initializing an

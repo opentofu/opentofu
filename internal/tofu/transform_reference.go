@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sort"
@@ -116,7 +117,7 @@ type GraphNodeReferenceOutside interface {
 // nodes that reference each other in order to form the proper ordering.
 type ReferenceTransformer struct{}
 
-func (t *ReferenceTransformer) Transform(g *Graph) error {
+func (t *ReferenceTransformer) Transform(_ context.Context, g *Graph) error {
 	// Build a reference map so we can efficiently look up the references
 	vs := g.Vertices()
 	m := NewReferenceMap(vs)
@@ -185,7 +186,7 @@ func (m depMap) add(v dag.Vertex) {
 type attachDataResourceDependsOnTransformer struct {
 }
 
-func (t attachDataResourceDependsOnTransformer) Transform(g *Graph) error {
+func (t attachDataResourceDependsOnTransformer) Transform(_ context.Context, g *Graph) error {
 	// First we need to make a map of referenceable addresses to their vertices.
 	// This is very similar to what's done in ReferenceTransformer, but we keep
 	// implementation separate as they may need to change independently.
@@ -230,7 +231,7 @@ func (t attachDataResourceDependsOnTransformer) Transform(g *Graph) error {
 type AttachDependenciesTransformer struct {
 }
 
-func (t AttachDependenciesTransformer) Transform(g *Graph) error {
+func (t AttachDependenciesTransformer) Transform(_ context.Context, g *Graph) error {
 	for _, v := range g.Vertices() {
 		attacher, ok := v.(GraphNodeAttachDependencies)
 		if !ok {

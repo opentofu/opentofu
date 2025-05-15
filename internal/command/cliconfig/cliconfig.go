@@ -14,6 +14,7 @@
 package cliconfig
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -23,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl"
-
 	svchost "github.com/hashicorp/terraform-svchost"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -116,7 +116,7 @@ func DataDirs() ([]string, error) {
 // LoadConfig reads the CLI configuration from the various filesystem locations
 // and from the environment, returning a merged configuration along with any
 // diagnostics (errors and warnings) encountered along the way.
-func LoadConfig() (*Config, tfdiags.Diagnostics) {
+func LoadConfig(_ context.Context) (*Config, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	configVal := BuiltinConfig // copy
 	config := &configVal

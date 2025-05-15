@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -34,7 +35,7 @@ type OutputTransformer struct {
 	Destroying bool
 }
 
-func (t *OutputTransformer) Transform(g *Graph) error {
+func (t *OutputTransformer) Transform(_ context.Context, g *Graph) error {
 	return t.transform(g, t.Config)
 }
 

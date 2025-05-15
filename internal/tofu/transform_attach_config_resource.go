@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -32,7 +33,7 @@ type AttachResourceConfigTransformer struct {
 	Config *configs.Config // Config is the root node in the config tree
 }
 
-func (t *AttachResourceConfigTransformer) Transform(g *Graph) error {
+func (t *AttachResourceConfigTransformer) Transform(_ context.Context, g *Graph) error {
 
 	// Go through and find GraphNodeAttachResource
 	for _, v := range g.Vertices() {
@@ -52,11 +53,12 @@ func (t *AttachResourceConfigTransformer) Transform(g *Graph) error {
 			continue
 		}
 		var m map[string]*configs.Resource
-		if addr.Resource.Mode == addrs.ManagedResourceMode {
+		switch addr.Resource.Mode {
+		case addrs.ManagedResourceMode:
 			m = config.Module.ManagedResources
-		} else if addr.Resource.Mode == addrs.DataResourceMode {
+		case addrs.DataResourceMode:
 			m = config.Module.DataResources
-		} else {
+		default:
 			panic("unknown resource mode: " + addr.Resource.Mode.String())
 		}
 		coord := addr.Resource.String()

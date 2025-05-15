@@ -11,6 +11,7 @@ import (
 	"os/signal"
 
 	"github.com/hashicorp/go-plugin"
+	"github.com/hashicorp/go-retryablehttp"
 	svchost "github.com/hashicorp/terraform-svchost"
 	"github.com/hashicorp/terraform-svchost/auth"
 	"github.com/hashicorp/terraform-svchost/disco"
@@ -109,6 +110,12 @@ func initCommands(
 		ShutdownCh:    makeShutdownCh(),
 		CallerContext: ctx,
 
+		MakeRegistryHTTPClient: func() *retryablehttp.Client {
+			// This ctx is used only to choose global configuration settings
+			// for the client, and is not retained as part of the result for
+			// making individual HTTP requests.
+			return newRegistryHTTPClient(ctx)
+		},
 		ModulePackageFetcher: modulePkgFetcher,
 		ProviderSource:       providerSrc,
 		ProviderDevOverrides: providerDevOverrides,

@@ -16,10 +16,14 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	ociv1 "github.com/opencontainers/image-spec/specs-go/v1"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	otelTrace "go.opentelemetry.io/otel/trace"
 	orasErrors "oras.land/oras-go/v2/errdef"
 	orasRegistryErrors "oras.land/oras-go/v2/registry/remote/errcode"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/tracing"
+	"github.com/opentofu/opentofu/internal/tracing/traceattrs"
 )
 
 // ociIndexManifestArtifactType is the artifact type we expect for the top-level
@@ -156,8 +160,17 @@ func NewOCIRegistryMirrorSource(
 
 // AvailableVersions implements Source.
 func (o *OCIRegistryMirrorSource) AvailableVersions(ctx context.Context, provider addrs.Provider) (VersionList, Warnings, error) {
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Get available versions from oci_mirror",
+		otelTrace.WithAttributes(
+			otelAttr.String(traceattrs.ProviderAddress, provider.String()),
+		),
+	)
+	defer span.End()
+
 	store, _, _, err := o.getRepositoryStore(ctx, provider)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return nil, nil, err
 	}
 
@@ -190,11 +203,15 @@ func (o *OCIRegistryMirrorSource) AvailableVersions(ctx context.Context, provide
 			// translated to an OCI repository that doesn't exist then that
 			// means this source does not know anything about that provider,
 			// but other [MultiSource] candidates should still be offered it.
-			return nil, nil, ErrProviderNotFound{
+			err := ErrProviderNotFound{
 				Provider: provider,
 			}
+			tracing.SetSpanError(span, err)
+			return nil, nil, err
 		}
-		return nil, nil, fmt.Errorf("listing tags from OCI repository: %w", err)
+		err := fmt.Errorf("listing tags from OCI repository: %w", err)
+		tracing.SetSpanError(span, err)
+		return nil, nil, err
 	}
 	ret.Sort()
 	return ret, nil, nil
@@ -258,6 +275,16 @@ func errRepresentsOCIProviderNotFound(err error) bool {
 
 // PackageMeta implements Source.
 func (o *OCIRegistryMirrorSource) PackageMeta(ctx context.Context, provider addrs.Provider, version Version, target Platform) (PackageMeta, error) {
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Get metadata from oci_mirror",
+		otelTrace.WithAttributes(
+			otelAttr.String(traceattrs.ProviderAddress, provider.String()),
+			otelAttr.String(traceattrs.ProviderVersion, version.String()),
+			otelAttr.String(traceattrs.TargetPlatform, target.String()),
+		),
+	)
+	defer span.End()
+
 	// Unfortunately we need to repeat our translation from provider address to
 	// OCI repository address here, but getRepositoryStore has a cache that
 	// allows us to reuse a previously-instantiated store if there are two
@@ -446,14 +473,31 @@ type OCIRepositoryStore interface {
 }
 
 func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version, store OCIRepositoryStore) (ociv1.Descriptor, error) {
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Resolve reference",
+		otelTrace.WithAttributes(
+			otelAttr.String(traceattrs.ProviderVersion, version.String()),
+		),
+	)
+	defer span.End()
+	prepErr := func(err error) error {
+		tracing.SetSpanError(span, err)
+		return err
+	}
+
 	// OCI tags don't support the "+" character used to mark the beginning of
 	// build metadata in semver-style version numbers, so we expect a tag name
 	// where those are replaced with "_".
 	tagName := strings.ReplaceAll(version.String(), "+", "_")
 	desc, err := store.Resolve(ctx, tagName)
 	if err != nil {
-		return ociv1.Descriptor{}, fmt.Errorf("resolving tag %q: %w", tagName, err)
+		return ociv1.Descriptor{}, prepErr(fmt.Errorf("resolving tag %q: %w", tagName, err))
 	}
+	span.SetAttributes(
+		otelAttr.String("oci.manifest.digest", desc.Digest.String()),
+		otelAttr.String("opentofu.oci.reference.tag", tagName),
+		otelAttr.String("opentofu.oci.manifest.media_type", desc.MediaType),
+	)
 	// Not all store implementations can return the manifest's artifact type as part
 	// of the tag-resolution response, so we'll check this early if we can, but
 	// if not then we'll check it after we've fetched the manifest instead.
@@ -461,31 +505,34 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 	// a better error message, but we'll still catch a mismatched artifact type
 	// one way or another.)
 	if desc.ArtifactType != "" && desc.ArtifactType != ociIndexManifestArtifactType {
+		span.SetAttributes(
+			otelAttr.String("opentofu.oci.manifest.artifact_type", desc.ArtifactType),
+		)
 		switch desc.ArtifactType {
 		case "application/vnd.opentofu.provider-target":
 			// We'll get here for an incorrectly-constructed artifact layout where
 			// the tag refers directly to a specific platform's image manifest,
 			// rather than to the multi-platform index manifest.
-			return desc, fmt.Errorf("tag refers directly to image manifest, but OpenTofu providers require an index manifest for multi-platform support")
+			return desc, prepErr(fmt.Errorf("tag refers directly to image manifest, but OpenTofu providers require an index manifest for multi-platform support"))
 		case "application/vnd.opentofu.modulepkg":
 			// If this happens to be using our artifact type for module packages then
 			// we'll return a specialized error, since confusion between providers
 			// and modules is common for those new to OpenTofu terminology.
-			return desc, fmt.Errorf("selected OCI artifact is an OpenTofu module package, not a provider package")
+			return desc, prepErr(fmt.Errorf("selected OCI artifact is an OpenTofu module package, not a provider package"))
 		default:
 			// For any other artifact type we'll just mention it in the error message
 			// and hope the reader can figure out what that artifact type represents.
-			return desc, fmt.Errorf("unsupported OCI artifact type %q", desc.ArtifactType)
+			return desc, prepErr(fmt.Errorf("unsupported OCI artifact type %q", desc.ArtifactType))
 		}
 	}
 	if desc.MediaType != ociv1.MediaTypeImageIndex {
 		switch desc.MediaType {
 		case ociv1.MediaTypeImageManifest:
-			return desc, fmt.Errorf("selected an OCI image manifest directly, but providers must be selected through a multi-platform index manifest")
+			return desc, prepErr(fmt.Errorf("selected an OCI image manifest directly, but providers must be selected through a multi-platform index manifest"))
 		case ociv1.MediaTypeDescriptor:
-			return desc, fmt.Errorf("found OCI descriptor but expected multi-platform index manifest")
+			return desc, prepErr(fmt.Errorf("found OCI descriptor but expected multi-platform index manifest"))
 		default:
-			return desc, fmt.Errorf("unsupported media type %q for OCI index manifest", desc.MediaType)
+			return desc, prepErr(fmt.Errorf("unsupported media type %q for OCI index manifest", desc.MediaType))
 		}
 	}
 	// If the server didn't tell us the artifact type it has, then we'll populate
@@ -496,9 +543,22 @@ func fetchOCIDescriptorForVersion(ctx context.Context, version versions.Version,
 }
 
 func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCIRepositoryStore) (*ociv1.Index, error) {
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Fetch index manifest",
+		otelTrace.WithAttributes(
+			otelAttr.String("oci.manifest.digest", desc.Digest.String()),
+			otelAttr.Int64("opentofu.oci.manifest.size", desc.Size),
+		),
+	)
+	defer span.End()
+	prepErr := func(err error) error {
+		tracing.SetSpanError(span, err)
+		return err
+	}
+
 	manifestSrc, err := fetchOCIManifestBlob(ctx, desc, store)
 	if err != nil {
-		return nil, err
+		return nil, prepErr(err)
 	}
 
 	var manifest ociv1.Index
@@ -509,10 +569,14 @@ func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 		// failure could prevent us from reaching the MediaType check below.
 		var manifest ociv1.Manifest
 		if err := json.Unmarshal(manifestSrc, &manifest); err == nil && manifest.MediaType == ociv1.MediaTypeImageManifest {
-			return nil, fmt.Errorf("found image manifest but need index manifest")
+			return nil, prepErr(fmt.Errorf("found image manifest but need index manifest"))
 		}
-		return nil, fmt.Errorf("invalid manifest content: %w", err)
+		return nil, prepErr(fmt.Errorf("invalid manifest content: %w", err))
 	}
+	span.SetAttributes(
+		otelAttr.String("opentofu.oci.manifest.media_type", manifest.MediaType),
+		otelAttr.String("opentofu.oci.manifest.artifact_type", manifest.ArtifactType),
+	)
 
 	// Now we'll make sure that what we decoded seems vaguely sensible before we
 	// return it. Callers are allowed to rely on these checks by verifying
@@ -520,10 +584,10 @@ func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	// types before they call this function and then assuming that the result
 	// definitely matches what they asked for.
 	if manifest.MediaType != desc.MediaType {
-		return nil, fmt.Errorf("unexpected manifest media type %q", manifest.MediaType)
+		return nil, prepErr(fmt.Errorf("unexpected manifest media type %q", manifest.MediaType))
 	}
 	if manifest.ArtifactType != desc.ArtifactType {
-		return nil, fmt.Errorf("unexpected artifact type %q", manifest.ArtifactType)
+		return nil, prepErr(fmt.Errorf("unexpected artifact type %q", manifest.ArtifactType))
 	}
 	// We intentionally leave everything else loose so that we'll have flexibility
 	// to extend this format in backward-compatible ways in future OpenTofu versions.
@@ -531,9 +595,22 @@ func fetchOCIIndexManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 }
 
 func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCIRepositoryStore) (*ociv1.Manifest, error) {
+	ctx, span := tracing.Tracer().Start(
+		ctx, "Fetch platform-specific manifest",
+		otelTrace.WithAttributes(
+			otelAttr.String("oci.manifest.digest", desc.Digest.String()),
+			otelAttr.Int64("opentofu.oci.manifest.size", desc.Size),
+		),
+	)
+	defer span.End()
+	prepErr := func(err error) error {
+		tracing.SetSpanError(span, err)
+		return err
+	}
+
 	manifestSrc, err := fetchOCIManifestBlob(ctx, desc, store)
 	if err != nil {
-		return nil, err
+		return nil, prepErr(err)
 	}
 
 	var manifest ociv1.Manifest
@@ -544,10 +621,14 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 		// failure could prevent us from reaching the MediaType check below.
 		var manifest ociv1.Index
 		if err := json.Unmarshal(manifestSrc, &manifest); err == nil && manifest.MediaType == ociv1.MediaTypeImageIndex {
-			return nil, fmt.Errorf("found index manifest but need image manifest")
+			return nil, prepErr(fmt.Errorf("found index manifest but need image manifest"))
 		}
-		return nil, fmt.Errorf("invalid manifest content: %w", err)
+		return nil, prepErr(fmt.Errorf("invalid manifest content: %w", err))
 	}
+	span.SetAttributes(
+		otelAttr.String("opentofu.oci.manifest.media_type", manifest.MediaType),
+		otelAttr.String("opentofu.oci.manifest.artifact_type", manifest.ArtifactType),
+	)
 
 	// Now we'll make sure that what we decoded seems vaguely sensible before we
 	// return it. Callers are allowed to rely on these checks by verifying
@@ -555,10 +636,10 @@ func fetchOCIImageManifest(ctx context.Context, desc ociv1.Descriptor, store OCI
 	// types before they call this function and then assuming that the result
 	// definitely matches what they asked for.
 	if manifest.MediaType != desc.MediaType {
-		return nil, fmt.Errorf("unexpected manifest media type %q", manifest.MediaType)
+		return nil, prepErr(fmt.Errorf("unexpected manifest media type %q", manifest.MediaType))
 	}
 	if manifest.ArtifactType != desc.ArtifactType {
-		return nil, fmt.Errorf("unexpected artifact type %q", manifest.ArtifactType)
+		return nil, prepErr(fmt.Errorf("unexpected artifact type %q", manifest.ArtifactType))
 	}
 	// We intentionally leave everything else loose so that we'll have flexibility
 	// to extend this format in backward-compatible ways in future OpenTofu versions.

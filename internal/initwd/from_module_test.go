@@ -15,6 +15,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	version "github.com/hashicorp/go-version"
+
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configload"
 	"github.com/opentofu/opentofu/internal/copy"
@@ -29,8 +30,7 @@ func TestDirFromModule_registry(t *testing.T) {
 	}
 
 	fixtureDir := filepath.Clean("testdata/empty")
-	tmpDir, done := tempChdir(t, fixtureDir)
-	defer done()
+	tmpDir := tempChdir(t, fixtureDir)
 
 	// the module installer runs filepath.EvalSymlinks() on the destination
 	// directory before copying files, and the resultant directory is what is
@@ -44,9 +44,8 @@ func TestDirFromModule_registry(t *testing.T) {
 
 	hooks := &testInstallHooks{}
 
-	reg := registry.NewClient(nil, nil)
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	reg := registry.NewClient(t.Context(), nil, nil)
+	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(context.Background(), loader, dir, modsDir, "hashicorp/module-installer-acctest/aws//examples/main", reg, nil, hooks)
 	assertNoDiagnostics(t, diags)
 
@@ -111,7 +110,7 @@ func TestDirFromModule_registry(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}
@@ -153,8 +152,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 		t.Error(err)
 	}
 
-	tmpDir, done := tempChdir(t, fixtureDir)
-	defer done()
+	tmpDir := tempChdir(t, fixtureDir)
 
 	hooks := &testInstallHooks{}
 	dir, err := filepath.EvalSymlinks(tmpDir)
@@ -163,8 +161,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 	}
 	modInstallDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
 		context.Background(),
 		loader,
@@ -176,7 +173,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 	assertNoDiagnostics(t, diags)
@@ -206,7 +203,7 @@ func TestDirFromModule_submodules(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}
@@ -240,9 +237,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tmpDir, done := tempChdir(t, fixtureDir)
-	defer done()
-
+	tmpDir := tempChdir(t, fixtureDir)
 	hooks := &testInstallHooks{}
 	dir, err := filepath.EvalSymlinks(tmpDir)
 	if err != nil {
@@ -250,8 +245,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 	}
 	modInstallDir := filepath.Join(dir, ".terraform/modules")
 
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
 		context.Background(),
 		loader,
@@ -263,7 +257,7 @@ func TestDirFromModule_submodulesWithProvider(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 
@@ -320,8 +314,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 
 	modInstallDir := ".terraform/modules"
 	sourceDir := "../local-modules"
-	loader, cleanup := configload.NewLoaderForTests(t)
-	defer cleanup()
+	loader := configload.NewLoaderForTests(t)
 	diags := DirFromModule(
 		context.Background(),
 		loader, ".",
@@ -332,7 +325,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 		// treating an absolute filesystem path as if it were a "remote"
 		// source address, and so we need a real package fetcher but the
 		// way we use it here does not cause it to make network requests.
-		getmodules.NewPackageFetcher(nil),
+		getmodules.NewPackageFetcher(t.Context(), nil),
 		hooks,
 	)
 	assertNoDiagnostics(t, diags)
@@ -362,7 +355,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 
 	// Make sure the configuration is loadable now.
 	// (This ensures that correct information is recorded in the manifest.)
-	config, loadDiags := loader.LoadConfig(".", configs.RootModuleCallForTesting())
+	config, loadDiags := loader.LoadConfig(t.Context(), ".", configs.RootModuleCallForTesting())
 	if assertNoDiagnostics(t, tfdiags.Diagnostics{}.Append(loadDiags)) {
 		return
 	}

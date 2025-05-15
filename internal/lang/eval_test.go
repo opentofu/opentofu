@@ -807,7 +807,9 @@ func formattedJSONValue(val cty.Value) string {
 		panic(err)
 	}
 	var buf bytes.Buffer
-	json.Indent(&buf, j, "", "  ")
+	if err := json.Indent(&buf, j, "", "  "); err != nil {
+		panic(err)
+	}
 	return buf.String()
 }
 

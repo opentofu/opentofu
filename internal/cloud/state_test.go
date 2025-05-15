@@ -147,11 +147,11 @@ func TestCloudLocks(t *testing.T) {
 	back, bCleanup := testBackendWithName(t)
 	defer bCleanup()
 
-	a, err := back.StateMgr(testBackendSingleWorkspaceName)
+	a, err := back.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	b, err := back.StateMgr(testBackendSingleWorkspaceName)
+	b, err := back.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
@@ -337,7 +337,7 @@ func TestState_PersistState(t *testing.T) {
 			cloudState.WriteState(states.BuildState(func(s *states.SyncState) {
 				s.SetOutputValue(
 					addrs.OutputValue{Name: "boop"}.Absolute(addrs.RootModuleInstance),
-					cty.StringVal("beep"), false,
+					cty.StringVal("beep"), false, "",
 				)
 			}))
 

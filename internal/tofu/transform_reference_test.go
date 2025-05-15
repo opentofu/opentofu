@@ -27,7 +27,7 @@ func TestReferenceTransformer_simple(t *testing.T) {
 	})
 
 	tf := &ReferenceTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -50,7 +50,7 @@ func TestReferenceTransformer_self(t *testing.T) {
 	})
 
 	tf := &ReferenceTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -83,7 +83,7 @@ func TestReferenceTransformer_path(t *testing.T) {
 	})
 
 	tf := &ReferenceTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -157,7 +157,7 @@ func TestReferenceTransformer_resourceInstances(t *testing.T) {
 	})
 
 	tf := &ReferenceTransformer{}
-	if err := tf.Transform(&g); err != nil {
+	if err := tf.Transform(t.Context(), &g); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 

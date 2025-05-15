@@ -324,9 +324,13 @@ func TestFileExists(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	os.Chmod("testdata/unreadable", 0000)
+	if err := os.Chmod("testdata/unreadable", 0000); err != nil {
+		t.Fatal(err)
+	}
 	defer func(mode os.FileMode) {
-		os.Chmod("testdata/unreadable", mode)
+		if err := os.Chmod("testdata/unreadable", mode); err != nil {
+			panic(err)
+		}
 	}(fi.Mode())
 
 	for _, test := range tests {
