@@ -801,7 +801,7 @@ func (r *ProviderConfigRef) String() string {
 	return r.Name
 }
 
-func (r *ProviderConfigRef) InstanceValidation(blockType string, isInstanced bool) hcl.Diagnostics {
+func (r *ProviderConfigRef) InstanceValidation(blockType string, isInstanced bool, hasConfig bool) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	summary := fmt.Sprintf("Invalid %s provider configuration", blockType)
@@ -816,12 +816,22 @@ func (r *ProviderConfigRef) InstanceValidation(blockType string, isInstanced boo
 			})
 		}
 		if !isInstanced {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  summary,
-				Detail:   "An instance key can be specified only for a provider configuration that uses for_each.",
-				Subject:  r.KeyExpression.Range().Ptr(),
-			})
+			if !hasConfig {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  summary,
+					Detail:   fmt.Sprintf("An instance key can only be used with a provider configured with for_each. No provider configuration was detected for %q", r.String()),
+					Subject:  r.KeyExpression.Range().Ptr(),
+				})
+			} else {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  summary,
+					Detail:   "An instance key can be specified only for a provider configuration that uses for_each.",
+					Subject:  r.KeyExpression.Range().Ptr(),
+				})
+
+			}
 		}
 	} else if isInstanced {
 		diags = append(diags, &hcl.Diagnostic{
