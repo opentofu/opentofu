@@ -16,8 +16,9 @@ import (
 
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
-	svchost "github.com/hashicorp/terraform-svchost"
-	disco "github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost"
+	disco "github.com/opentofu/svchost/disco"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 )
 

@@ -7,9 +7,10 @@ package addrs
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	svchost "github.com/hashicorp/terraform-svchost"
+	tfaddr "github.com/opentofu/registry-address/v2"
+	"github.com/opentofu/svchost"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	tfaddr "github.com/opentofu/registry-address"
 )
 
 // Provider encapsulates a single provider type. In the future this will be
@@ -23,7 +24,15 @@ const DefaultProviderRegistryHost = tfaddr.DefaultProviderRegistryHost
 // BuiltInProviderHost is the pseudo-hostname used for the "built-in" provider
 // namespace. Built-in provider addresses must also have their namespace set
 // to BuiltInProviderNamespace in order to be considered as built-in.
-const BuiltInProviderHost = tfaddr.BuiltInProviderHost
+//
+// Since we currently only have one built-in provider and it was inherited
+// from OpenTofu's predecessor, we currently exclusively use the "transitional"
+// builtin provider host that matches what the predecessor used, thereby
+// helping with cross-compatibility. If we introduce any OpenTofu-specific
+// built-in providers in future then we should consider using
+// [tfaddr.BuiltInProviderHost] for those ones instead, since that one
+// uses a hostname that belongs to the OpenTofu project.
+const BuiltInProviderHost = tfaddr.TransitionalBuiltInProviderHost
 
 // BuiltInProviderNamespace is the provider namespace used for "built-in"
 // providers. Built-in provider addresses must also have their hostname

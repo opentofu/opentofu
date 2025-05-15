@@ -20,10 +20,11 @@ import (
 
 	tfe "github.com/hashicorp/go-tfe"
 	version "github.com/hashicorp/go-version"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
@@ -490,7 +491,7 @@ func (b *Cloud) discover() (*url.URL, error) {
 		return nil, err
 	}
 
-	host, err := b.services.Discover(hostname)
+	host, err := b.services.Discover(context.TODO(), hostname)
 	if err != nil {
 		var serviceDiscoErr *disco.ErrServiceDiscoveryNetworkRequest
 
@@ -520,12 +521,24 @@ func (b *Cloud) cliConfigToken() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	creds, err := b.services.CredentialsForHost(hostname)
+	creds, err := b.services.CredentialsForHost(context.TODO(), hostname)
 	if err != nil {
 		log.Printf("[WARN] Failed to get credentials for %s: %s (ignoring)", b.hostname, err)
 		return "", nil
 	}
-	if creds != nil {
+
+	// HostCredentialsWithToken is a variant of [svcauth.HostCredentials]
+	// that also offers direct access to a stored token. This is a weird
+	// need that applies only to this legacy cloud backend since it uses
+	// a client library for a particular vendor's API that isn't designed
+	// to integrate with svcauth. This is a surgical patch to keep this
+	// working similarly to how it did in our predecessor project until
+	// we decide on a more definite future for this backend.
+	type HostCredentialsWithToken interface {
+		svcauth.HostCredentials
+		Token() string
+	}
+	if creds, ok := creds.(HostCredentialsWithToken); ok {
 		return creds.Token(), nil
 	}
 	return "", nil

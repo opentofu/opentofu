@@ -16,24 +16,22 @@ import (
 	"time"
 
 	tfe "github.com/hashicorp/go-tfe"
-	svchost "github.com/hashicorp/terraform-svchost"
-	"github.com/hashicorp/terraform-svchost/auth"
-	"github.com/hashicorp/terraform-svchost/disco"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/svchost"
+	"github.com/opentofu/svchost/disco"
+	"github.com/opentofu/svchost/svcauth"
+	"github.com/zclconf/go-cty/cty"
+
 	"github.com/opentofu/opentofu/internal/backend"
+	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/version"
-	"github.com/zclconf/go-cty/cty"
-
-	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 )
 
 const (
@@ -42,8 +40,8 @@ const (
 
 var (
 	mockedBackendHost = "app.example.com"
-	credsSrc          = auth.StaticCredentialsSource(map[svchost.Hostname]map[string]interface{}{
-		svchost.Hostname(mockedBackendHost): {"token": testCred},
+	credsSrc          = svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
+		svchost.Hostname(mockedBackendHost): svcauth.HostCredentialsToken(testCred),
 	})
 )
 
@@ -68,10 +66,12 @@ func (m *mockInput) Input(ctx context.Context, opts *tofu.InputOpts) (string, er
 }
 
 func testInput(t *testing.T, answers map[string]string) *mockInput {
+	t.Helper()
 	return &mockInput{answers: answers}
 }
 
 func testBackendDefault(t *testing.T) (*Remote, func()) {
+	t.Helper()
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("hashicorp"),
@@ -98,6 +98,7 @@ func testBackendNoDefault(t *testing.T) (*Remote, func()) {
 }
 
 func testBackendNoOperations(t *testing.T) (*Remote, func()) {
+	t.Helper()
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"hostname":     cty.StringVal(mockedBackendHost),
 		"organization": cty.StringVal("no-operations"),
@@ -111,6 +112,7 @@ func testBackendNoOperations(t *testing.T) (*Remote, func()) {
 }
 
 func testRemoteClient(t *testing.T) remote.Client {
+	t.Helper()
 	b, bCleanup := testBackendDefault(t)
 	defer bCleanup()
 
@@ -123,6 +125,8 @@ func testRemoteClient(t *testing.T) remote.Client {
 }
 
 func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
+	t.Helper()
+
 	s := testServer(t)
 	b := New(testDisco(s), encryption.StateEncryptionDisabled())
 
@@ -182,6 +186,7 @@ func testBackend(t *testing.T, obj cty.Value) (*Remote, func()) {
 }
 
 func testLocalBackend(t *testing.T, remote *Remote) backend.Enhanced {
+	t.Helper()
 	b := backendLocal.NewWithBackend(remote, nil)
 
 	// Add a test provider to the local backend.
@@ -205,6 +210,7 @@ func testLocalBackend(t *testing.T, remote *Remote) backend.Enhanced {
 
 // testServer returns a *httptest.Server used for local testing.
 func testServer(t *testing.T) *httptest.Server {
+	t.Helper()
 	mux := http.NewServeMux()
 
 	// Respond to service discovery calls.
@@ -297,8 +303,10 @@ func testDisco(s *httptest.Server) *disco.Disco {
 		"tfe.v2.1":    fmt.Sprintf("%s/api/v2/", s.URL),
 		"versions.v1": fmt.Sprintf("%s/v1/versions/", s.URL),
 	}
-	d := disco.NewWithCredentialsSource(credsSrc)
-	d.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
+	d := disco.New(
+		disco.WithCredentials(credsSrc),
+		disco.WithHTTPClient(s.Client()),
+	)
 
 	d.ForceHostServices(svchost.Hostname(mockedBackendHost), services)
 	d.ForceHostServices(svchost.Hostname("localhost"), services)

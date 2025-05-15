@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"github.com/hashicorp/hcl"
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )

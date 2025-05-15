@@ -12,11 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	tfaddr "github.com/opentofu/registry-address"
-
 	"github.com/apparentlymart/go-versions/versions"
 	"github.com/google/go-cmp/cmp"
-	svchost "github.com/hashicorp/terraform-svchost"
+	tfaddr "github.com/opentofu/registry-address/v2"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 )

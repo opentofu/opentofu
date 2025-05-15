@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/getmodules"
-	tfaddr "github.com/opentofu/registry-address"
+	tfaddr "github.com/opentofu/registry-address/v2"
 )
 
 // ModuleSource is the general type for all three of the possible module source

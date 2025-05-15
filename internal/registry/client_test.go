@@ -18,13 +18,12 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 	version "github.com/hashicorp/go-version"
-	"github.com/hashicorp/terraform-svchost/disco"
+	"github.com/opentofu/svchost/disco"
 
 	"github.com/opentofu/opentofu/internal/httpclient"
 	"github.com/opentofu/opentofu/internal/registry/regsrc"
 	"github.com/opentofu/opentofu/internal/registry/response"
 	"github.com/opentofu/opentofu/internal/registry/test"
-	tfversion "github.com/opentofu/opentofu/version"
 )
 
 func TestLookupModuleVersions(t *testing.T) {
@@ -150,8 +149,9 @@ func TestAccLookupModuleVersions(t *testing.T) {
 	if os.Getenv("TF_ACC") == "" {
 		t.Skip()
 	}
-	regDisco := disco.New()
-	regDisco.SetUserAgent(httpclient.OpenTofuUserAgent(tfversion.String()))
+	regDisco := disco.New(
+		disco.WithHTTPClient(httpclient.New(t.Context())),
+	)
 
 	// test with and without a hostname
 	for _, src := range []string{

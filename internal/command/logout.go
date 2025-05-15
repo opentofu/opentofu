@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -24,6 +24,8 @@ type LogoutCommand struct {
 
 // Run implements cli.Command.
 func (c *LogoutCommand) Run(args []string) int {
+	ctx := c.CommandContext()
+
 	args = c.Meta.process(args)
 	cmdFlags := c.Meta.defaultFlagSet("logout")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
@@ -91,7 +93,7 @@ func (c *LogoutCommand) Run(args []string) int {
 		c.Ui.Output(fmt.Sprintf("Removing the stored credentials for %s from the following file:\n    %s\n", dispHostname, credsCtx.LocalFilename))
 	}
 
-	err = creds.ForgetForHost(hostname)
+	err = creds.ForgetForHost(ctx, hostname)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

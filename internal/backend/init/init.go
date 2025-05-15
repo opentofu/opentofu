@@ -10,12 +10,10 @@ package init
 import (
 	"sync"
 
-	"github.com/hashicorp/terraform-svchost/disco"
-	"github.com/opentofu/opentofu/internal/backend"
-	"github.com/opentofu/opentofu/internal/encryption"
-	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/svchost/disco"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/backend"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	backendRemote "github.com/opentofu/opentofu/internal/backend/remote"
 	backendAzure "github.com/opentofu/opentofu/internal/backend/remote-state/azure"
@@ -29,6 +27,8 @@ import (
 	backendPg "github.com/opentofu/opentofu/internal/backend/remote-state/pg"
 	backendS3 "github.com/opentofu/opentofu/internal/backend/remote-state/s3"
 	backendCloud "github.com/opentofu/opentofu/internal/cloud"
+	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
 // backends is the list of available backends. This is a global variable

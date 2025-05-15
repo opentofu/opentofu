@@ -6,7 +6,7 @@
 package addrs
 
 import (
-	tfaddr "github.com/opentofu/registry-address"
+	tfaddr "github.com/opentofu/registry-address/v2"
 )
 
 // A ModulePackage represents a physical location where OpenTofu can retrieve

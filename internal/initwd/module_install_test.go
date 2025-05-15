@@ -18,7 +18,7 @@ import (
 	"github.com/go-test/deep"
 	"github.com/google/go-cmp/cmp"
 	version "github.com/hashicorp/go-version"
-	svchost "github.com/hashicorp/terraform-svchost"
+	"github.com/opentofu/svchost"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
