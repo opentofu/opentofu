@@ -185,7 +185,6 @@ func TestMeta_initStatePaths(t *testing.T) {
 
 func TestMeta_Env(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	m := new(Meta)
@@ -256,7 +255,6 @@ func TestMeta_Workspace_override(t *testing.T) {
 
 func TestMeta_Workspace_invalidSelected(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	// this is an invalid workspace name

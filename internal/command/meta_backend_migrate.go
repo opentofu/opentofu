@@ -254,7 +254,9 @@ func (m *Meta) backendMigrateState_S_s(ctx context.Context, opts *backendMigrate
 	opts.sourceWorkspace = currentWorkspace
 
 	// now switch back to the default env so we can access the new backend
-	m.SetWorkspace(backend.DefaultStateName)
+	if err := m.SetWorkspace(backend.DefaultStateName); err != nil {
+		return err
+	}
 
 	return m.backendMigrateState_s_s(ctx, opts)
 }
@@ -738,7 +740,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 			// this has to be done before setting destinationWorkspace
 			name = newName
 		}
-		opts.destinationWorkspace = strings.Replace(pattern, "*", name, -1)
+		opts.destinationWorkspace = strings.ReplaceAll(pattern, "*", name)
 
 		// Force it, we confirmed above
 		opts.force = true

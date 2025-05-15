@@ -828,22 +828,22 @@ func unknownAsBool(val cty.Value) cty.Value {
 }
 
 func actionString(action string) []string {
-	switch {
-	case action == "NoOp":
+	switch action {
+	case "NoOp":
 		return []string{"no-op"}
-	case action == "Create":
+	case "Create":
 		return []string{"create"}
-	case action == "Delete":
+	case "Delete":
 		return []string{"delete"}
-	case action == "Update":
+	case "Update":
 		return []string{"update"}
-	case action == "CreateThenDelete":
+	case "CreateThenDelete":
 		return []string{"create", "delete"}
-	case action == "Read":
+	case "Read":
 		return []string{"read"}
-	case action == "DeleteThenCreate":
+	case "DeleteThenCreate":
 		return []string{"delete", "create"}
-	case action == "Forget":
+	case "Forget":
 		return []string{"forget"}
 	default:
 		return []string{action}
