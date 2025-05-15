@@ -312,10 +312,10 @@ func TestConfigProviderForEach(t *testing.T) {
 			Detail:  "This provider configuration uses the same for_each expression as a resource, which means that subsequent removal of elements from this collection would cause a planning error.",
 		}, {
 			Summary: "Invalid module provider configuration",
-			Detail:  `An instance key can only be used with a provider configured with for_each. No provider configuration was detected for "dumme.key"`,
+			Detail:  `This module doesn't declare a provider "dumme" block with alias = "key", which is required for use with for_each`,
 		}, {
 			Summary: "Invalid resource provider configuration",
-			Detail:  `An instance key can only be used with a provider configured with for_each. No provider configuration was detected for "dumme.key"`,
+			Detail:  `This module doesn't declare a provider "dumme" block with alias = "key", which is required for use with for_each`,
 		},
 	}
 

@@ -814,14 +814,13 @@ func (r *ProviderConfigRef) InstanceValidation(blockType string, isInstanced boo
 				Detail:   "An instance key can be specified only for a provider configuration which has an alias and uses for_each.",
 				Subject:  r.KeyExpression.Range().Ptr(),
 			})
-		}
-		if !isInstanced {
+		} else if !isInstanced {
 			if !hasConfig {
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  summary,
-					Detail:   fmt.Sprintf("This module doesn't declare a provider %q block with alias = %q.", r.Name, r.Alias),
-					Subject:  r.KeyExpression.Range().Ptr(),
+					Detail:   fmt.Sprintf("This module doesn't declare a provider %q block with alias = %q, which is required for use with for_each.", r.Name, r.Alias),
+					Subject:  r.NameRange.Ptr(),
 				})
 			} else {
 				diags = append(diags, &hcl.Diagnostic{
