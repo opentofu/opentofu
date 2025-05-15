@@ -7,9 +7,10 @@ package tofu
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -333,7 +334,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			ctx := new(MockEvalContext)
 			ctx.StateState = test.State.SyncWrapper()
 			ctx.PathPath = addrs.RootModuleInstance
-			ctx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
+			ctx.ProviderSchemaSchema = test.Provider.GetProviderSchema(t.Context())
 			ctx.MoveResultsResults = test.MoveResults
 			ctx.ProviderProvider = providers.Interface(test.Provider)
 
@@ -380,7 +381,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			ctx := new(MockEvalContext)
 			ctx.StateState = test.State.SyncWrapper()
 			ctx.PathPath = addrs.RootModuleInstance
-			ctx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
+			ctx.ProviderSchemaSchema = test.Provider.GetProviderSchema(t.Context())
 			ctx.MoveResultsResults = test.MoveResults
 			ctx.ProviderProvider = providers.Interface(test.Provider)
 

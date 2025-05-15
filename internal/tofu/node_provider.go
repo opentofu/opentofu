@@ -145,7 +145,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 		return nil
 	}
 
-	schemaResp := provider.GetProviderSchema()
+	schemaResp := provider.GetProviderSchema(ctx)
 	diags := schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
@@ -205,7 +205,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 
 	configBody := buildProviderConfig(evalCtx, n.Addr, config)
 
-	resp := provider.GetProviderSchema()
+	resp := provider.GetProviderSchema(ctx)
 	diags := resp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)

@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -23,7 +24,7 @@ func evalContextProviderFunction(provider providers.Interface, op walkOperation,
 	var diags tfdiags.Diagnostics
 
 	// First try to look up the function from provider schema
-	schema := provider.GetProviderSchema()
+	schema := provider.GetProviderSchema(context.TODO())
 	if schema.Diagnostics.HasErrors() {
 		return nil, schema.Diagnostics
 	}

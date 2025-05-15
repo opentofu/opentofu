@@ -13,13 +13,13 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 )
 
-func simpleTestSchemas() *Schemas {
+func simpleTestSchemas(t *testing.T) *Schemas {
 	provider := simpleMockProvider()
 	provisioner := simpleMockProvisioner()
 
 	return &Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
-			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
+			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(t.Context()),
 		},
 		Provisioners: map[string]*configschema.Block{
 			"test": provisioner.GetSchemaResponse.Provisioner,
