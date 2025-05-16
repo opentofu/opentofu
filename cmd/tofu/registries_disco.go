@@ -43,14 +43,25 @@ const (
 // object should obtain authentication credentials for service discovery
 // requests. Passing a nil credSrc is acceptable and means that all discovery
 // requests are to be made anonymously.
-func newServiceDiscovery(ctx context.Context, credSrc auth.CredentialsSource) *disco.Disco {
+func newServiceDiscovery(_ context.Context, credSrc auth.CredentialsSource) *disco.Disco {
 	services := disco.NewWithCredentialsSource(credSrc)
 	services.SetUserAgent(httpclient.OpenTofuUserAgent(version.String()))
 
 	// For historical reasons, the registry request retry policy also applies
 	// to all service discovery requests, which we implement by using transport
 	// from a HTTP client that is configured for registry client use.
-	client := newRegistryHTTPClient(ctx)
+	//
+	// TEMP: The disco.Disco API isn't yet set up to pass through
+	// context.Context, so we're intentionally ignoring the passed-in ctx
+	// here to prevent the created client from having OpenTelemetry
+	// instrumentation added to it. This is just a low-risk temporary trick
+	// for the v1.10 release; we intend to update disco.Disco to properly
+	// support context.Context at some point during the v1.11 development
+	// period. This relies on the fact that httpclient.New uses the context
+	// we're (indirectly) passing it only to find out if there's an active
+	// OpenTelemetry span, which should be a valid assumption for as long as
+	// this very temporary workaround lasts.
+	client := newRegistryHTTPClient(context.TODO())
 	services.Transport = client.HTTPClient.Transport
 
 	return services
