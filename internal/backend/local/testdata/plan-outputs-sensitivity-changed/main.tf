@@ -3,7 +3,6 @@
 # This output starts non-sensitive, and the test will change it to sensitive
 output "sensitive_after" {
   value = "after"
-  # sensitive = true # This line would be uncommented to test the change
 }
 
 # This output starts sensitive, and the test will change it to non-sensitive
@@ -20,6 +19,11 @@ output "unchanged_insensitive" {
 # This output's value changes, to verify it shows up in the plan
 output "changed_insensitive" {
   value = "changed_but_always_insensitive"
+}
+
+output "changed_sensitive" {
+  value = "changed_and_always_sensitive"
+  sensitive = true
 }
 
 # This output is added, to verify it shows up in the plan

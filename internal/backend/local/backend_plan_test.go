@@ -245,25 +245,30 @@ func TestLocal_planOutputSensitivityChanged(t *testing.T) {
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "sensitive_after"},
-		}, cty.StringVal("after"), false) // starts non-sensitive
+		}, cty.StringVal("after"), false, "") // starts non-sensitive
 
 		// Output that will become non-sensitive
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "sensitive_before"},
-		}, cty.StringVal("before"), true) // starts sensitive
+		}, cty.StringVal("before"), true, "") // starts sensitive
 
 		// Outputs that remain unchanged
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "unchanged_insensitive"},
-		}, cty.StringVal("unchanged"), false)
+		}, cty.StringVal("unchanged"), false, "")
 
 		// Outputs with actual value changes (for control comparison)
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "changed_insensitive"},
-		}, cty.StringVal("changed_but_always_insensitive"), false)
+		}, cty.StringVal("not_yet_changed"), false, "")
+
+		ss.SetOutputValue(addrs.AbsOutputValue{
+			Module:      addrs.RootModuleInstance,
+			OutputValue: addrs.OutputValue{Name: "changed_sensitive"},
+		}, cty.StringVal("not_yet_changed"), true, "") // starts sensitive
 	}))
 
 	outDir := t.TempDir()
@@ -271,8 +276,7 @@ func TestLocal_planOutputSensitivityChanged(t *testing.T) {
 	planPath := filepath.Join(outDir, "sensitivity_plan_test.tfplan")
 
 	// Use the test fixture with sensitivity changes
-	op, configCleanup, done := testOperationPlan(t, "./testdata/plan-outputs-sensitivity-changed")
-	defer configCleanup()
+	op, done := testOperationPlan(t, "./testdata/plan-outputs-sensitivity-changed")
 	op.PlanRefresh = true
 	op.PlanOutPath = planPath
 
@@ -305,10 +309,11 @@ func TestLocal_planOutputSensitivityChanged(t *testing.T) {
 	// TODO: Open question here on whether `sensitive_before` should actually show the value during the plan
 	expectedOutput := strings.TrimSpace(`
 Changes to Outputs:
-  + added            = "after"
-  ~ changed          = "before" -> "after"
-  ~ sensitive_after  = "after" -> (sensitive value)
-  ~ sensitive_before = (sensitive value) -> "after"
+  + added_insensitive     = "added_but_always_insensitive"
+  ~ changed_insensitive   = "not_yet_changed" -> "changed_but_always_insensitive"
+  ~ changed_sensitive     = (sensitive value) -> (sensitive value)
+  ~ sensitive_after  	  = "after" -> (sensitive value)
+  ~ sensitive_before 	  = (sensitive value) -> "after"
 
 You can apply this plan to save these new output values to the OpenTofu
 state, without changing any real infrastructure.
