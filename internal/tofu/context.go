@@ -156,6 +156,42 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 func (c *Context) Schemas(ctx context.Context, config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	resourceTypes := make(map[addrs.Provider]map[string]int)
+	datasourceTypes := make(map[addrs.Provider]map[string]int)
+	if config != nil {
+		resourceTypes = config.ResourceTypes()
+		datasourceTypes = config.DatasourceTypes()
+	}
+
+	if state != nil {
+		for p, tm := range state.ResourceTypes() {
+			for t, c := range tm {
+				resourceTypes[p][t] += c
+			}
+		}
+	}
+
+	c.plugins.resourceFilter = func(addr addrs.Provider) providers.SchemaFilter {
+		types, ok := resourceTypes[addr]
+		if !ok {
+			return func(string) bool { return false }
+		}
+		return func(ty string) bool {
+			_, hasType := types[ty]
+			return hasType
+		}
+	}
+	c.plugins.datasourceFilter = func(addr addrs.Provider) providers.SchemaFilter {
+		types, ok := datasourceTypes[addr]
+		if !ok {
+			return func(string) bool { return false }
+		}
+		return func(ty string) bool {
+			_, hasType := types[ty]
+			return hasType
+		}
+	}
+
 	ret, err := loadSchemas(ctx, config, state, c.plugins)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(

@@ -23,12 +23,16 @@ import (
 type contextPlugins struct {
 	providerFactories    map[addrs.Provider]providers.Factory
 	provisionerFactories map[string]provisioners.Factory
+	resourceFilter       func(addrs.Provider) providers.SchemaFilter
+	datasourceFilter     func(addrs.Provider) providers.SchemaFilter
 }
 
 func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) *contextPlugins {
 	return &contextPlugins{
 		providerFactories:    providerFactories,
 		provisionerFactories: provisionerFactories,
+		resourceFilter:       func(addrs.Provider) providers.SchemaFilter { return nil },
+		datasourceFilter:     func(addrs.Provider) providers.SchemaFilter { return nil },
 	}
 }
 
@@ -43,7 +47,7 @@ func (cp *contextPlugins) NewProviderInstance(addr addrs.Provider) (providers.In
 		return nil, fmt.Errorf("unavailable provider %q", addr.String())
 	}
 
-	return f()
+	return f(cp.resourceFilter(addr), cp.datasourceFilter(addr))
 
 }
 
