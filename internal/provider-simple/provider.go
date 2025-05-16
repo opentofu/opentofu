@@ -70,6 +70,10 @@ func (s simple) ValidateDataResourceConfig(req providers.ValidateDataResourceCon
 	return resp
 }
 
+func (s simple) ValidateEphemeralConfig(providers.ValidateEphemeralConfigRequest) (resp providers.ValidateEphemeralConfigResponse) {
+	return resp
+}
+
 func (s simple) MoveResourceState(req providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
 	var resp providers.MoveResourceStateResponse
 	val, err := ctyjson.Unmarshal(req.SourceStateJSON, s.schema.ResourceTypes["simple_resource"].Block.ImpliedType())
@@ -147,6 +151,22 @@ func (s simple) ReadDataSource(req providers.ReadDataSourceRequest) (resp provid
 	m := req.Config.AsValueMap()
 	m["id"] = cty.StringVal("static_id")
 	resp.State = cty.ObjectVal(m)
+	return resp
+}
+
+func (s simple) OpenEphemeralResource(request providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	m := request.Config.AsValueMap()
+	m["id"] = cty.StringVal("static_id")
+	resp.Result = cty.ObjectVal(m)
+	return resp
+}
+
+func (s simple) RenewEphemeralResource(request providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	resp.Private = request.Private
+	return resp
+}
+
+func (s simple) CloseEphemeralResource(_ providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
 	return resp
 }
 
