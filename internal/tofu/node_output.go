@@ -555,6 +555,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// as sensitive. We can show the value again once sensitivity is
 		// removed from both the config and the state.
 		sensitiveChange := sensitiveBefore || n.Config.Sensitive
+		log.Printf("[INFO] changed detected in sensitivity of output, sensitivity was %v and now %v", sensitiveBefore, n.Config.Sensitive)
 
 		// strip any marks here just to be sure we don't panic on the True comparison
 		unmarkedVal, _ := val.UnmarkDeep()
