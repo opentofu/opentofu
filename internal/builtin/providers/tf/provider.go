@@ -77,6 +77,10 @@ func (p *Provider) ValidateDataResourceConfig(req providers.ValidateDataResource
 	return res
 }
 
+func (p *Provider) ValidateEphemeralConfig(request providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
+}
+
 // Configure configures and initializes the provider.
 func (p *Provider) ConfigureProvider(providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	// At this moment there is nothing to configure for the terraform provider,
@@ -87,6 +91,18 @@ func (p *Provider) ConfigureProvider(providers.ConfigureProviderRequest) provide
 
 // ReadDataSource returns the data source's current state.
 func (p *Provider) ReadDataSource(req providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
+}
+
+func (p *Provider) OpenEphemeralResource(providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
+}
+
+func (p *Provider) RenewEphemeralResource(providers.RenewEphemeralResourceRequest) providers.RenewEphemeralResourceResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
+}
+
+func (p *Provider) CloseEphemeralResource(providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse {
 	panic("Should not be called directly, special case for terraform_remote_state")
 }
 
