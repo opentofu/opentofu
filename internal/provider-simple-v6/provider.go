@@ -48,6 +48,9 @@ func Provider() providers.Interface {
 			DataSources: map[string]providers.Schema{
 				"simple_resource": simpleResource,
 			},
+			EphemeralResources: map[string]providers.Schema{
+				"simple_resource": simpleResource,
+			},
 			ServerCapabilities: providers.ServerCapabilities{
 				PlanDestroy: true,
 			},
@@ -68,6 +71,10 @@ func (s simple) ValidateResourceConfig(req providers.ValidateResourceConfigReque
 }
 
 func (s simple) ValidateDataResourceConfig(req providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
+	return resp
+}
+
+func (s simple) ValidateEphemeralConfig(providers.ValidateEphemeralConfigRequest) (resp providers.ValidateEphemeralConfigResponse) {
 	return resp
 }
 
@@ -156,6 +163,24 @@ func (s simple) ReadDataSource(req providers.ReadDataSourceRequest) (resp provid
 	m := req.Config.AsValueMap()
 	m["id"] = cty.StringVal("static_id")
 	resp.State = cty.ObjectVal(m)
+	return resp
+}
+
+func (s simple) OpenEphemeralResource(req providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	// TODO ephemeral - add tests in e2e when implementation is done
+	m := req.Config.AsValueMap()
+	m["id"] = cty.StringVal("static_id")
+	resp.Result = cty.ObjectVal(m)
+	resp.Private = []byte("static private data")
+	return resp
+}
+
+func (s simple) RenewEphemeralResource(req providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	resp.Private = []byte(fmt.Sprintf("%s - renew", req.Private))
+	return resp
+}
+
+func (s simple) CloseEphemeralResource(providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
 	return resp
 }
 
