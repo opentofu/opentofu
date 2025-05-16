@@ -6,11 +6,12 @@
 package providers
 
 import (
-	"github.com/zclconf/go-cty/cty"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // Unconfigured represents a provider plugin that has not yet been configured. It has
@@ -37,6 +38,10 @@ type Unconfigured interface {
 	// ValidateDataResourceConfig allows the provider to validate the data source
 	// configuration values.
 	ValidateDataResourceConfig(ValidateDataResourceConfigRequest) ValidateDataResourceConfigResponse
+
+	// ValidateEphemeralConfig allows the provider to validate the ephemeral resource
+	// configuration values.
+	ValidateEphemeralConfig(request ValidateEphemeralConfigRequest) ValidateEphemeralConfigResponse
 
 	// MoveResourceState requests that the given resource data be moved from one
 	// type to another, potentially between providers as well.
@@ -98,8 +103,17 @@ type Configured interface {
 	// ReadDataSource returns the data source's current state.
 	ReadDataSource(ReadDataSourceRequest) ReadDataSourceResponse
 
-	// GetFunctions returns a full list of functions defined in this provider. It should be a super
-	// set of the functions returned in GetProviderSchema()
+	// OpenEphemeralResource opens the provided ephemeral resource.
+	OpenEphemeralResource(OpenEphemeralResourceRequest) OpenEphemeralResourceResponse
+
+	// RenewEphemeralResource is renewing the information related to the data returned during OpenEphemeralResource.
+	RenewEphemeralResource(RenewEphemeralResourceRequest) (resp RenewEphemeralResourceResponse)
+
+	// CloseEphemeralResource closes the provided ephemeral resource.
+	CloseEphemeralResource(CloseEphemeralResourceRequest) CloseEphemeralResourceResponse
+
+	// GetFunctions returns a full list of functions defined in this provider. It should be a superset
+	// of the functions returned in GetProviderSchema()
 	GetFunctions() GetFunctionsResponse
 }
 
@@ -247,6 +261,20 @@ type ValidateDataResourceConfigRequest struct {
 }
 
 type ValidateDataResourceConfigResponse struct {
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type ValidateEphemeralConfigRequest struct {
+	// TypeName is the name of the ephemeral resource type to validate.
+	TypeName string
+
+	// Config is the configuration value to validate, which may contain unknown
+	// values.
+	Config cty.Value
+}
+
+type ValidateEphemeralConfigResponse struct {
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics
 }
@@ -529,6 +557,70 @@ type ReadDataSourceRequest struct {
 type ReadDataSourceResponse struct {
 	// State is the current state of the requested data source.
 	State cty.Value
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type OpenEphemeralResourceRequest struct {
+	// TypeName is the name of the ephemeral resource type to Open.
+	TypeName string
+
+	// Config is the complete configuration for the requested ephemeral resource.
+	Config cty.Value
+
+	// ProviderMeta is the configuration for the provider_meta block for the
+	// module and provider this resource belongs to. Its use is defined by
+	// each provider, and it should not be used without coordination with
+	// HashiCorp. It is considered experimental and subject to change.
+	ProviderMeta cty.Value
+}
+
+type OpenEphemeralResourceResponse struct {
+	// State is the current state of the requested data source.
+	Result   cty.Value
+	Private  []byte
+	Deferred *Deferred
+	RenewAt  *time.Time
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type CloseEphemeralResourceRequest struct {
+	// TypeName is the name of the data source type to Read.
+	TypeName string
+
+	// Config is the complete configuration for the requested data source.
+	Config cty.Value
+
+	Private []byte
+}
+
+type CloseEphemeralResourceResponse struct {
+	// State is the current state of the requested data source.
+	Result   cty.Value
+	Private  []byte
+	Deferred *Deferred
+	RenewAt  *time.Time
+
+	// Diagnostics contains any warnings or errors from the method call.
+	Diagnostics tfdiags.Diagnostics
+}
+
+type RenewEphemeralResourceRequest struct {
+	// TypeName is the name of the data source type to Read.
+	TypeName string
+
+	// Config is the complete configuration for the requested data source.
+	Config cty.Value
+
+	Private []byte
+}
+
+type RenewEphemeralResourceResponse struct {
+	Private []byte
+	RenewAt *time.Time
 
 	// Diagnostics contains any warnings or errors from the method call.
 	Diagnostics tfdiags.Diagnostics

@@ -169,6 +169,11 @@ func (p *MockProvider) ValidateDataResourceConfig(r providers.ValidateDataResour
 	return p.ValidateDataResourceConfigResponse
 }
 
+func (p *MockProvider) ValidateEphemeralConfig(request providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+	//TODO andrei implement me
+	panic("implement me")
+}
+
 func (p *MockProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	p.Lock()
 	defer p.Unlock()
@@ -364,6 +369,21 @@ func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) provide
 	}
 
 	return p.ReadDataSourceResponse
+}
+
+func (p *MockProvider) OpenEphemeralResource(request providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+	//TODO andrei implement me
+	panic("implement me")
+}
+
+func (p *MockProvider) RenewEphemeralResource(request providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	//TODO andrei implement me
+	panic("implement me")
+}
+
+func (p *MockProvider) CloseEphemeralResource(request providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse {
+	//TODO andrei implement me
+	panic("implement me")
 }
 
 func (p *MockProvider) GetFunctions() providers.GetFunctionsResponse {
