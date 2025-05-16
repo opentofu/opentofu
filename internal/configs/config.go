@@ -836,6 +836,19 @@ func (c *Config) ResourceTypes() map[addrs.Provider]map[string]int {
 		addResource(r)
 	}
 
+	for _, ch := range c.Children {
+		for p, tv := range ch.ResourceTypes() {
+			for t, v := range tv {
+				pm, ok := m[p]
+				if !ok {
+					pm = make(map[string]int)
+					m[p] = pm
+				}
+				pm[t] += v
+			}
+		}
+	}
+
 	return m
 }
 
@@ -866,6 +879,19 @@ func (c *Config) DatasourceTypes() map[addrs.Provider]map[string]int {
 	Import  []*Import
 	Removed []*Removed
 	*/
+
+	for _, ch := range c.Children {
+		for p, tv := range ch.DatasourceTypes() {
+			for t, v := range tv {
+				pm, ok := m[p]
+				if !ok {
+					pm = make(map[string]int)
+					m[p] = pm
+				}
+				pm[t] += v
+			}
+		}
+	}
 
 	return m
 }
