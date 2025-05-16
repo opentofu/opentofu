@@ -44,6 +44,7 @@ ENHANCEMENTS:
 * `removed` now supports `lifecycle` and `provisioner` configuration. ([#2556](https://github.com/opentofu/opentofu/issues/2556))
 * "force-unlock" option is now supported by the HTTP backend. ([#2381](https://github.com/opentofu/opentofu/pull/2381))
 * Module version constraints now support `null` values, which are treated as if no version was specified. ([#2660](https://github.com/opentofu/opentofu/pull/2660))
+* When running `tofu init` with a dependency lock file that contains entries for certain providers on `registry.terraform.io`, OpenTofu now attempts to select the corresponding version of the equivalent provider on `registry.opentofu.org` as an aid when switching directly from OpenTofu's predecessor. This applies only to the providers that are rebuilt from source and republished on the OpenTofu Registry by the OpenTofu project, because we cannot assume any equivalents for third-party providers published in other namespaces. ([#2791](https://github.com/opentofu/opentofu/pull/2791))
 
 BUG FIXES:
 
