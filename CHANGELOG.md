@@ -34,6 +34,7 @@ ENHANCEMENTS:
 * Remove restriction on test module sources now allowing all source types for modules during tests ([#2651]https://github.com/opentofu/opentofu/pull/2651)
 * `moved` now supports moving between different types ([#2370](https://github.com/opentofu/opentofu/pull/2370))
 * `moved` block can now be used to migrate from the `null_resource` to the `terraform_data` resource. ([#2481](https://github.com/opentofu/opentofu/pull/2481))
+* OpenTofu now includes more information about value types when describing type conversion-related errors, and some other errors relating to local iteration symbols. ([#2815](https://github.com/opentofu/opentofu/pull/2815), [#2816](https://github.com/opentofu/opentofu/pull/2816))
 * Warn on implicit references of providers without a `required_providers` entry. ([#2084](https://github.com/opentofu/opentofu/issues/2084))
 * The test `run` outputs can now be used in the test `provider` blocks defined in test files. ([#2543](https://github.com/opentofu/opentofu/pull/2543))
 * Provider instance keys now automatically converted to string ([#2378](https://github.com/opentofu/opentofu/issues/2378))
