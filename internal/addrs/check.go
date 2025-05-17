@@ -5,7 +5,11 @@
 
 package addrs
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/zclconf/go-cty/cty"
+)
 
 // Check is the address of a check block within a module.
 //
@@ -18,6 +22,10 @@ type Check struct {
 
 func (c Check) String() string {
 	return fmt.Sprintf("check.%s", c.Name)
+}
+
+func (c Check) Path() cty.Path {
+	return cty.GetAttrPath("check").GetAttr(c.Name)
 }
 
 // InModule returns a ConfigCheck from the receiver and the given module
