@@ -49,6 +49,11 @@ const (
 	//
 	// For this target type, [Show.TargetArg] is the plan file to load.
 	ShowPlan
+
+	// ShowConfig represents a request to show the current configuration.
+	//
+	// This target type does not use [Show.TargetArg].
+	ShowConfig
 )
 
 // ParseShow processes CLI arguments, returning a Show value and errors.
@@ -63,11 +68,13 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 	var jsonOutput bool
 	var stateTarget bool
 	var planTarget string
+	var configTarget bool
 	cmdFlags := extendedFlagSet("show", nil, nil, show.Vars)
 	cmdFlags.BoolVar(&jsonOutput, "json", false, "json")
 	cmdFlags.BoolVar(&show.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.BoolVar(&stateTarget, "state", false, "show the latest state snapshot")
 	cmdFlags.StringVar(&planTarget, "plan", "", "show the plan from a saved plan file")
+	cmdFlags.BoolVar(&configTarget, "config", false, "show the current configuration")
 
 	if err := cmdFlags.Parse(args); err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -77,6 +84,16 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 		))
 	}
 
+	// If -config is specified, -json is required
+	if configTarget && !jsonOutput {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"JSON output required for configuration",
+			"The -config option requires -json to be specified.",
+		))
+		return show, diags
+	}
+
 	switch {
 	case jsonOutput:
 		show.ViewType = ViewJSON
@@ -84,8 +101,8 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 		show.ViewType = ViewHuman
 	}
 
-	if planTarget == "" && !stateTarget {
-		// If neither of the target type options was provided then we're
+	if planTarget == "" && !stateTarget && !configTarget {
+		// If none of the target type options was provided then we're
 		// in the legacy mode where the target type is implied by
 		// the number of arguments.
 		args = cmdFlags.Args()
@@ -131,11 +148,16 @@ func ParseShow(args []string) (*Show, tfdiags.Diagnostics) {
 		show.TargetType = ShowPlan
 		show.TargetArg = planTarget
 	}
+	if configTarget {
+		targetTypes++
+		show.TargetType = ShowConfig
+		show.TargetArg = ""
+	}
 	if targetTypes != 1 {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,
 			"Conflicting object types to show",
-			"The -state and -plan=FILENAME options are mutually-exclusive, to specify which kind of object to show.",
+			"The -state, -plan=FILENAME, and -config options are mutually-exclusive, to specify which kind of object to show.",
 		))
 	}
 	return show, diags
