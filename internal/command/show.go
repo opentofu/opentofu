@@ -50,6 +50,7 @@ func (e *errUnusableDataMisc) Unwrap() error {
 
 // ShowCommand is a Command implementation that reads and outputs the
 // contents of a OpenTofu plan or state file.
+// write about config here
 type ShowCommand struct {
 	Meta
 	viewType arguments.ViewType
@@ -120,6 +121,7 @@ Target selection options:
 
     -state          The latest state snapshot, if any.
     -plan=FILENAME  The plan from a saved plan file.
+    -config         Show the current configuration (requires -json).
 
   If no target selection options are provided, -state is the default.
 
@@ -128,6 +130,7 @@ Other options:
   -no-color           Disable terminal escape sequences.
 
   -json               Show the information in a machine-readable form.
+                     Required when using -config.
 
   -show-sensitive     If specified, sensitive values will be displayed.
 
@@ -173,6 +176,8 @@ func (c *ShowCommand) show(ctx context.Context, targetType arguments.ShowTargetT
 		return c.showFromLatestStateSnapshot(ctx, enc)
 	case arguments.ShowPlan:
 		return c.showFromSavedPlanFile(ctx, targetArg, enc)
+	case arguments.ShowConfig:
+		return c.showConfiguration(ctx)
 	case arguments.ShowUnknownType:
 		// This is a legacy case where we just have a filename and need to
 		// try treating it as either a saved plan file or a local state
@@ -485,4 +490,10 @@ func getStateFromBackend(b backend.Backend, workspace string) (*statefile.File, 
 	// Get the latest state snapshot and return it
 	stateFile := statemgr.Export(stateStore)
 	return stateFile, nil
+}
+
+// showConfiguration returns a function that will display the current configuration
+// in JSON format. This is a new feature that requires -json to be specified.
+func (c *ShowCommand) showConfiguration(ctx context.Context) (showRenderFunc, tfdiags.Diagnostics) {
+	// TODO: Implement this
 }
