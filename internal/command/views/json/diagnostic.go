@@ -361,7 +361,13 @@ func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressi
 	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
 Traversals:
 	for _, traversal := range vars {
-		for len(traversal) > 1 {
+		// We want to describe as specific a value as possible but since
+		// evaluation failed it's possible that the full traversal is
+		// not actually valid, so we'll try gradually-shorter prefixes
+		// of the traversal until we're able to find an associated
+		// value, reporting the value of the entire top-level symbol
+		// as our worst-case successful outcome.
+		for len(traversal) >= 1 {
 			val, diags := traversal.TraverseAbs(ctx)
 			if diags.HasErrors() {
 				// Skip anything that generates errors, since we probably
@@ -386,6 +392,7 @@ Traversals:
 				Statement: statement,
 			})
 			seen[traversalStr] = struct{}{}
+			continue Traversals
 		}
 	}
 	sort.Slice(values, func(i, j int) bool {
