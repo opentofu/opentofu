@@ -612,6 +612,7 @@ On the OpenTofu side the following needs to be tackled:
 For enabling ephemeral variables, these are the basic steps that need to be taken:
 * Update config to support the `ephemeral` attribute.
 * Mark the variables with a new mark and ensure that the marks are propagated correctly.
+  * Recently, [2503](https://github.com/opentofu/opentofu/pull/2503) has been merged. This changed the way OpenTofu is handling marks. Before 2503, there was only one mark (sensitive), so there were places that treated a marked value as a sensitive one, but when a new mark (deprecated) has been introduced, we had to fix the way OpenTofu considers sensitive values.
 * Based on the marks, ensure that the variable cannot be used in other contexts than the ephemeral ones (see the [User Documentation](#user-documentation) section for more details on where this is allowed). If any found, an error will be raised.
 * Check the state of [#1998](https://github.com/opentofu/opentofu/pull/1998). If that is merged, in the changes where variables from plan are verified against the configuration ones, we also need to add a validation on the ephemerality of variables. If the variable is marked as ephemeral, then the plan value is allowed (expected) to be missing.
 * Ensure that when the prompt is shown for an ephemeral variable, there is indication of that:
