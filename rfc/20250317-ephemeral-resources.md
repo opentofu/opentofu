@@ -754,7 +754,7 @@ Right before closing the provider, all the ephemeral resources that were open du
 There is not much to say here, since this is the same lifecycle that a datasource is having.
 
 #### Testing support
-The testing support will be documented later into a different RFC, or as amendment to this one.
+Due to the scope size this RFC is covering, the testing support will be documented later into a different RFC, or as amendment to this one.
 
 ### Support in already ephemeral contexts
 There are already OpenTofu contexts that are not saved in state/plan file:
