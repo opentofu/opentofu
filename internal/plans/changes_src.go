@@ -151,6 +151,11 @@ type OutputChangeSrc struct {
 	// should elide the actual values while still indicating the action of the
 	// change.
 	Sensitive bool
+
+	// BecomingNonSensitive, if true, indicates that this output is changing
+	// from sensitive to non-sensitive, and that the UI should show a special
+	// message about the value becoming visible.
+	BecomingNonSensitive bool
 }
 
 // Decode unmarshals the raw representation of the output value being
@@ -161,9 +166,10 @@ func (ocs *OutputChangeSrc) Decode() (*OutputChange, error) {
 		return nil, err
 	}
 	return &OutputChange{
-		Addr:      ocs.Addr,
-		Change:    *change,
-		Sensitive: ocs.Sensitive,
+		Addr:                ocs.Addr,
+		Change:              *change,
+		Sensitive:           ocs.Sensitive,
+		BecomingNonSensitive: ocs.BecomingNonSensitive,
 	}, nil
 }
 
