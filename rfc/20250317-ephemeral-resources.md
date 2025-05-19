@@ -769,7 +769,7 @@ In all of these, referencing an ephemeral value should work as normal.
 The `tofu.applying` needs to be introduced to allow the user to check if the current command that is running is `apply` or not.
 This is useful when the user wants to configure different properties between write operations and read operations.
 
-`terraform.applying` should be set to `true` when `tofu apply` is executed and `false` in any other command.
+`tofu.applying` should be set to `true` when `tofu apply` is executed and `false` in any other command.
 
 > [!NOTE]
 >
