@@ -136,7 +136,7 @@ func TestAssertObjectCompatible(t *testing.T) {
 				"name": cty.Zero,
 			}),
 			[]string{
-				`.name: wrong final value type: string required`,
+				`.name: wrong final value type: string required, but have number`,
 			},
 		},
 		{
@@ -390,7 +390,7 @@ func TestAssertObjectCompatible(t *testing.T) {
 				"stuff": cty.True,
 			}),
 			[]string{
-				`.stuff: wrong final value type: string required`,
+				`.stuff: wrong final value type: string required, but have bool`,
 			},
 		},
 		{
