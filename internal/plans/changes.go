@@ -486,6 +486,11 @@ type OutputChange struct {
 	// should elide the actual values while still indicating the action of the
 	// change.
 	Sensitive bool
+
+	// BecomingNonSensitive, if true, indicates that this output is changing
+	// from sensitive to non-sensitive, and that the UI should show a special
+	// message about the value becoming visible.
+	BecomingNonSensitive bool
 }
 
 // Encode produces a variant of the receiver that has its change values
