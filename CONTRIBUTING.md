@@ -20,7 +20,7 @@ Welcome and thank you for wanting to contribute!
 
 **⚠️ Important:** Please avoid working on features or refactor without [an `accepted` and `help-wanted` issue](https://github.com/opentofu/opentofu/issues?q=is%3Aopen+is%3Aissue+label%3Aaccepted+label%3A"help+wanted"). OpenTofu is a large and complex project and every change needs careful consideration. We cannot merge pull requests without first having a discussion about them, no matter how trivial the issue may seem.
 
-Check out our [Contributing FAQ](contributing/FAQ.md) and [Development Guide](contributing/DEVELOPMENT.md) for more detailed information.
+Check out our [Contributing FAQ](contributing/FAQ.md) and [Development Guide](contributing/DEVELOPING.md) for more detailed information.
 
 # Getting Involved
 
