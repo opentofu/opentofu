@@ -585,12 +585,6 @@ type OpenEphemeralResourceRequest struct {
 
 	// Config is the complete configuration for the requested ephemeral resource.
 	Config cty.Value
-
-	// ProviderMeta is the configuration for the provider_meta block for the
-	// module and provider this resource belongs to. Its use is defined by
-	// each provider, and it should not be used without coordination with
-	// OpenTofu. It is considered experimental and subject to change.
-	ProviderMeta cty.Value
 }
 
 type OpenEphemeralResourceResponse struct {
