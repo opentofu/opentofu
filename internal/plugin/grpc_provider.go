@@ -40,7 +40,8 @@ var clientCapabilities = &proto.ClientCapabilities{
 	// satisfy the request. Setting this means that we need to be prepared
 	// for there to be a "deferred" object in the response from various
 	// other provider RPC functions.
-	DeferralAllowed: true,
+	DeferralAllowed:            true,
+	WriteOnlyAttributesAllowed: true,
 }
 
 func (p *GRPCProviderPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
@@ -258,8 +259,9 @@ func (p *GRPCProvider) ValidateResourceConfig(ctx context.Context, r providers.V
 	}
 
 	protoReq := &proto.ValidateResourceTypeConfig_Request{
-		TypeName: r.TypeName,
-		Config:   &proto.DynamicValue{Msgpack: mp},
+		TypeName:           r.TypeName,
+		Config:             &proto.DynamicValue{Msgpack: mp},
+		ClientCapabilities: clientCapabilities,
 	}
 
 	protoResp, err := p.client.ValidateResourceTypeConfig(ctx, protoReq)
