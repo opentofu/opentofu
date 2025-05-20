@@ -2,7 +2,7 @@
 
 ### Who decides if a feature will be implemented and how is that decision made?
 
-When you submit an enhancement request, the [maintainers](#who-are-the-maintainers) looks at your issue first. Given the size of the code, adding a new feature is always a careful balancing act. The core team takes the following points into consideration:
+When you submit an enhancement request, the [maintainers](MAINTAINERS.md) looks at your issue first. Given the size of the code, adding a new feature is always a careful balancing act. The core team takes the following points into consideration:
 
 1. **Is it possible to implement this on a technical level?**<br />Sometimes, even if a feature would be extremely useful, the state of the codebase doesn't let us do it. 
 2. **Does the feature cause more technical debt?**<br />A feature request may hide a larger issue under the hood. Sometimes it is more desirable to resolve the underlying issue instead of implementing the feature in isolation.
@@ -17,7 +17,7 @@ Depending on the maintainers's review, a feature request can have the following 
 3. **More information is needed.** The maintainers will either add questions in comments, or when there is a deep technical issue to be resolved, call for an [RFC](./rfc/README.md) to detail a possible implementation.
 4. **More community input is needed.** When an issue is, on its surface, valuable, but there is no track record of a large portion of the community needing it, the maintainers adds the `needs community input` label. If you are interested in the feature and would like to use it, please add a reaction to the issue and add a description on specifically what problem it would solve for you in a comment.
 5. **The feature is rejected.** If based on the criteria above it is not feasible to implement the feature, the maintainers closes the issue with an explanation why it is being closed.
-6. **The feature is referred to the Technical Steering Committee**. If the feature requires the commitment of a larger amount of core developer time, has legal implications, or otherwise requires leadership attention, the maintainers adds the feature to the agenda of the Technical Leadership Committee. Once decided, the TSC records the decision in the [TSC_SUMMARY.md](TSC_SUMMARY.md) file.
+6. **The feature is referred to the Technical Steering Committee**. If the feature requires the commitment of a larger amount of core developer time, has legal implications, or otherwise requires leadership attention, the maintainers adds the feature to the agenda of the Technical Leadership Committee. Once decided, the TSC records the decision in the [TSC notes](TSC).
 
 ---
 
@@ -98,20 +98,4 @@ We currently only maintain a read-only mirror of these providers for the purpose
 
 Currently, we are at capacity for development and do not have additional capacity to take on additional projects unless necessary for the continued work on OpenTofu. While the final determination lies with the [Technical Steering Committee](#who-is-the-technical-steering-committee), the answer is likely no in almost all cases.
 
----
 
-### Who are the maintainers?
-
-Core team members are full time developers sponsored by the participating companies. You can find the list of core developers in the [MAINTAINERS](MAINTAINERS) file. Their role is to triage issues, work on feature development, help plan, review, and document community contributions, support the community, and refer feature requests to the Technical Steering Committee.
-
----
-
-### Can I become a maintainers member?
-
-Possibly. Please look for open positions with the sponsoring companies as they hire maintainers members. The interview process is the same regardless of which sponsoring company you apply to. To become a core team member, you must be equally good at Go and at communication since much of our work is helping the community. Good luck!
-
----
-
-### Who is the Technical Steering Committee?
-
-The Technical Steering Committee consists of one delegate from each company sponsoring the OpenTofu maintainers. You can find their names in the [TSC_SUMMARY.md](TSC_SUMMARY.md) file. Their role is to decide on larger commitments of core developer time, as well as long-term strategic issues.

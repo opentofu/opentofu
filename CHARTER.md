@@ -83,7 +83,7 @@ Asynchronous Voting: For votes conducted outside of meetings (e.g., via email or
 
    d. Asynchronous voting may occur on any suitable medium where all voting TSC members have at least 14 calendar days of verifiable notice to cast their vote.
 
-   e. The TSC will document its decisions in a public TSC_SUMMARY file in the main Project repository no later than 14 days after the vote was taken. For decisions not including confidential information, the TSC will include detailed notes on the discussion taken prior to the vote.
+   e. The TSC will document its decisions in a public file in the main Project repository no later than 14 days after the vote was taken. For decisions not including confidential information, the TSC will include detailed notes on the discussion taken prior to the vote.
 
 4. **Compliance with Policies**
 
