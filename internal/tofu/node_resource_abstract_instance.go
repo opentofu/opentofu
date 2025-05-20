@@ -1797,6 +1797,122 @@ func (n *NodeAbstractResourceInstance) providerMetas(ctx EvalContext) (cty.Value
 	return metaConfigVal, diags
 }
 
+func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var newVal cty.Value
+
+	config := *n.Config
+
+	provider, providerSchema, err := n.getProvider(ctx)
+	diags = diags.Append(err)
+	if diags.HasErrors() {
+		return newVal, diags
+	}
+	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
+	if schema == nil {
+		// Should be caught during validation, so we don't bother with a pretty error here
+		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", n.ResolvedProvider.ProviderConfig, n.Addr.ContainingResource().Resource.Type))
+		return newVal, diags
+	}
+
+	// Unmark before sending to provider, will re-mark before returning
+	var pvm []cty.PathValueMarks
+	configVal, pvm = configVal.UnmarkDeepWithPaths()
+
+	log.Printf("[TRACE] openEphemeralResource: Re-validating config for %s", n.Addr)
+	validateResp := provider.ValidateEphemeralConfig(
+		providers.ValidateEphemeralConfigRequest{
+			TypeName: n.Addr.ContainingResource().Resource.Type,
+			Config:   configVal,
+		},
+	)
+	diags = diags.Append(validateResp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
+	if diags.HasErrors() {
+		return newVal, diags
+	}
+
+	// If we get down here then our configuration is complete and we're read
+	// to actually call the provider to read the data.
+	log.Printf("[TRACE] openEphemeralResource: %s configuration is complete, so calling the provider", n.Addr)
+
+	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
+		return h.PreApply(n.Addr, states.CurrentGen, plans.Read, cty.NullVal(configVal.Type()), configVal)
+	}))
+	if diags.HasErrors() {
+		return newVal, diags
+	}
+
+	req := providers.OpenEphemeralResourceRequest{
+		TypeName: n.Addr.ContainingResource().Resource.Type,
+		Config:   configVal,
+	}
+	resp := provider.OpenEphemeralResource(req)
+	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
+	if diags.HasErrors() {
+		return newVal, diags
+	}
+	newVal = resp.Result // TODO andrei handle the renew/private/defer. For defer, check upstream, there is another place where I've seen something about this (look for trace logs)
+	if newVal == cty.NilVal {
+		// This can happen with incompletely-configured mocks. We'll allow it
+		// and treat it as an alias for a properly-typed null value.
+		newVal = cty.NullVal(schema.ImpliedType())
+	}
+
+	for _, err := range newVal.Type().TestConformance(schema.ImpliedType()) {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Provider produced invalid object",
+			fmt.Sprintf(
+				"Provider %q produced an invalid value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), tfdiags.FormatErrorPrefixed(err, n.Addr.String()),
+			),
+		))
+	}
+	if diags.HasErrors() {
+		return newVal, diags
+	}
+
+	if newVal.IsNull() {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Provider produced null object", // TODO andrei update the diags to make them specific for ephemeral resources
+			fmt.Sprintf(
+				"Provider %q produced a null value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
+			),
+		))
+	}
+
+	if !newVal.IsNull() && !newVal.IsWhollyKnown() {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Provider produced invalid object",
+			fmt.Sprintf(
+				"Provider %q produced a value for %s that is not wholly known.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
+				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
+			),
+		))
+
+		// We'll still save the object, but we need to eliminate any unknown
+		// values first because we can't serialize them in the state file.
+		// Note that this may cause set elements to be coalesced if they
+		// differed only by having unknown values, but we don't worry about
+		// that here because we're saving the value only for inspection
+		// purposes; the error we added above will halt the graph walk.
+		newVal = cty.UnknownAsNull(newVal)
+	}
+
+	if len(pvm) > 0 {
+		newVal = newVal.MarkWithPaths(pvm)
+	}
+
+	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
+		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
+	}))
+
+	return newVal, diags
+}
+
 // planDataSource deals with the main part of the data resource lifecycle:
 // either actually reading from the data source or generating a plan to do so.
 //
@@ -2820,4 +2936,211 @@ func (n *NodeAbstractResourceInstance) getProvider(ctx EvalContext) (providers.I
 		linkWithCurrentResource(n.Addr.ConfigResource())
 
 	return provider, schema, nil
+}
+
+func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx EvalContext, checkRuleSeverity tfdiags.Severity, skipPlanChanges bool) (*plans.ResourceInstanceChange, *states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var keyData instances.RepetitionData
+	var configVal cty.Value
+
+	_, providerSchema, err := n.getProvider(ctx)
+	if err != nil {
+		return nil, nil, keyData, diags.Append(err)
+	}
+
+	config := *n.Config
+	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
+	if schema == nil {
+		// Should be caught during validation, so we don't bother with a pretty error here
+		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr.ContainingResource().Resource.Type))
+		return nil, nil, keyData, diags
+	}
+
+	objTy := schema.ImpliedType()
+	priorVal := cty.NullVal(objTy)
+
+	forEach, _ := evaluateForEachExpression(config.ForEach, ctx, n.Addr) // TODO andrei test this for_each
+	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
+
+	checkDiags := evalCheckRules( // TODO andrei debug this
+		addrs.ResourcePrecondition,
+		n.Config.Preconditions,
+		ctx, n.Addr, keyData,
+		checkRuleSeverity,
+	)
+	diags = diags.Append(checkDiags)
+	if diags.HasErrors() {
+		return nil, nil, keyData, diags // failed preconditions prevent further evaluation
+	}
+
+	var configDiags tfdiags.Diagnostics
+	configVal, _, configDiags = ctx.EvaluateBlock(config.Config, schema, nil, keyData)
+	diags = diags.Append(configDiags)
+	if configDiags.HasErrors() {
+		return nil, nil, keyData, diags
+	}
+
+	check, nested := n.nestedInCheckBlock() // TODO andrei check this part
+	if nested {
+		// Going forward from this point, the only reason we will fail is
+		// that the data source fails to load its data. Normally, this would
+		// cancel the entire plan and this error message would bubble its way
+		// back up to the user.
+		//
+		// But, if we are in a check block then we don't want this data block to
+		// cause the plan to fail. We also need to report a status on the data
+		// block so the check processing later on knows whether to attempt to
+		// process the checks. Either we'll report the data block as failed
+		// if/when we load the data block later, or we want to report it as a
+		// success overall.
+		//
+		// Therefore, we create a deferred function here that will check if the
+		// status for the check has been updated yet, and if not we will set it
+		// to be StatusPass. The rest of this function will only update the
+		// status if it should be StatusFail.
+		defer func() {
+			status := ctx.Checks().ObjectCheckStatus(check.Addr().Absolute(n.Addr.Module))
+			if status == checks.StatusUnknown {
+				ctx.Checks().ReportCheckResult(check.Addr().Absolute(n.Addr.Module), addrs.CheckDataResource, 0, checks.StatusPass)
+			}
+		}()
+	}
+
+	configKnown := configVal.IsWhollyKnown()
+	depsPending := n.dependenciesHavePendingChanges(ctx)
+	// If our configuration contains any unknown values, or we depend on any
+	// unknown values then we must defer the read to the apply phase by
+	// producing a "Read" change for this resource, and a placeholder value for
+	// it in the state.
+	if depsPending || !configKnown {
+		// We can't plan any changes if we're only refreshing, so the only
+		// value we can set here is whatever was in state previously.
+		if skipPlanChanges {
+			plannedNewState := &states.ResourceInstanceObject{
+				Value:  priorVal,
+				Status: states.ObjectReady,
+			}
+
+			return nil, plannedNewState, keyData, diags
+		}
+
+		var reason plans.ResourceInstanceChangeActionReason
+		switch {
+		case !configKnown:
+			log.Printf("[TRACE] planEphemeralResource: %s configuration not fully known yet, so deferring to apply phase", n.Addr)
+			reason = plans.ResourceInstanceReadBecauseConfigUnknown
+		case depsPending:
+			// NOTE: depsPending can be true at the same time as configKnown
+			// is false; configKnown takes precedence because it's more
+			// specific.
+			log.Printf("[TRACE] planEphemeralResource: %s configuration is fully known, at least one dependency has changes pending", n.Addr)
+			reason = plans.ResourceInstanceReadBecauseDependencyPending
+		}
+
+		unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
+		proposedNewVal := objchange.PlannedDataResourceObject(schema, unmarkedConfigVal)
+		proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
+
+		// Apply detects that the data source will need to be read by the After
+		// value containing unknowns from PlanDataResourceObject.
+		plannedChange := &plans.ResourceInstanceChange{
+			Addr:         n.Addr,
+			PrevRunAddr:  n.prevRunAddr(ctx),
+			ProviderAddr: n.ResolvedProvider.ProviderConfig,
+			Change: plans.Change{
+				Action: plans.Read,
+				Before: priorVal,
+				After:  proposedNewVal,
+			},
+			ActionReason: reason,
+		}
+
+		plannedNewState := &states.ResourceInstanceObject{
+			Value:  proposedNewVal,
+			Status: states.ObjectPlanned,
+		}
+
+		diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
+			return h.PostDiff(n.Addr, states.CurrentGen, plans.Read, priorVal, proposedNewVal)
+		}))
+
+		return plannedChange, plannedNewState, keyData, diags
+	}
+
+	// We have a complete configuration with no dependencies to wait on, so we
+	// can read the data source into the state.
+	newVal, readDiags := n.openEphemeralResource(ctx, configVal)
+
+	// Now we've loaded the data, and diags tells us whether we were successful
+	// or not, we are going to create our plannedChange and our
+	// proposedNewState.
+	var plannedChange *plans.ResourceInstanceChange
+	var plannedNewState *states.ResourceInstanceObject
+
+	// If we are a nested block, then we want to create a plannedChange that
+	// tells OpenTofu to reload the data block during the apply stage even if
+	// we managed to get the data now.
+	// Another consideration is that if we failed to load the data, we need to
+	// disguise that for a nested block. Nested blocks will report the overall
+	// check as failed but won't affect the rest of the plan operation or block
+	// an apply operation.
+
+	if nested {
+		addr := check.Addr().Absolute(n.Addr.Module)
+
+		// Let's fix things up for a nested data block.
+		//
+		// A nested data block doesn't error, and creates a planned change. So,
+		// if we encountered an error we'll tidy up newVal so it makes sense
+		// and handle the error. We'll also create the plannedChange if
+		// appropriate.
+
+		if readDiags.HasErrors() {
+			// If we had errors, then we can cover that up by marking the new
+			// state as unknown.
+			unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
+			newVal = objchange.PlannedDataResourceObject(schema, unmarkedConfigVal)
+			newVal = newVal.MarkWithPaths(configMarkPaths)
+
+			// We still want to report the check as failed even if we are still
+			// letting it run again during the apply stage.
+			ctx.Checks().ReportCheckFailure(addr, addrs.CheckDataResource, 0, readDiags.Err().Error())
+		}
+
+		// Any warning or error diagnostics we'll wrap with some special checks
+		// diagnostics. This is so we can identify them later, and so they'll
+		// only report as warnings.
+		readDiags = tfdiags.OverrideAll(readDiags, tfdiags.Warning, func() tfdiags.DiagnosticExtraWrapper {
+			return &addrs.CheckRuleDiagnosticExtra{
+				CheckRule: addrs.NewCheckRule(addr, addrs.CheckDataResource, 0),
+			}
+		})
+
+		if !skipPlanChanges {
+			// refreshOnly plans cannot produce planned changes, so we only do
+			// this if skipPlanChanges is false.
+			plannedChange = &plans.ResourceInstanceChange{
+				Addr:         n.Addr,
+				PrevRunAddr:  n.prevRunAddr(ctx),
+				ProviderAddr: n.ResolvedProvider.ProviderConfig,
+				Change: plans.Change{
+					Action: plans.Read,
+					Before: priorVal,
+					After:  newVal,
+				},
+				ActionReason: plans.ResourceInstanceReadBecauseCheckNested,
+			}
+		}
+	}
+
+	diags = diags.Append(readDiags)
+	if !diags.HasErrors() {
+		// Finally, let's make our new state.
+		plannedNewState = &states.ResourceInstanceObject{
+			Value:  newVal,
+			Status: states.ObjectReady,
+		}
+	}
+
+	return plannedChange, plannedNewState, keyData, diags
 }

@@ -119,6 +119,10 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		diags = diags.Append(
 			n.dataResourceExecute(ctx, evalCtx),
 		)
+	case addrs.EphemeralResourceMode:
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
@@ -172,6 +176,62 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(_ context.Context, e
 	// the result of the operation, and to fail on future operations
 	// until the user makes the condition succeed.
 	checkDiags := evalCheckRules(
+		addrs.ResourcePostcondition,
+		n.Config.Postconditions,
+		evalCtx, addr, repeatData,
+		checkRuleSeverity,
+	)
+	diags = diags.Append(checkDiags)
+
+	return diags
+}
+
+func (n *NodePlannableResourceInstance) ephemeralResourceExecute(_ context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
+	config := n.Config
+	addr := n.ResourceInstanceAddr()
+
+	var change *plans.ResourceInstanceChange
+
+	_, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	diags = diags.Append(err)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	diags = diags.Append(validateSelfRef(addr.Resource, config.Config, providerSchema))
+	if diags.HasErrors() {
+		return diags
+	}
+
+	checkRuleSeverity := tfdiags.Error
+	if n.skipPlanChanges || n.preDestroyRefresh {
+		checkRuleSeverity = tfdiags.Warning
+	}
+
+	change, state, repeatData, planDiags := n.planEphemeralResource(evalCtx, checkRuleSeverity, n.skipPlanChanges)
+	diags = diags.Append(planDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// write the data source into both the refresh state and the
+	// working state // TODO andrei check how to write and what
+	diags = diags.Append(n.writeResourceInstanceState(evalCtx, state, refreshState))
+	if diags.HasErrors() {
+		return diags
+	}
+	diags = diags.Append(n.writeResourceInstanceState(evalCtx, state, workingState))
+	if diags.HasErrors() {
+		return diags
+	}
+
+	diags = diags.Append(n.writeChange(evalCtx, change, ""))
+
+	// Post-conditions might block further progress. We intentionally do this
+	// _after_ writing the state/diff because we want to check against
+	// the result of the operation, and to fail on future operations
+	// until the user makes the condition succeed.
+	checkDiags := evalCheckRules( // TODO andrei debug this and understand it
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		evalCtx, addr, repeatData,
