@@ -145,7 +145,6 @@ Other options:
   -no-color           Disable terminal escape sequences.
 
   -json               Show the information in a machine-readable form.
-                     Required when using -config.
 
   -show-sensitive     If specified, sensitive values will be displayed.
 
@@ -535,5 +534,33 @@ func getStateFromBackend(ctx context.Context, b backend.Backend, workspace strin
 // showConfiguration returns a function that will display the current configuration
 // in JSON format. This is a new feature that requires -json to be specified.
 func (c *ShowCommand) showConfiguration(ctx context.Context) (showRenderFunc, tfdiags.Diagnostics) {
-	// TODO: Implement this
+	var diags tfdiags.Diagnostics
+
+	// Load the configuration
+	config, configDiags := c.loadConfig(ctx, ".")
+	diags = diags.Append(configDiags)
+	if configDiags.HasErrors() {
+		return nil, diags
+	}
+
+	// Load provider schemas (without state)
+	schemas, schemaDiags := c.MaybeGetSchemas(ctx, nil, config)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		return nil, diags
+	}
+	if schemas == nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to load provider schemas",
+			"The configuration cannot be shown without provider schema information.",
+		))
+		return nil, diags
+	}
+
+	// Return a function that will render the configuration as JSON
+	return func(view views.Show) int {
+		// Display the configuration using the view
+		return view.(*views.ShowJSON).DisplayConfig(config, schemas)
+	}, diags
 }
