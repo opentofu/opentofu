@@ -561,6 +561,6 @@ func (c *ShowCommand) showConfiguration(ctx context.Context) (showRenderFunc, tf
 	// Return a function that will render the configuration as JSON
 	return func(view views.Show) int {
 		// Display the configuration using the view
-		return view.(*views.ShowJSON).DisplayConfig(config, schemas)
+		return view.DisplayConfig(config, schemas)
 	}, diags
 }
