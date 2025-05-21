@@ -364,6 +364,13 @@ func (d *evaluationStateData) GetLocalValue(addr addrs.LocalValue, rng tfdiags.S
 }
 
 func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	moduleAddr := d.ModulePath.ChildCall(addr.Name)
+	return d.Evaluator.EvalCache.Module(moduleAddr, func() (cty.Value, tfdiags.Diagnostics) {
+		return d.GetModuleInner(addr, rng)
+	})
+
+}
+func (d *evaluationStateData) GetModuleInner(addr addrs.ModuleCall, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	// Output results live in the module that declares them, which is one of
 	// the child module instances of our current module path.

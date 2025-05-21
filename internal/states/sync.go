@@ -76,6 +76,11 @@ func (s *SyncState) RemoveModule(addr addrs.ModuleInstance) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if s.eval != nil && len(addr) > 0 {
+		parent, call := addr.Call()
+		s.eval.EvictModule(parent.ChildCall(call.Name))
+	}
+
 	s.state.RemoveModule(addr)
 }
 
@@ -100,6 +105,11 @@ func (s *SyncState) SetOutputValue(addr addrs.AbsOutputValue, value cty.Value, s
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if s.eval != nil && len(addr.Module) > 0 {
+		parent, call := addr.Module.Call()
+		s.eval.EvictModule(parent.ChildCall(call.Name))
+	}
+
 	ms := s.state.EnsureModule(addr.Module)
 	ms.SetOutputValue(addr.OutputValue.Name, value, sensitive, deprecated)
 }
@@ -112,6 +122,11 @@ func (s *SyncState) SetOutputValue(addr addrs.AbsOutputValue, value cty.Value, s
 func (s *SyncState) RemoveOutputValue(addr addrs.AbsOutputValue) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	if s.eval != nil && len(addr.Module) > 0 {
+		parent, call := addr.Module.Call()
+		s.eval.EvictModule(parent.ChildCall(call.Name))
+	}
 
 	ms := s.state.Module(addr.Module)
 	if ms == nil {

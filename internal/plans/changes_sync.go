@@ -168,6 +168,11 @@ func (cs *ChangesSync) AppendOutputChange(changeSrc *OutputChangeSrc) {
 	cs.lock.Lock()
 	defer cs.lock.Unlock()
 
+	if cs.eval != nil && len(changeSrc.Addr.Module) > 0 {
+		parent, call := changeSrc.Addr.Module.Call()
+		cs.eval.EvictModule(parent.ChildCall(call.Name))
+	}
+
 	s := changeSrc.DeepCopy()
 	cs.changes.Outputs = append(cs.changes.Outputs, s)
 }
@@ -231,6 +236,11 @@ func (cs *ChangesSync) RemoveOutputChange(addr addrs.AbsOutputValue) {
 	}
 	cs.lock.Lock()
 	defer cs.lock.Unlock()
+
+	if cs.eval != nil && len(addr.Module) > 0 {
+		parent, call := addr.Module.Call()
+		cs.eval.EvictModule(parent.ChildCall(call.Name))
+	}
 
 	for i, o := range cs.changes.Outputs {
 		if !o.Addr.Equal(addr) {
