@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -540,9 +541,9 @@ func isResourceMovedToDifferentType(newAddr, oldAddr addrs.AbsResourceInstance) 
 
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		return nil, diags.Append(err)
 	}
@@ -595,9 +596,9 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalCon
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
 // instance in the state.
-func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags

@@ -63,7 +63,7 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 		return diags
 	}
 
-	diags = diags.Append(n.validateResource(evalCtx))
+	diags = diags.Append(n.validateResource(ctx, evalCtx))
 
 	diags = diags.Append(n.validateCheckRules(evalCtx, n.Config))
 
@@ -86,7 +86,7 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 			}
 
 			// Validate Provisioner Config
-			diags = diags.Append(n.validateProvisioner(evalCtx, &provisioner))
+			diags = diags.Append(n.validateProvisioner(ctx, evalCtx, &provisioner))
 			if diags.HasErrors() {
 				return diags
 			}
@@ -98,7 +98,7 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 // validateProvisioner validates the configuration of a provisioner belonging to
 // a resource. The provisioner config is expected to contain the merged
 // connection configurations.
-func (n *NodeValidatableResource) validateProvisioner(evalCtx EvalContext, p *configs.Provisioner) tfdiags.Diagnostics {
+func (n *NodeValidatableResource) validateProvisioner(_ context.Context, evalCtx EvalContext, p *configs.Provisioner) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	provisioner, err := evalCtx.Provisioner(p.Type)
@@ -291,10 +291,10 @@ var connectionBlockSupersetSchema = &configschema.Block{
 	},
 }
 
-func (n *NodeValidatableResource) validateResource(evalCtx EvalContext) tfdiags.Diagnostics {
+func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, addrs.NoKey) // Provider Instance Keys are ignored during validate
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, addrs.NoKey) // Provider Instance Keys are ignored during validate
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags

@@ -149,9 +149,9 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 
 func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 	state := states.NewState()
-	ctx := new(MockEvalContext)
-	ctx.StateState = state.SyncWrapper()
-	ctx.PathPath = addrs.RootModuleInstance
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = state.SyncWrapper()
+	evalCtx.PathPath = addrs.RootModuleInstance
 
 	mockProvider := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -176,10 +176,10 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
-	ctx.ProviderProvider = mockProvider
-	ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
+	evalCtx.ProviderProvider = mockProvider
+	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
 
-	err := node.writeResourceInstanceState(ctx, obj, workingState)
+	err := node.writeResourceInstanceState(t.Context(), evalCtx, obj, workingState)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}

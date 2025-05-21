@@ -66,7 +66,7 @@ func (n *NodeApplyableProvider) Execute(ctx context.Context, evalCtx EvalContext
 
 	return diags
 }
-func (n *NodeApplyableProvider) initInstances(_ context.Context, evalCtx EvalContext, op walkOperation) (map[addrs.InstanceKey]providers.Interface, tfdiags.Diagnostics) {
+func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalContext, op walkOperation) (map[addrs.InstanceKey]providers.Interface, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	var initKeys []addrs.InstanceKey
@@ -99,7 +99,7 @@ func (n *NodeApplyableProvider) initInstances(_ context.Context, evalCtx EvalCon
 
 	instances := make(map[addrs.InstanceKey]providers.Interface)
 	for configKey, initKey := range instanceKeys {
-		provider, _, err := getProvider(evalCtx, n.Addr, initKey)
+		provider, _, err := getProvider(ctx, evalCtx, n.Addr, initKey)
 		diags = diags.Append(err)
 		instances[configKey] = provider
 	}

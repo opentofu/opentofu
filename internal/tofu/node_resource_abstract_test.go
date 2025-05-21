@@ -7,9 +7,10 @@ package tofu
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
@@ -330,14 +331,14 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 	})
 	for _, test := range tests {
 		t.Run("ReadState "+test.Name, func(t *testing.T) {
-			ctx := new(MockEvalContext)
-			ctx.StateState = test.State.SyncWrapper()
-			ctx.PathPath = addrs.RootModuleInstance
-			ctx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
-			ctx.MoveResultsResults = test.MoveResults
-			ctx.ProviderProvider = providers.Interface(test.Provider)
+			evalCtx := new(MockEvalContext)
+			evalCtx.StateState = test.State.SyncWrapper()
+			evalCtx.PathPath = addrs.RootModuleInstance
+			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
+			evalCtx.MoveResultsResults = test.MoveResults
+			evalCtx.ProviderProvider = providers.Interface(test.Provider)
 
-			got, readDiags := test.Node.readResourceInstanceState(ctx, test.Node.Addr)
+			got, readDiags := test.Node.readResourceInstanceState(t.Context(), evalCtx, test.Node.Addr)
 			if test.WantErrorStr != "" {
 				if !readDiags.HasErrors() {
 					t.Fatalf("[%s] Expected error, got none", test.Name)
@@ -377,15 +378,15 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 	})
 	for _, test := range deposedTests {
 		t.Run("ReadStateDeposed "+test.Name, func(t *testing.T) {
-			ctx := new(MockEvalContext)
-			ctx.StateState = test.State.SyncWrapper()
-			ctx.PathPath = addrs.RootModuleInstance
-			ctx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
-			ctx.MoveResultsResults = test.MoveResults
-			ctx.ProviderProvider = providers.Interface(test.Provider)
+			evalCtx := new(MockEvalContext)
+			evalCtx.StateState = test.State.SyncWrapper()
+			evalCtx.PathPath = addrs.RootModuleInstance
+			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
+			evalCtx.MoveResultsResults = test.MoveResults
+			evalCtx.ProviderProvider = providers.Interface(test.Provider)
 
 			key := states.DeposedKey("00000001") // shim from legacy state assigns 0th deposed index this key
-			got, readDiags := test.Node.readResourceInstanceStateDeposed(ctx, test.Node.Addr, key)
+			got, readDiags := test.Node.readResourceInstanceStateDeposed(t.Context(), evalCtx, test.Node.Addr, key)
 			if test.WantErrorStr != "" {
 				if !readDiags.HasErrors() {
 					t.Fatalf("[%s] Expected error, got none", test.Name)
