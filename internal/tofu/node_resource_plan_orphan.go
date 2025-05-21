@@ -120,10 +120,10 @@ func (n *NodePlannableResourceInstanceOrphan) dataResourceExecute(_ context.Cont
 	return nil
 }
 
-func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(_ context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
-	oldState, readDiags := n.readResourceInstanceState(evalCtx, addr)
+	oldState, readDiags := n.readResourceInstanceState(ctx, evalCtx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -131,13 +131,13 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(_ context.C
 
 	// Note any upgrades that readResourceInstanceState might've done in the
 	// prevRunState, so that it'll conform to current schema.
-	diags = diags.Append(n.writeResourceInstanceState(evalCtx, oldState, prevRunState))
+	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, oldState, prevRunState))
 	if diags.HasErrors() {
 		return diags
 	}
 	// Also the refreshState, because that should still reflect schema upgrades
 	// even if not refreshing.
-	diags = diags.Append(n.writeResourceInstanceState(evalCtx, oldState, refreshState))
+	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, oldState, refreshState))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -149,13 +149,13 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(_ context.C
 		// plan before apply, and may not handle a missing resource during
 		// Delete correctly.  If this is a simple refresh, OpenTofu is
 		// expected to remove the missing resource from the state entirely
-		refreshedState, refreshDiags := n.refresh(evalCtx, states.NotDeposed, oldState)
+		refreshedState, refreshDiags := n.refresh(ctx, evalCtx, states.NotDeposed, oldState)
 		diags = diags.Append(refreshDiags)
 		if diags.HasErrors() {
 			return diags
 		}
 
-		diags = diags.Append(n.writeResourceInstanceState(evalCtx, refreshedState, refreshState))
+		diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, refreshedState, refreshState))
 		if diags.HasErrors() {
 			return diags
 		}
@@ -170,7 +170,7 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(_ context.C
 	// to plan because there is no longer any state and it doesn't exist in the
 	// config.
 	if n.skipPlanChanges || oldState == nil || oldState.Value.IsNull() {
-		return diags.Append(n.writeResourceInstanceState(evalCtx, oldState, workingState))
+		return diags.Append(n.writeResourceInstanceState(ctx, evalCtx, oldState, workingState))
 	}
 
 	var change *plans.ResourceInstanceChange
@@ -188,17 +188,17 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(_ context.C
 
 	if shouldForget {
 		if shouldDestroy {
-			change, planDiags = n.planDestroy(evalCtx, oldState, "")
+			change, planDiags = n.planDestroy(ctx, evalCtx, oldState, "")
 		} else {
 			diags = diags.Append(&hcl.Diagnostic{
 				Severity: hcl.DiagWarning,
 				Summary:  "Resource going to be removed from the state",
 				Detail:   fmt.Sprintf("After this plan gets applied, the resource %s will not be managed anymore by OpenTofu.\n\nIn case you want to manage the resource again, you will have to import it.", n.Addr),
 			})
-			change = n.planForget(evalCtx, oldState, "")
+			change = n.planForget(ctx, evalCtx, oldState, "")
 		}
 	} else {
-		change, planDiags = n.planDestroy(evalCtx, oldState, "")
+		change, planDiags = n.planDestroy(ctx, evalCtx, oldState, "")
 	}
 
 	diags = diags.Append(planDiags)
@@ -211,7 +211,7 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(_ context.C
 	// sometimes not have a reason.)
 	change.ActionReason = n.deleteActionReason(evalCtx)
 
-	diags = diags.Append(n.writeChange(evalCtx, change, ""))
+	diags = diags.Append(n.writeChange(ctx, evalCtx, change, ""))
 	if diags.HasErrors() {
 		return diags
 	}
@@ -221,7 +221,7 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(_ context.C
 		return diags
 	}
 
-	return diags.Append(n.writeResourceInstanceState(evalCtx, nil, workingState))
+	return diags.Append(n.writeResourceInstanceState(ctx, evalCtx, nil, workingState))
 }
 
 func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(evalCtx EvalContext) plans.ResourceInstanceChangeActionReason {

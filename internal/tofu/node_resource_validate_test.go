@@ -56,7 +56,7 @@ func TestNodeValidatableResource_ValidateProvisioner_valid(t *testing.T) {
 		},
 	}
 
-	diags := node.validateProvisioner(ctx, pc)
+	diags := node.validateProvisioner(t.Context(), ctx, pc)
 	if diags.HasErrors() {
 		t.Fatalf("node.Eval failed: %s", diags.Err())
 	}
@@ -101,7 +101,7 @@ func TestNodeValidatableResource_ValidateProvisioner__warning(t *testing.T) {
 		}
 	}
 
-	diags := node.validateProvisioner(ctx, pc)
+	diags := node.validateProvisioner(t.Context(), ctx, pc)
 	if len(diags) != 1 {
 		t.Fatalf("wrong number of diagnostics in %s; want one warning", diags.ErrWithWarnings())
 	}
@@ -146,7 +146,7 @@ func TestNodeValidatableResource_ValidateProvisioner__connectionInvalid(t *testi
 		},
 	}
 
-	diags := node.validateProvisioner(ctx, pc)
+	diags := node.validateProvisioner(t.Context(), ctx, pc)
 	if !diags.HasErrors() {
 		t.Fatalf("node.Eval succeeded; want error")
 	}
@@ -198,7 +198,7 @@ func TestNodeValidatableResource_ValidateResource_managedResource(t *testing.T) 
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
 	ctx.ProviderProvider = p
 
-	err := node.validateResource(ctx)
+	err := node.validateResource(t.Context(), ctx)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -261,7 +261,7 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 				},
 			}
 
-			diags := node.validateResource(ctx)
+			diags := node.validateResource(t.Context(), ctx)
 			if diags.HasErrors() {
 				t.Fatalf("err: %s", diags.Err())
 			}
@@ -312,7 +312,7 @@ func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -348,7 +348,7 @@ func TestNodeValidatableResource_ValidateResource_valid(t *testing.T) {
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("err: %s", diags.Err())
 	}
@@ -385,7 +385,7 @@ func TestNodeValidatableResource_ValidateResource_warningsAndErrorsPassedThrough
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
 		t.Fatal("unexpected success; want error")
 	}
@@ -448,7 +448,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("error for supposedly-valid config: %s", diags.ErrWithWarnings())
 	}
@@ -469,7 +469,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 		},
 	})
 
-	diags = node.validateResource(ctx)
+	diags = node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
 		t.Fatal("no error for invalid depends_on")
 	}
@@ -485,7 +485,7 @@ func TestNodeValidatableResource_ValidateResource_invalidDependsOn(t *testing.T)
 		},
 	})
 
-	diags = node.validateResource(ctx)
+	diags = node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
 		t.Fatal("no error for invalid depends_on")
 	}
@@ -532,7 +532,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("error for supposedly-valid config: %s", diags.ErrWithWarnings())
 	}
@@ -545,7 +545,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesNonexisten
 		},
 	})
 
-	diags = node.validateResource(ctx)
+	diags = node.validateResource(t.Context(), ctx)
 	if !diags.HasErrors() {
 		t.Fatal("no error for invalid ignore_changes")
 	}
@@ -615,7 +615,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 	ctx.ProviderSchemaSchema = mp.GetProviderSchema()
 	ctx.ProviderProvider = p
 
-	diags := node.validateResource(ctx)
+	diags := node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("error for supposedly-valid config: %s", diags.ErrWithWarnings())
 	}
@@ -628,7 +628,7 @@ func TestNodeValidatableResource_ValidateResource_invalidIgnoreChangesComputed(t
 		},
 	})
 
-	diags = node.validateResource(ctx)
+	diags = node.validateResource(t.Context(), ctx)
 	if diags.HasErrors() {
 		t.Fatalf("got unexpected error: %s", diags.ErrWithWarnings())
 	}
