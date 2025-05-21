@@ -178,7 +178,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	instAddrs := addrs.MakeSet[addrs.Checkable]()
 	for _, module := range moduleInstances {
 		resAddr := n.Addr.Resource.Absolute(module)
-		err := n.expandResourceInstances(evalCtx, resAddr, &g, instAddrs)
+		err := n.expandResourceInstances(context.TODO(), evalCtx, resAddr, &g, instAddrs)
 		diags = diags.Append(err)
 	}
 	if diags.HasErrors() {
@@ -211,7 +211,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 // within, the caller must register the final superset instAddrs with the
 // checks subsystem so that it knows the fully expanded set of checkable
 // object instances for this resource instance.
-func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalContext, resAddr addrs.AbsResource, g *Graph, instAddrs addrs.Set[addrs.Checkable]) error {
+func (n *nodeExpandPlannableResource) expandResourceInstances(ctx context.Context, globalCtx EvalContext, resAddr addrs.AbsResource, g *Graph, instAddrs addrs.Set[addrs.Checkable]) error {
 	var diags tfdiags.Diagnostics
 
 	// The rest of our work here needs to know which module instance it's
@@ -306,7 +306,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 	// construct a subgraph just for this individual modules's instances and
 	// then we'll steal all of its nodes and edges to incorporate into our
 	// main graph which contains all of the resource instances together.
-	instG, err := n.resourceInstanceSubgraph(moduleCtx, resAddr, instanceAddrs)
+	instG, err := n.resourceInstanceSubgraph(ctx, moduleCtx, resAddr, instanceAddrs)
 	if err != nil {
 		diags = diags.Append(err)
 		return diags.ErrWithWarnings()
@@ -316,7 +316,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 	return diags.ErrWithWarnings()
 }
 
-func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(evalCtx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
+func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
 	var commandLineImportTargets []CommandLineImportTarget

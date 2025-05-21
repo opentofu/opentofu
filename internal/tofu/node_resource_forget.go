@@ -45,7 +45,7 @@ func (n *NodeForgetResourceInstance) Name() string {
 }
 
 // GraphNodeExecutable
-func (n *NodeForgetResourceInstance) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeForgetResourceInstance) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Get our state
@@ -61,7 +61,7 @@ func (n *NodeForgetResourceInstance) Execute(_ context.Context, evalCtx EvalCont
 
 	var state *states.ResourceInstanceObject
 
-	state, readDiags := n.readResourceInstanceState(evalCtx, addr)
+	state, readDiags := n.readResourceInstanceState(ctx, evalCtx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags

@@ -255,9 +255,9 @@ func TestNodeDestroyDeposedResourceInstanceObject_Execute(t *testing.T) {
 
 func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *testing.T) {
 	state := states.NewState()
-	ctx := new(MockEvalContext)
-	ctx.StateState = state.SyncWrapper()
-	ctx.PathPath = addrs.RootModuleInstance
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = state.SyncWrapper()
+	evalCtx.PathPath = addrs.RootModuleInstance
 	mockProvider := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"id": {
@@ -266,8 +266,8 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 			},
 		},
 	})
-	ctx.ProviderProvider = mockProvider
-	ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
+	evalCtx.ProviderProvider = mockProvider
+	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
 
 	obj := &states.ResourceInstanceObject{
 		Value: cty.ObjectVal(map[string]cty.Value{
@@ -284,7 +284,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 		},
 		DeposedKey: states.NewDeposedKey(),
 	}
-	err := node.writeResourceInstanceState(ctx, obj)
+	err := node.writeResourceInstanceState(t.Context(), evalCtx, obj)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}

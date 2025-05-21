@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -458,26 +459,26 @@ const (
 //
 // targetState determines which context state we're writing to during plan. The
 // default is the global working state.
-func (n *NodeAbstractResourceInstance) writeResourceInstanceState(evalCtx EvalContext, obj *states.ResourceInstanceObject, targetState phaseState) error {
-	return n.writeResourceInstanceStateImpl(evalCtx, states.NotDeposed, obj, targetState)
+func (n *NodeAbstractResourceInstance) writeResourceInstanceState(ctx context.Context, evalCtx EvalContext, obj *states.ResourceInstanceObject, targetState phaseState) error {
+	return n.writeResourceInstanceStateImpl(ctx, evalCtx, states.NotDeposed, obj, targetState)
 }
 
-func (n *NodeAbstractResourceInstance) writeResourceInstanceStateDeposed(evalCtx EvalContext, deposedKey states.DeposedKey, obj *states.ResourceInstanceObject, targetState phaseState) error {
+func (n *NodeAbstractResourceInstance) writeResourceInstanceStateDeposed(ctx context.Context, evalCtx EvalContext, deposedKey states.DeposedKey, obj *states.ResourceInstanceObject, targetState phaseState) error {
 	if deposedKey == states.NotDeposed {
 		// Bail out to avoid silently doing something other than what the
 		// caller seems to have intended.
 		panic("trying to write current state object using writeResourceInstanceStateDeposed")
 	}
-	return n.writeResourceInstanceStateImpl(evalCtx, deposedKey, obj, targetState)
+	return n.writeResourceInstanceStateImpl(ctx, evalCtx, deposedKey, obj, targetState)
 }
 
 // (this is the private common body of both writeResourceInstanceState and
 // writeResourceInstanceStateDeposed. Don't call it directly; instead, use
 // one of the two wrappers to be explicit about which of the instance's
 // objects you are intending to write.
-func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(evalCtx EvalContext, deposedKey states.DeposedKey, obj *states.ResourceInstanceObject, targetState phaseState) error {
+func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(ctx context.Context, evalCtx EvalContext, deposedKey states.DeposedKey, obj *states.ResourceInstanceObject, targetState phaseState) error {
 	absAddr := n.Addr
-	_, providerSchema, err := n.getProvider(evalCtx)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return err
 	}
@@ -550,7 +551,7 @@ func (n *NodeAbstractResourceInstance) writeResourceInstanceStateImpl(evalCtx Ev
 }
 
 // planForget returns a removed from state diff.
-func (n *NodeAbstractResourceInstance) planForget(evalCtx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) *plans.ResourceInstanceChange {
+func (n *NodeAbstractResourceInstance) planForget(_ context.Context, evalCtx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) *plans.ResourceInstanceChange {
 	var plan *plans.ResourceInstanceChange
 
 	unmarkedPriorVal, _ := currentState.Value.UnmarkDeep()
@@ -575,7 +576,7 @@ func (n *NodeAbstractResourceInstance) planForget(evalCtx EvalContext, currentSt
 }
 
 // planDestroy returns a plain destroy diff.
-func (n *NodeAbstractResourceInstance) planDestroy(evalCtx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) (*plans.ResourceInstanceChange, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) planDestroy(ctx context.Context, evalCtx EvalContext, currentState *states.ResourceInstanceObject, deposedKey states.DeposedKey) (*plans.ResourceInstanceChange, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var plan *plans.ResourceInstanceChange
 
@@ -616,12 +617,12 @@ func (n *NodeAbstractResourceInstance) planDestroy(evalCtx EvalContext, currentS
 	// operation.
 	nullVal := cty.NullVal(unmarkedPriorVal.Type())
 
-	provider, _, err := n.getProvider(evalCtx)
+	provider, _, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return plan, diags.Append(err)
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(evalCtx)
+	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
 	diags = diags.Append(metaDiags)
 	if diags.HasErrors() {
 		return plan, diags
@@ -681,7 +682,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(evalCtx EvalContext, currentS
 
 // writeChange saves a planned change for an instance object into the set of
 // global planned changes.
-func (n *NodeAbstractResourceInstance) writeChange(evalCtx EvalContext, change *plans.ResourceInstanceChange, deposedKey states.DeposedKey) error {
+func (n *NodeAbstractResourceInstance) writeChange(ctx context.Context, evalCtx EvalContext, change *plans.ResourceInstanceChange, deposedKey states.DeposedKey) error {
 	changes := evalCtx.Changes()
 
 	if change == nil {
@@ -695,7 +696,7 @@ func (n *NodeAbstractResourceInstance) writeChange(evalCtx EvalContext, change *
 		return nil
 	}
 
-	_, providerSchema, err := n.getProvider(evalCtx)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return err
 	}
@@ -738,7 +739,7 @@ func (n *NodeAbstractResourceInstance) writeChange(evalCtx EvalContext, change *
 }
 
 // refresh does a refresh for a resource
-func (n *NodeAbstractResourceInstance) refresh(evalCtx EvalContext, deposedKey states.DeposedKey, state *states.ResourceInstanceObject) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx EvalContext, deposedKey states.DeposedKey, state *states.ResourceInstanceObject) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	absAddr := n.Addr
 	if deposedKey == states.NotDeposed {
@@ -746,7 +747,7 @@ func (n *NodeAbstractResourceInstance) refresh(evalCtx EvalContext, deposedKey s
 	} else {
 		log.Printf("[TRACE] NodeAbstractResourceInstance.refresh for %s (deposed object %s)", absAddr, deposedKey)
 	}
-	provider, providerSchema, err := n.getProvider(evalCtx)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return state, diags.Append(err)
 	}
@@ -763,7 +764,7 @@ func (n *NodeAbstractResourceInstance) refresh(evalCtx EvalContext, deposedKey s
 		return state, diags
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(evalCtx)
+	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
 	diags = diags.Append(metaDiags)
 	if diags.HasErrors() {
 		return state, diags
@@ -876,6 +877,7 @@ func (n *NodeAbstractResourceInstance) refresh(evalCtx EvalContext, deposedKey s
 }
 
 func (n *NodeAbstractResourceInstance) plan(
+	ctx context.Context,
 	evalCtx EvalContext,
 	plannedChange *plans.ResourceInstanceChange,
 	currentState *states.ResourceInstanceObject,
@@ -886,7 +888,7 @@ func (n *NodeAbstractResourceInstance) plan(
 	var keyData instances.RepetitionData
 
 	resource := n.Addr.Resource.Resource
-	provider, providerSchema, err := n.getProvider(evalCtx)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return nil, nil, keyData, diags.Append(err)
 	}
@@ -953,7 +955,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(evalCtx)
+	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
 	diags = diags.Append(metaDiags)
 	if diags.HasErrors() {
 		return nil, nil, keyData, diags
@@ -1640,13 +1642,13 @@ type ProviderWithEncryption interface {
 // readDataSource handles everything needed to call ReadDataSource on the provider.
 // A previously evaluated configVal can be passed in, or a new one is generated
 // from the resource configuration.
-func (n *NodeAbstractResourceInstance) readDataSource(evalCtx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var newVal cty.Value
 
 	config := *n.Config
 
-	provider, providerSchema, err := n.getProvider(evalCtx)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return newVal, diags
@@ -1658,7 +1660,7 @@ func (n *NodeAbstractResourceInstance) readDataSource(evalCtx EvalContext, confi
 		return newVal, diags
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(evalCtx)
+	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
 	diags = diags.Append(metaDiags)
 	if diags.HasErrors() {
 		return newVal, diags
@@ -1769,11 +1771,11 @@ func (n *NodeAbstractResourceInstance) readDataSource(evalCtx EvalContext, confi
 	return newVal, diags
 }
 
-func (n *NodeAbstractResourceInstance) providerMetas(evalCtx EvalContext) (cty.Value, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) providerMetas(ctx context.Context, evalCtx EvalContext) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	metaConfigVal := cty.NullVal(cty.DynamicPseudoType)
 
-	_, providerSchema, err := n.getProvider(evalCtx)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return metaConfigVal, diags.Append(err)
 	}
@@ -1806,12 +1808,12 @@ func (n *NodeAbstractResourceInstance) providerMetas(evalCtx EvalContext) (cty.V
 // value, but it still matches the previous state, then we can record a NoNop
 // change. If the states don't match then we record a Read change so that the
 // new value is applied to the state.
-func (n *NodeAbstractResourceInstance) planDataSource(evalCtx EvalContext, checkRuleSeverity tfdiags.Severity, skipPlanChanges bool) (*plans.ResourceInstanceChange, *states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalCtx EvalContext, checkRuleSeverity tfdiags.Severity, skipPlanChanges bool) (*plans.ResourceInstanceChange, *states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var keyData instances.RepetitionData
 	var configVal cty.Value
 
-	_, providerSchema, err := n.getProvider(evalCtx)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return nil, nil, keyData, diags.Append(err)
 	}
@@ -1937,7 +1939,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(evalCtx EvalContext, check
 
 	// We have a complete configuration with no dependencies to wait on, so we
 	// can read the data source into the state.
-	newVal, readDiags := n.readDataSource(evalCtx, configVal)
+	newVal, readDiags := n.readDataSource(ctx, evalCtx, configVal)
 
 	// Now we've loaded the data, and diags tells us whether we were successful
 	// or not, we are going to create our plannedChange and our
@@ -2080,11 +2082,11 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx Ev
 
 // apply deals with the main part of the data resource lifecycle: either
 // actually reading from the data source or generating a plan to do so.
-func (n *NodeAbstractResourceInstance) applyDataSource(evalCtx EvalContext, planned *plans.ResourceInstanceChange) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) applyDataSource(ctx context.Context, evalCtx EvalContext, planned *plans.ResourceInstanceChange) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var keyData instances.RepetitionData
 
-	_, providerSchema, err := n.getProvider(evalCtx)
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return nil, keyData, diags.Append(err)
 	}
@@ -2136,7 +2138,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(evalCtx EvalContext, plan
 		return nil, keyData, diags
 	}
 
-	newVal, readDiags := n.readDataSource(evalCtx, configVal)
+	newVal, readDiags := n.readDataSource(ctx, evalCtx, configVal)
 	if check, nested := n.nestedInCheckBlock(); nested {
 		addr := check.Addr().Absolute(n.Addr.Module)
 
@@ -2181,7 +2183,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(evalCtx EvalContext, plan
 // evalApplyProvisioners determines if provisioners need to be run, and if so
 // executes the provisioners for a resource and returns an updated error if
 // provisioning fails.
-func (n *NodeAbstractResourceInstance) evalApplyProvisioners(evalCtx EvalContext, state *states.ResourceInstanceObject, createNew bool, when configs.ProvisionerWhen) tfdiags.Diagnostics {
+func (n *NodeAbstractResourceInstance) evalApplyProvisioners(ctx context.Context, evalCtx EvalContext, state *states.ResourceInstanceObject, createNew bool, when configs.ProvisionerWhen) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	if state == nil {
@@ -2216,7 +2218,7 @@ func (n *NodeAbstractResourceInstance) evalApplyProvisioners(evalCtx EvalContext
 
 	// If there are no errors, then we append it to our output error
 	// if we have one, otherwise we just output it.
-	diags = diags.Append(n.applyProvisioners(evalCtx, state, when, provs))
+	diags = diags.Append(n.applyProvisioners(ctx, evalCtx, state, when, provs))
 	if diags.HasErrors() {
 		log.Printf("[TRACE] evalApplyProvisioners: %s provisioning failed, but we will continue anyway at the caller's request", n.Addr)
 		return diags
@@ -2261,7 +2263,7 @@ func filterProvisioners(provisioners []*configs.Provisioner, when configs.Provis
 }
 
 // applyProvisioners executes the provisioners for a resource.
-func (n *NodeAbstractResourceInstance) applyProvisioners(evalCtx EvalContext, state *states.ResourceInstanceObject, when configs.ProvisionerWhen, provs []*configs.Provisioner) tfdiags.Diagnostics {
+func (n *NodeAbstractResourceInstance) applyProvisioners(_ context.Context, evalCtx EvalContext, state *states.ResourceInstanceObject, when configs.ProvisionerWhen, provs []*configs.Provisioner) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// this self is only used for destroy provisioner evaluation, and must
@@ -2454,12 +2456,14 @@ func (n *NodeAbstractResourceInstance) evalDestroyProvisionerConfig(evalCtx Eval
 // send a nil config. The keyData information can be empty if the config is
 // nil, since it is only used to evaluate the configuration.
 func (n *NodeAbstractResourceInstance) apply(
+	ctx context.Context,
 	evalCtx EvalContext,
 	state *states.ResourceInstanceObject,
 	change *plans.ResourceInstanceChange,
 	applyConfig *configs.Resource,
 	keyData instances.RepetitionData,
-	createBeforeDestroy bool) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+	createBeforeDestroy bool,
+) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 
 	var diags tfdiags.Diagnostics
 	if state == nil {
@@ -2474,7 +2478,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		return state, diags
 	}
 
-	provider, providerSchema, err := n.getProvider(evalCtx)
+	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	if err != nil {
 		return nil, diags.Append(err)
 	}
@@ -2522,7 +2526,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		return nil, diags
 	}
 
-	metaConfigVal, metaDiags := n.providerMetas(evalCtx)
+	metaConfigVal, metaDiags := n.providerMetas(ctx, evalCtx)
 	diags = diags.Append(metaDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -2796,8 +2800,8 @@ func resourceInstancePrevRunAddr(evalCtx EvalContext, currentAddr addrs.AbsResou
 	return table.OldAddr(currentAddr)
 }
 
-func (n *NodeAbstractResourceInstance) getProvider(evalCtx EvalContext) (providers.Interface, providers.ProviderSchema, error) {
-	underlyingProvider, schema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+func (n *NodeAbstractResourceInstance) getProvider(ctx context.Context, evalCtx EvalContext) (providers.Interface, providers.ProviderSchema, error) {
+	underlyingProvider, schema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		return nil, providers.ProviderSchema{}, err
 	}

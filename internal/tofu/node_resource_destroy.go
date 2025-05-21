@@ -177,7 +177,7 @@ func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalC
 	return diags
 }
 
-func (n *NodeDestroyResourceInstance) managedResourceExecute(_ context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
+func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	addr := n.ResourceInstanceAddr()
 
 	// Get our state
@@ -190,7 +190,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(_ context.Context, 
 	var changeApply *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	_, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -209,7 +209,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(_ context.Context, 
 		return diags
 	}
 
-	state, readDiags := n.readResourceInstanceState(evalCtx, addr)
+	state, readDiags := n.readResourceInstanceState(ctx, evalCtx, addr)
 	diags = diags.Append(readDiags)
 	if diags.HasErrors() {
 		return diags
@@ -227,7 +227,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(_ context.Context, 
 
 	// Run destroy provisioners if not tainted
 	if state.Status != states.ObjectTainted {
-		applyProvisionersDiags := n.evalApplyProvisioners(evalCtx, state, false, configs.ProvisionerWhenDestroy)
+		applyProvisionersDiags := n.evalApplyProvisioners(ctx, evalCtx, state, false, configs.ProvisionerWhenDestroy)
 		diags = diags.Append(applyProvisionersDiags)
 		// keep the diags separate from the main set until we handle the cleanup
 
@@ -242,12 +242,12 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(_ context.Context, 
 	// Managed resources need to be destroyed, while data sources
 	// are only removed from state.
 	// we pass a nil configuration to apply because we are destroying
-	s, d := n.apply(evalCtx, state, changeApply, nil, instances.RepetitionData{}, false)
+	s, d := n.apply(ctx, evalCtx, state, changeApply, nil, instances.RepetitionData{}, false)
 	state, diags = s, diags.Append(d)
 	// we don't return immediately here on error, so that the state can be
 	// finalized
 
-	err = n.writeResourceInstanceState(evalCtx, state, workingState)
+	err = n.writeResourceInstanceState(ctx, evalCtx, state, workingState)
 	if err != nil {
 		return diags.Append(err)
 	}
