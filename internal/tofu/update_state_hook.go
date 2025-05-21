@@ -14,7 +14,7 @@ func updateStateHook(ctx EvalContext) error {
 	// different state snapshots.
 	stateSync := ctx.State()
 	state := stateSync.Lock().DeepCopy()
-	defer stateSync.Unlock()
+	stateSync.Unlock()
 
 	// Call the hook
 	err := ctx.Hook(func(h Hook) (HookAction, error) {
