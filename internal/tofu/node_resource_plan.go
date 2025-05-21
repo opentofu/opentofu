@@ -94,14 +94,14 @@ func (n *nodeExpandPlannableResource) ModifyCreateBeforeDestroy(v bool) error {
 	return nil
 }
 
-func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph, error) {
 	var g Graph
 
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 	moduleInstances := expander.ExpandModule(n.Addr.Module)
 
 	// Lock the state while we inspect it
-	state := ctx.State().Lock()
+	state := evalCtx.State().Lock()
 
 	var orphans []*states.Resource
 	for _, res := range state.Resources(n.Addr) {
@@ -122,7 +122,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	// We'll no longer use the state directly here, and the other functions
 	// we'll call below may use it so we'll release the lock.
 	state = nil
-	ctx.State().Unlock()
+	evalCtx.State().Unlock()
 
 	// The concrete resource factory we'll use for orphans
 	concreteResourceOrphan := func(a *NodeAbstractResourceInstance) *NodePlannableResourceInstanceOrphan {
@@ -154,7 +154,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 
 	// Resolve addresses and IDs of all import targets that originate from import blocks
 	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
-	importResolver := ctx.ImportResolver()
+	importResolver := evalCtx.ImportResolver()
 	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
 		// If the import target originates from the import command (instead of the import block), we don't need to
@@ -163,7 +163,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
 		skipImports := importTarget.IsFromImportBlock() && !n.preDestroyRefresh
 		if skipImports {
-			err := importResolver.ExpandAndResolveImport(importTarget, ctx)
+			err := importResolver.ExpandAndResolveImport(importTarget, evalCtx)
 			diags = diags.Append(err)
 		}
 	}
@@ -178,7 +178,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	instAddrs := addrs.MakeSet[addrs.Checkable]()
 	for _, module := range moduleInstances {
 		resAddr := n.Addr.Resource.Absolute(module)
-		err := n.expandResourceInstances(ctx, resAddr, &g, instAddrs)
+		err := n.expandResourceInstances(evalCtx, resAddr, &g, instAddrs)
 		diags = diags.Append(err)
 	}
 	if diags.HasErrors() {
@@ -190,7 +190,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(ctx EvalContext) (*Graph, er
 	// wants to know the addresses of the checkable objects so that it can
 	// treat them as unknown status if we encounter an error before actually
 	// visiting the checks.
-	if checkState := ctx.Checks(); checkState.ConfigHasChecks(n.NodeAbstractResource.Addr) {
+	if checkState := evalCtx.Checks(); checkState.ConfigHasChecks(n.NodeAbstractResource.Addr) {
 		checkState.ReportCheckableObjects(n.NodeAbstractResource.Addr, instAddrs)
 	}
 
@@ -316,7 +316,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(globalCtx EvalCont
 	return diags.ErrWithWarnings()
 }
 
-func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
+func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(evalCtx EvalContext, addr addrs.AbsResource, instanceAddrs []addrs.AbsResourceInstance) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
 	var commandLineImportTargets []CommandLineImportTarget
@@ -329,8 +329,8 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 
 	// Our graph transformers require access to the full state, so we'll
 	// temporarily lock it while we work on this.
-	state := ctx.State().Lock()
-	defer ctx.State().Unlock()
+	state := evalCtx.State().Lock()
+	defer evalCtx.State().Unlock()
 
 	// The concrete resource factory we'll use
 	concreteResource := func(a *NodeAbstractResourceInstance) dag.Vertex {
@@ -374,7 +374,7 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx EvalContext, 
 			forceReplace:             n.forceReplace,
 		}
 
-		resolvedImportTarget := ctx.ImportResolver().GetImport(a.Addr)
+		resolvedImportTarget := evalCtx.ImportResolver().GetImport(a.Addr)
 		if resolvedImportTarget != nil {
 			m.importTarget = *resolvedImportTarget
 		}

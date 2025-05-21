@@ -224,10 +224,10 @@ func (n *NodePlannableResourceInstanceOrphan) managedResourceExecute(_ context.C
 	return diags.Append(n.writeResourceInstanceState(evalCtx, nil, workingState))
 }
 
-func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext) plans.ResourceInstanceChangeActionReason {
+func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(evalCtx EvalContext) plans.ResourceInstanceChangeActionReason {
 	cfg := n.Config
 	if cfg == nil {
-		if !n.Addr.Equal(n.prevRunAddr(ctx)) {
+		if !n.Addr.Equal(n.prevRunAddr(evalCtx)) {
 			// This means the resource was moved - see also
 			// ResourceInstanceChange.Moved() which calculates
 			// this the same way.
@@ -241,7 +241,7 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext
 	// longer declared then we will have a config (because config isn't
 	// instance-specific) but the expander will know that our resource
 	// address's module path refers to an undeclared module instance.
-	if expander := ctx.InstanceExpander(); expander != nil { // (sometimes nil in MockEvalContext in tests)
+	if expander := evalCtx.InstanceExpander(); expander != nil { // (sometimes nil in MockEvalContext in tests)
 		validModuleAddr := expander.GetDeepestExistingModuleInstance(n.Addr.Module)
 		if len(validModuleAddr) != len(n.Addr.Module) {
 			// If we get here then at least one step in the resource's module
@@ -268,7 +268,7 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext
 			return plans.ResourceInstanceDeleteBecauseWrongRepetition
 		}
 
-		expander := ctx.InstanceExpander()
+		expander := evalCtx.InstanceExpander()
 		if expander == nil {
 			break // only for tests that produce an incomplete MockEvalContext
 		}
@@ -290,7 +290,7 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext
 			return plans.ResourceInstanceDeleteBecauseWrongRepetition
 		}
 
-		expander := ctx.InstanceExpander()
+		expander := evalCtx.InstanceExpander()
 		if expander == nil {
 			break // only for tests that produce an incomplete MockEvalContext
 		}
@@ -311,7 +311,7 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(ctx EvalContext
 	// If we get here then the instance key type matches the configured
 	// repetition mode, and so we need to consider whether the key itself
 	// is within the range of the repetition construct.
-	if expander := ctx.InstanceExpander(); expander != nil { // (sometimes nil in MockEvalContext in tests)
+	if expander := evalCtx.InstanceExpander(); expander != nil { // (sometimes nil in MockEvalContext in tests)
 		// First we'll check whether our containing module instance still
 		// exists, so we can talk about that differently in the reason.
 		declared := false

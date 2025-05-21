@@ -145,10 +145,10 @@ func (n *graphNodeImportState) Execute(_ context.Context, evalCtx EvalContext, o
 // and state inserts we need to do for our import state. Since they're new
 // resources they don't depend on anything else and refreshes are isolated
 // so this is nearly a perfect use case for dynamic expand.
-func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *graphNodeImportState) DynamicExpand(evalCtx EvalContext) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
-	g := &Graph{Path: ctx.Path()}
+	g := &Graph{Path: evalCtx.Path()}
 
 	// nameCounter is used to de-dup names in the state.
 	nameCounter := make(map[string]int)
@@ -177,7 +177,7 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	}
 
 	// Verify that all the addresses are clear
-	state := ctx.State()
+	state := evalCtx.State()
 	for _, addr := range addrs {
 		existing := state.ResourceInstance(addr)
 		if existing != nil {
