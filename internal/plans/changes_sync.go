@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/cache"
 	"github.com/opentofu/opentofu/internal/states"
 )
 
@@ -24,6 +25,16 @@ import (
 type ChangesSync struct {
 	lock    sync.Mutex
 	changes *Changes
+	eval    *cache.Eval
+}
+
+func (cs *ChangesSync) WithCache(eval *cache.Eval) *ChangesSync {
+	cs.lock.Lock()
+	defer cs.lock.Unlock()
+	return &ChangesSync{
+		changes: cs.changes,
+		eval:    eval,
+	}
 }
 
 // AppendResourceInstanceChange records the given resource instance change in
@@ -38,6 +49,10 @@ func (cs *ChangesSync) AppendResourceInstanceChange(changeSrc *ResourceInstanceC
 	}
 	cs.lock.Lock()
 	defer cs.lock.Unlock()
+
+	if cs.eval != nil {
+		cs.eval.EvictResource(changeSrc.Addr.ContainingResource())
+	}
 
 	s := changeSrc.DeepCopy()
 	cs.changes.Resources = append(cs.changes.Resources, s)
@@ -120,6 +135,10 @@ func (cs *ChangesSync) RemoveResourceInstanceChange(addr addrs.AbsResourceInstan
 	}
 	cs.lock.Lock()
 	defer cs.lock.Unlock()
+
+	if cs.eval != nil {
+		cs.eval.EvictResource(addr.ContainingResource())
+	}
 
 	dk := states.NotDeposed
 	if realDK, ok := gen.(states.DeposedKey); ok {

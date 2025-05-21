@@ -18,6 +18,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/cache"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -69,6 +70,15 @@ type Evaluator struct {
 	Changes *plans.ChangesSync
 
 	PlanTimestamp time.Time
+
+	EvalCache *cache.Eval
+}
+
+type cacheEntry struct {
+	ok    bool
+	value cty.Value
+	diags tfdiags.Diagnostics
+	lock  sync.Mutex
 }
 
 // Scope creates an evaluation scope for the given module path and optional
@@ -651,6 +661,11 @@ func (d *evaluationStateData) GetPathAttr(addr addrs.PathAttr, rng tfdiags.Sourc
 }
 
 func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
+	return d.Evaluator.EvalCache.Resource(addr.Absolute(d.ModulePath), func() (cty.Value, tfdiags.Diagnostics) {
+		return d.GetResourceInner(addr, rng)
+	})
+}
+func (d *evaluationStateData) GetResourceInner(addr addrs.Resource, rng tfdiags.SourceRange) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	// First we'll consult the configuration to see if an resource of this
 	// name is declared at all.

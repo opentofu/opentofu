@@ -16,6 +16,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/cache"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -78,14 +79,17 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		state = synchronizeStates(ctx.State, ctx.Plan.PlannedState)
 	}
 
+	evalCache := cache.NewEval()
+
 	data := &evaluationStateData{
 		Evaluator: &Evaluator{
 			Operation: operation,
 			Meta:      ctx.meta,
 			Config:    ctx.Config,
 			Plugins:   ctx.plugins,
-			State:     state,
-			Changes:   changes,
+			State:     state.WithCache(evalCache),
+			EvalCache: evalCache,
+			Changes:   changes.WithCache(evalCache),
 			VariableValues: func() map[string]map[string]cty.Value {
 				variables := map[string]map[string]cty.Value{
 					addrs.RootModule.String(): make(map[string]cty.Value),

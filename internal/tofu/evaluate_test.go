@@ -13,6 +13,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/cache"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -264,11 +265,14 @@ func TestEvaluatorGetResource(t *testing.T) {
 		},
 	}
 
+	evalCache := cache.NewEval()
+
 	evaluator := &Evaluator{
 		Meta: &ContextMeta{
 			Env: "foo",
 		},
-		Changes: plans.NewChanges().SyncWrapper(),
+		EvalCache: evalCache,
+		Changes:   plans.NewChanges().SyncWrapper().WithCache(evalCache),
 		Config: &configs.Config{
 			Module: &configs.Module{
 				ManagedResources: map[string]*configs.Resource{
@@ -276,7 +280,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 				},
 			},
 		},
-		State: stateSync,
+		State: stateSync.WithCache(evalCache),
 		Plugins: schemaOnlyProvidersForTesting(map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): {
 				ResourceTypes: map[string]providers.Schema{
@@ -493,11 +497,14 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 	csrc, _ := change.Encode(schema.ImpliedType())
 	changesSync.AppendResourceInstanceChange(csrc)
 
+	evalCache := cache.NewEval()
+
 	evaluator := &Evaluator{
 		Meta: &ContextMeta{
 			Env: "foo",
 		},
-		Changes: changesSync,
+		EvalCache: evalCache,
+		Changes:   changesSync.WithCache(evalCache),
 		Config: &configs.Config{
 			Module: &configs.Module{
 				ManagedResources: map[string]*configs.Resource{
@@ -514,7 +521,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 				},
 			},
 		},
-		State:   stateSync,
+		State:   stateSync.WithCache(evalCache),
 		Plugins: schemaOnlyProvidersForTesting(schemas.Providers, t),
 	}
 
@@ -618,6 +625,8 @@ func TestEvaluatorGetModule(t *testing.T) {
 }
 
 func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesSync) *Evaluator {
+	evalCache := cache.NewEval()
+
 	return &Evaluator{
 		Meta: &ContextMeta{
 			Env: "foo",
@@ -644,7 +653,8 @@ func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesS
 				},
 			},
 		},
-		State:   stateSync,
-		Changes: changesSync,
+		EvalCache: evalCache,
+		State:     stateSync.WithCache(evalCache),
+		Changes:   changesSync.WithCache(evalCache),
 	}
 }

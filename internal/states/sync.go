@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/cache"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -37,6 +38,7 @@ import (
 type SyncState struct {
 	state *State
 	lock  sync.RWMutex
+	eval  *cache.Eval
 }
 
 // Module returns a snapshot of the state of the module instance with the given
@@ -220,6 +222,10 @@ func (s *SyncState) RemoveResource(addr addrs.AbsResource) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if s.eval != nil {
+		s.eval.EvictResource(addr)
+	}
+
 	ms := s.state.EnsureModule(addr.Module)
 	ms.RemoveResource(addr.Resource)
 	s.maybePruneModule(addr.Module)
@@ -234,6 +240,10 @@ func (s *SyncState) RemoveResource(addr addrs.AbsResource) {
 func (s *SyncState) RemoveResourceIfEmpty(addr addrs.AbsResource) bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	if s.eval != nil {
+		s.eval.EvictResource(addr)
+	}
 
 	ms := s.state.Module(addr.Module)
 	if ms == nil {
@@ -276,6 +286,10 @@ func (s *SyncState) RemoveResourceIfEmpty(addr addrs.AbsResource) bool {
 func (s *SyncState) SetResourceInstanceCurrent(addr addrs.AbsResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig, providerKey addrs.InstanceKey) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
+
+	if s.eval != nil {
+		s.eval.EvictResource(addr.ContainingResource())
+	}
 
 	ms := s.state.EnsureModule(addr.Module)
 	ms.SetResourceInstanceCurrent(addr.Resource, obj.DeepCopy(), provider, providerKey)
@@ -364,6 +378,10 @@ func (s *SyncState) ForgetResourceInstanceAll(addr addrs.AbsResourceInstance) {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
+	if s.eval != nil {
+		s.eval.EvictResource(addr.ContainingResource())
+	}
+
 	ms := s.state.Module(addr.Module)
 	if ms == nil {
 		return
@@ -407,6 +425,10 @@ func (s *SyncState) MaybeRestoreResourceInstanceDeposed(addr addrs.AbsResourceIn
 		return false
 	}
 
+	if s.eval != nil {
+		s.eval.EvictResource(addr.ContainingResource())
+	}
+
 	return ms.maybeRestoreResourceInstanceDeposed(addr.Resource, key)
 }
 
@@ -436,6 +458,10 @@ func (s *SyncState) RemovePlannedResourceInstanceObjects() {
 
 		for _, rs := range ms.Resources {
 			resAddr := rs.Addr.Resource
+
+			if s.eval != nil {
+				s.eval.EvictResource(rs.Addr)
+			}
 
 			for ik, is := range rs.Instances {
 				instAddr := resAddr.Instance(ik)
@@ -511,6 +537,18 @@ func (s *SyncState) Close() *State {
 	s.state = nil // make sure future operations can't still modify it
 	s.lock.Unlock()
 	return ret
+}
+
+func (s *SyncState) WithCache(eval *cache.Eval) *SyncState {
+	if s == nil {
+		return nil
+	}
+	//state := s.Close()
+	return &SyncState{
+		lock:  s.lock,
+		state: s.state,
+		eval:  eval,
+	}
 }
 
 // maybePruneModule will remove a module from the state altogether if it is

@@ -10,6 +10,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/opentofu/opentofu/internal/cache"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
@@ -68,6 +69,8 @@ func (c *Context) walk(ctx context.Context, graph *Graph, operation walkOperatio
 }
 
 func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *ContextGraphWalker {
+	evalCache := cache.NewEval()
+
 	var state *states.SyncState
 	var refreshState *states.SyncState
 	var prevRunState *states.SyncState
@@ -146,9 +149,10 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		Context:                 c,
 		State:                   state,
 		Config:                  opts.Config,
-		RefreshState:            refreshState,
-		PrevRunState:            prevRunState,
-		Changes:                 changes.SyncWrapper(),
+		RefreshState:            refreshState.WithCache(evalCache),
+		PrevRunState:            prevRunState.WithCache(evalCache),
+		Changes:                 changes.SyncWrapper().WithCache(evalCache),
+		EvalCache:               evalCache,
 		Checks:                  checkState,
 		InstanceExpander:        instances.NewExpander(),
 		MoveResults:             opts.MoveResults,
