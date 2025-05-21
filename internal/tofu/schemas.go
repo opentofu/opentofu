@@ -16,7 +16,6 @@ import (
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Schemas is a container for various kinds of schema that OpenTofu needs
@@ -81,8 +80,11 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 	}
 	var diags tfdiags.Diagnostics
 
-	newDiags := loadProvisionerSchemas(ctx, schemas.Provisioners, config, plugins)
-	diags = diags.Append(newDiags)
+	provisionerDiags := loadProvisionerSchemas(ctx, schemas.Provisioners, config, plugins)
+	diags = diags.Append(provisionerDiags)
+
+	providerDiags := loadProviderSchemas(ctx, schemas.Providers, config, state, plugins)
+	diags = diags.Append(providerDiags)
 
 	return schemas, diags.Err()
 }
@@ -111,7 +113,6 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 					fmt.Sprintf("Could not load the schema for provider %s: %s.", fqn, err),
 				),
 			)
-			//tracing.SetSpanError(span, diags)
 			return
 		}
 
