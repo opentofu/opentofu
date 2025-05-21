@@ -467,14 +467,14 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(_ context.Context
 // replaceTriggered checks if this instance needs to be replace due to a change
 // in a replace_triggered_by reference. If replacement is required, the
 // instance address is added to forceReplace
-func (n *NodePlannableResourceInstance) replaceTriggered(ctx EvalContext, repData instances.RepetitionData) tfdiags.Diagnostics {
+func (n *NodePlannableResourceInstance) replaceTriggered(evalCtx EvalContext, repData instances.RepetitionData) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if n.Config == nil {
 		return diags
 	}
 
 	for _, expr := range n.Config.TriggersReplacement {
-		ref, replace, evalDiags := ctx.EvaluateReplaceTriggeredBy(expr, repData)
+		ref, replace, evalDiags := evalCtx.EvaluateReplaceTriggeredBy(expr, repData)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			continue
@@ -497,11 +497,11 @@ func (n *NodePlannableResourceInstance) replaceTriggered(ctx EvalContext, repDat
 	return diags
 }
 
-func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.AbsResourceInstance, importId string, provider providers.Interface, providerSchema providers.ProviderSchema) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodePlannableResourceInstance) importState(evalCtx EvalContext, addr addrs.AbsResourceInstance, importId string, provider providers.Interface, providerSchema providers.ProviderSchema) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	absAddr := addr.Resource.Absolute(ctx.Path())
+	absAddr := addr.Resource.Absolute(evalCtx.Path())
 
-	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
 		return h.PrePlanImport(absAddr, importId)
 	}))
 	if diags.HasErrors() {
@@ -547,7 +547,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 	}
 
 	// call post-import hook
-	diags = diags.Append(ctx.Hook(func(h Hook) (HookAction, error) {
+	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
 		return h.PostPlanImport(absAddr, imported)
 	}))
 
@@ -577,7 +577,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 		},
 		ResolvedProviderKey: n.ResolvedProviderKey,
 	}
-	instanceRefreshState, refreshDiags := riNode.refresh(ctx, states.NotDeposed, importedState)
+	instanceRefreshState, refreshDiags := riNode.refresh(evalCtx, states.NotDeposed, importedState)
 	diags = diags.Append(refreshDiags)
 	if diags.HasErrors() {
 		return instanceRefreshState, diags
@@ -618,7 +618,7 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 			}
 		}
 
-		valueWithConfigurationSchemaMarks, _, configDiags := ctx.EvaluateBlock(n.Config.Config, n.Schema, nil, keyData)
+		valueWithConfigurationSchemaMarks, _, configDiags := evalCtx.EvaluateBlock(n.Config.Config, n.Schema, nil, keyData)
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return instanceRefreshState, diags
@@ -680,18 +680,18 @@ func (n *NodePlannableResourceInstance) importState(ctx EvalContext, addr addrs.
 		}
 	}
 
-	diags = diags.Append(riNode.writeResourceInstanceState(ctx, instanceRefreshState, refreshState))
+	diags = diags.Append(riNode.writeResourceInstanceState(evalCtx, instanceRefreshState, refreshState))
 	return instanceRefreshState, diags
 }
 
-func (n *NodePlannableResourceInstance) shouldImport(ctx EvalContext) bool {
+func (n *NodePlannableResourceInstance) shouldImport(evalCtx EvalContext) bool {
 	if n.importTarget.ID == "" {
 		return false
 	}
 
 	// If the import target already has a state - we should not attempt to import it, but instead run a normal plan
 	// for it
-	state := ctx.State()
+	state := evalCtx.State()
 	return state.ResourceInstance(n.ResourceInstanceAddr()) == nil
 }
 
