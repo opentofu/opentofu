@@ -12,6 +12,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/jsonconfig"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
@@ -38,7 +39,7 @@ type Show interface {
 	DisplayPlan(plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int
 
 	// DisplayConfig renders the given configuration in JSON format, returning a status code for "tofu show" to return.
-	DisplayConfig(config map[string]interface{}) int
+	DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int
 
 	// Diagnostics renders early diagnostics, resulting from argument parsing.
 	Diagnostics(diags tfdiags.Diagnostics)
@@ -149,7 +150,7 @@ func (v *ShowHuman) DisplayPlan(plan *plans.Plan, planJSON *cloudplan.RemotePlan
 	return 0
 }
 
-func (v *ShowHuman) DisplayConfig(config map[string]interface{}) int {
+func (v *ShowHuman) DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int {
 	// The human view should never be called for configuration display
 	// since we require -json for -config
 	v.view.streams.Eprintf("Internal error: human view should not be used for configuration display")
@@ -202,13 +203,13 @@ func (v *ShowJSON) DisplayPlan(plan *plans.Plan, planJSON *cloudplan.RemotePlanJ
 	return 0
 }
 
-func (v *ShowJSON) DisplayConfig(config map[string]interface{}) int {
-	jsonBytes, err := json.MarshalIndent(config, "", "  ")
+func (v *ShowJSON) DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int {
+	configJSON, err := jsonconfig.Marshal(config, schemas)
 	if err != nil {
 		v.view.streams.Eprintf("Failed to marshal configuration to JSON: %s", err)
 		return 1
 	}
-	v.view.streams.Println(string(jsonBytes))
+	v.view.streams.Println(string(configJSON))
 	return 0
 }
 
