@@ -356,10 +356,10 @@ func (n *graphNodeDeposer) SetPreallocatedDeposedKey(key states.DeposedKey) {
 	n.PreallocatedDeposedKey = key
 }
 
-func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ctx EvalContext, obj *states.ResourceInstanceObject) error {
+func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(evalCtx EvalContext, obj *states.ResourceInstanceObject) error {
 	absAddr := n.Addr
 	key := n.DeposedKey
-	state := ctx.State()
+	state := evalCtx.State()
 
 	if key == states.NotDeposed {
 		// should never happen
@@ -373,7 +373,7 @@ func (n *NodeDestroyDeposedResourceInstanceObject) writeResourceInstanceState(ct
 		return nil
 	}
 
-	_, providerSchema, err := getProvider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		return err
 	}
