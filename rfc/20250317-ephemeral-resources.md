@@ -244,6 +244,17 @@ Beside the attributes in a schema of an ephemeral resource, the block should sup
 * `provider`
 * `lifecycle`
 
+The only `lifecycle` content that ephemerals should support are `precondition` and `postcondition`. In case OpenTofu will find other known attributes of the `lifecycle` block, it should show an error similar to the following:
+```
+│ Error: Invalid lifecycle configuration for ephemeral resource
+│                                                           
+│   on ../mod/main.tf line 44, in ephemeral "aws_secretsmanager_secret_version" "secret_retrieval":                     
+│   44:     create_before_destroy = true                    
+│                                                           
+│ The lifecycle argument "create_before_destroy" cannot be used in ephemeral resources. This is meant 
+│ to be used strictly in "resource" blocks.
+```
+
 The meta-argument `provisioner` should not be supported.
 #### Providers
 `provider` block is ephemeral by nature, meaning that the configuration of this is never stored into state/plan file.
@@ -717,6 +728,7 @@ In order to make that available to be used, [providers.Interface](https://github
 #### Configuration model
 Beside the attributes that are defined by the provider for an ephemeral resource, the following meta-arguments needs to be supported by any ephemeral block:
 * lifecycle
+  * The only attributes supported by the `lifecycle` in `ephemeral` blocks context are `precondition` and `postcondition`. If any found, an error will be raised.
 * count
 * for_each
 * depends_on
