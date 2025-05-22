@@ -67,7 +67,7 @@ func (cp *contextPlugins) NewProvisionerInstance(typ string) (provisioners.Inter
 // ProviderSchema memoizes results by unique provider address, so it's fine
 // to repeatedly call this method with the same address if various different
 // parts of OpenTofu all need the same schema information.
-func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provider) (providers.ProviderSchema, error) {
+func (cp *contextPlugins) ProviderSchema(_ context.Context, addr addrs.Provider) (providers.ProviderSchema, error) {
 	// Check the global schema cache first.
 	// This cache is only written by the provider client, and transparently
 	// used by GetProviderSchema, but we check it here because at this point we

@@ -34,6 +34,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/internal/tracing"
 
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
@@ -93,6 +94,9 @@ type BackendWithRemoteTerraformVersion interface {
 // the "tofu init" command line, etc.
 func (m *Meta) Backend(ctx context.Context, opts *BackendOpts, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(ctx, "Initialize Backend")
+	defer span.End()
 
 	// If no opts are set, then initialize
 	if opts == nil {
