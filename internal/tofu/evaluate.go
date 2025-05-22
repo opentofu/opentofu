@@ -748,7 +748,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 	}
 
 	// Fetch all instance data in a single call.  We previously used GetResourceInstanceChange in
-	// each loop iteration which caused n^2 locking contention.  This is expecially problematic for
+	// each loop iteration which caused n^2 locking contention.  This is especially problematic for
 	// resources with large count/for_each.
 	instChanges := d.Evaluator.Changes.GetChangesForConfigResource(addr.InModule(moduleConfig.Path))
 	instMap := map[string]*plans.ResourceInstanceChangeSrc{}
