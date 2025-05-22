@@ -117,7 +117,7 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 				},
 			},
 		},
-		EvalCache: NewEval(),
+		EvalCache: NewEvalCache(),
 		State: states.BuildState(func(state *states.SyncState) {
 			state.SetOutputValue(addrs.AbsOutputValue{
 				Module: addrs.RootModuleInstance,
@@ -277,7 +277,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 				},
 			},
 		},
-		EvalCache: NewEval(),
+		EvalCache: NewEvalCache(),
 		State:     stateSync,
 		Plugins: schemaOnlyProvidersForTesting(map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): {
@@ -499,7 +499,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 		Meta: &ContextMeta{
 			Env: "foo",
 		},
-		EvalCache: NewEval(),
+		EvalCache: NewEvalCache(),
 		Changes:   changesSync,
 		Config: &configs.Config{
 			Module: &configs.Module{
@@ -647,7 +647,7 @@ func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesS
 				},
 			},
 		},
-		EvalCache: NewEval(),
+		EvalCache: NewEvalCache(),
 		State:     stateSync,
 		Changes:   changesSync,
 	}

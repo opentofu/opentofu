@@ -70,16 +70,19 @@ type Evaluator struct {
 
 	PlanTimestamp time.Time
 
-	EvalCache *Eval
+	// Given that the graph should ensure that evaluation will prevent evaluating
+	// resources before they are available via changes/state, we can cache the
+	// majority of the work needed to build the resulting resource objects.
+	EvalCache *EvalCache
 }
 
-type Eval struct {
+type EvalCache struct {
 	resourcesLock sync.Mutex
 	resources     map[string]*cacheEntry
 }
 
-func NewEval() *Eval {
-	return &Eval{
+func NewEvalCache() *EvalCache {
+	return &EvalCache{
 		resources: map[string]*cacheEntry{},
 	}
 }
@@ -88,11 +91,11 @@ type cacheEntry struct {
 	sync.Mutex
 
 	populated bool
-	value     cty.Value
+	value     *cty.Value
 	diags     tfdiags.Diagnostics
 }
 
-func (e *Eval) Resource(addr addrs.AbsResourceInstance, populate func() (cty.Value, tfdiags.Diagnostics)) (cty.Value, tfdiags.Diagnostics) {
+func (e *EvalCache) Resource(addr addrs.AbsResourceInstance, populate func() (*cty.Value, tfdiags.Diagnostics)) (*cty.Value, tfdiags.Diagnostics) {
 	key := addr.String()
 
 	e.resourcesLock.Lock()
@@ -792,13 +795,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 	// Fetch all instance data in a single call.  We previously used GetResourceInstanceChange in
 	// each loop iteration which caused n^2 locking contention.  This is expecially problematic for
 	// resources with large count/for_each.
-	instChanges := d.Evaluator.Changes.GetChangesForConfigResource(addr.InModule(moduleConfig.Path))
-	instMap := map[string]*plans.ResourceInstanceChangeSrc{}
-	for _, rc := range instChanges {
-		if rc.DeposedKey == states.NotDeposed {
-			instMap[rc.Addr.String()] = rc
-		}
-	}
+	var instMap map[string]*plans.ResourceInstanceChangeSrc
 
 	// Decode all instances in the current state
 	instances := map[addrs.InstanceKey]cty.Value{}
@@ -812,21 +809,31 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 
 		instAddr := addr.Instance(key).Absolute(d.ModulePath)
 
-		change := instMap[instAddr.String()]
-		if change != nil {
-			// Don't take any resources that are yet to be deleted into account.
-			// If the referenced resource is CreateBeforeDestroy, then orphaned
-			// instances will be in the state, as they are not destroyed until
-			// after their dependants are updated.
-			if change.Action == plans.Delete {
-				if !pendingDestroy {
-					continue
+		rv, rd := d.Evaluator.EvalCache.Resource(instAddr, func() (*cty.Value, tfdiags.Diagnostics) {
+			var diags tfdiags.Diagnostics
+
+			if instMap == nil {
+				instMap = map[string]*plans.ResourceInstanceChangeSrc{}
+				instChanges := d.Evaluator.Changes.GetChangesForConfigResource(addr.InModule(moduleConfig.Path))
+				for _, rc := range instChanges {
+					if rc.DeposedKey == states.NotDeposed {
+						instMap[rc.Addr.String()] = rc
+					}
 				}
 			}
-		}
 
-		rv, rd := d.Evaluator.EvalCache.Resource(instAddr, func() (cty.Value, tfdiags.Diagnostics) {
-			var diags tfdiags.Diagnostics
+			change := instMap[instAddr.String()]
+			if change != nil {
+				// Don't take any resources that are yet to be deleted into account.
+				// If the referenced resource is CreateBeforeDestroy, then orphaned
+				// instances will be in the state, as they are not destroyed until
+				// after their dependants are updated.
+				if change.Action == plans.Delete {
+					if !pendingDestroy {
+						return nil, nil
+					}
+				}
+			}
 
 			// Planned resources are temporarily stored in state with empty values,
 			// and need to be replaced by the planned value here.
@@ -841,7 +848,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 						Detail:   fmt.Sprintf("Instance %s is marked as having a change pending but that change is not recorded in the plan. This is a bug in OpenTofu; please report it.", instAddr),
 						Subject:  &config.DeclRange,
 					})
-					return cty.UnknownVal(ty), diags
+					return nil, diags
 				}
 				val, err := change.After.Decode(ty)
 				if err != nil {
@@ -851,7 +858,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 						Detail:   fmt.Sprintf("Instance %s data could not be decoded from the plan: %s.", instAddr, err),
 						Subject:  &config.DeclRange,
 					})
-					return cty.UnknownVal(ty), diags
+					return nil, diags
 				}
 
 				afterMarks := change.AfterValMarks
@@ -862,7 +869,8 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 					afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 				}
 
-				return val.MarkWithPaths(afterMarks), nil
+				val = val.MarkWithPaths(afterMarks)
+				return &val, nil
 			}
 
 			instanceObjectSrc, err := instance.Current.Decode(ty)
@@ -875,7 +883,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 					Detail:   fmt.Sprintf("Instance %s data could not be decoded from the state: %s.", instAddr, err),
 					Subject:  &config.DeclRange,
 				})
-				return cty.UnknownVal(ty), diags
+				return nil, diags
 			}
 
 			val := instanceObjectSrc.Value
@@ -890,12 +898,13 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 				combined := combinePathValueMarks(marks, schemaMarks)
 				val = val.MarkWithPaths(combined)
 			}
-			return val, diags
+			return &val, diags
 		})
 		if rd.HasErrors() {
 			diags = diags.Append(rd)
-		} else {
-			instances[key] = rv
+		}
+		if rv != nil {
+			instances[key] = *rv
 		}
 	}
 
