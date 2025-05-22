@@ -51,6 +51,12 @@ const traceParentEnvVar = "TRACEPARENT"
 // trace state to use.
 const traceStateEnvVar = "TRACESTATE"
 
+// ServiceNameEnvVar is the standard OpenTelemetry environment variable for specifying the service name
+const ServiceNameEnvVar = "OTEL_SERVICE_NAME"
+
+// DefaultServiceName is the default service name to use if not specified in the environment
+const DefaultServiceName = "OpenTofu CLI"
+
 // isTracingEnabled is true if OpenTelemetry is enabled.
 var isTracingEnabled bool
 
@@ -91,6 +97,13 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 
 	log.Printf("[TRACE] OpenTelemetry: enabled")
 
+	// Get service name from environment variable or use default
+	serviceName := DefaultServiceName
+	if envServiceName := os.Getenv(ServiceNameEnvVar); envServiceName != "" {
+		log.Printf("[TRACE] OpenTelemetry: using service name from %s: %s", ServiceNameEnvVar, envServiceName)
+		serviceName = envServiceName
+	}
+
 	otelResource, err := resource.New(context.Background(),
 		// Use built-in detectors to simplify the collation of the racing information
 		resource.WithOS(),
@@ -101,7 +114,7 @@ func OpenTelemetryInit(ctx context.Context) (context.Context, error) {
 
 		// Add custom service attributes
 		resource.WithAttributes(
-			semconv.ServiceName("OpenTofu CLI"),
+			semconv.ServiceName(serviceName),
 			semconv.ServiceVersion(version.Version),
 
 			// We add in the telemetry SDK information so that we don't end up with
