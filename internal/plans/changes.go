@@ -485,12 +485,13 @@ type OutputChange struct {
 	// change is sensitive and so a rendered version of the plan in the UI
 	// should elide the actual values while still indicating the action of the
 	// change.
-	Sensitive bool
+	SensitiveBefore bool
 
-	// BecomingNonSensitive, if true, indicates that this output is changing
-	// from sensitive to non-sensitive, and that the UI should show a special
-	// message about the value becoming visible.
-	BecomingNonSensitive bool
+	// SensitiveAfter, if true, indicates that the new value in the change
+	// is sensitive and so a rendered version of the plan in the UI
+	// should elide the actual values while still indicating the action of the
+	// change.
+	SensitiveAfter bool
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -501,9 +502,10 @@ func (oc *OutputChange) Encode() (*OutputChangeSrc, error) {
 		return nil, err
 	}
 	return &OutputChangeSrc{
-		Addr:      oc.Addr,
-		ChangeSrc: *cs,
-		Sensitive: oc.Sensitive,
+		Addr:            oc.Addr,
+		ChangeSrc:       *cs,
+		SensitiveBefore: oc.SensitiveBefore,
+		SensitiveAfter:  oc.SensitiveAfter,
 	}, err
 }
 

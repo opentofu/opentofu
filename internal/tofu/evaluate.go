@@ -388,7 +388,10 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 	stateMap := map[addrs.InstanceKey]map[string]cty.Value{}
 	for _, output := range d.Evaluator.State.ModuleOutputs(d.ModulePath, addr) {
 		val := output.Value
-		if output.Sensitive {
+		if output.SensitiveBefore {
+			val = val.Mark(marks.Sensitive)
+		}
+		if output.SensitiveAfter {
 			val = val.Mark(marks.Sensitive)
 		}
 
@@ -473,7 +476,11 @@ func (d *evaluationStateData) GetModule(addr addrs.ModuleCall, rng tfdiags.Sourc
 
 			instance[cfg.Name] = change.After
 
-			if change.Sensitive {
+			if change.SensitiveBefore {
+				instance[cfg.Name] = change.After.Mark(marks.Sensitive)
+			}
+
+			if change.SensitiveAfter {
 				instance[cfg.Name] = change.After.Mark(marks.Sensitive)
 			}
 
@@ -1001,7 +1008,10 @@ func (d *evaluationStateData) GetOutput(addr addrs.OutputValue, rng tfdiags.Sour
 			val = cty.DynamicVal
 		}
 
-		if output.Sensitive {
+		if output.SensitiveBefore {
+			val = val.Mark(marks.Sensitive)
+		}
+		if output.SensitiveAfter {
 			val = val.Mark(marks.Sensitive)
 		}
 

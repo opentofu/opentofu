@@ -375,7 +375,7 @@ func (n *NodeApplyableOutput) Execute(_ context.Context, evalCtx EvalContext, op
 		// a sensitive result, to help avoid accidental exposure in the state
 		// of a sensitive value that the user doesn't want to include there.
 		if n.Addr.Module.IsRoot() {
-			if !n.Config.Sensitive && marks.Contains(val, marks.Sensitive) {
+			if (!n.Config.SensitiveBefore || !n.Config.SensitiveAfter) && marks.Contains(val, marks.Sensitive) {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Output refers to sensitive values",
@@ -474,12 +474,13 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 
 	// if this is a root module, try to get a before value from the state for
 	// the diff
-	sensitiveBefore := false
+	sensitiveBefore, sensitiveAfter := false, false
 	before := cty.NullVal(cty.DynamicPseudoType)
 	mod := state.Module(n.Addr.Module)
 	if n.Addr.Module.IsRoot() && mod != nil {
 		if o, ok := mod.OutputValues[n.Addr.OutputValue.Name]; ok {
-			sensitiveBefore = o.Sensitive
+			sensitiveBefore = o.SensitiveBefore
+			sensitiveAfter = o.SensitiveAfter
 			before = o.Value
 		} else {
 			// If the output was not in state, a delete change would
@@ -492,8 +493,9 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 	changes := evalCtx.Changes()
 	if changes != nil && n.Planning {
 		change := &plans.OutputChange{
-			Addr:      n.Addr,
-			Sensitive: sensitiveBefore,
+			Addr:            n.Addr,
+			SensitiveBefore: sensitiveBefore,
+			SensitiveAfter:  sensitiveAfter,
 			Change: plans.Change{
 				Action: plans.Delete,
 				Before: before,
@@ -532,6 +534,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// if this is a root module, try to get a before value from the state for
 		// the diff
 		sensitiveBefore := false
+		sensitiveAfter := false
 		deprecatedBefore := ""
 		before := cty.NullVal(cty.DynamicPseudoType)
 
@@ -543,7 +546,8 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 			for name, o := range mod.OutputValues {
 				if name == n.Addr.OutputValue.Name {
 					before = o.Value
-					sensitiveBefore = o.Sensitive
+					sensitiveBefore = o.SensitiveBefore
+					sensitiveAfter = o.SensitiveAfter
 					deprecatedBefore = o.Deprecated
 					newOutput = false
 					break
@@ -554,8 +558,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// We will not show the value if either the before or after are marked
 		// as sensitive. We can show the value again once sensitivity is
 		// removed from both the config and the state.
-		sensitiveChange := sensitiveBefore || n.Config.Sensitive
-		log.Printf("[INFO] changed detected in sensitivity of output, sensitivity was %v and now %v", sensitiveBefore, n.Config.Sensitive)
+		sensitiveChange := n.Config.SensitiveBefore || n.Config.SensitiveAfter
 
 		// strip any marks here just to be sure we don't panic on the True comparison
 		unmarkedVal, _ := val.UnmarkDeep()
@@ -576,7 +579,8 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		case val.IsWhollyKnown() &&
 			unmarkedVal.Equals(before).True() &&
-			n.Config.Sensitive == sensitiveBefore &&
+			n.Config.SensitiveBefore == sensitiveBefore &&
+			n.Config.SensitiveAfter == sensitiveAfter &&
 			n.Config.Deprecated == deprecatedBefore:
 			// Sensitivity and deprecation must also match to be a NoOp.
 			// Theoretically marks may not match here, but sensitivity is the
@@ -586,8 +590,9 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		}
 
 		change := &plans.OutputChange{
-			Addr:      n.Addr,
-			Sensitive: sensitiveChange,
+			Addr:            n.Addr,
+			SensitiveBefore: sensitiveBefore,
+			SensitiveAfter:  sensitiveChange,
 			Change: plans.Change{
 				Action: action,
 				Before: before,
@@ -635,5 +640,5 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		val = cty.UnknownAsNull(val).MarkWithPaths(pvms)
 	}
 
-	state.SetOutputValue(n.Addr, val, n.Config.Sensitive, n.Config.Deprecated)
+	state.SetOutputValue(n.Addr, val, n.Config.SensitiveBefore, n.Config.SensitiveAfter, n.Config.Deprecated)
 }

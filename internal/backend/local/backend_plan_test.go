@@ -245,30 +245,30 @@ func TestLocal_planOutputSensitivityChanged(t *testing.T) {
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "sensitive_after"},
-		}, cty.StringVal("after"), false, "") // starts non-sensitive
+		}, cty.StringVal("after"), false, true, "") // starts non-sensitive
 
 		// Output that will become non-sensitive
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "sensitive_before"},
-		}, cty.StringVal("before"), true, "") // starts sensitive
+		}, cty.StringVal("before"), true, false, "") // starts sensitive
 
 		// Outputs that remain unchanged
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "unchanged_insensitive"},
-		}, cty.StringVal("unchanged"), false, "")
+		}, cty.StringVal("unchanged"), false, false, "") // starts non-sensitive
 
 		// Outputs with actual value changes (for control comparison)
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "changed_insensitive"},
-		}, cty.StringVal("not_yet_changed"), false, "")
+		}, cty.StringVal("not_yet_changed"), false, false, "") // starts non-sensitive
 
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "changed_sensitive"},
-		}, cty.StringVal("not_yet_changed"), true, "") // starts sensitive
+		}, cty.StringVal("not_yet_changed"), true, true, "") // starts sensitive
 	}))
 
 	outDir := t.TempDir()
@@ -331,7 +331,7 @@ func TestLocal_planModuleOutputsChanged(t *testing.T) {
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance.Child("mod", addrs.NoKey),
 			OutputValue: addrs.OutputValue{Name: "changed"},
-		}, cty.StringVal("before"), false, "")
+		}, cty.StringVal("before"), false, "") // starts non-sensitive
 	}))
 	outDir := t.TempDir()
 	defer os.RemoveAll(outDir)

@@ -17,11 +17,12 @@ import (
 )
 
 type Output struct {
-	Sensitive  bool            `json:"sensitive"`
-	Deprecated string          `json:"deprecated,omitempty"`
-	Type       json.RawMessage `json:"type,omitempty"`
-	Value      json.RawMessage `json:"value,omitempty"`
-	Action     ChangeAction    `json:"action,omitempty"`
+	SensitiveBefore bool            `json:"sensitive_before"`
+	SensitiveAfter  bool            `json:"sensitive_after"`
+	Deprecated      string          `json:"deprecated,omitempty"`
+	Type            json.RawMessage `json:"type,omitempty"`
+	Value           json.RawMessage `json:"value,omitempty"`
+	Action          ChangeAction    `json:"action,omitempty"`
 }
 
 type Outputs map[string]Output
@@ -49,15 +50,16 @@ func OutputsFromMap(outputValues map[string]*states.OutputValue) (Outputs, tfdia
 		}
 
 		var redactedValue json.RawMessage
-		if !ov.Sensitive {
+		if !ov.SensitiveBefore || !ov.SensitiveAfter {
 			redactedValue = json.RawMessage(value)
 		}
 
 		outputs[name] = Output{
-			Sensitive:  ov.Sensitive,
-			Deprecated: ov.Deprecated,
-			Type:       json.RawMessage(valueType),
-			Value:      redactedValue,
+			SensitiveBefore: ov.SensitiveBefore,
+			SensitiveAfter:  ov.SensitiveAfter,
+			Deprecated:      ov.Deprecated,
+			Type:            json.RawMessage(valueType),
+			Value:           redactedValue,
 		}
 	}
 
@@ -69,8 +71,9 @@ func OutputsFromChanges(changes []*plans.OutputChangeSrc) Outputs {
 
 	for _, change := range changes {
 		outputs[change.Addr.OutputValue.Name] = Output{
-			Sensitive: change.Sensitive,
-			Action:    changeAction(change.Action),
+			SensitiveBefore: change.SensitiveBefore,
+			SensitiveAfter:  change.SensitiveAfter,
+			Action:          changeAction(change.Action),
 		}
 	}
 
