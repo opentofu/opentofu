@@ -13,7 +13,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/cache"
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -33,12 +32,11 @@ type ContextGraphWalker struct {
 
 	// Configurable values
 	Context                 *Context
-	State                   *states.SyncState  // Used for safe concurrent access to state
-	RefreshState            *states.SyncState  // Used for safe concurrent access to state
-	PrevRunState            *states.SyncState  // Used for safe concurrent access to state
-	Changes                 *plans.ChangesSync // Used for safe concurrent writes to changes
-	Checks                  *checks.State      // Used for safe concurrent writes of checkable objects and their check results
-	EvalCache               *cache.Eval
+	State                   *states.SyncState       // Used for safe concurrent access to state
+	RefreshState            *states.SyncState       // Used for safe concurrent access to state
+	PrevRunState            *states.SyncState       // Used for safe concurrent access to state
+	Changes                 *plans.ChangesSync      // Used for safe concurrent writes to changes
+	Checks                  *checks.State           // Used for safe concurrent writes of checkable objects and their check results
 	InstanceExpander        *instances.Expander     // Tracks our gradual expansion of module and resource instances
 	ImportResolver          *ImportResolver         // Tracks import targets as they are being resolved
 	MoveResults             refactoring.MoveResults // Read-only record of earlier processing of move statements
@@ -97,7 +95,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		Operation:          w.Operation,
 		State:              w.State,
 		Changes:            w.Changes,
-		EvalCache:          w.EvalCache,
+		EvalCache:          NewEval(),
 		Plugins:            w.Context.plugins,
 		VariableValues:     w.variableValues,
 		VariableValuesLock: &w.variableValuesLock,

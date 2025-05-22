@@ -13,7 +13,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/cache"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/marks"
@@ -118,6 +117,7 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 				},
 			},
 		},
+		EvalCache: NewEval(),
 		State: states.BuildState(func(state *states.SyncState) {
 			state.SetOutputValue(addrs.AbsOutputValue{
 				Module: addrs.RootModuleInstance,
@@ -265,14 +265,11 @@ func TestEvaluatorGetResource(t *testing.T) {
 		},
 	}
 
-	evalCache := cache.NewEval()
-
 	evaluator := &Evaluator{
 		Meta: &ContextMeta{
 			Env: "foo",
 		},
-		EvalCache: evalCache,
-		Changes:   plans.NewChanges().SyncWrapper().WithCache(evalCache),
+		Changes: plans.NewChanges().SyncWrapper(),
 		Config: &configs.Config{
 			Module: &configs.Module{
 				ManagedResources: map[string]*configs.Resource{
@@ -280,7 +277,8 @@ func TestEvaluatorGetResource(t *testing.T) {
 				},
 			},
 		},
-		State: stateSync.WithCache(evalCache),
+		EvalCache: NewEval(),
+		State:     stateSync,
 		Plugins: schemaOnlyProvidersForTesting(map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): {
 				ResourceTypes: map[string]providers.Schema{
@@ -497,14 +495,12 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 	csrc, _ := change.Encode(schema.ImpliedType())
 	changesSync.AppendResourceInstanceChange(csrc)
 
-	evalCache := cache.NewEval()
-
 	evaluator := &Evaluator{
 		Meta: &ContextMeta{
 			Env: "foo",
 		},
-		EvalCache: evalCache,
-		Changes:   changesSync.WithCache(evalCache),
+		EvalCache: NewEval(),
+		Changes:   changesSync,
 		Config: &configs.Config{
 			Module: &configs.Module{
 				ManagedResources: map[string]*configs.Resource{
@@ -521,7 +517,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 				},
 			},
 		},
-		State:   stateSync.WithCache(evalCache),
+		State:   stateSync,
 		Plugins: schemaOnlyProvidersForTesting(schemas.Providers, t),
 	}
 
@@ -625,8 +621,6 @@ func TestEvaluatorGetModule(t *testing.T) {
 }
 
 func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesSync) *Evaluator {
-	evalCache := cache.NewEval()
-
 	return &Evaluator{
 		Meta: &ContextMeta{
 			Env: "foo",
@@ -653,8 +647,8 @@ func evaluatorForModule(stateSync *states.SyncState, changesSync *plans.ChangesS
 				},
 			},
 		},
-		EvalCache: evalCache,
-		State:     stateSync.WithCache(evalCache),
-		Changes:   changesSync.WithCache(evalCache),
+		EvalCache: NewEval(),
+		State:     stateSync,
+		Changes:   changesSync,
 	}
 }
