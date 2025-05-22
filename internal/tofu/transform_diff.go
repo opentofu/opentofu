@@ -84,6 +84,8 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 		resourceNodes[addr] = append(resourceNodes[addr], rn)
 	}
 
+	resourceRoots := map[string]dag.Vertex{}
+
 	for _, rc := range changes.Resources {
 		addr := rc.Addr
 		dk := rc.DeposedKey
@@ -208,6 +210,15 @@ func (t *DiffTransformer) Transform(_ context.Context, g *Graph) error {
 			for _, rsrcNode := range resourceNodes[rsrcAddr] {
 				g.Connect(dag.BasicEdge(node, rsrcNode))
 			}
+
+			root, ok := resourceRoots[rsrcAddr]
+			if !ok {
+				root = &NodeResourceHack{abstract.NodeAbstractResource}
+				g.Add(root)
+				resourceRoots[rsrcAddr] = root
+			}
+			g.Connect(dag.BasicEdge(root, node))
+
 		}
 
 		if delete {

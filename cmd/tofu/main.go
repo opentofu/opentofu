@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -67,6 +68,14 @@ func main() {
 
 func realMain() int {
 	defer logging.PanicHandler()
+
+	f, err := os.Create("./profile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+	pprof.StartCPUProfile(f)
+	defer pprof.StopCPUProfile()
 
 	ctx, err := tracing.OpenTelemetryInit(context.Background())
 	if err != nil {

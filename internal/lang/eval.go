@@ -327,7 +327,7 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 	// Calling NewChild() on a nil parent will
 	// produce an EvalContext with no parent.
 	ctx := parent.NewChild()
-	ctx.Functions = make(map[string]function.Function)
+	ctx.Functions = make(map[string]function.Function, len(s.Functions()))
 	ctx.Variables = make(map[string]cty.Value)
 
 	for name, fn := range s.Functions() {

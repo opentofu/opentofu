@@ -925,9 +925,12 @@ func (n *NodeAbstractResourceInstance) plan(
 	}
 
 	// Evaluate the configuration
-	forEach, _ := evaluateForEachExpression(n.Config.ForEach, ctx, n.Addr)
+	/*forEach, _ := evaluateForEachExpression(n.Config.ForEach, ctx, n.Addr)
 
-	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
+	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)*/
+	if n.Addr.Resource.Key != nil {
+		keyData = ctx.InstanceExpander().GetResourceInstanceRepetitionData(n.Addr)
+	}
 
 	checkDiags := evalCheckRules(
 		addrs.ResourcePrecondition,

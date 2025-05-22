@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/logging"
 )
 
 // GraphNodeReferenceable must be implemented by any node that represents
@@ -120,7 +121,7 @@ type ReferenceTransformer struct{}
 func (t *ReferenceTransformer) Transform(_ context.Context, g *Graph) error {
 	// Build a reference map so we can efficiently look up the references
 	vs := g.Vertices()
-	m := NewReferenceMap(vs)
+	m := NewReferenceMap(g)
 
 	// Find the things that reference things and connect them
 	for _, v := range vs {
@@ -131,13 +132,15 @@ func (t *ReferenceTransformer) Transform(_ context.Context, g *Graph) error {
 		}
 
 		parents := m.References(v)
-		parentsDbg := make([]string, len(parents))
-		for i, v := range parents {
-			parentsDbg[i] = dag.VertexName(v)
+		if logging.IsDebugOrHigher() {
+			parentsDbg := make([]string, len(parents))
+			for i, v := range parents {
+				parentsDbg[i] = dag.VertexName(v)
+			}
+			log.Printf(
+				"[DEBUG] ReferenceTransformer: %q references: %v",
+				dag.VertexName(v), parentsDbg)
 		}
-		log.Printf(
-			"[DEBUG] ReferenceTransformer: %q references: %v",
-			dag.VertexName(v), parentsDbg)
 
 		for _, parent := range parents {
 			// A destroy plan relies solely on the state, so we only need to
@@ -191,7 +194,7 @@ func (t attachDataResourceDependsOnTransformer) Transform(_ context.Context, g *
 	// This is very similar to what's done in ReferenceTransformer, but we keep
 	// implementation separate as they may need to change independently.
 	vertices := g.Vertices()
-	refMap := NewReferenceMap(vertices)
+	refMap := NewReferenceMap(g)
 
 	for _, v := range vertices {
 		depender, ok := v.(graphNodeAttachDataResourceDependsOn)
@@ -312,6 +315,9 @@ func (m ReferenceMap) References(v dag.Vertex) []dag.Vertex {
 		}
 	}
 
+	//var resources []dag.Vertex
+	//var resourceInstances []dag.Vertex
+
 	for _, ref := range rn.References() {
 		matches = append(matches, m.addReference(vertexReferencePath(v), v, ref)...)
 	}
@@ -357,6 +363,7 @@ func (m ReferenceMap) addReference(path addrs.Module, current dag.Vertex, ref *a
 		}
 		matches = append(matches, rv)
 	}
+
 	return matches
 }
 
@@ -558,7 +565,9 @@ func (m *ReferenceMap) referenceMapKey(referrer dag.Vertex, addr addrs.Reference
 
 // NewReferenceMap is used to create a new reference map for the
 // given set of vertices.
-func NewReferenceMap(vs []dag.Vertex) ReferenceMap {
+func NewReferenceMap(g *Graph) ReferenceMap {
+	vs := g.Vertices()
+
 	// Build the lookup table
 	m := make(ReferenceMap)
 	for _, v := range vs {
@@ -574,6 +583,32 @@ func NewReferenceMap(vs []dag.Vertex) ReferenceMap {
 		for _, addr := range rn.ReferenceableAddrs() {
 			key := m.mapKey(path, addr)
 			m[key] = append(m[key], v)
+		}
+	}
+
+	for key, val := range m {
+		if len(val) == 1 {
+			continue
+		}
+		println(key)
+		// Locate root
+		var potentialRoots []dag.Vertex
+
+		for _, vr := range val {
+			if _, ok := vr.(*NodeResourceHack); ok {
+				potentialRoots = append(potentialRoots, vr)
+			}
+		}
+		println(len(potentialRoots))
+		if len(potentialRoots) == 1 {
+			println("OVERRIDE")
+			m[key] = potentialRoots
+			/*parent := potentialRoots[0]
+			for _, v := range val {
+				if v != parent {
+					g.Connect(dag.BasicEdge(v, parent))
+				}
+			}*/
 		}
 	}
 

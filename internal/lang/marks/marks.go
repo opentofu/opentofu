@@ -175,6 +175,21 @@ func ExtractDeprecatedDiagnosticsWithExpr(val cty.Value, expr hcl.Expression) (c
 }
 
 func unmarkDeepWithPathsDeprecated(val cty.Value) (cty.Value, []cty.PathValueMarks) {
+	// quick check for marks
+	containsMark := false
+	_ = cty.Walk(val, func(p cty.Path, v cty.Value) (bool, error) {
+		for m := range v.Marks() {
+			if _, ok := m.(deprecationMark); ok {
+				containsMark = true
+				return false, nil
+			}
+		}
+		return true, nil
+	})
+
+	if !containsMark {
+		return val, nil
+	}
 	unmarked, pathMarks := val.UnmarkDeepWithPaths()
 
 	var deprecationMarks []cty.PathValueMarks

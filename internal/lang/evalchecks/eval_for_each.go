@@ -245,7 +245,7 @@ func performSetValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, forEach
 
 // markSafeLengthInt allows calling LengthInt on marked values safely
 func markSafeLengthInt(val cty.Value) int {
-	v, _ := val.UnmarkDeep()
+	v, _ := val.Unmark()
 	return v.LengthInt()
 }
 

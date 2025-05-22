@@ -102,18 +102,21 @@ func (g *AcyclicGraph) TransitiveReduction() {
 	// v such that the edge (u,v) exists (v is a direct descendant of u).
 	//
 	// For each v-prime reachable from v, remove the edge (u, v-prime).
+	removed := 0
 	for _, u := range g.Vertices() {
 		uTargets := g.downEdgesNoCopy(u)
 
 		g.DepthFirstWalk(g.downEdgesNoCopy(u), func(v Vertex, d int) error {
 			shared := uTargets.Intersection(g.downEdgesNoCopy(v))
 			for _, vPrime := range shared {
+				removed += 1
 				g.RemoveEdge(BasicEdge(u, vPrime))
 			}
 
 			return nil
 		})
 	}
+	println(removed)
 }
 
 // Validate validates the DAG. A DAG is valid if it has a single root

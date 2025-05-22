@@ -28,11 +28,19 @@ var impureFunctions = []string{
 // This should probably be replaced with addrs.Function everywhere
 const CoreNamespace = addrs.FunctionNamespaceCore + "::"
 
+var hack map[string]function.Function
+
 // Functions returns the set of functions that should be used to when evaluating
 // expressions in the receiving scope.
 func (s *Scope) Functions() map[string]function.Function {
 	s.funcsLock.Lock()
+	defer s.funcsLock.Unlock()
 	if s.funcs == nil {
+		if hack != nil {
+			s.funcs = hack
+			return hack
+		}
+
 		s.funcs = makeBaseFunctionTable(s.BaseDir)
 		if s.ConsoleMode {
 			// The type function is only available in OpenTofu console.
@@ -64,8 +72,8 @@ func (s *Scope) Functions() map[string]function.Function {
 		for _, name := range coreNames {
 			s.funcs[CoreNamespace+name] = s.funcs[name]
 		}
+		hack = s.funcs
 	}
-	s.funcsLock.Unlock()
 
 	return s.funcs
 }
