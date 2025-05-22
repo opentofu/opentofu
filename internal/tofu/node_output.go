@@ -375,7 +375,7 @@ func (n *NodeApplyableOutput) Execute(_ context.Context, evalCtx EvalContext, op
 		// a sensitive result, to help avoid accidental exposure in the state
 		// of a sensitive value that the user doesn't want to include there.
 		if n.Addr.Module.IsRoot() {
-			if (!n.Config.SensitiveBefore || !n.Config.SensitiveAfter) && marks.Contains(val, marks.Sensitive) {
+			if !n.Config.Sensitive && marks.Contains(val, marks.Sensitive) {
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Output refers to sensitive values",
@@ -387,6 +387,7 @@ If you do intend to export this data, annotate the output value as sensitive by 
 				})
 			}
 		}
+
 	}
 
 	// handling the interpolation error
@@ -534,7 +535,6 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// if this is a root module, try to get a before value from the state for
 		// the diff
 		sensitiveBefore := false
-		sensitiveAfter := false
 		deprecatedBefore := ""
 		before := cty.NullVal(cty.DynamicPseudoType)
 
@@ -547,7 +547,6 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 				if name == n.Addr.OutputValue.Name {
 					before = o.Value
 					sensitiveBefore = o.SensitiveBefore
-					sensitiveAfter = o.SensitiveAfter
 					deprecatedBefore = o.Deprecated
 					newOutput = false
 					break
@@ -558,7 +557,16 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// We will not show the value if either the before or after are marked
 		// as sensitive. We can show the value again once sensitivity is
 		// removed from both the config and the state.
-		sensitiveChange := n.Config.SensitiveBefore || n.Config.SensitiveAfter
+		// sensitiveChange := n.Config.Sensitive || mod.OutputValues[n.Addr.OutputValue.Name].SensitiveBefore
+		sensitiveChange := true
+		sensitiveWarning := false
+
+		// if !n.Config.Sensitive && mod.OutputValues[n.Addr.OutputValue.Name].SensitiveBefore {
+		if !n.Config.Sensitive {
+			log.Printf("[DEBUG] setValue: Congrats, there's a diff in Config.Sensitive (%s) and the SensitiveBefore (unknown)", n.Config.Sensitive)
+			sensitiveWarning = true
+		}
+		log.Printf("[DEBUG] setValue: sensitiveWarning(%t)", sensitiveWarning)
 
 		// strip any marks here just to be sure we don't panic on the True comparison
 		unmarkedVal, _ := val.UnmarkDeep()
@@ -579,8 +587,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		case val.IsWhollyKnown() &&
 			unmarkedVal.Equals(before).True() &&
-			n.Config.SensitiveBefore == sensitiveBefore &&
-			n.Config.SensitiveAfter == sensitiveAfter &&
+			n.Config.Sensitive == sensitiveBefore &&
 			n.Config.Deprecated == deprecatedBefore:
 			// Sensitivity and deprecation must also match to be a NoOp.
 			// Theoretically marks may not match here, but sensitivity is the
@@ -640,5 +647,29 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		val = cty.UnknownAsNull(val).MarkWithPaths(pvms)
 	}
 
-	state.SetOutputValue(n.Addr, val, n.Config.SensitiveBefore, n.Config.SensitiveAfter, n.Config.Deprecated)
+	state.SetOutputValue(n.Addr, val, n.Config.Sensitive, n.Config.Deprecated)
+}
+
+func checkSensitivityOutputs(outputs map[string]*configs.Output, prevRunState *states.State) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	for _, output := range outputs {
+		configOutputSensitivity := output.Sensitive
+		stateOutputSensitivityBefore := false
+
+		// Need to figure out how to get the correct absolute address here.
+		stateOutput := prevRunState.OutputValue(output.Addr().Absolute(TODOTODO))
+
+		if stateOutput != nil {
+			stateOutputSensitivityBefore = stateOutput.SensitiveBefore
+		}
+		if stateOutputSensitivityBefore && !configOutputSensitivity {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Output change in sensitivity",
+				fmt.Sprintf("A previously sesnitive output is being changed to insensitive: %q.", output.Name),
+			))
+		}
+	}
+
+	return diags
 }

@@ -3,6 +3,7 @@
 # This output starts non-sensitive, and the test will change it to sensitive
 output "sensitive_after" {
   value = "after"
+  sensitive = false
 }
 
 # This output starts sensitive, and the test will change it to non-sensitive
@@ -14,11 +15,13 @@ output "sensitive_before" {
 # Regular output unchanged, to verify it doesn't show up in the plan
 output "unchanged_insensitive" {
   value = "unchanged"
+  sensitive = false
 }
 
 # This output's value changes, to verify it shows up in the plan
 output "changed_insensitive" {
   value = "changed_but_always_insensitive"
+  sensitive = false
 }
 
 output "changed_sensitive" {
@@ -29,4 +32,5 @@ output "changed_sensitive" {
 # This output is added, to verify it shows up in the plan
 output "added_insensitive" {
   value = "added_but_always_insensitive"
+  sensitive = false
 }

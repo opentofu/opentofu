@@ -214,6 +214,8 @@ func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState
 	// includes language asking the user to report a bug.
 	varDiags := checkInputVariables(config.Module.Variables, opts.SetVariables)
 	diags = diags.Append(varDiags)
+	sensitivityDiags := checkSensitivityOutputs(config.Module.Outputs, prevRunState)
+	diags = diags.Append(sensitivityDiags)
 
 	// Already having all the variables' values figured out, we can now warn on the user if it's using
 	// variables that are deprecated
