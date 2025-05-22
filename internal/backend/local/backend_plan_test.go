@@ -245,30 +245,30 @@ func TestLocal_planOutputSensitivityChanged(t *testing.T) {
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "sensitive_after"},
-		}, cty.StringVal("after"), false, true, "") // starts non-sensitive
+		}, cty.StringVal("after"), false, "") // starts non-sensitive
 
 		// Output that will become non-sensitive
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "sensitive_before"},
-		}, cty.StringVal("before"), true, false, "") // starts sensitive
+		}, cty.StringVal("before"), true, "") // starts sensitive
 
 		// Outputs that remain unchanged
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "unchanged_insensitive"},
-		}, cty.StringVal("unchanged"), false, false, "") // starts non-sensitive
+		}, cty.StringVal("unchanged"), false, "") // starts non-sensitive
 
 		// Outputs with actual value changes (for control comparison)
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "changed_insensitive"},
-		}, cty.StringVal("not_yet_changed"), false, false, "") // starts non-sensitive
+		}, cty.StringVal("not_yet_changed"), false, "") // starts non-sensitive
 
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance,
 			OutputValue: addrs.OutputValue{Name: "changed_sensitive"},
-		}, cty.StringVal("not_yet_changed"), true, true, "") // starts sensitive
+		}, cty.StringVal("not_yet_changed"), true, "") // starts sensitive
 	}))
 
 	outDir := t.TempDir()

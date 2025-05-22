@@ -150,8 +150,6 @@ func (o *Output) merge(oo *Output) hcl.Diagnostics {
 		o.Expr = oo.Expr
 	}
 	if oo.SensitiveSet {
-		o.SensitiveBefore = oo.SensitiveBefore
-		o.SensitiveAfter = oo.SensitiveAfter
 		o.SensitiveSet = oo.SensitiveSet
 	}
 	if oo.Deprecated != "" {

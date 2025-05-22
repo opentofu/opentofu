@@ -111,12 +111,11 @@ type resource struct {
 }
 
 type output struct {
-	SensitiveBefore bool       `json:"sensitive_before,omitempty"`
-	SensitiveAfter  bool       `json:"sensitive_after,omitempty"`
-	Deprecated      string     `json:"deprecated,omitempty"`
-	Expression      expression `json:"expression,omitempty"`
-	DependsOn       []string   `json:"depends_on,omitempty"`
-	Description     string     `json:"description,omitempty"`
+	Sensitive   bool       `json:"sensitive,omitempty"`
+	Deprecated  string     `json:"deprecated,omitempty"`
+	Expression  expression `json:"expression,omitempty"`
+	DependsOn   []string   `json:"depends_on,omitempty"`
+	Description string     `json:"description,omitempty"`
 }
 
 type provisioner struct {
@@ -328,10 +327,9 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 	outputs := make(map[string]output)
 	for _, v := range c.Module.Outputs {
 		o := output{
-			SensitiveBefore: v.SensitiveBefore,
-			SensitiveAfter:  v.SensitiveAfter,
-			Deprecated:      v.Deprecated,
-			Expression:      marshalExpression(v.Expr),
+			Sensitive:  v.Sensitive,
+			Deprecated: v.Deprecated,
+			Expression: marshalExpression(v.Expr),
 		}
 		if v.Description != "" {
 			o.Description = v.Description
