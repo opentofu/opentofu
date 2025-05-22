@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"testing"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -19,7 +20,7 @@ func simpleTestSchemas() *Schemas {
 
 	return &Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
-			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(),
+			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(context.TODO()),
 		},
 		Provisioners: map[string]*configschema.Block{
 			"test": provisioner.GetSchemaResponse.Provisioner,

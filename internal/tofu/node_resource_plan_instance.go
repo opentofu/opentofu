@@ -508,7 +508,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 		return nil, diags
 	}
 
-	resp := provider.ImportResourceState(providers.ImportResourceStateRequest{
+	resp := provider.ImportResourceState(ctx, providers.ImportResourceStateRequest{
 		TypeName: addr.Resource.Resource.Type,
 		ID:       importId,
 	})

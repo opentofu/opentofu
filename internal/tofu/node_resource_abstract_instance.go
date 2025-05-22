@@ -630,7 +630,7 @@ func (n *NodeAbstractResourceInstance) planDestroy(ctx context.Context, evalCtx 
 
 	// Allow the provider to check the destroy plan, and insert any necessary
 	// private data.
-	resp := provider.PlanResourceChange(providers.PlanResourceChangeRequest{
+	resp := provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 		TypeName:         n.Addr.Resource.Resource.Type,
 		Config:           nullVal,
 		PriorState:       unmarkedPriorVal,
@@ -799,7 +799,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 		ProviderMeta: metaConfigVal,
 	}
 
-	resp := provider.ReadResource(providerReq)
+	resp := provider.ReadResource(ctx, providerReq)
 	if n.Config != nil {
 		resp.Diagnostics = resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String())
 	}
@@ -993,12 +993,10 @@ func (n *NodeAbstractResourceInstance) plan(
 	// we must unmark and use the original config, since the ignore_changes
 	// handling below needs access to the marks.
 	unmarkedConfigVal, _ := origConfigVal.UnmarkDeep()
-	validateResp := provider.ValidateResourceConfig(
-		providers.ValidateResourceConfigRequest{
-			TypeName: n.Addr.Resource.Resource.Type,
-			Config:   unmarkedConfigVal,
-		},
-	)
+	validateResp := provider.ValidateResourceConfig(ctx, providers.ValidateResourceConfigRequest{
+		TypeName: n.Addr.Resource.Resource.Type,
+		Config:   unmarkedConfigVal,
+	})
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
 		return nil, nil, keyData, diags
@@ -1033,7 +1031,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		return nil, nil, keyData, diags
 	}
 
-	resp := provider.PlanResourceChange(providers.PlanResourceChangeRequest{
+	resp := provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 		TypeName:         n.Addr.Resource.Resource.Type,
 		Config:           unmarkedConfigVal,
 		PriorState:       unmarkedPriorVal,
@@ -1274,7 +1272,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		// create a new proposed value from the null state and the config
 		proposedNewVal = objchange.ProposedNew(schema, nullPriorVal, unmarkedConfigVal)
 
-		resp = provider.PlanResourceChange(providers.PlanResourceChangeRequest{
+		resp = provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 			TypeName:         n.Addr.Resource.Resource.Type,
 			Config:           unmarkedConfigVal,
 			PriorState:       nullPriorVal,
@@ -1636,7 +1634,7 @@ func processIgnoreChangesIndividual(prior, config cty.Value, ignoreChangesPath [
 }
 
 type ProviderWithEncryption interface {
-	ReadDataSourceEncrypted(req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse
+	ReadDataSourceEncrypted(ctx context.Context, req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse
 }
 
 // readDataSource handles everything needed to call ReadDataSource on the provider.
@@ -1671,12 +1669,10 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalC
 	configVal, pvm = configVal.UnmarkDeepWithPaths()
 
 	log.Printf("[TRACE] readDataSource: Re-validating config for %s", n.Addr)
-	validateResp := provider.ValidateDataResourceConfig(
-		providers.ValidateDataResourceConfigRequest{
-			TypeName: n.Addr.ContainingResource().Resource.Type,
-			Config:   configVal,
-		},
-	)
+	validateResp := provider.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
+		TypeName: n.Addr.ContainingResource().Resource.Type,
+		Config:   configVal,
+	})
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
 		return newVal, diags
@@ -1701,9 +1697,9 @@ func (n *NodeAbstractResourceInstance) readDataSource(ctx context.Context, evalC
 	var resp providers.ReadDataSourceResponse
 	if tfp, ok := provider.(ProviderWithEncryption); ok {
 		// Special case for terraform_remote_state
-		resp = tfp.ReadDataSourceEncrypted(req, n.Addr, evalCtx.GetEncryption())
+		resp = tfp.ReadDataSourceEncrypted(ctx, req, n.Addr, evalCtx.GetEncryption())
 	} else {
-		resp = provider.ReadDataSource(req)
+		resp = provider.ReadDataSource(ctx, req)
 	}
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
@@ -2560,7 +2556,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		return newState, diags
 	}
 
-	resp := provider.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	resp := provider.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
 		TypeName:       n.Addr.Resource.Resource.Type,
 		PriorState:     unmarkedBefore,
 		Config:         unmarkedConfigVal,

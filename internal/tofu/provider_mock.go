@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -106,7 +107,7 @@ type MockProvider struct {
 	CloseError  error
 }
 
-func (p *MockProvider) GetProviderSchema() providers.GetProviderSchemaResponse {
+func (p *MockProvider) GetProviderSchema(_ context.Context) providers.GetProviderSchemaResponse {
 	p.Lock()
 	defer p.Unlock()
 	p.GetProviderSchemaCalled = true
@@ -128,7 +129,7 @@ func (p *MockProvider) getProviderSchema() providers.GetProviderSchemaResponse {
 	}
 }
 
-func (p *MockProvider) ValidateProviderConfig(r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
+func (p *MockProvider) ValidateProviderConfig(_ context.Context, r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -146,7 +147,7 @@ func (p *MockProvider) ValidateProviderConfig(r providers.ValidateProviderConfig
 	return resp
 }
 
-func (p *MockProvider) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
+func (p *MockProvider) ValidateResourceConfig(_ context.Context, r providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -178,7 +179,7 @@ func (p *MockProvider) ValidateResourceConfig(r providers.ValidateResourceConfig
 	return resp
 }
 
-func (p *MockProvider) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
+func (p *MockProvider) ValidateDataResourceConfig(_ context.Context, r providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -208,7 +209,7 @@ func (p *MockProvider) ValidateDataResourceConfig(r providers.ValidateDataResour
 	return resp
 }
 
-func (p *MockProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
+func (p *MockProvider) UpgradeResourceState(_ context.Context, r providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -257,7 +258,7 @@ func (p *MockProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 	return resp
 }
 
-func (p *MockProvider) MoveResourceState(r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+func (p *MockProvider) MoveResourceState(_ context.Context, r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
 	var resp providers.MoveResourceStateResponse
 	p.Lock()
 	defer p.Unlock()
@@ -310,7 +311,7 @@ func (p *MockProvider) MoveResourceState(r providers.MoveResourceStateRequest) p
 	return resp
 }
 
-func (p *MockProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+func (p *MockProvider) ConfigureProvider(_ context.Context, r providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -328,7 +329,7 @@ func (p *MockProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (
 	return resp
 }
 
-func (p *MockProvider) Stop() error {
+func (p *MockProvider) Stop(_ context.Context) error {
 	// We intentionally don't lock in this one because the whole point of this
 	// method is to be called concurrently with another operation that can
 	// be cancelled.  The provider itself is responsible for handling
@@ -342,7 +343,7 @@ func (p *MockProvider) Stop() error {
 	return p.StopResponse
 }
 
-func (p *MockProvider) ReadResource(r providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
+func (p *MockProvider) ReadResource(_ context.Context, r providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -383,7 +384,7 @@ func (p *MockProvider) ReadResource(r providers.ReadResourceRequest) (resp provi
 	return resp
 }
 
-func (p *MockProvider) PlanResourceChange(r providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+func (p *MockProvider) PlanResourceChange(_ context.Context, r providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -463,7 +464,7 @@ func (p *MockProvider) PlanResourceChange(r providers.PlanResourceChangeRequest)
 	return resp
 }
 
-func (p *MockProvider) ApplyResourceChange(r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
+func (p *MockProvider) ApplyResourceChange(_ context.Context, r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
 	p.Lock()
 	defer p.Unlock()
 	p.ApplyResourceChangeCalled = true
@@ -518,7 +519,7 @@ func (p *MockProvider) ApplyResourceChange(r providers.ApplyResourceChangeReques
 	return resp
 }
 
-func (p *MockProvider) ImportResourceState(r providers.ImportResourceStateRequest) (resp providers.ImportResourceStateResponse) {
+func (p *MockProvider) ImportResourceState(_ context.Context, r providers.ImportResourceStateRequest) (resp providers.ImportResourceStateResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -560,7 +561,7 @@ func (p *MockProvider) ImportResourceState(r providers.ImportResourceStateReques
 
 	return resp
 }
-func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
+func (p *MockProvider) ReadDataSource(_ context.Context, r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -583,7 +584,7 @@ func (p *MockProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	return resp
 }
 
-func (p *MockProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
+func (p *MockProvider) GetFunctions(_ context.Context) (resp providers.GetFunctionsResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -599,7 +600,7 @@ func (p *MockProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
 	return resp
 }
 
-func (p *MockProvider) CallFunction(r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+func (p *MockProvider) CallFunction(_ context.Context, r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -616,7 +617,7 @@ func (p *MockProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 	return resp
 }
 
-func (p *MockProvider) Close() error {
+func (p *MockProvider) Close(_ context.Context) error {
 	p.Lock()
 	defer p.Unlock()
 
