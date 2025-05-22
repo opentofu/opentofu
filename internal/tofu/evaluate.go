@@ -69,6 +69,51 @@ type Evaluator struct {
 	Changes *plans.ChangesSync
 
 	PlanTimestamp time.Time
+
+	// Given that the graph should ensure that evaluation will prevent evaluating
+	// resources before they are available via changes/state, we can cache the
+	// majority of the work needed to build the resulting resource objects.
+	EvalCache *EvalCache
+}
+
+type EvalCache struct {
+	resourcesLock sync.Mutex
+	resources     map[string]*cacheEntry
+}
+
+func NewEvalCache() *EvalCache {
+	return &EvalCache{
+		resources: map[string]*cacheEntry{},
+	}
+}
+
+type cacheEntry struct {
+	sync.Mutex
+
+	populated bool
+	value     *cty.Value
+	diags     tfdiags.Diagnostics
+}
+
+func (e *EvalCache) Resource(addr addrs.AbsResourceInstance, populate func() (*cty.Value, tfdiags.Diagnostics)) (*cty.Value, tfdiags.Diagnostics) {
+	key := addr.String()
+
+	e.resourcesLock.Lock()
+	entry, ok := e.resources[key]
+	if !ok {
+		entry = &cacheEntry{populated: false}
+		e.resources[key] = entry
+	}
+	e.resourcesLock.Unlock()
+
+	entry.Lock()
+	defer entry.Unlock()
+	if !entry.populated {
+		entry.value, entry.diags = populate()
+		entry.populated = true
+	}
+
+	return entry.value, entry.diags
 }
 
 // Scope creates an evaluation scope for the given module path and optional
@@ -750,13 +795,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 	// Fetch all instance data in a single call.  We previously used GetResourceInstanceChange in
 	// each loop iteration which caused n^2 locking contention.  This is especially problematic for
 	// resources with large count/for_each.
-	instChanges := d.Evaluator.Changes.GetChangesForConfigResource(addr.InModule(moduleConfig.Path))
-	instMap := map[string]*plans.ResourceInstanceChangeSrc{}
-	for _, rc := range instChanges {
-		if rc.DeposedKey == states.NotDeposed {
-			instMap[rc.Addr.String()] = rc
-		}
-	}
+	var instMap map[string]*plans.ResourceInstanceChangeSrc
 
 	// Decode all instances in the current state
 	instances := map[addrs.InstanceKey]cty.Value{}
@@ -770,84 +809,103 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 
 		instAddr := addr.Instance(key).Absolute(d.ModulePath)
 
-		change := instMap[instAddr.String()]
-		if change != nil {
-			// Don't take any resources that are yet to be deleted into account.
-			// If the referenced resource is CreateBeforeDestroy, then orphaned
-			// instances will be in the state, as they are not destroyed until
-			// after their dependants are updated.
-			if change.Action == plans.Delete {
-				if !pendingDestroy {
-					continue
+		rv, rd := d.Evaluator.EvalCache.Resource(instAddr, func() (*cty.Value, tfdiags.Diagnostics) {
+			var diags tfdiags.Diagnostics
+
+			if instMap == nil {
+				instMap = map[string]*plans.ResourceInstanceChangeSrc{}
+				instChanges := d.Evaluator.Changes.GetChangesForConfigResource(addr.InModule(moduleConfig.Path))
+				for _, rc := range instChanges {
+					if rc.DeposedKey == states.NotDeposed {
+						instMap[rc.Addr.String()] = rc
+					}
 				}
 			}
-		}
 
-		// Planned resources are temporarily stored in state with empty values,
-		// and need to be replaced by the planned value here.
-		if instance.Current.Status == states.ObjectPlanned {
-			if change == nil {
-				// If the object is in planned status then we should not get
-				// here, since we should have found a pending value in the plan
-				// above instead.
-				diags = diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Missing pending object in plan",
-					Detail:   fmt.Sprintf("Instance %s is marked as having a change pending but that change is not recorded in the plan. This is a bug in OpenTofu; please report it.", instAddr),
-					Subject:  &config.DeclRange,
-				})
-				continue
+			change := instMap[instAddr.String()]
+			if change != nil {
+				// Don't take any resources that are yet to be deleted into account.
+				// If the referenced resource is CreateBeforeDestroy, then orphaned
+				// instances will be in the state, as they are not destroyed until
+				// after their dependants are updated.
+				if change.Action == plans.Delete {
+					if !pendingDestroy {
+						return nil, nil
+					}
+				}
 			}
-			val, err := change.After.Decode(ty)
+
+			// Planned resources are temporarily stored in state with empty values,
+			// and need to be replaced by the planned value here.
+			if instance.Current.Status == states.ObjectPlanned {
+				if change == nil {
+					// If the object is in planned status then we should not get
+					// here, since we should have found a pending value in the plan
+					// above instead.
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Missing pending object in plan",
+						Detail:   fmt.Sprintf("Instance %s is marked as having a change pending but that change is not recorded in the plan. This is a bug in OpenTofu; please report it.", instAddr),
+						Subject:  &config.DeclRange,
+					})
+					return nil, diags
+				}
+				val, err := change.After.Decode(ty)
+				if err != nil {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Invalid resource instance data in plan",
+						Detail:   fmt.Sprintf("Instance %s data could not be decoded from the plan: %s.", instAddr, err),
+						Subject:  &config.DeclRange,
+					})
+					return nil, diags
+				}
+
+				afterMarks := change.AfterValMarks
+				if schema.ContainsSensitive() {
+					// Now that we know that the schema contains sensitive marks,
+					// Combine those marks together to ensure that the value is marked correctly but not double marked
+					schemaMarks := schema.ValueMarks(val, nil)
+					afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
+				}
+
+				val = val.MarkWithPaths(afterMarks)
+				return &val, nil
+			}
+
+			instanceObjectSrc, err := instance.Current.Decode(ty)
 			if err != nil {
+				// This shouldn't happen, since by the time we get here we
+				// should have upgraded the state data already.
 				diags = diags.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
-					Summary:  "Invalid resource instance data in plan",
-					Detail:   fmt.Sprintf("Instance %s data could not be decoded from the plan: %s.", instAddr, err),
+					Summary:  "Invalid resource instance data in state",
+					Detail:   fmt.Sprintf("Instance %s data could not be decoded from the state: %s.", instAddr, err),
 					Subject:  &config.DeclRange,
 				})
-				continue
+				return nil, diags
 			}
 
-			afterMarks := change.AfterValMarks
+			val := instanceObjectSrc.Value
+
 			if schema.ContainsSensitive() {
+				var marks []cty.PathValueMarks
 				// Now that we know that the schema contains sensitive marks,
 				// Combine those marks together to ensure that the value is marked correctly but not double marked
+				val, marks = val.UnmarkDeepWithPaths()
 				schemaMarks := schema.ValueMarks(val, nil)
-				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
+
+				combined := combinePathValueMarks(marks, schemaMarks)
+				val = val.MarkWithPaths(combined)
 			}
-
-			instances[key] = val.MarkWithPaths(afterMarks)
-
-			continue
+			return &val, diags
+		})
+		if rd.HasErrors() {
+			diags = diags.Append(rd)
 		}
-
-		instanceObjectSrc, err := instance.Current.Decode(ty)
-		if err != nil {
-			// This shouldn't happen, since by the time we get here we
-			// should have upgraded the state data already.
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid resource instance data in state",
-				Detail:   fmt.Sprintf("Instance %s data could not be decoded from the state: %s.", instAddr, err),
-				Subject:  &config.DeclRange,
-			})
-			continue
+		if rv != nil {
+			instances[key] = *rv
 		}
-
-		val := instanceObjectSrc.Value
-
-		if schema.ContainsSensitive() {
-			var marks []cty.PathValueMarks
-			// Now that we know that the schema contains sensitive marks,
-			// Combine those marks together to ensure that the value is marked correctly but not double marked
-			val, marks = val.UnmarkDeepWithPaths()
-			schemaMarks := schema.ValueMarks(val, nil)
-
-			combined := combinePathValueMarks(marks, schemaMarks)
-			val = val.MarkWithPaths(combined)
-		}
-		instances[key] = val
 	}
 
 	// ret should be populated with a valid value in all cases below

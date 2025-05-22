@@ -95,6 +95,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		Operation:          w.Operation,
 		State:              w.State,
 		Changes:            w.Changes,
+		EvalCache:          NewEvalCache(),
 		Plugins:            w.Context.plugins,
 		VariableValues:     w.variableValues,
 		VariableValuesLock: &w.variableValuesLock,

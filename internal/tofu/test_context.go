@@ -85,6 +85,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 			Config:    ctx.Config,
 			Plugins:   ctx.plugins,
 			State:     state,
+			EvalCache: NewEvalCache(),
 			Changes:   changes,
 			VariableValues: func() map[string]map[string]cty.Value {
 				variables := map[string]map[string]cty.Value{
