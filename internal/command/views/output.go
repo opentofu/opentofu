@@ -85,8 +85,17 @@ func (v *OutputHuman) Output(name string, outputs map[string]*states.OutputValue
 
 		for _, k := range ks {
 			vs := outputs[k]
+<<<<<<< HEAD
 			if vs.Sensitive && !v.view.showSensitive {
 				fmt.Fprintf(outputBuf, "%s = <sensitive>\n", k)
+=======
+			if vs.SensitiveBefore && !vs.SensitiveAfter {
+				outputBuf.WriteString(fmt.Sprintf("%s = <change in sensitivity value: value to appear after apply>\n", k))
+			}
+			if vs.SensitiveBefore && !v.view.showSensitive {
+				// This is interesting. Look more here. Could be this is where I need to make my change
+				outputBuf.WriteString(fmt.Sprintf("%s = <sensitive>\n", k))
+>>>>>>> f80236c2f5 (expanding to all sensitiveBefore and sensitiveAfter)
 				continue
 			}
 
@@ -220,10 +229,11 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 	// for compatibility, so this is an emulation of the JSON
 	// serialization of outputs used in state format version 3.
 	type OutputMeta struct {
-		Sensitive  bool            `json:"sensitive"`
-		Deprecated string          `json:"deprecated,omitempty"`
-		Type       json.RawMessage `json:"type"`
-		Value      json.RawMessage `json:"value"`
+		SensitiveBefore bool            `json:"sensitive_before"`
+		SensitiveAfter  bool            `json:"sensitive_after"`
+		Deprecated      string          `json:"deprecated,omitempty"`
+		Type            json.RawMessage `json:"type"`
+		Value           json.RawMessage `json:"value"`
 	}
 	outputMetas := map[string]OutputMeta{}
 
@@ -239,10 +249,11 @@ func (v *OutputJSON) Output(name string, outputs map[string]*states.OutputValue)
 			return diags
 		}
 		outputMetas[n] = OutputMeta{
-			Sensitive:  os.Sensitive,
-			Deprecated: os.Deprecated,
-			Type:       json.RawMessage(jsonType),
-			Value:      json.RawMessage(jsonVal),
+			SensitiveBefore: os.SensitiveBefore,
+			SensitiveAfter:  os.SensitiveAfter,
+			Deprecated:      os.Deprecated,
+			Type:            json.RawMessage(jsonType),
+			Value:           json.RawMessage(jsonVal),
 		}
 	}
 

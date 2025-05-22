@@ -155,9 +155,10 @@ type Importing struct {
 }
 
 type Output struct {
-	Sensitive bool            `json:"sensitive"`
-	Type      json.RawMessage `json:"type,omitempty"`
-	Value     json.RawMessage `json:"value,omitempty"`
+	SensitiveBefore bool            `json:"sensitive_before"`
+	SensitiveAfter  bool            `json:"sensitive_after"`
+	Type            json.RawMessage `json:"type,omitempty"`
+	Value           json.RawMessage `json:"value,omitempty"`
 }
 
 // Variables is the JSON representation of the variables provided to the current
@@ -629,7 +630,10 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 		// a result, BeforeSensitive and AfterSensitive will be identical, and
 		// either false or true.
 		outputSensitive := cty.False
-		if oc.Sensitive {
+		if oc.SensitiveBefore {
+			outputSensitive = cty.True
+		}
+		if oc.SensitiveAfter {
 			outputSensitive = cty.True
 		}
 		sensitive, err := ctyjson.Marshal(outputSensitive, outputSensitive.Type())

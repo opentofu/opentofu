@@ -7,6 +7,7 @@ package plans
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -150,12 +151,12 @@ type OutputChangeSrc struct {
 	// change is sensitive and so a rendered version of the plan in the UI
 	// should elide the actual values while still indicating the action of the
 	// change.
-	Sensitive bool
+	SensitiveBefore bool
 
 	// BecomingNonSensitive, if true, indicates that this output is changing
 	// from sensitive to non-sensitive, and that the UI should show a special
 	// message about the value becoming visible.
-	BecomingNonSensitive bool
+	SensitiveAfter bool
 }
 
 // Decode unmarshals the raw representation of the output value being
@@ -165,11 +166,13 @@ func (ocs *OutputChangeSrc) Decode() (*OutputChange, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[DEBUG] ocs.SensitiveBefore value: %v", ocs.SensitiveBefore)
+	log.Printf("[DEBUG] ocs.SensitiveAfter value: %v", ocs.SensitiveAfter)
 	return &OutputChange{
-		Addr:                ocs.Addr,
-		Change:              *change,
-		Sensitive:           ocs.Sensitive,
-		BecomingNonSensitive: ocs.BecomingNonSensitive,
+		Addr:            ocs.Addr,
+		Change:          *change,
+		SensitiveBefore: ocs.SensitiveBefore,
+		SensitiveAfter:  ocs.SensitiveAfter,
 	}, nil
 }
 

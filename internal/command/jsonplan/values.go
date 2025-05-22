@@ -85,9 +85,10 @@ func marshalPlannedOutputs(changes *plans.Changes) (map[string]Output, error) {
 		}
 
 		ret[oc.Addr.OutputValue.Name] = Output{
-			Value:     json.RawMessage(after),
-			Type:      json.RawMessage(afterType),
-			Sensitive: oc.Sensitive,
+			Value:           json.RawMessage(after),
+			Type:            json.RawMessage(afterType),
+			SensitiveBefore: oc.SensitiveBefore,
+			SensitiveAfter:  oc.SensitiveAfter,
 		}
 	}
 
