@@ -255,7 +255,7 @@ The only `lifecycle` content that ephemerals should support are `precondition` a
 │ to be used strictly in "resource" blocks.
 ```
 
-The meta-argument `provisioner` should not be supported.
+The meta-arguments `provisioner` and `connection` should not be supported.
 #### Providers
 `provider` block is ephemeral by nature, meaning that the configuration of this is never stored into state/plan file.
 
