@@ -28,6 +28,7 @@ to inspect:
 
 - `-state`: Inspect the latest state snapshot, if any.
 - `-plan=FILENAME`: Inspect the plan stored in the given saved plan file.
+- `-config`: Inspect the current configuration (requires `-json`).
 
 The `-state` option is the default if none of these options are used. The
 target-selection options are mutually-exclusive.
@@ -58,6 +59,9 @@ depends on the selected artifact type:
 - `-plan=FILENAME` returns the [the JSON plan representation](../../internals/json-format.mdx#plan-representation),
   which also includes information about the configuration and
   prior state that the plan was based on.
+- `-config` returns [the JSON configuration representation](../../internals/json-format.mdx#configuration-representation),
+  providing exactly the same configuration-related information that the plan representation would include,
+  but without requiring a plan to be created first.
 
 ## Legacy Usage
 

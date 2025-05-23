@@ -53,6 +53,7 @@ func (e *errUnusableDataMisc) Unwrap() error {
 
 // ShowCommand is a Command implementation that reads and outputs the
 // contents of a OpenTofu plan or state file.
+// write about config here
 type ShowCommand struct {
 	Meta
 	viewType arguments.ViewType
@@ -135,6 +136,7 @@ Target selection options:
 
     -state          The latest state snapshot, if any.
     -plan=FILENAME  The plan from a saved plan file.
+    -config         Show the current configuration (requires -json).
 
   If no target selection options are provided, -state is the default.
 
@@ -188,6 +190,8 @@ func (c *ShowCommand) show(ctx context.Context, targetType arguments.ShowTargetT
 		return c.showFromLatestStateSnapshot(ctx, enc)
 	case arguments.ShowPlan:
 		return c.showFromSavedPlanFile(ctx, targetArg, enc)
+	case arguments.ShowConfig:
+		return c.showConfiguration(ctx)
 	case arguments.ShowUnknownType:
 		// This is a legacy case where we just have a filename and need to
 		// try treating it as either a saved plan file or a local state
@@ -525,4 +529,57 @@ func getStateFromBackend(ctx context.Context, b backend.Backend, workspace strin
 	// Get the latest state snapshot and return it
 	stateFile := statemgr.Export(stateStore)
 	return stateFile, nil
+}
+
+// showConfiguration returns a function that will display the current configuration
+// in JSON format. This is a new feature that requires -json to be specified.
+func (c *ShowCommand) showConfiguration(ctx context.Context) (showRenderFunc, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	// Check if the directory is empty
+	empty, err := configs.IsEmptyDir(".")
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error validating configuration directory",
+			fmt.Sprintf("OpenTofu encountered an unexpected error while verifying that the given configuration directory is valid: %s.", err),
+		))
+		return nil, diags
+	}
+	if empty {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"No configuration files",
+			"This directory contains no OpenTofu configuration files.",
+		))
+		return nil, diags
+	}
+
+	// Load the configuration
+	config, configDiags := c.loadConfig(ctx, ".")
+	diags = diags.Append(configDiags)
+	if configDiags.HasErrors() {
+		return nil, diags
+	}
+
+	// Load provider schemas (without state)
+	schemas, schemaDiags := c.MaybeGetSchemas(ctx, nil, config)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
+		return nil, diags
+	}
+	if schemas == nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Failed to load provider schemas",
+			"The configuration cannot be shown without provider schema information.",
+		))
+		return nil, diags
+	}
+
+	// Return a function that will render the configuration as JSON
+	return func(view views.Show) int {
+		// Display the configuration using the view
+		return view.DisplayConfig(config, schemas)
+	}, diags
 }
