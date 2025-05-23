@@ -131,6 +131,12 @@ func (c *Context) Plan(ctx context.Context, config *configs.Config, prevRunState
 	defer c.acquireRun("plan")()
 	var diags tfdiags.Diagnostics
 
+	// We'll get this started as soon as possible so that this I/O bound work
+	// can run concurrently with some CPU-bound work we're about to do. The
+	// next attempt to access schemas will block until the background task
+	// started by this call has completed.
+	c.plugins.LoadProviderSchemas(ctx, config, prevRunState)
+
 	// Save the downstream functions from needing to deal with these broken situations.
 	// No real callers should rely on these, but we have a bunch of old and
 	// sloppy tests that don't always populate arguments properly.
@@ -1074,6 +1080,8 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 func (c *Context) PlanGraphForUI(config *configs.Config, prevRunState *states.State, mode plans.Mode) (*Graph, tfdiags.Diagnostics) {
 	// For now though, this really is just the internal graph, confusing
 	// implementation details and all.
+
+	c.ensureProviderSchemasLoaded(context.TODO(), config, prevRunState)
 
 	var diags tfdiags.Diagnostics
 

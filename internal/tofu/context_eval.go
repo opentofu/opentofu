@@ -44,6 +44,12 @@ func (c *Context) Eval(ctx context.Context, config *configs.Config, state *state
 	// command. Internally, we create an evaluator in c.walk before walking
 	// the graph, and create scopes in ContextGraphWalker.
 
+	// We'll get this started as soon as possible so that this I/O bound work
+	// can run concurrently with some CPU-bound work we're about to do. The
+	// next attempt to access schemas will block until the background task
+	// started by this call has completed.
+	c.plugins.LoadProviderSchemas(ctx, config, state)
+
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("eval")()
 

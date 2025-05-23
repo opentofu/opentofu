@@ -36,6 +36,14 @@ func simpleTestSchemas() *Schemas {
 // The intended use for this is in testing components that use schemas to
 // drive other behavior, such as reference analysis during graph construction,
 // but that don't actually need to interact with providers otherwise.
+//
+// This function automatically preloads the schemas from the providers into
+// the cache of the returned object, and so this function is appropriate for
+// unit testing of individual components that typically expect someone else
+// to have already loaded the schemas, but should not be used for context
+// tests where schemas are supposed to be loaded on entry to the Context
+// methods, or any other situation where the correctness of the code under
+// test includes that it explicitly arranges for schemas to be loaded.
 func schemaOnlyProvidersForTesting(schemas map[addrs.Provider]providers.ProviderSchema, t *testing.T) *contextPlugins {
 	factories := make(map[addrs.Provider]providers.Factory, len(schemas))
 
@@ -51,5 +59,7 @@ func schemaOnlyProvidersForTesting(schemas map[addrs.Provider]providers.Provider
 		}
 	}
 
-	return newContextPlugins(factories, nil)
+	ret := newContextPlugins(factories, nil)
+	ret.preloadAllProviderSchemasForUnitTest(t)
+	return ret
 }

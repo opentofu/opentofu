@@ -37,6 +37,7 @@ func TestPlanGraphBuilder(t *testing.T) {
 		addrs.NewDefaultProvider("aws"):       providers.FactoryFixed(awsProvider),
 		addrs.NewDefaultProvider("openstack"): providers.FactoryFixed(openstackProvider),
 	}, nil)
+	plugins.preloadAllProviderSchemasForUnitTest(t)
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-basic"),
@@ -80,6 +81,7 @@ func TestPlanGraphBuilder_dynamicBlock(t *testing.T) {
 	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(provider),
 	}, nil)
+	plugins.preloadAllProviderSchemasForUnitTest(t)
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-dynblock"),
@@ -136,6 +138,7 @@ func TestPlanGraphBuilder_attrAsBlocks(t *testing.T) {
 	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("test"): providers.FactoryFixed(provider),
 	}, nil)
+	plugins.preloadAllProviderSchemasForUnitTest(t)
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "graph-builder-plan-attr-as-blocks"),
@@ -177,7 +180,7 @@ test_thing.b (expand)
 func TestPlanGraphBuilder_targetModule(t *testing.T) {
 	b := &PlanGraphBuilder{
 		Config:  testModule(t, "graph-builder-plan-target-module-provider"),
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child2", addrs.NoKey),
 		},
@@ -198,7 +201,7 @@ func TestPlanGraphBuilder_targetModule(t *testing.T) {
 func TestPlanGraphBuilder_excludeModule(t *testing.T) {
 	b := &PlanGraphBuilder{
 		Config:  testModule(t, "graph-builder-plan-target-module-provider"),
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child1", addrs.NoKey),
 		},
@@ -222,6 +225,7 @@ func TestPlanGraphBuilder_forEach(t *testing.T) {
 	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
 	}, nil)
+	plugins.preloadAllProviderSchemasForUnitTest(t)
 
 	b := &PlanGraphBuilder{
 		Config:    testModule(t, "plan-for-each"),

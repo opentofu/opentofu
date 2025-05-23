@@ -60,6 +60,10 @@ func (c *Context) TestContext(config *configs.Config, state *states.State, plan 
 // function, but no data or changes from the embedded plan is referenced in
 // this function.
 func (ctx *TestContext) EvaluateAgainstState(run *moduletest.Run) {
+	// We'll start loading the schemas we'll need in the background now so
+	// that they are most likely to be ready when we eventually need them.
+	ctx.Context.plugins.LoadProviderSchemas(context.TODO(), ctx.Config, ctx.State)
+
 	defer ctx.acquireRun("evaluate")()
 	ctx.evaluate(ctx.State.SyncWrapper(), plans.NewChanges().SyncWrapper(), run, walkApply)
 }
@@ -67,6 +71,10 @@ func (ctx *TestContext) EvaluateAgainstState(run *moduletest.Run) {
 // EvaluateAgainstPlan processes the assertions inside the provided
 // configs.TestRun against the embedded plan and state.
 func (ctx *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
+	// We'll start loading the schemas we'll need in the background now so
+	// that they are most likely to be ready when we eventually need them.
+	ctx.Context.plugins.LoadProviderSchemas(context.TODO(), ctx.Config, ctx.Plan.PriorState)
+
 	defer ctx.acquireRun("evaluate")()
 	ctx.evaluate(ctx.State.SyncWrapper(), ctx.Plan.Changes.SyncWrapper(), run, walkPlan)
 }

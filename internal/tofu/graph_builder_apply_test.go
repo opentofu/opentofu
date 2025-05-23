@@ -56,7 +56,7 @@ func TestApplyGraphBuilder(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-basic"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 	}
 
 	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
@@ -120,7 +120,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-dep-cbd"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		State:   state,
 	}
 
@@ -193,7 +193,7 @@ func TestApplyGraphBuilder_doubleCBD(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-double-cbd"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 	}
 
 	g, err := b.Build(t.Context(), addrs.RootModuleInstance)
@@ -289,7 +289,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 		Config:  testModule(t, "empty"),
 		Changes: changes,
 		State:   state,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 	}
 
 	g, diags := b.Build(t.Context(), addrs.RootModuleInstance)
@@ -352,7 +352,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-count"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		State:   state,
 	}
 
@@ -416,7 +416,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-module-destroy"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		State:   state,
 	}
 
@@ -453,7 +453,7 @@ func TestApplyGraphBuilder_targetModule(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-target-module"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		Targets: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child2", addrs.NoKey),
 		},
@@ -488,7 +488,7 @@ func TestApplyGraphBuilder_excludeModule(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-target-module"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		Excludes: []addrs.Targetable{
 			addrs.RootModuleInstance.Child("child2", addrs.NoKey),
 		},
@@ -586,7 +586,7 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-orphan-update"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		State:   state,
 	}
 
@@ -688,7 +688,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-apply-orphan-update"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		State:   state,
 	}
 
@@ -739,7 +739,7 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 	b := &ApplyGraphBuilder{
 		Config:  testModule(t, "graph-builder-orphan-alias"),
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		State:   state,
 	}
 
@@ -783,6 +783,7 @@ func TestApplyGraphBuilder_withChecks(t *testing.T) {
 	plugins := newContextPlugins(map[addrs.Provider]providers.Factory{
 		addrs.NewDefaultProvider("aws"): providers.FactoryFixed(awsProvider),
 	}, nil)
+	plugins.preloadAllProviderSchemasForUnitTest(t)
 
 	b := &ApplyGraphBuilder{
 		Config:    testModule(t, "apply-with-checks"),
