@@ -90,18 +90,6 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// First, we check the global cache.
-	// The cache could contain this schema if an instance of this provider has previously been started.
-	if !p.Addr.IsZero() {
-		// Even if the schema is cached, GetProviderSchemaOptional could be false. This would indicate that once instantiated,
-		// this provider requires the get schema call to be made at least once, as it handles part of the provider's setup.
-		// At this point, we don't know if this is the first call to a provider instance or not, so we don't use the result in that case.
-		if schemaCached, ok := providers.SchemaCache.Get(p.Addr); ok && schemaCached.ServerCapabilities.GetProviderSchemaOptional {
-			logger.Trace("GRPCProvider: GetProviderSchema: serving from global schema cache", "address", p.Addr)
-			return schemaCached
-		}
-	}
-
 	// If the local cache is non-zero, we know this instance has called
 	// GetProviderSchema at least once, so has satisfied the possible requirement of `GetProviderSchemaOptional=false`.
 	// This means that we can return early now using the locally cached schema, without making this call again.
@@ -161,15 +149,6 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 	if protoResp.ServerCapabilities != nil {
 		resp.ServerCapabilities.PlanDestroy = protoResp.ServerCapabilities.PlanDestroy
 		resp.ServerCapabilities.GetProviderSchemaOptional = protoResp.ServerCapabilities.GetProviderSchemaOptional
-	}
-
-	// Set the global provider cache so that future calls to this provider can use the cached value.
-	// Crucially, this doesn't look at GetProviderSchemaOptional, because the layers above could use this cache
-	// *without* creating an instance of this provider. And if there is no instance,
-	// then we don't need to set up anything (cause there is nothing to set up), so we need no call
-	// to the providers GetSchema rpc.
-	if !p.Addr.IsZero() {
-		providers.SchemaCache.Set(p.Addr, resp)
 	}
 
 	// Always store this here in the client for providers that are not able to use GetProviderSchemaOptional.

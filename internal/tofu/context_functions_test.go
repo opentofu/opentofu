@@ -471,11 +471,9 @@ variable "obfmod" {
 // Defaulted stub provider with non-custom function
 func TestContext2Functions_providerFunctionsStub(t *testing.T) {
 	p := testProvider("aws")
-	addr := addrs.ImpliedProviderForUnqualifiedType("aws")
 
 	// Explicitly non-parallel
 	t.Setenv("foo", "bar")
-	defer providers.SchemaCache.Remove(addr)
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Functions: map[string]providers.FunctionSpec{
@@ -491,9 +489,6 @@ func TestContext2Functions_providerFunctionsStub(t *testing.T) {
 	p.CallFunctionResponse = &providers.CallFunctionResponse{
 		Result: cty.True,
 	}
-
-	// SchemaCache is initialzed earlier on in the command package
-	providers.SchemaCache.Set(addr, *p.GetProviderSchemaResponse)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -571,11 +566,9 @@ variable "obfmod" {
 // Defaulted stub provider with custom function (no allowed)
 func TestContext2Functions_providerFunctionsStubCustom(t *testing.T) {
 	p := testProvider("aws")
-	addr := addrs.ImpliedProviderForUnqualifiedType("aws")
 
 	// Explicitly non-parallel
 	t.Setenv("foo", "bar")
-	defer providers.SchemaCache.Remove(addr)
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Functions: map[string]providers.FunctionSpec{
@@ -591,9 +584,6 @@ func TestContext2Functions_providerFunctionsStubCustom(t *testing.T) {
 	p.CallFunctionResponse = &providers.CallFunctionResponse{
 		Result: cty.True,
 	}
-
-	// SchemaCache is initialzed earlier on in the command package
-	providers.SchemaCache.Set(addr, *p.GetProviderSchemaResponse)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
@@ -655,11 +645,9 @@ variable "obfmod" {
 // Defaulted stub provider
 func TestContext2Functions_providerFunctionsForEachCount(t *testing.T) {
 	p := testProvider("aws")
-	addr := addrs.ImpliedProviderForUnqualifiedType("aws")
 
 	// Explicitly non-parallel
 	t.Setenv("foo", "bar")
-	defer providers.SchemaCache.Remove(addr)
 
 	p.GetProviderSchemaResponse = &providers.GetProviderSchemaResponse{
 		Functions: map[string]providers.FunctionSpec{
@@ -675,9 +663,6 @@ func TestContext2Functions_providerFunctionsForEachCount(t *testing.T) {
 	p.CallFunctionResponse = &providers.CallFunctionResponse{
 		Result: cty.True,
 	}
-
-	// SchemaCache is initialzed earlier on in the command package
-	providers.SchemaCache.Set(addr, *p.GetProviderSchemaResponse)
 
 	m := testModuleInline(t, map[string]string{
 		"main.tf": `
