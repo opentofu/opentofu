@@ -2395,12 +2395,12 @@ locals {
 
 	plan, diags := ctx.Plan(context.Background(), m, states.NewState(), nil)
 	if diags.HasErrors() {
-		t.Errorf("expected no errors, but got %s", diags)
+		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
 	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
-		t.Errorf("expected no errors, but got %s", diags)
+		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
 	// We didn't specify any external references, so the unreferenced local
@@ -2438,12 +2438,12 @@ locals {
 		},
 	})
 	if diags.HasErrors() {
-		t.Errorf("expected no errors, but got %s", diags)
+		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
 	state, diags := ctx.Apply(context.Background(), plan, m)
 	if diags.HasErrors() {
-		t.Errorf("expected no errors, but got %s", diags)
+		t.Fatalf("expected no errors, but got %s", diags)
 	}
 
 	// We did specify the local value in the external references, so it should
