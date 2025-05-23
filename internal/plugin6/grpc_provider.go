@@ -231,6 +231,9 @@ func (p *GRPCProvider) ValidateResourceConfig(r providers.ValidateResourceConfig
 	protoReq := &proto6.ValidateResourceConfig_Request{
 		TypeName: r.TypeName,
 		Config:   &proto6.DynamicValue{Msgpack: mp},
+		ClientCapabilities: &proto6.ClientCapabilities{
+			WriteOnlyAttributesAllowed: true,
+		},
 	}
 
 	protoResp, err := p.client.ValidateResourceConfig(p.ctx, protoReq)
@@ -343,6 +346,9 @@ func (p *GRPCProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (
 		TerraformVersion: r.TerraformVersion,
 		Config: &proto6.DynamicValue{
 			Msgpack: mp,
+		},
+		ClientCapabilities: &proto6.ClientCapabilities{
+			WriteOnlyAttributesAllowed: true,
 		},
 	}
 
