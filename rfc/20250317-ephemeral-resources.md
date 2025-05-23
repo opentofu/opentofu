@@ -183,6 +183,11 @@ Otherwise, it needs to show an error:
 │
 │ In order to allow this output to store ephemeral values add `ephemeral = true` attribute to it.
 ```
+> [!NOTE]
+>
+> It's needed to say that the last error will be raised only when a non-ephemeral output is referencing an ephemeral value.
+> But it needs to be allowed for an ephemeral marked output to reference a non-ephemeral value.
+
 #### Locals
 Local values are automatically marked as ephemeral if any of the value that is used to compute the local is already an ephemeral one.
 
@@ -659,6 +664,7 @@ Strict rules:
 * Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too. If any found, an error will be raised.
 * Any output referencing an ephemeral value needs to be marked as ephemeral too. If any found, an error will be raised.
 * Any output from a root module that is referencing a write-only attribute needs to be marked as sensitive. If any found, an error will be raised.
+* Any output marked as ephemeral should be able to reference a non-ephemeral value.
 
 Considering the rules above, root modules cannot have any ephemeral outputs defined.
 
