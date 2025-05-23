@@ -17,11 +17,10 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
-	"github.com/zclconf/go-cty/cty"
-
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/zclconf/go-cty/cty"
 
 	// "github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -4908,6 +4907,97 @@ func TestContext2Plan_dataSourceReadPlanError(t *testing.T) {
 	_, _, _, err := contextOptsForPlanViaFile(t, snap, plan)
 	if err != nil {
 		t.Fatalf("failed to round-trip through planfile: %s", err)
+	}
+}
+
+func TestContext2Plan_providerDefersPlanning(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test" "test" {
+			}
+		`,
+	})
+
+	tests := []struct {
+		DeferralReason                  providers.DeferralReason
+		WantDiagSummary, WantDiagDetail string
+	}{
+		{
+			DeferralReason:  providers.DeferredBecauseProviderConfigUnknown,
+			WantDiagSummary: `Provider configuration is incomplete`,
+			WantDiagDetail: `The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply.
+
+To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
+		},
+		{
+			DeferralReason:  providers.DeferredBecauseResourceConfigUnknown,
+			WantDiagSummary: `Resource configuration is incomplete`,
+			WantDiagDetail: `The provider was unable to act on this resource configuration because it makes use of values from other resources that will not be known until after apply.
+
+To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
+		},
+		{
+			// This one is currently a generic fallback message because it's
+			// unclear what this reason is intended to mean and no providers
+			// are using it yet at the time of writing.
+			DeferralReason:  providers.DeferredBecausePrereqAbsent,
+			WantDiagSummary: `Operation cannot be completed yet`,
+			WantDiagDetail: `The provider reported that it is not able to perform the requested operation until more information is available.
+
+To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
+		},
+		{
+			// This special reason is the one we use if a provider returns
+			// a later-added reason that the current OpenTofu version doesn't
+			// know about.
+			DeferralReason:  providers.DeferredReasonUnknown,
+			WantDiagSummary: `Operation cannot be completed yet`,
+			WantDiagDetail: `The provider reported that it is not able to perform the requested operation until more information is available.
+
+To work around this, use the planning option -exclude="test.test" to first apply without this object, and then apply normally to converge.`,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.DeferralReason.String(), func(t *testing.T) {
+			provider := &MockProvider{
+				GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+					ResourceTypes: map[string]providers.Schema{
+						"test": {
+							Block: &configschema.Block{},
+						},
+					},
+				},
+				PlanResourceChangeFn: func(req providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+					var diags tfdiags.Diagnostics
+					diags = diags.Append(providers.NewDeferralDiagnostic(
+						test.DeferralReason,
+					))
+					return providers.PlanResourceChangeResponse{
+						Diagnostics: diags,
+					}
+				},
+			}
+			tofuCtx := testContext2(t, &ContextOpts{
+				Providers: map[addrs.Provider]providers.Factory{
+					addrs.NewDefaultProvider("test"): testProviderFuncFixed(provider),
+				},
+			})
+			_, diags := tofuCtx.Plan(t.Context(), m, states.NewState(), DefaultPlanOpts)
+			if !diags.HasErrors() {
+				t.Fatal("plan succeeded; want an error")
+			}
+			if len(diags) != 1 {
+				t.Fatal("wrong number of diagnostics; want one\n" + spew.Sdump(diags.ForRPC()))
+			}
+			desc := diags[0].Description()
+			if got, want := test.WantDiagSummary, desc.Summary; got != want {
+				t.Errorf("wrong error summary\ngot:  %s\nwant: %s", got, want)
+			}
+			if got, want := test.WantDiagDetail, desc.Detail; got != want {
+				t.Errorf("wrong error detail\ngot:  %s\nwant: %s", got, want)
+			}
+		})
 	}
 }
 
