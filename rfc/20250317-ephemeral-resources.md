@@ -848,6 +848,7 @@ Some questions that are also scattered across the RFC:
   * Based on my tests, MapNestedAttribute is allowed (together with other types).
   * Some info [here](https://github.com/hashicorp/terraform-plugin-framework/pull/1095).
 * Considering the early evaluation supported in OpenTofu, could blocks like `provider`, `provisioner` and `connection` be configured with such outputs? Or there is no such thing as "early evaluating a module"?
+* Considering that the `check` blocks can have a `data` block to be used for the assertions, should we consider adding also the `ephemeral` blocks support inside of the `check` blocks? Or should we have this as a possible future feature?
 
 
 ## Future Considerations
