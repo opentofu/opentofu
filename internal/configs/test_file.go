@@ -260,6 +260,7 @@ type TestRunOptions struct {
 const (
 	blockNameOverrideResource = "override_resource"
 	blockNameOverrideData     = "override_data"
+	//blockNameOverrideEphemeral = "override_ephemeral" // TODO ephemeral uncomment this when testing support will be added for ephemerals
 )
 
 // OverrideResource contains information about a resource or data block to be overridden.
