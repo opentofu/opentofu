@@ -536,6 +536,25 @@ func getStateFromBackend(ctx context.Context, b backend.Backend, workspace strin
 func (c *ShowCommand) showConfiguration(ctx context.Context) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	// Check if the directory is empty
+	empty, err := configs.IsEmptyDir(".")
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Error validating configuration directory",
+			fmt.Sprintf("OpenTofu encountered an unexpected error while verifying that the given configuration directory is valid: %s.", err),
+		))
+		return nil, diags
+	}
+	if empty {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"No configuration files",
+			"This directory contains no OpenTofu configuration files.",
+		))
+		return nil, diags
+	}
+
 	// Load the configuration
 	config, configDiags := c.loadConfig(ctx, ".")
 	diags = diags.Append(configDiags)

@@ -82,6 +82,14 @@ func TestParseShow_valid(t *testing.T) {
 				ViewType:   ViewJSON,
 			},
 		},
+		"configuration with json": {
+			[]string{"-config", "-json"},
+			&Show{
+				TargetType: ShowConfig,
+				TargetArg:  "",
+				ViewType:   ViewJSON,
+			},
+		},
 	}
 
 	for name, tc := range testCases {
@@ -155,7 +163,7 @@ func TestParseShow_invalid(t *testing.T) {
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Conflicting object types to show",
-					"The -state and -plan=FILENAME options are mutually-exclusive, to specify which kind of object to show.",
+					"The -state, -plan=FILENAME, and -config options are mutually-exclusive, to specify which kind of object to show.",
 				),
 			},
 		},
@@ -182,6 +190,49 @@ func TestParseShow_invalid(t *testing.T) {
 					tfdiags.Error,
 					"Too many command line arguments",
 					"Expected at most one positional argument for the legacy positional argument mode.",
+				),
+			},
+		},
+		"configuration without json": {
+			[]string{"-config"},
+			&Show{
+				ViewType: ViewNone,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"JSON output required for configuration",
+					"The -config option requires -json to be specified.",
+				),
+			},
+		},
+		"configuration with state": {
+			[]string{"-config", "-state", "-json"},
+			&Show{
+				TargetType: ShowConfig,
+				TargetArg:  "",
+				ViewType:   ViewJSON,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Conflicting object types to show",
+					"The -state, -plan=FILENAME, and -config options are mutually-exclusive, to specify which kind of object to show.",
+				),
+			},
+		},
+		"configuration with plan": {
+			[]string{"-config", "-plan=tfplan", "-json"},
+			&Show{
+				TargetType: ShowConfig,
+				TargetArg:  "",
+				ViewType:   ViewJSON,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Conflicting object types to show",
+					"The -state, -plan=FILENAME, and -config options are mutually-exclusive, to specify which kind of object to show.",
 				),
 			},
 		},
