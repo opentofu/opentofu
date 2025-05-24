@@ -33,6 +33,12 @@ import (
 func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.Config) (*states.State, tfdiags.Diagnostics) {
 	defer c.acquireRun("apply")()
 
+	// We'll get this started as soon as possible so that this I/O bound work
+	// can run concurrently with some CPU-bound work we're about to do. The
+	// next attempt to access schemas will block until the background task
+	// started by this call has completed.
+	c.plugins.LoadProviderSchemas(ctx, config, plan.PriorState)
+
 	log.Printf("[DEBUG] Building and walking apply graph for %s plan", plan.UIMode)
 
 	var diags tfdiags.Diagnostics
@@ -239,6 +245,8 @@ func (c *Context) applyGraph(ctx context.Context, plan *plans.Plan, config *conf
 func (c *Context) ApplyGraphForUI(plan *plans.Plan, config *configs.Config) (*Graph, tfdiags.Diagnostics) {
 	// For now though, this really is just the internal graph, confusing
 	// implementation details and all.
+
+	c.ensureProviderSchemasLoaded(context.TODO(), config, plan.PriorState)
 
 	var diags tfdiags.Diagnostics
 

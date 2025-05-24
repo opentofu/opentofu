@@ -183,7 +183,12 @@ func (c *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig, key addrs.In
 }
 
 func (c *BuiltinEvalContext) ProviderSchema(ctx context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	return c.Plugins.ProviderSchema(ctx, addr.Provider)
+	// FIXME: Change the signature of this function to return diagnostics
+	// instead of an error. For now we just turn the diagnostics into an
+	// error, which means we'd discard any warnings that are not also
+	// accompanied by at least one error.
+	schema, diags := c.Plugins.ProviderSchema(addr.Provider)
+	return schema, diags.Err()
 }
 
 func (c *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {

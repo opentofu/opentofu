@@ -48,6 +48,8 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 	// CLI layer too in order to avoid this odd situation where core code
 	// produces UI input prompts.)
 
+	c.plugins.LoadProviderSchemas(ctx, config, nil)
+
 	var diags tfdiags.Diagnostics
 	defer c.acquireRun("input")()
 

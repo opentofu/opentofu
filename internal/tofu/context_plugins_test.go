@@ -6,6 +6,8 @@
 package tofu
 
 import (
+	"testing"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -24,7 +26,7 @@ import (
 // Each call to this function produces an entirely-separate set of objects,
 // so the caller can feel free to modify the returned value to further
 // customize the mocks contained within.
-func simpleMockPluginLibrary() *contextPlugins {
+func simpleMockPluginLibrary(t *testing.T) *contextPlugins {
 	// We create these out here, rather than in the factory functions below,
 	// because we want each call to the factory to return the _same_ instance,
 	// so that test code can customize it before passing this component
@@ -43,6 +45,7 @@ func simpleMockPluginLibrary() *contextPlugins {
 			},
 		},
 	}
+	ret.preloadAllProviderSchemasForUnitTest(t)
 	return ret
 }
 
@@ -84,4 +87,17 @@ func simpleTestSchema() *configschema.Block {
 			},
 		},
 	}
+}
+
+// preloadAllProviderSchemasForUnitTest is a unit-testing-only helper method
+// that simulates the effect of calling [contextPlugins.LoadProviderSchemas]
+// with a configuration that makes use of all of the providers that are
+// available in this [contextPlugins] object.
+//
+// This is only for use in unit tests for components that typically expect
+// that some other part of the system will have preloaded the schemas they
+// need. It should not be used in context tests because the exported entrypoints
+// of [Context] are supposed to arrange themselves for schemas to be loaded.
+func (cp *contextPlugins) preloadAllProviderSchemasForUnitTest(t *testing.T) {
+	cp.cache.preloadAllProviderSchemasForUnitTest(t, cp.providerFactories)
 }

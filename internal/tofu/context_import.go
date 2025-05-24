@@ -242,6 +242,12 @@ func (ri *ImportResolver) GetImport(address addrs.AbsResourceInstance) *Evaluate
 func (c *Context) Import(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *ImportOpts) (*states.State, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	// We'll get this started as soon as possible so that this I/O bound work
+	// can run concurrently with some CPU-bound work we're about to do. The
+	// next attempt to access schemas will block until the background task
+	// started by this call has completed.
+	c.plugins.LoadProviderSchemas(ctx, config, prevRunState)
+
 	// Hold a lock since we can modify our own state here
 	defer c.acquireRun("import")()
 

@@ -92,6 +92,15 @@ func loadSchemas(ctx context.Context, config *configs.Config, state *states.Stat
 func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]providers.ProviderSchema, config *configs.Config, state *states.State, plugins *contextPlugins) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
+	// This function is used by some callers that predate our current design
+	// of separating the loading of provider schemas from their later use,
+	// and so to avoid disrupting them too much we'll start a background load
+	// here (which will complete quickly if something has already made a
+	// similar request earlier) and then immediately block until we can
+	// collect the results into our own structure below. This is odd and we
+	// should eventually rework this.
+	plugins.LoadProviderSchemas(ctx, config, state)
+
 	ensure := func(fqn addrs.Provider) {
 		name := fqn.String()
 
@@ -100,7 +109,7 @@ func loadProviderSchemas(ctx context.Context, schemas map[addrs.Provider]provide
 		}
 
 		log.Printf("[TRACE] LoadSchemas: retrieving schema for provider type %q", name)
-		schema, err := plugins.ProviderSchema(ctx, fqn)
+		schema, err := plugins.ProviderSchema(fqn)
 		if err != nil {
 			// We'll put a stub in the map so we won't re-attempt this on
 			// future calls, which would then repeat the same error message
@@ -171,6 +180,67 @@ func loadProvisionerSchemas(ctx context.Context, schemas map[string]*configschem
 		for _, cc := range config.Children {
 			childDiags := loadProvisionerSchemas(ctx, schemas, cc, plugins)
 			diags = diags.Append(childDiags)
+		}
+	}
+
+	return diags
+}
+
+// validateProviderSchemaResponse verifies that the given provider schema
+// response is valid, returning error diagnostics if not.
+func validateProviderSchemaResponse(providerAddr addrs.Provider, resp *providers.GetProviderSchemaResponse) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	const summary = "Invalid provider schema"
+
+	if resp.Provider.Version < 0 {
+		// We're not using the version numbers here yet, but we'll check
+		// for validity anyway in case we start using them in future.
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			summary,
+			fmt.Sprintf("Provider %s has an invalid negative schema version for its configuration blocks, which is a bug in the provider.", providerAddr),
+		))
+	}
+
+	for t, r := range resp.ResourceTypes {
+		if err := r.Block.InternalValidate(); err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				summary,
+				fmt.Sprintf(
+					"Provider %s has an invalid schema for managed resource type %q, which is a bug in the provider: %s.",
+					providerAddr, t, tfdiags.FormatError(err),
+				),
+			))
+		}
+		if r.Version < 0 {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				summary,
+				fmt.Sprintf("Provider %s has an invalid negative schema version for managed resource type %q, which is a bug in the provider.", providerAddr, t),
+			))
+		}
+	}
+
+	for t, d := range resp.DataSources {
+		if err := d.Block.InternalValidate(); err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				summary,
+				fmt.Sprintf(
+					"Provider %s has an invalid schema for data resource type %q, which is a bug in the provider: %s.",
+					providerAddr, t, tfdiags.FormatError(err),
+				),
+			))
+		}
+		if d.Version < 0 {
+			// We're not using the version numbers here yet, but we'll check
+			// for validity anyway in case we start using them in future.
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				summary,
+				fmt.Sprintf("Provider %s has an invalid negative schema version for data resource type %q, which is a bug in the provider.", providerAddr, t),
+			))
 		}
 	}
 

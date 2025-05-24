@@ -22,7 +22,7 @@ func cbdTestGraph(t *testing.T, mod string, changes *plans.Changes, state *state
 	applyBuilder := &ApplyGraphBuilder{
 		Config:  module,
 		Changes: changes,
-		Plugins: simpleMockPluginLibrary(),
+		Plugins: simpleMockPluginLibrary(t),
 		State:   state,
 	}
 	g, err := (&BasicGraphBuilder{

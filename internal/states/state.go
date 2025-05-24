@@ -12,6 +12,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/collections"
 	"github.com/opentofu/opentofu/internal/getproviders"
 )
 
@@ -316,6 +317,19 @@ func (s *State) LocalValue(addr addrs.AbsLocalValue) cty.Value {
 		return cty.NilVal
 	}
 	return ms.LocalValues[addr.LocalValue.Name]
+}
+
+func (s *State) ProviderTypes() collections.Set[addrs.Provider] {
+	if s == nil {
+		return nil
+	}
+	ret := collections.NewSet[addrs.Provider]()
+	for _, ms := range s.Modules {
+		for _, rc := range ms.Resources {
+			ret[rc.ProviderConfig.Provider] = struct{}{}
+		}
+	}
+	return ret
 }
 
 // ProviderAddrs returns a list of all of the provider configuration addresses

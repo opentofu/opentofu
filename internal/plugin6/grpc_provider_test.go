@@ -15,7 +15,6 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"go.uber.org/mock/gomock"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -183,100 +182,6 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
-}
-
-func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	client := mockproto.NewMockProviderClient(ctrl)
-	// The SchemaCache is global and is saved between test runs
-	providers.SchemaCache = providers.NewMockSchemaCache()
-
-	providerAddr := addrs.Provider{
-		Namespace: "namespace",
-		Type:      "type",
-	}
-
-	mockedProviderResponse := &proto.Schema{Version: 2, Block: &proto.Schema_Block{}}
-
-	client.EXPECT().GetProviderSchema(
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-	).Times(1).Return(&proto.GetProviderSchema_Response{
-		Provider:           mockedProviderResponse,
-		ServerCapabilities: &proto.ServerCapabilities{GetProviderSchemaOptional: true},
-	}, nil)
-
-	// Run GetProviderTwice, expect GetSchema to be called once
-	// Re-initialize the provider before each run to avoid usage of the local cache
-	p := &GRPCProvider{
-		client: client,
-		Addr:   providerAddr,
-	}
-	resp := p.GetProviderSchema(t.Context())
-
-	checkDiags(t, resp.Diagnostics)
-	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
-		t.Fatal(cmp.Diff(resp.Provider.Version, mockedProviderResponse.Version))
-	}
-
-	p = &GRPCProvider{
-		client: client,
-		Addr:   providerAddr,
-	}
-	resp = p.GetProviderSchema(t.Context())
-
-	checkDiags(t, resp.Diagnostics)
-	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
-		t.Fatal(cmp.Diff(resp.Provider.Version, mockedProviderResponse.Version))
-	}
-}
-
-func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	client := mockproto.NewMockProviderClient(ctrl)
-	// The SchemaCache is global and is saved between test runs
-	providers.SchemaCache = providers.NewMockSchemaCache()
-
-	providerAddr := addrs.Provider{
-		Namespace: "namespace",
-		Type:      "type",
-	}
-
-	mockedProviderResponse := &proto.Schema{Version: 2, Block: &proto.Schema_Block{}}
-
-	client.EXPECT().GetProviderSchema(
-		gomock.Any(),
-		gomock.Any(),
-		gomock.Any(),
-	).Times(2).Return(&proto.GetProviderSchema_Response{
-		Provider:           mockedProviderResponse,
-		ServerCapabilities: &proto.ServerCapabilities{GetProviderSchemaOptional: false},
-	}, nil)
-
-	// Run GetProviderTwice, expect GetSchema to be called once
-	// Re-initialize the provider before each run to avoid usage of the local cache
-	p := &GRPCProvider{
-		client: client,
-		Addr:   providerAddr,
-	}
-	resp := p.GetProviderSchema(t.Context())
-
-	checkDiags(t, resp.Diagnostics)
-	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
-		t.Fatal(cmp.Diff(resp.Provider.Version, mockedProviderResponse.Version))
-	}
-
-	p = &GRPCProvider{
-		client: client,
-		Addr:   providerAddr,
-	}
-	resp = p.GetProviderSchema(t.Context())
-
-	checkDiags(t, resp.Diagnostics)
-	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
-		t.Fatal(cmp.Diff(resp.Provider.Version, mockedProviderResponse.Version))
-	}
 }
 
 func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {

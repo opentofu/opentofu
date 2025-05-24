@@ -6,7 +6,6 @@
 package tofu
 
 import (
-	"context"
 	"fmt"
 	"sort"
 
@@ -238,19 +237,14 @@ func (d *evaluationStateData) staticValidateResourceReference(modCfg *configs.Co
 		})
 	}
 
-	// TODO: Plugin a suitable context.Context through to here.
 	providerFqn := modCfg.Module.ProviderForLocalConfig(cfg.ProviderConfigAddr())
-	schema, _, err := d.Evaluator.Plugins.ResourceTypeSchema(context.TODO(), providerFqn, addr.Mode, addr.Type)
-	if err != nil {
+	schema, _, schemaDiags := d.Evaluator.Plugins.ResourceTypeSchema(providerFqn, addr.Mode, addr.Type)
+	diags = diags.Append(schemaDiags)
+	if schemaDiags.HasErrors() {
 		// Prior validation should've taken care of a schema lookup error,
 		// so we should never get here but we'll handle it here anyway for
 		// robustness.
-		diags = diags.Append(&hcl.Diagnostic{
-			Severity: hcl.DiagError,
-			Summary:  `Failed provider schema lookup`,
-			Detail:   fmt.Sprintf(`Couldn't load schema for %s resource type %q in %s: %s.`, modeAdjective, addr.Type, providerFqn.String(), err),
-			Subject:  rng.ToHCL().Ptr(),
-		})
+		return diags
 	}
 
 	if schema == nil {

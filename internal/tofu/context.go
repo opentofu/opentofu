@@ -154,9 +154,26 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	}, diags
 }
 
+// ensureProviderSchemasLoaded starts a background task to collect the schemas
+// for any providers used in the given configuration or state (either of which
+// can be nil) so that they'll become available for later use.
+//
+// This function returns immediately and so cannot signal whether the schema
+// loading was successful. Instead, any errors are reported once individual
+// schemas are requested.
+func (c *Context) ensureProviderSchemasLoaded(ctx context.Context, config *configs.Config, state *states.State) {
+	c.plugins.LoadProviderSchemas(ctx, config, state)
+}
+
 func (c *Context) Schemas(ctx context.Context, config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	// This uses an older codepath that predates our async-loading provider
+	// schema mechanism from [Context.ensureProviderSchemasLoaded], but
+	// internally it uses the same cache and so this will be fast if
+	// [Context.ensureProviderSchemasLoaded] was previously called with
+	// the same config and state, or will internally cause the same
+	// effect as that function if it had not already been called.
 	ret, err := loadSchemas(ctx, config, state, c.plugins)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(

@@ -4218,6 +4218,9 @@ func TestContext2Plan_preconditionErrors(t *testing.T) {
 				t.Fatal("succeeded; want errors")
 			}
 
+			if plan == nil {
+				t.Fatal("result from plan is nil; expected a plan marked as errored")
+			}
 			if !plan.Errored {
 				t.Fatal("plan failed to record error")
 			}
@@ -4902,6 +4905,9 @@ func TestContext2Plan_dataSourceReadPlanError(t *testing.T) {
 	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
 	if !diags.HasErrors() {
 		t.Fatalf("expected plan error")
+	}
+	if plan == nil {
+		t.Fatal("plan returned nil result; expected a non-nil plan marked as errored")
 	}
 
 	// make sure we can serialize the plan even if there were an error
@@ -7422,6 +7428,9 @@ import {
 		t.Fatal("expected error")
 	}
 
+	if plan == nil {
+		t.Fatal("plan returned nil result; expected a plan marked as errored")
+	}
 	instPlan := plan.Changes.ResourceInstance(addr)
 	if instPlan == nil {
 		t.Fatalf("no plan for %s at all", addr)
@@ -7558,6 +7567,10 @@ locals {
 
 	if len(module.Resources) > 0 {
 		t.Errorf("expected no resources in the state but found %d", len(module.LocalValues))
+	}
+
+	if plan == nil {
+		t.Fatal("plan returned nil result; expected a non-nil plan marked as errored")
 	}
 
 	// But, this makes it hard for the testing framework to valid things about

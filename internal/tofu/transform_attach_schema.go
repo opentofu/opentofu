@@ -48,6 +48,11 @@ type GraphNodeAttachProvisionerSchema interface {
 // GraphNodeAttachResourceSchema, GraphNodeAttachProviderConfigSchema, or
 // GraphNodeAttachProvisionerSchema, looks up the needed schemas for each
 // and then passes them to a method implemented by the node.
+//
+// Some other part of the system must have called
+// [contextplugins.LoadProviderSchemas] with the same configuration prior to
+// executing this graph transformer, so that the needed schemas will become
+// available for this transformer to use.
 type AttachSchemaTransformer struct {
 	Plugins *contextPlugins
 	Config  *configs.Config
@@ -68,10 +73,9 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 			typeName := addr.Resource.Type
 			providerFqn := tv.Provider()
 
-			// TODO: Plumb a useful context.Context through to here.
-			schema, version, err := t.Plugins.ResourceTypeSchema(ctx, providerFqn, mode, typeName)
-			if err != nil {
-				return fmt.Errorf("failed to read schema for %s in %s: %w", addr, providerFqn, err)
+			schema, version, diags := t.Plugins.ResourceTypeSchema(providerFqn, mode, typeName)
+			if diags.HasErrors() {
+				return diags.Err()
 			}
 			if schema == nil {
 				log.Printf("[ERROR] AttachSchemaTransformer: No resource schema available for %s", addr)
@@ -83,10 +87,9 @@ func (t *AttachSchemaTransformer) Transform(ctx context.Context, g *Graph) error
 
 		if tv, ok := v.(GraphNodeAttachProviderConfigSchema); ok {
 			providerAddr := tv.ProviderAddr()
-			// TODO: Plumb a useful context.Context through to here.
-			schema, err := t.Plugins.ProviderConfigSchema(ctx, providerAddr.Provider)
-			if err != nil {
-				return fmt.Errorf("failed to read provider configuration schema for %s: %w", providerAddr.Provider, err)
+			schema, diags := t.Plugins.ProviderConfigSchema(providerAddr.Provider)
+			if diags.HasErrors() {
+				return diags.Err()
 			}
 			if schema == nil {
 				log.Printf("[ERROR] AttachSchemaTransformer: No provider config schema available for %s", providerAddr)
