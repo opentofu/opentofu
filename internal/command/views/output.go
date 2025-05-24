@@ -86,7 +86,6 @@ func (v *OutputHuman) Output(name string, outputs map[string]*states.OutputValue
 		for _, k := range ks {
 			vs := outputs[k]
 			if vs.Sensitive && !v.view.showSensitive {
-				// This is interesting. Look more here. Could be this is where I need to make my change
 				outputBuf.WriteString(fmt.Sprintf("%s = <sensitive>\n", k))
 				continue
 			}

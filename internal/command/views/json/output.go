@@ -49,7 +49,7 @@ func OutputsFromMap(outputValues map[string]*states.OutputValue) (Outputs, tfdia
 		}
 
 		var redactedValue json.RawMessage
-		if !ov.Sensitive || !ov.Sensitive {
+		if !ov.Sensitive {
 			redactedValue = json.RawMessage(value)
 		}
 

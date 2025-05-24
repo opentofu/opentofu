@@ -331,7 +331,7 @@ func TestLocal_planModuleOutputsChanged(t *testing.T) {
 		ss.SetOutputValue(addrs.AbsOutputValue{
 			Module:      addrs.RootModuleInstance.Child("mod", addrs.NoKey),
 			OutputValue: addrs.OutputValue{Name: "changed"},
-		}, cty.StringVal("before"), false, "") // starts non-sensitive
+		}, cty.StringVal("before"), false, "")
 	}))
 	outDir := t.TempDir()
 	defer os.RemoveAll(outDir)

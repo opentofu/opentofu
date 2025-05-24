@@ -139,6 +139,7 @@ func FromJsonOutput(output jsonstate.Output) Change {
 		// We have some sensitive values, but we don't have any unknown values.
 		Unknown:         false,
 		BeforeSensitive: output.Sensitive,
+		AfterSensitive:  output.Sensitive,
 
 		// We don't display replacement data for resources, and all attributes
 		// are relevant.
@@ -158,6 +159,7 @@ func FromJsonViewsOutput(output viewsjson.Output) Change {
 		// We have some sensitive values, but we don't have any unknown values.
 		Unknown:         false,
 		BeforeSensitive: output.Sensitive,
+		AfterSensitive:  output.Sensitive,
 
 		// We don't display replacement data for resources, and all attributes
 		// are relevant.
