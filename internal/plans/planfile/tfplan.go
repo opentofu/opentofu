@@ -91,9 +91,9 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 			// All output values saved in the plan file are root module outputs,
 			// since we don't retain others. (They can be easily recomputed
 			// during apply).
-			Addr:           addrs.OutputValue{Name: name}.Absolute(addrs.RootModuleInstance),
-			ChangeSrc:      *change,
-			SensitiveAfter: rawOC.Sensitive,
+			Addr:      addrs.OutputValue{Name: name}.Absolute(addrs.RootModuleInstance),
+			ChangeSrc: *change,
+			Sensitive: rawOC.Sensitive,
 		})
 	}
 
@@ -530,7 +530,7 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 		rawPlan.OutputChanges = append(rawPlan.OutputChanges, &planproto.OutputChange{
 			Name:      name,
 			Change:    protoChange,
-			Sensitive: oc.SensitiveAfter,
+			Sensitive: oc.Sensitive,
 		})
 	}
 

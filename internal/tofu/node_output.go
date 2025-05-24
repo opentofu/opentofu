@@ -475,12 +475,12 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 
 	// if this is a root module, try to get a before value from the state for
 	// the diff
-	sensitive := false
+	sensitiveBefore := false
 	before := cty.NullVal(cty.DynamicPseudoType)
 	mod := state.Module(n.Addr.Module)
 	if n.Addr.Module.IsRoot() && mod != nil {
 		if o, ok := mod.OutputValues[n.Addr.OutputValue.Name]; ok {
-			sensitive = o.Sensitive
+			sensitiveBefore = o.Sensitive
 			before = o.Value
 		} else {
 			// If the output was not in state, a delete change would
@@ -494,7 +494,7 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 	if changes != nil && n.Planning {
 		change := &plans.OutputChange{
 			Addr:      n.Addr,
-			Sensitive: sensitive,
+			Sensitive: sensitiveBefore,
 			Change: plans.Change{
 				Action: plans.Delete,
 				Before: before,
@@ -532,7 +532,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 	if changes != nil && n.Planning {
 		// if this is a root module, try to get a before value from the state for
 		// the diff
-		sensitive := false
+		sensitiveBefore := false
 		deprecatedBefore := ""
 		before := cty.NullVal(cty.DynamicPseudoType)
 
@@ -544,7 +544,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 			for name, o := range mod.OutputValues {
 				if name == n.Addr.OutputValue.Name {
 					before = o.Value
-					sensitive = o.Sensitive
+					sensitiveBefore = o.Sensitive
 					deprecatedBefore = o.Deprecated
 					newOutput = false
 					break
@@ -556,14 +556,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// as sensitive. We can show the value again once sensitivity is
 		// removed from both the config and the state.
 		// sensitiveChange := n.Config.Sensitive || mod.OutputValues[n.Addr.OutputValue.Name].SensitiveBefore
-		sensitiveWarning := false
-
-		// if !n.Config.Sensitive && mod.OutputValues[n.Addr.OutputValue.Name].SensitiveBefore {
-		if !n.Config.Sensitive {
-			log.Printf("[DEBUG] setValue: Congrats, there's a diff in Config.Sensitive (%s) and the SensitiveBefore (unknown)", n.Config.Sensitive)
-			sensitiveWarning = true
-		}
-		log.Printf("[DEBUG] setValue: sensitiveWarning(%t)", sensitiveWarning)
+		sensitiveChange := sensitiveBefore || n.Config.Sensitive
 
 		// strip any marks here just to be sure we don't panic on the True comparison
 		unmarkedVal, _ := val.UnmarkDeep()
@@ -584,7 +577,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		case val.IsWhollyKnown() &&
 			unmarkedVal.Equals(before).True() &&
-			n.Config.Sensitive == sensitive &&
+			n.Config.Sensitive == sensitiveBefore &&
 			n.Config.Deprecated == deprecatedBefore:
 			// Sensitivity and deprecation must also match to be a NoOp.
 			// Theoretically marks may not match here, but sensitivity is the
@@ -595,7 +588,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		change := &plans.OutputChange{
 			Addr:      n.Addr,
-			Sensitive: sensitive,
+			Sensitive: sensitiveChange,
 			Change: plans.Change{
 				Action: action,
 				Before: before,
@@ -658,12 +651,6 @@ func checkSensitivityOutputs(configOutputs map[string]*configs.Output, prevRunSt
 				log.Printf("[DEBUG] checkSensitivityOutputs: config and state outputs for output: [%v]", k)
 				sensitiveBefore := stateOutput.Sensitive
 				sensitiveAfter := configOutputs[k].Sensitive
-
-				if k == "sensitive_before" {
-					log.Printf("[DEBUG] debugging situation starts here")
-					log.Printf("[DEBUG] stateOutput [%+v]", stateOutput)
-					log.Printf("[DEBUG] configOutput [%+v]", configOutputs[k])
-				}
 
 				if sensitiveBefore && !sensitiveAfter {
 					log.Printf("[DEBUG] whoah you're in the situation where it's sensitiveBefore and !sensitiveAfter")
