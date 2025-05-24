@@ -33,10 +33,7 @@ func NewPaginationMeta(offset, limit int, hasMore bool, currentURL string) Pagin
 		pm.NextOffset = &nextOffset
 	}
 
-	prevOffset := offset - limit
-	if prevOffset < 0 {
-		prevOffset = 0
-	}
+	prevOffset := max(offset-limit, 0)
 	if prevOffset < offset {
 		pm.PrevOffset = &prevOffset
 	}
