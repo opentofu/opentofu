@@ -151,7 +151,7 @@ type OutputChangeSrc struct {
 	// change is sensitive and so a rendered version of the plan in the UI
 	// should elide the actual values while still indicating the action of the
 	// change.
-	SensitiveBefore bool
+	Sensitive bool
 
 	// BecomingNonSensitive, if true, indicates that this output is changing
 	// from sensitive to non-sensitive, and that the UI should show a special
@@ -166,13 +166,12 @@ func (ocs *OutputChangeSrc) Decode() (*OutputChange, error) {
 	if err != nil {
 		return nil, err
 	}
-	log.Printf("[DEBUG] ocs.SensitiveBefore value: %v", ocs.SensitiveBefore)
+	log.Printf("[DEBUG] ocs.SensitiveBefore value: %v", ocs.Sensitive)
 	log.Printf("[DEBUG] ocs.SensitiveAfter value: %v", ocs.SensitiveAfter)
 	return &OutputChange{
-		Addr:            ocs.Addr,
-		Change:          *change,
-		SensitiveBefore: ocs.SensitiveBefore,
-		SensitiveAfter:  ocs.SensitiveAfter,
+		Addr:      ocs.Addr,
+		Change:    *change,
+		Sensitive: ocs.Sensitive,
 	}, nil
 }
 

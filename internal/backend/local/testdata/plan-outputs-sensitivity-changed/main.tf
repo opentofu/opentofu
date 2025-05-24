@@ -3,13 +3,13 @@
 # This output starts non-sensitive, and the test will change it to sensitive
 output "sensitive_after" {
   value = "after"
-  sensitive = false
+  sensitive = true
 }
 
 # This output starts sensitive, and the test will change it to non-sensitive
 output "sensitive_before" {
   value = "before"
-  sensitive = true
+  sensitive = false
 }
 
 # Regular output unchanged, to verify it doesn't show up in the plan

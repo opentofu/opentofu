@@ -267,9 +267,9 @@ func (ms *Module) SetOutputValue(name string, value cty.Value, sensitive bool, d
 				Name: name,
 			},
 		},
-		Value:           value,
-		SensitiveBefore: sensitive,
-		Deprecated:      deprecated,
+		Value:      value,
+		Sensitive:  sensitive,
+		Deprecated: deprecated,
 	}
 	ms.OutputValues[name] = os
 	return os
