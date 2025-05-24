@@ -630,7 +630,7 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 		// a result, BeforeSensitive and AfterSensitive will be identical, and
 		// either false or true.
 		outputSensitive := cty.False
-		if oc.SensitiveBefore {
+		if oc.Sensitive {
 			outputSensitive = cty.True
 		}
 		if oc.SensitiveAfter {

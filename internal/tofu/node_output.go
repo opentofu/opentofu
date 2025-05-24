@@ -475,13 +475,12 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 
 	// if this is a root module, try to get a before value from the state for
 	// the diff
-	sensitiveBefore, sensitiveAfter := false, false
+	sensitive := false
 	before := cty.NullVal(cty.DynamicPseudoType)
 	mod := state.Module(n.Addr.Module)
 	if n.Addr.Module.IsRoot() && mod != nil {
 		if o, ok := mod.OutputValues[n.Addr.OutputValue.Name]; ok {
-			sensitiveBefore = o.SensitiveBefore
-			sensitiveAfter = o.SensitiveAfter
+			sensitive = o.Sensitive
 			before = o.Value
 		} else {
 			// If the output was not in state, a delete change would
@@ -494,9 +493,8 @@ func (n *NodeDestroyableOutput) Execute(_ context.Context, evalCtx EvalContext, 
 	changes := evalCtx.Changes()
 	if changes != nil && n.Planning {
 		change := &plans.OutputChange{
-			Addr:            n.Addr,
-			SensitiveBefore: sensitiveBefore,
-			SensitiveAfter:  sensitiveAfter,
+			Addr:      n.Addr,
+			Sensitive: sensitive,
 			Change: plans.Change{
 				Action: plans.Delete,
 				Before: before,
@@ -534,7 +532,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 	if changes != nil && n.Planning {
 		// if this is a root module, try to get a before value from the state for
 		// the diff
-		sensitiveBefore := false
+		sensitive := false
 		deprecatedBefore := ""
 		before := cty.NullVal(cty.DynamicPseudoType)
 
@@ -546,7 +544,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 			for name, o := range mod.OutputValues {
 				if name == n.Addr.OutputValue.Name {
 					before = o.Value
-					sensitiveBefore = o.SensitiveBefore
+					sensitive = o.Sensitive
 					deprecatedBefore = o.Deprecated
 					newOutput = false
 					break
@@ -558,7 +556,6 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// as sensitive. We can show the value again once sensitivity is
 		// removed from both the config and the state.
 		// sensitiveChange := n.Config.Sensitive || mod.OutputValues[n.Addr.OutputValue.Name].SensitiveBefore
-		sensitiveChange := true
 		sensitiveWarning := false
 
 		// if !n.Config.Sensitive && mod.OutputValues[n.Addr.OutputValue.Name].SensitiveBefore {
@@ -587,7 +584,7 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 		case val.IsWhollyKnown() &&
 			unmarkedVal.Equals(before).True() &&
-			n.Config.Sensitive == sensitiveBefore &&
+			n.Config.Sensitive == sensitive &&
 			n.Config.Deprecated == deprecatedBefore:
 			// Sensitivity and deprecation must also match to be a NoOp.
 			// Theoretically marks may not match here, but sensitivity is the
@@ -597,9 +594,8 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		}
 
 		change := &plans.OutputChange{
-			Addr:            n.Addr,
-			SensitiveBefore: sensitiveBefore,
-			SensitiveAfter:  sensitiveChange,
+			Addr:      n.Addr,
+			Sensitive: sensitive,
 			Change: plans.Change{
 				Action: action,
 				Before: before,
@@ -650,24 +646,34 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 	state.SetOutputValue(n.Addr, val, n.Config.Sensitive, n.Config.Deprecated)
 }
 
-func checkSensitivityOutputs(outputs map[string]*configs.Output, prevRunState *states.State) tfdiags.Diagnostics {
+func checkSensitivityOutputs(configOutputs map[string]*configs.Output, prevRunState *states.State) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	for _, output := range outputs {
-		configOutputSensitivity := output.Sensitive
-		stateOutputSensitivityBefore := false
+	for _, m := range prevRunState.Modules {
+		// log.Printf("[DEBUG] checkSensitivityOutputs: module value: %v", *m)
+		for k, stateOutput := range m.OutputValues {
+			log.Printf("[DEBUG] checkSensitivityOutputs: output key [%v] output value: [%v]", k, *stateOutput)
+			// stateOutputs = append(stateOutputs, *o)
 
-		// Need to figure out how to get the correct absolute address here.
-		stateOutput := prevRunState.OutputValue(output.Addr().Absolute(TODOTODO))
+			if _, exists := configOutputs[k]; exists {
+				log.Printf("[DEBUG] checkSensitivityOutputs: config and state outputs for output: [%v]", k)
+				sensitiveBefore := stateOutput.Sensitive
+				sensitiveAfter := configOutputs[k].Sensitive
 
-		if stateOutput != nil {
-			stateOutputSensitivityBefore = stateOutput.SensitiveBefore
-		}
-		if stateOutputSensitivityBefore && !configOutputSensitivity {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
-				"Output change in sensitivity",
-				fmt.Sprintf("A previously sesnitive output is being changed to insensitive: %q.", output.Name),
-			))
+				if k == "sensitive_before" {
+					log.Printf("[DEBUG] debugging situation starts here")
+					log.Printf("[DEBUG] stateOutput [%+v]", stateOutput)
+					log.Printf("[DEBUG] configOutput [%+v]", configOutputs[k])
+				}
+
+				if sensitiveBefore && !sensitiveAfter {
+					log.Printf("[DEBUG] whoah you're in the situation where it's sensitiveBefore and !sensitiveAfter")
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Warning,
+						"Output change in sensitivity",
+						fmt.Sprintf("A previously sensitive output is being changed to insensitive: %q.", k),
+					))
+				}
+			}
 		}
 	}
 

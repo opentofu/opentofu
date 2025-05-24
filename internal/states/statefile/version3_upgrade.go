@@ -224,7 +224,7 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 			// We'll migrate the outputs for this module too, then.
 			for name, oldOS := range msOld.Outputs {
 				newOS := outputStateV4{
-					SensitiveBefore: oldOS.Sensitive,
+					Sensitive: oldOS.Sensitive,
 				}
 
 				valRaw := oldOS.Value

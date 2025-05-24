@@ -315,8 +315,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 					},
 				},
 			}
-			os.SensitiveBefore = fos.SensitiveBefore
-			os.SensitiveAfter = fos.SensitiveAfter
+			os.Sensitive = fos.Sensitive
 
 			os.Deprecated = fos.Deprecated
 
@@ -409,11 +408,10 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 		}
 
 		sV4.RootOutputs[name] = outputStateV4{
-			SensitiveBefore: os.SensitiveBefore,
-			SensitiveAfter:  os.SensitiveAfter,
-			Deprecated:      os.Deprecated,
-			ValueRaw:        json.RawMessage(src),
-			ValueTypeRaw:    json.RawMessage(typeSrc),
+			Sensitive:    os.Sensitive,
+			Deprecated:   os.Deprecated,
+			ValueRaw:     json.RawMessage(src),
+			ValueTypeRaw: json.RawMessage(typeSrc),
 		}
 	}
 
@@ -766,11 +764,10 @@ func (s *stateV4) normalize() {
 }
 
 type outputStateV4 struct {
-	ValueRaw        json.RawMessage `json:"value"`
-	ValueTypeRaw    json.RawMessage `json:"type"`
-	SensitiveBefore bool            `json:"sensitive_before,omitempty"`
-	SensitiveAfter  bool            `json:"sensitive_after,omitempty"`
-	Deprecated      string          `json:"deprecated,omitempty"`
+	ValueRaw     json.RawMessage `json:"value"`
+	ValueTypeRaw json.RawMessage `json:"type"`
+	Sensitive    bool            `json:"sensitive,omitempty"`
+	Deprecated   string          `json:"deprecated,omitempty"`
 }
 
 // Note: the ProviderConfig field is only set on either the resource or the resource instance object
