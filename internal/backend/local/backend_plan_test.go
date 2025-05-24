@@ -305,18 +305,19 @@ func TestLocal_planOutputSensitivityChanged(t *testing.T) {
 		t.Error("plan should not be empty")
 	}
 
-	// The plan should include changes to sensitivity even when the value itself didn't change
-	// TODO: What's the actual desired wording here for sensitive_before change
 	expectedOutput := strings.TrimSpace(`
 Changes to Outputs:
   + added_insensitive     = "added_but_always_insensitive"
   ~ changed_insensitive   = "not_yet_changed" -> "changed_but_always_insensitive"
   ~ changed_sensitive     = (sensitive value)
-  ~ sensitive_after  	  = "after" -> (sensitive value)
-  ~ sensitive_before 	  = (sensitive value) -> (if you apply this plan then this value will immediately begin appearing in the UI in cleartext)
 
 You can apply this plan to save these new output values to the OpenTofu
 state, without changing any real infrastructure.
+
+Warning: Output change in sensitivity
+
+A previously sensitive output is being changed to insensitive:
+"sensitive_before".
 `)
 
 	if output := done(t).Stdout(); !strings.Contains(output, expectedOutput) {

@@ -387,7 +387,6 @@ If you do intend to export this data, annotate the output value as sensitive by 
 				})
 			}
 		}
-
 	}
 
 	// handling the interpolation error
@@ -555,7 +554,6 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 		// We will not show the value if either the before or after are marked
 		// as sensitive. We can show the value again once sensitivity is
 		// removed from both the config and the state.
-		// sensitiveChange := n.Config.Sensitive || mod.OutputValues[n.Addr.OutputValue.Name].SensitiveBefore
 		sensitiveChange := sensitiveBefore || n.Config.Sensitive
 
 		// strip any marks here just to be sure we don't panic on the True comparison
@@ -642,18 +640,12 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 func checkSensitivityOutputs(configOutputs map[string]*configs.Output, prevRunState *states.State) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	for _, m := range prevRunState.Modules {
-		// log.Printf("[DEBUG] checkSensitivityOutputs: module value: %v", *m)
 		for k, stateOutput := range m.OutputValues {
-			log.Printf("[DEBUG] checkSensitivityOutputs: output key [%v] output value: [%v]", k, *stateOutput)
-			// stateOutputs = append(stateOutputs, *o)
-
 			if _, exists := configOutputs[k]; exists {
-				log.Printf("[DEBUG] checkSensitivityOutputs: config and state outputs for output: [%v]", k)
 				sensitiveBefore := stateOutput.Sensitive
 				sensitiveAfter := configOutputs[k].Sensitive
 
 				if sensitiveBefore && !sensitiveAfter {
-					log.Printf("[DEBUG] whoah you're in the situation where it's sensitiveBefore and !sensitiveAfter")
 					diags = diags.Append(tfdiags.Sourceless(
 						tfdiags.Warning,
 						"Output change in sensitivity",
