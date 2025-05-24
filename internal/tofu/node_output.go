@@ -636,3 +636,25 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 	state.SetOutputValue(n.Addr, val, n.Config.Sensitive, n.Config.Deprecated)
 }
+
+func checkSensitivityOutputs(configOutputs map[string]*configs.Output, prevRunState *states.State) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+	for _, m := range prevRunState.Modules {
+		for k, stateOutput := range m.OutputValues {
+			if _, exists := configOutputs[k]; exists {
+				sensitiveBefore := stateOutput.Sensitive
+				sensitiveAfter := configOutputs[k].Sensitive
+
+				if sensitiveBefore && !sensitiveAfter {
+					diags = diags.Append(tfdiags.Sourceless(
+						tfdiags.Warning,
+						"Output change in sensitivity",
+						fmt.Sprintf("A previously sensitive output is being changed to insensitive: %q.", k),
+					))
+				}
+			}
+		}
+	}
+
+	return diags
+}
