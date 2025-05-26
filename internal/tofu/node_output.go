@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -639,20 +640,21 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 
 func checkSensitivityOutputs(configOutputs map[string]*configs.Output, prevRunState *states.State) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
-	for _, m := range prevRunState.Modules {
-		for k, stateOutput := range m.OutputValues {
-			if _, exists := configOutputs[k]; exists {
-				sensitiveBefore := stateOutput.Sensitive
-				sensitiveAfter := configOutputs[k].Sensitive
 
-				if sensitiveBefore && !sensitiveAfter {
-					diags = diags.Append(tfdiags.Sourceless(
-						tfdiags.Warning,
-						"Output change in sensitivity",
-						fmt.Sprintf("A previously sensitive output is being changed to insensitive: %q.", k),
-					))
-				}
-			}
+	// Extract all Outputs from previous state
+	prevStateOutputs := map[string]*states.OutputValue{}
+	for _, m := range prevRunState.Modules {
+		maps.Copy(prevStateOutputs, m.OutputValues)
+	}
+
+	// Check if any of the previous Outputs have been switched from sensitive to insensitive
+	for outputName, prevStateOutput := range prevStateOutputs {
+		if prevStateOutput.Sensitive && !configOutputs[outputName].Sensitive {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Output change in sensitivity",
+				fmt.Sprintf("A previously sensitive output is being changed to insensitive: %q.", outputName),
+			))
 		}
 	}
 
