@@ -30,6 +30,8 @@ func TestMovedBlock_decode(t *testing.T) {
 	mod_foo_expr := hcltest.MockExprTraversalSrc("module.foo")
 	mod_bar_expr := hcltest.MockExprTraversalSrc("module.bar")
 
+	ephemeral_ref_expr := hcltest.MockExprTraversalSrc("ephemeral.test.test")
+
 	tests := map[string]struct {
 		input *hcl.Block
 		want  *Moved
@@ -149,6 +151,30 @@ func TestMovedBlock_decode(t *testing.T) {
 				DeclRange: blockRange,
 			},
 			"Invalid \"moved\" addresses",
+		},
+		"error: ephemeral not allowed": {
+			&hcl.Block{
+				Type: "moved",
+				Body: hcltest.MockBody(&hcl.BodyContent{
+					Attributes: hcl.Attributes{
+						"to": {
+							Name: "to",
+							Expr: ephemeral_ref_expr,
+						},
+						"from": {
+							Name: "from",
+							Expr: ephemeral_ref_expr,
+						},
+					},
+				}),
+				DefRange: blockRange,
+			},
+			&Moved{
+				To:        mustMoveEndpointFromExpr(ephemeral_ref_expr),
+				From:      mustMoveEndpointFromExpr(ephemeral_ref_expr),
+				DeclRange: blockRange,
+			},
+			"Invalid \"moved\" address",
 		},
 	}
 
