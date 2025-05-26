@@ -143,6 +143,7 @@ The ephemeral outputs are available during plan and apply phase and can be acces
 * other ephemeral outputs
 * write-only attributes
 * ephemeral resources
+* locals
 * `provisioner` block
 * `connection` block
 
