@@ -78,6 +78,11 @@ func (p *Provider) ValidateDataResourceConfig(_ context.Context, req providers.V
 	return res
 }
 
+// ValidateEphemeralConfig is used to validate the ephemeral resource configuration values.
+func (p *Provider) ValidateEphemeralConfig(context.Context, providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
+}
+
 // Configure configures and initializes the provider.
 func (p *Provider) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	// At this moment there is nothing to configure for the terraform provider,
@@ -123,6 +128,22 @@ func (p *Provider) ReadDataSourceEncrypted(ctx context.Context, req providers.Re
 	res.Diagnostics = diags
 
 	return res
+}
+
+// OpenEphemeralResource opens an ephemeral resource returning the ephemeral value returned from the provider.
+func (p *Provider) OpenEphemeralResource(context.Context, providers.OpenEphemeralResourceRequest) providers.OpenEphemeralResourceResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
+}
+
+// RenewEphemeralResource is renewing an ephemeral resource returning only the private information from the provider.
+func (p *Provider) RenewEphemeralResource(context.Context, providers.RenewEphemeralResourceRequest) providers.RenewEphemeralResourceResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
+}
+
+// CloseEphemeralResource is closing an ephemeral resource to allow the provider to clean up any possible remote information
+// bound to the previously opened ephemeral resource.
+func (p *Provider) CloseEphemeralResource(context.Context, providers.CloseEphemeralResourceRequest) providers.CloseEphemeralResourceResponse {
+	panic("Should not be called directly, special case for terraform_remote_state")
 }
 
 // Stop is called when the provider should halt any in-flight actions.
