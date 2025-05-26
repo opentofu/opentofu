@@ -188,6 +188,18 @@ func parseRef(traversal hcl.Traversal) (*Reference, tfdiags.Diagnostics) {
 		}
 		remain := traversal[1:] // trim off "data" so we can use our shared resource reference parser
 		return parseResourceRef(DataResourceMode, rootRange, remain)
+	case "ephemeral":
+		if len(traversal) < 3 {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid reference",
+				Detail:   `The "ephemeral" object must be followed by two attribute names: the ephemeral resource type and its name.`,
+				Subject:  traversal.SourceRange().Ptr(),
+			})
+			return nil, diags
+		}
+		remain := traversal[1:] // trim off "ephemeral" so we can use our shared resource reference parser
+		return parseResourceRef(EphemeralResourceMode, rootRange, remain)
 	case "resource":
 		// This is an alias for the normal case of just using a managed resource
 		// type as a top-level symbol, which will serve as an escape mechanism
@@ -303,14 +315,16 @@ func parseResourceRef(mode ResourceMode, startRange hcl.Range, traversal hcl.Tra
 		var what string
 		switch mode {
 		case DataResourceMode:
-			what = "data source"
+			what = "a data source"
+		case EphemeralResourceMode:
+			what = "an ephemeral resource"
 		default:
-			what = "resource type"
+			what = "a resource type"
 		}
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid reference",
-			Detail:   fmt.Sprintf(`A reference to a %s must be followed by at least one attribute access, specifying the resource name.`, what),
+			Detail:   fmt.Sprintf(`A reference to %s must be followed by at least one attribute access, specifying the resource name.`, what),
 			Subject:  traversal[1].SourceRange().Ptr(),
 		})
 		return nil, diags
