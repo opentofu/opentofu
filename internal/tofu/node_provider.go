@@ -145,7 +145,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 		return nil
 	}
 
-	schemaResp := provider.GetProviderSchema()
+	schemaResp := provider.GetProviderSchema(ctx)
 	diags := schemaResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
@@ -180,7 +180,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 		Config: unmarkedConfigVal,
 	}
 
-	validateResp := provider.ValidateProviderConfig(req)
+	validateResp := provider.ValidateProviderConfig(ctx, req)
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 
 	tracing.SetSpanError(span, diags)
@@ -205,7 +205,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 
 	configBody := buildProviderConfig(evalCtx, n.Addr, config)
 
-	resp := provider.GetProviderSchema()
+	resp := provider.GetProviderSchema(ctx)
 	diags := resp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
@@ -248,7 +248,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 
 	// ValidateProviderConfig is only used for validation. We are intentionally
 	// ignoring the PreparedConfig field to maintain existing behavior.
-	validateResp := provider.ValidateProviderConfig(req)
+	validateResp := provider.ValidateProviderConfig(ctx, req)
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 	if diags.HasErrors() && config == nil {
 		// If there isn't an explicit "provider" block in the configuration,
