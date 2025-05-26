@@ -299,3 +299,18 @@ func (e *MoveEndpoint) internalAddrType() TargetableAddrType {
 		panic(fmt.Sprintf("unsupported address type %T", addr))
 	}
 }
+
+// SubjectAllowed is validating what types of resource can be used with the moved block.
+// At the time of writing, it was only ensuring that the moved blocks cannot be used against ephemeral resources.
+// This can later be expanded with more rules
+func (e *MoveEndpoint) SubjectAllowed() bool {
+	if e == nil {
+		return false
+	}
+	switch addr := e.relSubject.(type) {
+	case AbsMoveableResource:
+		return addr.AffectedAbsResource().Resource.Mode != EphemeralResourceMode
+	default:
+		return true
+	}
+}
