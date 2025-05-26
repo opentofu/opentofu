@@ -41,12 +41,12 @@ this section will try to explain the functional approach of the new concept in e
 #### Write-only attributes
 This is a new concept that allows any existing `resource` to define attributes in its schema that can be only written without the ability to retrieve the value afterwards.
 
-By not being readable, this also means that an attribute configured by a provider this way, should not be written to the state or plan file either.
+By not being readable, this also means that an attribute configured by a provider this way should not be written to the state or plan file either.
 Therefore, these attributes are suitable for configuring specific resources with sensitive data, like passwords, access keys, etc.
 
 A write-only attribute can accept an ephemeral or a non-ephemeral value, even though it's recommended to use ephemeral values for such attributes.
 
-Because these attributes are not written to the plan file, the update of a write-only attribute it's getting a little bit trickier.
+Because these attributes are not written to the plan file, updating a write-only attribute is getting a bit trickier.
 Provider implementations do generally include also a "version" argument linked to the write-only one.
 For example having a write-only argument called `secret`, providers should also include
 a non-write-only argument called `secret_version`. Every time the user wants to update the value of `secret`, it needs to change the value of `secret_version` to trigger a change.
@@ -106,7 +106,7 @@ Usage in any other place should raise an error:
 │   on main.tf line 30, in resource "playground_secret" "store_secret":
 │   30:   secret_name = var.password
 │
-│ "secret_name" cannot accept an ephemeral value because it is not a write-only attribute which means that will be written to the state.
+│ "secret_name" cannot accept an ephemeral value because it is not a write-only attribute, meaning it will be written to the state.
 ╵
 ```
 
@@ -148,7 +148,7 @@ The ephemeral outputs are available during plan and apply phase and can be acces
 
 An `output` block from a root module cannot be marked as ephemeral.
 This limitation is natural since ephemeral outputs are meant to be skipped from the state file.
-Therefore, there is no usage of such a defined output block in a root module.
+Therefore, there is no use for such a defined output block in a root module.
 When encountering an ephemeral output in a root module, an error similar to this one should be shown:
 ```hcl
 │ Error: Unallowed ephemeral output
@@ -169,11 +169,11 @@ When using outputs in non-ephemeral contexts, OpenTofu should show an error simi
 │   on main.tf line 31, in resource "aws_secretsmanager_secret_version" "store_from_ephemeral_output":
 │   31:   secret_string = module.secret_management.secrets
 │
-│ "secret_string" cannot accept an ephemeral value because it is not a write-only attribute which means that will be written to the state.
+│ "secret_string" cannot accept an ephemeral value because it is not a write-only attribute, meaning it will be written to the state.
 ╵
 ```
 
-Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too.
+Any output that wants to use an ephemeral value must also be marked as ephemeral.
 Otherwise, it needs to show an error:
 ```hcl
 │ Error: Output not marked as ephemeral
@@ -185,8 +185,8 @@ Otherwise, it needs to show an error:
 ```
 > [!NOTE]
 >
-> It's needed to say that the last error will be raised only when a non-ephemeral output is referencing an ephemeral value.
-> But it needs to be allowed for an ephemeral marked output to reference a non-ephemeral value.
+> It needs to be said that the last error will be raised only when a non-ephemeral output references an ephemeral value.
+> However, an ephemeral marked output needs to be allowed to reference a non-ephemeral value.
 
 #### Locals
 Local values are automatically marked as ephemeral if any of the value that is used to compute the local is already an ephemeral one.
@@ -234,15 +234,15 @@ Ephemeral resources can be referenced only in specific contexts:
 For example, you can have an ephemeral resource that is retrieving the password from a secret manager, password that can be passed later into a write-only attribute of another normal `resource`.
 To do so, the flow of an ephemeral resource should look similar to the following:
 * Requests the information from the provider.
-* Is passing it into the evaluation context that will be used to evaluate expressions that are referencing it.
-  * Is not storing the value in plan or state file.
+* It is passed into the evaluation context, which will be used to evaluate expressions referencing it.
+  * It does not store the value in the plan or state file.
 * When accessing the value, OpenTofu will have to check for the presence of the `RenewAt`:
   * If the timestamp is having a value and the current timestamp is at or over the timestamp indicated by `RenewAt`, call the provider `Renew` method.
 * When a reference is found to an ephemeral resource, OpenTofu should double check that the attribute referencing it is allowed to do so.
   * See the contexts above where an ephemeral resource can be referenced.
 * At the end, the ephemeral resource needs to be closed. OpenTofu should call `Close` on the provider for all opened ephemeral resources.
 
-Beside the attributes in a schema of an ephemeral resource, the block should support also the meta-arguments existing in OpenTofu:
+Besides the attributes in a schema of an ephemeral resource, the block should also support the meta-arguments existing in OpenTofu:
 * `depends_on`
 * `count`
 * `for_each`
@@ -276,7 +276,7 @@ Whenever doing so, the output of the provisioner execution should be suppressed:
 #### `connection` block
 When the `connection` block is configured, this should be allowed to use ephemeral values from variables, outputs, locals and values from ephemeral resources.
 
-### Example on how the new changes will work together
+### Example of how the new changes will work together
 To better understand how all of this should work in OpenTofu, let's take a look at a comprehensive example.
 #### Configuration
 <details>
@@ -636,7 +636,7 @@ For enabling ephemeral variables, these are the basic steps that need to be take
   var.password (ephemeral)
      Enter a value:
   ```
-* If a module is having an ephemeral variable declared, that variable can get values from any source, even another non-ephemeral variable.
+* If a module has an ephemeral variable declared, that variable can get values from any source, even another non-ephemeral variable.
 * A variable not marked as ephemeral should not be able to reference an ephemeral value. A non-ephemeral variable will not become ephemeral when referencing an ephemeral value. If any found, an error will be raised.
 
 We should use boolean marks, as no additional information is required to be carried. When introducing the marks for these, extra care should be taken in *all* the places marks are handled and ensure that the existing implementation around marks is not affected.
@@ -661,7 +661,7 @@ For enabling ephemeral outputs, these are the basic steps that need to be taken:
 
 Strict rules:
 * A root module cannot define ephemeral outputs. If any found, an error will be raised.
-* Any output that wants to use an ephemeral value, it needs to be marked as ephemeral too. If any found, an error will be raised.
+* Any output that wants to use an ephemeral value must also be marked as ephemeral. If any found, an error will be raised.
 * Any output referencing an ephemeral value needs to be marked as ephemeral too. If any found, an error will be raised.
 * Any output from a root module that is referencing a write-only attribute needs to be marked as sensitive. If any found, an error will be raised.
 * Any output marked as ephemeral should be able to reference a non-ephemeral value.
@@ -716,8 +716,8 @@ Methods that an ephemeral resource should/could have:
   * Close - should be called on the provider to clean any possible remote information related to the secret returned in the response from `Open`.
   * ValidateConfig - validates the configuration provided for the ephemeral resource.
 
-Ephemeral resources lifecycle is similar with the data blocks:
-* Both basic implementations require the same methods (`Metadata` and `Schema`) while datasource is defining `Read` compared with the ephemeral resource that is defining `Open`. When talking about the basic functionality of the ephemeral resources, the `Open` method should behave similarly with the `Read` on a datasource, where it asks the provider for the data associated with that particular ephemeral resource.
+Ephemeral resources lifecycle is similar to the data blocks:
+* Both basic implementations require the same methods (`Metadata` and `Schema`) while the datasource defines `Read` compared with the ephemeral resource defining `Open`. When talking about the basic functionality of the ephemeral resources, the `Open` method should behave similarly to the `Read` on a datasource, where it asks the provider for the data associated with that particular ephemeral resource.
 * Both also include `ValidateConfig` as extension of the basic definition.
 * Ephemeral resources do support two more operations in contrast with datasources:
   * `Renew`
@@ -834,7 +834,7 @@ test = {
 }
 ```
 
-This function should work perfectly fine also with a non-ephemeral value.
+This function should also work perfectly fine with a non-ephemeral value.
 
 > [!NOTE]
 >
