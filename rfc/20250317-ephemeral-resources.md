@@ -73,7 +73,7 @@ resource "aws_db_instance" "example" {
 }
 ```
 
-As seen in this particular change of the [terraform-plugin-framework](https://github.com/hashicorp/terraform-plugin-framework/commit/ecd80f67daed0b92b243ae59bb1ee2077f8077c7), the write-only attribute cannot be configured for set attributes, set nested attributes and set nested blocks.
+As seen in this particular change of the [terraform-plugin-framework](https://github.com/hashicorp/terraform-plugin-framework/commit/ecd80f67daed0b92b243ae59bb1ee2077f8077c7), the write-only attribute cannot be configured for [set attributes](https://developer.hashicorp.com/terraform/plugin/framework/handling-data/attributes/set), [set nested attributes](https://developer.hashicorp.com/terraform/plugin/framework/handling-data/attributes/set-nested), and [set nested blocks](https://developer.hashicorp.com/terraform/plugin/framework/handling-data/blocks/set-nested).
 
 Write-only attributes cannot generate a plan diff.
 This is because the prior state does not contain a value that OpenTofu can use to compare the new value against and
