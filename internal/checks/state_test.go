@@ -65,6 +65,16 @@ func TestChecksHappyPath(t *testing.T) {
 		Type: "null_resource",
 		Name: "c",
 	}.InModule(moduleChild)
+	dataFoo := addrs.Resource{
+		Mode: addrs.DataResourceMode,
+		Type: "aws_s3_object",
+		Name: "foo",
+	}.InModule(moduleChild)
+	ephemeralBar := addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "aws_secretsmanager_secret_version",
+		Name: "bar",
+	}.InModule(moduleChild)
 	childOutput := addrs.OutputValue{
 		Name: "b",
 	}.InModule(moduleChild)
@@ -78,6 +88,15 @@ func TestChecksHappyPath(t *testing.T) {
 		t.Fatalf("configuration does not include %s", addr)
 	}
 	if addr := resourceB; cfg.Children["child"].Module.ResourceByAddr(addr.Resource) == nil {
+		t.Fatalf("configuration does not include %s", addr)
+	}
+	if addr := resourceC; cfg.Children["child"].Module.ResourceByAddr(addr.Resource) == nil {
+		t.Fatalf("configuration does not include %s", addr)
+	}
+	if addr := dataFoo; cfg.Children["child"].Module.ResourceByAddr(addr.Resource) == nil {
+		t.Fatalf("configuration does not include %s", addr)
+	}
+	if addr := ephemeralBar; cfg.Children["child"].Module.ResourceByAddr(addr.Resource) == nil {
 		t.Fatalf("configuration does not include %s", addr)
 	}
 	if addr := resourceNoChecks; cfg.Module.ResourceByAddr(addr.Resource) == nil {
@@ -104,6 +123,14 @@ func TestChecksHappyPath(t *testing.T) {
 		missing++
 	}
 	if addr := resourceC; !checks.ConfigHasChecks(addr) {
+		t.Errorf("checks not detected for %s", addr)
+		missing++
+	}
+	if addr := dataFoo; !checks.ConfigHasChecks(addr) {
+		t.Errorf("checks not detected for %s", addr)
+		missing++
+	}
+	if addr := ephemeralBar; !checks.ConfigHasChecks(addr) {
 		t.Errorf("checks not detected for %s", addr)
 		missing++
 	}
@@ -138,6 +165,8 @@ func TestChecksHappyPath(t *testing.T) {
 			resourceA,
 			resourceB,
 			resourceC,
+			dataFoo,
+			ephemeralBar,
 			rootOutput,
 			childOutput,
 			checkBlock,
@@ -168,6 +197,8 @@ func TestChecksHappyPath(t *testing.T) {
 	moduleChildInst := addrs.RootModuleInstance.Child("child", addrs.NoKey)
 	resourceInstB := resourceB.Resource.Absolute(moduleChildInst).Instance(addrs.NoKey)
 	resourceInstC0 := resourceC.Resource.Absolute(moduleChildInst).Instance(addrs.IntKey(0))
+	dataInstFoo := dataFoo.Resource.Absolute(moduleChildInst).Instance(addrs.NoKey)
+	ephemeralInstBar := ephemeralBar.Resource.Absolute(moduleChildInst).Instance(addrs.NoKey)
 	resourceInstC1 := resourceC.Resource.Absolute(moduleChildInst).Instance(addrs.IntKey(1))
 	childOutputInst := childOutput.OutputValue.Absolute(moduleChildInst)
 	checkBlockInst := checkBlock.Check.Absolute(addrs.RootModuleInstance)
@@ -183,6 +214,12 @@ func TestChecksHappyPath(t *testing.T) {
 	checks.ReportCheckableObjects(resourceC, addrs.MakeSet[addrs.Checkable](resourceInstC0, resourceInstC1))
 	checks.ReportCheckResult(resourceInstC0, addrs.ResourcePostcondition, 0, StatusPass)
 	checks.ReportCheckResult(resourceInstC1, addrs.ResourcePostcondition, 0, StatusPass)
+
+	checks.ReportCheckableObjects(dataFoo, addrs.MakeSet[addrs.Checkable](dataInstFoo))
+	checks.ReportCheckResult(dataInstFoo, addrs.ResourcePrecondition, 0, StatusPass)
+
+	checks.ReportCheckableObjects(ephemeralBar, addrs.MakeSet[addrs.Checkable](ephemeralInstBar))
+	checks.ReportCheckResult(ephemeralInstBar, addrs.ResourcePrecondition, 0, StatusPass)
 
 	checks.ReportCheckableObjects(childOutput, addrs.MakeSet[addrs.Checkable](childOutputInst))
 	checks.ReportCheckResult(childOutputInst, addrs.OutputPrecondition, 0, StatusPass)
@@ -206,7 +243,7 @@ func TestChecksHappyPath(t *testing.T) {
 				t.Errorf("incorrect final aggregate check status for %s: %s, but want %s", configAddr, got, want)
 			}
 		}
-		if got, want := configCount, 6; got != want {
+		if got, want := configCount, 8; got != want {
 			t.Errorf("incorrect number of known config addresses %d; want %d", got, want)
 		}
 	}
@@ -218,6 +255,8 @@ func TestChecksHappyPath(t *testing.T) {
 			resourceInstB,
 			resourceInstC0,
 			resourceInstC1,
+			dataInstFoo,
+			ephemeralInstBar,
 			childOutputInst,
 			checkBlockInst,
 		)
