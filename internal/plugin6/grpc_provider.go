@@ -111,6 +111,7 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 
 	resp.ResourceTypes = make(map[string]providers.Schema)
 	resp.DataSources = make(map[string]providers.Schema)
+	resp.EphemeralResources = make(map[string]providers.Schema)
 	resp.Functions = make(map[string]providers.FunctionSpec)
 
 	// Some providers may generate quite large schemas, and the internal default
@@ -156,6 +157,10 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 
 	for name, fn := range protoResp.Functions {
 		resp.Functions[name] = convert.ProtoToFunctionSpec(fn)
+	}
+
+	for name, res := range protoResp.EphemeralResourceSchemas {
+		resp.EphemeralResources[name] = convert.ProtoToProviderSchema(res)
 	}
 
 	if protoResp.ServerCapabilities != nil {
@@ -277,6 +282,41 @@ func (p *GRPCProvider) ValidateDataResourceConfig(ctx context.Context, r provide
 	}
 
 	protoResp, err := p.client.ValidateDataResourceConfig(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	return resp
+}
+
+func (p *GRPCProvider) ValidateEphemeralConfig(ctx context.Context, r providers.ValidateEphemeralConfigRequest) (resp providers.ValidateEphemeralConfigResponse) {
+	logger.Trace("GRPCProvider.v6: ValidateEphemeralConfig")
+
+	schema := p.GetProviderSchema(ctx)
+	if schema.Diagnostics.HasErrors() {
+		resp.Diagnostics = schema.Diagnostics
+		return resp
+	}
+
+	ephemeralSchema, ok := schema.EphemeralResources[r.TypeName]
+	if !ok {
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("unknown ephemeral resource %q", r.TypeName))
+		return resp
+	}
+
+	mp, err := msgpack.Marshal(r.Config, ephemeralSchema.Block.ImpliedType())
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+
+	protoReq := &proto6.ValidateEphemeralResourceConfig_Request{
+		TypeName: r.TypeName,
+		Config:   &proto6.DynamicValue{Msgpack: mp},
+	}
+
+	protoResp, err := p.client.ValidateEphemeralResourceConfig(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -744,6 +784,103 @@ func (p *GRPCProvider) ReadDataSource(ctx context.Context, r providers.ReadDataS
 		return resp
 	}
 	resp.State = state
+
+	return resp
+}
+
+func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	logger.Trace("GRPCProvider.v6: OpenEphemeralResource")
+
+	schema := p.GetProviderSchema(ctx)
+	if schema.Diagnostics.HasErrors() {
+		resp.Diagnostics = schema.Diagnostics
+		return resp
+	}
+
+	ephemeralResourceSchema, ok := schema.EphemeralResources[r.TypeName]
+	if !ok {
+		schema.Diagnostics = schema.Diagnostics.Append(fmt.Errorf("unknown ephemeral resource %q", r.TypeName))
+		resp.Diagnostics = schema.Diagnostics
+		return resp
+	}
+
+	config, err := msgpack.Marshal(r.Config, ephemeralResourceSchema.Block.ImpliedType())
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+
+	protoReq := &proto6.OpenEphemeralResource_Request{
+		TypeName: r.TypeName,
+		Config: &proto6.DynamicValue{
+			Msgpack: config,
+		},
+	}
+
+	protoResp, err := p.client.OpenEphemeralResource(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+
+	result, err := decodeDynamicValue(protoResp.Result, ephemeralResourceSchema.Block.ImpliedType())
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(err)
+		return resp
+	}
+	resp.Result = result
+	resp.Private = protoResp.Private
+	if protoResp.Deferred != nil {
+		resp.Deferred = &providers.Deferred{
+			Reason: providers.DeferredReason(protoResp.Deferred.Reason),
+		}
+	}
+	if protoResp.RenewAt != nil {
+		renewAt := protoResp.RenewAt.AsTime()
+		resp.RenewAt = &renewAt
+	}
+
+	return resp
+}
+
+func (p *GRPCProvider) RenewEphemeralResource(ctx context.Context, r providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	logger.Trace("GRPCProvider.v6: RenewEphemeralResource")
+
+	protoReq := &proto6.RenewEphemeralResource_Request{
+		TypeName: r.TypeName,
+		Private:  r.Private,
+	}
+
+	protoResp, err := p.client.RenewEphemeralResource(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
+	resp.Private = protoResp.Private
+	if protoResp.RenewAt != nil {
+		renewAt := protoResp.RenewAt.AsTime()
+		resp.RenewAt = &renewAt
+	}
+
+	return resp
+}
+
+func (p *GRPCProvider) CloseEphemeralResource(ctx context.Context, r providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
+	logger.Trace("GRPCProvider.v6: CloseEphemeralResource")
+
+	protoReq := &proto6.CloseEphemeralResource_Request{
+		TypeName: r.TypeName,
+		Private:  r.Private,
+	}
+
+	protoResp, err := p.client.CloseEphemeralResource(ctx, protoReq)
+	if err != nil {
+		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
+		return resp
+	}
+	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
 
 	return resp
 }
