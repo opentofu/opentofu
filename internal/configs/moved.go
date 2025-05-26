@@ -45,6 +45,23 @@ func decodeMovedBlock(block *hcl.Block) (*Moved, hcl.Diagnostics) {
 			moved.To = to
 		}
 	}
+	// ensure that the moved block is not used against ephemeral resources since there is no use against those
+	if !moved.From.SubjectAllowed() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid \"moved\" address",
+			Detail:   "The resource referenced by the \"from\" attribute is not allowed to be moved.",
+			Subject:  &moved.DeclRange,
+		})
+	}
+	if !moved.To.SubjectAllowed() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid \"moved\" address",
+			Detail:   "The resource referenced by the \"to\" attribute is not allowed to be moved.",
+			Subject:  &moved.DeclRange,
+		})
+	}
 
 	// we can only move from a module to a module, resource to resource, etc.
 	if !diags.HasErrors() {
