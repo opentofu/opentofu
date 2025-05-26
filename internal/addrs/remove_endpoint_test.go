@@ -177,6 +177,52 @@ func TestParseRemoveEndpoint(t *testing.T) {
 			nil,
 			`Invalid address: A resource name is required.`,
 		},
+		// ephemeral
+		{
+			`ephemeral.foo.bar`,
+			nil,
+			`Ephemeral resource address is not allowed: Ephemeral resources cannot be destroyed, and therefore, 'removed' blocks are not allowed to target them. To remove ephemeral resources from the state, you should remove the ephemeral resource block from the configuration.`,
+		},
+		{
+			`ephemeral.foo.bar[0]`,
+			nil,
+			`Resource instance address with keys is not allowed: Resource address cannot be a resource instance (e.g. "null_resource.a[0]"), it must be a resource instead (e.g. "null_resource.a").`,
+		},
+		{
+			`ephemeral.foo.bar["a"]`,
+			nil,
+			`Resource instance address with keys is not allowed: Resource address cannot be a resource instance (e.g. "null_resource.a[0]"), it must be a resource instead (e.g. "null_resource.a").`,
+		},
+		{
+			`module.boop.ephemeral.foo.bar[0]`,
+			nil,
+			`Resource instance address with keys is not allowed: Resource address cannot be a resource instance (e.g. "null_resource.a[0]"), it must be a resource instead (e.g. "null_resource.a").`,
+		},
+		{
+			`module.boop.ephemeral.foo.bar["a"]`,
+			nil,
+			`Resource instance address with keys is not allowed: Resource address cannot be a resource instance (e.g. "null_resource.a[0]"), it must be a resource instead (e.g. "null_resource.a").`,
+		},
+		{
+			`module.foo.ephemeral`,
+			nil,
+			`Invalid address: Resource specification must include a resource type and name.`,
+		},
+		{
+			`module.foo.ephemeral.bar`,
+			nil,
+			`Invalid address: Resource specification must include a resource type and name.`,
+		},
+		{
+			`module.foo.ephemeral[0]`,
+			nil,
+			`Invalid address: Resource specification must include a resource type and name.`,
+		},
+		{
+			`module.foo.ephemeral.bar[0]`,
+			nil,
+			`Invalid address: A resource name is required.`,
+		},
 	}
 
 	for _, test := range tests {
