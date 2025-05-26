@@ -72,6 +72,8 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 		case "data":
 			rAddr.Mode = addrs.DataResourceMode
 		default:
+			// This covers also addrs.EphemeralResourceMode. Should never happen, so this comment is just an indication
+			// that this part was checked during ephemeral resources implementation.
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
 				"Invalid resource mode in state",
@@ -427,6 +429,8 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 			case addrs.DataResourceMode:
 				mode = "data"
 			default:
+				// This covers also addrs.EphemeralResourceMode. Should never happen, so this comment is just an indication
+				// that this part was checked during ephemeral resources implementation.
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Failed to serialize resource in state",
