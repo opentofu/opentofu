@@ -14,6 +14,10 @@ resource "null_resource" "foo" {
 
 }
 
+ephemeral "aws_secret" "bar" {}
+
+data "aws_s3_object" "baz" {}
+
 import {
   id = "directory/filename"
   to = local_file.foo
