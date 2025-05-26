@@ -68,6 +68,13 @@ type GRPCProvider struct {
 
 	// this context is created by the plugin package, and is canceled when the
 	// plugin process ends.
+	//
+	// THIS IS NOT THE RIGHT CONTEXT TO USE FOR GRPC CALLS! This represents
+	// the overall context in which the plugin was launched and represents the
+	// full runtime of the plugin process, whereas the [context.Context] passed
+	// to individual [providers.Interface] methods is a more tightly-scoped
+	// context focused on each individual request, and so is more appropriate
+	// to use as the parent context for gRPC API calls.
 	ctx context.Context
 
 	mu sync.Mutex
@@ -78,7 +85,7 @@ type GRPCProvider struct {
 
 var _ providers.Interface = new(GRPCProvider)
 
-func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResponse) {
+func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
 	logger.Trace("GRPCProvider.v6: GetProviderSchema")
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -116,7 +123,7 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 	// size much higher on the server side, which is the supported method for
 	// determining payload size.
 	const maxRecvSize = 64 << 20
-	protoResp, err := p.client.GetProviderSchema(p.ctx, new(proto6.GetProviderSchema_Request), grpc.MaxRecvMsgSizeCallOption{MaxRecvMsgSize: maxRecvSize})
+	protoResp, err := p.client.GetProviderSchema(ctx, new(proto6.GetProviderSchema_Request), grpc.MaxRecvMsgSizeCallOption{MaxRecvMsgSize: maxRecvSize})
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -181,10 +188,10 @@ func (p *GRPCProvider) GetProviderSchema() (resp providers.GetProviderSchemaResp
 	return resp
 }
 
-func (p *GRPCProvider) ValidateProviderConfig(r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
+func (p *GRPCProvider) ValidateProviderConfig(ctx context.Context, r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
 	logger.Trace("GRPCProvider.v6: ValidateProviderConfig")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -202,7 +209,7 @@ func (p *GRPCProvider) ValidateProviderConfig(r providers.ValidateProviderConfig
 		Config: &proto6.DynamicValue{Msgpack: mp},
 	}
 
-	protoResp, err := p.client.ValidateProviderConfig(p.ctx, protoReq)
+	protoResp, err := p.client.ValidateProviderConfig(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -212,10 +219,10 @@ func (p *GRPCProvider) ValidateProviderConfig(r providers.ValidateProviderConfig
 	return resp
 }
 
-func (p *GRPCProvider) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
+func (p *GRPCProvider) ValidateResourceConfig(ctx context.Context, r providers.ValidateResourceConfigRequest) (resp providers.ValidateResourceConfigResponse) {
 	logger.Trace("GRPCProvider.v6: ValidateResourceConfig")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -238,7 +245,7 @@ func (p *GRPCProvider) ValidateResourceConfig(r providers.ValidateResourceConfig
 		Config:   &proto6.DynamicValue{Msgpack: mp},
 	}
 
-	protoResp, err := p.client.ValidateResourceConfig(p.ctx, protoReq)
+	protoResp, err := p.client.ValidateResourceConfig(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -248,10 +255,10 @@ func (p *GRPCProvider) ValidateResourceConfig(r providers.ValidateResourceConfig
 	return resp
 }
 
-func (p *GRPCProvider) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
+func (p *GRPCProvider) ValidateDataResourceConfig(ctx context.Context, r providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
 	logger.Trace("GRPCProvider.v6: ValidateDataResourceConfig")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -274,7 +281,7 @@ func (p *GRPCProvider) ValidateDataResourceConfig(r providers.ValidateDataResour
 		Config:   &proto6.DynamicValue{Msgpack: mp},
 	}
 
-	protoResp, err := p.client.ValidateDataResourceConfig(p.ctx, protoReq)
+	protoResp, err := p.client.ValidateDataResourceConfig(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -283,10 +290,10 @@ func (p *GRPCProvider) ValidateDataResourceConfig(r providers.ValidateDataResour
 	return resp
 }
 
-func (p *GRPCProvider) ValidateEphemeralConfig(r providers.ValidateEphemeralConfigRequest) (resp providers.ValidateEphemeralConfigResponse) {
+func (p *GRPCProvider) ValidateEphemeralConfig(ctx context.Context, r providers.ValidateEphemeralConfigRequest) (resp providers.ValidateEphemeralConfigResponse) {
 	logger.Trace("GRPCProvider.v6: ValidateEphemeralConfig")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -309,7 +316,7 @@ func (p *GRPCProvider) ValidateEphemeralConfig(r providers.ValidateEphemeralConf
 		Config:   &proto6.DynamicValue{Msgpack: mp},
 	}
 
-	protoResp, err := p.client.ValidateEphemeralResourceConfig(p.ctx, protoReq)
+	protoResp, err := p.client.ValidateEphemeralResourceConfig(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -318,10 +325,10 @@ func (p *GRPCProvider) ValidateEphemeralConfig(r providers.ValidateEphemeralConf
 	return resp
 }
 
-func (p *GRPCProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
+func (p *GRPCProvider) UpgradeResourceState(ctx context.Context, r providers.UpgradeResourceStateRequest) (resp providers.UpgradeResourceStateResponse) {
 	logger.Trace("GRPCProvider.v6: UpgradeResourceState")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -342,7 +349,7 @@ func (p *GRPCProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 		},
 	}
 
-	protoResp, err := p.client.UpgradeResourceState(p.ctx, protoReq)
+	protoResp, err := p.client.UpgradeResourceState(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -365,10 +372,10 @@ func (p *GRPCProvider) UpgradeResourceState(r providers.UpgradeResourceStateRequ
 	return resp
 }
 
-func (p *GRPCProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
+func (p *GRPCProvider) ConfigureProvider(ctx context.Context, r providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
 	logger.Trace("GRPCProvider.v6: ConfigureProvider")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 
 	var mp []byte
 
@@ -386,7 +393,7 @@ func (p *GRPCProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (
 		},
 	}
 
-	protoResp, err := p.client.ConfigureProvider(p.ctx, protoReq)
+	protoResp, err := p.client.ConfigureProvider(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -395,10 +402,16 @@ func (p *GRPCProvider) ConfigureProvider(r providers.ConfigureProviderRequest) (
 	return resp
 }
 
-func (p *GRPCProvider) Stop() error {
+func (p *GRPCProvider) Stop(ctx context.Context) error {
 	logger.Trace("GRPCProvider.v6: Stop")
+	// NOTE: The contract for providers.Interface guarantees that the ctx
+	// passed to this function is never canceled, so we can safely use it
+	// to make our "stop" request here. The context passed to other methods
+	// _can_ be cancelled in some cases, so other methods should use
+	// ctx = context.WithoutCancel(ctx) before making requests that need
+	// to be able to terminate gracefully in response to "Stop".
 
-	resp, err := p.client.StopProvider(p.ctx, new(proto6.StopProvider_Request))
+	resp, err := p.client.StopProvider(ctx, new(proto6.StopProvider_Request))
 	if err != nil {
 		return err
 	}
@@ -409,10 +422,10 @@ func (p *GRPCProvider) Stop() error {
 	return nil
 }
 
-func (p *GRPCProvider) ReadResource(r providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
+func (p *GRPCProvider) ReadResource(ctx context.Context, r providers.ReadResourceRequest) (resp providers.ReadResourceResponse) {
 	logger.Trace("GRPCProvider.v6: ReadResource")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -447,7 +460,7 @@ func (p *GRPCProvider) ReadResource(r providers.ReadResourceRequest) (resp provi
 		protoReq.ProviderMeta = &proto6.DynamicValue{Msgpack: metaMP}
 	}
 
-	protoResp, err := p.client.ReadResource(p.ctx, protoReq)
+	protoResp, err := p.client.ReadResource(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -465,10 +478,10 @@ func (p *GRPCProvider) ReadResource(r providers.ReadResourceRequest) (resp provi
 	return resp
 }
 
-func (p *GRPCProvider) PlanResourceChange(r providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
+func (p *GRPCProvider) PlanResourceChange(ctx context.Context, r providers.PlanResourceChangeRequest) (resp providers.PlanResourceChangeResponse) {
 	logger.Trace("GRPCProvider.v6: PlanResourceChange")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -526,7 +539,7 @@ func (p *GRPCProvider) PlanResourceChange(r providers.PlanResourceChangeRequest)
 		protoReq.ProviderMeta = &proto6.DynamicValue{Msgpack: metaMP}
 	}
 
-	protoResp, err := p.client.PlanResourceChange(p.ctx, protoReq)
+	protoResp, err := p.client.PlanResourceChange(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -551,14 +564,21 @@ func (p *GRPCProvider) PlanResourceChange(r providers.PlanResourceChangeRequest)
 	return resp
 }
 
-func (p *GRPCProvider) ApplyResourceChange(r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
+func (p *GRPCProvider) ApplyResourceChange(ctx context.Context, r providers.ApplyResourceChangeRequest) (resp providers.ApplyResourceChangeResponse) {
 	logger.Trace("GRPCProvider.v6: ApplyResourceChange")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
 	}
+
+	// Aside from fetching the schema above, the work of this function must
+	// not be directly canceled by the incoming context's cancellation
+	// signal, because we ask a provider plugin to gracefully cancel by
+	// calling the Stop method and then its apply operation must be allowed
+	// to run to completion to terminate gracefully if possible.
+	ctx = context.WithoutCancel(ctx)
 
 	resSchema, ok := schema.ResourceTypes[r.TypeName]
 	if !ok {
@@ -601,7 +621,7 @@ func (p *GRPCProvider) ApplyResourceChange(r providers.ApplyResourceChangeReques
 		protoReq.ProviderMeta = &proto6.DynamicValue{Msgpack: metaMP}
 	}
 
-	protoResp, err := p.client.ApplyResourceChange(p.ctx, protoReq)
+	protoResp, err := p.client.ApplyResourceChange(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -622,10 +642,10 @@ func (p *GRPCProvider) ApplyResourceChange(r providers.ApplyResourceChangeReques
 	return resp
 }
 
-func (p *GRPCProvider) ImportResourceState(r providers.ImportResourceStateRequest) (resp providers.ImportResourceStateResponse) {
+func (p *GRPCProvider) ImportResourceState(ctx context.Context, r providers.ImportResourceStateRequest) (resp providers.ImportResourceStateResponse) {
 	logger.Trace("GRPCProvider.v6: ImportResourceState")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -636,7 +656,7 @@ func (p *GRPCProvider) ImportResourceState(r providers.ImportResourceStateReques
 		Id:       r.ID,
 	}
 
-	protoResp, err := p.client.ImportResourceState(p.ctx, protoReq)
+	protoResp, err := p.client.ImportResourceState(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -667,11 +687,11 @@ func (p *GRPCProvider) ImportResourceState(r providers.ImportResourceStateReques
 	return resp
 }
 
-func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+func (p *GRPCProvider) MoveResourceState(ctx context.Context, r providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
 	logger.Trace("GRPCProvider.v6: MoveResourceState")
 	var resp providers.MoveResourceStateResponse
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -695,7 +715,7 @@ func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) p
 		TargetTypeName: r.TargetTypeName,
 	}
 
-	protoResp, err := p.client.MoveResourceState(p.ctx, protoReq)
+	protoResp, err := p.client.MoveResourceState(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -713,10 +733,10 @@ func (p *GRPCProvider) MoveResourceState(r providers.MoveResourceStateRequest) p
 	return resp
 }
 
-func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
+func (p *GRPCProvider) ReadDataSource(ctx context.Context, r providers.ReadDataSourceRequest) (resp providers.ReadDataSourceResponse) {
 	logger.Trace("GRPCProvider.v6: ReadDataSource")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -751,7 +771,7 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 		protoReq.ProviderMeta = &proto6.DynamicValue{Msgpack: metaMP}
 	}
 
-	protoResp, err := p.client.ReadDataSource(p.ctx, protoReq)
+	protoResp, err := p.client.ReadDataSource(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -768,10 +788,10 @@ func (p *GRPCProvider) ReadDataSource(r providers.ReadDataSourceRequest) (resp p
 	return resp
 }
 
-func (p *GRPCProvider) OpenEphemeralResource(r providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
 	logger.Trace("GRPCProvider.v6: OpenEphemeralResource")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics
 		return resp
@@ -797,7 +817,7 @@ func (p *GRPCProvider) OpenEphemeralResource(r providers.OpenEphemeralResourceRe
 		},
 	}
 
-	protoResp, err := p.client.OpenEphemeralResource(p.ctx, protoReq)
+	protoResp, err := p.client.OpenEphemeralResource(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -824,7 +844,7 @@ func (p *GRPCProvider) OpenEphemeralResource(r providers.OpenEphemeralResourceRe
 	return resp
 }
 
-func (p *GRPCProvider) RenewEphemeralResource(r providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+func (p *GRPCProvider) RenewEphemeralResource(ctx context.Context, r providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
 	logger.Trace("GRPCProvider.v6: RenewEphemeralResource")
 
 	protoReq := &proto6.RenewEphemeralResource_Request{
@@ -832,7 +852,7 @@ func (p *GRPCProvider) RenewEphemeralResource(r providers.RenewEphemeralResource
 		Private:  r.Private,
 	}
 
-	protoResp, err := p.client.RenewEphemeralResource(p.ctx, protoReq)
+	protoResp, err := p.client.RenewEphemeralResource(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -847,7 +867,7 @@ func (p *GRPCProvider) RenewEphemeralResource(r providers.RenewEphemeralResource
 	return resp
 }
 
-func (p *GRPCProvider) CloseEphemeralResource(r providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
+func (p *GRPCProvider) CloseEphemeralResource(ctx context.Context, r providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
 	logger.Trace("GRPCProvider.v6: CloseEphemeralResource")
 
 	protoReq := &proto6.CloseEphemeralResource_Request{
@@ -855,7 +875,7 @@ func (p *GRPCProvider) CloseEphemeralResource(r providers.CloseEphemeralResource
 		Private:  r.Private,
 	}
 
-	protoResp, err := p.client.CloseEphemeralResource(p.ctx, protoReq)
+	protoResp, err := p.client.CloseEphemeralResource(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -865,12 +885,12 @@ func (p *GRPCProvider) CloseEphemeralResource(r providers.CloseEphemeralResource
 	return resp
 }
 
-func (p *GRPCProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
+func (p *GRPCProvider) GetFunctions(ctx context.Context) (resp providers.GetFunctionsResponse) {
 	logger.Trace("GRPCProvider6: GetFunctions")
 
 	protoReq := &proto6.GetFunctions_Request{}
 
-	protoResp, err := p.client.GetFunctions(p.ctx, protoReq)
+	protoResp, err := p.client.GetFunctions(ctx, protoReq)
 	if err != nil {
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
@@ -885,10 +905,10 @@ func (p *GRPCProvider) GetFunctions() (resp providers.GetFunctionsResponse) {
 	return resp
 }
 
-func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
+func (p *GRPCProvider) CallFunction(ctx context.Context, r providers.CallFunctionRequest) (resp providers.CallFunctionResponse) {
 	logger.Trace("GRPCProvider6: CallFunction")
 
-	schema := p.GetProviderSchema()
+	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		// This should be unreachable
 		resp.Error = schema.Diagnostics.Err()
@@ -897,7 +917,7 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 
 	spec, ok := schema.Functions[r.Name]
 	if !ok {
-		funcs := p.GetFunctions()
+		funcs := p.GetFunctions(ctx)
 		if funcs.Diagnostics.HasErrors() {
 			// This should be unreachable
 			resp.Error = funcs.Diagnostics.Err()
@@ -977,7 +997,7 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 		}
 	}
 
-	protoResp, err := p.client.CallFunction(p.ctx, protoReq)
+	protoResp, err := p.client.CallFunction(ctx, protoReq)
 	if err != nil {
 		resp.Error = err
 		return
@@ -999,7 +1019,7 @@ func (p *GRPCProvider) CallFunction(r providers.CallFunctionRequest) (resp provi
 }
 
 // closing the grpc connection is final, and tofu will call it at the end of every phase.
-func (p *GRPCProvider) Close() error {
+func (p *GRPCProvider) Close(_ context.Context) error {
 	logger.Trace("GRPCProvider.v6: Close")
 
 	// Make sure to stop the server if we're not running within go-plugin.

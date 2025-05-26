@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -267,7 +268,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 		},
 	})
 	evalCtx.ProviderProvider = mockProvider
-	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
+	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema(t.Context())
 
 	obj := &states.ResourceInstanceObject{
 		Value: cty.ObjectVal(map[string]cty.Value{
@@ -302,7 +303,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 	evalCtx := &MockEvalContext{
 		StateState:           states.NewState().SyncWrapper(),
 		ProviderProvider:     simpleMockProvider(),
-		ProviderSchemaSchema: p.GetProviderSchema(),
+		ProviderSchemaSchema: p.GetProviderSchema(t.Context()),
 		ChangesChanges:       plans.NewChanges().SyncWrapper(),
 	}
 
@@ -384,7 +385,7 @@ func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*M
 	}
 
 	p := testProvider("test")
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
+	p.ConfigureProvider(context.TODO(), providers.ConfigureProviderRequest{})
 	p.GetProviderSchemaResponse = &schema
 
 	p.UpgradeResourceStateResponse = &providers.UpgradeResourceStateResponse{

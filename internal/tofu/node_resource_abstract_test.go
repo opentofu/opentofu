@@ -334,7 +334,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			evalCtx := new(MockEvalContext)
 			evalCtx.StateState = test.State.SyncWrapper()
 			evalCtx.PathPath = addrs.RootModuleInstance
-			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
+			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema(t.Context())
 			evalCtx.MoveResultsResults = test.MoveResults
 			evalCtx.ProviderProvider = providers.Interface(test.Provider)
 
@@ -381,7 +381,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 			evalCtx := new(MockEvalContext)
 			evalCtx.StateState = test.State.SyncWrapper()
 			evalCtx.PathPath = addrs.RootModuleInstance
-			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema()
+			evalCtx.ProviderSchemaSchema = test.Provider.GetProviderSchema(t.Context())
 			evalCtx.MoveResultsResults = test.MoveResults
 			evalCtx.ProviderProvider = providers.Interface(test.Provider)
 

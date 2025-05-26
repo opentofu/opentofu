@@ -6,15 +6,17 @@
 package tofu
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/function"
 )
 
 // This builds a provider function using an EvalContext and some additional information
@@ -23,7 +25,7 @@ func evalContextProviderFunction(provider providers.Interface, op walkOperation,
 	var diags tfdiags.Diagnostics
 
 	// First try to look up the function from provider schema
-	schema := provider.GetProviderSchema()
+	schema := provider.GetProviderSchema(context.TODO())
 	if schema.Diagnostics.HasErrors() {
 		return nil, schema.Diagnostics
 	}
@@ -52,7 +54,7 @@ func evalContextProviderFunction(provider providers.Interface, op walkOperation,
 		}
 
 		// The provider may be configured and present additional functions via GetFunctions
-		specs := provider.GetFunctions()
+		specs := provider.GetFunctions(context.TODO())
 		if specs.Diagnostics.HasErrors() {
 			return nil, specs.Diagnostics
 		}
@@ -91,7 +93,7 @@ func providerFunction(name string, spec providers.FunctionSpec, provider provide
 	}
 
 	impl := func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-		resp := provider.CallFunction(providers.CallFunctionRequest{
+		resp := provider.CallFunction(context.TODO(), providers.CallFunctionRequest{
 			Name:      name,
 			Arguments: args,
 		})

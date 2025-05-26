@@ -307,7 +307,9 @@ func (c *Context) watchStop(walker *ContextGraphWalker) (chan struct{}, <-chan s
 				// We ignore the error for now since there isn't any reasonable
 				// action to take if there is an error here, since the stop is still
 				// advisory: OpenTofu will exit once the graph node completes.
-				_ = p.Stop()
+				// The providers.Interface API contract requires that the
+				// context passed to Stop is never canceled and has no deadline.
+				_ = p.Stop(context.WithoutCancel(context.TODO()))
 			}
 		}
 

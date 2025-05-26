@@ -23,7 +23,7 @@ import (
 func Provider(p providers.Interface) tfplugin5.ProviderServer {
 	return &provider{
 		provider: p,
-		schema:   p.GetProviderSchema(),
+		schema:   p.GetProviderSchema(context.TODO()),
 	}
 }
 
@@ -75,7 +75,7 @@ func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema
 	return resp, nil
 }
 
-func (p *provider) PrepareProviderConfig(_ context.Context, req *tfplugin5.PrepareProviderConfig_Request) (*tfplugin5.PrepareProviderConfig_Response, error) {
+func (p *provider) PrepareProviderConfig(ctx context.Context, req *tfplugin5.PrepareProviderConfig_Request) (*tfplugin5.PrepareProviderConfig_Response, error) {
 	resp := &tfplugin5.PrepareProviderConfig_Response{}
 	ty := p.schema.Provider.Block.ImpliedType()
 
@@ -85,7 +85,7 @@ func (p *provider) PrepareProviderConfig(_ context.Context, req *tfplugin5.Prepa
 		return resp, nil
 	}
 
-	prepareResp := p.provider.ValidateProviderConfig(providers.ValidateProviderConfigRequest{
+	prepareResp := p.provider.ValidateProviderConfig(ctx, providers.ValidateProviderConfigRequest{
 		Config: configVal,
 	})
 
@@ -94,7 +94,7 @@ func (p *provider) PrepareProviderConfig(_ context.Context, req *tfplugin5.Prepa
 	return resp, nil
 }
 
-func (p *provider) ValidateResourceTypeConfig(_ context.Context, req *tfplugin5.ValidateResourceTypeConfig_Request) (*tfplugin5.ValidateResourceTypeConfig_Response, error) {
+func (p *provider) ValidateResourceTypeConfig(ctx context.Context, req *tfplugin5.ValidateResourceTypeConfig_Request) (*tfplugin5.ValidateResourceTypeConfig_Response, error) {
 	resp := &tfplugin5.ValidateResourceTypeConfig_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
@@ -104,7 +104,7 @@ func (p *provider) ValidateResourceTypeConfig(_ context.Context, req *tfplugin5.
 		return resp, nil
 	}
 
-	validateResp := p.provider.ValidateResourceConfig(providers.ValidateResourceConfigRequest{
+	validateResp := p.provider.ValidateResourceConfig(ctx, providers.ValidateResourceConfigRequest{
 		TypeName: req.TypeName,
 		Config:   configVal,
 	})
@@ -113,7 +113,7 @@ func (p *provider) ValidateResourceTypeConfig(_ context.Context, req *tfplugin5.
 	return resp, nil
 }
 
-func (p *provider) ValidateDataSourceConfig(_ context.Context, req *tfplugin5.ValidateDataSourceConfig_Request) (*tfplugin5.ValidateDataSourceConfig_Response, error) {
+func (p *provider) ValidateDataSourceConfig(ctx context.Context, req *tfplugin5.ValidateDataSourceConfig_Request) (*tfplugin5.ValidateDataSourceConfig_Response, error) {
 	resp := &tfplugin5.ValidateDataSourceConfig_Response{}
 	ty := p.schema.DataSources[req.TypeName].Block.ImpliedType()
 
@@ -123,7 +123,7 @@ func (p *provider) ValidateDataSourceConfig(_ context.Context, req *tfplugin5.Va
 		return resp, nil
 	}
 
-	validateResp := p.provider.ValidateDataResourceConfig(providers.ValidateDataResourceConfigRequest{
+	validateResp := p.provider.ValidateDataResourceConfig(ctx, providers.ValidateDataResourceConfigRequest{
 		TypeName: req.TypeName,
 		Config:   configVal,
 	})
@@ -133,7 +133,7 @@ func (p *provider) ValidateDataSourceConfig(_ context.Context, req *tfplugin5.Va
 }
 
 // ValidateEphemeralResourceConfig implements tfplugin5.ProviderServer.
-func (p *provider) ValidateEphemeralResourceConfig(_ context.Context, req *tfplugin5.ValidateEphemeralResourceConfig_Request) (*tfplugin5.ValidateEphemeralResourceConfig_Response, error) {
+func (p *provider) ValidateEphemeralResourceConfig(ctx context.Context, req *tfplugin5.ValidateEphemeralResourceConfig_Request) (*tfplugin5.ValidateEphemeralResourceConfig_Response, error) {
 	resp := &tfplugin5.ValidateEphemeralResourceConfig_Response{}
 	ty := p.schema.EphemeralResources[req.TypeName].Block.ImpliedType()
 
@@ -143,7 +143,7 @@ func (p *provider) ValidateEphemeralResourceConfig(_ context.Context, req *tfplu
 		return resp, nil
 	}
 
-	validateResp := p.provider.ValidateEphemeralConfig(providers.ValidateEphemeralConfigRequest{
+	validateResp := p.provider.ValidateEphemeralConfig(ctx, providers.ValidateEphemeralConfigRequest{
 		TypeName: req.TypeName,
 		Config:   configVal,
 	})
@@ -152,11 +152,11 @@ func (p *provider) ValidateEphemeralResourceConfig(_ context.Context, req *tfplu
 	return resp, nil
 }
 
-func (p *provider) UpgradeResourceState(_ context.Context, req *tfplugin5.UpgradeResourceState_Request) (*tfplugin5.UpgradeResourceState_Response, error) {
+func (p *provider) UpgradeResourceState(ctx context.Context, req *tfplugin5.UpgradeResourceState_Request) (*tfplugin5.UpgradeResourceState_Response, error) {
 	resp := &tfplugin5.UpgradeResourceState_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
-	upgradeResp := p.provider.UpgradeResourceState(providers.UpgradeResourceStateRequest{
+	upgradeResp := p.provider.UpgradeResourceState(ctx, providers.UpgradeResourceStateRequest{
 		TypeName:     req.TypeName,
 		Version:      req.Version,
 		RawStateJSON: req.RawState.Json,
@@ -178,7 +178,7 @@ func (p *provider) UpgradeResourceState(_ context.Context, req *tfplugin5.Upgrad
 	return resp, nil
 }
 
-func (p *provider) Configure(_ context.Context, req *tfplugin5.Configure_Request) (*tfplugin5.Configure_Response, error) {
+func (p *provider) Configure(ctx context.Context, req *tfplugin5.Configure_Request) (*tfplugin5.Configure_Response, error) {
 	resp := &tfplugin5.Configure_Response{}
 	ty := p.schema.Provider.Block.ImpliedType()
 
@@ -188,7 +188,7 @@ func (p *provider) Configure(_ context.Context, req *tfplugin5.Configure_Request
 		return resp, nil
 	}
 
-	configureResp := p.provider.ConfigureProvider(providers.ConfigureProviderRequest{
+	configureResp := p.provider.ConfigureProvider(ctx, providers.ConfigureProviderRequest{
 		TerraformVersion: req.TerraformVersion,
 		Config:           configVal,
 	})
@@ -197,7 +197,7 @@ func (p *provider) Configure(_ context.Context, req *tfplugin5.Configure_Request
 	return resp, nil
 }
 
-func (p *provider) ReadResource(_ context.Context, req *tfplugin5.ReadResource_Request) (*tfplugin5.ReadResource_Response, error) {
+func (p *provider) ReadResource(ctx context.Context, req *tfplugin5.ReadResource_Request) (*tfplugin5.ReadResource_Response, error) {
 	resp := &tfplugin5.ReadResource_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
@@ -214,7 +214,7 @@ func (p *provider) ReadResource(_ context.Context, req *tfplugin5.ReadResource_R
 		return resp, nil
 	}
 
-	readResp := p.provider.ReadResource(providers.ReadResourceRequest{
+	readResp := p.provider.ReadResource(ctx, providers.ReadResourceRequest{
 		TypeName:     req.TypeName,
 		PriorState:   stateVal,
 		Private:      req.Private,
@@ -236,7 +236,7 @@ func (p *provider) ReadResource(_ context.Context, req *tfplugin5.ReadResource_R
 	return resp, nil
 }
 
-func (p *provider) PlanResourceChange(_ context.Context, req *tfplugin5.PlanResourceChange_Request) (*tfplugin5.PlanResourceChange_Response, error) {
+func (p *provider) PlanResourceChange(ctx context.Context, req *tfplugin5.PlanResourceChange_Request) (*tfplugin5.PlanResourceChange_Response, error) {
 	resp := &tfplugin5.PlanResourceChange_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
@@ -265,7 +265,7 @@ func (p *provider) PlanResourceChange(_ context.Context, req *tfplugin5.PlanReso
 		return resp, nil
 	}
 
-	planResp := p.provider.PlanResourceChange(providers.PlanResourceChangeRequest{
+	planResp := p.provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
 		TypeName:         req.TypeName,
 		PriorState:       priorStateVal,
 		ProposedNewState: proposedStateVal,
@@ -293,7 +293,7 @@ func (p *provider) PlanResourceChange(_ context.Context, req *tfplugin5.PlanReso
 	return resp, nil
 }
 
-func (p *provider) ApplyResourceChange(_ context.Context, req *tfplugin5.ApplyResourceChange_Request) (*tfplugin5.ApplyResourceChange_Response, error) {
+func (p *provider) ApplyResourceChange(ctx context.Context, req *tfplugin5.ApplyResourceChange_Request) (*tfplugin5.ApplyResourceChange_Response, error) {
 	resp := &tfplugin5.ApplyResourceChange_Response{}
 	ty := p.schema.ResourceTypes[req.TypeName].Block.ImpliedType()
 
@@ -322,7 +322,7 @@ func (p *provider) ApplyResourceChange(_ context.Context, req *tfplugin5.ApplyRe
 		return resp, nil
 	}
 
-	applyResp := p.provider.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	applyResp := p.provider.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
 		TypeName:       req.TypeName,
 		PriorState:     priorStateVal,
 		PlannedState:   plannedStateVal,
@@ -346,10 +346,10 @@ func (p *provider) ApplyResourceChange(_ context.Context, req *tfplugin5.ApplyRe
 	return resp, nil
 }
 
-func (p *provider) ImportResourceState(_ context.Context, req *tfplugin5.ImportResourceState_Request) (*tfplugin5.ImportResourceState_Response, error) {
+func (p *provider) ImportResourceState(ctx context.Context, req *tfplugin5.ImportResourceState_Request) (*tfplugin5.ImportResourceState_Response, error) {
 	resp := &tfplugin5.ImportResourceState_Response{}
 
-	importResp := p.provider.ImportResourceState(providers.ImportResourceStateRequest{
+	importResp := p.provider.ImportResourceState(ctx, providers.ImportResourceStateRequest{
 		TypeName: req.TypeName,
 		ID:       req.Id,
 	})
@@ -377,7 +377,7 @@ func (p *provider) MoveResourceState(context.Context, *tfplugin5.MoveResourceSta
 	panic("Not Implemented")
 }
 
-func (p *provider) ReadDataSource(_ context.Context, req *tfplugin5.ReadDataSource_Request) (*tfplugin5.ReadDataSource_Response, error) {
+func (p *provider) ReadDataSource(ctx context.Context, req *tfplugin5.ReadDataSource_Request) (*tfplugin5.ReadDataSource_Response, error) {
 	resp := &tfplugin5.ReadDataSource_Response{}
 	ty := p.schema.DataSources[req.TypeName].Block.ImpliedType()
 
@@ -394,7 +394,7 @@ func (p *provider) ReadDataSource(_ context.Context, req *tfplugin5.ReadDataSour
 		return resp, nil
 	}
 
-	readResp := p.provider.ReadDataSource(providers.ReadDataSourceRequest{
+	readResp := p.provider.ReadDataSource(ctx, providers.ReadDataSourceRequest{
 		TypeName:     req.TypeName,
 		Config:       configVal,
 		ProviderMeta: metaVal,
@@ -414,7 +414,7 @@ func (p *provider) ReadDataSource(_ context.Context, req *tfplugin5.ReadDataSour
 }
 
 // OpenEphemeralResource implements tfplugin5.ProviderServer.
-func (p *provider) OpenEphemeralResource(_ context.Context, req *tfplugin5.OpenEphemeralResource_Request) (*tfplugin5.OpenEphemeralResource_Response, error) {
+func (p *provider) OpenEphemeralResource(ctx context.Context, req *tfplugin5.OpenEphemeralResource_Request) (*tfplugin5.OpenEphemeralResource_Response, error) {
 	resp := &tfplugin5.OpenEphemeralResource_Response{}
 	ty := p.schema.DataSources[req.TypeName].Block.ImpliedType()
 
@@ -424,7 +424,7 @@ func (p *provider) OpenEphemeralResource(_ context.Context, req *tfplugin5.OpenE
 		return resp, nil
 	}
 
-	openResp := p.provider.OpenEphemeralResource(providers.OpenEphemeralResourceRequest{
+	openResp := p.provider.OpenEphemeralResource(ctx, providers.OpenEphemeralResourceRequest{
 		TypeName: req.TypeName,
 		Config:   configVal,
 	})
@@ -450,10 +450,10 @@ func (p *provider) OpenEphemeralResource(_ context.Context, req *tfplugin5.OpenE
 }
 
 // RenewEphemeralResource implements tfplugin5.ProviderServer.
-func (p *provider) RenewEphemeralResource(_ context.Context, req *tfplugin5.RenewEphemeralResource_Request) (*tfplugin5.RenewEphemeralResource_Response, error) {
+func (p *provider) RenewEphemeralResource(ctx context.Context, req *tfplugin5.RenewEphemeralResource_Request) (*tfplugin5.RenewEphemeralResource_Response, error) {
 	resp := &tfplugin5.RenewEphemeralResource_Response{}
 
-	renewResp := p.provider.RenewEphemeralResource(providers.RenewEphemeralResourceRequest{
+	renewResp := p.provider.RenewEphemeralResource(ctx, providers.RenewEphemeralResourceRequest{
 		TypeName: req.TypeName,
 		Private:  req.Private,
 	})
@@ -470,10 +470,10 @@ func (p *provider) RenewEphemeralResource(_ context.Context, req *tfplugin5.Rene
 }
 
 // CloseEphemeralResource implements tfplugin5.ProviderServer.
-func (p *provider) CloseEphemeralResource(_ context.Context, req *tfplugin5.CloseEphemeralResource_Request) (*tfplugin5.CloseEphemeralResource_Response, error) {
+func (p *provider) CloseEphemeralResource(ctx context.Context, req *tfplugin5.CloseEphemeralResource_Request) (*tfplugin5.CloseEphemeralResource_Response, error) {
 	resp := &tfplugin5.CloseEphemeralResource_Response{}
 
-	renewResp := p.provider.CloseEphemeralResource(providers.CloseEphemeralResourceRequest{
+	renewResp := p.provider.CloseEphemeralResource(ctx, providers.CloseEphemeralResourceRequest{
 		TypeName: req.TypeName,
 		Private:  req.Private,
 	})
@@ -481,9 +481,9 @@ func (p *provider) CloseEphemeralResource(_ context.Context, req *tfplugin5.Clos
 	return resp, nil
 }
 
-func (p *provider) Stop(context.Context, *tfplugin5.Stop_Request) (*tfplugin5.Stop_Response, error) {
+func (p *provider) Stop(ctx context.Context, _ *tfplugin5.Stop_Request) (*tfplugin5.Stop_Response, error) {
 	resp := &tfplugin5.Stop_Response{}
-	err := p.provider.Stop()
+	err := p.provider.Stop(ctx)
 	if err != nil {
 		resp.Error = err.Error()
 	}

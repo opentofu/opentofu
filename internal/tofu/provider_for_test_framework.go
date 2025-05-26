@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 
@@ -58,7 +59,7 @@ func newProviderForTestWithSchema(internal providers.Interface, schema providers
 	}, nil
 }
 
-func (p providerForTest) ReadResource(r providers.ReadResourceRequest) providers.ReadResourceResponse {
+func (p providerForTest) ReadResource(_ context.Context, r providers.ReadResourceRequest) providers.ReadResourceResponse {
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.ManagedResourceMode, r.TypeName)
 
 	mockValues := p.getMockValuesForManagedResource(r.TypeName)
@@ -71,7 +72,7 @@ func (p providerForTest) ReadResource(r providers.ReadResourceRequest) providers
 	return resp
 }
 
-func (p providerForTest) PlanResourceChange(r providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
+func (p providerForTest) PlanResourceChange(_ context.Context, r providers.PlanResourceChangeRequest) providers.PlanResourceChangeResponse {
 	if r.Config.IsNull() {
 		return providers.PlanResourceChangeResponse{
 			PlannedState: r.ProposedNewState, // null
@@ -90,13 +91,13 @@ func (p providerForTest) PlanResourceChange(r providers.PlanResourceChangeReques
 	return resp
 }
 
-func (p providerForTest) ApplyResourceChange(r providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
+func (p providerForTest) ApplyResourceChange(_ context.Context, r providers.ApplyResourceChangeRequest) providers.ApplyResourceChangeResponse {
 	return providers.ApplyResourceChangeResponse{
 		NewState: r.PlannedState,
 	}
 }
 
-func (p providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
+func (p providerForTest) ReadDataSource(_ context.Context, r providers.ReadDataSourceRequest) providers.ReadDataSourceResponse {
 	resSchema, _ := p.schema.SchemaForResourceType(addrs.DataResourceMode, r.TypeName)
 
 	var resp providers.ReadDataSourceResponse
@@ -109,23 +110,23 @@ func (p providerForTest) ReadDataSource(r providers.ReadDataSourceRequest) provi
 	return resp
 }
 
-func (p providerForTest) OpenEphemeralResource(request providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+func (p providerForTest) OpenEphemeralResource(ctx context.Context, request providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
 	//TODO ephemeral - implement me when adding testing support
 	panic("implement me")
 }
 
-func (p providerForTest) RenewEphemeralResource(request providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+func (p providerForTest) RenewEphemeralResource(ctx context.Context, request providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
 	//TODO ephemeral - implement me when adding testing support
 	panic("implement me")
 }
 
-func (p providerForTest) CloseEphemeralResource(request providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
+func (p providerForTest) CloseEphemeralResource(ctx context.Context, request providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
 	//TODO ephemeral - implement me when adding testing support
 	panic("implement me")
 }
 
 // ValidateProviderConfig is irrelevant when provider is mocked or overridden.
-func (p providerForTest) ValidateProviderConfig(_ providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
+func (p providerForTest) ValidateProviderConfig(_ context.Context, _ providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
 	return providers.ValidateProviderConfigResponse{}
 }
 
@@ -135,23 +136,23 @@ func (p providerForTest) ValidateProviderConfig(_ providers.ValidateProviderConf
 // is being transformed for testing framework and original provider configuration is not
 // accessible so it is safe to wipe metadata as well. See Config.transformProviderConfigsForTest
 // for more details.
-func (p providerForTest) GetProviderSchema() providers.GetProviderSchemaResponse {
-	providerSchema := p.internal.GetProviderSchema()
+func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetProviderSchemaResponse {
+	providerSchema := p.internal.GetProviderSchema(ctx)
 	providerSchema.Provider = providers.Schema{}
 	providerSchema.ProviderMeta = providers.Schema{}
 	return providerSchema
 }
 
 // providerForTest doesn't configure its internal provider because it is mocked.
-func (p providerForTest) ConfigureProvider(_ providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+func (p providerForTest) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
 	return providers.ConfigureProviderResponse{}
 }
 
-func (p providerForTest) ImportResourceState(providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
+func (p providerForTest) ImportResourceState(context.Context, providers.ImportResourceStateRequest) providers.ImportResourceStateResponse {
 	panic("Importing is not supported in testing context. providerForTest must not be used to call ImportResourceState")
 }
 
-func (p providerForTest) MoveResourceState(providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
+func (p providerForTest) MoveResourceState(context.Context, providers.MoveResourceStateRequest) providers.MoveResourceStateResponse {
 	panic("Moving is not supported in testing context. providerForTest must not be used to call MoveResourceState")
 }
 
@@ -159,36 +160,36 @@ func (p providerForTest) MoveResourceState(providers.MoveResourceStateRequest) p
 // it wasn't overridden or mocked. The only exception is ImportResourceState, which panics
 // if called via providerForTest because importing is not supported in testing framework.
 
-func (p providerForTest) ValidateResourceConfig(r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
-	return p.internal.ValidateResourceConfig(r)
+func (p providerForTest) ValidateResourceConfig(ctx context.Context, r providers.ValidateResourceConfigRequest) providers.ValidateResourceConfigResponse {
+	return p.internal.ValidateResourceConfig(ctx, r)
 }
 
-func (p providerForTest) ValidateDataResourceConfig(r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
-	return p.internal.ValidateDataResourceConfig(r)
+func (p providerForTest) ValidateDataResourceConfig(ctx context.Context, r providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
+	return p.internal.ValidateDataResourceConfig(ctx, r)
 }
 
-func (p providerForTest) UpgradeResourceState(r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
-	return p.internal.UpgradeResourceState(r)
+func (p providerForTest) ValidateEphemeralConfig(ctx context.Context, request providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+	return p.internal.ValidateEphemeralConfig(ctx, request)
 }
 
-func (p providerForTest) ValidateEphemeralConfig(request providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
-	return p.internal.ValidateEphemeralConfig(request)
+func (p providerForTest) UpgradeResourceState(ctx context.Context, r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
+	return p.internal.UpgradeResourceState(ctx, r)
 }
 
-func (p providerForTest) Stop() error {
-	return p.internal.Stop()
+func (p providerForTest) Stop(ctx context.Context) error {
+	return p.internal.Stop(ctx)
 }
 
-func (p providerForTest) GetFunctions() providers.GetFunctionsResponse {
-	return p.internal.GetFunctions()
+func (p providerForTest) GetFunctions(ctx context.Context) providers.GetFunctionsResponse {
+	return p.internal.GetFunctions(ctx)
 }
 
-func (p providerForTest) CallFunction(r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	return p.internal.CallFunction(r)
+func (p providerForTest) CallFunction(ctx context.Context, r providers.CallFunctionRequest) providers.CallFunctionResponse {
+	return p.internal.CallFunction(ctx, r)
 }
 
-func (p providerForTest) Close() error {
-	return p.internal.Close()
+func (p providerForTest) Close(ctx context.Context) error {
+	return p.internal.Close(ctx)
 }
 
 func (p providerForTest) withMockResources(mockResources []*configs.MockResource) providerForTest {
