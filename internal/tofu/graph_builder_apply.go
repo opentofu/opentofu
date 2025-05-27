@@ -147,7 +147,7 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		&AttachResourceConfigTransformer{Config: b.Config},
 
 		// add providers
-		transformProviders(concreteProvider, b.Config),
+		transformProviders(concreteProvider, b.Config, b.Operation),
 
 		// Remove modules no longer present in the config
 		&RemovedModuleTransformer{Config: b.Config, State: b.State},

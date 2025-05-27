@@ -17,12 +17,13 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config) GraphTransformer {
+func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Config, walkOp walkOperation) GraphTransformer {
 	return GraphTransformMulti(
 		// Add providers from the config
 		&ProviderConfigTransformer{
-			Config:   config,
-			Concrete: concrete,
+			Config:    config,
+			Concrete:  concrete,
+			Operation: walkOp,
 		},
 		// Add any remaining missing providers
 		&MissingProviderTransformer{
@@ -686,6 +687,9 @@ type ProviderConfigTransformer struct {
 
 	// Config is the root node of the configuration tree to add providers from.
 	Config *configs.Config
+
+	// Operation is needed to add workarounds for validate
+	Operation walkOperation
 }
 
 func (t *ProviderConfigTransformer) Transform(_ context.Context, g *Graph) error {
@@ -753,19 +757,34 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 				continue
 			}
 
-			abstract := &NodeAbstractProvider{
-				Addr: addr,
-			}
+			addNode := func(alias string) {
+				aliasedAddr := addrs.AbsProviderConfig{
+					Provider: addr.Provider,
+					Module:   addr.Module,
+					Alias:    alias,
+				}
+				abstract := &NodeAbstractProvider{
+					Addr: aliasedAddr,
+				}
 
-			var v dag.Vertex
-			if t.Concrete != nil {
-				v = t.Concrete(abstract)
-			} else {
-				v = abstract
-			}
+				var v dag.Vertex
+				if t.Concrete != nil {
+					v = t.Concrete(abstract)
+				} else {
+					v = abstract
+				}
 
-			g.Add(v)
-			t.providers[addr.String()] = v.(GraphNodeProvider)
+				g.Add(v)
+				t.providers[aliasedAddr.String()] = v.(GraphNodeProvider)
+			}
+			addNode("")
+
+			if t.Operation == walkValidate {
+				// Add a workaround for validating modules by running them as a root module in `tofu validate`
+				for _, alias := range p.Aliases {
+					addNode(alias.Alias)
+				}
+			}
 		}
 	}
 
