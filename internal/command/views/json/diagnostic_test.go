@@ -393,6 +393,79 @@ func TestNewDiagnostic(t *testing.T) {
 				},
 			},
 		},
+		"error with source code subject and expression with local symbol": {
+			// The EvalContext in this case is set up to resemble what
+			// happens in nested scopes such as those created by "for"
+			// expressions, where there are local symbols that are not
+			// subject to OpenTofu's usual rules for references and can
+			// potentially shadow the prefixes normally used for references.
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Wrong noises",
+				Detail:   "Biological sounds are not allowed",
+				Subject: &hcl.Range{
+					// NOTE: This subject is not particularly realistic
+					// for this situation since the focus of this test
+					// case is on the interpretation of the Expression
+					// and EvalContext fields, and so we have this here
+					// only because a source snippet is a prerequisite
+					// for generating expression context.
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 2, Column: 9, Byte: 42},
+					End:      hcl.Pos{Line: 2, Column: 26, Byte: 59},
+				},
+				Expression: hcltest.MockExprTraversal(hcl.Traversal{
+					hcl.TraverseRoot{Name: "i"},
+				}),
+				EvalContext: (func() *hcl.EvalContext {
+					root := &hcl.EvalContext{
+						Variables: map[string]cty.Value{
+							"var": cty.ObjectVal(map[string]cty.Value{
+								"boop": cty.MapVal(map[string]cty.Value{
+									"hello!": cty.StringVal("bleurgh"),
+								}),
+							}),
+						},
+					}
+					child := root.NewChild()
+					child.Variables = map[string]cty.Value{
+						"i": cty.NumberIntVal(5),
+					}
+					return child
+				})(),
+			},
+			&Diagnostic{
+				Severity: "error",
+				Summary:  "Wrong noises",
+				Detail:   "Biological sounds are not allowed",
+				Range: &DiagnosticRange{
+					Filename: "test.tf",
+					Start: Pos{
+						Line:   2,
+						Column: 9,
+						Byte:   42,
+					},
+					End: Pos{
+						Line:   2,
+						Column: 26,
+						Byte:   59,
+					},
+				},
+				Snippet: &DiagnosticSnippet{
+					Context:              strPtr(`resource "test_resource" "test"`),
+					Code:                 (`  foo = var.boop["hello!"]`),
+					StartLine:            (2),
+					HighlightStartOffset: (8),
+					HighlightEndOffset:   (25),
+					Values: []DiagnosticExpressionValue{
+						{
+							Traversal: `i`,
+							Statement: `is 5`,
+						},
+					},
+				},
+			},
+		},
 		"error with source code subject and expression referring to sensitive value": {
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,

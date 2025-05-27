@@ -299,6 +299,39 @@ func TestConfigProviderRequirementsDuplicate(t *testing.T) {
 	assertDiagnosticSummary(t, diags, "Duplicate required provider")
 }
 
+func TestConfigProviderForEach(t *testing.T) {
+	_, diags := testNestedModuleConfigFromDir(t, "testdata/provider_for_each")
+	assertDiagnosticCount(t, diags, 4)
+
+	want := hcl.Diagnostics{
+		{
+			Summary: "Provider configuration for_each matches module",
+			Detail:  "This provider configuration uses the same for_each expression as a module, which means that subsequent removal of elements from this collection would cause a planning error.",
+		}, {
+			Summary: "Provider configuration for_each matches resource",
+			Detail:  "This provider configuration uses the same for_each expression as a resource, which means that subsequent removal of elements from this collection would cause a planning error.",
+		}, {
+			Summary: "Invalid module provider configuration",
+			Detail:  `This module doesn't declare a provider "dumme" block with alias = "key", which is required for use with for_each`,
+		}, {
+			Summary: "Invalid resource provider configuration",
+			Detail:  `This module doesn't declare a provider "dumme" block with alias = "key", which is required for use with for_each`,
+		},
+	}
+
+	for _, wd := range want {
+		found := false
+		for _, gd := range diags {
+			if gd.Summary == wd.Summary && strings.HasPrefix(gd.Detail, wd.Detail) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("Expected Diagnostic %s", wd)
+		}
+	}
+}
+
 func TestConfigProviderRequirementsShallow(t *testing.T) {
 	cfg, diags := testNestedModuleConfigFromDir(t, "testdata/provider-reqs")
 	// TODO: Version Constraint Deprecation.

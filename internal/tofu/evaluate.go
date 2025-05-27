@@ -747,6 +747,17 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 		}
 	}
 
+	// Fetch all instance data in a single call.  We previously used GetResourceInstanceChange in
+	// each loop iteration which caused n^2 locking contention.  This is especially problematic for
+	// resources with large count/for_each.
+	instChanges := d.Evaluator.Changes.GetChangesForConfigResource(addr.InModule(moduleConfig.Path))
+	instMap := map[string]*plans.ResourceInstanceChangeSrc{}
+	for _, rc := range instChanges {
+		if rc.DeposedKey == states.NotDeposed {
+			instMap[rc.Addr.String()] = rc
+		}
+	}
+
 	// Decode all instances in the current state
 	instances := map[addrs.InstanceKey]cty.Value{}
 	pendingDestroy := d.Operation == walkDestroy
@@ -759,7 +770,7 @@ func (d *evaluationStateData) GetResource(addr addrs.Resource, rng tfdiags.Sourc
 
 		instAddr := addr.Instance(key).Absolute(d.ModulePath)
 
-		change := d.Evaluator.Changes.GetResourceInstanceChange(instAddr, states.CurrentGen)
+		change := instMap[instAddr.String()]
 		if change != nil {
 			// Don't take any resources that are yet to be deleted into account.
 			// If the referenced resource is CreateBeforeDestroy, then orphaned

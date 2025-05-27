@@ -3526,7 +3526,8 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 
 			streams, done := terminal.StreamsForTesting(t)
 
-			if viewType == arguments.ViewHuman {
+			switch viewType {
+			case arguments.ViewHuman:
 				view := NewTest(arguments.ViewHuman, NewView(streams))
 				SaveErroredTestStateFile(data.state, data.run, data.file, view)
 				output := done(t)
@@ -3535,7 +3536,7 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 				if diff := cmp.Diff(expected, actual); len(diff) > 0 {
 					t.Errorf("expected:\n%s\nactual:\n%s\ndiff:\n%s", expected, actual, diff)
 				}
-			} else if viewType == arguments.ViewJSON {
+			case arguments.ViewJSON:
 				view := NewTest(arguments.ViewJSON, NewView(streams))
 				SaveErroredTestStateFile(data.state, data.run, data.file, view)
 				want, ok := data.want.([]map[string]interface{})
@@ -3543,7 +3544,7 @@ func runTestSaveErroredStateFile(t *testing.T, tc map[string]struct {
 					t.Fatalf("Failed to assert want as []map[string]interface{}")
 				}
 				testJSONViewOutputEquals(t, done(t).All(), want)
-			} else {
+			default:
 				t.Fatalf("Unsupported view type: %v", viewType)
 			}
 

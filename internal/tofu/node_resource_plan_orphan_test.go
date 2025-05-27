@@ -215,7 +215,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			}
 
 			p := simpleMockProvider()
-			p.ConfigureProvider(providers.ConfigureProviderRequest{})
+			p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 			p.GetProviderSchemaResponse = &schema
 
 			evalCtx := &MockEvalContext{
@@ -283,7 +283,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	changes := plans.NewChanges()
 
 	p := simpleMockProvider()
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
+	p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
 		NewState: cty.NullVal(p.GetProviderSchemaResponse.ResourceTypes["test_string"].Block.ImpliedType()),
 	}
@@ -366,7 +366,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	changes := plans.NewChanges()
 
 	p := simpleMockProvider()
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
+	p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{})
 	p.ReadResourceResponse = &providers.ReadResourceResponse{
 		NewState: cty.NullVal(p.GetProviderSchemaResponse.ResourceTypes["test_string"].Block.ImpliedType()),
 	}

@@ -89,9 +89,9 @@ func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provide
 	if err != nil {
 		return schemas, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err)
 	}
-	defer provider.Close()
+	defer provider.Close(ctx)
 
-	resp := provider.GetProviderSchema()
+	resp := provider.GetProviderSchema(ctx)
 	if resp.Diagnostics.HasErrors() {
 		return resp, fmt.Errorf("failed to retrieve schema from provider %q: %w", addr, resp.Diagnostics.Err())
 	}

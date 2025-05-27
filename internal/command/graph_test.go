@@ -6,7 +6,6 @@
 package command
 
 import (
-	"os"
 	"strings"
 	"testing"
 
@@ -86,7 +85,6 @@ func TestGraph_noArgs(t *testing.T) {
 
 func TestGraph_noConfig(t *testing.T) {
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)

@@ -14,6 +14,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
+	otelAttr "go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/cloud"
@@ -28,6 +30,7 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/internal/tracing"
 )
 
 // Many of the methods we get data from can emit special error types if they're
@@ -72,6 +75,17 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 	c.viewType = args.ViewType
 	c.View.SetShowSensitive(args.ShowSensitive)
 
+	//nolint:ineffassign - As this is a high-level call, we want to ensure that we are correctly using the right ctx later on when
+	ctx, span := tracing.Tracer().Start(ctx, "Show",
+		trace.WithAttributes(
+			otelAttr.String("opentofu.show.view", args.ViewType.String()),
+			otelAttr.String("opentofu.show.target", args.TargetType.String()),
+			otelAttr.String("opentofu.show.target_arg", args.TargetArg),
+			otelAttr.Bool("opentofu.show.show_sensitive", args.ShowSensitive),
+		),
+	)
+	defer span.End()
+
 	// Set up view
 	view := views.NewShow(args.ViewType, c.View)
 
@@ -102,6 +116,7 @@ func (c *ShowCommand) Run(rawArgs []string) int {
 		// even in the JSON view and so would cause the JSON output to
 		// be invalid if only warnings were returned.
 		view.Diagnostics(diags)
+		tracing.SetSpanError(span, showDiags)
 		return 1
 	}
 	return renderResult(view)
@@ -188,6 +203,9 @@ func (c *ShowCommand) show(ctx context.Context, targetType arguments.ShowTargetT
 func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
+	ctx, span := tracing.Tracer().Start(ctx, "Show State")
+	defer span.End()
+
 	// Load the backend
 	b, backendDiags := c.Backend(ctx, nil, enc.State())
 	diags = diags.Append(backendDiags)
@@ -204,7 +222,7 @@ func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encry
 	}
 
 	// Get the latest state snapshot from the backend for the current workspace
-	stateFile, stateErr := getStateFromBackend(b, workspace)
+	stateFile, stateErr := getStateFromBackend(ctx, b, workspace)
 	if stateErr != nil {
 		diags = diags.Append(stateErr)
 		return nil, diags
@@ -216,12 +234,15 @@ func (c *ShowCommand) showFromLatestStateSnapshot(ctx context.Context, enc encry
 		return nil, diags
 	}
 	return func(view views.Show) int {
-		return view.DisplayState(stateFile, schemas)
+		return view.DisplayState(ctx, stateFile, schemas)
 	}, diags
 }
 
 func (c *ShowCommand) showFromSavedPlanFile(ctx context.Context, filename string, enc encryption.Encryption) (showRenderFunc, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(ctx, "Show Plan")
+	defer span.End()
 
 	rootCall, callDiags := c.rootModuleCall(ctx, ".")
 	diags = diags.Append(callDiags)
@@ -242,7 +263,7 @@ func (c *ShowCommand) showFromSavedPlanFile(ctx context.Context, filename string
 	}
 
 	return func(view views.Show) int {
-		return view.DisplayPlan(plan, jsonPlan, config, stateFile, schemas)
+		return view.DisplayPlan(ctx, plan, jsonPlan, config, stateFile, schemas)
 	}, diags
 }
 
@@ -253,6 +274,9 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 	var jsonPlan *cloudplan.RemotePlanJSON
 	var stateFile *statefile.File
 	var config *configs.Config
+
+	ctx, span := tracing.Tracer().Start(ctx, "Show")
+	defer span.End()
 
 	rootCall, callDiags := c.rootModuleCall(ctx, ".")
 	diags = diags.Append(callDiags)
@@ -319,7 +343,7 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 					),
 				)
 			}
-
+			tracing.SetSpanError(span, diags)
 			return nil, diags
 		}
 	}
@@ -327,6 +351,7 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 	schemas, schemaDiags := c.maybeGetSchemas(ctx, stateFile, config)
 	diags = diags.Append(schemaDiags)
 	if schemaDiags.HasErrors() {
+		tracing.SetSpanError(span, diags)
 		return nil, diags
 	}
 
@@ -335,13 +360,13 @@ func (c *ShowCommand) legacyShowFromPath(ctx context.Context, path string, enc e
 	switch {
 	case plan != nil || jsonPlan != nil:
 		return func(view views.Show) int {
-			return view.DisplayPlan(plan, jsonPlan, config, stateFile, schemas)
+			return view.DisplayPlan(ctx, plan, jsonPlan, config, stateFile, schemas)
 		}, diags
 	default:
 		// We treat all other cases as a state, and DisplayState
 		// tolerates stateFile being nil.
 		return func(view views.Show) int {
-			return view.DisplayState(stateFile, schemas)
+			return view.DisplayState(ctx, stateFile, schemas)
 		}, diags
 	}
 }
@@ -398,10 +423,21 @@ func (c *ShowCommand) getDataFromCloudPlan(ctx context.Context, plan *cloudplan.
 // the state file being nil, since that's more convenient for the
 // "tofu show" methods that may or may not have a state file to use.
 func (c *ShowCommand) maybeGetSchemas(ctx context.Context, stateFile *statefile.File, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+	ctx, span := tracing.Tracer().Start(ctx, "Get Schemas")
+	defer span.End()
+
 	if stateFile == nil {
 		return nil, nil
 	}
-	return c.MaybeGetSchemas(ctx, stateFile.State, config)
+
+	schemas, diags := c.MaybeGetSchemas(ctx, stateFile.State, config)
+	if diags.HasErrors() {
+		tracing.SetSpanError(span, diags.Err())
+		return nil, diags
+	}
+
+	return schemas, nil
+
 }
 
 // getDataFromPlanfileReader returns a plan, statefile, and config, extracted from a local plan file.
@@ -470,15 +506,19 @@ func getStateFromPath(path string, enc encryption.Encryption) (*statefile.File, 
 }
 
 // getStateFromBackend returns the State for the current workspace, if available.
-func getStateFromBackend(b backend.Backend, workspace string) (*statefile.File, error) {
+func getStateFromBackend(ctx context.Context, b backend.Backend, workspace string) (*statefile.File, error) {
+	ctx, span := tracing.Tracer().Start(ctx, "Get State from Backend")
+	defer span.End()
 	// Get the state store for the given workspace
-	stateStore, err := b.StateMgr(context.TODO(), workspace)
+	stateStore, err := b.StateMgr(ctx, workspace)
 	if err != nil {
+		tracing.SetSpanError(span, err)
 		return nil, fmt.Errorf("failed to load state manager: %w", err)
 	}
 
 	// Refresh the state store with the latest state snapshot from persistent storage
 	if err := stateStore.RefreshState(); err != nil {
+		tracing.SetSpanError(span, err)
 		return nil, fmt.Errorf("failed to load state: %w", err)
 	}
 

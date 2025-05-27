@@ -489,8 +489,10 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 				})
 			}
 
-			instanceExpr := instanced[providerName(passed.InParent.Name, passed.InParent.Alias)]
-			diags = diags.Extend(passed.InParent.InstanceValidation("module", instanceExpr != nil))
+			pn := providerName(passed.InParent.Name, passed.InParent.Alias)
+			_, hasConfig := configured[pn]
+			instanceExpr := instanced[pn]
+			diags = diags.Extend(passed.InParent.InstanceValidation("module", instanceExpr != nil, hasConfig))
 			// We could theoretically check here if there are resources (ignoring data blocks) within this submodule graph.
 			// The foot-gun only exists in that scenario, but the complexity of differentiating at the moment is not worth it
 			if passed.InParent.KeyExpression != nil {
@@ -506,8 +508,10 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 				continue
 			}
 
-			instanceExpr := instanced[providerName(r.ProviderConfigRef.Name, r.ProviderConfigRef.Alias)]
-			diags = diags.Extend(r.ProviderConfigRef.InstanceValidation("resource", instanceExpr != nil))
+			pn := providerName(r.ProviderConfigRef.Name, r.ProviderConfigRef.Alias)
+			_, hasConfig := configured[pn]
+			instanceExpr := instanced[pn]
+			diags = diags.Extend(r.ProviderConfigRef.InstanceValidation("resource", instanceExpr != nil, hasConfig))
 			if r.ProviderConfigRef.KeyExpression != nil && r.Mode == addrs.ManagedResourceMode {
 				addr := fmt.Sprintf("%s.%s", r.Type, r.Name)
 				if !cfg.Path.IsRoot() {

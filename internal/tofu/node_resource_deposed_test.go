@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -255,9 +256,9 @@ func TestNodeDestroyDeposedResourceInstanceObject_Execute(t *testing.T) {
 
 func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *testing.T) {
 	state := states.NewState()
-	ctx := new(MockEvalContext)
-	ctx.StateState = state.SyncWrapper()
-	ctx.PathPath = addrs.RootModuleInstance
+	evalCtx := new(MockEvalContext)
+	evalCtx.StateState = state.SyncWrapper()
+	evalCtx.PathPath = addrs.RootModuleInstance
 	mockProvider := mockProviderWithResourceTypeSchema("aws_instance", &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
 			"id": {
@@ -266,8 +267,8 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 			},
 		},
 	})
-	ctx.ProviderProvider = mockProvider
-	ctx.ProviderSchemaSchema = mockProvider.GetProviderSchema()
+	evalCtx.ProviderProvider = mockProvider
+	evalCtx.ProviderSchemaSchema = mockProvider.GetProviderSchema(t.Context())
 
 	obj := &states.ResourceInstanceObject{
 		Value: cty.ObjectVal(map[string]cty.Value{
@@ -284,7 +285,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_WriteResourceInstanceState(t *
 		},
 		DeposedKey: states.NewDeposedKey(),
 	}
-	err := node.writeResourceInstanceState(ctx, obj)
+	err := node.writeResourceInstanceState(t.Context(), evalCtx, obj)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err.Error())
 	}
@@ -302,7 +303,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_ExecuteMissingState(t *testing
 	evalCtx := &MockEvalContext{
 		StateState:           states.NewState().SyncWrapper(),
 		ProviderProvider:     simpleMockProvider(),
-		ProviderSchemaSchema: p.GetProviderSchema(),
+		ProviderSchemaSchema: p.GetProviderSchema(t.Context()),
 		ChangesChanges:       plans.NewChanges().SyncWrapper(),
 	}
 
@@ -384,7 +385,7 @@ func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*M
 	}
 
 	p := testProvider("test")
-	p.ConfigureProvider(providers.ConfigureProviderRequest{})
+	p.ConfigureProvider(context.TODO(), providers.ConfigureProviderRequest{})
 	p.GetProviderSchemaResponse = &schema
 
 	p.UpgradeResourceStateResponse = &providers.UpgradeResourceStateResponse{

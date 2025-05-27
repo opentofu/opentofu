@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -108,7 +109,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 	defer func() {
 		for addr, inst := range providerInstances {
 			log.Printf("[INFO] Shutting down test provider %s", addr)
-			inst.Close()
+			inst.Close(context.TODO())
 		}
 	}()
 

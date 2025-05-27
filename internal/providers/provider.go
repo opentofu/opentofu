@@ -6,6 +6,8 @@
 package providers
 
 import (
+	"context"
+
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -22,37 +24,37 @@ type Unconfigured interface {
 	// memory savings.
 
 	// GetSchema returns the complete schema for the provider.
-	GetProviderSchema() GetProviderSchemaResponse
+	GetProviderSchema(context.Context) GetProviderSchemaResponse
 
 	// ValidateProviderConfig allows the provider to validate the configuration.
 	// The ValidateProviderConfigResponse.PreparedConfig field is unused. The
 	// final configuration is not stored in the state, and any modifications
 	// that need to be made must be made during the Configure method call.
-	ValidateProviderConfig(ValidateProviderConfigRequest) ValidateProviderConfigResponse
+	ValidateProviderConfig(context.Context, ValidateProviderConfigRequest) ValidateProviderConfigResponse
 
 	// ValidateResourceConfig allows the provider to validate the resource
 	// configuration values.
-	ValidateResourceConfig(ValidateResourceConfigRequest) ValidateResourceConfigResponse
+	ValidateResourceConfig(context.Context, ValidateResourceConfigRequest) ValidateResourceConfigResponse
 
 	// ValidateDataResourceConfig allows the provider to validate the data source
 	// configuration values.
-	ValidateDataResourceConfig(ValidateDataResourceConfigRequest) ValidateDataResourceConfigResponse
+	ValidateDataResourceConfig(context.Context, ValidateDataResourceConfigRequest) ValidateDataResourceConfigResponse
 
 	// MoveResourceState requests that the given resource data be moved from one
 	// type to another, potentially between providers as well.
-	MoveResourceState(MoveResourceStateRequest) MoveResourceStateResponse
+	MoveResourceState(context.Context, MoveResourceStateRequest) MoveResourceStateResponse
 
 	// CallFunction requests that the given function is called and response returned.
 	// There is a bit of a quirk in OpenTofu-land.  We allow providers to supply
 	// additional functions via GetFunctions() after configuration.  Those functions
 	// will only be available via CallFunction after ConfigureProvider is called.
-	CallFunction(CallFunctionRequest) CallFunctionResponse
+	CallFunction(context.Context, CallFunctionRequest) CallFunctionResponse
 
 	// Configure configures and initialized the provider.
-	ConfigureProvider(ConfigureProviderRequest) ConfigureProviderResponse
+	ConfigureProvider(context.Context, ConfigureProviderRequest) ConfigureProviderResponse
 
 	// Close shuts down the plugin process if applicable.
-	Close() error
+	Close(context.Context) error
 
 	// Stop is called when the provider should halt any in-flight actions.
 	//
@@ -61,10 +63,17 @@ type Unconfigured interface {
 	// has received the stop request. OpenTofu will not make any further API
 	// calls to the provider after Stop is called.
 	//
+	// The given context is guaranteed not to be cancelled and to have no
+	// deadline, but the contexts visible to other provider methods
+	// running concurrently might be cancelled either before or after
+	// Stop call. Any provider other operations that need to be able to continue
+	// when reacting to Stop must use [context.WithoutCancel], or equivalent,
+	// to insulate themselves from any incoming cancellation/deadline signals.
+	//
 	// The error returned, if non-nil, is assumed to mean that signaling the
 	// stop somehow failed and that the user should expect potentially waiting
 	// a longer period of time.
-	Stop() error
+	Stop(context.Context) error
 }
 
 // Configured represents a provider plugin that has been configured. It has additional
@@ -78,29 +87,36 @@ type Configured interface {
 	// instance state whose schema version is less than the one reported by the
 	// currently-used version of the corresponding provider, and the upgraded
 	// result is used for any further processing.
-	UpgradeResourceState(UpgradeResourceStateRequest) UpgradeResourceStateResponse
+	UpgradeResourceState(context.Context, UpgradeResourceStateRequest) UpgradeResourceStateResponse
 
 	// ReadResource refreshes a resource and returns its current state.
-	ReadResource(ReadResourceRequest) ReadResourceResponse
+	ReadResource(context.Context, ReadResourceRequest) ReadResourceResponse
 
 	// PlanResourceChange takes the current state and proposed state of a
 	// resource, and returns the planned final state.
-	PlanResourceChange(PlanResourceChangeRequest) PlanResourceChangeResponse
+	PlanResourceChange(context.Context, PlanResourceChangeRequest) PlanResourceChangeResponse
 
 	// ApplyResourceChange takes the planned state for a resource, which may
 	// yet contain unknown computed values, and applies the changes returning
 	// the final state.
-	ApplyResourceChange(ApplyResourceChangeRequest) ApplyResourceChangeResponse
+	//
+	// NOTE: the context passed to this method can potentially be cancelled,
+	// and so any cancel-sensitive operation that needs to be able to complete
+	// gracefully should use [context.WithoutCancel] to create a new context
+	// disconnected from the incoming cancellation chain. The caller doesn't
+	// do this automatically to give implementations flexibility to use a
+	// mixture of both cancelable and non-cancelable requests.
+	ApplyResourceChange(context.Context, ApplyResourceChangeRequest) ApplyResourceChangeResponse
 
 	// ImportResourceState requests that the given resource be imported.
-	ImportResourceState(ImportResourceStateRequest) ImportResourceStateResponse
+	ImportResourceState(context.Context, ImportResourceStateRequest) ImportResourceStateResponse
 
 	// ReadDataSource returns the data source's current state.
-	ReadDataSource(ReadDataSourceRequest) ReadDataSourceResponse
+	ReadDataSource(context.Context, ReadDataSourceRequest) ReadDataSourceResponse
 
 	// GetFunctions returns a full list of functions defined in this provider. It should be a super
 	// set of the functions returned in GetProviderSchema()
-	GetFunctions() GetFunctionsResponse
+	GetFunctions(context.Context) GetFunctionsResponse
 }
 
 // Interface represents the set of methods required for a complete resource

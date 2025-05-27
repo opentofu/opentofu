@@ -129,7 +129,7 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 		client: mockProviderClient(t),
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 	checkDiags(t, resp.Diagnostics)
 }
 
@@ -149,7 +149,7 @@ func TestGRPCProvider_GetSchema_GRPCError(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -180,7 +180,7 @@ func TestGRPCProvider_GetSchema_ResponseErrorDiagnostic(t *testing.T) {
 		client: client,
 	}
 
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiagsHasError(t, resp.Diagnostics)
 }
@@ -213,7 +213,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -224,7 +224,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheEnabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -260,7 +260,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp := p.GetProviderSchema()
+	resp := p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -271,7 +271,7 @@ func TestGRPCProvider_GetSchema_GlobalCacheDisabled(t *testing.T) {
 		client: client,
 		Addr:   providerAddr,
 	}
-	resp = p.GetProviderSchema()
+	resp = p.GetProviderSchema(t.Context())
 
 	checkDiags(t, resp.Diagnostics)
 	if !cmp.Equal(resp.Provider.Version, mockedProviderResponse.Version) {
@@ -291,7 +291,7 @@ func TestGRPCProvider_PrepareProviderConfig(t *testing.T) {
 	).Return(&proto.ValidateProviderConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateProviderConfig(providers.ValidateProviderConfigRequest{Config: cfg})
+	resp := p.ValidateProviderConfig(t.Context(), providers.ValidateProviderConfigRequest{Config: cfg})
 	checkDiags(t, resp.Diagnostics)
 }
 
@@ -307,7 +307,7 @@ func TestGRPCProvider_ValidateResourceConfig(t *testing.T) {
 	).Return(&proto.ValidateResourceConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateResourceConfig(providers.ValidateResourceConfigRequest{
+	resp := p.ValidateResourceConfig(t.Context(), providers.ValidateResourceConfigRequest{
 		TypeName: "resource",
 		Config:   cfg,
 	})
@@ -326,7 +326,7 @@ func TestGRPCProvider_ValidateDataResourceConfig(t *testing.T) {
 	).Return(&proto.ValidateDataResourceConfig_Response{}, nil)
 
 	cfg := hcl2shim.HCL2ValueFromConfigValue(map[string]interface{}{"attr": "value"})
-	resp := p.ValidateDataResourceConfig(providers.ValidateDataResourceConfigRequest{
+	resp := p.ValidateDataResourceConfig(t.Context(), providers.ValidateDataResourceConfigRequest{
 		TypeName: "data",
 		Config:   cfg,
 	})
@@ -348,7 +348,7 @@ func TestGRPCProvider_UpgradeResourceState(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.UpgradeResourceState(providers.UpgradeResourceStateRequest{
+	resp := p.UpgradeResourceState(t.Context(), providers.UpgradeResourceStateRequest{
 		TypeName:     "resource",
 		Version:      0,
 		RawStateJSON: []byte(`{"old_attr":"bar"}`),
@@ -379,7 +379,7 @@ func TestGRPCProvider_UpgradeResourceStateJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.UpgradeResourceState(providers.UpgradeResourceStateRequest{
+	resp := p.UpgradeResourceState(t.Context(), providers.UpgradeResourceStateRequest{
 		TypeName:     "resource",
 		Version:      0,
 		RawStateJSON: []byte(`{"old_attr":"bar"}`),
@@ -411,7 +411,7 @@ func TestGRPCProvider_MoveResourceState(t *testing.T) {
 		TargetPrivate: []byte(`{"meta": "data"}`),
 	}, nil)
 
-	resp := p.MoveResourceState(providers.MoveResourceStateRequest{
+	resp := p.MoveResourceState(t.Context(), providers.MoveResourceStateRequest{
 		SourceTypeName:      "resource_old",
 		SourceSchemaVersion: 0,
 		TargetTypeName:      "resource",
@@ -441,7 +441,7 @@ func TestGRPCProvider_Configure(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.ConfigureProvider_Response{}, nil)
 
-	resp := p.ConfigureProvider(providers.ConfigureProviderRequest{
+	resp := p.ConfigureProvider(t.Context(), providers.ConfigureProviderRequest{
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
 		}),
@@ -461,7 +461,7 @@ func TestGRPCProvider_Stop(t *testing.T) {
 		gomock.Any(),
 	).Return(&proto.StopProvider_Response{}, nil)
 
-	err := p.Stop()
+	err := p.Stop(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -482,7 +482,7 @@ func TestGRPCProvider_ReadResource(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -515,7 +515,7 @@ func TestGRPCProvider_ReadResourceJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -551,7 +551,7 @@ func TestGRPCProvider_ReadEmptyJSON(t *testing.T) {
 	obj := cty.ObjectVal(map[string]cty.Value{
 		"attr": cty.StringVal("foo"),
 	})
-	resp := p.ReadResource(providers.ReadResourceRequest{
+	resp := p.ReadResource(t.Context(), providers.ReadResourceRequest{
 		TypeName:   "resource",
 		PriorState: obj,
 	})
@@ -594,7 +594,7 @@ func TestGRPCProvider_PlanResourceChange(t *testing.T) {
 		PlannedPrivate: expectedPrivate,
 	}, nil)
 
-	resp := p.PlanResourceChange(providers.PlanResourceChangeRequest{
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -657,7 +657,7 @@ func TestGRPCProvider_PlanResourceChangeJSON(t *testing.T) {
 		PlannedPrivate: expectedPrivate,
 	}, nil)
 
-	resp := p.PlanResourceChange(providers.PlanResourceChangeRequest{
+	resp := p.PlanResourceChange(t.Context(), providers.PlanResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -709,7 +709,7 @@ func TestGRPCProvider_ApplyResourceChange(t *testing.T) {
 		Private: expectedPrivate,
 	}, nil)
 
-	resp := p.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	resp := p.ApplyResourceChange(t.Context(), providers.ApplyResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -755,7 +755,7 @@ func TestGRPCProvider_ApplyResourceChangeJSON(t *testing.T) {
 		Private: expectedPrivate,
 	}, nil)
 
-	resp := p.ApplyResourceChange(providers.ApplyResourceChangeRequest{
+	resp := p.ApplyResourceChange(t.Context(), providers.ApplyResourceChangeRequest{
 		TypeName: "resource",
 		PriorState: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -807,7 +807,7 @@ func TestGRPCProvider_ImportResourceState(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ImportResourceState(providers.ImportResourceStateRequest{
+	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
 		ID:       "foo",
 	})
@@ -850,7 +850,7 @@ func TestGRPCProvider_ImportResourceStateJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ImportResourceState(providers.ImportResourceStateRequest{
+	resp := p.ImportResourceState(t.Context(), providers.ImportResourceStateRequest{
 		TypeName: "resource",
 		ID:       "foo",
 	})
@@ -886,7 +886,7 @@ func TestGRPCProvider_ReadDataSource(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadDataSource(providers.ReadDataSourceRequest{
+	resp := p.ReadDataSource(t.Context(), providers.ReadDataSourceRequest{
 		TypeName: "data",
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -919,7 +919,7 @@ func TestGRPCProvider_ReadDataSourceJSON(t *testing.T) {
 		},
 	}, nil)
 
-	resp := p.ReadDataSource(providers.ReadDataSourceRequest{
+	resp := p.ReadDataSource(t.Context(), providers.ReadDataSourceRequest{
 		TypeName: "data",
 		Config: cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("foo"),
@@ -950,7 +950,7 @@ func TestGRPCProvider_CallFunction(t *testing.T) {
 		Result: &proto.DynamicValue{Json: []byte(`"foo"`)},
 	}, nil)
 
-	resp := p.CallFunction(providers.CallFunctionRequest{
+	resp := p.CallFunction(t.Context(), providers.CallFunctionRequest{
 		Name:      "fn",
 		Arguments: []cty.Value{cty.StringVal("bar"), cty.NilVal},
 	})

@@ -4,6 +4,9 @@
 # SPDX-License-Identifier: MPL-2.0
 
 version: "2"
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
 linters:
   settings:
     staticcheck:

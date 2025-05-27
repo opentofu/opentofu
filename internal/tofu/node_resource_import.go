@@ -76,7 +76,7 @@ func (n *graphNodeImportState) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable impl.
-func (n *graphNodeImportState) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	// Reset our states
 	n.states = nil
 
@@ -100,7 +100,7 @@ func (n *graphNodeImportState) Execute(_ context.Context, evalCtx EvalContext, o
 	n.ResolvedProviderKey = asAbsNode.ResolvedProviderKey
 	log.Printf("[TRACE] graphNodeImportState: importing using %s", n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey))
 
-	provider, _, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, _, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -117,7 +117,7 @@ func (n *graphNodeImportState) Execute(_ context.Context, evalCtx EvalContext, o
 		return diags
 	}
 
-	resp := provider.ImportResourceState(providers.ImportResourceStateRequest{
+	resp := provider.ImportResourceState(ctx, providers.ImportResourceStateRequest{
 		TypeName: n.Addr.Resource.Resource.Type,
 		ID:       n.ID,
 	})
@@ -145,10 +145,10 @@ func (n *graphNodeImportState) Execute(_ context.Context, evalCtx EvalContext, o
 // and state inserts we need to do for our import state. Since they're new
 // resources they don't depend on anything else and refreshes are isolated
 // so this is nearly a perfect use case for dynamic expand.
-func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
+func (n *graphNodeImportState) DynamicExpand(evalCtx EvalContext) (*Graph, error) {
 	var diags tfdiags.Diagnostics
 
-	g := &Graph{Path: ctx.Path()}
+	g := &Graph{Path: evalCtx.Path()}
 
 	// nameCounter is used to de-dup names in the state.
 	nameCounter := make(map[string]int)
@@ -177,7 +177,7 @@ func (n *graphNodeImportState) DynamicExpand(ctx EvalContext) (*Graph, error) {
 	}
 
 	// Verify that all the addresses are clear
-	state := ctx.State()
+	state := evalCtx.State()
 	for _, addr := range addrs {
 		existing := state.ResourceInstance(addr)
 		if existing != nil {
@@ -244,7 +244,7 @@ func (n *graphNodeImportStateSub) Path() addrs.ModuleInstance {
 }
 
 // GraphNodeExecutable impl.
-func (n *graphNodeImportStateSub) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *graphNodeImportStateSub) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	// If the Ephemeral type isn't set, then it is an error
 	if n.State.TypeName == "" {
 		diags = diags.Append(fmt.Errorf("import of %s didn't set type", n.TargetAddr.String()))
@@ -261,7 +261,7 @@ func (n *graphNodeImportStateSub) Execute(_ context.Context, evalCtx EvalContext
 		},
 		ResolvedProviderKey: n.ResolvedProviderKey,
 	}
-	state, refreshDiags := riNode.refresh(evalCtx, states.NotDeposed, state)
+	state, refreshDiags := riNode.refresh(ctx, evalCtx, states.NotDeposed, state)
 	diags = diags.Append(refreshDiags)
 	if diags.HasErrors() {
 		return diags
@@ -297,6 +297,6 @@ func (n *graphNodeImportStateSub) Execute(_ context.Context, evalCtx EvalContext
 		state.Value = state.Value.MarkWithPaths(combined)
 	}
 
-	diags = diags.Append(riNode.writeResourceInstanceState(evalCtx, state, workingState))
+	diags = diags.Append(riNode.writeResourceInstanceState(ctx, evalCtx, state, workingState))
 	return diags
 }

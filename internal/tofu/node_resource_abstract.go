@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -494,18 +495,18 @@ func (n *NodeAbstractResource) DotNode(name string, opts *dag.DotOpts) *dag.DotN
 // eval is the only change we get to set the resource "each mode" to list
 // in that case, allowing expression evaluation to see it as a zero-element list
 // rather than as not set at all.
-func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
-	state := ctx.State()
+func (n *NodeAbstractResource) writeResourceState(evalCtx EvalContext, addr addrs.AbsResource) (diags tfdiags.Diagnostics) {
+	state := evalCtx.State()
 
 	// We'll record our expansion decision in the shared "expander" object
 	// so that later operations (i.e. DynamicExpand and expression evaluation)
 	// can refer to it. Since this node represents the abstract module, we need
 	// to expand the module here to create all resources.
-	expander := ctx.InstanceExpander()
+	expander := evalCtx.InstanceExpander()
 
 	switch {
 	case n.Config != nil && n.Config.Count != nil:
-		count, countDiags := evaluateCountExpression(n.Config.Count, ctx, addr)
+		count, countDiags := evaluateCountExpression(n.Config.Count, evalCtx, addr)
 		diags = diags.Append(countDiags)
 		if countDiags.HasErrors() {
 			return diags
@@ -515,7 +516,7 @@ func (n *NodeAbstractResource) writeResourceState(ctx EvalContext, addr addrs.Ab
 		expander.SetResourceCount(addr.Module, n.Addr.Resource, count)
 
 	case n.Config != nil && n.Config.ForEach != nil:
-		forEach, forEachDiags := evaluateForEachExpression(n.Config.ForEach, ctx, addr)
+		forEach, forEachDiags := evaluateForEachExpression(n.Config.ForEach, evalCtx, addr)
 		diags = diags.Append(forEachDiags)
 		if forEachDiags.HasErrors() {
 			return diags
@@ -540,9 +541,9 @@ func isResourceMovedToDifferentType(newAddr, oldAddr addrs.AbsResourceInstance) 
 
 // readResourceInstanceState reads the current object for a specific instance in
 // the state.
-func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceState(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		return nil, diags.Append(err)
 	}
@@ -595,9 +596,9 @@ func (n *NodeAbstractResourceInstance) readResourceInstanceState(evalCtx EvalCon
 
 // readResourceInstanceStateDeposed reads the deposed object for a specific
 // instance in the state.
-func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) readResourceInstanceStateDeposed(ctx context.Context, evalCtx EvalContext, addr addrs.AbsResourceInstance, key states.DeposedKey) (*states.ResourceInstanceObject, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	provider, providerSchema, err := getProvider(evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, diags

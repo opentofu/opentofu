@@ -130,7 +130,7 @@ func (c *LogoutCommand) Help() string {
 		defaultFile = "~/.terraform/credentials.tfrc.json"
 	}
 
-	helpText := `
+	helpText := fmt.Sprintf(`
 Usage: tofu [global options] logout [hostname]
 
   Removes locally-stored credentials for specified hostname.
@@ -138,7 +138,7 @@ Usage: tofu [global options] logout [hostname]
   Note: the API token is only removed from local storage, not destroyed on the
   remote server, so it will remain valid until manually revoked.
       %s
-`
+`, defaultFile)
 	return strings.TrimSpace(helpText)
 }
 

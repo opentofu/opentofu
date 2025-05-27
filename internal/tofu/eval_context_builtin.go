@@ -153,7 +153,7 @@ func (c *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig, provider
 		// We cannot wrap providers.Factory itself, because factories don't support aliases.
 		pc, ok := c.Evaluator.Config.Module.GetProviderConfig(addr.Provider.Type, addr.Alias)
 		if ok && pc.IsMocked {
-			testP, err := newProviderForTestWithSchema(p, p.GetProviderSchema())
+			testP, err := newProviderForTestWithSchema(p, p.GetProviderSchema(context.TODO()))
 			if err != nil {
 				return nil, err
 			}
@@ -196,7 +196,7 @@ func (c *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
 	providerMap := c.ProviderCache[key]
 	if providerMap != nil {
 		for _, provider := range providerMap {
-			err := provider.Close()
+			err := provider.Close(context.TODO())
 			if err != nil {
 				diags = diags.Append(err)
 			}
@@ -229,7 +229,7 @@ func (c *BuiltinEvalContext) ConfigureProvider(addr addrs.AbsProviderConfig, pro
 		Config:           cfg,
 	}
 
-	resp := p.ConfigureProvider(req)
+	resp := p.ConfigureProvider(context.TODO(), req)
 	return resp.Diagnostics
 }
 

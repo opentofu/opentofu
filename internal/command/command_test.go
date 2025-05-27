@@ -587,7 +587,9 @@ func testStdinPipe(t *testing.T, src io.Reader) func() {
 	// Copy the data from the reader to the pipe
 	go func() {
 		defer w.Close()
-		io.Copy(w, src)
+		if _, err := io.Copy(w, src); err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
@@ -618,14 +620,21 @@ func testStdoutCapture(t *testing.T, dst io.Writer) func() {
 	doneCh := make(chan struct{})
 	go func() {
 		defer close(doneCh)
-		defer r.Close()
-		io.Copy(dst, r)
+		if _, err := io.Copy(dst, r); err != nil {
+			panic(err)
+		}
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
 	}()
 
 	return func() {
 		// Close the writer end of the pipe
-		w.Sync()
-		w.Close()
+		// This test code is racey
+		_ = w.Sync()
+		if err := w.Close(); err != nil {
+			t.Fatal(err)
+		}
 
 		// Reset stdout
 		os.Stdout = old
@@ -720,7 +729,9 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 		}
 
 		resp.Header().Set("Content-MD5", b64md5)
-		resp.Write(buf.Bytes())
+		if _, err := resp.Write(buf.Bytes()); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	// If a state was given, make sure we calculate the proper b64md5
@@ -777,7 +788,9 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 		}
 
 		resp.Header().Set("Content-MD5", b64md5)
-		resp.Write(buf.Bytes())
+		if _, err := resp.Write(buf.Bytes()); err != nil {
+			t.Fatal(err)
+		}
 	}
 
 	retState := legacy.NewState()
@@ -786,7 +799,7 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 	b := &legacy.BackendState{
 		Type: "http",
 	}
-	b.SetConfig(cty.ObjectVal(map[string]cty.Value{
+	if err := b.SetConfig(cty.ObjectVal(map[string]cty.Value{
 		"address": cty.StringVal(srv.URL),
 	}), &configschema.Block{
 		Attributes: map[string]*configschema.Attribute{
@@ -795,7 +808,9 @@ func testRemoteState(t *testing.T, s *states.State, c int) (*legacy.State, *http
 				Required: true,
 			},
 		},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	retState.Backend = b
 
 	if s != nil {
@@ -841,8 +856,13 @@ func testLockState(t *testing.T, sourceDir, path string) (func(), error) {
 		return nil, err
 	}
 	deferFunc := func() {
-		locker.Process.Signal(syscall.SIGTERM)
-		locker.Wait()
+		if err := locker.Process.Signal(syscall.SIGTERM); err != nil {
+			t.Fatal(err)
+		}
+		// Assume the sigterm above succeeds. The error here may represent
+		// the signal sent above, but is difficult to check in a platform
+		// agostic way
+		_ = locker.Wait()
 	}
 
 	// wait for the process to lock
@@ -992,9 +1012,15 @@ func testRegistrySource(t *testing.T) (source *getproviders.RegistrySource, clea
 func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	path := req.URL.EscapedPath()
 
+	write := func(data string) {
+		if _, err := resp.Write([]byte(data)); err != nil {
+			panic(err)
+		}
+	}
+
 	if !strings.HasPrefix(path, "/providers/v1/") {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`not a provider registry endpoint`))
+		write(`not a provider registry endpoint`)
 		return
 	}
 
@@ -1002,13 +1028,13 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if len(pathParts) != 3 {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`unrecognized path scheme`))
+		write(`unrecognized path scheme`)
 		return
 	}
 
 	if pathParts[2] != "versions" {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`this registry only supports legacy namespace lookup requests`))
+		write(`this registry only supports legacy namespace lookup requests`)
 		return
 	}
 
@@ -1020,13 +1046,13 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 			resp.Header().Set("Content-Type", "application/json")
 			resp.WriteHeader(200)
 			if movedNamespace, ok := movedProviderNamespaces[name]; ok {
-				resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)))
+				fmt.Fprintf(resp, `{"id":"%s/%s","moved_to":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name, movedNamespace, name)
 			} else {
-				resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+				fmt.Fprintf(resp, `{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)
 			}
 		} else {
 			resp.WriteHeader(404)
-			resp.Write([]byte(`provider not found`))
+			write(`provider not found`)
 		}
 		return
 	}
@@ -1035,10 +1061,10 @@ func fakeRegistryHandler(resp http.ResponseWriter, req *http.Request) {
 	if namespace, ok := movedProviderNamespaces[name]; ok && pathParts[0] == namespace {
 		resp.Header().Set("Content-Type", "application/json")
 		resp.WriteHeader(200)
-		resp.Write([]byte(fmt.Sprintf(`{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)))
+		fmt.Fprintf(resp, `{"id":"%s/%s","versions":[{"version":"1.0.0","protocols":["4"]}]}`, namespace, name)
 	} else {
 		resp.WriteHeader(404)
-		resp.Write([]byte(`provider not found`))
+		write(`provider not found`)
 	}
 }
 

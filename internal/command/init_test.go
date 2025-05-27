@@ -39,7 +39,6 @@ import (
 func TestInit_empty(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
@@ -61,7 +60,6 @@ func TestInit_empty(t *testing.T) {
 func TestInit_multipleArgs(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, 0755)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
@@ -86,7 +84,6 @@ func TestInit_multipleArgs(t *testing.T) {
 func TestInit_fromModule_cwdDest(t *testing.T) {
 	// Create a temporary working directory that is empty
 	td := t.TempDir()
-	os.MkdirAll(td, os.ModePerm)
 	t.Chdir(td)
 
 	ui := new(cli.MockUi)
@@ -436,7 +433,7 @@ func TestInit_backendConfigFile(t *testing.T) {
 			},
 		}
 		flagConfigExtra := newRawFlags("-backend-config")
-		flagConfigExtra.Set("input.config")
+		_ = flagConfigExtra.Set("input.config")
 		_, diags := c.backendConfigOverrideBody(flagConfigExtra, schema)
 		if len(diags) != 0 {
 			t.Errorf("expected no diags, got: %s", diags.Err())
@@ -2187,7 +2184,11 @@ func TestInit_providerLockFile(t *testing.T) {
 	td := t.TempDir()
 	testCopyDir(t, testFixturePath("init-provider-lock-file"), td)
 	// The temporary directory does not have write permission (dr-xr-xr-x) after the copy
-	defer os.Chmod(td, os.ModePerm)
+	defer func() {
+		if err := os.Chmod(td, os.ModePerm); err != nil {
+			t.Fatal(err)
+		}
+	}()
 	t.Chdir(td)
 
 	providerSource, close := newMockProviderSource(t, map[string][]string{
@@ -2240,7 +2241,9 @@ provider "registry.opentofu.org/hashicorp/test" {
 
 	// Make the local directory read-only, and verify that rerunning init
 	// succeeds, to ensure that we don't try to rewrite an unchanged lock file
-	os.Chmod(".", 0555)
+	if err := os.Chmod(".", 0555); err != nil {
+		t.Fatal(err)
+	}
 	if code := c.Run(args); code != 0 {
 		t.Fatalf("bad: \n%s", ui.ErrorWriter.String())
 	}

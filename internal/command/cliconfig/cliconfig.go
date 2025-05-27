@@ -232,7 +232,7 @@ func loadConfigDir(path string) (*Config, tfdiags.Diagnostics) {
 		// syntax errors, and our patterns are hard-coded here.
 		hclMatched, _ := filepath.Match("*.tfrc", name)
 		jsonMatched, _ := filepath.Match("*.tfrc.json", name)
-		if !(hclMatched || jsonMatched) {
+		if !hclMatched && !jsonMatched {
 			continue
 		}
 

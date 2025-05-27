@@ -595,7 +595,9 @@ func TestShow_json_output(t *testing.T) {
 			}
 
 			var want plan
-			json.Unmarshal([]byte(byteValue), &want)
+			if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+				t.Fatal(err)
+			}
 
 			// plan
 			planView, planDone := testView(t)
@@ -651,7 +653,9 @@ func TestShow_json_output(t *testing.T) {
 			var got plan
 
 			gotString := showOutput.Stdout()
-			json.Unmarshal([]byte(gotString), &got)
+			if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+				t.Fatal(err)
+			}
 
 			// Disregard format version to reduce needless test fixture churn
 			want.FormatVersion = got.FormatVersion
@@ -733,7 +737,9 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	var got, want plan
 
 	gotString := showOutput.Stdout()
-	json.Unmarshal([]byte(gotString), &got)
+	if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+		t.Fatal(err)
+	}
 
 	wantFile, err := os.Open("output.json")
 	if err != nil {
@@ -744,7 +750,9 @@ func TestShow_json_output_sensitive(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	json.Unmarshal([]byte(byteValue), &want)
+	if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+		t.Fatal(err)
+	}
 
 	// Disregard format version to reduce needless test fixture churn
 	want.FormatVersion = got.FormatVersion
@@ -829,7 +837,9 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	var got, want plan
 
 	gotString := showOutput.Stdout()
-	json.Unmarshal([]byte(gotString), &got)
+	if err := json.Unmarshal([]byte(gotString), &got); err != nil {
+		t.Fatal(err)
+	}
 
 	wantFile, err := os.Open("output-refresh-only.json")
 	if err != nil {
@@ -840,7 +850,9 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected err: %s", err)
 	}
-	json.Unmarshal([]byte(byteValue), &want)
+	if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+		t.Fatal(err)
+	}
 
 	// Disregard format version to reduce needless test fixture churn
 	want.FormatVersion = got.FormatVersion
@@ -930,7 +942,9 @@ func TestShow_json_output_state(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected err: %s", err)
 			}
-			json.Unmarshal([]byte(byteValue), &want)
+			if err := json.Unmarshal([]byte(byteValue), &want); err != nil {
+				t.Fatal(err)
+			}
 
 			if !cmp.Equal(got, want) {
 				t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))

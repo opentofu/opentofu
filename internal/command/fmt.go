@@ -7,6 +7,7 @@ package command
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -102,7 +103,9 @@ func (c *FmtCommand) Run(args []string) int {
 		buf := output.(*bytes.Buffer)
 		ok := buf.Len() == 0
 		if list {
-			io.Copy(&cli.UiWriter{Ui: c.Ui}, buf)
+			if _, err := io.Copy(&cli.UiWriter{Ui: c.Ui}, buf); err != nil {
+				log.Printf("[ERROR] Unable to write UI output: %s", err)
+			}
 		}
 		if ok {
 			return 0
@@ -215,7 +218,9 @@ func (c *FmtCommand) processFile(path string, r io.Reader, w io.Writer, isStdout
 				diags = diags.Append(fmt.Errorf("Failed to generate diff for %s: %w", path, err))
 				return diags
 			}
-			w.Write(diff)
+			if _, err := w.Write(diff); err != nil {
+				return diags.Append(err)
+			}
 		}
 	}
 
@@ -407,7 +412,7 @@ func (c *FmtCommand) formatValueExpr(tokens hclwrite.Tokens) hclwrite.Tokens {
 			hasTrailingParen = true
 		}
 	}
-	if isMultiLine && !(hasLeadingParen && hasTrailingParen) {
+	if isMultiLine && (!hasLeadingParen || !hasTrailingParen) {
 		wrapped := make(hclwrite.Tokens, 0, len(trimmed)+2)
 		wrapped = append(wrapped, &hclwrite.Token{
 			Type:  hclsyntax.TokenOParen,
@@ -591,29 +596,32 @@ func (c *FmtCommand) Synopsis() string {
 	return "Reformat your configuration in the standard style"
 }
 
+func withTempFile(b []byte, fn func(*os.File) error) error {
+	f, err := os.CreateTemp("", "")
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(b)
+	if err == nil {
+		err = fn(f)
+	}
+	err = errors.Join(err, f.Close())
+	err = errors.Join(err, os.Remove(f.Name()))
+	return err
+}
+
 func bytesDiff(b1, b2 []byte, path string) (data []byte, err error) {
-	f1, err := os.CreateTemp("", "")
-	if err != nil {
-		return
-	}
-	defer os.Remove(f1.Name())
-	defer f1.Close()
+	err = withTempFile(b1, func(f1 *os.File) error {
+		return withTempFile(b2, func(f2 *os.File) error {
+			data, err = exec.Command("diff", "--label=old/"+path, "--label=new/"+path, "-u", f1.Name(), f2.Name()).CombinedOutput()
+			if len(data) > 0 {
+				// diff exits with a non-zero status when the files don't match.
+				// Ignore that failure as long as we get output.
+				err = nil
+			}
+			return err
+		})
+	})
 
-	f2, err := os.CreateTemp("", "")
-	if err != nil {
-		return
-	}
-	defer os.Remove(f2.Name())
-	defer f2.Close()
-
-	f1.Write(b1)
-	f2.Write(b2)
-
-	data, err = exec.Command("diff", "--label=old/"+path, "--label=new/"+path, "-u", f1.Name(), f2.Name()).CombinedOutput()
-	if len(data) > 0 {
-		// diff exits with a non-zero status when the files don't match.
-		// Ignore that failure as long as we get output.
-		err = nil
-	}
 	return
 }

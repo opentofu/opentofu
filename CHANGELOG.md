@@ -34,6 +34,7 @@ ENHANCEMENTS:
 * Remove restriction on test module sources now allowing all source types for modules during tests ([#2651]https://github.com/opentofu/opentofu/pull/2651)
 * `moved` now supports moving between different types ([#2370](https://github.com/opentofu/opentofu/pull/2370))
 * `moved` block can now be used to migrate from the `null_resource` to the `terraform_data` resource. ([#2481](https://github.com/opentofu/opentofu/pull/2481))
+* OpenTofu now includes more information about value types when describing type conversion-related errors, and some other errors relating to local iteration symbols. ([#2815](https://github.com/opentofu/opentofu/pull/2815), [#2816](https://github.com/opentofu/opentofu/pull/2816))
 * Warn on implicit references of providers without a `required_providers` entry. ([#2084](https://github.com/opentofu/opentofu/issues/2084))
 * The test `run` outputs can now be used in the test `provider` blocks defined in test files. ([#2543](https://github.com/opentofu/opentofu/pull/2543))
 * Provider instance keys now automatically converted to string ([#2378](https://github.com/opentofu/opentofu/issues/2378))
@@ -44,6 +45,7 @@ ENHANCEMENTS:
 * `removed` now supports `lifecycle` and `provisioner` configuration. ([#2556](https://github.com/opentofu/opentofu/issues/2556))
 * "force-unlock" option is now supported by the HTTP backend. ([#2381](https://github.com/opentofu/opentofu/pull/2381))
 * Module version constraints now support `null` values, which are treated as if no version was specified. ([#2660](https://github.com/opentofu/opentofu/pull/2660))
+* When running `tofu init` with a dependency lock file that contains entries for certain providers on `registry.terraform.io`, OpenTofu now attempts to select the corresponding version of the equivalent provider on `registry.opentofu.org` as an aid when switching directly from OpenTofu's predecessor. This applies only to the providers that are rebuilt from source and republished on the OpenTofu Registry by the OpenTofu project, because we cannot assume any equivalents for third-party providers published in other namespaces. ([#2791](https://github.com/opentofu/opentofu/pull/2791))
 
 BUG FIXES:
 
@@ -65,6 +67,7 @@ BUG FIXES:
 - Provider GPG Expiration warnings no longer show when only one of the keys have expired. Only once all are expired or invalid. ([#2475](https://github.com/opentofu/opentofu/issues/2475))
 - The "oss" backend, for state storage in Alibaba Cloud OSS, now fully supports all of the typical environment variables for HTTP/HTTPS proxy configuration. Previously it supported configuring a proxy using variables like `HTTPS_PROXY`, but did not support per-origin opt-out using the `NO_PROXY` environment variable. ([#2675](https://github.com/opentofu/opentofu/pull/2675))
 - `AzureRM` backend now supports pagination when retrieving workspaces. `timeout_seconds` backend configuration is also used in these operations. ([#2720](https://github.com/opentofu/opentofu/pull/2720))
+- Fix potential loss of local statefile if file creation failed. ([#2798](https://github.com/opentofu/opentofu/pull/2798))
 
 INTERNAL CHANGES:
 - `skip_s3_checksum=true` now blocks the [aws-sdk new default S3 integrity checks](https://github.com/aws/aws-sdk-go-v2/discussions/2960) ([#2596](https://github.com/opentofu/opentofu/pull/2596))
