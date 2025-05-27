@@ -2506,3 +2506,73 @@ func TestContext2Validate_rangeOverZeroPlanTimestamp(t *testing.T) {
 		t.Fatal(diags.ErrWithWarnings())
 	}
 }
+
+func TestContext2Validate_providerAliasesInRoot(t *testing.T) {
+	// This tests the scenario where a user is running tofu validate in a module, instead of the root
+	// It should allow configuration_aliases to function, even in the root, similar to how input
+	// variables function in validate.
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+  required_providers {
+    test = {
+      source = "hashicorp/test"
+      configuration_aliases = [test.alias]
+    }
+  }
+}
+
+resource "test_object" "t" {
+  provider = test.alias
+}
+`,
+	})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	diags := ctx.Validate(context.Background(), m)
+	if diags.HasErrors() {
+		t.Fatal(diags.ErrWithWarnings())
+	}
+}
+
+func TestContext2Validate_providerAliasesInRootMisconfigured(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+terraform {
+  required_providers {
+    test = {
+      source = "hashicorp/test"
+      configuration_aliases = [test.alias]
+    }
+  }
+}
+
+resource "test_object" "t" {
+  provider = test.typo
+}
+`,
+	})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+
+	diags := ctx.Validate(context.Background(), m)
+
+	if !diags.HasErrors() {
+		t.Fatal("Expected error")
+	}
+
+	if !strings.Contains(diags.Err().Error(), `Provider configuration not present: To work with test_object.t its original provider configuration at provider["registry.opentofu.org/hashicorp/test"].typo is required, but it has been removed`) {
+		t.Fatalf("expected error, got: %q\n", diags.Err().Error())
+	}
+}
