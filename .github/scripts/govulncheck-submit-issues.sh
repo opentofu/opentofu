@@ -46,7 +46,7 @@ do
   affected_versions="$(echo ${vuln} | jq -r '.value[]' | xargs)"
   ticket_title="${vuln_key} reported"
 
-  reported_issues="$(gh issue -R opentofu/opentofu list --search "\"${ticket_title}\"" --json number)"
+  reported_issues="$(gh issue -R opentofu/opentofu list --search "\"${ticket_title}\"" --state "all" --json number)"
   no_of_issues="$(echo ${reported_issues} | jq -r '. | length')"
   reported_issues="$(echo $reported_issues| jq -r '.[] | .number' | xargs)"
   [[ ${no_of_issues} -ge 1 ]] && echo "Vulnerabilties found but already reported for ${vuln_key} in: ${reported_issues}" && continue
