@@ -287,6 +287,99 @@ func ParseResourceAddressForInstanceDiff(path []string, key string) (*ResourceAd
 	return addr, nil
 }
 
+// NewLegacyResourceAddress creates a ResourceAddress from a new-style
+// addrs.AbsResource value.
+//
+// This is provided for shimming purposes so that we can still easily call into
+// older functions that expect the ResourceAddress type.
+func NewLegacyResourceAddress(addr addrs.AbsResource) *ResourceAddress {
+	ret := &ResourceAddress{
+		Type: addr.Resource.Type,
+		Name: addr.Resource.Name,
+	}
+
+	switch addr.Resource.Mode {
+	case addrs.ManagedResourceMode:
+		ret.Mode = ManagedResourceMode
+	case addrs.DataResourceMode:
+		ret.Mode = DataResourceMode
+	default:
+		// This is also covering the unlikely situation when an ephemeral resource will end up in here.
+		// This is not meant to happen. However, since this method is not used anymore, we want it to panic
+		// in case somebody starts using it again in the future. This is to indicate that this is legacy code and that
+		// is not meant to work with new features without putting additional work into it, if ever needed.
+		panic(fmt.Errorf("cannot shim %s to legacy ResourceMode value", addr.Resource.Mode))
+	}
+
+	path := make([]string, len(addr.Module))
+	for i, step := range addr.Module {
+		if step.InstanceKey != addrs.NoKey {
+			// At the time of writing this can't happen because we don't
+			// yet generate keyed module instances. This legacy codepath must
+			// be removed before we can support "count" and "for_each" for
+			// modules.
+			panic(fmt.Errorf("cannot shim module instance step with key %#v to legacy ResourceAddress.Path", step.InstanceKey))
+		}
+
+		path[i] = step.Name
+	}
+	ret.Path = path
+	ret.Index = -1
+
+	return ret
+}
+
+// NewLegacyResourceInstanceAddress creates a ResourceAddress from a new-style
+// addrs.AbsResource value.
+//
+// This is provided for shimming purposes so that we can still easily call into
+// older functions that expect the ResourceAddress type.
+func NewLegacyResourceInstanceAddress(addr addrs.AbsResourceInstance) *ResourceAddress {
+	ret := &ResourceAddress{
+		Type: addr.Resource.Resource.Type,
+		Name: addr.Resource.Resource.Name,
+	}
+
+	switch addr.Resource.Resource.Mode {
+	case addrs.ManagedResourceMode:
+		ret.Mode = ManagedResourceMode
+	case addrs.DataResourceMode:
+		ret.Mode = DataResourceMode
+	default:
+		// This is also covering the unlikely situation when an ephemeral resource will end up in here.
+		// This is not meant to happen. However, since this method is not used anymore, we want it to panic
+		// in case somebody starts using it again in the future. This is to indicate that this is legacy code and that
+		// is not meant to work with new features without putting additional work into it, if ever needed.
+		panic(fmt.Errorf("cannot shim %s to legacy ResourceMode value", addr.Resource.Resource.Mode))
+	}
+
+	path := make([]string, len(addr.Module))
+	for i, step := range addr.Module {
+		if step.InstanceKey != addrs.NoKey {
+			// At the time of writing this can't happen because we don't
+			// yet generate keyed module instances. This legacy codepath must
+			// be removed before we can support "count" and "for_each" for
+			// modules.
+			panic(fmt.Errorf("cannot shim module instance step with key %#v to legacy ResourceAddress.Path", step.InstanceKey))
+		}
+
+		path[i] = step.Name
+	}
+	ret.Path = path
+
+	if addr.Resource.Key == addrs.NoKey {
+		ret.Index = -1
+	} else if ik, ok := addr.Resource.Key.(addrs.IntKey); ok {
+		ret.Index = int(ik)
+	} else if _, ok := addr.Resource.Key.(addrs.StringKey); ok {
+		ret.Index = -1
+	} else {
+		panic(fmt.Errorf("cannot shim resource instance with key %#v to legacy ResourceAddress.Index", addr.Resource.Key))
+	}
+
+	return ret
+}
+
 // AbsResourceInstanceAddr converts the receiver, a legacy resource address, to
 // the new resource address type addrs.AbsResourceInstance.
 //
