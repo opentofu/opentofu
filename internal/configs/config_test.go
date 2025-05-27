@@ -232,6 +232,16 @@ func TestConfigProviderRequirements(t *testing.T) {
 	}
 }
 
+func TestRootModuleWithEphemeralOutput(t *testing.T) {
+	t.Chdir("testdata/ephemeral-outputs")
+	cfg, diags := testNestedModuleConfigFromDir(t, ".")
+	assertDiagnosticCount(t, diags, 1)
+	assertDiagnosticSummary(t, diags, "Invalid output configuration")
+	if len(cfg.Module.Outputs) != 1 {
+		t.Errorf("wrong number of outputs returned")
+	}
+}
+
 func TestConfigProviderRequirementsInclTests(t *testing.T) {
 	cfg, diags := testNestedModuleConfigFromDirWithTests(t, "testdata/provider-reqs-with-tests")
 	// TODO: Version Constraint Deprecation.
