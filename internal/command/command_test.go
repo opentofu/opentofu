@@ -304,7 +304,7 @@ func testState() *states.State {
 				Status:       states.ObjectReady,
 				Dependencies: []addrs.ConfigResource{},
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},

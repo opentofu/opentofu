@@ -24,12 +24,12 @@ type Resource struct {
 	// but only the ones of InstanceKeyType are considered current.
 	Instances map[addrs.InstanceKey]*ResourceInstance
 
-	// ProviderConfig is the absolute address for the provider configuration that
+	// ProviderInstance is the absolute address for the provider configuration that
 	// most recently managed this resource. This is used to connect a resource
 	// with a provider configuration when the resource configuration block is
 	// not available, such as if it has been removed from configuration
 	// altogether.
-	ProviderConfig addrs.AbsProviderConfig
+	ProviderInstance addrs.AbsProviderInstance
 }
 
 // Instance returns the state for the instance with the given key, or nil
@@ -71,7 +71,7 @@ type ResourceInstance struct {
 	// lifecycle mode.
 	Deposed map[DeposedKey]*ResourceInstanceObjectSrc
 
-	// ProviderKey, in combination with Resource.ProviderConfig, represents
+	// ProviderKey, in combination with Resource.ProviderInstance, represents
 	// the resource instance's provider configuration. This is only set
 	// when using provider iteration on resources or modules
 	ProviderKey addrs.InstanceKey

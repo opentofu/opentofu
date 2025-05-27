@@ -341,7 +341,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			if !dryRun {
 				fromResourceAddr := addrFrom.ContainingResource()
 				fromResource := ssFrom.Resource(fromResourceAddr)
-				fromProviderAddr := fromResource.ProviderConfig
+				fromProviderAddr := fromResource.ProviderInstance
 				ssFrom.ForgetResourceInstanceAll(addrFrom)
 				ssFrom.RemoveResourceIfEmpty(fromResourceAddr)
 

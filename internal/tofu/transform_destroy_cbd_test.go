@@ -104,7 +104,7 @@ func TestCBDEdgeTransformer(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -114,7 +114,7 @@ func TestCBDEdgeTransformer(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -167,7 +167,7 @@ func TestCBDEdgeTransformerMulti(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -176,7 +176,7 @@ func TestCBDEdgeTransformerMulti(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"B"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -189,7 +189,7 @@ func TestCBDEdgeTransformerMulti(t *testing.T) {
 				mustConfigResourceAddr("test_object.B"),
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -246,7 +246,7 @@ func TestCBDEdgeTransformer_depNonCBDCount(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -256,7 +256,7 @@ func TestCBDEdgeTransformer_depNonCBDCount(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -266,7 +266,7 @@ func TestCBDEdgeTransformer_depNonCBDCount(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -326,7 +326,7 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -335,7 +335,7 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -345,7 +345,7 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -355,7 +355,7 @@ func TestCBDEdgeTransformer_depNonCBDCountBoth(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 

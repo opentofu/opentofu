@@ -24,7 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *configs.Provider) hcl.Body {
+func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderInstance, config *configs.Provider) hcl.Body {
 	var configBody hcl.Body
 	if config != nil {
 		configBody = config.Config
@@ -130,7 +130,7 @@ func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, sourc
 }
 
 // getProvider returns the providers.Interface and schema for a given provider.
-func getProvider(ctx context.Context, evalCtx EvalContext, addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, providers.ProviderSchema, error) {
+func getProvider(ctx context.Context, evalCtx EvalContext, addr addrs.AbsProviderInstance, providerKey addrs.InstanceKey) (providers.Interface, providers.ProviderSchema, error) {
 	if addr.Provider.Type == "" {
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")

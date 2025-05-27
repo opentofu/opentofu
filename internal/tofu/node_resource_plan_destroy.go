@@ -67,7 +67,7 @@ func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalC
 		return diags
 	}
 	span.SetAttributes(
-		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)),
 	)
 
 	switch addr.Resource.Resource.Mode {
@@ -150,7 +150,7 @@ func (n *NodePlanDestroyableResourceInstance) dataResourceExecute(ctx context.Co
 			Before: cty.NullVal(cty.DynamicPseudoType),
 			After:  cty.NullVal(cty.DynamicPseudoType),
 		},
-		ProviderAddr: n.ResolvedProvider.ProviderConfig,
+		ProviderAddr: n.ResolvedProvider.ProviderInstance,
 	}
 	return diags.Append(n.writeChange(ctx, evalCtx, change, ""))
 }

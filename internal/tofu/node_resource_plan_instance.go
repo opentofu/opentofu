@@ -106,7 +106,7 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		return diags
 	}
 	span.SetAttributes(
-		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)),
 	)
 
 	// Eval info is different depending on what kind of resource this is
@@ -132,7 +132,7 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx context.Context,
 
 	var change *plans.ResourceInstanceChange
 
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -193,7 +193,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		checkRuleSeverity = tfdiags.Warning
 	}
 
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -337,7 +337,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 				change := &plans.ResourceInstanceChange{
 					Addr:         n.Addr,
 					PrevRunAddr:  n.prevRunAddr(evalCtx),
-					ProviderAddr: n.ResolvedProvider.ProviderConfig,
+					ProviderAddr: n.ResolvedProvider.ProviderInstance,
 					Change: plans.Change{
 						// we only need a placeholder, so this will be a NoOp
 						Action:          plans.NoOp,
@@ -676,7 +676,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 			Name:     n.Addr.Resource.Resource.Name,
 			Config:   remain,
 			Managed:  &configs.ManagedResource{},
-			Provider: n.ResolvedProvider.ProviderConfig.Provider,
+			Provider: n.ResolvedProvider.ProviderInstance.Provider,
 		}
 	}
 
@@ -718,9 +718,9 @@ func (n *NodePlannableResourceInstance) generateHCLStringAttributes(addr addrs.A
 		configschema.FilterDeprecatedBlock,
 	)
 
-	providerAddr := addrs.LocalProviderConfig{
-		LocalName: n.ResolvedProvider.ProviderConfig.Provider.Type,
-		Alias:     n.ResolvedProvider.ProviderConfig.Alias,
+	providerAddr := addrs.LocalProviderInstance{
+		LocalName: n.ResolvedProvider.ProviderInstance.Provider.Type,
+		Alias:     n.ResolvedProvider.ProviderInstance.Alias,
 	}
 
 	return genconfig.GenerateResourceContents(addr, filteredSchema, providerAddr, state.Value)

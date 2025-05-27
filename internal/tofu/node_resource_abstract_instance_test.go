@@ -22,7 +22,7 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 	tests := []struct {
 		Addr                 addrs.AbsResourceInstance
 		Config               *configs.Resource
-		StoredProviderConfig addrs.AbsProviderConfig
+		StoredProviderConfig addrs.AbsProviderInstance
 		Want                 addrs.Provider
 	}{
 		{
@@ -102,7 +102,7 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 				Name: "baz",
 			}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
 			Config: nil,
-			StoredProviderConfig: addrs.AbsProviderConfig{
+			StoredProviderConfig: addrs.AbsProviderInstance{
 				Module: addrs.RootModule,
 				Provider: addrs.Provider{
 					Hostname:  addrs.DefaultProviderRegistryHost,
@@ -135,7 +135,7 @@ func TestNodeAbstractResourceInstanceProvider(t *testing.T) {
 					Addr:   test.Addr.ConfigResource(),
 					Config: test.Config,
 					storedProviderConfig: ResolvedProvider{
-						ProviderConfig: test.StoredProviderConfig,
+						ProviderInstance: test.StoredProviderConfig,
 					},
 				},
 			}
@@ -173,7 +173,7 @@ func TestNodeAbstractResourceInstance_WriteResourceInstanceState(t *testing.T) {
 		Addr: mustResourceInstanceAddr("aws_instance.foo"),
 		// instanceState:        obj,
 		NodeAbstractResource: NodeAbstractResource{
-			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+			ResolvedProvider: ResolvedProvider{ProviderInstance: mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 		},
 	}
 	evalCtx.ProviderProvider = mockProvider

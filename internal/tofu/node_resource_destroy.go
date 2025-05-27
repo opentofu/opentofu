@@ -161,7 +161,7 @@ func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalC
 			return diags
 		}
 		span.SetAttributes(
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)),
 		)
 		diags = diags.Append(
 			n.managedResourceExecute(ctx, evalCtx),
@@ -190,7 +190,7 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx context.Context
 	var changeApply *plans.ResourceInstanceChange
 	var state *states.ResourceInstanceObject
 
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -260,6 +260,6 @@ func (n *NodeDestroyResourceInstance) managedResourceExecute(ctx context.Context
 
 func (n *NodeDestroyResourceInstance) dataResourceExecute(_ context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] NodeDestroyResourceInstance: removing state object for %s", n.Addr)
-	evalCtx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	evalCtx.State().SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)
 	return diags.Append(updateStateHook(evalCtx))
 }

@@ -14,7 +14,7 @@ import (
 // that want provider configurations attached.
 type GraphNodeAttachProvider interface {
 	// ProviderName with no module prefix. Example: "aws".
-	ProviderAddr() addrs.AbsProviderConfig
+	ProviderAddr() addrs.AbsProviderInstance
 
 	// Sets the configuration
 	AttachProvider(*configs.Provider)

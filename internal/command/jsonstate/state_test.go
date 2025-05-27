@@ -229,7 +229,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -271,7 +271,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -317,7 +317,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -360,7 +360,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -388,7 +388,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -430,7 +430,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -474,7 +474,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -523,7 +523,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -583,7 +583,7 @@ func TestMarshalResources(t *testing.T) {
 							},
 						},
 					},
-					ProviderConfig: addrs.AbsProviderConfig{
+					ProviderInstance: addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					},
@@ -643,7 +643,7 @@ func TestMarshalModules_basic(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -659,7 +659,7 @@ func TestMarshalModules_basic(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   childModule.Module(),
 			},
@@ -675,7 +675,7 @@ func TestMarshalModules_basic(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},
@@ -715,7 +715,7 @@ func TestMarshalModules_nested(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -731,7 +731,7 @@ func TestMarshalModules_nested(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   childModule.Module(),
 			},
@@ -747,7 +747,7 @@ func TestMarshalModules_nested(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},
@@ -790,7 +790,7 @@ func TestMarshalModules_parent_no_resources(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -806,7 +806,7 @@ func TestMarshalModules_parent_no_resources(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   subModule.Module(),
 			},

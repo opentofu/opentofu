@@ -164,9 +164,9 @@ func (c *StateShowCommand) Run(args []string) int {
 
 	// check if the resource has a configured provider, otherwise this will use the default provider
 	rs := state.Resource(addr.ContainingResource())
-	absPc := addrs.AbsProviderConfig{
-		Provider: rs.ProviderConfig.Provider,
-		Alias:    rs.ProviderConfig.Alias,
+	absPc := addrs.AbsProviderInstance{
+		Provider: rs.ProviderInstance.Provider,
+		Alias:    rs.ProviderInstance.Alias,
 		Module:   addrs.RootModule,
 	}
 	singleInstance := states.NewState()

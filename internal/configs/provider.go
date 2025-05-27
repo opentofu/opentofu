@@ -199,8 +199,8 @@ func (p *Provider) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
 
 // Addr returns the address of the receiving provider configuration, relative
 // to its containing module.
-func (p *Provider) Addr() addrs.LocalProviderConfig {
-	return addrs.LocalProviderConfig{
+func (p *Provider) Addr() addrs.LocalProviderInstance {
+	return addrs.LocalProviderInstance{
 		LocalName: p.Name,
 		Alias:     p.Alias,
 	}
@@ -213,7 +213,7 @@ func (p *Provider) moduleUniqueKey() string {
 	return p.Name
 }
 
-// ParseProviderConfigCompact parses the given absolute traversal as a relative
+// ParseProviderInstanceCompact parses the given absolute traversal as a relative
 // provider address in compact form. The following are examples of traversals
 // that can be successfully parsed as compact relative provider configuration
 // addresses:
@@ -225,9 +225,9 @@ func (p *Provider) moduleUniqueKey() string {
 //
 // If the returned diagnostics contains errors then the result value is invalid
 // and must not be used.
-func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
+func ParseProviderInstanceCompact(traversal hcl.Traversal) (addrs.LocalProviderInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	ret := addrs.LocalProviderConfig{
+	ret := addrs.LocalProviderInstance{
 		LocalName: traversal.RootName(),
 	}
 
@@ -262,7 +262,7 @@ func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderCon
 	return ret, diags
 }
 
-// ParseProviderConfigCompactStr is a helper wrapper around ParseProviderConfigCompact
+// ParseProviderInstanceCompactStr is a helper wrapper around ParseProviderInstanceCompact
 // that takes a string and parses it with the HCL native syntax traversal parser
 // before interpreting it.
 //
@@ -271,22 +271,22 @@ func ParseProviderConfigCompact(traversal hcl.Traversal) (addrs.LocalProviderCon
 // If a reference string is coming from a source that should be identified in
 // error messages then the caller should instead parse it directly using a
 // suitable function from the HCL API and pass the traversal itself to
-// ParseProviderConfigCompact.
+// ParseProviderInstanceCompact.
 //
 // Error diagnostics are returned if either the parsing fails or the analysis
 // of the traversal fails. There is no way for the caller to distinguish the
 // two kinds of diagnostics programmatically. If error diagnostics are returned
 // then the returned address is invalid.
-func ParseProviderConfigCompactStr(str string) (addrs.LocalProviderConfig, tfdiags.Diagnostics) {
+func ParseProviderInstanceCompactStr(str string) (addrs.LocalProviderInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(parseDiags)
 	if parseDiags.HasErrors() {
-		return addrs.LocalProviderConfig{}, diags
+		return addrs.LocalProviderInstance{}, diags
 	}
 
-	addr, addrDiags := ParseProviderConfigCompact(traversal)
+	addr, addrDiags := ParseProviderInstanceCompact(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags
 }

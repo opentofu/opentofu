@@ -43,7 +43,7 @@ func TestState(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -102,7 +102,7 @@ func TestState(t *testing.T) {
 								Deposed: map[DeposedKey]*ResourceInstanceObjectSrc{},
 							},
 						},
-						ProviderConfig: addrs.AbsProviderConfig{
+						ProviderInstance: addrs.AbsProviderInstance{
 							Provider: addrs.NewDefaultProvider("test"),
 							Module:   addrs.RootModule,
 						},
@@ -251,7 +251,7 @@ func TestStateDeepCopy(t *testing.T) {
 			Dependencies:        []addrs.ConfigResource{},
 			CreateBeforeDestroy: true,
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -286,7 +286,7 @@ func TestStateDeepCopy(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -303,11 +303,11 @@ func TestStateDeepCopy(t *testing.T) {
 }
 
 func TestStateHasResourceInstanceObjects(t *testing.T) {
-	providerConfig := addrs.AbsProviderConfig{
+	providerInstance := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.MustParseProviderSourceString("test/test"),
 	}
-	childModuleProviderConfig := addrs.AbsProviderConfig{
+	childModuleProviderInstance := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule.Child("child"),
 		Provider: addrs.MustParseProviderSourceString("test/test"),
 	}
@@ -328,7 +328,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 						Status:    ObjectReady,
 					},
-					providerConfig,
+					providerInstance,
 					addrs.NoKey,
 				)
 			},
@@ -342,7 +342,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 						Status:    ObjectReady,
 					},
-					childModuleProviderConfig,
+					childModuleProviderInstance,
 					addrs.NoKey,
 				)
 			},
@@ -356,7 +356,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 						Status:    ObjectTainted,
 					},
-					providerConfig,
+					providerInstance,
 					addrs.NoKey,
 				)
 			},
@@ -371,7 +371,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 						Status:    ObjectTainted,
 					},
-					providerConfig,
+					providerInstance,
 					addrs.NoKey,
 				)
 			},
@@ -390,7 +390,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 						Status:    ObjectTainted,
 					},
-					providerConfig,
+					providerInstance,
 					addrs.NoKey,
 				)
 				s := ss.Lock()
@@ -407,7 +407,7 @@ func TestStateHasResourceInstanceObjects(t *testing.T) {
 						AttrsJSON: []byte(`{}`),
 						Status:    ObjectReady,
 					},
-					providerConfig,
+					providerInstance,
 					addrs.NoKey,
 				)
 			},
@@ -442,7 +442,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -510,7 +510,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				SchemaVersion: 1,
 				AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -527,7 +527,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				SchemaVersion: 1,
 				AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -577,7 +577,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				SchemaVersion: 1,
 				AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -624,7 +624,7 @@ func TestState_MoveAbsResource(t *testing.T) {
 				SchemaVersion: 1,
 				AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -670,7 +670,7 @@ func TestState_MaybeMoveAbsResource(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -711,7 +711,7 @@ func TestState_MoveAbsResourceInstance(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -782,7 +782,7 @@ func TestState_MaybeMoveAbsResourceInstance(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -829,7 +829,7 @@ func TestState_MoveModuleInstance(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -877,7 +877,7 @@ func TestState_MaybeMoveModuleInstance(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -920,7 +920,7 @@ func TestState_MoveModule(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -940,7 +940,7 @@ func TestState_MoveModule(t *testing.T) {
 			SchemaVersion: 1,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -994,7 +994,7 @@ func TestState_MoveModule(t *testing.T) {
 				SchemaVersion: 1,
 				AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},

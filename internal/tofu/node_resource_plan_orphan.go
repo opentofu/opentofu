@@ -82,7 +82,7 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 			return diags
 		}
 		span.SetAttributes(
-			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+			otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)),
 		)
 		diags = diags.Append(
 			n.managedResourceExecute(ctx, evalCtx),
@@ -113,10 +113,10 @@ func (n *NodePlannableResourceInstanceOrphan) dataResourceExecute(_ context.Cont
 	// we need to update both the refresh state to refresh the current data
 	// source, and the working state for plan-time evaluations.
 	refreshState := evalCtx.RefreshState()
-	refreshState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	refreshState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)
 
 	workingState := evalCtx.State()
-	workingState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	workingState.SetResourceInstanceCurrent(n.Addr, nil, n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)
 	return nil
 }
 

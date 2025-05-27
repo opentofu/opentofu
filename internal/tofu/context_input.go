@@ -78,7 +78,7 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 		// using count or for_each.
 
 		pcs := make(map[string]*configs.Provider)
-		pas := make(map[string]addrs.LocalProviderConfig)
+		pas := make(map[string]addrs.LocalProviderInstance)
 		for _, pc := range config.Module.ProviderConfigs {
 			addr := pc.Addr()
 			pcs[addr.String()] = pc
@@ -190,7 +190,7 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 				vals[key] = cty.StringVal(rawVal)
 			}
 
-			absConfigAddr := addrs.AbsProviderConfig{
+			absConfigAddr := addrs.AbsProviderInstance{
 				Provider: providerFqn,
 				Alias:    pa.Alias,
 				Module:   config.Path,

@@ -148,7 +148,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	p := node.ProvidedBy()
 
 	// the implied non-exact provider should be "terraform"
-	lpc, ok := p.ProviderConfig.(addrs.LocalProviderConfig)
+	lpc, ok := p.ProviderInstance.(addrs.LocalProviderInstance)
 	if !ok {
 		t.Fatalf("expected LocalProviderConfig, got %#v\n", p)
 	}
@@ -158,7 +158,7 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 	}
 
 	// now set a resolved provider for the resource
-	resolved := addrs.AbsProviderConfig{
+	resolved := addrs.AbsProviderInstance{
 		Provider: addrs.Provider{
 			Hostname:  addrs.DefaultProviderRegistryHost,
 			Namespace: "awesomecorp",
@@ -168,10 +168,10 @@ func TestNodeAbstractResourceSetProvider(t *testing.T) {
 		Alias:  "test",
 	}
 
-	node.SetProvider(ResolvedProvider{ProviderConfig: resolved})
+	node.SetProvider(ResolvedProvider{ProviderInstance: resolved})
 	p = node.ProvidedBy()
 
-	apc, ok := p.ProviderConfig.(addrs.AbsProviderConfig)
+	apc, ok := p.ProviderInstance.(addrs.AbsProviderInstance)
 	if !ok {
 		t.Fatalf("expected AbsProviderConfig, got %#v\n", p)
 	}
@@ -239,7 +239,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State:    states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderInstance: mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -259,7 +259,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderInstance: mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -279,7 +279,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderInstance: mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 				// Otherwise prevRunAddr fails, since we have no current Addr in the state
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
@@ -300,7 +300,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 			State: states.BuildState(stateBuilder),
 			Node: &NodeAbstractResourceInstance{
 				NodeAbstractResource: NodeAbstractResource{
-					ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+					ResolvedProvider: ResolvedProvider{ProviderInstance: mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`)},
 				},
 				Addr: mustResourceInstanceAddr("aws_instance.bar"),
 			},
@@ -314,7 +314,7 @@ func getReadResourceInstanceStateTests(stateBuilder func(s *states.SyncState)) [
 // Those are quite similar in behavior, so we can test them together.
 func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 	tests := getReadResourceInstanceStateTests(func(s *states.SyncState) {
-		providerAddr := addrs.AbsProviderConfig{
+		providerAddr := addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		}
@@ -361,7 +361,7 @@ func TestNodeAbstractResource_ReadResourceInstanceState(t *testing.T) {
 	}
 	// Deposed tests
 	deposedTests := getReadResourceInstanceStateTests(func(s *states.SyncState) {
-		providerAddr := addrs.AbsProviderConfig{
+		providerAddr := addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("aws"),
 			Module:   addrs.RootModule,
 		}

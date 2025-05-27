@@ -400,7 +400,7 @@ func TestContextImport_collision(t *testing.T) {
 				},
 				Status: states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("aws"),
 				Module:   addrs.RootModule,
 			},

@@ -346,7 +346,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 	}
 
 	for _, pm := range file.ProviderMetas {
-		provider := m.ProviderForLocalConfig(addrs.LocalProviderConfig{LocalName: pm.Provider})
+		provider := m.ProviderForLocalConfig(addrs.LocalProviderInstance{LocalName: pm.Provider})
 		if existing, exists := m.ProviderMetas[provider]; exists {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
@@ -529,7 +529,7 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 		}
 
 		if i.ProviderConfigRef != nil {
-			i.Provider = m.ProviderForLocalConfig(addrs.LocalProviderConfig{
+			i.Provider = m.ProviderForLocalConfig(addrs.LocalProviderInstance{
 				LocalName: i.ProviderConfigRef.Name,
 				Alias:     i.ProviderConfigRef.Alias,
 			})
@@ -791,7 +791,7 @@ func (m *Module) LocalNameForProvider(p addrs.Provider) string {
 
 // ProviderForLocalConfig returns the provider FQN for a given
 // LocalProviderConfig, based on its local name.
-func (m *Module) ProviderForLocalConfig(pc addrs.LocalProviderConfig) addrs.Provider {
+func (m *Module) ProviderForLocalConfig(pc addrs.LocalProviderInstance) addrs.Provider {
 	return m.ImpliedProviderForUnqualifiedType(pc.LocalName)
 }
 

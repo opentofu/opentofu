@@ -216,7 +216,7 @@ type ResourceInstanceChange struct {
 	// Provider is the address of the provider configuration that was used
 	// to plan this change, and thus the configuration that must also be
 	// used to apply it.
-	ProviderAddr addrs.AbsProviderConfig
+	ProviderAddr addrs.AbsProviderInstance
 
 	// Change is an embedded description of the change.
 	Change

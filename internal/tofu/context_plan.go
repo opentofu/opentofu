@@ -946,7 +946,7 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 				continue
 			}
 
-			provider := rs.ProviderConfig.Provider
+			provider := rs.ProviderInstance.Provider
 			for key, oldIS := range rs.Instances {
 				if oldIS.Current == nil {
 					// Not interested in instances that only have deposed objects
@@ -1041,7 +1041,7 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 				change := &plans.ResourceInstanceChange{
 					Addr:         addr,
 					PrevRunAddr:  prevRunAddr,
-					ProviderAddr: rs.ProviderConfig,
+					ProviderAddr: rs.ProviderInstance,
 					Change: plans.Change{
 						Action: action,
 						Before: oldVal,

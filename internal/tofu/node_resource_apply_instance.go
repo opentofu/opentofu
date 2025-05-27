@@ -161,7 +161,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		return diags
 	}
 	span.SetAttributes(
-		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)),
+		otelAttr.String(traceAttrProviderInstanceAddr, traceProviderInstanceAddr(n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)),
 	)
 
 	// Eval info is different depending on what kind of resource this is
@@ -182,7 +182,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 }
 
 func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -250,7 +250,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 	var deposedKey states.DeposedKey
 
 	addr := n.ResourceInstanceAddr().Resource
-	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderInstance, n.ResolvedProviderKey)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -472,7 +472,7 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(evalCtx EvalContext, 
 				"Provider produced inconsistent final plan",
 				fmt.Sprintf(
 					"When expanding the plan for %s to include new values learned so far during apply, provider %q changed the planned action from %s to %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-					absAddr, n.ResolvedProvider.ProviderConfig.Provider.String(),
+					absAddr, n.ResolvedProvider.ProviderInstance.Provider.String(),
 					plannedChange.Action, actualChange.Action,
 				),
 			))
@@ -486,7 +486,7 @@ func (n *NodeApplyableResourceInstance) checkPlannedChange(evalCtx EvalContext, 
 			"Provider produced inconsistent final plan",
 			fmt.Sprintf(
 				"When expanding the plan for %s to include new values learned so far during apply, provider %q produced an invalid new value for %s.\n\nThis is a bug in the provider, which should be reported in the provider's own issue tracker.",
-				absAddr, n.ResolvedProvider.ProviderConfig.Provider.String(), tfdiags.FormatError(err),
+				absAddr, n.ResolvedProvider.ProviderInstance.Provider.String(), tfdiags.FormatError(err),
 			),
 		))
 	}

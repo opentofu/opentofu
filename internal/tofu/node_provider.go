@@ -35,7 +35,7 @@ const traceAttrProviderAddr = "opentofu.provider.source"
 // block that a span is associated with.
 //
 // The value of this should be populated by calling the String method on
-// a value of type [addrs.AbsProviderConfig].
+// a value of type [addrs.AbsProviderInstance].
 const traceAttrProviderConfigAddr = "opentofu.provider_config.address"
 
 // traceAttrProviderInstanceAddr is a standardized trace span attribute
@@ -43,7 +43,7 @@ const traceAttrProviderConfigAddr = "opentofu.provider_config.address"
 // that a span is associated with.
 //
 // The value of this should be populated by calling traceProviderInstanceAddr
-// with the [addrs.AbsProviderConfig] and [addrs.InstanceKey] value that
+// with the [addrs.AbsProviderInstance] and [addrs.InstanceKey] value that
 // together uniquely identify the provider instance.
 const traceAttrProviderInstanceAddr = "opentofu.provider_instance.address"
 
@@ -301,7 +301,7 @@ const providerConfigErr = `Provider %q requires explicit configuration. Add a pr
 // arguments. If we do eventually have a suitable address type then this
 // function should be removed and all uses of it replaced by calling the
 // String method on that address type.
-func traceProviderInstanceAddr(configAddr addrs.AbsProviderConfig, instKey addrs.InstanceKey) string {
+func traceProviderInstanceAddr(configAddr addrs.AbsProviderInstance, instKey addrs.InstanceKey) string {
 	if instKey == addrs.NoKey {
 		return configAddr.String()
 	}

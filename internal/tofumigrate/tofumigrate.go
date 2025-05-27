@@ -65,9 +65,9 @@ func MigrateStateProviderAddresses(config *configs.Config, state *states.State) 
 
 	for _, module := range stateCopy.Modules {
 		for _, resource := range module.Resources {
-			_, referencedInConfig := providers[resource.ProviderConfig.Provider]
-			if resource.ProviderConfig.Provider.Hostname == "registry.terraform.io" && !referencedInConfig {
-				resource.ProviderConfig.Provider.Hostname = tfaddr.DefaultProviderRegistryHost
+			_, referencedInConfig := providers[resource.ProviderInstance.Provider]
+			if resource.ProviderInstance.Provider.Hostname == "registry.terraform.io" && !referencedInConfig {
+				resource.ProviderInstance.Provider.Hostname = tfaddr.DefaultProviderRegistryHost
 			}
 		}
 	}

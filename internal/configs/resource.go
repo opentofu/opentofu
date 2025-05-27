@@ -94,18 +94,18 @@ func (r *Resource) Addr() addrs.Resource {
 // ProviderConfigAddr returns the address for the provider configuration that
 // should be used for this resource. This function returns a default provider
 // config addr if an explicit "provider" argument was not provided.
-func (r *Resource) ProviderConfigAddr() addrs.LocalProviderConfig {
+func (r *Resource) ProviderConfigAddr() addrs.LocalProviderInstance {
 	if r.ProviderConfigRef == nil {
 		// If no specific "provider" argument is given, we want to look up the
 		// provider config where the local name matches the implied provider
 		// from the resource type. This may be different from the resource's
 		// provider type.
-		return addrs.LocalProviderConfig{
+		return addrs.LocalProviderInstance{
 			LocalName: r.Addr().ImpliedProvider(),
 		}
 	}
 
-	return addrs.LocalProviderConfig{
+	return addrs.LocalProviderInstance{
 		LocalName: r.ProviderConfigRef.Name,
 		Alias:     r.ProviderConfigRef.Alias,
 	}
@@ -784,8 +784,8 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 //
 // This is a trivial conversion, essentially just discarding the source
 // location information and keeping just the addressing information.
-func (r *ProviderConfigRef) Addr() addrs.LocalProviderConfig {
-	return addrs.LocalProviderConfig{
+func (r *ProviderConfigRef) Addr() addrs.LocalProviderInstance {
+	return addrs.LocalProviderInstance{
 		LocalName: r.Name,
 		Alias:     r.Alias,
 	}

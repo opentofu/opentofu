@@ -322,15 +322,15 @@ func (s *State) LocalValue(addr addrs.AbsLocalValue) cty.Value {
 // referenced throughout the receiving state.
 //
 // The result is de-duplicated so that each distinct address appears only once.
-func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
+func (s *State) ProviderAddrs() []addrs.AbsProviderInstance {
 	if s == nil {
 		return nil
 	}
 
-	m := map[string]addrs.AbsProviderConfig{}
+	m := map[string]addrs.AbsProviderInstance{}
 	for _, ms := range s.Modules {
 		for _, rc := range ms.Resources {
-			m[rc.ProviderConfig.String()] = rc.ProviderConfig
+			m[rc.ProviderInstance.String()] = rc.ProviderInstance
 		}
 	}
 	if len(m) == 0 {
@@ -344,7 +344,7 @@ func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
 	}
 	sort.Strings(keys)
 
-	ret := make([]addrs.AbsProviderConfig, len(keys))
+	ret := make([]addrs.AbsProviderInstance, len(keys))
 	for i, key := range keys {
 		ret[i] = m[key]
 	}
@@ -470,7 +470,7 @@ func (s *State) MoveAbsResourceInstance(src, dst addrs.AbsResourceInstance) {
 	}
 
 	srcResourceState := s.Resource(src.ContainingResource())
-	srcProviderAddr := srcResourceState.ProviderConfig
+	srcProviderAddr := srcResourceState.ProviderInstance
 	dstResourceAddr := dst.ContainingResource()
 
 	// Remove the source resource instance from the module's state, and then the

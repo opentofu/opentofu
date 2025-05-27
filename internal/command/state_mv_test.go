@@ -31,7 +31,7 @@ func TestStateMv(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -48,7 +48,7 @@ func TestStateMv(t *testing.T) {
 				Status:       states.ObjectReady,
 				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -169,7 +169,7 @@ func TestStateMv_backupAndBackupOutOptionsWithNonLocalBackend(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -417,7 +417,7 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -434,7 +434,7 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				Status:       states.ObjectReady,
 				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -446,7 +446,7 @@ func TestStateMv_resourceToInstance(t *testing.T) {
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -510,7 +510,7 @@ func TestStateMv_resourceToInstanceErr(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -522,7 +522,7 @@ func TestStateMv_resourceToInstanceErr(t *testing.T) {
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -580,7 +580,7 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -592,7 +592,7 @@ func TestStateMv_resourceToInstanceErrInAutomation(t *testing.T) {
 				Type: "test_instance",
 				Name: "bar",
 			}.Absolute(addrs.RootModuleInstance),
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -651,7 +651,7 @@ func TestStateMv_instanceToResource(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -667,7 +667,7 @@ func TestStateMv_instanceToResource(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -743,7 +743,7 @@ func TestStateMv_instanceToNewResource(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -817,7 +817,7 @@ func TestStateMv_differentResourceTypes(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -880,7 +880,7 @@ func TestStateMv_explicitWithBackend(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -896,7 +896,7 @@ func TestStateMv_explicitWithBackend(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -960,7 +960,7 @@ func TestStateMv_backupExplicit(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -977,7 +977,7 @@ func TestStateMv_backupExplicit(t *testing.T) {
 				Status:       states.ObjectReady,
 				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1029,7 +1029,7 @@ func TestStateMv_stateOutNew(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1086,7 +1086,7 @@ func TestStateMv_stateOutExisting(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1106,7 +1106,7 @@ func TestStateMv_stateOutExisting(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1190,7 +1190,7 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1206,7 +1206,7 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1222,7 +1222,7 @@ func TestStateMv_stateOutNew_count(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1283,7 +1283,7 @@ func TestStateMv_stateOutNew_largeCount(t *testing.T) {
 					AttrsJSON: []byte(fmt.Sprintf(`{"id":"foo%d","foo":"value","bar":"value"}`, i)),
 					Status:    states.ObjectReady,
 				},
-				addrs.AbsProviderConfig{
+				addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},
@@ -1300,7 +1300,7 @@ func TestStateMv_stateOutNew_largeCount(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1357,7 +1357,7 @@ func TestStateMv_stateOutNew_nestedModule(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1373,7 +1373,7 @@ func TestStateMv_stateOutNew_nestedModule(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1431,7 +1431,7 @@ func TestStateMv_toNewModule(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1506,7 +1506,7 @@ func TestStateMv_withinBackend(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1523,7 +1523,7 @@ func TestStateMv_withinBackend(t *testing.T) {
 				Status:       states.ObjectReady,
 				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1583,7 +1583,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 			Status:    states.ObjectReady,
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -1595,7 +1595,7 @@ func TestStateMv_fromBackendToLocal(t *testing.T) {
 			AttrsJSON: []byte(`{"id":"foo","foo":"value","bar":"value"}`),
 			Status:    states.ObjectReady,
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -1661,7 +1661,7 @@ func TestStateMv_onlyResourceInModule(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1757,7 +1757,7 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar","foo":"value","bar":"value"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1774,7 +1774,7 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 				Status:       states.ObjectReady,
 				Dependencies: []addrs.ConfigResource{mustResourceAddr("test_instance.foo")},
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},

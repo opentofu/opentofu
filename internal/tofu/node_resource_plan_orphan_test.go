@@ -192,7 +192,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 					},
 					Status: states.ObjectReady,
 				},
-				addrs.AbsProviderConfig{
+				addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				},
@@ -231,7 +231,7 @@ func TestNodeResourcePlanOrphan_Execute(t *testing.T) {
 			node := NodePlannableResourceInstanceOrphan{
 				NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 					NodeAbstractResource: NodeAbstractResource{
-						ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
+						ResolvedProvider: ResolvedProvider{ProviderInstance: addrs.AbsProviderInstance{
 							Provider: addrs.NewDefaultProvider("test"),
 							Module:   addrs.RootModule,
 						}},
@@ -272,7 +272,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 			},
 			Status: states.ObjectReady,
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -306,7 +306,7 @@ func TestNodeResourcePlanOrphanExecute_alreadyDeleted(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
+				ResolvedProvider: ResolvedProvider{ProviderInstance: addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				}},
@@ -355,7 +355,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 			},
 			Status: states.ObjectReady,
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -389,7 +389,7 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 	node := NodePlannableResourceInstanceOrphan{
 		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
 			NodeAbstractResource: NodeAbstractResource{
-				ResolvedProvider: ResolvedProvider{ProviderConfig: addrs.AbsProviderConfig{
+				ResolvedProvider: ResolvedProvider{ProviderInstance: addrs.AbsProviderInstance{
 					Provider: addrs.NewDefaultProvider("test"),
 					Module:   addrs.RootModule,
 				}},

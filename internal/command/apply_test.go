@@ -980,7 +980,7 @@ func TestApply_refresh(t *testing.T) {
 				AttrsJSON: []byte(`{"ami":"bar"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1048,7 +1048,7 @@ func TestApply_refreshFalse(t *testing.T) {
 				AttrsJSON: []byte(`{"ami":"bar"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1186,7 +1186,7 @@ func TestApply_state(t *testing.T) {
 				AttrsJSON: []byte(`{"ami":"foo"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -1584,7 +1584,7 @@ func TestApply_backup(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"bar"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -2112,7 +2112,7 @@ func TestApply_replace(t *testing.T) {
 				AttrsJSON: []byte(`{"id":"hello"}`),
 				Status:    states.ObjectReady,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -2397,7 +2397,7 @@ func TestApply_CreateBeforeDestroyWithRefreshFalse(t *testing.T) {
 				// omitted in the configuration.
 				CreateBeforeDestroy: true,
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -2551,7 +2551,7 @@ func applyFixturePlanFileMatchState(t *testing.T, stateMeta statemgr.SnapshotMet
 			Type: "test_instance",
 			Name: "foo",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-		ProviderAddr: addrs.AbsProviderConfig{
+		ProviderAddr: addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},

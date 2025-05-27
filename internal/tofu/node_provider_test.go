@@ -41,7 +41,7 @@ func TestNodeApplyableProviderExecute(t *testing.T) {
 		},
 	}
 	provider := mockProviderWithConfigSchema(schema)
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -89,7 +89,7 @@ func TestNodeApplyableProviderExecute_unknownImport(t *testing.T) {
 		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -124,7 +124,7 @@ func TestNodeApplyableProviderExecute_unknownApply(t *testing.T) {
 		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -160,7 +160,7 @@ func TestNodeApplyableProviderExecute_sensitive(t *testing.T) {
 		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -197,7 +197,7 @@ func TestNodeApplyableProviderExecute_sensitiveValidate(t *testing.T) {
 		}),
 	}
 	provider := mockProviderWithConfigSchema(simpleTestSchema())
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -239,7 +239,7 @@ func TestNodeApplyableProviderExecute_emptyValidate(t *testing.T) {
 			},
 		},
 	})
-	providerAddr := addrs.AbsProviderConfig{
+	providerAddr := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
@@ -282,7 +282,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -303,7 +303,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -317,7 +317,7 @@ func TestNodeApplyableProvider_Validate(t *testing.T) {
 	t.Run("empty config", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr: mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -364,7 +364,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -378,7 +378,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 	t.Run("missing required config (no config at all)", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr: mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -398,7 +398,7 @@ func TestNodeApplyableProvider_ConfigProvider(t *testing.T) {
 		}
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -431,7 +431,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 	//
 	// This is an unlikely but real situation that occurs:
 	// https://github.com/hashicorp/terraform/issues/23087
-	evalCtx.ConfigureProviderFn = func(addr addrs.AbsProviderConfig, cfg cty.Value) (diags tfdiags.Diagnostics) {
+	evalCtx.ConfigureProviderFn = func(addr addrs.AbsProviderInstance, cfg cty.Value) (diags tfdiags.Diagnostics) {
 		if cfg.IsNull() {
 			diags = diags.Append(fmt.Errorf("no config provided"))
 		} else {
@@ -453,7 +453,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -467,7 +467,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 	t.Run("missing required config (no config at all)", func(t *testing.T) {
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr: mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			},
 		}
 
@@ -487,7 +487,7 @@ func TestNodeApplyableProvider_ConfigProvider_config_fn_err(t *testing.T) {
 		}
 		node := NodeApplyableProvider{
 			NodeAbstractProvider: &NodeAbstractProvider{
-				Addr:   mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+				Addr:   mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 				Config: config,
 			},
 		}
@@ -509,7 +509,7 @@ func TestGetSchemaError(t *testing.T) {
 		},
 	}
 
-	providerAddr := mustProviderConfig(`provider["terraform.io/some/provider"]`)
+	providerAddr := mustProviderInstance(`provider["terraform.io/some/provider"]`)
 	evalCtx := &MockEvalContext{ProviderProvider: provider}
 	evalCtx.installSimpleEval()
 	node := NodeApplyableProvider{

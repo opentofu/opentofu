@@ -24,7 +24,7 @@ func TestNodeDataDestroyExecute(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"dynamic":{"type":"string","value":"hello"}}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},

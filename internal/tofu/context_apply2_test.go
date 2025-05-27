@@ -51,7 +51,7 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceDeposed(
@@ -61,7 +61,7 @@ func TestContext2Apply_createBeforeDestroy_deposedKeyPreApply(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -122,7 +122,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 			}`),
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -136,7 +136,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 			}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -150,7 +150,7 @@ func TestContext2Apply_createBeforeDestroy_dependsNonCBDUpdate(t *testing.T) {
 			Dependencies:        []addrs.ConfigResource{mustConfigResourceAddr("test_object.A"), mustConfigResourceAddr("terraform_data.B")},
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -319,7 +319,7 @@ resource "test_instance" "a" {
 		s.SetResourceInstanceCurrent(addrA, &states.ResourceInstanceObjectSrc{
 			AttrsJSON: []byte(`{"id":"a","value":"old","type":"test"}`),
 			Status:    states.ObjectReady,
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		}, mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 
 		// test_instance.b depended on test_instance.a, and therefor should be
 		// destroyed before any changes to test_instance.a
@@ -327,7 +327,7 @@ resource "test_instance" "a" {
 			AttrsJSON:    []byte(`{"id":"b"}`),
 			Status:       states.ObjectReady,
 			Dependencies: []addrs.ConfigResource{addrA.ContainingResource().Config()},
-		}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
+		}, mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey)
 	})
 
 	ctx := testContext2(t, &ContextOpts{
@@ -368,7 +368,7 @@ func TestApply_updateDependencies(t *testing.T) {
 				bazAddr.ContainingResource().Config(),
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -380,7 +380,7 @@ func TestApply_updateDependencies(t *testing.T) {
 				bazAddr.ContainingResource().Config(),
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -393,7 +393,7 @@ func TestApply_updateDependencies(t *testing.T) {
 				bamAddr.ContainingResource().Config(),
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -402,7 +402,7 @@ func TestApply_updateDependencies(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar","foo":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -522,7 +522,7 @@ resource "test_resource" "b" {
 					},
 				},
 				Status: states.ObjectReady,
-			}, mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey,
+			}, mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`), addrs.NoKey,
 		)
 	})
 
@@ -680,7 +680,7 @@ resource "test_object" "x" {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"test_string":"deposed"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -736,7 +736,7 @@ resource "test_object" "x" {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"test_string":"deposed"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"].for_eached`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"].for_eached`),
 		addrs.StringKey("a"),
 	)
 
@@ -914,7 +914,7 @@ resource "test_object" "b" {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"test_string":"ok"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -923,7 +923,7 @@ resource "test_object" "b" {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"test_string":"ok"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -1627,7 +1627,7 @@ resource "test_object" "x" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"test_string":"ok"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -1678,7 +1678,7 @@ resource "test_object" "y" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"test_string":"x"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -1835,7 +1835,7 @@ output "from_resource" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"test_string":"wrong_val"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -1891,7 +1891,7 @@ output "from_resource" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"test_string":"wrong val"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	mod.SetOutputValue("from_resource", cty.StringVal("wrong val"), false, "")
@@ -1962,7 +1962,7 @@ resource "test_object" "y" {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"test_string":"y"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -2475,7 +2475,7 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceDeposed(
@@ -2486,7 +2486,7 @@ func TestContext2Apply_forgetOrphanAndDeposed(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"bar"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	ctx := testContext2(t, &ContextOpts{
@@ -2544,7 +2544,7 @@ func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].for_eached`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"].for_eached`),
 		addrs.StringKey("a"),
 	)
 	root.SetResourceInstanceDeposed(
@@ -2555,7 +2555,7 @@ func TestContext2Apply_forgetOrphanAndDeposedWithDynamicProvider(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"bar"}`),
 			Dependencies: []addrs.ConfigResource{},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"].for_eached`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"].for_eached`),
 		addrs.StringKey("a"),
 	)
 	ctx := testContext2(t, &ContextOpts{
@@ -2617,12 +2617,12 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 	// of mock.first.
 	runTest := func(t *testing.T, makeStep2PlanOpts func(plans.Mode) *PlanOpts) {
 		mockProviderAddr := addrs.NewBuiltInProvider("mock")
-		providerConfigBefore := addrs.AbsProviderConfig{
+		providerConfigBefore := addrs.AbsProviderInstance{
 			Module:   addrs.RootModule,
 			Provider: mockProviderAddr,
 			Alias:    "before",
 		}
-		providerConfigAfter := addrs.AbsProviderConfig{
+		providerConfigAfter := addrs.AbsProviderInstance{
 			Module:   addrs.RootModule,
 			Provider: mockProviderAddr,
 			Alias:    "after",
@@ -2677,7 +2677,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 			t *testing.T,
 			state *states.State,
 			addr addrs.AbsResourceInstance,
-			wantConfigAddr addrs.AbsProviderConfig,
+			wantConfigAddr addrs.AbsProviderInstance,
 			wantKey addrs.InstanceKey,
 		) {
 			t.Helper()
@@ -2691,7 +2691,7 @@ func TestContext2Apply_providerExpandWithTargetOrExclude(t *testing.T) {
 				t.Fatalf("state has no record of %s", addr)
 			}
 			ok := true
-			if got, want := r.ProviderConfig, wantConfigAddr; got.String() != want.String() {
+			if got, want := r.ProviderInstance, wantConfigAddr; got.String() != want.String() {
 				t.Errorf(
 					"%s has incorrect provider configuration address\ngot:  %s\nwant: %s",
 					rsrcAddr, got, want,
@@ -3586,7 +3586,7 @@ func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -3595,7 +3595,7 @@ func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-cde345"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -3604,7 +3604,7 @@ func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-def345"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -3614,7 +3614,7 @@ func TestContext2Apply_excludedDestroyCountDeps(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"i-abc123"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -3664,7 +3664,7 @@ func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -3673,7 +3673,7 @@ func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-cde345"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -3682,7 +3682,7 @@ func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-def345"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -3692,7 +3692,7 @@ func TestContext2Apply_excludedDependentDestroyCountDeps(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"i-abc123"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("aws_instance.foo")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -3748,7 +3748,7 @@ func TestContext2Apply_excludedDestroyModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -3757,7 +3757,7 @@ func TestContext2Apply_excludedDestroyModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-abc123"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	child := state.EnsureModule(addrs.RootModuleInstance.Child("child", addrs.NoKey))
@@ -3767,7 +3767,7 @@ func TestContext2Apply_excludedDestroyModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-bcd345"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	child.SetResourceInstanceCurrent(
@@ -3776,7 +3776,7 @@ func TestContext2Apply_excludedDestroyModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"i-abc123"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -3828,37 +3828,37 @@ func TestContext2Apply_excludedDestroyCountIndex(t *testing.T) {
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[0]").Resource,
 		foo,
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[1]").Resource,
 		foo,
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.foo[2]").Resource,
 		foo,
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[0]").Resource,
 		bar,
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[1]").Resource,
 		bar,
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("aws_instance.bar[2]").Resource,
 		bar,
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -4156,7 +4156,7 @@ func TestContext2Apply_excludedResourceOrphanModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"abc","type":"aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -4209,7 +4209,7 @@ func TestContext2Apply_excludedOrphanModule(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"abc","type":"aws_instance"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -4260,7 +4260,7 @@ func TestContext2Apply_excludedWithTaintedInState(t *testing.T) {
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(`{"id":"ifailedprovisioners"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 

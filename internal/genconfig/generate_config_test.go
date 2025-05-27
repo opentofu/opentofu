@@ -31,7 +31,7 @@ func TestConfigGeneration(t *testing.T) {
 	tcs := map[string]struct {
 		schema   *configschema.Block
 		addr     addrs.AbsResourceInstance
-		provider addrs.LocalProviderConfig
+		provider addrs.LocalProviderInstance
 		value    cty.Value
 		expected string
 	}{
@@ -72,7 +72,7 @@ func TestConfigGeneration(t *testing.T) {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.NilVal,
@@ -121,7 +121,7 @@ resource "tfcoremock_simple_resource" "empty" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.NilVal,
@@ -170,7 +170,7 @@ resource "tfcoremock_simple_resource" "empty" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.NilVal,
@@ -219,7 +219,7 @@ resource "tfcoremock_simple_resource" "empty" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
@@ -274,7 +274,7 @@ resource "tfcoremock_simple_resource" "empty" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
@@ -328,7 +328,7 @@ resource "tfcoremock_simple_resource" "empty" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "mock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
@@ -384,7 +384,7 @@ resource "tfcoremock_simple_resource" "empty" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 				Alias:     "alternate",
 			},
@@ -502,7 +502,7 @@ resource "tfcoremock_simple_resource" "empty" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
@@ -575,7 +575,7 @@ resource "tfcoremock_simple_resource" "empty" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
@@ -622,7 +622,7 @@ resource "tfcoremock_simple_resource" "example" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
@@ -658,7 +658,7 @@ resource "tfcoremock_simple_resource" "example" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
@@ -705,7 +705,7 @@ resource "tfcoremock_simple_resource" "example" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{
@@ -751,7 +751,7 @@ resource "tfcoremock_simple_resource" "example" {
 					Key: nil,
 				},
 			},
-			provider: addrs.LocalProviderConfig{
+			provider: addrs.LocalProviderInstance{
 				LocalName: "tfcoremock",
 			},
 			value: cty.ObjectVal(map[string]cty.Value{

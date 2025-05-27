@@ -24,7 +24,7 @@ type RequiredProvider struct {
 	Type        addrs.Provider
 	Requirement VersionConstraint
 	DeclRange   hcl.Range
-	Aliases     []addrs.LocalProviderConfig
+	Aliases     []addrs.LocalProviderInstance
 }
 
 type RequiredProviders struct {
@@ -190,7 +190,7 @@ func decodeRequiredProvidersBlock(block *hcl.Block) (*RequiredProviders, hcl.Dia
 						continue
 					}
 
-					addr, cfgDiags := ParseProviderConfigCompact(traversal)
+					addr, cfgDiags := ParseProviderInstanceCompact(traversal)
 					if cfgDiags.HasErrors() {
 						diags = append(diags, &hcl.Diagnostic{
 							Severity: hcl.DiagError,

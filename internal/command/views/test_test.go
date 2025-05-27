@@ -572,7 +572,7 @@ something bad happened during this test
 											},
 										},
 									},
-									ProviderAddr: addrs.AbsProviderConfig{
+									ProviderAddr: addrs.AbsProviderInstance{
 										Module: addrs.RootModule,
 										Provider: addrs.Provider{
 											Hostname:  addrs.DefaultProviderRegistryHost,
@@ -658,7 +658,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 							&states.ResourceInstanceObjectSrc{
 								AttrsJSON: []byte(`{"value":"foobar"}`),
 							},
-							addrs.AbsProviderConfig{
+							addrs.AbsProviderInstance{
 								Module: addrs.RootModule,
 								Provider: addrs.Provider{
 									Hostname:  addrs.DefaultProviderRegistryHost,
@@ -809,7 +809,7 @@ this time it is very bad
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -822,7 +822,7 @@ this time it is very bad
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -836,7 +836,7 @@ this time it is very bad
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -877,7 +877,7 @@ up manually:
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -890,7 +890,7 @@ up manually:
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -904,7 +904,7 @@ up manually:
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -951,7 +951,7 @@ up manually:
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
 					}, addrs.NoKey)
@@ -975,7 +975,7 @@ up manually:
 						},
 						CreateBeforeDestroy: false,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
 					}, addrs.NoKey)
@@ -1096,7 +1096,7 @@ OpenTofu was in the process of creating the following resources for
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -1110,7 +1110,7 @@ OpenTofu was in the process of creating the following resources for
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 				}),
 			},
 			created: nil,
@@ -1146,7 +1146,7 @@ test:
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -1160,7 +1160,7 @@ test:
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 				}),
 			},
 			created: nil,
@@ -1196,7 +1196,7 @@ OpenTofu has already created the following resources for "setup_block" from
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -1210,7 +1210,7 @@ OpenTofu has already created the following resources for "setup_block" from
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 				}),
 				nil: states.BuildState(func(state *states.SyncState) {
 					state.SetResourceInstanceCurrent(
@@ -1225,7 +1225,7 @@ OpenTofu has already created the following resources for "setup_block" from
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -1239,7 +1239,7 @@ OpenTofu has already created the following resources for "setup_block" from
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 				}),
 			},
 			created: []*plans.ResourceInstanceChangeSrc{
@@ -2018,7 +2018,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -2057,7 +2057,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -2070,7 +2070,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -2084,7 +2084,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -2154,7 +2154,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -2167,7 +2167,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -2181,7 +2181,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -2263,7 +2263,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
 					}, addrs.NoKey)
@@ -2287,7 +2287,7 @@ func TestTestJSON_DestroySummary(t *testing.T) {
 						},
 						CreateBeforeDestroy: false,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
 					}, addrs.NoKey)
@@ -2716,7 +2716,7 @@ func TestTestJSON_Run(t *testing.T) {
 											},
 										},
 									},
-									ProviderAddr: addrs.AbsProviderConfig{
+									ProviderAddr: addrs.AbsProviderInstance{
 										Module: addrs.RootModule,
 										Provider: addrs.Provider{
 											Hostname:  addrs.DefaultProviderRegistryHost,
@@ -2857,7 +2857,7 @@ func TestTestJSON_Run(t *testing.T) {
 							&states.ResourceInstanceObjectSrc{
 								AttrsJSON: []byte(`{"value":"foobar"}`),
 							},
-							addrs.AbsProviderConfig{
+							addrs.AbsProviderInstance{
 								Module: addrs.RootModule,
 								Provider: addrs.Provider{
 									Hostname:  addrs.DefaultProviderRegistryHost,
@@ -3021,7 +3021,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -3035,7 +3035,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 				}),
 			},
 			changes: nil,
@@ -3074,7 +3074,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -3088,7 +3088,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 				}),
 			},
 			changes: nil,
@@ -3129,7 +3129,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -3143,7 +3143,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 				}),
 				nil: states.BuildState(func(state *states.SyncState) {
 					state.SetResourceInstanceCurrent(
@@ -3158,7 +3158,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 
 					state.SetResourceInstanceCurrent(
 						addrs.AbsResourceInstance{
@@ -3172,7 +3172,7 @@ func TestTestJSON_FatalInterruptSummary(t *testing.T) {
 							},
 						},
 						&states.ResourceInstanceObjectSrc{},
-						addrs.AbsProviderConfig{}, addrs.NoKey)
+						addrs.AbsProviderInstance{}, addrs.NoKey)
 				}),
 			},
 			changes: []*plans.ResourceInstanceChangeSrc{
@@ -3276,7 +3276,7 @@ func TestSaveErroredStateFile(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -3289,7 +3289,7 @@ func TestSaveErroredStateFile(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -3303,7 +3303,7 @@ func TestSaveErroredStateFile(t *testing.T) {
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -3325,7 +3325,7 @@ Writing state to file: errored_test.tfstate
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
 					}, addrs.NoKey)
@@ -3349,7 +3349,7 @@ Writing state to file: errored_test.tfstate
 						},
 						CreateBeforeDestroy: false,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
 					}, addrs.NoKey)
@@ -3381,7 +3381,7 @@ Writing state to file: errored_test.tfstate
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -3407,7 +3407,7 @@ Writing state to file: errored_test.tfstate
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -3420,7 +3420,7 @@ Writing state to file: errored_test.tfstate
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -3434,7 +3434,7 @@ Writing state to file: errored_test.tfstate
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("test"),
 					}, addrs.NoKey)
@@ -3460,7 +3460,7 @@ Writing state to file: errored_test.tfstate
 					&states.ResourceInstanceObjectSrc{
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
 					}, addrs.NoKey)
@@ -3484,7 +3484,7 @@ Writing state to file: errored_test.tfstate
 						},
 						CreateBeforeDestroy: false,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Module:   addrs.RootModule,
 						Provider: addrs.NewDefaultProvider("null"),
 					}, addrs.NoKey)

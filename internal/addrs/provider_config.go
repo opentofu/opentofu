@@ -16,37 +16,37 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 )
 
-// ProviderConfig is an interface type whose dynamic type can be either
-// LocalProviderConfig or AbsProviderConfig, in order to represent situations
+// ProviderInstance is an interface type whose dynamic type can be either
+// LocalProviderInstance or AbsProviderInstance, in order to represent situations
 // where a value might either be module-local or absolute but the decision
 // cannot be made until runtime.
 //
-// Where possible, use either LocalProviderConfig or AbsProviderConfig directly
-// instead, to make intent more clear. ProviderConfig can be used only in
+// Where possible, use either LocalProviderInstance or AbsProviderInstance directly
+// instead, to make intent more clear. ProviderInstance can be used only in
 // situations where the recipient of the value has some out-of-band way to
 // determine a "current module" to use if the value turns out to be
-// a LocalProviderConfig.
+// a LocalProviderInstance.
 //
-// Recipients of non-nil ProviderConfig values that actually need
-// AbsProviderConfig values should call ResolveAbsProviderAddr on the
+// Recipients of non-nil ProviderInstance values that actually need
+// AbsProviderInstance values should call ResolveAbsProviderAddr on the
 // *configs.Config value representing the root module configuration, which
 // handles the translation from local to fully-qualified using mapping tables
 // defined in the configuration.
 //
-// Recipients of a ProviderConfig value can assume it can contain only a
-// LocalProviderConfig value, an AbsProviderConfigValue, or nil to represent
+// Recipients of a ProviderInstance value can assume it can contain only a
+// LocalProviderInstance value, an AbsProviderInstanceValue, or nil to represent
 // the absence of a provider config in situations where that is meaningful.
-type ProviderConfig interface {
-	providerConfig()
+type ProviderInstance interface {
+	providerInstance()
 }
 
-// LocalProviderConfig is the address of a provider configuration from the
+// LocalProviderInstance is the address of a provider configuration from the
 // perspective of references in a particular module.
 //
-// Finding the corresponding AbsProviderConfig will require looking up the
+// Finding the corresponding AbsProviderInstance will require looking up the
 // LocalName in the providers table in the module's configuration; there is
 // no syntax-only translation between these types.
-type LocalProviderConfig struct {
+type LocalProviderInstance struct {
 	LocalName string
 
 	// If not empty, Alias identifies which non-default (aliased) provider
@@ -54,20 +54,20 @@ type LocalProviderConfig struct {
 	Alias string
 }
 
-var _ ProviderConfig = LocalProviderConfig{}
+var _ ProviderInstance = LocalProviderInstance{}
 
-// NewDefaultLocalProviderConfig returns the address of the default (un-aliased)
+// NewDefaultLocalProviderInstance returns the address of the default (un-aliased)
 // configuration for the provider with the given local type name.
-func NewDefaultLocalProviderConfig(LocalNameName string) LocalProviderConfig {
-	return LocalProviderConfig{
+func NewDefaultLocalProviderInstance(LocalNameName string) LocalProviderInstance {
+	return LocalProviderInstance{
 		LocalName: LocalNameName,
 	}
 }
 
-// providerConfig Implements addrs.ProviderConfig.
-func (pc LocalProviderConfig) providerConfig() {}
+// providerInstance Implements addrs.ProviderInstance.
+func (pc LocalProviderInstance) providerInstance() {}
 
-func (pc LocalProviderConfig) String() string {
+func (pc LocalProviderInstance) String() string {
 	if pc.LocalName == "" {
 		// Should never happen; always indicates a bug
 		return "provider.<invalid>"
@@ -81,27 +81,27 @@ func (pc LocalProviderConfig) String() string {
 }
 
 // StringCompact is an alternative to String that returns the form that can
-// be parsed by ParseProviderConfigCompact, without the "provider." prefix.
-func (pc LocalProviderConfig) StringCompact() string {
+// be parsed by ParseProviderInstanceCompact, without the "provider." prefix.
+func (pc LocalProviderInstance) StringCompact() string {
 	if pc.Alias != "" {
 		return fmt.Sprintf("%s.%s", pc.LocalName, pc.Alias)
 	}
 	return pc.LocalName
 }
 
-// AbsProviderConfig is the absolute address of a provider configuration
+// AbsProviderInstance is the absolute address of a provider instance
 // within a particular module instance.
-type AbsProviderConfig struct {
+type AbsProviderInstance struct {
 	Module   Module
 	Provider Provider
 	Alias    string
 }
 
-var _ ProviderConfig = AbsProviderConfig{}
+var _ ProviderInstance = AbsProviderInstance{}
 
-// ParseAbsProviderConfig parses the given traversal as an absolute provider
-// configuration address. The following are examples of traversals that can be
-// successfully parsed as absolute provider configuration addresses:
+// ParseAbsProviderInstance parses the given traversal as an absolute provider
+// instance address. The following are examples of traversals that can be
+// successfully parsed as absolute provider instance addresses:
 //
 //   - provider["registry.opentofu.org/hashicorp/aws"]
 //   - provider["registry.opentofu.org/hashicorp/aws"].foo
@@ -109,11 +109,11 @@ var _ ProviderConfig = AbsProviderConfig{}
 //   - module.bar.module.baz.provider["registry.opentofu.org/hashicorp/aws"].foo
 //
 // This type of address is used, for example, to record the relationships
-// between resources and provider configurations in the state structure.
+// between resources and provider instances in the state structure.
 // This type of address is typically not used prominently in the UI, except in
-// error messages that refer to provider configurations.
-func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags.Diagnostics) {
-	pc, key, diags := ParseAbsProviderConfigInstance(traversal)
+// error messages that refer to provider instances.
+func ParseAbsProviderInstance(traversal hcl.Traversal) (AbsProviderInstance, tfdiags.Diagnostics) {
+	pc, key, diags := ParseKeyedAbsProviderInstance(traversal)
 	if key != NoKey {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -125,11 +125,11 @@ func ParseAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags
 	return pc, diags
 }
 
-// ParseAbsProviderConfigInstance behaves identically to ParseAbsProviderConfig, but additionally
+// ParseKeyedAbsProviderInstance behaves identically to ParseAbsProviderInstance, but additionally
 // allows an instance key after the alias.
-func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig, InstanceKey, tfdiags.Diagnostics) {
+func ParseKeyedAbsProviderInstance(traversal hcl.Traversal) (AbsProviderInstance, InstanceKey, tfdiags.Diagnostics) {
 	modInst, remain, diags := parseModuleInstancePrefix(traversal)
-	var ret AbsProviderConfig
+	var ret AbsProviderInstance
 	var key InstanceKey
 
 	// Providers cannot resolve within module instances, so verify that there
@@ -232,7 +232,7 @@ func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig,
 	return ret, key, diags
 }
 
-// ParseAbsProviderConfigStr is a helper wrapper around ParseAbsProviderConfig
+// ParseAbsProviderInstanceStr is a helper wrapper around ParseAbsProviderInstance
 // that takes a string and parses it with the HCL native syntax traversal parser
 // before interpreting it.
 //
@@ -241,50 +241,50 @@ func ParseAbsProviderConfigInstance(traversal hcl.Traversal) (AbsProviderConfig,
 // If a reference string is coming from a source that should be identified in
 // error messages then the caller should instead parse it directly using a
 // suitable function from the HCL API and pass the traversal itself to
-// ParseAbsProviderConfig.
+// ParseAbsProviderInstance.
 //
 // Error diagnostics are returned if either the parsing fails or the analysis
 // of the traversal fails. There is no way for the caller to distinguish the
 // two kinds of diagnostics programmatically. If error diagnostics are returned
 // the returned address is invalid.
-func ParseAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Diagnostics) {
+func ParseAbsProviderInstanceStr(str string) (AbsProviderInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(parseDiags)
 	if parseDiags.HasErrors() {
-		return AbsProviderConfig{}, diags
+		return AbsProviderInstance{}, diags
 	}
-	addr, addrDiags := ParseAbsProviderConfig(traversal)
+	addr, addrDiags := ParseAbsProviderInstance(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags
 }
-func ParseAbsProviderConfigInstanceStr(str string) (AbsProviderConfig, InstanceKey, tfdiags.Diagnostics) {
+func ParseKeyedAbsProviderInstanceStr(str string) (AbsProviderInstance, InstanceKey, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(parseDiags)
 	if parseDiags.HasErrors() {
-		return AbsProviderConfig{}, nil, diags
+		return AbsProviderInstance{}, nil, diags
 	}
-	addr, key, addrDiags := ParseAbsProviderConfigInstance(traversal)
+	addr, key, addrDiags := ParseKeyedAbsProviderInstance(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, key, diags
 }
 
-func ParseLegacyAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Diagnostics) {
+func ParseLegacyAbsProviderInstanceStr(str string) (AbsProviderInstance, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	traversal, parseDiags := hclsyntax.ParseTraversalAbs([]byte(str), "", hcl.Pos{Line: 1, Column: 1})
 	diags = diags.Append(parseDiags)
 	if parseDiags.HasErrors() {
-		return AbsProviderConfig{}, diags
+		return AbsProviderInstance{}, diags
 	}
 
-	addr, addrDiags := ParseLegacyAbsProviderConfig(traversal)
+	addr, addrDiags := ParseLegacyAbsProviderInstance(traversal)
 	diags = diags.Append(addrDiags)
 	return addr, diags
 }
 
-// ParseLegacyAbsProviderConfig parses the given traversal as an absolute
+// ParseLegacyAbsProviderInstance parses the given traversal as an absolute
 // provider address in the legacy form used by OpenTofu v0.12 and earlier.
 // The following are examples of traversals that can be successfully parsed as
 // legacy absolute provider configuration addresses:
@@ -301,9 +301,9 @@ func ParseLegacyAbsProviderConfigStr(str string) (AbsProviderConfig, tfdiags.Dia
 // in that case.
 //
 // We will not use this address form for any new file formats.
-func ParseLegacyAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, tfdiags.Diagnostics) {
+func ParseLegacyAbsProviderInstance(traversal hcl.Traversal) (AbsProviderInstance, tfdiags.Diagnostics) {
 	modInst, remain, diags := parseModuleInstancePrefix(traversal)
-	var ret AbsProviderConfig
+	var ret AbsProviderInstance
 
 	// Providers cannot resolve within module instances, so verify that there
 	// are no instance keys in the module path before converting to a Module.
@@ -374,27 +374,27 @@ func ParseLegacyAbsProviderConfig(traversal hcl.Traversal) (AbsProviderConfig, t
 	return ret, diags
 }
 
-// ProviderConfigDefault returns the address of the default provider config of
+// ProviderInstanceDefault returns the address of the default provider config of
 // the given type inside the receiving module instance.
-func (m ModuleInstance) ProviderConfigDefault(provider Provider) AbsProviderConfig {
-	return AbsProviderConfig{
+func (m ModuleInstance) ProviderInstanceDefault(provider Provider) AbsProviderInstance {
+	return AbsProviderInstance{
 		Module:   m.Module(),
 		Provider: provider,
 	}
 }
 
-// ProviderConfigAliased returns the address of an aliased provider config of
+// ProviderInstanceAliased returns the address of an aliased provider config of
 // the given type and alias inside the receiving module instance.
-func (m ModuleInstance) ProviderConfigAliased(provider Provider, alias string) AbsProviderConfig {
-	return AbsProviderConfig{
+func (m ModuleInstance) ProviderInstanceAliased(provider Provider, alias string) AbsProviderInstance {
+	return AbsProviderInstance{
 		Module:   m.Module(),
 		Provider: provider,
 		Alias:    alias,
 	}
 }
 
-// providerConfig Implements addrs.ProviderConfig.
-func (pc AbsProviderConfig) providerConfig() {}
+// providerInstance Implements addrs.ProviderInstance.
+func (pc AbsProviderInstance) providerInstance() {}
 
 // Inherited returns an address that the receiving configuration address might
 // inherit from in a parent module. The second bool return value indicates if
@@ -407,29 +407,29 @@ func (pc AbsProviderConfig) providerConfig() {}
 // The ProviderTransformer graph transform in the main tofu module has the
 // authoritative logic for provider inheritance, and this method is here mainly
 // just for its benefit.
-func (pc AbsProviderConfig) Inherited() (AbsProviderConfig, bool) {
+func (pc AbsProviderInstance) Inherited() (AbsProviderInstance, bool) {
 	// Can't inherit if we're already in the root.
 	if len(pc.Module) == 0 {
-		return AbsProviderConfig{}, false
+		return AbsProviderInstance{}, false
 	}
 
 	// Can't inherit if we have an alias.
 	if pc.Alias != "" {
-		return AbsProviderConfig{}, false
+		return AbsProviderInstance{}, false
 	}
 
 	// Otherwise, we might inherit from a configuration with the same
 	// provider type in the parent module instance.
 	parentMod := pc.Module.Parent()
-	return AbsProviderConfig{
+	return AbsProviderInstance{
 		Module:   parentMod,
 		Provider: pc.Provider,
 	}, true
 
 }
 
-// LegacyString() returns a legacy-style AbsProviderConfig string and should only be used for legacy state shimming.
-func (pc AbsProviderConfig) LegacyString() string {
+// LegacyString() returns a legacy-style AbsProviderInstance string and should only be used for legacy state shimming.
+func (pc AbsProviderInstance) LegacyString() string {
 	if pc.Alias != "" {
 		if len(pc.Module) == 0 {
 			return fmt.Sprintf("%s.%s.%s", "provider", pc.Provider.LegacyString(), pc.Alias)
@@ -443,13 +443,13 @@ func (pc AbsProviderConfig) LegacyString() string {
 	return fmt.Sprintf("%s.%s.%s", pc.Module.String(), "provider", pc.Provider.LegacyString())
 }
 
-// String() returns a string representation of an AbsProviderConfig in a format like the following examples:
+// String() returns a string representation of an AbsProviderInstance in a format like the following examples:
 //
 //   - provider["example.com/namespace/name"]
 //   - provider["example.com/namespace/name"].alias
 //   - module.module-name.provider["example.com/namespace/name"]
 //   - module.module-name.provider["example.com/namespace/name"].alias
-func (pc AbsProviderConfig) String() string {
+func (pc AbsProviderInstance) String() string {
 	var parts []string
 	if len(pc.Module) > 0 {
 		parts = append(parts, pc.Module.String())
@@ -464,7 +464,7 @@ func (pc AbsProviderConfig) String() string {
 	return strings.Join(parts, ".")
 }
 
-func (pc AbsProviderConfig) InstanceString(key InstanceKey) string {
+func (pc AbsProviderInstance) InstanceString(key InstanceKey) string {
 	if key == NoKey {
 		return pc.String()
 	}

@@ -294,7 +294,7 @@ var connectionBlockSupersetSchema = &configschema.Block{
 func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, addrs.NoKey) // Provider Instance Keys are ignored during validate
+	provider, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderInstance, addrs.NoKey) // Provider Instance Keys are ignored during validate
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags

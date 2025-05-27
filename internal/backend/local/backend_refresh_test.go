@@ -293,7 +293,7 @@ func testRefreshState() *states.State {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"bar"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	return state

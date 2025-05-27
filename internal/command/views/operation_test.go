@@ -130,7 +130,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
-					ProviderAddr: addrs.RootModuleInstance.ProviderConfigDefault(
+					ProviderAddr: addrs.RootModuleInstance.ProviderInstanceDefault(
 						addrs.NewDefaultProvider("test"),
 					),
 					Change: plans.Change{
@@ -171,7 +171,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
-					ProviderAddr: addrs.RootModuleInstance.ProviderConfigDefault(
+					ProviderAddr: addrs.RootModuleInstance.ProviderInstanceDefault(
 						addrs.NewDefaultProvider("test"),
 					),
 					Change: plans.Change{
@@ -218,7 +218,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addr,
-					ProviderAddr: addrs.RootModuleInstance.ProviderConfigDefault(
+					ProviderAddr: addrs.RootModuleInstance.ProviderInstanceDefault(
 						addrs.NewDefaultProvider("test"),
 					),
 					Change: plans.Change{
@@ -264,7 +264,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 				rc := &plans.ResourceInstanceChange{
 					Addr:        addr,
 					PrevRunAddr: addrPrev,
-					ProviderAddr: addrs.RootModuleInstance.ProviderConfigDefault(
+					ProviderAddr: addrs.RootModuleInstance.ProviderInstanceDefault(
 						addrs.NewDefaultProvider("test"),
 					),
 					Change: plans.Change{
@@ -308,7 +308,7 @@ func TestOperation_planNoChanges(t *testing.T) {
 								Status:    states.ObjectReady,
 								AttrsJSON: []byte(`{}`),
 							},
-							addrs.RootModuleInstance.ProviderConfigDefault(addrs.NewDefaultProvider("test")),
+							addrs.RootModuleInstance.ProviderInstanceDefault(addrs.NewDefaultProvider("test")),
 							addrs.NoKey,
 						)
 					}),

@@ -145,7 +145,7 @@ func TestShow_argsWithStateAliasedProvider(t *testing.T) {
 				Status:       states.ObjectReady,
 				Dependencies: []addrs.ConfigResource{},
 			},
-			addrs.RootModuleInstance.ProviderConfigAliased(addrs.NewDefaultProvider("test"), "alias"),
+			addrs.RootModuleInstance.ProviderInstanceAliased(addrs.NewDefaultProvider("test"), "alias"),
 			addrs.NoKey,
 		)
 	})
@@ -396,7 +396,7 @@ func TestShow_planWithForceReplaceChange(t *testing.T) {
 			Type: "test_instance",
 			Name: "foo",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-		ProviderAddr: addrs.AbsProviderConfig{
+		ProviderAddr: addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -1279,7 +1279,7 @@ func showFixturePlanFile(t *testing.T, action plans.Action) string {
 			Type: "test_instance",
 			Name: "foo",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
-		ProviderAddr: addrs.AbsProviderConfig{
+		ProviderAddr: addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},

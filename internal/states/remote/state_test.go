@@ -102,7 +102,7 @@ func TestStatePersist(t *testing.T) {
 						},
 						Status: states.ObjectReady,
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Provider: tfaddr.Provider{Namespace: "local"},
 					},
 					addrs.NoKey,

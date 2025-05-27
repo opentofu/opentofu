@@ -242,7 +242,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 				Status:    states.ObjectReady,
 				AttrsJSON: []byte(`{"id":"foo", "nesting_list": [{"sensitive_value":"abc"}], "nesting_map": {"foo":{"foo":"x"}}, "nesting_set": [{"baz":"abc"}], "nesting_single": {"boop":"abc"}, "nesting_nesting": {"nesting_list":[{"sensitive_value":"abc"}]}, "value":"hello"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -417,7 +417,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 				Status:    states.ObjectPlanned,
 				AttrsJSON: []byte(`{"id":"foo", "to_mark_val":"tacos", "sensitive_value":"abc"}`),
 			},
-			addrs.AbsProviderConfig{
+			addrs.AbsProviderInstance{
 				Provider: addrs.NewDefaultProvider("test"),
 				Module:   addrs.RootModule,
 			},
@@ -430,7 +430,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 	changesSync := plans.NewChanges().SyncWrapper()
 	change := &plans.ResourceInstanceChange{
 		Addr: mustResourceInstanceAddr("test_resource.foo"),
-		ProviderAddr: addrs.AbsProviderConfig{
+		ProviderAddr: addrs.AbsProviderInstance{
 			Module:   addrs.RootModule,
 			Provider: addrs.NewDefaultProvider("test"),
 		},

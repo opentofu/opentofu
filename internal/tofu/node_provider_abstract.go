@@ -20,7 +20,7 @@ type ConcreteProviderNodeFunc func(*NodeAbstractProvider) dag.Vertex
 // NodeAbstractProvider represents a provider that has no associated operations.
 // It registers all the common interfaces across operations for providers.
 type NodeAbstractProvider struct {
-	Addr addrs.AbsProviderConfig
+	Addr addrs.AbsProviderInstance
 
 	// The fields below will be automatically set using the Attach
 	// interfaces if you're running those transforms, but also be explicitly
@@ -65,7 +65,7 @@ func (n *NodeAbstractProvider) References() []*addrs.Reference {
 }
 
 // GraphNodeProvider
-func (n *NodeAbstractProvider) ProviderAddr() addrs.AbsProviderConfig {
+func (n *NodeAbstractProvider) ProviderAddr() addrs.AbsProviderInstance {
 	return n.Addr
 }
 

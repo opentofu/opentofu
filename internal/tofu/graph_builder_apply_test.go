@@ -103,7 +103,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -113,7 +113,7 @@ func TestApplyGraphBuilder_depCbd(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_list":["x"]}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -271,7 +271,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	child.SetResourceInstanceCurrent(
@@ -281,7 +281,7 @@ func TestApplyGraphBuilder_destroyStateOnly(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"bar"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -335,7 +335,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"B"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -345,7 +345,7 @@ func TestApplyGraphBuilder_destroyCount(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B"}`),
 			Dependencies: []addrs.ConfigResource{addrA.ContainingResource().Config()},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -398,7 +398,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	modB := state.EnsureModule(addrs.RootModuleInstance.Child("B", addrs.NoKey))
@@ -409,7 +409,7 @@ func TestApplyGraphBuilder_moduleDestroy(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"foo","value":"foo"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.A.test_object.foo")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -550,7 +550,7 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"a_id"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -576,7 +576,7 @@ func TestApplyGraphBuilder_updateFromOrphan(t *testing.T) {
 				},
 			},
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -658,7 +658,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 			AttrsJSON:           []byte(`{"id":"a_id"}`),
 			CreateBeforeDestroy: true,
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -681,7 +681,7 @@ func TestApplyGraphBuilder_updateFromCBDOrphan(t *testing.T) {
 				},
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -732,7 +732,7 @@ func TestApplyGraphBuilder_orphanedWithProvider(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"].foo`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"].foo`),
 		addrs.NoKey,
 	)
 

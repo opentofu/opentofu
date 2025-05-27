@@ -329,7 +329,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 
 	// the set of configuration_aliases defined in the required_providers
 	// block, with the fully qualified provider type.
-	configAliases := map[string]addrs.AbsProviderConfig{}
+	configAliases := map[string]addrs.AbsProviderInstance{}
 
 	// the set of provider names defined in the required_providers block, and
 	// their provider types.
@@ -399,7 +399,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 
 			localNames[req.Name] = req.Type
 			for _, alias := range req.Aliases {
-				addr := addrs.AbsProviderConfig{
+				addr := addrs.AbsProviderInstance{
 					Module:   cfg.Path,
 					Provider: req.Type,
 					Alias:    alias.Alias,
@@ -650,7 +650,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 			childTy = addrs.NewDefaultProvider(passed.InChild.Name)
 		}
 
-		providerAddr := addrs.AbsProviderConfig{
+		providerAddr := addrs.AbsProviderInstance{
 			Module:   cfg.Path,
 			Provider: childTy,
 			Alias:    passed.InChild.Alias,
@@ -704,7 +704,7 @@ func validateProviderConfigs(parentCall *ModuleCall, cfg *Config, noProviderConf
 		}
 
 		// use the full address for a nice diagnostic output
-		parentAddr := addrs.AbsProviderConfig{
+		parentAddr := addrs.AbsProviderInstance{
 			Module:   cfg.Parent.Path,
 			Provider: pTy,
 			Alias:    passed.InParent.Alias,

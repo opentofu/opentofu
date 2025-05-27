@@ -36,22 +36,22 @@ func TestProviderReservedNames(t *testing.T) {
 	})
 }
 
-func TestParseProviderConfigCompact(t *testing.T) {
+func TestParseProviderInstanceCompact(t *testing.T) {
 	tests := []struct {
 		Input    string
-		Want     addrs.LocalProviderConfig
+		Want     addrs.LocalProviderInstance
 		WantDiag string
 	}{
 		{
 			`aws`,
-			addrs.LocalProviderConfig{
+			addrs.LocalProviderInstance{
 				LocalName: "aws",
 			},
 			``,
 		},
 		{
 			`aws.foo`,
-			addrs.LocalProviderConfig{
+			addrs.LocalProviderInstance{
 				LocalName: "aws",
 				Alias:     "foo",
 			},
@@ -59,7 +59,7 @@ func TestParseProviderConfigCompact(t *testing.T) {
 		},
 		{
 			`aws["foo"]`,
-			addrs.LocalProviderConfig{},
+			addrs.LocalProviderInstance{},
 			`The provider type name must either stand alone or be followed by an alias name separated with a dot.`,
 		},
 	}
@@ -75,7 +75,7 @@ func TestParseProviderConfigCompact(t *testing.T) {
 				return
 			}
 
-			got, diags := ParseProviderConfigCompact(traversal)
+			got, diags := ParseProviderInstanceCompact(traversal)
 
 			if test.WantDiag != "" {
 				if len(diags) != 1 {
@@ -99,22 +99,22 @@ func TestParseProviderConfigCompact(t *testing.T) {
 	}
 }
 
-func TestParseProviderConfigCompactStr(t *testing.T) {
+func TestParseProviderInstanceCompactStr(t *testing.T) {
 	tests := []struct {
 		Input    string
-		Want     addrs.LocalProviderConfig
+		Want     addrs.LocalProviderInstance
 		WantDiag string
 	}{
 		{
 			`aws`,
-			addrs.LocalProviderConfig{
+			addrs.LocalProviderInstance{
 				LocalName: "aws",
 			},
 			``,
 		},
 		{
 			`aws.foo`,
-			addrs.LocalProviderConfig{
+			addrs.LocalProviderInstance{
 				LocalName: "aws",
 				Alias:     "foo",
 			},
@@ -122,14 +122,14 @@ func TestParseProviderConfigCompactStr(t *testing.T) {
 		},
 		{
 			`aws["foo"]`,
-			addrs.LocalProviderConfig{},
+			addrs.LocalProviderInstance{},
 			`The provider type name must either stand alone or be followed by an alias name separated with a dot.`,
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.Input, func(t *testing.T) {
-			got, diags := ParseProviderConfigCompactStr(test.Input)
+			got, diags := ParseProviderInstanceCompactStr(test.Input)
 
 			if test.WantDiag != "" {
 				if len(diags) != 1 {

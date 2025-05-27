@@ -124,7 +124,7 @@ func BenchmarkManyResourceInstances(b *testing.B) {
 		// the configuration, so that we can also exercise the "upgrade"
 		// and "refresh" steps (which are no-op in the mock provider we're
 		// using, so we're only measuring their overhead).
-		providerAddr := addrs.AbsProviderConfig{
+		providerAddr := addrs.AbsProviderInstance{
 			Module:   addrs.RootModule,
 			Provider: addrs.NewBuiltInProvider("test"),
 		}

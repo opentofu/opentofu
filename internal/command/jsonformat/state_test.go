@@ -268,7 +268,7 @@ func basicState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -285,7 +285,7 @@ func basicState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"compute":"sure"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -322,7 +322,7 @@ func stateWithMoreOutputs(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles"}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -350,7 +350,7 @@ func nestedState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles","nested": [{"value": "42"}]}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -374,7 +374,7 @@ func deposedState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles","nested": [{"value": "42"}]}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -404,7 +404,7 @@ func onlyDeposedState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles","nested": [{"value": "42"}]}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -422,7 +422,7 @@ func onlyDeposedState(t *testing.T) *states.State {
 			SchemaVersion: 0,
 			AttrsJSON:     []byte(`{"woozles":"confuzles","nested": [{"value": "42"}]}`),
 		},
-		addrs.AbsProviderConfig{
+		addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},

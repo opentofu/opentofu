@@ -59,7 +59,7 @@ func (ms *Module) ResourceInstance(addr addrs.ResourceInstance) *ResourceInstanc
 // SetResourceProvider updates the resource-level metadata for the resource
 // with the given address, creating the resource state for it if it doesn't
 // already exist.
-func (ms *Module) SetResourceProvider(addr addrs.Resource, provider addrs.AbsProviderConfig) {
+func (ms *Module) SetResourceProvider(addr addrs.Resource, provider addrs.AbsProviderInstance) {
 	rs := ms.Resource(addr)
 	if rs == nil {
 		rs = &Resource{
@@ -69,7 +69,7 @@ func (ms *Module) SetResourceProvider(addr addrs.Resource, provider addrs.AbsPro
 		ms.Resources[addr.String()] = rs
 	}
 
-	rs.ProviderConfig = provider
+	rs.ProviderInstance = provider
 }
 
 // RemoveResource removes the entire state for the given resource, taking with
@@ -89,7 +89,7 @@ func (ms *Module) RemoveResource(addr addrs.Resource) {
 //
 // The provider address is a resource-wide setting and is updated for all other
 // instances of the same resource as a side-effect of this call.
-func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig, providerKey addrs.InstanceKey) {
+func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderInstance, providerKey addrs.InstanceKey) {
 	rs := ms.Resource(addr.Resource)
 	// if the resource is nil and the object is nil, don't do anything!
 	// you'll probably just cause issues
@@ -137,8 +137,8 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 		// update the resource meta because we have a new
 		ms.SetResourceProvider(addr.Resource, provider)
 	}
-	// Update the resource's ProviderConfig, in case the provider has updated
-	rs.ProviderConfig = provider
+	// Update the resource's ProviderInstance, in case the provider has updated
+	rs.ProviderInstance = provider
 	is.ProviderKey = providerKey
 	is.Current = obj
 }
@@ -159,7 +159,7 @@ func (ms *Module) SetResourceInstanceCurrent(addr addrs.ResourceInstance, obj *R
 // is overwritten. Set obj to nil to remove the deposed object altogether. If
 // the instance is left with no objects after this operation then it will
 // be removed from its containing resource altogether.
-func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderConfig, providerKey addrs.InstanceKey) {
+func (ms *Module) SetResourceInstanceDeposed(addr addrs.ResourceInstance, key DeposedKey, obj *ResourceInstanceObjectSrc, provider addrs.AbsProviderInstance, providerKey addrs.InstanceKey) {
 	ms.SetResourceProvider(addr.Resource, provider)
 
 	rs := ms.Resource(addr.Resource)

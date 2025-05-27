@@ -50,7 +50,7 @@ func transformProviders(concrete ConcreteProviderNodeFunc, config *configs.Confi
 // Name returns the full name of the provider in the config.
 type GraphNodeProvider interface {
 	GraphNodeModulePath
-	ProviderAddr() addrs.AbsProviderConfig
+	ProviderAddr() addrs.AbsProviderInstance
 	Name() string
 }
 
@@ -59,23 +59,23 @@ type GraphNodeProvider interface {
 // the provider they satisfy.
 type GraphNodeCloseProvider interface {
 	GraphNodeModulePath
-	CloseProviderAddr() addrs.AbsProviderConfig
+	CloseProviderAddr() addrs.AbsProviderInstance
 }
 
 type RequestedProvider struct {
-	ProviderConfig addrs.ProviderConfig
-	KeyExpression  hcl.Expression
-	KeyModule      addrs.Module
-	KeyResource    bool
-	KeyExact       addrs.InstanceKey
+	ProviderInstance addrs.ProviderInstance
+	KeyExpression    hcl.Expression
+	KeyModule        addrs.Module
+	KeyResource      bool
+	KeyExact         addrs.InstanceKey
 }
 
 type ResolvedProvider struct {
-	ProviderConfig addrs.AbsProviderConfig
-	KeyExpression  hcl.Expression
-	KeyModule      addrs.Module
-	KeyResource    bool
-	KeyExact       addrs.InstanceKey
+	ProviderInstance addrs.AbsProviderInstance
+	KeyExpression    hcl.Expression
+	KeyModule        addrs.Module
+	KeyResource      bool
+	KeyExact         addrs.InstanceKey
 }
 
 // GraphNodeProviderConsumer is an interface that nodes that require
@@ -130,12 +130,12 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 			continue
 		}
 		req := pv.ProvidedBy()
-		if req.ProviderConfig == nil {
+		if req.ProviderInstance == nil {
 			// no provider is required
 			continue
 		}
-		switch providerAddr := req.ProviderConfig.(type) {
-		case addrs.AbsProviderConfig:
+		switch providerAddr := req.ProviderInstance.(type) {
+		case addrs.AbsProviderInstance:
 			target := m[providerAddr.String()]
 			if target == nil {
 				diags = diags.Append(tfdiags.Sourceless(
@@ -169,7 +169,7 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs exactly %s", dag.VertexName(v), v, dag.VertexName(target))
 			pv.SetProvider(ResolvedProvider{
-				ProviderConfig: target.ProviderAddr(),
+				ProviderInstance: target.ProviderAddr(),
 				// Pass through key data
 				KeyExpression: req.KeyExpression,
 				KeyModule:     req.KeyModule,
@@ -177,12 +177,12 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 				KeyExact:      req.KeyExact,
 			})
 			g.Connect(dag.BasicEdge(v, target))
-		case addrs.LocalProviderConfig:
+		case addrs.LocalProviderInstance:
 			// We assume that the value returned from Provider() has already been
 			// properly checked during the provider validation logic in the
 			// config package and can use that Provider Type directly instead
 			// of duplicating provider LocalNames logic.
-			fullProviderAddr := addrs.AbsProviderConfig{
+			fullProviderAddr := addrs.AbsProviderInstance{
 				Provider: pv.Provider(),
 				Module:   pv.ModulePath(),
 				Alias:    providerAddr.Alias,
@@ -241,7 +241,7 @@ func (t *ProviderTransformer) Transform(_ context.Context, g *Graph) error {
 					resolved.KeyModule = targetPath
 				}
 			}
-			resolved.ProviderConfig = target.ProviderAddr()
+			resolved.ProviderInstance = target.ProviderAddr()
 
 			log.Printf("[DEBUG] ProviderTransformer: %q (%T) needs %s", dag.VertexName(v), v, dag.VertexName(target))
 			pv.SetProvider(resolved)
@@ -264,7 +264,7 @@ type ProviderFunctionReference struct {
 }
 
 type FunctionProvidedBy struct {
-	Provider      addrs.AbsProviderConfig
+	Provider      addrs.AbsProviderInstance
 	KeyModule     addrs.Module
 	KeyExpression hcl.Expression
 }
@@ -356,7 +356,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 					}
 
 					// Build fully qualified provider address
-					absPc := addrs.AbsProviderConfig{
+					absPc := addrs.AbsProviderInstance{
 						Provider: pr.Type,
 						Module:   refPath,
 						Alias:    pf.ProviderAlias,
@@ -373,7 +373,7 @@ func (t *ProviderFunctionTransformer) Transform(_ context.Context, g *Graph) err
 					} else {
 						// If this provider doesn't exist, stub it out with an init-only provider node
 						// This works for unconfigured functions only, but that validation is elsewhere
-						stubAddr := addrs.AbsProviderConfig{
+						stubAddr := addrs.AbsProviderInstance{
 							Module:   addrs.RootModule,
 							Provider: absPc.Provider,
 						}
@@ -508,7 +508,7 @@ func (t *MissingProviderTransformer) Transform(_ context.Context, g *Graph) erro
 		// We're going to create an implicit _default_ configuration for the
 		// referenced provider type in the _root_ module, ignoring all other
 		// aspects of the resource's declared provider address.
-		defaultAddr := addrs.RootModuleInstance.ProviderConfigDefault(providerFqn)
+		defaultAddr := addrs.RootModuleInstance.ProviderInstanceDefault(providerFqn)
 		key := defaultAddr.String()
 		provider := m[key]
 
@@ -576,7 +576,7 @@ func providerVertexMap(g *Graph) map[string]GraphNodeProvider {
 }
 
 type graphNodeCloseProvider struct {
-	Addr addrs.AbsProviderConfig
+	Addr addrs.AbsProviderInstance
 }
 
 var (
@@ -598,7 +598,7 @@ func (n *graphNodeCloseProvider) Execute(_ context.Context, evalCtx EvalContext,
 	return diags.Append(evalCtx.CloseProvider(n.Addr))
 }
 
-func (n *graphNodeCloseProvider) CloseProviderAddr() addrs.AbsProviderConfig {
+func (n *graphNodeCloseProvider) CloseProviderAddr() addrs.AbsProviderInstance {
 	return n.Addr
 }
 
@@ -622,7 +622,7 @@ func (n *graphNodeCloseProvider) DotNode(name string, opts *dag.DotOpts) *dag.Do
 // configurations, and are removed after all the resources have been connected
 // to their providers.
 type graphNodeProxyProvider struct {
-	addr    addrs.AbsProviderConfig
+	addr    addrs.AbsProviderInstance
 	target  GraphNodeProvider
 	keyExpr hcl.Expression
 }
@@ -632,7 +632,7 @@ var (
 	_ GraphNodeProvider   = (*graphNodeProxyProvider)(nil)
 )
 
-func (n *graphNodeProxyProvider) ProviderAddr() addrs.AbsProviderConfig {
+func (n *graphNodeProxyProvider) ProviderAddr() addrs.AbsProviderInstance {
 	return n.addr
 }
 
@@ -741,7 +741,7 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 				continue
 			}
 
-			addr := addrs.AbsProviderConfig{
+			addr := addrs.AbsProviderInstance{
 				Provider: p.Type,
 				Module:   path,
 			}
@@ -772,7 +772,7 @@ func (t *ProviderConfigTransformer) transformSingle(g *Graph, c *configs.Config)
 	// add all providers from the configuration
 	for _, p := range mod.ProviderConfigs {
 		fqn := mod.ProviderForLocalConfig(p.Addr())
-		addr := addrs.AbsProviderConfig{
+		addr := addrs.AbsProviderInstance{
 			Provider: fqn,
 			Alias:    p.Alias,
 			Module:   path,
@@ -851,13 +851,13 @@ func (t *ProviderConfigTransformer) addProxyProviders(g *Graph, c *configs.Confi
 	// the parent provider nodes.
 	for _, pair := range parentCfg.Providers {
 		fqn := c.Module.ProviderForLocalConfig(pair.InChild.Addr())
-		fullAddr := addrs.AbsProviderConfig{
+		fullAddr := addrs.AbsProviderInstance{
 			Provider: fqn,
 			Module:   path,
 			Alias:    pair.InChild.Addr().Alias,
 		}
 
-		fullParentAddr := addrs.AbsProviderConfig{
+		fullParentAddr := addrs.AbsProviderInstance{
 			Provider: fqn,
 			Module:   parentPath,
 			Alias:    pair.InParent.Addr().Alias,

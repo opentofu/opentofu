@@ -32,7 +32,7 @@ func TestDestroyEdgeTransformer_basic(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -42,7 +42,7 @@ func TestDestroyEdgeTransformer_basic(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_string":"x"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	if err := (&AttachStateTransformer{State: state}).Transform(t.Context(), &g); err != nil {
@@ -75,7 +75,7 @@ func TestDestroyEdgeTransformer_multi(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -85,7 +85,7 @@ func TestDestroyEdgeTransformer_multi(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_string":"x"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -98,7 +98,7 @@ func TestDestroyEdgeTransformer_multi(t *testing.T) {
 				mustConfigResourceAddr("test_object.B"),
 			},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -147,7 +147,7 @@ func TestDestroyEdgeTransformer_module(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"a"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("module.child.test_object.b")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	child.SetResourceInstanceCurrent(
@@ -156,7 +156,7 @@ func TestDestroyEdgeTransformer_module(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"b","test_string":"x"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -192,7 +192,7 @@ func TestDestroyEdgeTransformer_moduleOnly(t *testing.T) {
 				Status:    states.ObjectReady,
 				AttrsJSON: []byte(`{"id":"a"}`),
 			},
-			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 			addrs.NoKey,
 		)
 		child.SetResourceInstanceCurrent(
@@ -204,7 +204,7 @@ func TestDestroyEdgeTransformer_moduleOnly(t *testing.T) {
 					mustConfigResourceAddr("module.child.test_object.a"),
 				},
 			},
-			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 			addrs.NoKey,
 		)
 		child.SetResourceInstanceCurrent(
@@ -217,7 +217,7 @@ func TestDestroyEdgeTransformer_moduleOnly(t *testing.T) {
 					mustConfigResourceAddr("module.child.test_object.b"),
 				},
 			},
-			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+			mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 			addrs.NoKey,
 		)
 	}
@@ -278,7 +278,7 @@ func TestDestroyEdgeTransformer_destroyThenUpdate(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A","test_string":"old"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -288,7 +288,7 @@ func TestDestroyEdgeTransformer_destroyThenUpdate(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_string":"x"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -348,7 +348,7 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 	}
 
 	resourceInstAddr := mustResourceInstanceAddr("test.a")
-	providerCfgAddr := addrs.AbsProviderConfig{
+	providerCfgAddr := addrs.AbsProviderInstance{
 		Module:   addrs.RootModule,
 		Provider: addrs.MustParseProviderSourceString("foo/test"),
 	}
@@ -474,7 +474,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -484,7 +484,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 			AttrsJSON:    []byte(`{"id":"B","test_string":"x"}`),
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -495,7 +495,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A"),
 				mustConfigResourceAddr("test_object.B")},
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 
@@ -556,7 +556,7 @@ func TestDestroyEdgeTransformer_dataDependsOn(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"A"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
 	)
 

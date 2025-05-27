@@ -470,7 +470,7 @@ check "error" {
 						Status:    states.ObjectReady,
 						AttrsJSON: []byte(`{"number": -1}`),
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					}, addrs.NoKey)
@@ -570,7 +570,7 @@ check "passing" {
 						Status:    states.ObjectReady,
 						AttrsJSON: []byte(`{"number": -1}`),
 					},
-					addrs.AbsProviderConfig{
+					addrs.AbsProviderInstance{
 						Provider: addrs.NewDefaultProvider("test"),
 						Module:   addrs.RootModule,
 					}, addrs.NoKey)

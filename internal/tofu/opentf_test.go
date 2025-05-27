@@ -150,7 +150,7 @@ func testSetResourceInstanceCurrent(module *states.Module, resource, attrsJson, 
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(attrsJson),
 		},
-		mustProviderConfig(provider),
+		mustProviderInstance(provider),
 		addrs.NoKey,
 	)
 }
@@ -164,7 +164,7 @@ func testSetResourceInstanceTainted(module *states.Module, resource, attrsJson, 
 			Status:    states.ObjectTainted,
 			AttrsJSON: []byte(attrsJson),
 		},
-		mustProviderConfig(provider),
+		mustProviderInstance(provider),
 		addrs.NoKey,
 	)
 }
@@ -225,8 +225,8 @@ func mustAbsResourceAddr(s string) addrs.AbsResource {
 	return addr
 }
 
-func mustProviderConfig(s string) addrs.AbsProviderConfig {
-	p, diags := addrs.ParseAbsProviderConfigStr(s)
+func mustProviderInstance(s string) addrs.AbsProviderInstance {
+	p, diags := addrs.ParseAbsProviderInstanceStr(s)
 	if diags.HasErrors() {
 		panic(diags.Err())
 	}

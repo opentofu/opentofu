@@ -22,7 +22,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -31,7 +31,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -40,7 +40,7 @@ func TestOrphanResourceCountTransformer(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -76,7 +76,7 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -85,7 +85,7 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -94,7 +94,7 @@ func TestOrphanResourceCountTransformer_zero(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -130,7 +130,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -139,7 +139,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -148,7 +148,7 @@ func TestOrphanResourceCountTransformer_oneIndex(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -184,7 +184,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -193,7 +193,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceCurrent(
@@ -202,7 +202,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 	root.SetResourceInstanceDeposed(
@@ -212,7 +212,7 @@ func TestOrphanResourceCountTransformer_deposed(t *testing.T) {
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"foo"}`),
 		},
-		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+		mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 		addrs.NoKey,
 	)
 
@@ -258,7 +258,7 @@ func TestOrphanResourceCountTransformer_ForEachEdgesAdded(t *testing.T) {
 				},
 				Status: states.ObjectReady,
 			},
-			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			addrs.NoKey,
 		)
 
@@ -275,7 +275,7 @@ func TestOrphanResourceCountTransformer_ForEachEdgesAdded(t *testing.T) {
 				},
 				Status: states.ObjectReady,
 			},
-			mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`),
+			mustProviderInstance(`provider["registry.opentofu.org/hashicorp/aws"]`),
 			addrs.NoKey,
 		)
 	})

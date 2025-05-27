@@ -78,7 +78,7 @@ func testPlan(t *testing.T) *plans.Plan {
 	changes.SyncWrapper().AppendResourceInstanceChange(&plans.ResourceInstanceChangeSrc{
 		Addr:        addr,
 		PrevRunAddr: addr,
-		ProviderAddr: addrs.AbsProviderConfig{
+		ProviderAddr: addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
@@ -119,7 +119,7 @@ func testPlanWithDatasource(t *testing.T) *plans.Plan {
 	plan.Changes.SyncWrapper().AppendResourceInstanceChange(&plans.ResourceInstanceChangeSrc{
 		Addr:        addr,
 		PrevRunAddr: addr,
-		ProviderAddr: addrs.AbsProviderConfig{
+		ProviderAddr: addrs.AbsProviderInstance{
 			Provider: addrs.NewDefaultProvider("test"),
 			Module:   addrs.RootModule,
 		},
