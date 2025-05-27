@@ -54,6 +54,10 @@ func (v *Variable) merge(ov *Variable) hcl.Diagnostics {
 	if ov.Deprecated != "" {
 		v.Deprecated = ov.Deprecated
 	}
+	if ov.EphemeralSet {
+		v.EphemeralSet = ov.EphemeralSet
+		v.Ephemeral = ov.Ephemeral
+	}
 	if ov.Default != cty.NilVal {
 		v.Default = ov.Default
 	}
@@ -155,6 +159,10 @@ func (o *Output) merge(oo *Output) hcl.Diagnostics {
 	}
 	if oo.Deprecated != "" {
 		o.Deprecated = oo.Deprecated
+	}
+	if oo.EphemeralSet {
+		o.EphemeralSet = oo.EphemeralSet
+		o.Ephemeral = oo.Ephemeral
 	}
 
 	// We don't allow depends_on to be overridden because that is likely to
