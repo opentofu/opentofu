@@ -14,5 +14,4 @@ type ResourceMode int
 const (
 	ManagedResourceMode ResourceMode = iota
 	DataResourceMode
-	EphemeralResourceMode
 )

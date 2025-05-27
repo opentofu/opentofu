@@ -321,9 +321,9 @@ func (addr *ResourceAddress) AbsResourceInstanceAddr() addrs.AbsResourceInstance
 		ret.Resource.Resource.Mode = addrs.ManagedResourceMode
 	case DataResourceMode:
 		ret.Resource.Resource.Mode = addrs.DataResourceMode
-	case EphemeralResourceMode: // NOTE: Added this type only for uniformity. This code should never be reached.
-		ret.Resource.Resource.Mode = addrs.EphemeralResourceMode
 	default:
+		// This case is also covering situations when ephemeral resources are getting here.
+		// This shouldn't be possible, so let this panic.
 		panic(fmt.Errorf("cannot shim %s to addrs.ResourceMode value", addr.Mode))
 	}
 

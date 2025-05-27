@@ -272,7 +272,7 @@ func (ps *ProviderSchema) SchemaForResourceType(mode addrs.ResourceMode, typeNam
 		// Data resources don't have schema versions right now, since state is discarded for each refresh
 		return ps.DataSources[typeName], 0
 	case addrs.EphemeralResourceMode:
-		return nil, 0 // NOTE: No ephemeral resources for the legacy code since this should never be the case
+		panic("ephemeral resource is not meant to be in the schema for legacy providers")
 	default:
 		// Shouldn't happen, because the above cases are comprehensive.
 		return nil, 0
