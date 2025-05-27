@@ -1375,14 +1375,18 @@ func TestShow_config(t *testing.T) {
 		t.Errorf("missing root_module in configuration output. Actual output: %v", got)
 	}
 
-	// Verify that child modules are included
+	// Verify that module_calls (and its child entry) are included
 	rootModule, ok := got["root_module"].(map[string]interface{})
 	if !ok {
 		t.Fatal("root_module is not a map")
 	}
-	childModules, ok := rootModule["child_modules"].([]interface{})
-	if !ok || len(childModules) == 0 {
-		t.Errorf("missing or empty child_modules in configuration output. Actual output: %v", got)
+	moduleCalls, ok := rootModule["module_calls"].(map[string]interface{})
+	if !ok || len(moduleCalls) == 0 {
+		t.Errorf("missing or empty module_calls in configuration output. Actual output: %v", got)
+	}
+	_, ok = moduleCalls["child"]
+	if !ok {
+		t.Errorf("missing 'child' entry in module_calls. Actual module_calls: %v", moduleCalls)
 	}
 }
 
@@ -1473,7 +1477,7 @@ func TestShow_config_withModule(t *testing.T) {
 		t.Error("missing root_module in configuration output")
 	}
 
-	// Verify that module_calls are included
+	// Verify that module_calls (and its child entry) are included
 	rootModule, ok := got["root_module"].(map[string]interface{})
 	if !ok {
 		t.Fatal("root_module is not a map")
@@ -1481,6 +1485,10 @@ func TestShow_config_withModule(t *testing.T) {
 	moduleCalls, ok := rootModule["module_calls"].(map[string]interface{})
 	if !ok || len(moduleCalls) == 0 {
 		t.Errorf("missing or empty module_calls in configuration output. Actual output: %v", got)
+	}
+	_, ok = moduleCalls["child"]
+	if !ok {
+		t.Errorf("missing 'child' entry in module_calls. Actual module_calls: %v", moduleCalls)
 	}
 }
 
