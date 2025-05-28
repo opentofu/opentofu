@@ -726,7 +726,7 @@ Ephemeral resources lifecycle is similar to the data blocks:
   * `Close`
     * When an ephemeral resource is having this method defined, OpenTofu should call it in order to release a possible held resource before the `provider.Close` is called. A good example of this is with a Vault/OpenBao provider that could provide a secret by obtaining a lease, and when the secret is done being used, OpenTofu should call `Close` on that ephemeral resource to instruct on releasing the lease and revoking the secret.
 
-#### Basic OpenTofu handling of ephemeral resources
+#### OpenTofu handling of ephemeral resources
 As per an initial analysis, the ephemeral blocks should be handled similarly to a data source block by allowing [ConfigTransformer](https://github.com/opentofu/opentofu/blob/26a77c91560d51f951aa760bdcbeecd93f9ef6b0/internal/tofu/transform_config.go#L100) to generate a NodeAbstractResource. This is needed because ephemeral resources lifecycle needs to follow the ones for resources and data sources where they need to have a graph vertices in order to allow other concepts of OpenTofu to create depedencies on it.
 
 The gRPC proto schema is already updated in the OpenTofu project and contains the methods and data structures necessary for the epehemeral resources.
@@ -772,10 +772,45 @@ Right before closing the provider, all the ephemeral resources that were open du
 #### `ConfigValidators` and `ValidateConfig` methods details
 There is not much to say here, since this is the same lifecycle that a datasource is having.
 
-#### Testing support
+#### Checks stored in state
+In case of the checks that an ephemeral resource can be configured with, the behavior of those should not be affected, meaning that even for the ephemeral resources, the results of blocks like `precondition` and `postcondition` should be stored in the state.
+
+Having a configuration like the following:
+```hcl
+ephemeral "playground_secret" "test" {
+  ...
+  lifecycle {
+    precondition {
+      condition     = 1 == 1
+      error_message = "your message here"
+    }
+  }
+}
+```
+in the state file we should see the following:
+```json
+{
+  "...": "...",
+  "check_results": [
+    {
+      "object_kind": "resource",
+      "config_addr": "ephemeral.playground_secret.test",
+      "status": "pass",
+      "objects": [
+        {
+          "object_addr": "ephemeral.playground_secret.test",
+          "status": "pass"
+        }
+      ]
+    }
+  ]
+}
+```
+
+### Testing support
 Due to the scope size this RFC is covering, the testing support will be documented later into a different RFC, or as amendment to this one.
 
-### Support in already ephemeral contexts
+### Support in existing ephemeral contexts
 There are already OpenTofu contexts that are not saved in state/plan file:
 * `provider` configuration
 * `provisioner` blocks
