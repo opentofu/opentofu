@@ -9,9 +9,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestFindSourceProviderConfig(t *testing.T) {
@@ -137,6 +141,111 @@ func TestMarshalModule(t *testing.T) {
 				"myvar": {
 					Description: varCfg.Description,
 					Deprecated:  varCfg.Deprecated,
+				},
+			},
+		}
+		if diff := cmp.Diff(expected, out); diff != "" {
+			t.Errorf("unexpected diff: \n%s", diff)
+		}
+	})
+	t.Run("validate resources marshalling", func(t *testing.T) {
+		providerAddr := addrs.NewProvider("host", "namespace", "type")
+		modCfg := configs.Config{
+			Module: &configs.Module{
+				ManagedResources: map[string]*configs.Resource{
+					"test_res": {
+						Mode: addrs.ManagedResourceMode,
+						Name: "test_res",
+						Type: "test_type",
+						Config: &hclsyntax.Body{
+							Attributes: map[string]*hclsyntax.Attribute{},
+						},
+						Provider: providerAddr,
+					},
+				},
+				DataResources: map[string]*configs.Resource{
+					"test_data": {
+						Mode: addrs.DataResourceMode,
+						Name: "test_data",
+						Type: "test_type",
+						Config: &hclsyntax.Body{
+							Attributes: map[string]*hclsyntax.Attribute{},
+						},
+						Provider: providerAddr,
+					},
+				},
+				EphemeralResources: map[string]*configs.Resource{
+					"test_ephemeral": {
+						Mode: addrs.EphemeralResourceMode,
+						Name: "test_ephemeral",
+						Type: "test_type",
+						Config: &hclsyntax.Body{
+							Attributes: map[string]*hclsyntax.Attribute{},
+						},
+						Provider: providerAddr,
+					},
+				},
+			},
+		}
+		modCfg.Root = &modCfg
+
+		resSchema := map[string]providers.Schema{
+			"test_type": {
+				Version: 0,
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"foo": {
+							Type:     cty.String,
+							Optional: true,
+						},
+					},
+				},
+			},
+		}
+		schema := &tofu.Schemas{
+			Providers: map[addrs.Provider]providers.ProviderSchema{
+				providerAddr: {
+					ResourceTypes:      resSchema,
+					EphemeralResources: resSchema,
+					DataSources:        resSchema,
+				},
+			},
+		}
+		out, err := marshalModule(&modCfg, schema, addrs.RootModule.String())
+		if err != nil {
+			t.Fatalf("unexpected error during marshalling module: %s", err)
+		}
+
+		expected := module{
+			Outputs:     map[string]output{},
+			ModuleCalls: map[string]moduleCall{},
+			Resources: []resource{
+				{
+					Address:           "test_type.test_res",
+					Mode:              "managed",
+					Type:              "test_type",
+					Name:              "test_res",
+					ProviderConfigKey: "test",
+					Provisioners:      nil,
+					Expressions:       make(map[string]any),
+				},
+				{
+					Address:           "data.test_type.test_data",
+					Mode:              "data",
+					Type:              "test_type",
+					Name:              "test_data",
+					ProviderConfigKey: "test",
+					Provisioners:      nil,
+					Expressions:       make(map[string]any),
+				},
+				{
+					Address:           "ephemeral.test_type.test_ephemeral",
+					Mode:              "ephemeral",
+					Type:              "test_type",
+					Name:              "test_ephemeral",
+					ProviderConfigKey: "test",
+					Provisioners:      nil,
+					Expressions:       make(map[string]any),
 				},
 			},
 		}
