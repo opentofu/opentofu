@@ -171,7 +171,7 @@ With the change in 0.11.0 adding the `providers` field, it is still unclear when
 
 To solve this, `terraform -> required_providers` was introduced. The initial version of this feature was a direct mapping between "Provider Type" and "Provider Version Constraint".
 
-```
+```hcl
 terraform {
   required_providers {
     aws = "0.124"
@@ -219,7 +219,7 @@ Organizations also wanted more control over their providers for both development
 Additionally, the previous understanding of "datadog" may refer to "datadog/datadog" or "user/datadog" and is unclear if they are both included in the project. By decoupling `addrs.Provider.Type` and `addrs.LocalProviderConfig.LocalName`, both could be used in the same module under different names. Additionally the same concept can be used to have the LocalName "datadog" refer to "user/datadog-fork" without having to rewrite the whole project's config.
 
 
-```
+```hcl
 terraform {
   required_providers {
     awsname = { # name added for clarity, usually Type == LocalName
@@ -269,7 +269,7 @@ The child module is passed the `addrs.AbsProviderConfig` and is internally refer
 Within that module, `addrs.LocalProviderConfig{LocalName: "modaws"}` now points at `addrs.Provider{Type = "aws"}` and is effectively replaced with `addrs.AbsProviderConfig{Module: Root, Provider: addrs.Provider{Type = "aws"}, Alias = "default"}` at runtime. This optimizes running as few provider instances as possible.
 
 If a new provider configuration were added to the module:
-```
+```hcl
 provider "modaws" {
   region = "us-west-2"
 }
@@ -282,7 +282,7 @@ Multiple provider aliases can be supplied in required_providers via `configurati
 
 Example:
 
-```
+```hcl
 terraform {
   required_providers {
     awsname = { # name added for clarity, usually Type == LocalName
@@ -319,10 +319,54 @@ terraform {
 }
 ```
 
+### Multiple Provider Instances
+
+In OpenTofu 1.9.0, we introduced the concept of a "provider instance".  This allows an aliased provider to have multiple instances based on the same configuration differentiated by a for_each expression.
+
+```hcl
+# main.tofu
+
+provider "cloudflare" {
+  alias = "by_account"
+  for_each = local.cloudflare_accounts
+  account_id = each.key
+  auth_key = each.value
+}
+
+locals {
+  enabled_cloudflare_accounts = {
+    for acct, cfg in local.cloudflare_accounts : acct => cfg
+    if cfg.enabled
+  }
+}
+
+module "my_mod" {
+  source = "./foo"
+  for_each = local.enabled_cloudflare_accounts
+  account_id = each.key
+
+  providers {
+    cloudflare = cloudflare.by_account[each.key]
+  }
+}
+
+resource "cloudflare_r2_bucket" "bucket" {
+  for_each = local.cloudflare_accounts 
+  account_id = each.key
+  provider = cloudflare.by_account[each.key]
+}
+```
 
 ### Representation in State
 
-Resources in the state file note the `addrs.Provider` required to modify them. Due to the structure, all instances (for_each/count) of a resource must use the same provider.
+Resources in the state file note the `addrs.AbsProviderConfig` required to modify them.
+
+Prior to 1.9.0, all instances (for_each/count) of a resource must use the same provider and would have the provider stored in a single field at the resource level, not resource instance level.
+
+After 1.9.0 (provider iteration), the "provider" field can now exist on either the resource or the resource instance and can include a "provider instance key" appended to the `addrs.AbsProviderConfig`.
+ * If provider config instances differ per resource instance, the "provider" field will exist only on the resource instances.
+   - Although the provider instance key may vary between resource instances of the same resource, the `addrs.AbsProviderConfig` component must be identical.
+ * If the provider config instances are identical per resource instance, the provider field will only exist on the resource.
 
 Note: This section should be expanded with examples.
 
