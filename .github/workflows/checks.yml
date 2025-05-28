@@ -32,9 +32,25 @@ permissions:
   contents: read
 
 jobs:
+  fileschanged:
+    name: List files changed for pull request
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Fetch source code"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - id: diff 
+        run: |
+          echo "Comparing head_commit ${{github.event.push.head_commit}} to base_ref ${{github.event.push.base_ref}}"
+          git fetch --no-tags --prune --no-recurse-submodules --depth=1 origin ${{github.event.pull_request.base.ref}}
+          echo "go=$(git diff --name-only origin/${{github.event.pull_request.base.ref}} | grep '\.go' | wc -l)" | tee -a "$GITHUB_OUTPUT"
+    outputs:
+      go: ${{ steps.diff.outputs.go }}
+    
   unit-tests:
     name: Unit tests for ${{ matrix.goos }}_${{ matrix.goarch }}
     runs-on: ${{ matrix.runson }}
+    needs: fileschanged
+    if: ${{ needs.fileschanged.outputs.go != 0}}
     env:
       TF_APPEND_USER_AGENT: Integration-Test
       GOOS: ${{ matrix.goos }}
@@ -88,6 +104,8 @@ jobs:
   race-tests:
     name: "Race Tests"
     runs-on: ubuntu-latest
+    needs: fileschanged
+    if: ${{ needs.fileschanged.outputs.go != 0}}
 
     steps:
       - name: "Fetch source code"
@@ -126,6 +144,8 @@ jobs:
     # that might leak through this.
     name: "End-to-end Tests"
     runs-on: ubuntu-latest
+    needs: fileschanged
+    if: ${{ needs.fileschanged.outputs.go != 0}}
 
     steps:
       - name: "Fetch source code"
@@ -158,6 +178,8 @@ jobs:
   consistency-checks:
     name: "Code Consistency Checks"
     runs-on: ubuntu-latest
+    needs: fileschanged
+    if: ${{ needs.fileschanged.outputs.go != 0}}
 
     steps:
       - name: "Fetch source code"
@@ -266,14 +288,3 @@ jobs:
         with:
           path: ".licensei.cache"
           key: licensei-cache-${{ hashFiles('go.sum') }}
- 
-  installation-instructions:
-    name: "Test Installation Instructions"
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: "Fetch source code"
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: "Run Installation Instructions Test"
-        run: make test-linux-install-instructions
