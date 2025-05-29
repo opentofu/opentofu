@@ -10,11 +10,13 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/zclconf/go-cty/cty"
-
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func TestFindSourceProviderConfig(t *testing.T) {
@@ -114,6 +116,20 @@ func TestFindSourceProviderConfig(t *testing.T) {
 
 func TestMarshalModule(t *testing.T) {
 	emptySchemas := &tofu.Schemas{}
+	providerAddr := addrs.NewProvider("host", "namespace", "type")
+	resSchema := map[string]providers.Schema{
+		"test_type": {
+			Version: 0,
+			Block: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"foo": {
+						Type:     cty.String,
+						Optional: true,
+					},
+				},
+			},
+		},
+	}
 
 	tests := map[string]struct {
 		Input   *configs.Config
@@ -249,6 +265,90 @@ func TestMarshalModule(t *testing.T) {
 				},
 			},
 		},
+		"resources": {
+			Input: &configs.Config{
+				Module: &configs.Module{
+					ManagedResources: map[string]*configs.Resource{
+						"test_res": {
+							Mode: addrs.ManagedResourceMode,
+							Name: "test_res",
+							Type: "test_type",
+							Config: &hclsyntax.Body{
+								Attributes: map[string]*hclsyntax.Attribute{},
+							},
+							Provider: providerAddr,
+						},
+					},
+					DataResources: map[string]*configs.Resource{
+						"test_data": {
+							Mode: addrs.DataResourceMode,
+							Name: "test_data",
+							Type: "test_type",
+							Config: &hclsyntax.Body{
+								Attributes: map[string]*hclsyntax.Attribute{},
+							},
+							Provider: providerAddr,
+						},
+					},
+					EphemeralResources: map[string]*configs.Resource{
+						"test_ephemeral": {
+							Mode: addrs.EphemeralResourceMode,
+							Name: "test_ephemeral",
+							Type: "test_type",
+							Config: &hclsyntax.Body{
+								Attributes: map[string]*hclsyntax.Attribute{},
+							},
+							Provider: providerAddr,
+						},
+					},
+				},
+			},
+			Schemas: &tofu.Schemas{
+				Providers: map[addrs.Provider]providers.ProviderSchema{
+					providerAddr: {
+						ResourceTypes:      resSchema,
+						EphemeralResources: resSchema,
+						DataSources:        resSchema,
+					},
+				},
+			},
+			Want: module{
+				Outputs:     map[string]output{},
+				ModuleCalls: map[string]moduleCall{},
+				Resources: []resource{
+					{
+						Address:           "test_type.test_res",
+						Mode:              "managed",
+						Type:              "test_type",
+						Name:              "test_res",
+						ProviderConfigKey: "test",
+						SchemaVersion:     ptrTo[uint64](0),
+						Provisioners:      nil,
+						Expressions:       make(map[string]any),
+					},
+					{
+						Address:           "data.test_type.test_data",
+						Mode:              "data",
+						Type:              "test_type",
+						Name:              "test_data",
+						ProviderConfigKey: "test",
+						SchemaVersion:     ptrTo[uint64](0),
+						Provisioners:      nil,
+						Expressions:       make(map[string]any),
+					},
+					{
+						Address:           "ephemeral.test_type.test_ephemeral",
+						Mode:              "ephemeral",
+						Type:              "test_type",
+						Name:              "test_ephemeral",
+						ProviderConfigKey: "test",
+						SchemaVersion:     ptrTo[uint64](0),
+						Provisioners:      nil,
+						Expressions:       make(map[string]any),
+					},
+				},
+			},
+		},
 		// TODO: More test cases covering things other than input variables.
 		// (For now the other details are mainly tested in package command,
 		// as part of the tests for "tofu show".)
@@ -274,4 +374,13 @@ func TestMarshalModule(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ptrTo is a helper to compensate for the fact that Go doesn't allow
+// using the '&' operator unless the operand is directly addressable.
+//
+// Instead then, this function returns a pointer to a copy of the given
+// value.
+func ptrTo[T any](v T) *T {
+	return &v
 }
