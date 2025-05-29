@@ -43,6 +43,16 @@ func TestMarshalCheckStates(t *testing.T) {
 	outputBInstAddr := addrs.Checkable(addrs.OutputValue{Name: "b"}.Absolute(moduleChildAddr))
 	checkBlockAAddr := addrs.ConfigCheckable(addrs.Check{Name: "a"}.InModule(addrs.RootModule))
 	checkBlockAInstAddr := addrs.Checkable(addrs.Check{Name: "a"}.Absolute(addrs.RootModuleInstance))
+	ephemeralAAddr := addrs.ConfigCheckable(addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test",
+		Name: "a",
+	}.InModule(addrs.RootModule))
+	ephemeralAInstAddr := addrs.Checkable(addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test",
+		Name: "a",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance))
 
 	tests := map[string]struct {
 		Input *states.CheckResults
@@ -108,6 +118,17 @@ func TestMarshalCheckStates(t *testing.T) {
 							}),
 						),
 					}),
+					addrs.MakeMapElem(ephemeralAAddr, &states.CheckResultAggregate{
+						Status: checks.StatusFail,
+						ObjectResults: addrs.MakeMap(
+							addrs.MakeMapElem(ephemeralAInstAddr, &states.CheckResultObject{
+								Status: checks.StatusFail,
+								FailureMessages: []string{
+									"foo",
+								},
+							}),
+						),
+					}),
 				),
 			},
 			[]any{
@@ -125,6 +146,29 @@ func TestMarshalCheckStates(t *testing.T) {
 							"problems": []any{
 								map[string]any{
 									"message": "Couldn't reverse the polarity.",
+								},
+							},
+							"status": "fail",
+						},
+					},
+					"status": "fail",
+				},
+				map[string]any{
+					"address": map[string]any{
+						"kind":       "resource",
+						"mode":       "ephemeral",
+						"name":       "a",
+						"to_display": "ephemeral.test.a",
+						"type":       "test",
+					},
+					"instances": []any{
+						map[string]any{
+							"address": map[string]any{
+								"to_display": `ephemeral.test.a`,
+							},
+							"problems": []any{
+								map[string]any{
+									"message": "foo",
 								},
 							},
 							"status": "fail",
