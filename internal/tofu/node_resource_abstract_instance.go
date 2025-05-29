@@ -3007,7 +3007,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx EvalContext, ch
 	}
 
 	configKnown := configVal.IsWhollyKnown()
-	depsPending := n.dependenciesHavePendingChanges(ctx)
+	depsPending := n.dependenciesHavePendingChanges(ctx) // TODO andrei - check this on how to do this for ephemeral resources. This method call here is strictly for data sources
 	// If our configuration contains any unknown values, or we depend on any
 	// unknown values then we must defer the read to the apply phase by
 	// producing a "Read" change for this resource, and a placeholder value for
