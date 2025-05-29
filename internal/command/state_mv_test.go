@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/mitchellh/cli"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states"
@@ -1816,6 +1817,107 @@ func TestStateMv_checkRequiredVersion(t *testing.T) {
 	}
 	if strings.Contains(errStr, `required_version = ">= 0.13.0"`) {
 		t.Fatalf("output should not point to met version constraint, but is:\n\n%s", errStr)
+	}
+}
+
+func TestValidateResourceMove(t *testing.T) {
+	var (
+		c = &StateMvCommand{}
+
+		managedRes   = addrs.AbsResource{Resource: addrs.Resource{Mode: addrs.ManagedResourceMode, Type: "test_type", Name: "test_name"}}
+		dataRes      = addrs.AbsResource{Resource: addrs.Resource{Mode: addrs.DataResourceMode, Type: "test_type", Name: "test_name"}}
+		ephemeralRes = addrs.AbsResource{Resource: addrs.Resource{Mode: addrs.EphemeralResourceMode, Type: "test_type", Name: "test_name"}}
+	)
+
+	tests := map[string]struct {
+		src, target addrs.AbsResource
+		wantDiags   tfdiags.Diagnostics
+	}{
+		"resource to resource": {
+			managedRes,
+			managedRes,
+			tfdiags.Diagnostics{},
+		},
+		"data to data": {
+			dataRes,
+			dataRes,
+			tfdiags.Diagnostics{},
+		},
+		"ephemeral to ephemeral": {
+			ephemeralRes,
+			ephemeralRes,
+			tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid state move request",
+				"Ephemeral resources cannot be used as sources or targets for the move action. Just update your configuration accordingly.",
+			)},
+		},
+		"resource to data": {
+			managedRes,
+			dataRes,
+			tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid state move request",
+				fmt.Sprintf("Cannot move %s to %s: a managed resource can be moved only to another managed resource address.", managedRes, dataRes),
+			)},
+		},
+		"resource to ephemeral": {
+			managedRes,
+			ephemeralRes,
+			tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid state move request",
+				"Ephemeral resources cannot be used as sources or targets for the move action. Just update your configuration accordingly.",
+			)},
+		},
+		"data to resource": {
+			dataRes,
+			managedRes,
+			tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid state move request",
+				fmt.Sprintf("Cannot move %s to %s: a data resource can be moved only to another data resource address.", dataRes, managedRes),
+			)},
+		},
+		"data to ephemeral": {
+			dataRes,
+			ephemeralRes,
+			tfdiags.Diagnostics{tfdiags.Sourceless(
+				tfdiags.Error,
+				"Invalid state move request",
+				"Ephemeral resources cannot be used as sources or targets for the move action. Just update your configuration accordingly.",
+			)},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			diags := c.validateResourceMove(tt.src, tt.target)
+
+			if got, want := len(diags), len(tt.wantDiags); got != want {
+				t.Fatalf("expected to have exactly %d diagnostic(s). got: %d", want, got)
+			}
+			for i, wantDiag := range tt.wantDiags {
+				sameDiagnostic(t, diags[i], wantDiag)
+			}
+		})
+	}
+}
+
+func sameDiagnostic(t *testing.T, gotD, wantD tfdiags.Diagnostic) {
+	if got, want := gotD.Severity(), wantD.Severity(); got != want {
+		t.Errorf("wrong severity. got %q; want %q", got, want)
+	}
+	if got, want := gotD.Description().Address, wantD.Description().Address; got != want {
+		t.Errorf("wrong description. got %q; want %q", got, want)
+	}
+	if got, want := gotD.Description().Detail, wantD.Description().Detail; got != want {
+		t.Errorf("wrong detail. got %q; want %q", got, want)
+	}
+	if got, want := gotD.Description().Summary, wantD.Description().Summary; got != want {
+		t.Errorf("wrong summary. got %q; want %q", got, want)
+	}
+	if got, want := gotD.ExtraInfo(), wantD.ExtraInfo(); got != want {
+		t.Errorf("wrong extra info. got %q; want %q", got, want)
 	}
 }
 
