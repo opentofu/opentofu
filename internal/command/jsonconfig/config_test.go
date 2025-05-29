@@ -125,7 +125,7 @@ func TestMarshalModule(t *testing.T) {
 		}
 		modCfg.Root = &modCfg
 
-		out, err := marshalModule(&modCfg, &tofu.Schemas{}, addrs.RootModule.String())
+		out, err := marshalModule(&modCfg, &plugins.Schemas{}, addrs.RootModule.String())
 		if err != nil {
 			t.Fatalf("unexpected error during marshalling module: %s", err)
 		}

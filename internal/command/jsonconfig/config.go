@@ -17,7 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/getproviders"
-	"github.com/opentofu/opentofu/internal/tofu"
+	"github.com/opentofu/opentofu/internal/plugins"
 )
 
 // Config represents the complete configuration source
@@ -124,7 +124,7 @@ type provisioner struct {
 }
 
 // Marshal returns the json encoding of tofu configuration.
-func Marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
+func Marshal(c *configs.Config, schemas plugins.Schemas) ([]byte, error) {
 	var output config
 
 	pcs := make(map[string]providerConfig)
@@ -151,7 +151,7 @@ func Marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
 
 func marshalProviderConfigs(
 	c *configs.Config,
-	schemas *tofu.Schemas,
+	schemas plugins.Schemas,
 	m map[string]providerConfig,
 ) {
 	if c == nil {
@@ -308,7 +308,7 @@ func marshalProviderConfigs(
 	}
 }
 
-func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (module, error) {
+func marshalModule(c *configs.Config, schemas plugins.Schemas, addr string) (module, error) {
 	var module module
 	var rs []resource
 
@@ -379,7 +379,7 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 	return module, nil
 }
 
-func marshalModuleCalls(c *configs.Config, schemas *tofu.Schemas) map[string]moduleCall {
+func marshalModuleCalls(c *configs.Config, schemas plugins.Schemas) map[string]moduleCall {
 	ret := make(map[string]moduleCall)
 
 	for name, mc := range c.Module.ModuleCalls {
@@ -390,7 +390,7 @@ func marshalModuleCalls(c *configs.Config, schemas *tofu.Schemas) map[string]mod
 	return ret
 }
 
-func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.Schemas) moduleCall {
+func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas plugins.Schemas) moduleCall {
 	// It is possible to have a module call with a nil config.
 	if c == nil {
 		return moduleCall{}
@@ -447,7 +447,7 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 	return ret
 }
 
-func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Schemas, moduleAddr string) ([]resource, error) {
+func marshalResources(resources map[string]*configs.Resource, schemas plugins.Schemas, moduleAddr string) ([]resource, error) {
 	var rs []resource
 	for _, v := range resources {
 		providerConfigKey := opaqueProviderKey(v.ProviderConfigAddr().StringCompact(), moduleAddr)

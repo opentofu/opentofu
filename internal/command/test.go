@@ -590,22 +590,11 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		}
 
 		if runner.Suite.Verbose {
-			schemas := planCtx.Schemas()
-
-			provisioners, err := schemas.ProvisionerSchemas()
-			if err != nil {
-				// If we're going to fail to render the plan, let's not fail the overall
-				// test. It can still have succeeded. So we'll add the diagnostics, but
-				// still report the test status as a success.
-				run.Diagnostics = run.Diagnostics.Append(err)
-			}
-
 			run.Verbose = &moduletest.Verbose{
-				Plan:         plan,
-				State:        plan.PlannedState,
-				Config:       config,
-				Providers:    schemas.ProviderSchemas(),
-				Provisioners: provisioners,
+				Plan:    plan,
+				State:   plan.PlannedState,
+				Config:  config,
+				Schemas: planCtx.Schemas(),
 			}
 		}
 
@@ -662,22 +651,11 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	}
 
 	if runner.Suite.Verbose {
-		schemas := planCtx.Schemas()
-
-		provisioners, err := schemas.ProvisionerSchemas()
-		if err != nil {
-			// If we're going to fail to render the plan, let's not fail the overall
-			// test. It can still have succeeded. So we'll add the diagnostics, but
-			// still report the test status as a success.
-			run.Diagnostics = run.Diagnostics.Append(err)
-		}
-
 		run.Verbose = &moduletest.Verbose{
-			Plan:         plan,
-			State:        updated,
-			Config:       config,
-			Providers:    schemas.ProviderSchemas(),
-			Provisioners: provisioners,
+			Plan:    plan,
+			State:   updated,
+			Config:  config,
+			Schemas: planCtx.Schemas(),
 		}
 	}
 

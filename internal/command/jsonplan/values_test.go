@@ -347,8 +347,8 @@ func TestMarshalPlanValuesNoopDeposed(t *testing.T) {
 	}
 }
 
-func testSchemas() *tofu.Schemas {
-	return &tofu.Schemas{
+func testSchemas() *plugins.Schemas {
+	return &plugins.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): providers.ProviderSchema{
 				ResourceTypes: map[string]providers.Schema{

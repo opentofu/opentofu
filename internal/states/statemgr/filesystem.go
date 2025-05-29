@@ -20,9 +20,9 @@ import (
 
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/flock"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // Filesystem is a full state manager that uses a file in the local filesystem
@@ -158,13 +158,13 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 }
 
 // PersistState writes state to a tfstate file.
-func (s *Filesystem) PersistState(schemas *tofu.Schemas) error {
+func (s *Filesystem) PersistState(schemas plugins.Schemas) error {
 	defer s.mutex()()
 
 	return s.persistState(schemas)
 }
 
-func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
+func (s *Filesystem) persistState(schemas plugins.Schemas) error {
 	// TODO: this should use a more robust method of writing state, by first
 	// writing to a temp file on the same filesystem, and renaming the file over
 	// the original.

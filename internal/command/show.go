@@ -26,10 +26,10 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 	"github.com/opentofu/opentofu/internal/tracing"
 )
 
@@ -422,7 +422,7 @@ func (c *ShowCommand) getDataFromCloudPlan(ctx context.Context, plan *cloudplan.
 // takes a [*statefile.File] instead of a [*states.State] and tolerates
 // the state file being nil, since that's more convenient for the
 // "tofu show" methods that may or may not have a state file to use.
-func (c *ShowCommand) maybeGetSchemas(ctx context.Context, stateFile *statefile.File, config *configs.Config) (*tofu.Schemas, tfdiags.Diagnostics) {
+func (c *ShowCommand) maybeGetSchemas(ctx context.Context, stateFile *statefile.File, config *configs.Config) (plugins.Schemas, tfdiags.Diagnostics) {
 	ctx, span := tracing.Tracer().Start(ctx, "Get Schemas")
 	defer span.End()
 

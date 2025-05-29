@@ -32,12 +32,12 @@ func TestState(t *testing.T) {
 
 	tests := []struct {
 		State   *states.State
-		Schemas *tofu.Schemas
+		Schemas *plugins.Schemas
 		Want    string
 	}{
 		{
 			State:   &states.State{},
-			Schemas: &tofu.Schemas{},
+			Schemas: &plugins.Schemas{},
 			Want:    "The state file is empty. No resources are represented.\n",
 		},
 		{
@@ -156,9 +156,9 @@ func testProviderSchema() *providers.GetProviderSchemaResponse {
 	}
 }
 
-func testSchemas() *tofu.Schemas {
+func testSchemas() *plugins.Schemas {
 	provider := testProvider()
-	return &tofu.Schemas{
+	return &plugins.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(context.TODO()),
 		},

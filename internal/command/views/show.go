@@ -19,14 +19,14 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 type Show interface {
 	// DisplayState renders the given state snapshot, returning a status code for "tofu show" to return.
-	DisplayState(ctx context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int
+	DisplayState(ctx context.Context, stateFile *statefile.File, schemas plugins.Schemas) int
 
 	// DisplayPlan renders the given plan, returning a status code for "tofu show" to return.
 	//
@@ -36,7 +36,7 @@ type Show interface {
 	//
 	// Therefore the implementation of this method must handle both cases,
 	// preferring planJSON if it is not nil and using plan otherwise.
-	DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int
+	DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas plugins.Schemas) int
 
 	// Diagnostics renders early diagnostics, resulting from argument parsing.
 	Diagnostics(diags tfdiags.Diagnostics)
@@ -59,7 +59,7 @@ type ShowHuman struct {
 
 var _ Show = (*ShowHuman)(nil)
 
-func (v *ShowHuman) DisplayState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+func (v *ShowHuman) DisplayState(_ context.Context, stateFile *statefile.File, schemas plugins.Schemas) int {
 	renderer := jsonformat.Renderer{
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
@@ -90,7 +90,7 @@ func (v *ShowHuman) DisplayState(_ context.Context, stateFile *statefile.File, s
 	return 0
 }
 
-func (v *ShowHuman) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
+func (v *ShowHuman) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas plugins.Schemas) int {
 	renderer := jsonformat.Renderer{
 		Colorize:            v.view.colorize,
 		Streams:             v.view.streams,
@@ -157,7 +157,7 @@ type ShowJSON struct {
 
 var _ Show = (*ShowJSON)(nil)
 
-func (v *ShowJSON) DisplayState(_ context.Context, stateFile *statefile.File, schemas *tofu.Schemas) int {
+func (v *ShowJSON) DisplayState(_ context.Context, stateFile *statefile.File, schemas plugins.Schemas) int {
 	jsonState, err := jsonstate.Marshal(stateFile, schemas)
 	if err != nil {
 		v.view.streams.Eprintf("Failed to marshal state to json: %s", err)
@@ -167,7 +167,7 @@ func (v *ShowJSON) DisplayState(_ context.Context, stateFile *statefile.File, sc
 	return 0
 }
 
-func (v *ShowJSON) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int {
+func (v *ShowJSON) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas plugins.Schemas) int {
 	// Prefer to display a pre-built JSON plan, if we got one; then, fall back
 	// to building one ourselves.
 	if planJSON != nil {

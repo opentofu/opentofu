@@ -12,9 +12,8 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/plans"
-	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -37,11 +36,10 @@ type Run struct {
 // At the moment, this basically means printing out the plan. To do that we need
 // all the information within this struct.
 type Verbose struct {
-	Plan         *plans.Plan
-	State        *states.State
-	Config       *configs.Config
-	Providers    map[addrs.Provider]providers.ProviderSchema
-	Provisioners map[string]*configschema.Block
+	Plan    *plans.Plan
+	State   *states.State
+	Config  *configs.Config
+	Schemas plugins.Schemas
 }
 
 func (run *Run) GetTargets() ([]addrs.Targetable, tfdiags.Diagnostics) {

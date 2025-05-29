@@ -35,7 +35,7 @@ func TestShowHuman_DisplayPlan(t *testing.T) {
 	testCases := map[string]struct {
 		plan       *plans.Plan
 		jsonPlan   *cloudplan.RemotePlanJSON
-		schemas    *tofu.Schemas
+		schemas    *plugins.Schemas
 		wantExact  bool
 		wantString string
 	}{
@@ -93,7 +93,7 @@ func TestShowHuman_DisplayPlan(t *testing.T) {
 func TestShowHuman_DisplayState(t *testing.T) {
 	testCases := map[string]struct {
 		stateFile  *statefile.File
-		schemas    *tofu.Schemas
+		schemas    *plugins.Schemas
 		wantExact  bool
 		wantString string
 	}{
@@ -208,7 +208,7 @@ func TestShowJSON_DisplayPlan(t *testing.T) {
 			view.Configure(&arguments.View{NoColor: true})
 			v := NewShow(arguments.ViewJSON, view)
 
-			schemas := &tofu.Schemas{
+			schemas := &plugins.Schemas{
 				Providers: map[addrs.Provider]providers.ProviderSchema{
 					addrs.NewDefaultProvider("test"): {
 						ResourceTypes: map[string]providers.Schema{
@@ -273,7 +273,7 @@ func TestShowJSON_DisplayState(t *testing.T) {
 			view.Configure(&arguments.View{NoColor: true})
 			v := NewShow(arguments.ViewJSON, view)
 
-			schemas := &tofu.Schemas{
+			schemas := &plugins.Schemas{
 				Providers: map[addrs.Provider]providers.ProviderSchema{
 					addrs.NewDefaultProvider("test"): {
 						ResourceTypes: map[string]providers.Schema{

@@ -272,6 +272,6 @@ func (s *stateStorageThatFailsRefresh) RefreshState() error {
 	return fmt.Errorf("intentionally failing for testing purposes")
 }
 
-func (s *stateStorageThatFailsRefresh) PersistState(schemas *tofu.Schemas) error {
+func (s *stateStorageThatFailsRefresh) PersistState(schemas *plugins.Schemas) error {
 	return fmt.Errorf("unimplemented")
 }

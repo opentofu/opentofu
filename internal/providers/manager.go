@@ -10,7 +10,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
-type SchemaCache func(supplier func() ProviderSchema) ProviderSchema
+type SchemaCacheFn func(supplier func() ProviderSchema) ProviderSchema
 
 //TODO type SchemaFilter func(addrs.ResourceMode, string) bool
 
@@ -20,6 +20,8 @@ type Manager struct {
 
 	// FUTURE: extend to take over responsibilities of managing provider interfaces from BuiltinEvalContext
 }
+
+var _ Schemas = (*Manager)(nil)
 
 func NewManager(ctx context.Context, factories map[addrs.Provider]Factory) (*Manager, error) {
 	manager := &Manager{

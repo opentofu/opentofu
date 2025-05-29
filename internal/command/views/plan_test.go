@@ -133,9 +133,9 @@ func testPlanWithDatasource(t *testing.T) *plans.Plan {
 	return plan
 }
 
-func testSchemas() *tofu.Schemas {
+func testSchemas() *plugins.Schemas {
 	provider := testProvider()
-	return &tofu.Schemas{
+	return &plugins.Schemas{
 		Providers: map[addrs.Provider]providers.ProviderSchema{
 			addrs.NewDefaultProvider("test"): provider.GetProviderSchema(context.TODO()),
 		},

@@ -1103,7 +1103,7 @@ func blockedMovesWarningDiag(results refactoring.MoveResults) tfdiags.Diagnostic
 // global analysis of references within the configuration that's attached
 // to the receiving context.
 func (c *Context) referenceAnalyzer(ctx context.Context, config *configs.Config, state *states.State) *globalref.Analyzer {
-	return globalref.NewAnalyzer(config, c.Schemas().Manager)
+	return globalref.NewAnalyzer(config, c.plugins.Manager)
 }
 
 // relevantResourceAttrsForPlan implements the heuristic we use to populate the

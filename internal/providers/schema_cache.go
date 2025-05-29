@@ -5,40 +5,14 @@
 
 package providers
 
-/*
-// SchemaCache is a global cache of Schemas.
-// This will be accessed by both core and the provider clients to ensure that
-// large schemas are stored in a single location.
-var SchemaCache = &schemaCache{
-	m: make(map[addrs.Provider]ProviderSchema),
+import (
+	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/configs/configschema"
+)
+
+type Schemas interface {
+	ProviderSchemas() map[addrs.Provider]ProviderSchema
+	ProviderSchema(addr addrs.Provider) (ProviderSchema, error)
+	ProviderConfigSchema(providerAddr addrs.Provider) (*configschema.Block, error)
+	ResourceTypeSchema(providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (*configschema.Block, uint64, error)
 }
-
-// Global cache for provider schemas
-// Cache the entire response to ensure we capture any new fields, like
-// ServerCapabilities. This also serves to capture errors so that multiple
-// concurrent calls resulting in an error can be handled in the same manner.
-type schemaCache struct {
-	mu sync.Mutex
-	m  map[addrs.Provider]ProviderSchema
-}
-
-func (c *schemaCache) Set(p addrs.Provider, s ProviderSchema) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.m[p] = s
-}
-
-func (c *schemaCache) Get(p addrs.Provider) (ProviderSchema, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	s, ok := c.m[p]
-	return s, ok
-}
-
-func (c *schemaCache) Remove(p addrs.Provider) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	delete(c.m, p)
-}*/

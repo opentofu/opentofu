@@ -26,7 +26,6 @@ import (
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // Test renders outputs for test executions.
@@ -147,10 +146,7 @@ func (t *TestHuman) Run(run *moduletest.Run, file *moduletest.File) {
 		// We're going to be more verbose about what we print, here's the plan
 		// or the state depending on the type of run we did.
 
-		schemas := &tofu.Schemas{
-			//TODO Providers:    run.Verbose.Providers,
-			//TODO Provisioners: run.Verbose.Provisioners,
-		}
+		schemas := run.Verbose.Schemas
 
 		renderer := jsonformat.Renderer{
 			Streams:             t.view.streams,
@@ -409,10 +405,7 @@ func (t *TestJSON) Run(run *moduletest.Run, file *moduletest.File) {
 
 	if run.Verbose != nil {
 
-		schemas := &tofu.Schemas{
-			//TODO Providers:    run.Verbose.Providers,
-			//TODO Provisioners: run.Verbose.Provisioners,
-		}
+		schemas := run.Verbose.Schemas
 
 		if run.Config.Command == configs.ApplyTestCommand {
 			state, err := jsonstate.MarshalForLog(statefile.New(run.Verbose.State, file.Name, uint64(run.Index)), schemas)

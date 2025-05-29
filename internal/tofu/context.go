@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/states"
@@ -158,8 +159,8 @@ func NewContext(opts *ContextOpts, config *configs.Config, state *states.State) 
 	}, diags
 }
 
-func (c *Context) Schemas() *Schemas {
-	return &Schemas{c.plugins}
+func (c *Context) Schemas() plugins.Schemas {
+	return c.plugins
 }
 
 type ContextGraphOpts struct {

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -33,7 +34,7 @@ type StateHook struct {
 	// Schemas are the schemas to use when persisting state due to
 	// PersistInterval. This is ignored if PersistInterval is zero,
 	// and PersistInterval is ignored if this is nil.
-	Schemas *tofu.Schemas
+	Schemas plugins.Schemas
 
 	intermediatePersist IntermediateStatePersistInfo
 }

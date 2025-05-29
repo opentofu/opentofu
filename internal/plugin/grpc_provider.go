@@ -72,7 +72,7 @@ type GRPCProvider struct {
 	ctx context.Context
 
 	mu                 sync.Mutex
-	SchemaCache        providers.SchemaCache
+	SchemaCache        providers.SchemaCacheFn
 	hasCalledGetSchema bool
 }
 

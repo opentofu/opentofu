@@ -8,8 +8,8 @@ package jsonprovider
 import (
 	"encoding/json"
 
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // FormatVersion represents the version of the json format and will be
@@ -42,7 +42,7 @@ func newProviders() *Providers {
 // schema into the public structured JSON versions.
 //
 // This is a format that can be read by the structured plan renderer.
-func MarshalForRenderer(s *tofu.Schemas) map[string]*Provider {
+func MarshalForRenderer(s plugins.Schemas) map[string]*Provider {
 	schemas := make(map[string]*Provider)
 	for k, v := range s.ProviderSchemas() {
 		schemas[k.String()] = marshalProvider(v)
@@ -50,7 +50,7 @@ func MarshalForRenderer(s *tofu.Schemas) map[string]*Provider {
 	return schemas
 }
 
-func Marshal(s *tofu.Schemas) ([]byte, error) {
+func Marshal(s plugins.Schemas) ([]byte, error) {
 	providers := newProviders()
 	providers.Schemas = MarshalForRenderer(s)
 	ret, err := json.Marshal(providers)
