@@ -265,6 +265,38 @@ func TestCountHookPostDiff_DataSource(t *testing.T) {
 	}
 }
 
+func TestCountHookPostDiff_Ephemeral(t *testing.T) {
+	h := new(countHook)
+
+	resources := map[string]plans.Action{
+		"foo":   plans.Delete,
+		"bar":   plans.NoOp,
+		"lorem": plans.Update,
+		"ipsum": plans.Delete,
+	}
+
+	for k, a := range resources {
+		addr := addrs.Resource{
+			Mode: addrs.EphemeralResourceMode,
+			Type: "test_instance",
+			Name: k,
+		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+		_, _ = h.PostDiff(addr, states.CurrentGen, a, cty.DynamicVal, cty.DynamicVal)
+	}
+
+	expected := new(countHook)
+	expected.ToAdd = 0
+	expected.ToChange = 0
+	expected.ToRemoveAndAdd = 0
+	expected.ToRemove = 0
+
+	if !reflect.DeepEqual(expected, h) {
+		t.Fatalf("Expected %#v, got %#v instead.",
+			expected, h)
+	}
+}
+
 func TestCountHookApply_ChangeOnly(t *testing.T) {
 	h := new(countHook)
 

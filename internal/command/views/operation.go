@@ -230,6 +230,8 @@ func (v *OperationJSON) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 		Operation: viewsjson.OperationPlanned,
 	}
 	for _, change := range plan.Changes.Resources {
+		// TODO ephemeral - when ephemeral resources are implemented, ensure that are not reaching here.
+		// The ephemeral resources should not be recorded in generated list of changes.
 		if change.Action == plans.Delete && change.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
 			// Avoid rendering data sources on deletion
 			continue
@@ -273,6 +275,8 @@ func (v *OperationJSON) Plan(plan *plans.Plan, schemas *tofu.Schemas) {
 }
 
 func (v *OperationJSON) PlannedChange(change *plans.ResourceInstanceChangeSrc) {
+	// TODO ephemeral - when ephemeral resources are implemented, ensure that are not reaching here.
+	// The ephemeral resources should not be recorded in generated list of changes.
 	if change.Action == plans.Delete && change.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
 		// Avoid rendering data sources on deletion
 		return
