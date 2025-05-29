@@ -6,8 +6,6 @@
 package tofu
 
 import (
-	"fmt"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -52,19 +50,9 @@ func (c *basicComponentFactory) ResourceProvisioners() []string {
 }
 
 func (c *basicComponentFactory) ResourceProvider(typ addrs.Provider) (providers.Interface, error) {
-	f, ok := c.providers[typ]
-	if !ok {
-		return nil, fmt.Errorf("unknown provider %q", typ.String())
-	}
-
-	return f()
+	panic("legacy")
 }
 
 func (c *basicComponentFactory) ResourceProvisioner(typ string) (provisioners.Interface, error) {
-	f, ok := c.provisioners[typ]
-	if !ok {
-		return nil, fmt.Errorf("unknown provisioner %q", typ)
-	}
-
-	return f()
+	panic("legacy")
 }

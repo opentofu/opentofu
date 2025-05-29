@@ -391,11 +391,14 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 				)
 			}
 
-			schema, version := schemas.ResourceTypeConfig(
+			schema, version, err := schemas.ResourceTypeSchema(
 				r.ProviderConfig.Provider,
 				resAddr.Mode,
 				resAddr.Type,
 			)
+			if err != nil {
+				return nil, fmt.Errorf("no schema found for %s (in provider %s): %s", resAddr.String(), r.ProviderConfig.Provider, err.Error())
+			}
 
 			// It is possible that the only instance is deposed
 			if ri.Current != nil {

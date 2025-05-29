@@ -56,11 +56,7 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 	)
 	defer span.End()
 
-	schemas, moreDiags := c.Schemas(ctx, config, nil)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		return diags
-	}
+	schemas := c.Schemas()
 
 	if c.uiInput == nil {
 		log.Printf("[TRACE] Context.Input: uiInput is nil, so skipping")
@@ -122,12 +118,12 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 			}
 
 			providerFqn := config.Module.ProviderForLocalConfig(pa)
-			schema := schemas.ProviderConfig(providerFqn)
-			if schema == nil {
+			schema, err := schemas.ProviderConfigSchema(providerFqn)
+			if err != nil {
 				// Could either be an incorrect config or just an incomplete
 				// mock in tests. We'll let a later pass decide, and just
 				// ignore this for the purposes of gathering input.
-				log.Printf("[TRACE] Context.Input: No schema available for provider type %q", pa.LocalName)
+				log.Printf("[TRACE] Context.Input: No schema available for provider type %q: %s", pa.LocalName, err.Error())
 				continue
 			}
 

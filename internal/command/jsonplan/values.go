@@ -212,13 +212,13 @@ func marshalPlanResources(changeMap map[string]*plans.ResourceInstanceChangeSrc,
 			)
 		}
 
-		schema, schemaVer := schemas.ResourceTypeConfig(
+		schema, schemaVer, err := schemas.ResourceTypeSchema(
 			r.ProviderAddr.Provider,
 			r.Addr.Resource.Resource.Mode,
 			resource.Type,
 		)
-		if schema == nil {
-			return nil, fmt.Errorf("no schema found for %s", r.Addr.String())
+		if err != nil {
+			return nil, fmt.Errorf("no schema found for %s: %s", r.Addr.String(), err)
 		}
 		resource.SchemaVersion = schemaVer
 		changeV, err := r.Decode(schema.ImpliedType())

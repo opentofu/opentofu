@@ -102,12 +102,8 @@ func (b *Local) opApply(
 	// operation.
 	runningOp.State = lr.InputState
 
-	schemas, moreDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		op.ReportResult(runningOp, diags)
-		return
-	}
+	schemas := lr.Core.Schemas()
+
 	// stateHook uses schemas for when it periodically persists state to the
 	// persistent storage backend.
 	stateHook.Schemas = schemas

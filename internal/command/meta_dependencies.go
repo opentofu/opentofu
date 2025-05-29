@@ -127,7 +127,7 @@ func (m *Meta) annotateDependencyLocksWithOverrides(ret *depsfile.Locks) *depsfi
 		ret.SetProviderOverridden(addr)
 	}
 	if m.testingOverrides != nil {
-		for addr := range m.testingOverrides.Providers {
+		for addr := range m.testingOverrides.Providers.ProviderSchemas() {
 			log.Printf("[DEBUG] Provider %s is overridden in Meta.testingOverrides", addr)
 			ret.SetProviderOverridden(addr)
 		}

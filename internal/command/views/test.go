@@ -148,8 +148,8 @@ func (t *TestHuman) Run(run *moduletest.Run, file *moduletest.File) {
 		// or the state depending on the type of run we did.
 
 		schemas := &tofu.Schemas{
-			Providers:    run.Verbose.Providers,
-			Provisioners: run.Verbose.Provisioners,
+			//TODO Providers:    run.Verbose.Providers,
+			//TODO Provisioners: run.Verbose.Provisioners,
 		}
 
 		renderer := jsonformat.Renderer{
@@ -410,8 +410,8 @@ func (t *TestJSON) Run(run *moduletest.Run, file *moduletest.File) {
 	if run.Verbose != nil {
 
 		schemas := &tofu.Schemas{
-			Providers:    run.Verbose.Providers,
-			Provisioners: run.Verbose.Provisioners,
+			//TODO Providers:    run.Verbose.Providers,
+			//TODO Provisioners: run.Verbose.Provisioners,
 		}
 
 		if run.Config.Command == configs.ApplyTestCommand {

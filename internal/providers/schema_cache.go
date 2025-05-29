@@ -5,12 +5,7 @@
 
 package providers
 
-import (
-	"sync"
-
-	"github.com/opentofu/opentofu/internal/addrs"
-)
-
+/*
 // SchemaCache is a global cache of Schemas.
 // This will be accessed by both core and the provider clients to ensure that
 // large schemas are stored in a single location.
@@ -46,4 +41,4 @@ func (c *schemaCache) Remove(p addrs.Provider) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.m, p)
-}
+}*/

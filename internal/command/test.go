@@ -10,7 +10,6 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"path"
 	"sort"
 	"strings"
 	"time"
@@ -591,28 +590,23 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 		}
 
 		if runner.Suite.Verbose {
-			schemas, diags := planCtx.Schemas(ctx, config, plan.PlannedState)
+			schemas := planCtx.Schemas()
 
-			// If we're going to fail to render the plan, let's not fail the overall
-			// test. It can still have succeeded. So we'll add the diagnostics, but
-			// still report the test status as a success.
-			if diags.HasErrors() {
-				// This is very unlikely.
-				diags = diags.Append(tfdiags.Sourceless(
-					tfdiags.Warning,
-					"Failed to print verbose output",
-					fmt.Sprintf("OpenTofu failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
-			} else {
-				run.Verbose = &moduletest.Verbose{
-					Plan:         plan,
-					State:        plan.PlannedState,
-					Config:       config,
-					Providers:    schemas.Providers,
-					Provisioners: schemas.Provisioners,
-				}
+			provisioners, err := schemas.ProvisionerSchemas()
+			if err != nil {
+				// If we're going to fail to render the plan, let's not fail the overall
+				// test. It can still have succeeded. So we'll add the diagnostics, but
+				// still report the test status as a success.
+				run.Diagnostics = run.Diagnostics.Append(err)
 			}
 
-			run.Diagnostics = run.Diagnostics.Append(diags)
+			run.Verbose = &moduletest.Verbose{
+				Plan:         plan,
+				State:        plan.PlannedState,
+				Config:       config,
+				Providers:    schemas.ProviderSchemas(),
+				Provisioners: provisioners,
+			}
 		}
 
 		planCtx.TestContext(config, plan.PlannedState, plan, variables).EvaluateAgainstPlan(run)
@@ -668,28 +662,23 @@ func (runner *TestFileRunner) ExecuteTestRun(ctx context.Context, run *moduletes
 	}
 
 	if runner.Suite.Verbose {
-		schemas, diags := planCtx.Schemas(ctx, config, plan.PlannedState)
+		schemas := planCtx.Schemas()
 
-		// If we're going to fail to render the plan, let's not fail the overall
-		// test. It can still have succeeded. So we'll add the diagnostics, but
-		// still report the test status as a success.
-		if diags.HasErrors() {
-			// This is very unlikely.
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
-				"Failed to print verbose output",
-				fmt.Sprintf("OpenTofu failed to print the verbose output for %s, other diagnostics will contain more details as to why.", path.Join(file.Name, run.Name))))
-		} else {
-			run.Verbose = &moduletest.Verbose{
-				Plan:         plan,
-				State:        updated,
-				Config:       config,
-				Providers:    schemas.Providers,
-				Provisioners: schemas.Provisioners,
-			}
+		provisioners, err := schemas.ProvisionerSchemas()
+		if err != nil {
+			// If we're going to fail to render the plan, let's not fail the overall
+			// test. It can still have succeeded. So we'll add the diagnostics, but
+			// still report the test status as a success.
+			run.Diagnostics = run.Diagnostics.Append(err)
 		}
 
-		run.Diagnostics = run.Diagnostics.Append(diags)
+		run.Verbose = &moduletest.Verbose{
+			Plan:         plan,
+			State:        updated,
+			Config:       config,
+			Providers:    schemas.ProviderSchemas(),
+			Provisioners: provisioners,
+		}
 	}
 
 	applyCtx.TestContext(config, updated, plan, variables).EvaluateAgainstState(run)
@@ -701,7 +690,7 @@ func (runner *TestFileRunner) validate(ctx context.Context, config *configs.Conf
 
 	var diags tfdiags.Diagnostics
 
-	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts, config, nil)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return diags
@@ -756,7 +745,7 @@ func (runner *TestFileRunner) destroy(ctx context.Context, config *configs.Confi
 		SetVariables: variables,
 	}
 
-	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts, config, state)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return state, diags
@@ -833,7 +822,7 @@ func (runner *TestFileRunner) plan(ctx context.Context, config *configs.Config, 
 		ExternalReferences: references,
 	}
 
-	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts, config, state)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return nil, nil, diags
@@ -888,7 +877,7 @@ func (runner *TestFileRunner) apply(ctx context.Context, plan *plans.Plan, state
 		created = append(created, change)
 	}
 
-	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts)
+	tfCtx, ctxDiags := tofu.NewContext(runner.Suite.Opts, config, state)
 	diags = diags.Append(ctxDiags)
 	if ctxDiags.HasErrors() {
 		return nil, state, diags

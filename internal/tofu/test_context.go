@@ -121,14 +121,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 			return inst
 		}
 
-		factory, ok := ctx.plugins.providerFactories[addr]
-		if !ok {
-			log.Printf("[WARN] Unable to find provider %s in test context", addr)
-			providerInstances[addr] = nil
-			return nil
-		}
-		log.Printf("[INFO] Starting test provider %s", addr)
-		inst, err := factory()
+		inst, err := ctx.plugins.NewProviderInstance(addr)
 		if err != nil {
 			log.Printf("[WARN] Unable to start provider %s in test context", addr)
 			providerInstances[addr] = nil

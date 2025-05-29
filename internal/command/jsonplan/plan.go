@@ -404,13 +404,13 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			continue
 		}
 
-		schema, _ := schemas.ResourceTypeConfig(
+		schema, _, err := schemas.ResourceTypeSchema(
 			rc.ProviderAddr.Provider,
 			addr.Resource.Resource.Mode,
 			addr.Resource.Resource.Type,
 		)
-		if schema == nil {
-			return nil, fmt.Errorf("no schema found for %s (in provider %s)", r.Address, rc.ProviderAddr.Provider)
+		if err != nil {
+			return nil, fmt.Errorf("no schema found for %s (in provider %s): %s", r.Address, rc.ProviderAddr.Provider, err)
 		}
 
 		changeV, err := rc.Decode(schema.ImpliedType())

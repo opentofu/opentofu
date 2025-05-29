@@ -43,8 +43,8 @@ func newProviders() *Providers {
 //
 // This is a format that can be read by the structured plan renderer.
 func MarshalForRenderer(s *tofu.Schemas) map[string]*Provider {
-	schemas := make(map[string]*Provider, len(s.Providers))
-	for k, v := range s.Providers {
+	schemas := make(map[string]*Provider)
+	for k, v := range s.ProviderSchemas() {
 		schemas[k.String()] = marshalProvider(v)
 	}
 	return schemas

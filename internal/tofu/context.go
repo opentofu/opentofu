@@ -14,7 +14,6 @@ import (
 
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/logging"
@@ -43,7 +42,7 @@ type ContextOpts struct {
 	Meta         *ContextMeta
 	Hooks        []Hook
 	Parallelism  int
-	Providers    map[addrs.Provider]providers.Factory
+	Providers    func(cfg *configs.Config, state *states.State) (*providers.Manager, error)
 	Provisioners map[string]provisioners.Factory
 	Encryption   encryption.Encryption
 
@@ -105,7 +104,7 @@ type Context struct {
 //
 // If the returned diagnostics contains errors then the resulting context is
 // invalid and must not be used.
-func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
+func NewContext(opts *ContextOpts, config *configs.Config, state *states.State) (*Context, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] tofu.NewContext: starting")
@@ -135,7 +134,12 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 		par = 10
 	}
 
-	plugins := newContextPlugins(opts.Providers, opts.Provisioners)
+	pm, err := opts.Providers(config, state)
+	if err != nil {
+		diags = diags.Append(err)
+	}
+
+	plugins := newContextPlugins(pm, opts.Provisioners)
 
 	log.Printf("[TRACE] tofu.NewContext: complete")
 
@@ -154,19 +158,8 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 	}, diags
 }
 
-func (c *Context) Schemas(ctx context.Context, config *configs.Config, state *states.State) (*Schemas, tfdiags.Diagnostics) {
-	var diags tfdiags.Diagnostics
-
-	ret, err := loadSchemas(ctx, config, state, c.plugins)
-	if err != nil {
-		diags = diags.Append(tfdiags.Sourceless(
-			tfdiags.Error,
-			"Failed to load plugin schemas",
-			fmt.Sprintf("Error while loading schemas for plugin components: %s.", err),
-		))
-		return nil, diags
-	}
-	return ret, diags
+func (c *Context) Schemas() *Schemas {
+	return &Schemas{c.plugins}
 }
 
 type ContextGraphOpts struct {

@@ -113,7 +113,7 @@ func (c *ValidateCommand) validate(ctx context.Context, dir, testDir string, noT
 			return diags
 		}
 
-		tfCtx, ctxDiags := tofu.NewContext(opts)
+		tfCtx, ctxDiags := tofu.NewContext(opts, cfg, nil)
 		diags = diags.Append(ctxDiags)
 		if ctxDiags.HasErrors() {
 			return diags

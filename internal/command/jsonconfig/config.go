@@ -167,7 +167,7 @@ func marshalProviderConfigs(
 	// Add an entry for each provider configuration block in the module.
 	for k, pc := range c.Module.ProviderConfigs {
 		providerFqn := c.ProviderForConfigAddr(addrs.LocalProviderConfig{LocalName: pc.Name})
-		schema := schemas.ProviderConfig(providerFqn)
+		schema, _ := schemas.ProviderConfigSchema(providerFqn) // TODO we should probably check the error here
 
 		p := providerConfig{
 			Name:          pc.Name,
@@ -477,13 +477,13 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 			}
 		}
 
-		schema, schemaVer := schemas.ResourceTypeConfig(
+		schema, schemaVer, err := schemas.ResourceTypeSchema(
 			v.Provider,
 			v.Mode,
 			v.Type,
 		)
-		if schema == nil {
-			return nil, fmt.Errorf("no schema found for %s (in provider %s)", v.Addr().String(), v.Provider)
+		if err != nil {
+			return nil, fmt.Errorf("no schema found for %s (in provider %s): %s", v.Addr().String(), v.Provider, err)
 		}
 		r.SchemaVersion = schemaVer
 
@@ -493,7 +493,7 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 		if v.Managed != nil && len(v.Managed.Provisioners) > 0 {
 			var provisioners []provisioner
 			for _, p := range v.Managed.Provisioners {
-				schema := schemas.ProvisionerConfig(p.Type)
+				schema, _ := schemas.ProvisionerSchema(p.Type) // TODO check error
 				prov := provisioner{
 					Type:        p.Type,
 					Expressions: marshalExpressions(p.Config, schema),

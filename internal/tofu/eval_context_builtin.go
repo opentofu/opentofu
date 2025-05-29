@@ -183,7 +183,7 @@ func (c *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig, key addrs.In
 }
 
 func (c *BuiltinEvalContext) ProviderSchema(ctx context.Context, addr addrs.AbsProviderConfig) (providers.ProviderSchema, error) {
-	return c.Plugins.ProviderSchema(ctx, addr.Provider)
+	return c.Plugins.ProviderSchema(addr.Provider)
 }
 
 func (c *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {

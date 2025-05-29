@@ -7,7 +7,7 @@ package providers
 
 // Factory is a function type that creates a new instance of a resource
 // provider, or returns an error if that is impossible.
-type Factory func() (Interface, error)
+type Factory func(SchemaCache) (Interface, error)
 
 // FactoryFixed is a helper that creates a Factory that just returns some given
 // single provider.
@@ -18,7 +18,7 @@ type Factory func() (Interface, error)
 // or to mutate it in ways that will not cause unexpected behavior for others
 // holding the same reference.
 func FactoryFixed(p Interface) Factory {
-	return func() (Interface, error) {
+	return func(SchemaCache) (Interface, error) {
 		return p, nil
 	}
 }

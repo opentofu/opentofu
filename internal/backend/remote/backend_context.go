@@ -150,7 +150,7 @@ func (b *Remote) LocalRun(ctx context.Context, op *backend.Operation) (*backend.
 		}
 	}
 
-	tfCtx, ctxDiags := tofu.NewContext(&opts)
+	tfCtx, ctxDiags := tofu.NewContext(&opts, config, ret.InputState)
 	diags = diags.Append(ctxDiags)
 	ret.Core = tfCtx
 

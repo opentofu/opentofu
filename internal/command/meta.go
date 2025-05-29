@@ -308,7 +308,7 @@ type Meta struct {
 }
 
 type testingOverrides struct {
-	Providers    map[addrs.Provider]providers.Factory
+	Providers    *providers.Manager
 	Provisioners map[string]provisioners.Factory
 }
 
@@ -583,12 +583,12 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 	// and just work with what we've been given, thus allowing the tests
 	// to provide mock providers and provisioners.
 	if m.testingOverrides != nil {
-		opts.Providers = m.testingOverrides.Providers
+		opts.Providers = func(*configs.Config, *states.State) (*providers.Manager, error) {
+			return m.testingOverrides.Providers, nil
+		}
 		opts.Provisioners = m.testingOverrides.Provisioners
 	} else {
-		var providerFactories map[addrs.Provider]providers.Factory
-		providerFactories, err = m.providerFactories()
-		opts.Providers = providerFactories
+		opts.Providers = m.providerManager
 		opts.Provisioners = m.provisionerFactories()
 	}
 
@@ -949,18 +949,12 @@ func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config 
 			diags = diags.Append(err)
 			return nil, diags
 		}
-		tfCtx, ctxDiags := tofu.NewContext(opts)
+		tfCtx, ctxDiags := tofu.NewContext(opts, config, state)
 		diags = diags.Append(ctxDiags)
 		if ctxDiags.HasErrors() {
 			return nil, diags
 		}
-		var schemaDiags tfdiags.Diagnostics
-		schemas, schemaDiags := tfCtx.Schemas(ctx, config, state)
-		diags = diags.Append(schemaDiags)
-		if schemaDiags.HasErrors() {
-			return nil, diags
-		}
-		return schemas, diags
+		return tfCtx.Schemas(), diags
 
 	}
 	return nil, diags

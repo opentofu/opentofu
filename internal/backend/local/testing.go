@@ -14,6 +14,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -97,8 +98,11 @@ func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.Pro
 	}
 
 	// Set up our provider
-	b.ContextOpts.Providers = map[addrs.Provider]providers.Factory{
-		addrs.NewDefaultProvider(name): providers.FactoryFixed(p),
+	addr := addrs.NewDefaultProvider(name)
+	b.ContextOpts.Providers = func(*configs.Config, *states.State) (*providers.Manager, error) {
+		return providers.NewManager(context.Background(),
+			map[addrs.Provider]providers.Factory{addr: providers.FactoryFixed(p)},
+		)
 	}
 
 	return p

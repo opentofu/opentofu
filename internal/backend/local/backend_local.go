@@ -227,7 +227,7 @@ func (b *Local) localRunDirect(ctx context.Context, op *backend.Operation, run *
 	}
 	run.InputState = state
 
-	tfCtx, moreDiags := tofu.NewContext(coreOpts)
+	tfCtx, moreDiags := tofu.NewContext(coreOpts, config, state)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, nil, diags
@@ -388,7 +388,7 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	// refreshing we did while building the plan.
 	run.InputState = priorStateFile.State
 
-	tfCtx, moreDiags := tofu.NewContext(coreOpts)
+	tfCtx, moreDiags := tofu.NewContext(coreOpts, config, run.InputState)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, nil, diags

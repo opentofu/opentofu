@@ -120,12 +120,7 @@ func (c *ProvidersSchemaCommand) Run(args []string) int {
 		return 1
 	}
 
-	schemas, moreDiags := lr.Core.Schemas(ctx, lr.Config, lr.InputState)
-	diags = diags.Append(moreDiags)
-	if moreDiags.HasErrors() {
-		c.showDiagnostics(diags)
-		return 1
-	}
+	schemas := lr.Core.Schemas()
 
 	jsonSchemas, err := jsonprovider.Marshal(schemas)
 	if err != nil {
