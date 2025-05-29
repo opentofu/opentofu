@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/plugins"
 )
 
 // GraphNodeAttachResourceSchema is an interface implemented by node types
@@ -49,7 +50,7 @@ type GraphNodeAttachProvisionerSchema interface {
 // GraphNodeAttachProvisionerSchema, looks up the needed schemas for each
 // and then passes them to a method implemented by the node.
 type AttachSchemaTransformer struct {
-	Plugins *contextPlugins
+	Plugins plugins.Schemas
 	Config  *configs.Config
 }
 

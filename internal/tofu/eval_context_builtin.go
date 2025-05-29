@@ -22,6 +22,7 @@ import (
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 	"github.com/opentofu/opentofu/internal/refactoring"
@@ -61,7 +62,7 @@ type BuiltinEvalContext struct {
 
 	// Plugins is a library of plugin components (providers and provisioners)
 	// available for use during a graph walk.
-	Plugins *contextPlugins
+	Plugins plugins.Manager
 
 	Hooks      []Hook
 	InputValue UIInput

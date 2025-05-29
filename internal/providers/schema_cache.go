@@ -12,6 +12,7 @@ import (
 
 type Schemas interface {
 	ProviderSchemas() map[addrs.Provider]ProviderSchema
+	HasProvider(addr addrs.Provider) bool
 	ProviderSchema(addr addrs.Provider) (ProviderSchema, error)
 	ProviderConfigSchema(providerAddr addrs.Provider) (*configschema.Block, error)
 	ResourceTypeSchema(providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (*configschema.Block, uint64, error)

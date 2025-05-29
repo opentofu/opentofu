@@ -98,6 +98,10 @@ func (m *Meta) pluginDirs(includeAutoInstalled bool) []string {
 	return dirs
 }
 
+func (m *Meta) provisionerManager() (provisioners.Manager, error) {
+	return provisioners.NewManager(m.provisionerFactories())
+}
+
 func (m *Meta) provisionerFactories() map[string]provisioners.Factory {
 	dirs := m.pluginDirs(true)
 	plugins := discovery.FindPlugins("provisioner", dirs)

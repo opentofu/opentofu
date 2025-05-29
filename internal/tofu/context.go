@@ -43,8 +43,8 @@ type ContextOpts struct {
 	Meta         *ContextMeta
 	Hooks        []Hook
 	Parallelism  int
-	Providers    func(cfg *configs.Config, state *states.State) (*providers.Manager, error)
-	Provisioners map[string]provisioners.Factory
+	Providers    func(cfg *configs.Config, state *states.State) (providers.Manager, error)
+	Provisioners func() (provisioners.Manager, error)
 	Encryption   encryption.Encryption
 
 	UIInput UIInput
@@ -80,7 +80,7 @@ type Context struct {
 	// operations.
 	meta *ContextMeta
 
-	plugins *contextPlugins
+	plugins plugins.Manager
 
 	hooks   []Hook
 	sh      *stopHook
@@ -135,12 +135,17 @@ func NewContext(opts *ContextOpts, config *configs.Config, state *states.State) 
 		par = 10
 	}
 
-	pm, err := opts.Providers(config, state)
+	providers, err := opts.Providers(config, state)
 	if err != nil {
 		diags = diags.Append(err)
 	}
 
-	plugins := newContextPlugins(pm, opts.Provisioners)
+	provisioners, err := opts.Provisioners()
+	if err != nil {
+		diags = diags.Append(err)
+	}
+
+	manager := plugins.NewManager(providers, provisioners)
 
 	log.Printf("[TRACE] tofu.NewContext: complete")
 
@@ -149,7 +154,7 @@ func NewContext(opts *ContextOpts, config *configs.Config, state *states.State) 
 		meta:    opts.Meta,
 		uiInput: opts.UIInput,
 
-		plugins: plugins,
+		plugins: manager,
 
 		parallelSem:         NewSemaphore(par),
 		providerInputConfig: make(map[string]map[string]cty.Value),

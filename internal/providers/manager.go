@@ -12,19 +12,22 @@ import (
 
 type SchemaCacheFn func(supplier func() ProviderSchema) ProviderSchema
 
+type Manager interface {
+	Schemas
+	NewProviderInstance(addr addrs.Provider) (Interface, error)
+}
+
 //TODO type SchemaFilter func(addrs.ResourceMode, string) bool
 
-type Manager struct {
+type manager struct {
 	schemas   map[addrs.Provider]ProviderSchema
 	factories map[addrs.Provider]Factory
 
 	// FUTURE: extend to take over responsibilities of managing provider interfaces from BuiltinEvalContext
 }
 
-var _ Schemas = (*Manager)(nil)
-
-func NewManager(ctx context.Context, factories map[addrs.Provider]Factory) (*Manager, error) {
-	manager := &Manager{
+func NewManager(ctx context.Context, factories map[addrs.Provider]Factory) (Manager, error) {
+	m := &manager{
 		schemas:   map[addrs.Provider]ProviderSchema{},
 		factories: factories,
 	}
@@ -35,7 +38,7 @@ func NewManager(ctx context.Context, factories map[addrs.Provider]Factory) (*Man
 
 		// Initialize
 		log.Printf("[TRACE] providers.Manager: Initializing provider %q to read its schema", addr)
-		instance, err := manager.NewProviderInstance(addr)
+		instance, err := m.NewProviderInstance(addr)
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to initialize provider %q: %w", addr, err))
 			continue
@@ -43,7 +46,7 @@ func NewManager(ctx context.Context, factories map[addrs.Provider]Factory) (*Man
 
 		// Pre-load the schemas
 		resp := instance.GetProviderSchema(ctx)
-		manager.schemas[addr] = resp
+		m.schemas[addr] = resp
 
 		err = instance.Close(ctx)
 		if err != nil {
@@ -82,15 +85,15 @@ func NewManager(ctx context.Context, factories map[addrs.Provider]Factory) (*Man
 		}
 	}
 
-	return manager, errors.Join(errs...)
+	return m, errors.Join(errs...)
 }
 
-func (m *Manager) HasProvider(addr addrs.Provider) bool {
+func (m *manager) HasProvider(addr addrs.Provider) bool {
 	_, ok := m.factories[addr]
 	return ok
 }
 
-func (m *Manager) NewProviderInstance(addr addrs.Provider) (Interface, error) {
+func (m *manager) NewProviderInstance(addr addrs.Provider) (Interface, error) {
 	f, ok := m.factories[addr]
 	if !ok {
 		return nil, fmt.Errorf("unavailable provider %q", addr.String())
@@ -108,12 +111,12 @@ func (m *Manager) NewProviderInstance(addr addrs.Provider) (Interface, error) {
 
 }
 
-func (m *Manager) ProviderSchemas() map[addrs.Provider]ProviderSchema {
+func (m *manager) ProviderSchemas() map[addrs.Provider]ProviderSchema {
 	// TODO copy this for safety
 	return m.schemas
 }
 
-func (m *Manager) ProviderSchema(addr addrs.Provider) (ProviderSchema, error) {
+func (m *manager) ProviderSchema(addr addrs.Provider) (ProviderSchema, error) {
 	schema, ok := m.schemas[addr]
 	if !ok {
 		return schema, fmt.Errorf("unavailable provider %q", addr.String())
@@ -125,7 +128,7 @@ func (m *Manager) ProviderSchema(addr addrs.Provider) (ProviderSchema, error) {
 // reads the full schema of the given provider and then extracts just the
 // provider's configuration schema, which defines what's expected in a
 // "provider" block in the configuration when configuring this provider.
-func (m *Manager) ProviderConfigSchema(providerAddr addrs.Provider) (*configschema.Block, error) {
+func (m *manager) ProviderConfigSchema(providerAddr addrs.Provider) (*configschema.Block, error) {
 	providerSchema, err := m.ProviderSchema(providerAddr)
 	if err != nil {
 		return nil, err
@@ -145,7 +148,7 @@ func (m *Manager) ProviderConfigSchema(providerAddr addrs.Provider) (*configsche
 // Managed resource types have versioned schemas, so the second return value
 // is the current schema version number for the requested resource. The version
 // is irrelevant for other resource modes.
-func (m *Manager) ResourceTypeSchema(providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (*configschema.Block, uint64, error) {
+func (m *manager) ResourceTypeSchema(providerAddr addrs.Provider, resourceMode addrs.ResourceMode, resourceType string) (*configschema.Block, uint64, error) {
 	providerSchema, err := m.ProviderSchema(providerAddr)
 	if err != nil {
 		return nil, 0, err

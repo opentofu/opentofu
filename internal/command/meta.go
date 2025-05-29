@@ -309,8 +309,8 @@ type Meta struct {
 }
 
 type testingOverrides struct {
-	Providers    *providers.Manager
-	Provisioners map[string]provisioners.Factory
+	Providers    providers.Manager
+	Provisioners provisioners.Manager
 }
 
 // initStatePaths is used to initialize the default values for
@@ -584,13 +584,15 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 	// and just work with what we've been given, thus allowing the tests
 	// to provide mock providers and provisioners.
 	if m.testingOverrides != nil {
-		opts.Providers = func(*configs.Config, *states.State) (*providers.Manager, error) {
+		opts.Providers = func(*configs.Config, *states.State) (providers.Manager, error) {
 			return m.testingOverrides.Providers, nil
 		}
-		opts.Provisioners = m.testingOverrides.Provisioners
+		opts.Provisioners = func() (provisioners.Manager, error) {
+			return m.testingOverrides.Provisioners, nil
+		}
 	} else {
 		opts.Providers = m.providerManager
-		opts.Provisioners = m.provisionerFactories()
+		opts.Provisioners = m.provisionerManager
 	}
 
 	opts.Meta = &tofu.ContextMeta{

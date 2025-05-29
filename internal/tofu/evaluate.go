@@ -24,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/lang"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -57,7 +58,7 @@ type Evaluator struct {
 	//
 	// From this we only access the schemas of the plugins, and don't otherwise
 	// interact with plugin instances.
-	Plugins *contextPlugins
+	Plugins plugins.Manager
 
 	// State is the current state, embedded in a wrapper that ensures that
 	// it can be safely accessed and modified concurrently.

@@ -11,6 +11,7 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -44,7 +45,7 @@ type EvalGraphBuilder struct {
 
 	// Plugins is a library of plug-in components (providers and
 	// provisioners) available for use.
-	Plugins *contextPlugins
+	Plugins plugins.Manager
 
 	ProviderFunctionTracker ProviderFunctionMapping
 }

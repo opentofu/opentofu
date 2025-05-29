@@ -99,7 +99,7 @@ func TestLocalProvider(t *testing.T, b *Local, name string, schema providers.Pro
 
 	// Set up our provider
 	addr := addrs.NewDefaultProvider(name)
-	b.ContextOpts.Providers = func(*configs.Config, *states.State) (*providers.Manager, error) {
+	b.ContextOpts.Providers = func(*configs.Config, *states.State) (providers.Manager, error) {
 		return providers.NewManager(context.Background(),
 			map[addrs.Provider]providers.Factory{addr: providers.FactoryFixed(p)},
 		)

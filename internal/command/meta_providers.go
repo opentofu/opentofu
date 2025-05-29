@@ -224,7 +224,7 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 	}
 }
 
-func (m *Meta) providerManager(cfg *configs.Config, state *states.State) (*providers.Manager, error) {
+func (m *Meta) providerManager(cfg *configs.Config, state *states.State) (providers.Manager, error) {
 	factories, err := m.providerFactories()
 	if err != nil {
 		return nil, err

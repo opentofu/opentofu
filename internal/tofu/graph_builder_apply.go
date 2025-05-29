@@ -12,6 +12,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/dag"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plugins"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -40,7 +41,7 @@ type ApplyGraphBuilder struct {
 
 	// Plugins is a library of the plug-in components (providers and
 	// provisioners) available for use.
-	Plugins *contextPlugins
+	Plugins plugins.Manager
 
 	// Targets are resources to target. This is only required to make sure
 	// unnecessary outputs aren't included in the apply graph. The plan
