@@ -22,6 +22,9 @@ resource "boop_whatever" "nope" {
 data "beep" "boop" {
 }
 
+ephemeral "foo" "bar" {
+}
+
 check "foo" {
   data "boop_data" "boop_nested" {}
 
