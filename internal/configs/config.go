@@ -419,68 +419,9 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 	// Each resource in the configuration creates an *implicit* provider
 	// dependency, though we'll only record it if there isn't already
 	// an explicit dependency on the same provider.
-	for _, rc := range c.Module.ManagedResources {
-		fqn := rc.Provider
-		if _, exists := reqs[fqn]; exists {
-			// If this is called for a child module, and the provider was added from another implicit reference and not
-			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-				CfgRes:            rc.Addr().InModule(c.Path),
-				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-				ProviderAttribute: rc.ProviderConfigRef != nil,
-			})
-			// Explicit dependency already present
-			continue
-		}
-		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-			CfgRes:            rc.Addr().InModule(c.Path),
-			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-			ProviderAttribute: rc.ProviderConfigRef != nil,
-		})
-		reqs[fqn] = nil
-	}
-	for _, rc := range c.Module.DataResources {
-		fqn := rc.Provider
-		if _, exists := reqs[fqn]; exists {
-			// If this is called for a child module, and the provider was added from another implicit reference and not
-			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-				CfgRes:            rc.Addr().InModule(c.Path),
-				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-				ProviderAttribute: rc.ProviderConfigRef != nil,
-			})
-
-			// Explicit dependency already present
-			continue
-		}
-		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-			CfgRes:            rc.Addr().InModule(c.Path),
-			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-			ProviderAttribute: rc.ProviderConfigRef != nil,
-		})
-		reqs[fqn] = nil
-	}
-	for _, rc := range c.Module.EphemeralResources {
-		fqn := rc.Provider
-		if _, exists := reqs[fqn]; exists {
-			// If this is called for a child module, and the provider was added from another implicit reference and not
-			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
-			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-				CfgRes:            rc.Addr().InModule(c.Path),
-				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-				ProviderAttribute: rc.ProviderConfigRef != nil,
-			})
-
-			// Explicit dependency already present
-			continue
-		}
-		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
-			CfgRes:            rc.Addr().InModule(c.Path),
-			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
-			ProviderAttribute: rc.ProviderConfigRef != nil,
-		})
-		reqs[fqn] = nil
-	}
+	c.collectImplicitProviders(c.Module.ManagedResources, reqs, qualifs)
+	c.collectImplicitProviders(c.Module.DataResources, reqs, qualifs)
+	c.collectImplicitProviders(c.Module.EphemeralResources, reqs, qualifs)
 
 	// Import blocks that are generating config may also have a custom provider
 	// meta argument. Like the provider meta argument used in resource blocks,
@@ -592,6 +533,31 @@ func (c *Config) addProviderRequirements(reqs getproviders.Requirements, qualifs
 	}
 
 	return diags
+}
+
+// collectImplicitProviders is checking the provider configuration of each resource.
+// For the resources whose required provider is not explicitly configured, an implicit one is collected.
+// This is mainly used for enabling warnings when OpenTofu fails to resolve the implicitly generated provider.
+func (c *Config) collectImplicitProviders(resources map[string]*Resource, reqs getproviders.Requirements, qualifs *getproviders.ProvidersQualification) {
+	for _, rc := range resources {
+		fqn := rc.Provider
+		if _, exists := reqs[fqn]; exists {
+			// If this is called for a child module, and the provider was added from another implicit reference and not
+			// from a top level required_provider, we need to collect the reference of this resource as well as implicit provider.
+			qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+				CfgRes:            rc.Addr().InModule(c.Path),
+				Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+				ProviderAttribute: rc.ProviderConfigRef != nil,
+			})
+			continue
+		}
+		qualifs.AddImplicitProvider(fqn, getproviders.ResourceRef{
+			CfgRes:            rc.Addr().InModule(c.Path),
+			Ref:               tfdiags.SourceRangeFromHCL(rc.DeclRange),
+			ProviderAttribute: rc.ProviderConfigRef != nil,
+		})
+		reqs[fqn] = nil
+	}
 }
 
 func (c *Config) addProviderRequirementsFromProviderBlock(reqs getproviders.Requirements, provider *Provider) hcl.Diagnostics {
