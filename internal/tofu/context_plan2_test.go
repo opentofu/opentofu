@@ -4169,7 +4169,7 @@ func TestContext2Plan_preconditionErrors(t *testing.T) {
 		{
 			"data.foo.bar",
 			"Reference to undeclared resource",
-			`A data resource "foo" "bar" has not been declared in the root module`,
+			`There is no data resource "foo" "bar" definition in the root module.`,
 		},
 		{
 			"test_resource.b.value",
