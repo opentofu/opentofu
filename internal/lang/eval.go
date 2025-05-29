@@ -398,35 +398,37 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 type evalVarBuilder struct {
 	s *Scope
 
-	dataResources    map[string]map[string]cty.Value
-	managedResources map[string]map[string]cty.Value
-	wholeModules     map[string]cty.Value
-	inputVariables   map[string]cty.Value
-	localValues      map[string]cty.Value
-	outputValues     map[string]cty.Value
-	pathAttrs        map[string]cty.Value
-	terraformAttrs   map[string]cty.Value
-	countAttrs       map[string]cty.Value
-	forEachAttrs     map[string]cty.Value
-	checkBlocks      map[string]cty.Value
-	self             cty.Value
+	dataResources      map[string]map[string]cty.Value
+	managedResources   map[string]map[string]cty.Value
+	ephemeralResources map[string]map[string]cty.Value
+	wholeModules       map[string]cty.Value
+	inputVariables     map[string]cty.Value
+	localValues        map[string]cty.Value
+	outputValues       map[string]cty.Value
+	pathAttrs          map[string]cty.Value
+	terraformAttrs     map[string]cty.Value
+	countAttrs         map[string]cty.Value
+	forEachAttrs       map[string]cty.Value
+	checkBlocks        map[string]cty.Value
+	self               cty.Value
 }
 
 func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
 	return &evalVarBuilder{
 		s: s,
 
-		dataResources:    map[string]map[string]cty.Value{},
-		managedResources: map[string]map[string]cty.Value{},
-		wholeModules:     map[string]cty.Value{},
-		inputVariables:   map[string]cty.Value{},
-		localValues:      map[string]cty.Value{},
-		outputValues:     map[string]cty.Value{},
-		pathAttrs:        map[string]cty.Value{},
-		terraformAttrs:   map[string]cty.Value{},
-		countAttrs:       map[string]cty.Value{},
-		forEachAttrs:     map[string]cty.Value{},
-		checkBlocks:      map[string]cty.Value{},
+		dataResources:      map[string]map[string]cty.Value{},
+		ephemeralResources: map[string]map[string]cty.Value{},
+		managedResources:   map[string]map[string]cty.Value{},
+		wholeModules:       map[string]cty.Value{},
+		inputVariables:     map[string]cty.Value{},
+		localValues:        map[string]cty.Value{},
+		outputValues:       map[string]cty.Value{},
+		pathAttrs:          map[string]cty.Value{},
+		terraformAttrs:     map[string]cty.Value{},
+		countAttrs:         map[string]cty.Value{},
+		forEachAttrs:       map[string]cty.Value{},
+		checkBlocks:        map[string]cty.Value{},
 	}
 }
 
@@ -549,6 +551,8 @@ func (b *evalVarBuilder) putResourceValue(ctx context.Context, res addrs.Resourc
 		into = b.managedResources
 	case addrs.DataResourceMode:
 		into = b.dataResources
+	case addrs.EphemeralResourceMode:
+		into = b.ephemeralResources
 	case addrs.InvalidResourceMode:
 		panic("BUG: got invalid resource mode")
 	default:
@@ -577,6 +581,7 @@ func (b *evalVarBuilder) buildAllVariablesInto(vals map[string]cty.Value) {
 	vals["resource"] = cty.ObjectVal(buildResourceObjects(b.managedResources))
 
 	vals["data"] = cty.ObjectVal(buildResourceObjects(b.dataResources))
+	vals["ephemeral"] = cty.ObjectVal(buildResourceObjects(b.ephemeralResources))
 	vals["module"] = cty.ObjectVal(b.wholeModules)
 	vals["var"] = cty.ObjectVal(b.inputVariables)
 	vals["local"] = cty.ObjectVal(b.localValues)
