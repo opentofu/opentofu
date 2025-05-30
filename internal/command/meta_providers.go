@@ -14,6 +14,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 
 	plugin "github.com/hashicorp/go-plugin"
 
@@ -303,47 +304,56 @@ func (m *Meta) providerFactories(ctx context.Context, cfg *configs.Config, state
 		factories[provider] = providerFactoryError(thisErr)
 	}
 
-	for provider, lock := range providerLocks {
-		if locks.ProviderIsOverridden(provider) {
-			// Overridden providers we'll handle with the other separate
-			// loops below, for dev overrides etc.
-			continue
-		}
+	var wg sync.WaitGroup
 
-		version := lock.Version()
-		cached := cacheDir.ProviderVersion(provider, version)
-		if cached == nil {
-			reportError(provider, fmt.Errorf(
-				"there is no package for %s %s cached in %s",
-				provider, version, cacheDir.BasePath(),
-			))
-			continue
-		}
-		// The cached package must match one of the checksums recorded in
-		// the lock file, if any.
-		if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
-			matched, err := cached.MatchesAnyHash(allowedHashes)
-			if err != nil {
-				reportError(provider, fmt.Errorf(
-					"failed to verify checksum of %s %s package cached in in %s: %w",
-					provider, version, cacheDir.BasePath(), err,
-				))
-				continue
+	for provider, lock := range providerLocks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if locks.ProviderIsOverridden(provider) {
+				// Overridden providers we'll handle with the other separate
+				// loops below, for dev overrides etc.
+				return
 			}
-			if !matched {
+
+			version := lock.Version()
+			cached := cacheDir.ProviderVersion(provider, version)
+			if cached == nil {
 				reportError(provider, fmt.Errorf(
-					"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
+					"there is no package for %s %s cached in %s",
 					provider, version, cacheDir.BasePath(),
 				))
-				continue
+				return
 			}
-		}
-		var err error
-		factories[provider], err = cachedProviderFactory(ctx, cached, reqs[provider])
-		if err != nil {
-			reportError(provider, err)
-		}
+			// The cached package must match one of the checksums recorded in
+			// the lock file, if any.
+			if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
+				matched, err := cached.MatchesAnyHash(allowedHashes)
+				if err != nil {
+					reportError(provider, fmt.Errorf(
+						"failed to verify checksum of %s %s package cached in in %s: %w",
+						provider, version, cacheDir.BasePath(), err,
+					))
+					return
+				}
+				if !matched {
+					reportError(provider, fmt.Errorf(
+						"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
+						provider, version, cacheDir.BasePath(),
+					))
+					return
+				}
+			}
+			var err error
+			factories[provider], err = cachedProviderFactory(ctx, cached, reqs[provider])
+			if err != nil {
+				reportError(provider, err)
+			}
+		}()
 	}
+
+	wg.Wait()
+
 	for provider, localDir := range devOverrideProviders {
 		var err error
 		factories[provider], err = devOverrideProviderFactory(ctx, provider, localDir, reqs[provider])
