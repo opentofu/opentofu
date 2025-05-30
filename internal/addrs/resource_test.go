@@ -7,6 +7,7 @@ package addrs
 
 import (
 	"fmt"
+	"sort"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -23,6 +24,11 @@ func TestResourceEqual_true(t *testing.T) {
 		},
 		{
 			Mode: DataResourceMode,
+			Type: "a",
+			Name: "b",
+		},
+		{
+			Mode: EphemeralResourceMode,
 			Type: "a",
 			Name: "b",
 		},
@@ -52,6 +58,10 @@ func TestResourceEqual_false(t *testing.T) {
 		{
 			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
 			Resource{Mode: ManagedResourceMode, Type: "a", Name: "c"},
+		},
+		{
+			Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: EphemeralResourceMode, Type: "a", Name: "c"},
 		},
 	}
 	for _, tc := range testCases {
@@ -85,6 +95,14 @@ func TestResourceInstanceEqual_true(t *testing.T) {
 			},
 			Key: StringKey("x"),
 		},
+		{
+			Resource: Resource{
+				Mode: EphemeralResourceMode,
+				Type: "a",
+				Name: "b",
+			},
+			Key: StringKey("x"),
+		},
 	}
 	for _, r := range resources {
 		t.Run(r.String(), func(t *testing.T) {
@@ -103,6 +121,16 @@ func TestResourceInstanceEqual_false(t *testing.T) {
 		{
 			ResourceInstance{
 				Resource: Resource{Mode: DataResourceMode, Type: "a", Name: "b"},
+				Key:      IntKey(0),
+			},
+			ResourceInstance{
+				Resource: Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+				Key:      IntKey(0),
+			},
+		},
+		{
+			ResourceInstance{
+				Resource: Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
 				Key:      IntKey(0),
 			},
 			ResourceInstance{
@@ -140,6 +168,26 @@ func TestResourceInstanceEqual_false(t *testing.T) {
 				Key:      StringKey("0"),
 			},
 		},
+		{
+			ResourceInstance{
+				Resource: Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+				Key:      IntKey(0),
+			},
+			ResourceInstance{
+				Resource: Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+				Key:      StringKey("0"),
+			},
+		},
+		{
+			ResourceInstance{
+				Resource: Resource{Mode: DataResourceMode, Type: "a", Name: "b"},
+				Key:      IntKey(0),
+			},
+			ResourceInstance{
+				Resource: Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+				Key:      IntKey(0),
+			},
+		},
 	}
 	for _, tc := range testCases {
 		t.Run(fmt.Sprintf("%s = %s", tc.left, tc.right), func(t *testing.T) {
@@ -157,6 +205,7 @@ func TestResourceInstanceEqual_false(t *testing.T) {
 func TestAbsResourceInstanceEqual_true(t *testing.T) {
 	managed := Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"}
 	data := Resource{Mode: DataResourceMode, Type: "a", Name: "b"}
+	ephemeral := Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"}
 
 	foo, diags := ParseModuleInstanceStr("module.foo")
 	if len(diags) > 0 {
@@ -170,7 +219,9 @@ func TestAbsResourceInstanceEqual_true(t *testing.T) {
 	instances := []AbsResourceInstance{
 		managed.Instance(IntKey(0)).Absolute(foo),
 		data.Instance(IntKey(0)).Absolute(foo),
+		ephemeral.Instance(IntKey(0)).Absolute(foo),
 		managed.Instance(StringKey("a")).Absolute(foobar),
+		ephemeral.Instance(IntKey(0)).Absolute(foobar),
 	}
 	for _, r := range instances {
 		t.Run(r.String(), func(t *testing.T) {
@@ -184,6 +235,7 @@ func TestAbsResourceInstanceEqual_true(t *testing.T) {
 func TestAbsResourceInstanceEqual_false(t *testing.T) {
 	managed := Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"}
 	data := Resource{Mode: DataResourceMode, Type: "a", Name: "b"}
+	ephemeral := Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"}
 
 	foo, diags := ParseModuleInstanceStr("module.foo")
 	if len(diags) > 0 {
@@ -209,6 +261,14 @@ func TestAbsResourceInstanceEqual_false(t *testing.T) {
 		{
 			managed.Instance(IntKey(0)).Absolute(foo),
 			managed.Instance(StringKey("0")).Absolute(foo),
+		},
+		{
+			ephemeral.Instance(IntKey(0)).Absolute(foo),
+			ephemeral.Instance(IntKey(0)).Absolute(foobar),
+		},
+		{
+			ephemeral.Instance(StringKey("0")).Absolute(foo),
+			ephemeral.Instance(IntKey(0)).Absolute(foo),
 		},
 	}
 	for _, tc := range testCases {
@@ -306,11 +366,19 @@ func TestConfigResourceEqual_true(t *testing.T) {
 			Module:   RootModule,
 		},
 		{
+			Resource: Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+			Module:   RootModule,
+		},
+		{
 			Resource: Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
 			Module:   Module{"foo"},
 		},
 		{
 			Resource: Resource{Mode: DataResourceMode, Type: "a", Name: "b"},
+			Module:   Module{"foo"},
+		},
+		{
+			Resource: Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
 			Module:   Module{"foo"},
 		},
 	}
@@ -326,6 +394,7 @@ func TestConfigResourceEqual_true(t *testing.T) {
 func TestConfigResourceEqual_false(t *testing.T) {
 	managed := Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"}
 	data := Resource{Mode: DataResourceMode, Type: "a", Name: "b"}
+	ephemeral := Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"}
 
 	foo := Module{"foo"}
 	foobar := Module{"foobar"}
@@ -339,7 +408,19 @@ func TestConfigResourceEqual_false(t *testing.T) {
 		},
 		{
 			ConfigResource{Resource: managed, Module: foo},
+			ConfigResource{Resource: ephemeral, Module: foo},
+		},
+		{
+			ConfigResource{Resource: data, Module: foo},
+			ConfigResource{Resource: ephemeral, Module: foo},
+		},
+		{
+			ConfigResource{Resource: managed, Module: foo},
 			ConfigResource{Resource: managed, Module: foobar},
+		},
+		{
+			ConfigResource{Resource: ephemeral, Module: foo},
+			ConfigResource{Resource: ephemeral, Module: foobar},
 		},
 	}
 	for _, tc := range testCases {
@@ -386,6 +467,17 @@ func TestParseConfigResource(t *testing.T) {
 			},
 		},
 		{
+			Input: "ephemeral.a.b",
+			WantConfigResource: ConfigResource{
+				Module: RootModule,
+				Resource: Resource{
+					Mode: EphemeralResourceMode,
+					Type: "a",
+					Name: "b",
+				},
+			},
+		},
+		{
 			Input: "module.a.b.c",
 			WantConfigResource: ConfigResource{
 				Module: []string{"a"},
@@ -402,6 +494,17 @@ func TestParseConfigResource(t *testing.T) {
 				Module: []string{"a"},
 				Resource: Resource{
 					Mode: DataResourceMode,
+					Type: "b",
+					Name: "c",
+				},
+			},
+		},
+		{
+			Input: "module.a.ephemeral.b.c",
+			WantConfigResource: ConfigResource{
+				Module: []string{"a"},
+				Resource: Resource{
+					Mode: EphemeralResourceMode,
 					Type: "b",
 					Name: "c",
 				},
@@ -430,6 +533,17 @@ func TestParseConfigResource(t *testing.T) {
 			},
 		},
 		{
+			Input: "module.a.module.b.ephemeral.c.d",
+			WantConfigResource: ConfigResource{
+				Module: []string{"a", "b"},
+				Resource: Resource{
+					Mode: EphemeralResourceMode,
+					Type: "c",
+					Name: "d",
+				},
+			},
+		},
+		{
 			Input:   "module.a.module.b",
 			WantErr: "Module address is not allowed: Expected reference to either resource or data block. Provided reference appears to be a module.",
 		},
@@ -447,6 +561,10 @@ func TestParseConfigResource(t *testing.T) {
 		},
 		{
 			Input:   "module.a.module.b.data.c.d[0]",
+			WantErr: `Resource instance address with keys is not allowed: Resource address cannot be a resource instance (e.g. "null_resource.a[0]"), it must be a resource instead (e.g. "null_resource.a").`,
+		},
+		{
+			Input:   "module.a.module.b.ephemeral.c.d[0]",
 			WantErr: `Resource instance address with keys is not allowed: Resource address cannot be a resource instance (e.g. "null_resource.a[0]"), it must be a resource instead (e.g. "null_resource.a").`,
 		},
 	}
@@ -483,5 +601,84 @@ func TestParseConfigResource(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestResourceLess(t *testing.T) {
+	tests := []struct {
+		left, right Resource
+		want        bool
+	}{
+		{
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: DataResourceMode, Type: "a", Name: "b"},
+			false,
+		},
+		{
+			Resource{Mode: DataResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+			true,
+		},
+		{
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+			false,
+		},
+		{
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "c"},
+			true,
+		},
+		{
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: ManagedResourceMode, Type: "b", Name: "b"},
+			true,
+		},
+		{
+			Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+			true,
+		},
+		{
+			Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+			false,
+		},
+		{
+			Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: DataResourceMode, Type: "a", Name: "b"},
+			true,
+		},
+		{
+			Resource{Mode: DataResourceMode, Type: "a", Name: "b"},
+			Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"},
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		wantComparison := ">"
+		if tt.want {
+			wantComparison = "<"
+		}
+		t.Run(fmt.Sprintf("%s %s %s", tt.left, wantComparison, tt.right), func(t *testing.T) {
+			if got, want := tt.left.Less(tt.right), tt.want; got != want {
+				t.Fatalf("wrong expectation between %q and %q. want: %t; got: %t", tt.left, tt.right, want, got)
+			}
+		})
+	}
+}
+
+func TestResourceSort(t *testing.T) {
+	managed := Resource{Mode: ManagedResourceMode, Type: "a", Name: "b"}
+	data := Resource{Mode: DataResourceMode, Type: "a", Name: "b"}
+	ephemeral := Resource{Mode: EphemeralResourceMode, Type: "a", Name: "b"}
+
+	got := []Resource{managed, data, ephemeral, managed, ephemeral, data}
+	sort.SliceStable(got, func(i, j int) bool { return got[i].Less(got[j]) })
+
+	want := []Resource{ephemeral, ephemeral, data, data, managed, managed}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("expected no diff meaning that sorting is not working properly.\ndiff: %s", diff)
 	}
 }

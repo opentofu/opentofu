@@ -74,8 +74,12 @@ func parseResourceInstanceUnderModule(moduleAddr ModuleInstance, remain hcl.Trav
 	var diags tfdiags.Diagnostics
 
 	mode := ManagedResourceMode
-	if remain.RootName() == "data" {
+	switch remain.RootName() {
+	case "data":
 		mode = DataResourceMode
+		remain = remain[1:]
+	case "ephemeral":
+		mode = EphemeralResourceMode
 		remain = remain[1:]
 	}
 
@@ -135,8 +139,13 @@ func parseResourceUnderModule(moduleAddr Module, remain hcl.Traversal) (ConfigRe
 	var diags tfdiags.Diagnostics
 
 	mode := ManagedResourceMode
-	if remain.RootName() == "data" {
+
+	switch remain.RootName() {
+	case "data":
 		mode = DataResourceMode
+		remain = remain[1:]
+	case "ephemeral":
+		mode = EphemeralResourceMode
 		remain = remain[1:]
 	}
 
