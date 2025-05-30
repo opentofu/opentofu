@@ -2055,6 +2055,10 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx Ev
 			// we'll also encounter it in this list of dependencies.
 			continue
 		}
+		// TODO ephemeral - since a data source cannot have write-only attributes, a data source that is referencing
+		// an ephemeral resource needs to show an error. We need to check where that evaluation needs to be done. Once
+		// it is done, this comment can be removed and best case scenario, we can add a check in here for the sake of safety,
+		// to ensure that an ephemeral cannot ever be referenced by a data source.
 
 		for _, change := range changes.GetChangesForConfigResource(d) {
 			changeModInst := change.Addr.Module
