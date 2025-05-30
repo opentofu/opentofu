@@ -71,9 +71,10 @@ type GRPCProvider struct {
 	// to use as the parent context for gRPC API calls.
 	ctx context.Context
 
-	mu                 sync.Mutex
-	SchemaCache        providers.SchemaCacheFn
+	// Only set externally, managed by the factory
+	SchemaCache        *providers.ProviderSchema
 	hasCalledGetSchema bool
+	mu                 sync.Mutex
 }
 
 var _ providers.Interface = new(GRPCProvider)
@@ -89,32 +90,16 @@ var _ providers.Interface = new(GRPCProvider)
 const maxRecvSize = 64 << 20
 
 func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
+	logger.Trace("GRPCProvider.v6: GetProviderSchema")
+
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	cached := p.SchemaCache(func() providers.ProviderSchema {
-		p.hasCalledGetSchema = true
-		return p.getProviderSchema(ctx)
-	})
-	if !p.hasCalledGetSchema && !cached.ServerCapabilities.GetProviderSchemaOptional {
-		// Even if the schema is cached, GetProviderSchemaOptional could be false. This would indicate that once instantiated,
-		// this provider requires the get schema call to be made at least once, as it handles part of the provider's setup.
-		// At this point, we don't know if this is the first call to a provider instance or not, so we don't use the result in that case.
-
-		_, err := p.client.GetProviderSchema(ctx, new(proto6.GetProviderSchema_Request), grpc.MaxRecvMsgSizeCallOption{MaxRecvMsgSize: maxRecvSize})
-		if err != nil {
-			cached.Diagnostics = cached.Diagnostics.Append(grpcErr(err))
-		}
-
-		// Mark that we have made the GetProviderSchema RPC
-		p.hasCalledGetSchema = true
-
+	if p.SchemaCache != nil && (p.SchemaCache.ServerCapabilities.GetProviderSchemaOptional || p.hasCalledGetSchema) {
+		// return early if we already have a cached and deserialized schema
+		// and are allowed to skip the GetProviderSchema call
+		return *p.SchemaCache
 	}
-
-	return cached
-}
-func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
-	logger.Trace("GRPCProvider.v6: GetProviderSchema")
 
 	resp.ResourceTypes = make(map[string]providers.Schema)
 	resp.DataSources = make(map[string]providers.Schema)
@@ -125,6 +110,7 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 		resp.Diagnostics = resp.Diagnostics.Append(grpcErr(err))
 		return resp
 	}
+	p.hasCalledGetSchema = true
 
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
 
@@ -135,6 +121,11 @@ func (p *GRPCProvider) getProviderSchema(ctx context.Context) (resp providers.Ge
 	if protoResp.Provider == nil {
 		resp.Diagnostics = resp.Diagnostics.Append(errors.New("missing provider schema"))
 		return resp
+	}
+
+	if p.SchemaCache != nil {
+		// return early if we already have a cached and deserialized schema
+		return *p.SchemaCache
 	}
 
 	resp.Provider = convert.ProtoToProviderSchema(protoResp.Provider)

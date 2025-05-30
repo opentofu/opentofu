@@ -43,7 +43,7 @@ type ContextOpts struct {
 	Meta         *ContextMeta
 	Hooks        []Hook
 	Parallelism  int
-	Providers    func(cfg *configs.Config, state *states.State) (providers.Manager, error)
+	Providers    func(context.Context, *configs.Config, *states.State) (providers.Manager, error)
 	Provisioners func() (provisioners.Manager, error)
 	Encryption   encryption.Encryption
 
@@ -135,7 +135,8 @@ func NewContext(opts *ContextOpts, config *configs.Config, state *states.State) 
 		par = 10
 	}
 
-	providers, err := opts.Providers(config, state)
+	// TODO plumb in context
+	providers, err := opts.Providers(context.TODO(), config, state)
 	if err != nil {
 		diags = diags.Append(err)
 	}

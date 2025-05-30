@@ -224,14 +224,13 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 	}
 }
 
-func (m *Meta) providerManager(cfg *configs.Config, state *states.State) (providers.Manager, error) {
-	factories, err := m.providerFactories()
+func (m *Meta) providerManager(ctx context.Context, cfg *configs.Config, state *states.State) (providers.Manager, error) {
+	factories, err := m.providerFactories(ctx, cfg, state)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO pumb in context
-	return providers.NewManager(context.Background(), factories)
+	return providers.NewManager(factories), nil
 }
 
 // providerFactories uses the selections made previously by an installer in
@@ -245,7 +244,7 @@ func (m *Meta) providerManager(cfg *configs.Config, state *states.State) (provid
 // package have been modified outside of the installer. If it returns an error,
 // the returned map may be incomplete or invalid, but will be as complete
 // as possible given the cause of the error.
-func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error) {
+func (m *Meta) providerFactories(ctx context.Context, cfg *configs.Config, state *states.State) (map[addrs.Provider]providers.Factory, error) {
 	locks, diags := m.lockedDependencies()
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("failed to read dependency lock file: %w", diags.Err())
@@ -292,16 +291,16 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	for name, factory := range internalFactories {
 		factories[addrs.NewBuiltInProvider(name)] = factory
 	}
-	for provider, lock := range providerLocks {
-		reportError := func(thisErr error) {
-			errs[provider] = thisErr
-			// We'll populate a provider factory that just echoes our error
-			// again if called, which allows us to still report a helpful
-			// error even if it gets detected downstream somewhere from the
-			// caller using our partial result.
-			factories[provider] = providerFactoryError(thisErr)
-		}
+	reportError := func(provider addrs.Provider, thisErr error) {
+		errs[provider] = thisErr
+		// We'll populate a provider factory that just echoes our error
+		// again if called, which allows us to still report a helpful
+		// error even if it gets detected downstream somewhere from the
+		// caller using our partial result.
+		factories[provider] = providerFactoryError(thisErr)
+	}
 
+	for provider, lock := range providerLocks {
 		if locks.ProviderIsOverridden(provider) {
 			// Overridden providers we'll handle with the other separate
 			// loops below, for dev overrides etc.
@@ -311,7 +310,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 		version := lock.Version()
 		cached := cacheDir.ProviderVersion(provider, version)
 		if cached == nil {
-			reportError(fmt.Errorf(
+			reportError(provider, fmt.Errorf(
 				"there is no package for %s %s cached in %s",
 				provider, version, cacheDir.BasePath(),
 			))
@@ -322,27 +321,39 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 		if allowedHashes := lock.PreferredHashes(); len(allowedHashes) != 0 {
 			matched, err := cached.MatchesAnyHash(allowedHashes)
 			if err != nil {
-				reportError(fmt.Errorf(
+				reportError(provider, fmt.Errorf(
 					"failed to verify checksum of %s %s package cached in in %s: %w",
 					provider, version, cacheDir.BasePath(), err,
 				))
 				continue
 			}
 			if !matched {
-				reportError(fmt.Errorf(
+				reportError(provider, fmt.Errorf(
 					"the cached package for %s %s (in %s) does not match any of the checksums recorded in the dependency lock file",
 					provider, version, cacheDir.BasePath(),
 				))
 				continue
 			}
 		}
-		factories[provider] = providerFactory(cached)
+		var err error
+		factories[provider], err = cachedProviderFactory(ctx, cached)
+		if err != nil {
+			reportError(provider, err)
+		}
 	}
 	for provider, localDir := range devOverrideProviders {
-		factories[provider] = devOverrideProviderFactory(provider, localDir)
+		var err error
+		factories[provider], err = devOverrideProviderFactory(ctx, provider, localDir)
+		if err != nil {
+			reportError(provider, err)
+		}
 	}
 	for provider, reattach := range unmanagedProviders {
-		factories[provider] = unmanagedProviderFactory(provider, reattach)
+		var err error
+		factories[provider], err = unmanagedProviderFactory(ctx, provider, reattach)
+		if err != nil {
+			reportError(provider, err)
+		}
 	}
 
 	var err error
@@ -353,36 +364,30 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 }
 
 func (m *Meta) internalProviders() map[string]providers.Factory {
+	internal := terraformProvider.NewProvider()
 	return map[string]providers.Factory{
-		"terraform": func(providers.SchemaCacheFn) (providers.Interface, error) {
-			return terraformProvider.NewProvider(), nil
-		},
+		"terraform": providers.FactoryFixed(internal),
 	}
 }
 
-// providerFactory produces a provider factory that runs up the executable
-// file in the given cache package and uses go-plugin to implement
-// providers.Interface against it.
-func providerFactory(meta *providercache.CachedProvider) providers.Factory {
-	return func(schemaCache providers.SchemaCacheFn) (providers.Interface, error) {
-		execFile, err := meta.ExecutableFile()
-		if err != nil {
-			return nil, err
-		}
+type providerFactory struct {
+	constructor func() (providers.Interface, error)
+	schema      providers.ProviderSchema
+}
 
-		config := &plugin.ClientConfig{
-			HandshakeConfig:  tfplugin.Handshake,
-			Logger:           logging.NewProviderLogger(""),
-			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
-			Managed:          true,
-			Cmd:              exec.Command(execFile),
-			AutoMTLS:         enableProviderAutoMTLS,
-			VersionedPlugins: tfplugin.VersionedPlugins,
-			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Provider)),
-			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", meta.Provider)),
-		}
+func (p *providerFactory) Instance() (providers.Interface, error) {
+	return p.constructor()
+}
 
-		client := plugin.NewClient(config)
+func (p *providerFactory) Schema() providers.ProviderSchema {
+	return p.schema
+}
+
+func pluginProviderFactory(ctx context.Context, config func() *plugin.ClientConfig) (providers.Factory, error) {
+	var schema *providers.ProviderSchema
+
+	constructor := func() (providers.Interface, error) {
+		client := plugin.NewClient(config())
 		rpcClient, err := client.Client()
 		if err != nil {
 			return nil, err
@@ -394,18 +399,53 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 		}
 
 		protoVer := client.NegotiatedVersion()
-		p, err := initializeProviderInstance(raw, protoVer, client, schemaCache)
+		p, err := initializeProviderInstance(raw, protoVer, client, schema)
 		if errors.Is(err, errUnsupportedProtocolVersion) {
 			panic(err)
 		}
 
 		return p, err
 	}
+
+	// Set Schema
+	instance, err := constructor()
+	if err != nil {
+		return nil, err
+	}
+
+	tmp := instance.GetProviderSchema(ctx)
+	schema = &tmp
+
+	return &providerFactory{constructor, *schema}, instance.Close(ctx)
+}
+
+// providerFactory produces a provider factory that runs up the executable
+// file in the given cache package and uses go-plugin to implement
+// providers.Interface against it.
+func cachedProviderFactory(ctx context.Context, meta *providercache.CachedProvider) (providers.Factory, error) {
+	execFile, err := meta.ExecutableFile()
+	if err != nil {
+		return nil, err
+	}
+
+	return pluginProviderFactory(ctx, func() *plugin.ClientConfig {
+		return &plugin.ClientConfig{
+			HandshakeConfig:  tfplugin.Handshake,
+			Logger:           logging.NewProviderLogger(""),
+			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+			Managed:          true,
+			Cmd:              exec.Command(execFile),
+			AutoMTLS:         enableProviderAutoMTLS,
+			VersionedPlugins: tfplugin.VersionedPlugins,
+			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Provider)),
+			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", meta.Provider)),
+		}
+	})
 }
 
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, schemaCache providers.SchemaCacheFn) (providers.Interface, error) {
+func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, schemaCache *providers.ProviderSchema) (providers.Interface, error) {
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:
@@ -423,13 +463,13 @@ func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *
 	}
 }
 
-func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.PackageLocalDir) providers.Factory {
+func devOverrideProviderFactory(ctx context.Context, provider addrs.Provider, localDir getproviders.PackageLocalDir) (providers.Factory, error) {
 	// A dev override is essentially a synthetic cache entry for our purposes
 	// here, so that's how we'll construct it. The providerFactory function
 	// doesn't actually care about the version, so we can leave it
 	// unspecified: overridden providers are not explicitly versioned.
 	log.Printf("[DEBUG] Provider %s is overridden to load from %s", provider, localDir)
-	return providerFactory(&providercache.CachedProvider{
+	return cachedProviderFactory(ctx, &providercache.CachedProvider{
 		Provider:   provider,
 		Version:    getproviders.UnspecifiedVersion,
 		PackageDir: string(localDir),
@@ -439,9 +479,28 @@ func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.P
 // unmanagedProviderFactory produces a provider factory that uses the passed
 // reattach information to connect to go-plugin processes that are already
 // running, and implements providers.Interface against it.
-func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.ReattachConfig) providers.Factory {
-	return func(schemaCache providers.SchemaCacheFn) (providers.Interface, error) {
-		config := &plugin.ClientConfig{
+func unmanagedProviderFactory(ctx context.Context, provider addrs.Provider, reattach *plugin.ReattachConfig) (providers.Factory, error) {
+	var versionedPlugins plugin.PluginSet
+
+	if reattach.ProtocolVersion == 0 {
+		// As of the 0.15 release, sdk.v2 doesn't include the protocol
+		// version in the ReattachConfig (only recently added to
+		// go-plugin), so client.NegotiatedVersion() always returns 0. We
+		// assume that an unmanaged provider reporting protocol version 0 is
+		// actually using proto v5 for backwards compatibility.
+		if defaultPlugins, ok := tfplugin.VersionedPlugins[5]; ok {
+			versionedPlugins = defaultPlugins
+		} else {
+			return nil, errors.New("no supported plugins for protocol 0")
+		}
+	} else if plugins, ok := tfplugin.VersionedPlugins[reattach.ProtocolVersion]; !ok {
+		return nil, fmt.Errorf("no supported plugins for protocol %d", reattach.ProtocolVersion)
+	} else {
+		versionedPlugins = plugins
+	}
+
+	return pluginProviderFactory(ctx, func() *plugin.ClientConfig {
+		return &plugin.ClientConfig{
 			HandshakeConfig:  tfplugin.Handshake,
 			Logger:           logging.NewProviderLogger("unmanaged."),
 			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
@@ -449,48 +508,9 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 			Reattach:         reattach,
 			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", provider)),
 			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", provider)),
+			Plugins:          versionedPlugins,
 		}
-
-		if reattach.ProtocolVersion == 0 {
-			// As of the 0.15 release, sdk.v2 doesn't include the protocol
-			// version in the ReattachConfig (only recently added to
-			// go-plugin), so client.NegotiatedVersion() always returns 0. We
-			// assume that an unmanaged provider reporting protocol version 0 is
-			// actually using proto v5 for backwards compatibility.
-			if defaultPlugins, ok := tfplugin.VersionedPlugins[5]; ok {
-				config.Plugins = defaultPlugins
-			} else {
-				return nil, errors.New("no supported plugins for protocol 0")
-			}
-		} else if plugins, ok := tfplugin.VersionedPlugins[reattach.ProtocolVersion]; !ok {
-			return nil, fmt.Errorf("no supported plugins for protocol %d", reattach.ProtocolVersion)
-		} else {
-			config.Plugins = plugins
-		}
-
-		client := plugin.NewClient(config)
-		rpcClient, err := client.Client()
-		if err != nil {
-			return nil, err
-		}
-
-		raw, err := rpcClient.Dispense(tfplugin.ProviderPluginName)
-		if err != nil {
-			return nil, err
-		}
-
-		protoVer := client.NegotiatedVersion()
-		if protoVer == 0 {
-			// As of the 0.15 release, sdk.v2 doesn't include the protocol
-			// version in the ReattachConfig (only recently added to
-			// go-plugin), so client.NegotiatedVersion() always returns 0. We
-			// assume that an unmanaged provider reporting protocol version 0 is
-			// actually using proto v5 for backwards compatibility.
-			protoVer = 5
-		}
-
-		return initializeProviderInstance(raw, protoVer, client, schemaCache)
-	}
+	})
 }
 
 // providerFactoryError is a stub providers.Factory that returns an error
@@ -498,9 +518,9 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 // factory for each available provider in an error case, for situations
 // where the caller can do something useful with that partial result.
 func providerFactoryError(err error) providers.Factory {
-	return func(providers.SchemaCacheFn) (providers.Interface, error) {
+	return &providerFactory{constructor: func() (providers.Interface, error) {
 		return nil, err
-	}
+	}}
 }
 
 // providerPluginErrors is an error implementation we can return from

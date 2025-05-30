@@ -5,9 +5,14 @@
 
 package providers
 
+import "context"
+
 // Factory is a function type that creates a new instance of a resource
 // provider, or returns an error if that is impossible.
-type Factory func(SchemaCacheFn) (Interface, error)
+type Factory interface {
+	Instance() (Interface, error)
+	Schema() ProviderSchema
+}
 
 // FactoryFixed is a helper that creates a Factory that just returns some given
 // single provider.
@@ -18,7 +23,16 @@ type Factory func(SchemaCacheFn) (Interface, error)
 // or to mutate it in ways that will not cause unexpected behavior for others
 // holding the same reference.
 func FactoryFixed(p Interface) Factory {
-	return func(SchemaCacheFn) (Interface, error) {
-		return p, nil
-	}
+	return &factoryFixed{p}
+}
+
+type factoryFixed struct {
+	p Interface
+}
+
+func (f *factoryFixed) Instance() (Interface, error) {
+	return f.p, nil
+}
+func (f *factoryFixed) Schema() ProviderSchema {
+	return f.p.GetProviderSchema(context.Background())
 }
