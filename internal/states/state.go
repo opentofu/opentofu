@@ -352,6 +352,20 @@ func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
 	return ret
 }
 
+func (s *State) ProviderSchemaRequirements() addrs.ProviderSchemaRequirements {
+	if s == nil {
+		return nil
+	}
+
+	m := make(addrs.ProviderSchemaRequirements)
+	for _, ms := range s.Modules {
+		for _, rc := range ms.Resources {
+			m.AddResource(rc.ProviderConfig.Provider, addrs.ManagedResourceMode, rc.Addr.Resource.Type)
+		}
+	}
+	return m
+}
+
 // ProviderRequirements returns a description of all of the providers that
 // are required to work with the receiving state.
 //

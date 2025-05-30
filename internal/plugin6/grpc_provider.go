@@ -18,6 +18,7 @@ import (
 	"github.com/zclconf/go-cty/cty/msgpack"
 	"google.golang.org/grpc"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugin6/convert"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -72,6 +73,7 @@ type GRPCProvider struct {
 	ctx context.Context
 
 	// Only set externally, managed by the factory
+	SchemaRequirements addrs.SchemaRequirements
 	SchemaCache        *providers.ProviderSchema
 	hasCalledGetSchema bool
 	mu                 sync.Mutex
@@ -136,11 +138,15 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 	}
 
 	for name, res := range protoResp.ResourceSchemas {
-		resp.ResourceTypes[name] = convert.ProtoToProviderSchema(res)
+		if p.SchemaRequirements.HasResource(addrs.ManagedResourceMode, name) {
+			resp.ResourceTypes[name] = convert.ProtoToProviderSchema(res)
+		}
 	}
 
 	for name, data := range protoResp.DataSourceSchemas {
-		resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+		if p.SchemaRequirements.HasResource(addrs.DataResourceMode, name) {
+			resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+		}
 	}
 
 	for name, fn := range protoResp.Functions {

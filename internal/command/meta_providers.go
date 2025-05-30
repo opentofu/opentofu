@@ -245,6 +245,9 @@ func (m *Meta) providerManager(ctx context.Context, cfg *configs.Config, state *
 // the returned map may be incomplete or invalid, but will be as complete
 // as possible given the cause of the error.
 func (m *Meta) providerFactories(ctx context.Context, cfg *configs.Config, state *states.State) (map[addrs.Provider]providers.Factory, error) {
+	reqs := cfg.ProviderSchemaRequirements()
+	reqs.Merge(state.ProviderSchemaRequirements())
+
 	locks, diags := m.lockedDependencies()
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("failed to read dependency lock file: %w", diags.Err())
@@ -336,21 +339,21 @@ func (m *Meta) providerFactories(ctx context.Context, cfg *configs.Config, state
 			}
 		}
 		var err error
-		factories[provider], err = cachedProviderFactory(ctx, cached)
+		factories[provider], err = cachedProviderFactory(ctx, cached, reqs[provider])
 		if err != nil {
 			reportError(provider, err)
 		}
 	}
 	for provider, localDir := range devOverrideProviders {
 		var err error
-		factories[provider], err = devOverrideProviderFactory(ctx, provider, localDir)
+		factories[provider], err = devOverrideProviderFactory(ctx, provider, localDir, reqs[provider])
 		if err != nil {
 			reportError(provider, err)
 		}
 	}
 	for provider, reattach := range unmanagedProviders {
 		var err error
-		factories[provider], err = unmanagedProviderFactory(ctx, provider, reattach)
+		factories[provider], err = unmanagedProviderFactory(ctx, provider, reattach, reqs[provider])
 		if err != nil {
 			reportError(provider, err)
 		}
@@ -383,7 +386,7 @@ func (p *providerFactory) Schema() providers.ProviderSchema {
 	return p.schema
 }
 
-func pluginProviderFactory(ctx context.Context, config func() *plugin.ClientConfig) (providers.Factory, error) {
+func pluginProviderFactory(ctx context.Context, config func() *plugin.ClientConfig, reqs addrs.SchemaRequirements) (providers.Factory, error) {
 	var schema *providers.ProviderSchema
 
 	constructor := func() (providers.Interface, error) {
@@ -399,7 +402,7 @@ func pluginProviderFactory(ctx context.Context, config func() *plugin.ClientConf
 		}
 
 		protoVer := client.NegotiatedVersion()
-		p, err := initializeProviderInstance(raw, protoVer, client, schema)
+		p, err := initializeProviderInstance(raw, protoVer, client, schema, reqs)
 		if errors.Is(err, errUnsupportedProtocolVersion) {
 			panic(err)
 		}
@@ -422,7 +425,7 @@ func pluginProviderFactory(ctx context.Context, config func() *plugin.ClientConf
 // providerFactory produces a provider factory that runs up the executable
 // file in the given cache package and uses go-plugin to implement
 // providers.Interface against it.
-func cachedProviderFactory(ctx context.Context, meta *providercache.CachedProvider) (providers.Factory, error) {
+func cachedProviderFactory(ctx context.Context, meta *providercache.CachedProvider, reqs addrs.SchemaRequirements) (providers.Factory, error) {
 	execFile, err := meta.ExecutableFile()
 	if err != nil {
 		return nil, err
@@ -440,30 +443,32 @@ func cachedProviderFactory(ctx context.Context, meta *providercache.CachedProvid
 			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Provider)),
 			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", meta.Provider)),
 		}
-	})
+	}, reqs)
 }
 
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, schemaCache *providers.ProviderSchema) (providers.Interface, error) {
+func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, schemaCache *providers.ProviderSchema, reqs addrs.SchemaRequirements) (providers.Interface, error) {
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:
 		p := plugin.(*tfplugin.GRPCProvider)
 		p.PluginClient = pluginClient
 		p.SchemaCache = schemaCache
+		p.SchemaRequirements = reqs
 		return p, nil
 	case 6:
 		p := plugin.(*tfplugin6.GRPCProvider)
 		p.PluginClient = pluginClient
 		p.SchemaCache = schemaCache
+		p.SchemaRequirements = reqs
 		return p, nil
 	default:
 		return nil, errUnsupportedProtocolVersion
 	}
 }
 
-func devOverrideProviderFactory(ctx context.Context, provider addrs.Provider, localDir getproviders.PackageLocalDir) (providers.Factory, error) {
+func devOverrideProviderFactory(ctx context.Context, provider addrs.Provider, localDir getproviders.PackageLocalDir, reqs addrs.SchemaRequirements) (providers.Factory, error) {
 	// A dev override is essentially a synthetic cache entry for our purposes
 	// here, so that's how we'll construct it. The providerFactory function
 	// doesn't actually care about the version, so we can leave it
@@ -473,13 +478,13 @@ func devOverrideProviderFactory(ctx context.Context, provider addrs.Provider, lo
 		Provider:   provider,
 		Version:    getproviders.UnspecifiedVersion,
 		PackageDir: string(localDir),
-	})
+	}, reqs)
 }
 
 // unmanagedProviderFactory produces a provider factory that uses the passed
 // reattach information to connect to go-plugin processes that are already
 // running, and implements providers.Interface against it.
-func unmanagedProviderFactory(ctx context.Context, provider addrs.Provider, reattach *plugin.ReattachConfig) (providers.Factory, error) {
+func unmanagedProviderFactory(ctx context.Context, provider addrs.Provider, reattach *plugin.ReattachConfig, reqs addrs.SchemaRequirements) (providers.Factory, error) {
 	var versionedPlugins plugin.PluginSet
 
 	if reattach.ProtocolVersion == 0 {
@@ -510,7 +515,7 @@ func unmanagedProviderFactory(ctx context.Context, provider addrs.Provider, reat
 			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", provider)),
 			Plugins:          versionedPlugins,
 		}
-	})
+	}, reqs)
 }
 
 // providerFactoryError is a stub providers.Factory that returns an error
