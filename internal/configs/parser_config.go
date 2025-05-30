@@ -6,7 +6,10 @@
 package configs
 
 import (
+	"fmt"
+
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
@@ -72,9 +75,38 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 	content, contentDiags := body.Content(configFileSchema)
 	diags = append(diags, contentDiags...)
 
+	// First, check if we have a `terraform` block. Now that we're allowing the blocks that belong
+	// in the `terraform` block to also be top-level,
+	// we need to ensure that nobody is combining the two ways to configure these
+	terraformBlockExists := false
 	for _, block := range content.Blocks {
-		switch block.Type {
+		if block.Type == "terraform" {
+			terraformBlockExists = true
+			break
+		}
+	}
 
+	blocksThatConflictWithTerraformBlock := map[string]bool{
+		"required_providers": true,
+		"backend":            true,
+		"cloud":              true,
+		"provider_meta":      true,
+		"encryption":         true,
+	}
+
+	for _, block := range content.Blocks {
+		// Check for conflicts before processing the block
+		if terraformBlockExists && block.Type != "terraform" && blocksThatConflictWithTerraformBlock[block.Type] {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  fmt.Sprintf("Top-level %q block not allowed alongside terraform block", block.Type),
+				Detail:   fmt.Sprintf("A %q block cannot be used at the top level whilst a terraform block exists in the file. Move this %q block inside the terraform block or remove the existing terraform block.", block.Type, block.Type),
+				Subject:  &block.DefRange,
+			})
+			continue
+		}
+
+		switch block.Type {
 		case "terraform":
 			content, contentDiags := block.Body.Content(terraformBlockSchema)
 			diags = append(diags, contentDiags...)
@@ -123,18 +155,41 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 					// Should never happen because the above cases should be exhaustive
 					// for all block type names in our schema.
 					continue
-
 				}
 			}
 
 		case "required_providers":
-			// required_providers should be nested inside a "terraform" block
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid required_providers block",
-				Detail:   "A \"required_providers\" block must be nested inside a \"terraform\" block.",
-				Subject:  block.TypeRange.Ptr(),
-			})
+			reqs, reqsDiags := decodeRequiredProvidersBlock(block)
+			diags = append(diags, reqsDiags...)
+			file.RequiredProviders = append(file.RequiredProviders, reqs)
+
+		case "backend":
+			backendCfg, cfgDiags := decodeBackendBlock(block)
+			diags = append(diags, cfgDiags...)
+			if backendCfg != nil {
+				file.Backends = append(file.Backends, backendCfg)
+			}
+
+		case "cloud":
+			cloudCfg, cfgDiags := decodeCloudBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cloudCfg != nil {
+				file.CloudConfigs = append(file.CloudConfigs, cloudCfg)
+			}
+
+		case "provider_meta":
+			providerCfg, cfgDiags := decodeProviderMetaBlock(block)
+			diags = append(diags, cfgDiags...)
+			if providerCfg != nil {
+				file.ProviderMetas = append(file.ProviderMetas, providerCfg)
+			}
+
+		case "encryption":
+			encryptionCfg, cfgDiags := config.DecodeConfig(block.Body, block.DefRange)
+			diags = append(diags, cfgDiags...)
+			if encryptionCfg != nil {
+				file.Encryptions = append(file.Encryptions, encryptionCfg)
+			}
 
 		case "provider":
 			cfg, cfgDiags := decodeProviderBlock(block)
@@ -265,12 +320,25 @@ var configFileSchema = &hcl.BodySchema{
 		{
 			Type: "terraform",
 		},
+		// Allow these blocks at both top-level and inside terraform blocks
 		{
-			// This one is not really valid, but we include it here so we
-			// can create a specialized error message hinting the user to
-			// nest it inside a "terraform" block.
 			Type: "required_providers",
 		},
+		{
+			Type:       "backend",
+			LabelNames: []string{"type"},
+		},
+		{
+			Type: "cloud",
+		},
+		{
+			Type:       "provider_meta",
+			LabelNames: []string{"provider"},
+		},
+		{
+			Type: "encryption",
+		},
+		// Standard top-level blocks
 		{
 			Type:       "provider",
 			LabelNames: []string{"name"},
