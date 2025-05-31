@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"maps"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -635,4 +636,27 @@ func (n *NodeApplyableOutput) setValue(state *states.SyncState, changes *plans.C
 	}
 
 	state.SetOutputValue(n.Addr, val, n.Config.Sensitive, n.Config.Deprecated)
+}
+
+func checkSensitivityOutputs(configOutputs map[string]*configs.Output, prevRunState *states.State) tfdiags.Diagnostics {
+	var diags tfdiags.Diagnostics
+
+	// Extract all Outputs from previous state
+	prevStateOutputs := map[string]*states.OutputValue{}
+	for _, m := range prevRunState.Modules {
+		maps.Copy(prevStateOutputs, m.OutputValues)
+	}
+
+	// Check if any of the previous Outputs have been switched from sensitive to insensitive
+	for outputName, prevStateOutput := range prevStateOutputs {
+		if prevStateOutput.Sensitive && !configOutputs[outputName].Sensitive {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Warning,
+				"Output change in sensitivity",
+				fmt.Sprintf("A previously sensitive output is being changed to insensitive: %q.", outputName),
+			))
+		}
+	}
+
+	return diags
 }
