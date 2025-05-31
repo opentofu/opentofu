@@ -6,6 +6,7 @@
 package statestore
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"iter"
@@ -129,16 +130,29 @@ type Value []byte
 // surprise and bugs.
 var NoValue Value
 
-// NormalizeValue translates a value loaded from outside of OpenTofu into
+// Hash returns a SHA256 hash of the raw byte value, intended for saving in
+// a plan file so OpenTofu can verify that data used to create the plan
+// haven't changed before applying the plan.
+//
+// It is not valid to call this on [NoValue] or any value equivalent to it;
+// in that case, this function will panic.
+func (v Value) Hash() [sha256.Size]byte {
+	if len(v) == 0 {
+		panic("called Hash on statestore.NoValue")
+	}
+	return sha256.Sum256(v)
+}
+
+// Normalize translates a value loaded from outside of OpenTofu into
 // a normalized form for internal use.
 //
 // Currently this just normalizes the "absence of a value" representation
 // to always be [NoValue], rather than some non-nil zero-length [Value].
-func NormalizeValue(given Value) Value {
-	if len(given) == 0 {
+func (v Value) Normalize() Value {
+	if len(v) == 0 {
 		return NoValue
 	}
-	return given
+	return v
 }
 
 // KeySet is a set of [Key].
