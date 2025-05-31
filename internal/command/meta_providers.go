@@ -341,7 +341,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 
 func (m *Meta) internalProviders() map[string]providers.Factory {
 	return map[string]providers.Factory{
-		"terraform": func() (providers.Interface, error) {
+		"terraform": func(_, _ providers.SchemaFilter) (providers.Interface, error) {
 			return terraformProvider.NewProvider(), nil
 		},
 	}
@@ -351,7 +351,7 @@ func (m *Meta) internalProviders() map[string]providers.Factory {
 // file in the given cache package and uses go-plugin to implement
 // providers.Interface against it.
 func providerFactory(meta *providercache.CachedProvider) providers.Factory {
-	return func() (providers.Interface, error) {
+	return func(resourceFilter, datasourceFilter providers.SchemaFilter) (providers.Interface, error) {
 		execFile, err := meta.ExecutableFile()
 		if err != nil {
 			return nil, err
@@ -381,7 +381,7 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 		}
 
 		protoVer := client.NegotiatedVersion()
-		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider)
+		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider, resourceFilter, datasourceFilter)
 		if errors.Is(err, errUnsupportedProtocolVersion) {
 			panic(err)
 		}
@@ -392,18 +392,22 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider) (providers.Interface, error) {
+func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider, resourceFilter, datasourceFilter providers.SchemaFilter) (providers.Interface, error) {
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:
 		p := plugin.(*tfplugin.GRPCProvider)
 		p.PluginClient = pluginClient
 		p.Addr = pluginAddr
+		p.ResourceFilter = resourceFilter
+		p.DatasourceFilter = datasourceFilter
 		return p, nil
 	case 6:
 		p := plugin.(*tfplugin6.GRPCProvider)
 		p.PluginClient = pluginClient
 		p.Addr = pluginAddr
+		p.ResourceFilter = resourceFilter
+		p.DatasourceFilter = datasourceFilter
 		return p, nil
 	default:
 		return nil, errUnsupportedProtocolVersion
@@ -427,7 +431,7 @@ func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.P
 // reattach information to connect to go-plugin processes that are already
 // running, and implements providers.Interface against it.
 func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.ReattachConfig) providers.Factory {
-	return func() (providers.Interface, error) {
+	return func(resourceFilter, datasourceFilter providers.SchemaFilter) (providers.Interface, error) {
 		config := &plugin.ClientConfig{
 			HandshakeConfig:  tfplugin.Handshake,
 			Logger:           logging.NewProviderLogger("unmanaged."),
@@ -476,7 +480,7 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 			protoVer = 5
 		}
 
-		return initializeProviderInstance(raw, protoVer, client, provider)
+		return initializeProviderInstance(raw, protoVer, client, provider, resourceFilter, datasourceFilter)
 	}
 }
 
@@ -485,7 +489,7 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 // factory for each available provider in an error case, for situations
 // where the caller can do something useful with that partial result.
 func providerFactoryError(err error) providers.Factory {
-	return func() (providers.Interface, error) {
+	return func(_, _ providers.SchemaFilter) (providers.Interface, error) {
 		return nil, err
 	}
 }
