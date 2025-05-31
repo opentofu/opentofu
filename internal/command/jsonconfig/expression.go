@@ -43,8 +43,8 @@ func marshalExpression(ex hcl.Expression) expression {
 		return ret
 	}
 
-	val, _ := ex.Value(nil)
-	if val != cty.NilVal {
+	val, valueDiags := ex.Value(nil)
+	if val != cty.NilVal && !valueDiags.HasErrors() {
 		valJSON, _ := ctyjson.Marshal(val, val.Type())
 		ret.ConstantValue = valJSON
 	}
