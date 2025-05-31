@@ -6,6 +6,8 @@
 package arguments
 
 import (
+	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -31,6 +33,11 @@ type Plan struct {
 	// unmatched import target paths and which path the generated file should
 	// be written to.
 	GenerateConfigPath string
+
+	// Watches are absolute references whose values should be reported as
+	// extra messages in the UI once they have been decided, to help with
+	// debugging during module development.
+	Watches []*addrs.AbsReference
 
 	// ViewType specifies which output format to use
 	ViewType ViewType
@@ -61,6 +68,9 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 	cmdFlags.BoolVar(&plan.ShowSensitive, "show-sensitive", false, "displays sensitive values")
 	cmdFlags.StringVar(&plan.ModuleDeprecationWarnLevel, "deprecation", "", "control the level of deprecation warnings")
 
+	var watchesRaw []string
+	cmdFlags.Var((*flagStringSlice)(&watchesRaw), "watch", "watch")
+
 	var json bool
 	cmdFlags.BoolVar(&json, "json", false, "json")
 
@@ -83,6 +93,18 @@ func ParsePlan(args []string) (*Plan, tfdiags.Diagnostics) {
 	}
 
 	diags = diags.Append(plan.Operation.Parse())
+
+	if len(watchesRaw) != 0 {
+		plan.Watches = make([]*addrs.AbsReference, 0, len(watchesRaw))
+		for _, raw := range watchesRaw {
+			ref, moreDiags := addrs.ParseAbsRef([]byte(raw), "-watch=... option", hcl.InitialPos)
+			diags = diags.Append(moreDiags)
+			if diags.HasErrors() {
+				continue
+			}
+			plan.Watches = append(plan.Watches, ref)
+		}
+	}
 
 	// JSON view currently does not support input, so we disable it here
 	if json {

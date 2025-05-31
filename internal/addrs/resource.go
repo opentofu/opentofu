@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
 )
 
 // Resource is an address for a resource block within configuration, which
@@ -34,6 +35,19 @@ func (r Resource) String() string {
 		// crashing just in case it does.
 		return fmt.Sprintf("<invalid>.%s.%s", r.Type, r.Name)
 	}
+}
+
+func (r Resource) Path() cty.Path {
+	var ret cty.Path
+	switch r.Mode {
+	case ManagedResourceMode:
+		ret = cty.GetAttrPath("resource")
+	case DataResourceMode:
+		ret = cty.GetAttrPath("data")
+	default:
+		panic("invalid resource mode")
+	}
+	return ret.GetAttr(r.Type).GetAttr(r.Name)
 }
 
 func (r Resource) Equal(o Resource) bool {
@@ -118,6 +132,14 @@ func (r ResourceInstance) String() string {
 		return r.Resource.String()
 	}
 	return r.Resource.String() + r.Key.String()
+}
+
+func (r ResourceInstance) Path() cty.Path {
+	ret := r.Resource.Path()
+	if r.Key != NoKey {
+		ret = ret.Index(r.Key.Value())
+	}
+	return ret
 }
 
 func (r ResourceInstance) Equal(o ResourceInstance) bool {
