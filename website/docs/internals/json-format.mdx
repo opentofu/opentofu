@@ -48,14 +48,20 @@ The JSON output format consists of the following objects and sub-objects:
 
 State does not have any significant metadata not included in the common [values representation](#values-representation), so the `<state-representation>` uses the following format:
 
-```javascript
+```json
 {
-  // "values" is a values representation object derived from the values in the
-  // state. Because the state is always fully known, this is always complete.
-  "values": <values-representation>
+  // Version of json format incremented for any change to this format that requires changes to a consuming parser.
+  "format_version": "1.0",
 
   // The key here is left unchanged in OpenTofu for compatibility reasons.
-  "terraform_version": "version.string"
+  "terraform_version": "version.string",
+
+  // "values" is a values representation object derived from the values in the
+  // state. Because the state is always fully known, this is always complete.
+  "values": <values-representation>,
+
+  // "checks" describes the results for any checkable objects
+  "checks" <checks-representation>,
 }
 ```
 
@@ -65,7 +71,7 @@ A plan consists of a prior state, the configuration that is being applied to tha
 
 For ease of consumption by callers, the plan representation includes a partial representation of the values in the final state (using a [value representation](#values-representation)), allowing callers to easily analyze the planned outcome using similar code as for analyzing the prior state.
 
-```javascript
+```json
 {
   "format_version": "1.0",
 
@@ -80,11 +86,6 @@ For ease of consumption by callers, the plan representation includes a partial r
   // "planned_values" is a description of what is known so far of the outcome in
   // the standard value representation, with any as-yet-unknown values omitted.
   "planned_values": <values-representation>,
-
-  // "proposed_unknown" is a representation of the attributes, including any
-  // potentially-unknown attributes. Each value is replaced with "true" or
-  // "false" depending on whether it is known in the proposed plan.
-  "proposed_unknown": <values-representation>,
 
   // "variables" is a representation of all the variables provided for the given
   // plan. This is structured as a map similar to the output map so we can add
@@ -232,7 +233,10 @@ For ease of consumption by callers, the plan representation includes a partial r
 
   // "errored" indicates whether planning failed. An errored plan cannot be applied,
   // but the actions planned before failure may help to understand the error.
-  "errored": false
+  "errored": false,
+
+  // When the plan was run
+  "timestamp": "2023-08-25T00:00:00Z"
 }
 ```
 
@@ -244,7 +248,7 @@ A values representation is used in both state and plan output to describe curren
 
 The following example illustrates the structure of a `<values-representation>`:
 
-```javascript
+```json
 {
   // "outputs" describes the outputs from the root module. Outputs from
   // descendent modules are not available because they are not retained in all
@@ -310,7 +314,17 @@ The following example illustrates the structure of a `<values-representation>`:
         // are included in this structure.
         "sensitive_values": {
           "id": true,
-        }
+        },
+
+        // DependsOn contains a list of the resource's dependencies. 
+        // The entries are addresses relative to the containing module.
+        "depends_on": ["foo.bar"],
+
+        // Tainted is true if the resource is tainted in tofu state.
+        "tainted": false,
+
+        // If set, indicates action applies to a "deposed" object rather than its current object
+        "deposed_key": "0gfb240d"
       }
     ]
 
@@ -328,6 +342,8 @@ The following example illustrates the structure of a `<values-representation>`:
         "resources": [
             {
               "address": "module.child.aws_instance.foo",
+
+             
               // etc, etc
             }
         ],
@@ -336,6 +352,8 @@ The following example illustrates the structure of a `<values-representation>`:
         // nested "child_modules", recursively describing the
         // full module tree.
         "child_modules": [ ... ],
+
+        
       }
     ]
   }
@@ -356,7 +374,7 @@ Configuration is the most complicated structure in OpenTofu, since it includes u
 
 Because the configuration models are produced at a stage prior to expression evaluation, it is not possible to produce a values representation for configuration. Instead, we describe the physical structure of the configuration, giving access to constant values where possible and allowing callers to analyze any references to other objects that are present:
 
-```javascript
+```json
 {
   // "provider_configs" describes all of the provider configurations throughout
   // the configuration tree, flattened into a single map for convenience since
@@ -379,6 +397,9 @@ Because the configuration models are produced at a stage prior to expression eva
       // a default configuration.
       "alias": "foo",
 
+      // the constraint on the version of the provider
+      "version_constraint": "1.1.0"
+
       // "module_address" is included only for provider configurations that are
       // declared in a descendent module, and gives the opaque address for the
       // module that contains the provider configuration.
@@ -400,9 +421,11 @@ Because the configuration models are produced at a stage prior to expression eva
 
       // Property names here are the output value names
       "example": {
-        "expression": <expression-representation>,
         "sensitive": false,
-        "deprecated": "This output is deprecated, use another one instead"
+        "deprecated": "This output is deprecated, use another one instead",
+        "expression": <expression-representation>,
+        "depends_on": ["foo.bar"],
+        "description": "example description"
       }
     },
 
@@ -450,7 +473,8 @@ Because the configuration models are produced at a stage prior to expression eva
         // configuration block. These are omitted if the corresponding argument
         // isn't set.
         "count_expression": <expression-representation>,
-        "for_each_expression": <expression-representation>
+        "for_each_expression": <expression-representation>,
+        "depends_on": ["foo.bar"]
       },
     ],
 
@@ -462,14 +486,11 @@ Because the configuration models are produced at a stage prior to expression eva
 
       // Key is the module call name chosen in the configuration.
       "child": {
-
-        // "resolved_source" is the resolved source address of the module, after
-        // any normalization and expansion. This could be either a
         // go-getter-style source address or a local path starting with "./" or
         // "../". If the user gave a registry source address then this is the
         // final location of the module as returned by the registry, after
         // following any redirect indirection.
-        "resolved_source": "./child"
+        "source": "./child",
 
         // "expressions" describes the expressions for the arguments within the
         // block that correspond to input variables in the child module.
@@ -485,7 +506,9 @@ Because the configuration models are produced at a stage prior to expression eva
         // "module" is a representation of the configuration of the child module
         // itself, using the same structure as the "root_module" object,
         // recursively describing the full module tree.
-        "module": <module-configuration-representation>
+        "module": <module-configuration-representation>,
+        "version_constraint": "1.1.0",
+        "depends_on": ["foo.bar"]
       }
     }
   }
@@ -496,7 +519,7 @@ Because the configuration models are produced at a stage prior to expression eva
 
 Each unevaluated expression in the configuration is represented with an `<expression-representation>` object with the following structure:
 
-```javascript
+```json
 {
   // "constant_value" is set only if the expression contains no references to
   // other objects, in which case it gives the resulting constant value. This is
@@ -534,7 +557,7 @@ Expressions in `dynamic` blocks are not included in the configuration representa
 
 In some cases, it is the entire content of a block (possibly after certain special arguments have already been handled and removed) that must be represented. For that, we have an `<block-expressions-representation>` structure:
 
-```javascript
+```json
 {
   // Attribute arguments are mapped directly with the attribute name as key and
   // an <expression-representation> as value.
@@ -554,13 +577,14 @@ In some cases, it is the entire content of a block (possibly after certain speci
 }
 ```
 
-For now we expect callers to just hard-code assumptions about the schemas of particular resource types in order to process these expression representations. In a later release we will add new inspection commands to return machine-readable descriptions of the schemas themselves, allowing for more generic handling in programs such as visualization tools.
+For now we expect callers to just hard-code assumptions about the schemas of particular resource types in order to process these expression representations. 
+In a later release we will add new inspection commands to return machine-readable descriptions of the schemas themselves, allowing for more generic handling in programs such as visualization tools.
 
 ## Change Representation
 
 A `<change-representation>` describes the change to the indicated object.
 
-```javascript
+```json
 {
   // "actions" are the actions that will be taken on the object selected by the
   // properties below.
@@ -615,7 +639,17 @@ A `<change-representation>` describes the change to the indicated object.
   // replacement (for example, if the resource was tainted). Each path
   // consists of one or more steps, each of which will be a number or a
   // string.
-  "replace_paths": [["triggers"]]
+  "replace_paths": [["triggers"]],
+
+	// If importing is present (ie. not null) then the change is an import operation
+	// in addition to anything mentioned in the actions field.
+  "importing": {
+    // The original ID of this resource used to target it as part of planned import operation
+    "id": "foo"
+  },
+
+  // If importing, there may be a generated config produced
+  "generated_config": "foobar",
 }
 ```
 
@@ -629,7 +663,7 @@ even in minor releases of OpenTofu CLI.
 
 A `<checks-representation>` describes the current state of a checkable object in the configuration. For example, a resource with one or more preconditions or postconditions is an example of a checkable object, and its check state represents the results of those conditions.
 
-```javascript
+```json
 [
   {
     // "address" describes the address of the checkable object whose status
