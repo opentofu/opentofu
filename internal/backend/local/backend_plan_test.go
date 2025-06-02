@@ -316,8 +316,11 @@ state, without changing any real infrastructure.
 
 Warning: Output change in sensitivity
 
-A previously sensitive output is being changed to insensitive:
-"sensitive_before".
+  on testdata/plan-outputs-sensitivity-changed/main.tf line 10:
+  (source code not available)
+
+Sensitivity of the output "sensitive_before" changed. By doing so, the value
+will not be obfuscated anymore.
 `)
 
 	if output := done(t).Stdout(); !strings.Contains(output, expectedOutput) {

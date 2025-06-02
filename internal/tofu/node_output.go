@@ -649,12 +649,14 @@ func checkSensitivityOutputs(configOutputs map[string]*configs.Output, prevRunSt
 
 	// Check if any of the previous Outputs have been switched from sensitive to insensitive
 	for outputName, prevStateOutput := range prevStateOutputs {
-		if prevStateOutput.Sensitive && !configOutputs[outputName].Sensitive {
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Warning,
-				"Output change in sensitivity",
-				fmt.Sprintf("A previously sensitive output is being changed to insensitive: %q.", outputName),
-			))
+		oc := configOutputs[outputName]
+		if prevStateOutput.Sensitive && !oc.Sensitive {
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagWarning,
+				Summary:  "Output change in sensitivity",
+				Detail:   fmt.Sprintf("Sensitivity of the output %q changed. By doing so, the value will not be obfuscated anymore.", oc.Name),
+				Subject:  oc.DeclRange.Ptr(),
+			})
 		}
 	}
 
