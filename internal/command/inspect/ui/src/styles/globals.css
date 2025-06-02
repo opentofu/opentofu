@@ -1,0 +1,40 @@
+@import "tailwindcss";
+
+@theme {
+  /* OpenTofu brand colors */
+  --color-primary-50: #f0f9ff;
+  --color-primary-100: #e0f2fe;
+  --color-primary-500: #0ea5e9;
+  --color-primary-600: #0284c7;
+  --color-primary-700: #0369a1;
+  --color-primary-800: #075985;
+  --color-primary-900: #0c4a6e;
+  
+  /* Graph node colors */
+  --color-resource-managed: #10b981;
+  --color-resource-data: #3b82f6;
+  --color-module: #8b5cf6;
+  --color-provider: #f59e0b;
+  
+  /* Font family */
+  --font-family-mono: ui-monospace, "SFMono-Regular", "Monaco", "Consolas", monospace;
+}
+
+/* Base styles for the application */
+@layer base {
+  * {
+    @apply box-border;
+  }
+  
+  html, body {
+    @apply h-full m-0 p-0;
+  }
+  
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans antialiased;
+  }
+  
+  #root {
+    @apply h-full;
+  }
+}
