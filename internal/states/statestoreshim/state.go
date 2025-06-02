@@ -7,6 +7,7 @@ package statestoreshim
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -24,10 +25,14 @@ import (
 // [statestore.Storage], acquiring advisory locks as needed.
 //
 // Pass any keys for which there are already active shared locks in haveLocks.
-// If the given haveLocks is not nil then the second result is the same map
-// mutated in-place to add any additional keys that were locked during the
-// process of loading the state. Otherwise, the returned KeySet is a
-// newly-allocated one.
+//
+// The second result is a map of the hashes of all of the entries used to build
+// the result, describing what ought to remain unchanged in order for any
+// plan created against the current state data to remain valid. If this function
+// returns successfully then all locks have been released, including the ones
+// provided in haveLocks, since the returned state combined with the map of
+// state value hashes is enough to create a plan and recognize at apply time
+// whether it remains valid to apply.
 //
 // This effectively forces loading the entire content of the state storage
 // at once and locking all of the keys, which defeats some of the advantages
@@ -41,7 +46,7 @@ import (
 // but will fail if another process is already holding exclusive locks on any
 // part of the existing state, suggesting that an apply-like operation is
 // in progress.
-func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks statestore.KeySet) (*states.State, statestore.KeySet, error) {
+func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks statestore.KeySet) (*states.State, map[statestore.Key][sha256.Size]byte, error) {
 	if haveLocks == nil {
 		haveLocks = make(statestore.KeySet)
 	}
@@ -56,12 +61,10 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 	// because we're not going to take any actions that would conflict with
 	// such an object.)
 	needLocks := make(statestore.KeySet)
-	storedKeys := make(statestore.KeySet)
 	for storageKey, err := range storage.Keys(ctx) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("listing keys: %w", err)
 		}
-		storedKeys[storageKey] = struct{}{}
 		if !haveLocks.Has(storageKey) {
 			needLocks[storageKey] = struct{}{}
 		}
@@ -75,7 +78,7 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 		haveLocks[storageKey] = struct{}{}
 	}
 
-	rawEntries, err := storage.Read(ctx, storedKeys)
+	rawEntries, err := storage.Read(ctx, haveLocks)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading from state: %w", err)
 	}
@@ -126,10 +129,29 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 		default:
 			// Should not get here because the cases above should cover all of
 			// the key types supported by [statekeys].
-			return nil, haveLocks, fmt.Errorf("unhandled state key type %T", key)
+			return nil, nil, fmt.Errorf("unhandled state key type %T", key)
 		}
 	}
-	return state, haveLocks, err
+
+	hashes := make(map[statestore.Key][sha256.Size]byte, len(rawEntries))
+	for key, value := range rawEntries {
+		hashes[key] = value.Hash()
+	}
+
+	// We don't need to continue holding the locks, because we now have enough
+	// information in hashes to recognize if anything has changed before the
+	// plan is applied. In a more deeply-integrated version of this we'd
+	// probably continue holding the locks throughout the plan walk and request
+	// state objects individually as we need them, but this simpler approach
+	// is sufficient for the non-integrated version since holding the lock
+	// throughout the plan phase wouldn't cause a significantly different
+	// result: it would just cause a concurrent apply phase to get blocked
+	// until we've finished creating the plan and then immediately invalidate
+	// our plan anyway.
+	unlockErr := storage.Unlock(ctx, haveLocks)
+	err = errors.Join(err, unlockErr)
+
+	return state, hashes, err
 }
 
 func decodeStateRootOutputValue(key statekeys.RootModuleOutputValue, raw statestore.Value) (*states.OutputValue, error) {
