@@ -9,10 +9,16 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/states/statestore"
 )
 
+// RootModuleOutputValue is the key type for storing the values and metadata of
+// output values belonging to the root module.
+//
+// Output values in other modules are not persisted at all, and are instead
+// recalculated as needed based on the configuration and other state elements.
 type RootModuleOutputValue struct {
 	name string
 }

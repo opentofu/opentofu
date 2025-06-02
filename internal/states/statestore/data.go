@@ -130,15 +130,23 @@ type Value []byte
 // surprise and bugs.
 var NoValue Value
 
+// NoValueHash is the value that would be returned calling [Value.Hash] on
+// [NoValue], but precomputed to make this case easier to express.
+var NoValueHash [sha256.Size]byte = [...]byte{
+	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
+	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
+}
+
 // Hash returns a SHA256 hash of the raw byte value, intended for saving in
 // a plan file so OpenTofu can verify that data used to create the plan
 // haven't changed before applying the plan.
 //
-// It is not valid to call this on [NoValue] or any value equivalent to it;
-// in that case, this function will panic.
+// It's valid to call this on [NoValue] or on any value equivalent to it; in
+// that case this function returns the SHA256 hash of an empty buffer,
+// which is also available in [NoValueHash] for convenient direct comparisons.
 func (v Value) Hash() [sha256.Size]byte {
 	if len(v) == 0 {
-		panic("called Hash on statestore.NoValue")
+		return NoValueHash
 	}
 	return sha256.Sum256(v)
 }
@@ -153,6 +161,10 @@ func (v Value) Normalize() Value {
 		return NoValue
 	}
 	return v
+}
+
+func (v Value) IsNoValue() bool {
+	return len(v) == 0
 }
 
 // KeySet is a set of [Key].
