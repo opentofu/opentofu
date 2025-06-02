@@ -176,12 +176,12 @@ func upgradeStateV3ToV4(old *stateV3) (*stateV4, error) {
 				}
 
 				rs = &resourceStateV4{
-					Module:         moduleAddr.String(),
-					Mode:           modeStr,
-					Type:           resAddr.Type,
-					Name:           resAddr.Name,
-					Instances:      []instanceObjectStateV4{},
-					ProviderConfig: providerAddr.LegacyString(),
+					Module:           moduleAddr.String(),
+					Mode:             modeStr,
+					Type:             resAddr.Type,
+					Name:             resAddr.Name,
+					Instances:        []instanceObjectStateV4{},
+					ProviderInstance: providerAddr.LegacyString(),
 				}
 				resourceStates[resAddr.String()] = rs
 			}

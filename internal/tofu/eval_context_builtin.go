@@ -128,18 +128,18 @@ func (c *BuiltinEvalContext) Input() UIInput {
 	return c.InputValue
 }
 
-func (c *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig, providerKey addrs.InstanceKey) (providers.Interface, error) {
+func (c *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig, providerInstanceKey addrs.InstanceKey) (providers.Interface, error) {
 	c.ProviderLock.Lock()
 	defer c.ProviderLock.Unlock()
 
-	key := addr.String()
+	providerAddrKey := addr.String()
 
-	if c.ProviderCache[key] == nil {
-		c.ProviderCache[key] = make(map[addrs.InstanceKey]providers.Interface)
+	if c.ProviderCache[providerAddrKey] == nil {
+		c.ProviderCache[providerAddrKey] = make(map[addrs.InstanceKey]providers.Interface)
 	}
 
 	// If we have already initialized, it is an error
-	if _, ok := c.ProviderCache[key][providerKey]; ok {
+	if _, ok := c.ProviderCache[providerAddrKey][providerInstanceKey]; ok {
 		return nil, fmt.Errorf("%s is already initialized", addr)
 	}
 
@@ -164,8 +164,8 @@ func (c *BuiltinEvalContext) InitProvider(addr addrs.AbsProviderConfig, provider
 		}
 	}
 
-	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q%s provider for %s", addr.String(), providerKey, addr)
-	c.ProviderCache[key][providerKey] = p
+	log.Printf("[TRACE] BuiltinEvalContext: Initialized %q%s provider for %s", addr.String(), providerInstanceKey, addr)
+	c.ProviderCache[providerAddrKey][providerInstanceKey] = p
 
 	return p, nil
 }
@@ -174,7 +174,9 @@ func (c *BuiltinEvalContext) Provider(addr addrs.AbsProviderConfig, key addrs.In
 	c.ProviderLock.Lock()
 	defer c.ProviderLock.Unlock()
 
-	pm, ok := c.ProviderCache[addr.String()]
+	providerAddrKey := addr.String()
+
+	pm, ok := c.ProviderCache[providerAddrKey]
 	if !ok {
 		return nil
 	}
@@ -192,8 +194,8 @@ func (c *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
 
 	var diags tfdiags.Diagnostics
 
-	key := addr.String()
-	providerMap := c.ProviderCache[key]
+	providerAddrKey := addr.String()
+	providerMap := c.ProviderCache[providerAddrKey]
 	if providerMap != nil {
 		for _, provider := range providerMap {
 			err := provider.Close(context.TODO())
@@ -201,7 +203,7 @@ func (c *BuiltinEvalContext) CloseProvider(addr addrs.AbsProviderConfig) error {
 				diags = diags.Append(err)
 			}
 		}
-		delete(c.ProviderCache, key)
+		delete(c.ProviderCache, providerAddrKey)
 	}
 	if diags.HasErrors() {
 		return diags.Err()
