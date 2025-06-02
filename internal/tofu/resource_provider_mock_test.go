@@ -92,6 +92,7 @@ func (p *MockProvider) ProviderSchema() *ProviderSchema {
 		ProviderMeta:               resp.ProviderMeta.Block,
 		ResourceTypes:              map[string]*configschema.Block{},
 		DataSources:                map[string]*configschema.Block{},
+		EphemeralTypes:             map[string]*configschema.Block{},
 		ResourceTypeSchemaVersions: map[string]uint64{},
 	}
 
@@ -102,6 +103,10 @@ func (p *MockProvider) ProviderSchema() *ProviderSchema {
 
 	for dataSource, s := range resp.DataSources {
 		schema.DataSources[dataSource] = s.Block
+	}
+
+	for ephemeral, s := range resp.EphemeralResources {
+		schema.EphemeralTypes[ephemeral] = s.Block
 	}
 
 	return schema
@@ -115,16 +120,18 @@ type ProviderSchema struct {
 	ResourceTypes              map[string]*configschema.Block
 	ResourceTypeSchemaVersions map[string]uint64
 	DataSources                map[string]*configschema.Block
+	EphemeralTypes             map[string]*configschema.Block
 }
 
 // getProviderSchemaResponseFromProviderSchema is a test helper to convert a
 // ProviderSchema to a GetProviderSchemaResponse for use when building a mock provider.
 func getProviderSchemaResponseFromProviderSchema(providerSchema *ProviderSchema) *providers.GetProviderSchemaResponse {
 	resp := &providers.GetProviderSchemaResponse{
-		Provider:      providers.Schema{Block: providerSchema.Provider},
-		ProviderMeta:  providers.Schema{Block: providerSchema.ProviderMeta},
-		ResourceTypes: map[string]providers.Schema{},
-		DataSources:   map[string]providers.Schema{},
+		Provider:           providers.Schema{Block: providerSchema.Provider},
+		ProviderMeta:       providers.Schema{Block: providerSchema.ProviderMeta},
+		ResourceTypes:      map[string]providers.Schema{},
+		DataSources:        map[string]providers.Schema{},
+		EphemeralResources: map[string]providers.Schema{},
 	}
 
 	for name, schema := range providerSchema.ResourceTypes {
@@ -136,6 +143,10 @@ func getProviderSchemaResponseFromProviderSchema(providerSchema *ProviderSchema)
 
 	for name, schema := range providerSchema.DataSources {
 		resp.DataSources[name] = providers.Schema{Block: schema}
+	}
+
+	for name, schema := range providerSchema.EphemeralTypes {
+		resp.EphemeralResources[name] = providers.Schema{Block: schema}
 	}
 
 	return resp
