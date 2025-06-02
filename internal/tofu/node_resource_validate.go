@@ -371,7 +371,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
 		if schema == nil {
 			var suggestion string
-			if dSchema, _ := providerSchema.SchemaForResourceType(addrs.DataResourceMode, n.Config.Type); dSchema != nil {
+			if dSchema, _ := providerSchema.SchemaForResourceType(addrs.DataResourceMode, n.Config.Type); dSchema != nil { // TODO andrei check this part
 				suggestion = fmt.Sprintf("\n\nDid you intend to use the data source %q? If so, declare this using a \"data\" block instead of a \"resource\" block.", n.Config.Type)
 			} else if len(providerSchema.ResourceTypes) > 0 {
 				suggestions := make([]string, 0, len(providerSchema.ResourceTypes))
@@ -442,6 +442,46 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 
 	case addrs.DataResourceMode:
+		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
+		if schema == nil {
+			var suggestion string
+			if dSchema, _ := providerSchema.SchemaForResourceType(addrs.ManagedResourceMode, n.Config.Type); dSchema != nil {
+				suggestion = fmt.Sprintf("\n\nDid you intend to use the managed resource type %q? If so, declare this using a \"resource\" block instead of a \"data\" block.", n.Config.Type)
+			} else if len(providerSchema.DataSources) > 0 {
+				suggestions := make([]string, 0, len(providerSchema.DataSources))
+				for name := range providerSchema.DataSources {
+					suggestions = append(suggestions, name)
+				}
+				if suggestion = didyoumean.NameSuggestion(n.Config.Type, suggestions); suggestion != "" {
+					suggestion = fmt.Sprintf(" Did you mean %q?", suggestion)
+				}
+			}
+
+			diags = diags.Append(&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid data source",
+				Detail:   fmt.Sprintf("The provider %s does not support data source %q.%s", n.Provider().ForDisplay(), n.Config.Type, suggestion),
+				Subject:  &n.Config.TypeRange,
+			})
+			return diags
+		}
+
+		configVal, _, valDiags := evalCtx.EvaluateBlock(n.Config.Config, schema, nil, keyData)
+		diags = diags.Append(valDiags)
+		if valDiags.HasErrors() {
+			return diags
+		}
+
+		// Use unmarked value for validate request
+		unmarkedConfigVal, _ := configVal.UnmarkDeep()
+		req := providers.ValidateDataResourceConfigRequest{
+			TypeName: n.Config.Type,
+			Config:   unmarkedConfigVal,
+		}
+
+		resp := provider.ValidateDataResourceConfig(ctx, req)
+		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
+	case addrs.EphemeralResourceMode:
 		schema, _ := providerSchema.SchemaForResourceType(n.Config.Mode, n.Config.Type)
 		if schema == nil {
 			var suggestion string
