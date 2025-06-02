@@ -1113,15 +1113,6 @@ func stringMapAttrOk(obj cty.Value, name string) (map[string]string, bool) {
 	return stringMapValueOk(obj.GetAttr(name))
 }
 
-func customEndpointAttrDefaultEnvVarOk(obj cty.Value, endpointsKey, deprecatedKey string, envvars ...string) (string, bool) {
-	if val := obj.GetAttr("endpoints"); !val.IsNull() {
-		if v, ok := stringAttrDefaultEnvVarOk(val, endpointsKey, envvars...); ok {
-			return v, true
-		}
-	}
-	return stringAttrDefaultEnvVarOk(obj, deprecatedKey, envvars...)
-}
-
 func pathString(path cty.Path) string {
 	var buf strings.Builder
 	for i, step := range path {
