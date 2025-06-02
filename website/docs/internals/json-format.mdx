@@ -48,7 +48,7 @@ The JSON output format consists of the following objects and sub-objects:
 
 State does not have any significant metadata not included in the common [values representation](#values-representation), so the `<state-representation>` uses the following format:
 
-```json
+```javascript
 {
   // Version of json format incremented for any change to this format that requires changes to a consuming parser.
   "format_version": "1.0",
@@ -71,7 +71,7 @@ A plan consists of a prior state, the configuration that is being applied to tha
 
 For ease of consumption by callers, the plan representation includes a partial representation of the values in the final state (using a [value representation](#values-representation)), allowing callers to easily analyze the planned outcome using similar code as for analyzing the prior state.
 
-```json
+```javascript
 {
   "format_version": "1.0",
 
@@ -248,7 +248,7 @@ A values representation is used in both state and plan output to describe curren
 
 The following example illustrates the structure of a `<values-representation>`:
 
-```json
+```javascript
 {
   // "outputs" describes the outputs from the root module. Outputs from
   // descendent modules are not available because they are not retained in all
@@ -374,7 +374,7 @@ Configuration is the most complicated structure in OpenTofu, since it includes u
 
 Because the configuration models are produced at a stage prior to expression evaluation, it is not possible to produce a values representation for configuration. Instead, we describe the physical structure of the configuration, giving access to constant values where possible and allowing callers to analyze any references to other objects that are present:
 
-```json
+```javascript
 {
   // "provider_configs" describes all of the provider configurations throughout
   // the configuration tree, flattened into a single map for convenience since
@@ -519,7 +519,7 @@ Because the configuration models are produced at a stage prior to expression eva
 
 Each unevaluated expression in the configuration is represented with an `<expression-representation>` object with the following structure:
 
-```json
+```javascript
 {
   // "constant_value" is set only if the expression contains no references to
   // other objects, in which case it gives the resulting constant value. This is
@@ -557,7 +557,7 @@ Expressions in `dynamic` blocks are not included in the configuration representa
 
 In some cases, it is the entire content of a block (possibly after certain special arguments have already been handled and removed) that must be represented. For that, we have an `<block-expressions-representation>` structure:
 
-```json
+```javascript
 {
   // Attribute arguments are mapped directly with the attribute name as key and
   // an <expression-representation> as value.
@@ -584,7 +584,7 @@ In a later release we will add new inspection commands to return machine-readabl
 
 A `<change-representation>` describes the change to the indicated object.
 
-```json
+```javascript
 {
   // "actions" are the actions that will be taken on the object selected by the
   // properties below.
@@ -663,7 +663,7 @@ even in minor releases of OpenTofu CLI.
 
 A `<checks-representation>` describes the current state of a checkable object in the configuration. For example, a resource with one or more preconditions or postconditions is an example of a checkable object, and its check state represents the results of those conditions.
 
-```json
+```javascript
 [
   {
     // "address" describes the address of the checkable object whose status
