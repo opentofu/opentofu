@@ -1318,3 +1318,261 @@ type priorState struct {
 	Values          map[string]interface{} `json:"values,omitempty"`
 	SensitiveValues map[string]bool        `json:"sensitive_values,omitempty"`
 }
+
+func TestShow_config(t *testing.T) {
+	// Create a temporary working directory that is empty
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("show-config-module"), td)
+	t.Chdir(td)
+
+	providerSource, close := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer close()
+
+	// Initialize the module
+	ui := new(cli.MockUi)
+	ic := &InitCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			Ui:               ui,
+			ProviderSource:   providerSource,
+		},
+	}
+	if code := ic.Run([]string{}); code != 0 {
+		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	}
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			View:             view,
+			ProviderSource:   providerSource,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 0 {
+		t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
+	}
+
+	// Verify that the output is valid JSON
+	var got map[string]interface{}
+	if err := json.Unmarshal([]byte(output.Stdout()), &got); err != nil {
+		t.Fatalf("invalid JSON output: %s\n%s", err, output.Stdout())
+	}
+
+	// Verify the basic structure of the configuration output
+	if _, ok := got["root_module"]; !ok {
+		t.Errorf("missing root_module in configuration output. Actual output: %v", got)
+	}
+
+	// Verify that module_calls (and its child entry) are included
+	rootModule, ok := got["root_module"].(map[string]interface{})
+	if !ok {
+		t.Fatal("root_module is not a map")
+	}
+	moduleCalls, ok := rootModule["module_calls"].(map[string]interface{})
+	if !ok || len(moduleCalls) == 0 {
+		t.Errorf("missing or empty module_calls in configuration output. Actual output: %v", got)
+	}
+	_, ok = moduleCalls["child"]
+	if !ok {
+		t.Errorf("missing 'child' entry in module_calls. Actual module_calls: %v", moduleCalls)
+	}
+}
+
+func TestShow_config_noArgs(t *testing.T) {
+	td := t.TempDir()
+	t.Chdir(td)
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stderr())
+	}
+
+	got := output.Stderr()
+	want := "This directory contains no OpenTofu configuration files."
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}
+
+func TestShow_config_withModule(t *testing.T) {
+	// Create a temporary working directory
+	td := t.TempDir()
+	testCopyDir(t, "testdata/show-config-module", td)
+	t.Chdir(td)
+
+	providerSource, close := newMockProviderSource(t, map[string][]string{
+		"test": {"1.0.0"},
+	})
+	defer close()
+
+	// Initialize the module
+	ui := new(cli.MockUi)
+	ic := &InitCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			Ui:               ui,
+			ProviderSource:   providerSource,
+		},
+	}
+	if code := ic.Run([]string{}); code != 0 {
+		t.Fatalf("init failed\n%s", ui.ErrorWriter)
+	}
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			View:             view,
+			ProviderSource:   providerSource,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 0 {
+		t.Fatalf("unexpected exit status %d; want 0\ngot: %s", code, output.Stderr())
+	}
+
+	// Verify that the output is valid JSON
+	var got map[string]interface{}
+	if err := json.Unmarshal([]byte(output.Stdout()), &got); err != nil {
+		t.Fatalf("invalid JSON output: %s\n%s", err, output.Stdout())
+	}
+
+	// Verify the basic structure of the configuration output
+	if _, ok := got["root_module"]; !ok {
+		t.Error("missing root_module in configuration output")
+	}
+
+	// Verify that module_calls (and its child entry) are included
+	rootModule, ok := got["root_module"].(map[string]interface{})
+	if !ok {
+		t.Fatal("root_module is not a map")
+	}
+	moduleCalls, ok := rootModule["module_calls"].(map[string]interface{})
+	if !ok || len(moduleCalls) == 0 {
+		t.Errorf("missing or empty module_calls in configuration output. Actual output: %v", got)
+	}
+	_, ok = moduleCalls["child"]
+	if !ok {
+		t.Errorf("missing 'child' entry in module_calls. Actual module_calls: %v", moduleCalls)
+	}
+}
+
+func TestShow_config_badArgs(t *testing.T) {
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(showFixtureProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"bad",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+	}
+
+	got := output.Stderr()
+	want := "JSON output required for configuration"
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}
+
+func TestShow_config_noJson(t *testing.T) {
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+	}
+
+	got := output.Stderr()
+	want := "JSON output required for configuration"
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}
+
+func TestShow_config_conflictingOptions(t *testing.T) {
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(testProvider()),
+			View:             view,
+		},
+	}
+
+	args := []string{
+		"-config",
+		"-state",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+	}
+
+	got := output.Stderr()
+	want := "Conflicting object types to show"
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}

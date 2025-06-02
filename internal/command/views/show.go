@@ -13,6 +13,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/cloud/cloudplan"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/jsonconfig"
 	"github.com/opentofu/opentofu/internal/command/jsonformat"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
@@ -37,6 +38,9 @@ type Show interface {
 	// Therefore the implementation of this method must handle both cases,
 	// preferring planJSON if it is not nil and using plan otherwise.
 	DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int
+
+	// DisplayConfig renders the given configuration in JSON format, returning a status code for "tofu show" to return.
+	DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int
 
 	// Diagnostics renders early diagnostics, resulting from argument parsing.
 	Diagnostics(diags tfdiags.Diagnostics)
@@ -147,6 +151,13 @@ func (v *ShowHuman) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *c
 	return 0
 }
 
+func (v *ShowHuman) DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int {
+	// The human view should never be called for configuration display
+	// since we require -json for -config
+	v.view.streams.Eprintf("Internal error: human view should not be used for configuration display")
+	return 1
+}
+
 func (v *ShowHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
@@ -190,6 +201,16 @@ func (v *ShowJSON) DisplayPlan(_ context.Context, plan *plans.Plan, planJSON *cl
 		// empty JSON object.
 		v.view.streams.Println("{}")
 	}
+	return 0
+}
+
+func (v *ShowJSON) DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int {
+	configJSON, err := jsonconfig.Marshal(config, schemas)
+	if err != nil {
+		v.view.streams.Eprintf("Failed to marshal configuration to JSON: %s", err)
+		return 1
+	}
+	v.view.streams.Println(string(configJSON))
 	return 0
 }
 
