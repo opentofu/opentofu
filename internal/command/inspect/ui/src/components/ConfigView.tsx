@@ -1,5 +1,5 @@
-import { useState } from "react";
 import type { ConfigResponse } from "../api/schemas";
+import { useState } from "react";
 
 interface ConfigViewProps {
 	data: ConfigResponse | null;
@@ -54,6 +54,23 @@ function ModuleCard({
 	);
 }
 
+function OutputCard({
+	output,
+}: {
+	output: any;
+}) {
+	return (
+		<div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors cursor-pointer">
+			<div className="flex items-start gap-3">
+				<div className="flex-1 min-w-0">
+					<h3 className="font-semibold text-gray-900 truncate">{output.id}</h3>
+					<p className="text-sm text-gray-600">Output</p>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 function ResourceCard({
 	resource,
 	onResourceSelect,
@@ -95,7 +112,7 @@ function ResourceCard({
 }
 
 export default function ConfigView({ data, isLoading, error, onResourceSelect }: ConfigViewProps) {
-	const [activeTab, setActiveTab] = useState<"modules" | "resources" | "providers">("modules");
+	const [activeTab, setActiveTab] = useState<"modules" | "resources" | "providers" | "outputs">("modules");
 
 	if (error) {
 		return (
@@ -163,6 +180,15 @@ export default function ConfigView({ data, isLoading, error, onResourceSelect }:
 				>
 					🔌 Providers ({data.providers?.length || 0})
 				</button>
+				<button
+					type="button"
+					onClick={() => setActiveTab("outputs")}
+					className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+						activeTab === "outputs" ? "border-primary-500 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+					}`}
+				>
+					📤 Outputs ({data.outputs?.length || 0})
+				</button>
 			</div>
 
 			{/* Tab content */}
@@ -184,6 +210,17 @@ export default function ConfigView({ data, isLoading, error, onResourceSelect }:
 							<div className="text-center py-8 text-gray-500">
 								<div className="text-4xl mb-2">🏗️</div>
 								<p>No resources found</p>
+							</div>
+						)}
+					</div>
+				)}
+
+				{activeTab === "outputs" && (
+					<div className="grid gap-4">
+						{data.outputs?.map((output) => <OutputCard key={output.id} output={output} />) || (
+							<div className="text-center py-8 text-gray-500">
+								<div className="text-4xl mb-2">🏗️</div>
+								<p>No Outputs found</p>
 							</div>
 						)}
 					</div>

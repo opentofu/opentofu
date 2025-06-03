@@ -177,7 +177,7 @@ export const SourceLocationSchema = z.object({
 // Graph node schema
 export const GraphNodeSchema = z.object({
   id: z.string(),
-  type: z.enum(['resource', 'module', 'provider', 'variable', 'output', 'expression', 'static_value', 'unknown_operand']),
+  type: z.enum(['resource', 'module', 'provider', 'variable', 'output_root', 'expression', 'static_value', 'unknown_operand']),
   parentId: z.string().nullable().optional(),
   data: z.union([
     ResourceNodeDataSchema,

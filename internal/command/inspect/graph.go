@@ -131,6 +131,32 @@ func (gb *GraphBuilder) Build() (*Graph, error) {
 		graph.Nodes = append(graph.Nodes, node)
 	}
 
+	// Build nodes for Outputs
+	outputs := gb.extractAllOutputs()
+	for id, output := range outputs {
+		modulePath := gb.getModulePath(id)
+		var parentID *string
+		if modulePath != "" {
+			parentID = &modulePath
+		} else {
+			rootModuleID := "module.root"
+			parentID = &rootModuleID
+		}
+
+		node := Node{
+			ID:       id,
+			Type:     "output_root",
+			ParentID: parentID,
+			Data: map[string]interface{}{
+				"resourceType": "output",
+				"name":         output.Name,
+				"source":       "graph_walker", // Indicates this comes from graph walker
+			},
+			Source: gb.extractSourceLocation(output.DeclRange),
+		}
+		graph.Nodes = append(graph.Nodes, node)
+	}
+
 	// Build edges for dependencies (graph walker approach)
 	// In a full implementation, this would use OpenTofu's actual graph building
 	// to get the complete dependency graph including provider dependencies,
@@ -172,6 +198,25 @@ func (gb *GraphBuilder) extractAllResources() map[string]*configs.Resource {
 	})
 
 	return resources
+}
+
+// extractAllOutputs returns all resources from all modules with full paths
+func (gb *GraphBuilder) extractAllOutputs() map[string]*configs.Output {
+	outputs := make(map[string]*configs.Output)
+
+	gb.config.DeepEach(func(c *configs.Config) {
+		pathPrefix := ""
+		if len(c.Path) > 0 {
+			pathPrefix = c.Path.String() + "."
+		}
+
+		for _, res := range c.Module.Outputs {
+			id := pathPrefix + res.Addr().String()
+			outputs[id] = res
+		}
+	})
+
+	return outputs
 }
 
 // extractAllModuleCalls returns all module calls with their metadata
@@ -331,7 +376,7 @@ func (gb *GraphBuilder) extractModuleInputDependencies(moduleCallID string, call
 					})
 					*edgeID++
 				}
-				
+
 				// Connect network vpc_id output to application vpc_id input
 				if strings.Contains(otherCall.Name, "network") {
 					sourceHandle := "output-vpc_id"
@@ -363,7 +408,7 @@ func (gb *GraphBuilder) extractModuleInputDependencies(moduleCallID string, call
 					// Skip creating direct edge - expression handles this
 					continue
 				}
-				
+
 				targetHandle := "input-db_name"
 				edges = append(edges, Edge{
 					ID:           generateEdgeID(*edgeID),
@@ -859,7 +904,7 @@ func (gb *GraphBuilder) parseBinaryExpression(expr *hclsyntax.BinaryOpExpr, targ
 	default:
 		operation = "unknown"
 	}
-	
+
 	expressionNode := Node{
 		ID:       expressionNodeID,
 		Type:     "expression",
@@ -895,9 +940,9 @@ func (gb *GraphBuilder) parseBinaryExpression(expr *hclsyntax.BinaryOpExpr, targ
 			handle := "input-1" // Second input (right side)
 			targetHandle = &handle
 		}
-		
+
 		sourceNodeID := gb.parseExpression(operand.expr, operand.side, nodeID, edgeID, &allNodes, &allEdges)
-		
+
 		if sourceNodeID != "" {
 			// Create edge from operand result to this expression
 			allEdges = append(allEdges, Edge{
@@ -917,7 +962,7 @@ func (gb *GraphBuilder) parseBinaryExpression(expr *hclsyntax.BinaryOpExpr, targ
 		handle := fmt.Sprintf("input-%s", attrName)
 		outputTargetHandle = &handle
 	}
-	
+
 	allEdges = append(allEdges, Edge{
 		ID:           generateEdgeID(*edgeID),
 		Source:       expressionNodeID,
@@ -1035,14 +1080,14 @@ func (gb *GraphBuilder) extractSourceLocation(declRange hcl.Range) *SourceLocati
 	if declRange.Filename == "" {
 		return nil
 	}
-	
+
 	// Convert absolute path to relative path from config root
 	relPath, err := filepath.Rel(gb.configRoot, declRange.Filename)
 	if err != nil {
 		// If we can't get relative path, use the filename as-is
 		relPath = filepath.Base(declRange.Filename)
 	}
-	
+
 	return &SourceLocation{
 		Filename:  relPath,
 		StartLine: declRange.Start.Line,
