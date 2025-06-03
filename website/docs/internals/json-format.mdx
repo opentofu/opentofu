@@ -352,8 +352,6 @@ The following example illustrates the structure of a `<values-representation>`:
         "resources": [
             {
               "address": "module.child.aws_instance.foo",
-
-             
               // etc, etc
             }
         ],
@@ -362,8 +360,6 @@ The following example illustrates the structure of a `<values-representation>`:
         // nested "child_modules", recursively describing the
         // full module tree.
         "child_modules": [ ... ],
-
-        
       }
     ]
   }
@@ -431,11 +427,11 @@ Because the configuration models are produced at a stage prior to expression eva
 
       // Property names here are the output value names
       "example": {
+        "expression": <expression-representation>,
         "sensitive": false,
         "deprecated": "This output is deprecated, use another one instead",
-        "expression": <expression-representation>,
         "depends_on": ["foo.bar"],
-        "description": "example description"
+        "description": "example description",
       }
     },
 
