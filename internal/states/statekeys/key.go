@@ -18,6 +18,7 @@ type Key interface {
 }
 
 var handlers = map[string]func(string) (Key, error){
+	resourcePrefix:              resourceFromStorage,
 	resourceInstancePrefix:      resourceInstanceFromStorage,
 	rootModuleOutputValuePrefix: rootModuleOutputValueFromStorage,
 }
