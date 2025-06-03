@@ -7,7 +7,6 @@ package statestoreshim
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -46,7 +45,7 @@ import (
 // but will fail if another process is already holding exclusive locks on any
 // part of the existing state, suggesting that an apply-like operation is
 // in progress.
-func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks statestore.KeySet) (*states.State, map[statestore.Key][sha256.Size]byte, error) {
+func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks statestore.KeySet) (*states.State, statestore.ValueHashes, error) {
 	if haveLocks == nil {
 		haveLocks = make(statestore.KeySet)
 	}
@@ -69,7 +68,6 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 			needLocks[storageKey] = struct{}{}
 		}
 	}
-
 	err := storage.Lock(ctx, needLocks, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("acquiring locks: %w", err)
@@ -93,6 +91,7 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 			// we managed to acquire the lock on it, in which case that's
 			// fine because we're still holding a lock and so we can assume
 			// that it will _stay_ gone for as long as we hold the lock.
+			continue
 		}
 		key, keyErr := statekeys.KeyFromStorage(storageKey)
 		if keyErr != nil {
@@ -102,7 +101,7 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 		switch key := key.(type) {
 		case statekeys.Resource:
 			_, decErr := decodeStateResource(key, rawValue)
-			if err != nil {
+			if decErr != nil {
 				err = errors.Join(err, fmt.Errorf("invalid state entry for %s: %w", key.Address(), decErr))
 				continue
 			}
@@ -113,7 +112,7 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 			// here someday.
 		case statekeys.ResourceInstance:
 			ri, providerAddr, decErr := decodeStateResourceInstance(key, rawValue)
-			if err != nil {
+			if decErr != nil {
 				err = errors.Join(err, fmt.Errorf("invalid state entry for %s: %w", key.Address(), decErr))
 				continue
 			}
@@ -121,7 +120,7 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 			ss.SetResourceInstanceCurrent(key.Address(), ri.Current, providerAddr, ri.ProviderKey)
 		case statekeys.RootModuleOutputValue:
 			ov, decErr := decodeStateRootOutputValue(key, rawValue)
-			if err != nil {
+			if decErr != nil {
 				err = errors.Join(err, fmt.Errorf("invalid state entry for %s: %w", key.Address(), decErr))
 				continue
 			}
@@ -133,7 +132,7 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 		}
 	}
 
-	hashes := make(map[statestore.Key][sha256.Size]byte, len(rawEntries))
+	hashes := make(statestore.ValueHashes, len(rawEntries))
 	for key, value := range rawEntries {
 		hashes[key] = value.Hash()
 	}

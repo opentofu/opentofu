@@ -10,11 +10,20 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
+	"github.com/opentofu/opentofu/internal/command/jsonformat"
+	"github.com/opentofu/opentofu/internal/command/jsonplan"
+	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/states/statefile"
+	"github.com/opentofu/opentofu/internal/states/statestoreshim"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // PlanCommand is a Command implementation that compares a OpenTofu
@@ -77,51 +86,165 @@ func (c *PlanCommand) Run(rawArgs []string) int {
 	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)
 
-	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
-	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
+	tofuCtxOpts, err := c.contextOpts(ctx)
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
+		return 1
+	}
+	tofuCtx, moreDiags := tofu.NewContext(tofuCtxOpts)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+	config, configSnap, moreDiags := c.loadConfigWithSnapshot(ctx, ".")
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+	unparsedInputValues, moreDiags := c.collectVariableValues()
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+	inputValues, moreDiags := backend.ParseVariableValues(unparsedInputValues, config.Module.Variables)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+	stateStore, err := c.stateStorage()
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
+		return 1
+	}
+	lockedKeys := statestoreshim.CollectStorageKeys(statestoreshim.LockKeysForConfig(config))
+	err = stateStore.Lock(ctx, lockedKeys, nil)
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
+		return 1
+	}
+	prevRunState, stateHashes, err := statestoreshim.LoadPriorState(ctx, stateStore, lockedKeys)
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
+		return 1
+	}
+	schemas, moreDiags := c.MaybeGetSchemas(ctx, prevRunState, config)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
+	}
+	depLocks, moreDiags := c.lockedDependencies()
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
 	}
 
-	// Prepare the backend with the backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, args.State, args.ViewType, enc)
-	diags = diags.Append(beDiags)
-	if diags.HasErrors() {
+	// For the planning phase we don't need the state storage anymore now, since
+	// we already loaded everything we need from it. This is only true for this
+	// initial phase of prototyping where we're slurping the entire content
+	// of the state into a states.State object before we start; it would be
+	// better to teach the language runtime to gradually load what it needs
+	// as it runs so that there's never any point where the entire state needs
+	// to be loaded into RAM at once. But this temporary situation allows us
+	// to continue treating state storage as a CLI-layer concern instead of
+	// teaching the language runtime about it.
+	err = stateStore.Close(ctx)
+	if err != nil {
+		diags = diags.Append(err)
 		view.Diagnostics(diags)
 		return 1
 	}
 
-	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, args.Operation, args.OutPath, args.GenerateConfigPath, enc)
-	diags = diags.Append(opDiags)
-	if diags.HasErrors() {
+	plan, moreDiags := tofuCtx.Plan(ctx, config, prevRunState, &tofu.PlanOpts{
+		Mode:         args.Operation.PlanMode,
+		SkipRefresh:  !args.Operation.Refresh,
+		SetVariables: inputValues,
+		Targets:      args.Operation.Targets,
+		Excludes:     args.Operation.Excludes,
+		ForceReplace: args.Operation.ForceReplace,
+		// FIXME: Others not yet handled in this granular state storage prototype.
+	})
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
 	}
 
-	// Before we delegate to the backend, we'll print any warning diagnostics
-	// we've accumulated here, since the backend will start fresh with its own
-	// diagnostics.
-	view.Diagnostics(diags)
-	diags = nil
+	// Ideally the language runtime would populate these two fields itself,
+	// but for this prototype we'll approximate it after the fact instead.
+	plan.StateLocksShared, plan.StateLocksExclusive = statestoreshim.CollectStateItemValuesForPlan(
+		stateHashes, statestoreshim.StateLockKeysForPlan(plan),
+	)
 
-	// Perform the operation
-	op, diags := c.RunOperation(ctx, be, opReq)
-	view.Diagnostics(diags)
-	if diags.HasErrors() {
+	outputs, changed, drift, attrs, err := jsonplan.MarshalForRenderer(plan, schemas)
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	if op.Result != backend.OperationSuccess {
-		return op.Result.ExitStatus()
-	}
-	if args.DetailedExitCode && !op.PlanEmpty {
-		return 2
+	jplan := jsonformat.Plan{
+		PlanFormatVersion:     jsonplan.FormatVersion,
+		ProviderFormatVersion: jsonprovider.FormatVersion,
+		OutputChanges:         outputs,
+		ResourceChanges:       changed,
+		ResourceDrift:         drift,
+		ProviderSchemas:       jsonprovider.MarshalForRenderer(schemas),
+		RelevantAttributes:    attrs,
 	}
 
-	return op.Result.ExitStatus()
+	var opts []plans.Quality
+	if !plan.CanApply() {
+		opts = append(opts, plans.NoChanges)
+	}
+	if plan.Errored {
+		opts = append(opts, plans.Errored)
+	}
+	renderer := jsonformat.Renderer{
+		Colorize: &colorstring.Colorize{
+			Colors: colorstring.DefaultColors,
+		},
+		Streams:             c.Streams,
+		RunningInAutomation: c.RunningInAutomation,
+		ShowSensitive:       args.ShowSensitive,
+	}
+	renderer.RenderHumanPlan(jplan, plan.UIMode, opts...)
+
+	if outPath := args.OutPath; outPath != "" {
+		err := planfile.Create(outPath, planfile.CreateArgs{
+			Plan:           plan,
+			ConfigSnapshot: configSnap,
+			StateFile: &statefile.File{
+				// This isn't really enough for what we currently consider
+				// a valid state file, but that's okay because our prototype
+				// apply implementation doesn't care about this anyway.
+				State: plan.PriorState,
+			},
+			PreviousRunStateFile: &statefile.File{
+				// This isn't really enough for what we currently consider
+				// a valid state file, but that's okay because our prototype
+				// apply implementation doesn't care about this anyway.
+				State: plan.PrevRunState,
+			},
+			DependencyLocks: depLocks,
+		}, encryption.Disabled().Plan())
+		if err != nil {
+			diags = diags.Append(err)
+			view.Diagnostics(diags)
+			return 1
+		}
+	}
+
+	return 0
 }
 
 func (c *PlanCommand) PrepareBackend(ctx context.Context, args *arguments.State, viewType arguments.ViewType, enc encryption.Encryption) (backend.Enhanced, tfdiags.Diagnostics) {
