@@ -180,16 +180,16 @@ For ease of consumption by callers, the plan representation includes a partial r
       //   resource depends on at least one managed resource that also has
       //   a pending change in the same plan.
       // - "replace_by_triggers" indicates that the resource instance
-	    // is planned to be replaced because of a corresponding change in a
-	    // replace_triggered_by reference.
+	    //   is planned to be replaced because of a corresponding change in a
+	    //   replace_triggered_by reference.
       // - "delete_because_no_move_target" indicates that the resource
-	    // appears as the target in a moved block, but no configuration
-	    //  exists for that resource.
+	    //   appears as the target in a moved block, but no configuration
+	    //   exists for that resource.
       // - "read_because_check_nested" indicates that the resource must
-	    // be read during apply (and planning) because it is inside a check
-	    // block. When the check assertions execute we want them to use
-	    // the most up-to-date data.
-      //
+	    //   be read during apply (and planning) because it is inside a check
+	    //   block. When the check assertions execute we want them to use
+	    //   the most up-to-date data.
+
       // If there is no special reason to note, OpenTofu will omit this
       // property altogether.
       action_reason: "replace_because_tainted"
