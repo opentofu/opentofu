@@ -74,7 +74,7 @@ func (f *FilesystemStorage) Close(ctx context.Context) error {
 	for key := range f.locks {
 		locked[key] = struct{}{}
 	}
-	err = errors.Join(err, f.Unlock(ctx, locked))
+	err = errors.Join(err, f.unlockInner(ctx, locked))
 
 	// Now we'll close our directory handle, which will make future
 	// actions on this object fail with an error.
@@ -228,6 +228,10 @@ func (f *FilesystemStorage) Unlock(ctx context.Context, keys collections.Set[Key
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
+	return f.unlockInner(ctx, keys)
+}
+
+func (f *FilesystemStorage) unlockInner(_ context.Context, keys collections.Set[Key]) error {
 	for key := range keys {
 		lock := f.locks[key]
 		if lock == nil {
@@ -315,7 +319,7 @@ func readValueFromFile(f *os.File) (Value, error) {
 		}
 		buf.Write(into[:n])
 		pos += int64(n)
-		if err == io.EOF {
+		if err == io.EOF || n == 0 {
 			break
 		}
 	}
