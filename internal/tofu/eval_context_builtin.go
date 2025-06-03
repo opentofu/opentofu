@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/middleware"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -83,6 +84,7 @@ type BuiltinEvalContext struct {
 	ImportResolverValue     *ImportResolver
 	Encryption              encryption.Encryption
 	ProviderFunctionTracker ProviderFunctionMapping
+	MiddlewareManagers      map[string]middleware.Manager
 }
 
 // BuiltinEvalContext implements EvalContext
@@ -587,4 +589,12 @@ func (c *BuiltinEvalContext) ImportResolver() *ImportResolver {
 
 func (c *BuiltinEvalContext) GetEncryption() encryption.Encryption {
 	return c.Encryption
+}
+
+func (c *BuiltinEvalContext) GetMiddlewareManager(addr addrs.AbsProviderConfig) middleware.Manager {
+	if c.MiddlewareManagers == nil {
+		return nil
+	}
+	key := addr.String()
+	return c.MiddlewareManagers[key]
 }

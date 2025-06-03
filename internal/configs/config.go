@@ -12,6 +12,7 @@ import (
 
 	version "github.com/hashicorp/go-version"
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsfile"
 	"github.com/opentofu/opentofu/internal/getproviders"
@@ -155,6 +156,20 @@ func (c *Config) AllModules() []*Config {
 	c.DeepEach(func(c *Config) {
 		ret = append(ret, c)
 	})
+	return ret
+}
+
+// AllMiddleware returns a slice of all middleware configs.
+func (c *Config) AllMiddleware() []*Middleware {
+	modules := c.AllModules()
+	var ret []*Middleware
+	for _, module := range modules {
+		if module.Module.Middleware != nil {
+			for _, mw := range module.Module.Middleware {
+				ret = append(ret, mw)
+			}
+		}
+	}
 	return ret
 }
 

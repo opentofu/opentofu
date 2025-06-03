@@ -19,6 +19,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/middleware"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -418,4 +419,9 @@ func (c *MockEvalContext) InstanceExpander() *instances.Expander {
 
 func (c *MockEvalContext) GetEncryption() encryption.Encryption {
 	return encryption.Disabled()
+}
+
+func (c *MockEvalContext) GetMiddlewareManager(addr addrs.AbsProviderConfig) middleware.Manager {
+	// Mock implementation - return nil for now
+	return nil
 }

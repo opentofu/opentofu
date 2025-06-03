@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/middleware"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -47,6 +48,7 @@ type ContextGraphWalker struct {
 	PlanTimestamp           time.Time
 	Encryption              encryption.Encryption
 	ProviderFunctionTracker ProviderFunctionMapping
+	MiddlewareManagers      map[string]middleware.Manager
 
 	// This is an output. Do not set this, nor read it while a graph walk
 	// is in progress.
@@ -124,6 +126,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		VariableValuesLock:      &w.variableValuesLock,
 		Encryption:              w.Encryption,
 		ProviderFunctionTracker: w.ProviderFunctionTracker,
+		MiddlewareManagers:      w.MiddlewareManagers,
 	}
 
 	return ctx

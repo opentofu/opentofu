@@ -89,6 +89,13 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
+	// Create middleware managers for providers that have middleware configured
+	middlewareManagers, middlewareDiags := c.createMiddlewareManagers(ctx, config)
+	diags = diags.Append(middlewareDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
 	graph, operation, diags := c.applyGraph(ctx, plan, config, providerFunctionTracker)
 	if diags.HasErrors() {
 		return nil, diags
@@ -108,6 +115,7 @@ func (c *Context) Apply(ctx context.Context, plan *plans.Plan, config *configs.C
 		// We also want to propagate the timestamp from the plan file.
 		PlanTimeTimestamp:       plan.Timestamp,
 		ProviderFunctionTracker: providerFunctionTracker,
+		MiddlewareManagers:      middlewareManagers,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)

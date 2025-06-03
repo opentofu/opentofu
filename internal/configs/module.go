@@ -132,11 +132,52 @@ func (m *Module) validateProviderMiddleware() hcl.Diagnostics {
 
 	for _, provider := range m.ProviderConfigs {
 		for _, mwRef := range provider.Middleware {
-			// Extract the middleware name from the traversal
-			// The traversal should be like "middleware.cost_tracker"
-			// You'll need to check if it starts with "middleware." and extract the name
+			// Check if the traversal is valid (should have at least 2 parts)
+			if len(mwRef) < 2 {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid middleware reference",
+					Detail:   "Middleware reference must be in the form 'middleware.name'.",
+					Subject:  mwRef.SourceRange().Ptr(),
+				})
+				continue
+			}
 
-			// Then check if it exists in m.Middleware
+			// Check if the first part is "middleware"
+			if mwRef.RootName() != "middleware" {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid middleware reference",
+					Detail:   fmt.Sprintf("Middleware reference must start with 'middleware', got '%s'.", mwRef.RootName()),
+					Subject:  mwRef.SourceRange().Ptr(),
+				})
+				continue
+			}
+
+			// Extract the middleware name (second part of traversal)
+			// For a traversal like "middleware.cost_tracker", we want "cost_tracker"
+			var middlewareName string
+			if attrTrav, ok := mwRef[1].(hcl.TraverseAttr); ok {
+				middlewareName = attrTrav.Name
+			} else {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid middleware reference",
+					Detail:   "Middleware reference must be a simple attribute access like 'middleware.name'.",
+					Subject:  mwRef.SourceRange().Ptr(),
+				})
+				continue
+			}
+
+			// Check if the middleware exists
+			if _, exists := m.Middleware[middlewareName]; !exists {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Undefined middleware reference",
+					Detail:   fmt.Sprintf("Provider %q references middleware %q, which is not defined in this module.", provider.Name, middlewareName),
+					Subject:  mwRef.SourceRange().Ptr(),
+				})
+			}
 		}
 	}
 
@@ -199,6 +240,7 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		DataResources:      map[string]*Resource{},
 		Checks:             map[string]*Check{},
 		ProviderMetas:      map[addrs.Provider]*ProviderMeta{},
+		Middleware:         map[string]*Middleware{},
 		Tests:              map[string]*TestFile{},
 		SourceDir:          sourceDir,
 	}
@@ -279,6 +321,14 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 
 	// Generate the FQN -> LocalProviderName map
 	mod.gatherProviderLocalNames()
+
+	// attach the static evaluator to the middleware configs
+	for _, mw := range mod.Middleware {
+		mw.staticEvaluator = mod.StaticEvaluator
+	}
+
+	// Validate that all middleware references in providers exist
+	diags = append(diags, mod.validateProviderMiddleware()...)
 
 	return mod, diags
 }

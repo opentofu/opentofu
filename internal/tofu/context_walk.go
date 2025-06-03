@@ -13,6 +13,7 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
+	"github.com/opentofu/opentofu/internal/middleware"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
@@ -47,6 +48,10 @@ type graphWalkOpts struct {
 	MoveResults refactoring.MoveResults
 
 	ProviderFunctionTracker ProviderFunctionMapping
+
+	// MiddlewareManagers holds the middleware managers for each provider
+	// configuration that has middleware configured.
+	MiddlewareManagers map[string]middleware.Manager
 }
 
 func (c *Context) walk(ctx context.Context, graph *Graph, operation walkOperation, opts *graphWalkOpts) (*ContextGraphWalker, tfdiags.Diagnostics) {
@@ -158,5 +163,6 @@ func (c *Context) graphWalker(operation walkOperation, opts *graphWalkOpts) *Con
 		PlanTimestamp:           opts.PlanTimeTimestamp,
 		Encryption:              c.encryption,
 		ProviderFunctionTracker: opts.ProviderFunctionTracker,
+		MiddlewareManagers:      opts.MiddlewareManagers,
 	}
 }

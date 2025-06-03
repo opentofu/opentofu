@@ -30,6 +30,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
+	"github.com/opentofu/opentofu/internal/middleware"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -359,6 +360,19 @@ func (c *InitCommand) Run(args []string) int {
 	}
 	if providersOutput {
 		header = true
+	}
+
+	middlewareConfigs := config.AllMiddleware()
+	if len(middlewareConfigs) > 0 {
+		c.Ui.Output(c.Colorize().Color("[reset][bold]Initializing middleware..."))
+		header = true
+
+		middlewareDiags := middleware.ValidateMiddleware(ctx, c.Ui, middlewareConfigs)
+		diags = diags.Append(middlewareDiags)
+		if middlewareDiags.HasErrors() {
+			c.showDiagnostics(diags)
+			return 1
+		}
 	}
 
 	// If we outputted information, then we need to output a newline

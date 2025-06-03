@@ -4,6 +4,8 @@
 package configs
 
 import (
+	"fmt"
+	
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 )
@@ -18,6 +20,8 @@ type Middleware struct {
 
 	Config    hcl.Body
 	DeclRange hcl.Range
+
+	staticEvaluator *StaticEvaluator
 }
 
 var middlewareBlockSchema = &hcl.BodySchema{
@@ -119,3 +123,83 @@ func (m *Middleware) moduleUniqueKey() string {
 	return m.Name
 }
 
+// EvaluateCommand evaluates the command expression using the static evaluator
+func (m *Middleware) EvaluateCommand() (string, hcl.Diagnostics) {
+	if m.staticEvaluator == nil {
+		// Fallback to direct evaluation without context
+		val, diags := m.Command.Value(nil)
+		if diags.HasErrors() {
+			return "", diags
+		}
+		if val.Type() != cty.String {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid command",
+				Detail:   "Command must be a string.",
+				Subject:  m.Command.Range().Ptr(),
+			})
+			return "", diags
+		}
+		return val.AsString(), diags
+	}
+
+	val, diags := m.staticEvaluator.Evaluate(m.Command, StaticIdentifier{
+		Module:    m.staticEvaluator.call.addr,
+		Subject:   fmt.Sprintf("middleware.%s.command", m.Name),
+		DeclRange: m.Command.Range(),
+	})
+	if diags.HasErrors() {
+		return "", diags
+	}
+	if val.Type() != cty.String {
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid command",
+			Detail:   "Command must be a string.",
+			Subject:  m.Command.Range().Ptr(),
+		})
+		return "", diags
+	}
+	return val.AsString(), diags
+}
+
+// EvaluateArgs evaluates the args expressions using the static evaluator
+func (m *Middleware) EvaluateArgs() ([]string, hcl.Diagnostics) {
+	var diags hcl.Diagnostics
+	args := make([]string, 0, len(m.Args))
+	
+	for i, argExpr := range m.Args {
+		var val cty.Value
+		var argDiags hcl.Diagnostics
+		
+		if m.staticEvaluator == nil {
+			// Fallback to direct evaluation without context
+			val, argDiags = argExpr.Value(nil)
+		} else {
+			val, argDiags = m.staticEvaluator.Evaluate(argExpr, StaticIdentifier{
+				Module:    m.staticEvaluator.call.addr,
+				Subject:   fmt.Sprintf("middleware.%s.args[%d]", m.Name, i),
+				DeclRange: argExpr.Range(),
+			})
+		}
+		
+		diags = append(diags, argDiags...)
+		if argDiags.HasErrors() {
+			continue
+		}
+		
+		if val.Type() != cty.String {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid argument",
+				Detail:   fmt.Sprintf("Argument %d must be a string.", i),
+				Subject:  argExpr.Range().Ptr(),
+			})
+			continue
+		}
+		
+		args = append(args, val.AsString())
+	}
+	
+	return args, diags
+}

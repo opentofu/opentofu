@@ -130,19 +130,10 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	}
 
 	if attr, exists := content.Attributes["middleware"]; exists {
-		if len(attr.Expr.Variables()) > 0 {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid middleware expression",
-				Detail:   "The middleware argument must be a constant value, not an expression with variables.",
-				Subject:  attr.Expr.Range().Ptr(),
-			})
-		} else {
-			// TODO: Define an explicit method for decoding middleware
-			mw, mwDiags := decodeDependsOn(attr) // We're lazy but this method does exactly what we need!
-			diags = append(diags, mwDiags...)
-			provider.Middleware = mw
-		}
+		// TODO: Define an explicit method for decoding middleware
+		mw, mwDiags := decodeDependsOn(attr) // We're lazy but this method does exactly what we need!
+		diags = append(diags, mwDiags...)
+		provider.Middleware = mw
 	}
 
 	var seenEscapeBlock *hcl.Block

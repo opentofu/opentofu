@@ -21,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/marks"
+	"github.com/opentofu/opentofu/internal/middleware"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/objchange"
 	"github.com/opentofu/opentofu/internal/providers"
@@ -783,6 +784,47 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 		return state, diags
 	}
 
+	// Call the middleware
+	mwManager := evalCtx.GetMiddlewareManager(n.ResolvedProvider.ProviderConfig)
+	// log
+	log.Printf("[DEBUG] NodeAbstractResourceInstance.refresh: calling pre-refresh middleware for %s", absAddr)
+
+	// Pre-refresh middleware hook
+	if mwManager != nil {
+		preRefreshParams := middleware.PreRefreshParams{
+			Provider:     n.ResolvedProvider.ProviderConfig.Provider.String(),
+			ResourceType: absAddr.Resource.Resource.Type,
+			ResourceName: absAddr.Resource.Resource.Name,
+			ResourceMode: absAddr.Resource.Resource.Mode,
+			CurrentState: state.Value,
+		}
+
+		hookResult, err := mwManager.PreRefresh(ctx, preRefreshParams)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Middleware error",
+				fmt.Sprintf("Pre-refresh middleware hook failed: %s", err),
+			))
+			return state, diags
+		}
+
+		if hookResult.Status == "fail" {
+			message := hookResult.Message
+			if message == "" {
+				message = "Pre-refresh middleware hook failed"
+			}
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Middleware rejected refresh",
+				message,
+			))
+			return state, diags
+		}
+
+		// Note: Metadata is not stored for refresh operations (read-only)
+	}
+
 	// Refresh!
 	priorVal := state.Value
 
@@ -861,6 +903,48 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 	}))
 	if diags.HasErrors() {
 		return ret, diags
+	}
+	
+	// Post-refresh middleware hook
+	if mwManager != nil {
+		mgr := mwManager.(middleware.Manager)
+		driftDetected := !priorVal.RawEquals(ret.Value)
+		
+		postRefreshParams := middleware.PostRefreshParams{
+			Provider:      n.ResolvedProvider.ProviderConfig.Provider.String(),
+			ResourceType:  absAddr.Resource.Resource.Type,
+			ResourceName:  absAddr.Resource.Resource.Name,
+			ResourceMode:  absAddr.Resource.Resource.Mode,
+			Before:        priorVal,
+			After:         ret.Value,
+			DriftDetected: driftDetected,
+		}
+		
+		hookResult, err := mgr.PostRefresh(ctx, postRefreshParams)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Middleware error",
+				fmt.Sprintf("Post-refresh middleware hook failed: %s", err),
+			))
+			return ret, diags
+		}
+		
+		if hookResult.Status == "fail" {
+			message := hookResult.Message
+			if message == "" {
+				message = "Post-refresh middleware hook failed"
+			}
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Middleware rejected refresh result",
+				message,
+			))
+			return ret, diags
+		}
+		
+		// Note: Metadata is not stored for refresh operations (read-only)
+		log.Printf("[DEBUG] NodeAbstractResourceInstance.refresh: post-refresh middleware completed for %s", absAddr)
 	}
 
 	// Bring in the marks from the schema for the value, this will be merged with the marks from the

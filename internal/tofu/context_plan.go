@@ -24,6 +24,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/globalref"
+	"github.com/opentofu/opentofu/internal/middleware"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
@@ -780,6 +781,13 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 	}
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
+	// Create middleware managers for providers that have middleware configured
+	middlewareManagers, middlewareDiags := c.createMiddlewareManagers(ctx, config)
+	diags = diags.Append(middlewareDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
 	graph, walkOp, moreDiags := c.planGraph(ctx, config, prevRunState, opts, providerFunctionTracker)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
@@ -798,6 +806,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		MoveResults:             moveResults,
 		PlanTimeTimestamp:       timestamp,
 		ProviderFunctionTracker: providerFunctionTracker,
+		MiddlewareManagers:      middlewareManagers,
 	})
 	diags = diags.Append(walker.NonFatalDiagnostics)
 	diags = diags.Append(walkDiags)
@@ -1061,6 +1070,92 @@ func (c *Context) driftedResources(ctx context.Context, config *configs.Config, 
 	}
 
 	return drs, diags
+}
+
+// createMiddlewareManagers creates and initializes middleware managers for
+// each provider configuration that has middleware configured.
+func (c *Context) createMiddlewareManagers(ctx context.Context, config *configs.Config) (map[string]middleware.Manager, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	managers := make(map[string]middleware.Manager)
+
+	// for each provider, // check if it has middleware configured, and if so, create a manager for it.
+	log.Printf("[DEBUG] Creating middleware managers for provider configurations")
+
+	// Iterate through all modules to find provider configurations with middleware
+	config.DeepEach(func(moduleConfig *configs.Config) {
+		if moduleConfig.Module == nil {
+			return
+		}
+		for providerAddr, providerConfig := range moduleConfig.Module.ProviderConfigs {
+			// Check if this provider has middleware configured
+			if len(providerConfig.Middleware) == 0 {
+				continue
+			}
+
+			// Build the absolute provider config address
+			// Resolve the provider type from the local name
+			localAddr := addrs.LocalProviderConfig{
+				LocalName: providerConfig.Name,
+				Alias:     providerConfig.Alias,
+			}
+			absProviderAddr := config.ResolveAbsProviderAddr(localAddr, moduleConfig.Path)
+
+			// Collect all middleware configurations for this provider
+			var middlewareConfigs []*configs.Middleware
+			for _, middlewareRef := range providerConfig.Middleware {
+				// Resolve the middleware reference to get the actual middleware config
+				// The traversal should be like "middleware.name", so we need to get the second part
+				var middlewareName string
+				if middlewareRef.RootName() == "middleware" && len(middlewareRef) >= 2 {
+					// Get the actual middleware name from the traversal
+					if attr, ok := middlewareRef[1].(hcl.TraverseAttr); ok {
+						middlewareName = attr.Name
+					}
+				} else {
+					// Fallback to just using the root name
+					middlewareName = middlewareRef.RootName()
+				}
+
+				log.Printf("[DEBUG] Looking for middleware %q in module %s", middlewareName, moduleConfig.Path)
+
+				if mw, exists := moduleConfig.Module.Middleware[middlewareName]; exists {
+					middlewareConfigs = append(middlewareConfigs, mw)
+				} else {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Undefined middleware",
+						Detail:   fmt.Sprintf("Provider %s references middleware %q which is not defined in this module.", providerAddr, middlewareName),
+						Subject:  &providerConfig.DeclRange,
+					})
+				}
+			}
+
+			if len(middlewareConfigs) > 0 {
+				// Create the middleware manager for this provider
+				manager := middleware.NewManager(middlewareConfigs)
+
+				// Start the middleware processes
+				if err := manager.Start(ctx); err != nil {
+					diags = diags.Append(&hcl.Diagnostic{
+						Severity: hcl.DiagError,
+						Summary:  "Failed to start middleware",
+						Detail:   fmt.Sprintf("Failed to start middleware for provider %s: %s", absProviderAddr, err),
+						Subject:  &providerConfig.DeclRange,
+					})
+					continue
+				}
+
+				log.Printf("[DEBUG] Provider %s has %d middleware configurations", absProviderAddr.String(), len(middlewareConfigs))
+				managers[absProviderAddr.String()] = manager
+			}
+		}
+	})
+
+	if len(managers) > 0 {
+		log.Printf("[DEBUG] Created middleware managers for %d provider configurations", len(managers))
+	}
+
+	return managers, diags
 }
 
 // PlanGraphForUI is a last vestige of graphs in the public interface of Context

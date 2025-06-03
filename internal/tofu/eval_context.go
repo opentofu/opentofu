@@ -17,6 +17,7 @@ import (
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang"
+	"github.com/opentofu/opentofu/internal/middleware"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -221,4 +222,9 @@ type EvalContext interface {
 
 	// Returns the currently configured encryption setup
 	GetEncryption() encryption.Encryption
+
+	// GetMiddlewareManager returns the middleware manager for the given provider
+	// configuration address, if any middleware is configured for that provider.
+	// Returns nil if no middleware is configured.
+	GetMiddlewareManager(addrs.AbsProviderConfig) middleware.Manager
 }
