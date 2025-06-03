@@ -99,6 +99,14 @@ func (k Key) Name() string {
 	return k.raw.Value()
 }
 
+func (k Key) String() string {
+	return k.Name()
+}
+
+func (k Key) GoString() string {
+	return fmt.Sprintf("statestore.MakeKey(%q)", k.Name())
+}
+
 func inKeyAlphabet(c rune) bool {
 	return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-'
 }
