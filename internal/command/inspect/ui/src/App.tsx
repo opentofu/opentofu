@@ -1,15 +1,17 @@
-import { useState } from "react";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "./api/client";
-import { useHealth, useConfig, useGraph } from "./api/queries";
-import Graph from "./components/Graph";
-import ConfigView from "./components/ConfigView";
-import ResourceDetail from "./components/ResourceDetail";
+import "./styles/globals.css";
+
 import SourceViewer, { SourceInfo } from "./components/SourceViewer";
 import ViewToggle, { ViewDescription } from "./components/ViewToggle";
-import "./styles/globals.css";
-import { ReactFlowProvider } from "@xyflow/react";
+import { useConfig, useGraph, useHealth } from "./api/queries";
+
+import ConfigView from "./components/ConfigView";
+import Graph from "./components/Graph";
 import type { GraphNode } from "./api/schemas";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { ReactFlowProvider } from "@xyflow/react";
+import ResourceDetail from "./components/ResourceDetail";
+import { queryClient } from "./api/client";
+import { useState } from "react";
 
 function Dashboard() {
 	const [currentView, setCurrentView] = useState<"config" | "graph">("graph");
@@ -167,7 +169,7 @@ function Dashboard() {
 									<SourceViewer
 										filename={selectedNode.source.filename}
 										highlightStart={selectedNode.source.startLine}
-										highlightEnd={selectedNode.source.endLine}
+										highlightEnd={selectedNode.source.startCol}
 									/>
 								</div>
 							)}

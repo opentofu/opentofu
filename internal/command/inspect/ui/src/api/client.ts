@@ -77,10 +77,10 @@ export const api = {
     apiFetch('/source/files', SourceFilesResponseSchema),
   
   // Get source content
-  sourceContent: (filename: string, startLine?: number, endLine?: number): Promise<SourceContentResponse> => {
+  sourceContent: (filename: string, startLine?: number, startCol?: number): Promise<SourceContentResponse> => {
     const params = new URLSearchParams({ file: filename });
-    if (startLine) params.set('start', startLine.toString());
-    if (endLine) params.set('end', endLine.toString());
+    if (startLine) params.set('startLine', startLine.toString());
+    if (startCol) params.set('startCol', startCol.toString());
     return apiFetch(`/source/content?${params}`, SourceContentResponseSchema);
   },
 }
@@ -92,6 +92,6 @@ export const queryKeys = {
   graph: ['graph'] as const,
   resource: (id: string) => ['resource', id] as const,
   sourceFiles: ['source', 'files'] as const,
-  sourceContent: (filename: string, startLine?: number, endLine?: number) => 
-    ['source', 'content', filename, startLine, endLine] as const,
+  sourceContent: (filename: string, startLine?: number, startCol?: number) =>
+    ['source', 'content', filename, startLine, startCol] as const,
 }

@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/configs"
 )
 
@@ -33,7 +35,7 @@ func (s *Server) Start() (string, error) {
 	if s.configRoot == "" {
 		s.configRoot = s.Config.Module.SourceDir
 	}
-	
+
 	// Build the graph from configuration
 	builder := &GraphBuilder{
 		config:     s.Config,
@@ -129,7 +131,7 @@ func getRandomPort() int {
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	response := map[string]interface{}{
-		"status": "healthy",
+		"status":      "healthy",
 		"config_path": s.Config.Module.SourceDir,
 	}
 	json.NewEncoder(w).Encode(response)
@@ -138,7 +140,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 // handleConfig returns the overall configuration structure
 func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	response := map[string]interface{}{
 		"modules":   extractModules(s.Config),
 		"resources": extractResources(s.Config),
@@ -146,7 +148,7 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 		"variables": extractVariables(s.Config),
 		"outputs":   extractOutputs(s.Config),
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -174,7 +176,7 @@ func (s *Server) handleResource(w http.ResponseWriter, r *http.Request) {
 
 	// Build module context
 	moduleContext := buildModuleContext(moduleConfig, s.Config)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	response := map[string]interface{}{
 		"id":           path,
@@ -186,19 +188,19 @@ func (s *Server) handleResource(w http.ResponseWriter, r *http.Request) {
 		"dependencies": extractResourceDependenciesEnhanced(resource, path, s.Config),
 		"attributes":   extractResourceAttributes(resource),
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
 // handleHierarchy returns the module hierarchy structure
 func (s *Server) handleHierarchy(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	hierarchy := buildModuleHierarchy(s.Config)
 	response := map[string]interface{}{
 		"modules": hierarchy,
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
@@ -254,7 +256,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 // Helper functions for extracting configuration data
 func extractModules(config *configs.Config) []map[string]interface{} {
 	var modules []map[string]interface{}
-	
+
 	// Add root module information
 	modules = append(modules, map[string]interface{}{
 		"id":     "module.root",
@@ -263,7 +265,7 @@ func extractModules(config *configs.Config) []map[string]interface{} {
 		"source": ".",
 		"calls":  extractModuleCalls(config.Module),
 	})
-	
+
 	config.DeepEach(func(c *configs.Config) {
 		if c != config { // Skip root module
 			moduleID := "module." + c.Path.String()
@@ -276,19 +278,19 @@ func extractModules(config *configs.Config) []map[string]interface{} {
 			})
 		}
 	})
-	
+
 	return modules
 }
 
 func extractModuleCalls(module *configs.Module) []map[string]interface{} {
 	var calls []map[string]interface{}
-	
+
 	for name, call := range module.ModuleCalls {
 		callInfo := map[string]interface{}{
 			"name":   name,
 			"source": call.SourceAddrRaw,
 		}
-		
+
 		// Extract dependencies from module call
 		dependencies := []string{}
 		for _, dep := range call.DependsOn {
@@ -297,21 +299,21 @@ func extractModuleCalls(module *configs.Module) []map[string]interface{} {
 		if len(dependencies) > 0 {
 			callInfo["dependencies"] = dependencies
 		}
-		
+
 		calls = append(calls, callInfo)
 	}
-	
+
 	return calls
 }
 
 func extractResources(config *configs.Config) []map[string]interface{} {
 	var resources []map[string]interface{}
-	
+
 	config.DeepEach(func(c *configs.Config) {
 		pathPrefix := ""
 		modulePath := ""
 		var parentID *string
-		
+
 		if len(c.Path) > 0 {
 			pathPrefix = c.Path.String() + "."
 			modulePath = "module." + c.Path.String()
@@ -320,10 +322,10 @@ func extractResources(config *configs.Config) []map[string]interface{} {
 			rootModuleID := "module.root"
 			parentID = &rootModuleID
 		}
-		
+
 		// Build module context for this resource's module
 		moduleContext := buildModuleContext(c, config)
-		
+
 		for _, res := range c.Module.ManagedResources {
 			dependencies := extractResourceDependencies(res)
 			resources = append(resources, map[string]interface{}{
@@ -337,7 +339,7 @@ func extractResources(config *configs.Config) []map[string]interface{} {
 				"dependencies": dependencies,
 			})
 		}
-		
+
 		for _, res := range c.Module.DataResources {
 			dependencies := extractResourceDependencies(res)
 			resources = append(resources, map[string]interface{}{
@@ -352,30 +354,30 @@ func extractResources(config *configs.Config) []map[string]interface{} {
 			})
 		}
 	})
-	
+
 	return resources
 }
 
 func extractProviders(config *configs.Config) []map[string]interface{} {
 	var providers []map[string]interface{}
-	
+
 	for _, provider := range config.Module.ProviderConfigs {
 		providers = append(providers, map[string]interface{}{
 			"name":  provider.Name,
 			"alias": provider.Alias,
 		})
 	}
-	
+
 	return providers
 }
 
 func extractVariables(config *configs.Config) []map[string]interface{} {
 	var variables []map[string]interface{}
-	
+
 	config.DeepEach(func(c *configs.Config) {
 		pathPrefix := ""
 		var parentID *string
-		
+
 		if len(c.Path) > 0 {
 			pathPrefix = c.Path.String() + "."
 			modulePath := "module." + c.Path.String()
@@ -384,10 +386,10 @@ func extractVariables(config *configs.Config) []map[string]interface{} {
 			rootModuleID := "module.root"
 			parentID = &rootModuleID
 		}
-		
+
 		// Build module context for this variable's module
 		moduleContext := buildModuleContext(c, config)
-		
+
 		for name, variable := range c.Module.Variables {
 			variables = append(variables, map[string]interface{}{
 				"id":          pathPrefix + name,
@@ -399,17 +401,17 @@ func extractVariables(config *configs.Config) []map[string]interface{} {
 			})
 		}
 	})
-	
+
 	return variables
 }
 
 func extractOutputs(config *configs.Config) []map[string]interface{} {
 	var outputs []map[string]interface{}
-	
+
 	config.DeepEach(func(c *configs.Config) {
 		pathPrefix := ""
 		var parentID *string
-		
+
 		if len(c.Path) > 0 {
 			pathPrefix = c.Path.String() + "."
 			modulePath := "module." + c.Path.String()
@@ -418,10 +420,10 @@ func extractOutputs(config *configs.Config) []map[string]interface{} {
 			rootModuleID := "module.root"
 			parentID = &rootModuleID
 		}
-		
+
 		// Build module context for this output's module
 		moduleContext := buildModuleContext(c, config)
-		
+
 		for name, output := range c.Module.Outputs {
 			outputs = append(outputs, map[string]interface{}{
 				"id":          pathPrefix + name,
@@ -433,26 +435,26 @@ func extractOutputs(config *configs.Config) []map[string]interface{} {
 			})
 		}
 	})
-	
+
 	return outputs
 }
 
 func findResourceByID(config *configs.Config, id string) *configs.Resource {
 	var result *configs.Resource
-	
+
 	config.DeepEach(func(c *configs.Config) {
 		pathPrefix := ""
 		if len(c.Path) > 0 {
 			pathPrefix = c.Path.String() + "."
 		}
-		
+
 		for _, res := range c.Module.ManagedResources {
 			if pathPrefix+res.Addr().String() == id {
 				result = res
 				return
 			}
 		}
-		
+
 		for _, res := range c.Module.DataResources {
 			if pathPrefix+res.Addr().String() == id {
 				result = res
@@ -460,7 +462,7 @@ func findResourceByID(config *configs.Config, id string) *configs.Resource {
 			}
 		}
 	})
-	
+
 	return result
 }
 
@@ -469,14 +471,14 @@ func extractResourceDependencies(resource *configs.Resource) map[string]interfac
 		"explicit": []string{},
 		"implicit": []string{},
 	}
-	
+
 	// Add explicit dependencies from depends_on
 	explicitDeps := []string{}
 	for _, dep := range resource.DependsOn {
 		explicitDeps = append(explicitDeps, dep.RootName())
 	}
 	dependencies["explicit"] = explicitDeps
-	
+
 	// Extract implicit dependencies from configuration body
 	// This is a simplified approach - ideally we'd use HCL's reference extraction
 	implicitDeps := []string{}
@@ -484,12 +486,12 @@ func extractResourceDependencies(resource *configs.Resource) map[string]interfac
 		// Get the variables referenced in the config
 		// This is a basic implementation - in a full version we'd use
 		// the lang package to properly extract references
-		
+
 		// For now, we'll return empty implicit deps and implement this properly later
 		// when we integrate with OpenTofu's actual dependency resolution
 	}
 	dependencies["implicit"] = implicitDeps
-	
+
 	return dependencies
 }
 
@@ -500,40 +502,40 @@ func extractResourceDependenciesEnhanced(resource *configs.Resource, resourceID 
 		"implicit":    []string{},
 		"crossModule": []string{},
 	}
-	
+
 	// Add explicit dependencies from depends_on
 	explicitDeps := []string{}
 	crossModuleDeps := []string{}
 	currentModulePath := getModulePathFromResourceID(resourceID)
-	
+
 	for _, dep := range resource.DependsOn {
 		depName := dep.RootName()
 		explicitDeps = append(explicitDeps, depName)
-		
+
 		// Check if this dependency is cross-module
 		if isCrossModuleDependency(depName, currentModulePath) {
 			crossModuleDeps = append(crossModuleDeps, depName)
 		}
 	}
-	
+
 	dependencies["explicit"] = explicitDeps
 	dependencies["crossModule"] = crossModuleDeps
-	
+
 	// For implicit dependencies, we'd need HCL parsing
 	dependencies["implicit"] = []string{}
-	
+
 	return dependencies
 }
 
 // Extract resource attributes (simplified)
 func extractResourceAttributes(resource *configs.Resource) map[string]interface{} {
 	attributes := make(map[string]interface{})
-	
+
 	// This would require HCL parsing to extract actual attribute values
 	// For now, we'll just return the resource type and name
 	attributes["resource_type"] = resource.Type
 	attributes["name"] = resource.Name
-	
+
 	return attributes
 }
 
@@ -541,13 +543,13 @@ func extractResourceAttributes(resource *configs.Resource) map[string]interface{
 func findResourceByIDWithModule(config *configs.Config, id string) (*configs.Resource, *configs.Config) {
 	var result *configs.Resource
 	var moduleConfig *configs.Config
-	
+
 	config.DeepEach(func(c *configs.Config) {
 		pathPrefix := ""
 		if len(c.Path) > 0 {
 			pathPrefix = c.Path.String() + "."
 		}
-		
+
 		for _, res := range c.Module.ManagedResources {
 			if pathPrefix+res.Addr().String() == id {
 				result = res
@@ -555,7 +557,7 @@ func findResourceByIDWithModule(config *configs.Config, id string) (*configs.Res
 				return
 			}
 		}
-		
+
 		for _, res := range c.Module.DataResources {
 			if pathPrefix+res.Addr().String() == id {
 				result = res
@@ -564,7 +566,7 @@ func findResourceByIDWithModule(config *configs.Config, id string) (*configs.Res
 			}
 		}
 	})
-	
+
 	return result, moduleConfig
 }
 
@@ -580,13 +582,13 @@ func buildModuleContext(moduleConfig *configs.Config, rootConfig *configs.Config
 			"ancestorPath": []string{"root"},
 		}
 	}
-	
+
 	path := moduleConfig.Path.String()
 	name := "root"
 	if len(moduleConfig.Path) > 0 {
 		name = moduleConfig.Path[len(moduleConfig.Path)-1]
 	}
-	
+
 	// Calculate depth and parent
 	depth := len(moduleConfig.Path)
 	var parent *string
@@ -594,13 +596,13 @@ func buildModuleContext(moduleConfig *configs.Config, rootConfig *configs.Config
 		parentPath := strings.Join(moduleConfig.Path[:depth-1], ".")
 		parent = &parentPath
 	}
-	
+
 	// Build ancestor path
 	ancestorPath := []string{"root"}
 	for _, pathPart := range moduleConfig.Path {
 		ancestorPath = append(ancestorPath, pathPart)
 	}
-	
+
 	return map[string]interface{}{
 		"path":         path,
 		"name":         name,
@@ -614,7 +616,7 @@ func buildModuleContext(moduleConfig *configs.Config, rootConfig *configs.Config
 // Build complete module hierarchy
 func buildModuleHierarchy(config *configs.Config) map[string]interface{} {
 	hierarchy := make(map[string]interface{})
-	
+
 	// Add root module
 	rootChildren := buildModuleChildren(config, "")
 	hierarchy["root"] = map[string]interface{}{
@@ -629,14 +631,14 @@ func buildModuleHierarchy(config *configs.Config) map[string]interface{} {
 		"outputs":   extractOutputNames(config.Module),
 		"calls":     extractModuleCallsEnhanced(config.Module),
 	}
-	
+
 	// Add all other modules
 	config.DeepEach(func(c *configs.Config) {
 		if c != config { // Skip root module
 			moduleID := c.Path.String()
 			name := c.Path[len(c.Path)-1]
 			depth := len(c.Path)
-			
+
 			var parent *string
 			if depth > 1 {
 				parentPath := "module." + strings.Join(c.Path[:depth-1], ".")
@@ -645,9 +647,9 @@ func buildModuleHierarchy(config *configs.Config) map[string]interface{} {
 				parentStr := "module.root"
 				parent = &parentStr
 			}
-			
+
 			children := buildModuleChildren(config, moduleID)
-			
+
 			hierarchy[moduleID] = map[string]interface{}{
 				"id":        "module." + moduleID,
 				"name":      name,
@@ -662,7 +664,7 @@ func buildModuleHierarchy(config *configs.Config) map[string]interface{} {
 			}
 		}
 	})
-	
+
 	return hierarchy
 }
 
@@ -670,12 +672,12 @@ func buildModuleHierarchy(config *configs.Config) map[string]interface{} {
 func buildModuleChildren(config *configs.Config, modulePath string) map[string]interface{} {
 	moduleChildren := []string{}
 	resourceChildren := []string{}
-	
+
 	// Find child modules
 	config.DeepEach(func(c *configs.Config) {
 		if len(c.Path) > 0 {
 			currentPath := c.Path.String()
-			
+
 			// Check if this is a direct child of the target module
 			if modulePath == "" {
 				// Root module children
@@ -693,11 +695,11 @@ func buildModuleChildren(config *configs.Config, modulePath string) map[string]i
 			}
 		}
 	})
-	
+
 	// Find child resources
 	config.DeepEach(func(c *configs.Config) {
 		currentModulePath := c.Path.String()
-		
+
 		if currentModulePath == modulePath {
 			// Add resources from this exact module
 			for _, res := range c.Module.ManagedResources {
@@ -707,7 +709,7 @@ func buildModuleChildren(config *configs.Config, modulePath string) map[string]i
 					resourceChildren = append(resourceChildren, modulePath+"."+res.Addr().String())
 				}
 			}
-			
+
 			for _, res := range c.Module.DataResources {
 				if modulePath == "" {
 					resourceChildren = append(resourceChildren, res.Addr().String())
@@ -717,7 +719,7 @@ func buildModuleChildren(config *configs.Config, modulePath string) map[string]i
 			}
 		}
 	})
-	
+
 	return map[string]interface{}{
 		"modules":   moduleChildren,
 		"resources": resourceChildren,
@@ -745,15 +747,15 @@ func extractOutputNames(module *configs.Module) []string {
 // Enhanced module call extraction with inputs
 func extractModuleCallsEnhanced(module *configs.Module) []map[string]interface{} {
 	var calls []map[string]interface{}
-	
+
 	for name, call := range module.ModuleCalls {
 		callInfo := map[string]interface{}{
 			"name":    name,
 			"source":  call.SourceAddrRaw,
-			"version": nil, // Would need to extract from version constraints
+			"version": nil,                          // Would need to extract from version constraints
 			"inputs":  make(map[string]interface{}), // Would need HCL parsing
 		}
-		
+
 		// Extract dependencies from module call
 		dependencies := []string{}
 		for _, dep := range call.DependsOn {
@@ -762,10 +764,10 @@ func extractModuleCallsEnhanced(module *configs.Module) []map[string]interface{}
 		if len(dependencies) > 0 {
 			callInfo["dependencies"] = dependencies
 		}
-		
+
 		calls = append(calls, callInfo)
 	}
-	
+
 	return calls
 }
 
@@ -789,7 +791,7 @@ func isCrossModuleDependency(dependency, currentModulePath string) bool {
 		// Root module - check if dependency is in a module
 		return strings.HasPrefix(dependency, "module.")
 	}
-	
+
 	// Non-root module - check if dependency is outside current module
 	return !strings.HasPrefix(dependency, currentModulePath+".")
 }
@@ -801,13 +803,13 @@ func (s *Server) corsWrapper(next http.HandlerFunc) http.HandlerFunc {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
+
 		// Handle preflight requests
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next(w, r)
 	}
 }
@@ -892,70 +894,70 @@ func getPortFromListener() int {
 // handleSourceFiles returns a list of all source files in the configuration
 func (s *Server) handleSourceFiles(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	files := []map[string]interface{}{}
-	
+
 	// Walk the configuration directory to find all .tf files
 	err := filepath.WalkDir(s.configRoot, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		
+
 		// Skip directories and non-.tf files
 		if d.IsDir() || !strings.HasSuffix(path, ".tf") {
 			return nil
 		}
-		
+
 		// Get relative path from config root
 		relPath, err := filepath.Rel(s.configRoot, path)
 		if err != nil {
 			relPath = path
 		}
-		
+
 		// Get file info
 		info, err := d.Info()
 		if err != nil {
 			return err
 		}
-		
+
 		// Count lines in file
 		lineCount := 0
 		if content, err := os.ReadFile(path); err == nil {
 			lineCount = strings.Count(string(content), "\n") + 1
 		}
-		
+
 		files = append(files, map[string]interface{}{
 			"path":  relPath,
 			"size":  info.Size(),
 			"lines": lineCount,
 		})
-		
+
 		return nil
 	})
-	
+
 	if err != nil {
 		http.Error(w, fmt.Sprintf("Failed to scan source files: %v", err), http.StatusInternalServerError)
 		return
 	}
-	
+
 	response := map[string]interface{}{
 		"files": files,
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
 
 // handleSourceContent returns the content of a specific source file
 func (s *Server) handleSourceContent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	
+
 	// Get file parameter
 	filename := r.URL.Query().Get("file")
 	if filename == "" {
 		http.Error(w, "Missing 'file' parameter", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Security check: ensure file is within config root
 	// Clean the paths to handle any ".." or other path traversal attempts
 	cleanConfigRoot, err := filepath.Abs(s.configRoot)
@@ -963,31 +965,31 @@ func (s *Server) handleSourceContent(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	
+
 	fullPath := filepath.Join(cleanConfigRoot, filename)
 	cleanFullPath, err := filepath.Abs(fullPath)
 	if err != nil {
 		http.Error(w, "Invalid file path", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Ensure the config root ends with a separator to prevent partial matches
 	configRootWithSep := cleanConfigRoot
 	if !strings.HasSuffix(configRootWithSep, string(filepath.Separator)) {
 		configRootWithSep += string(filepath.Separator)
 	}
-	
+
 	if !strings.HasPrefix(cleanFullPath, configRootWithSep) && cleanFullPath != cleanConfigRoot {
 		http.Error(w, "File path not allowed", http.StatusForbidden)
 		return
 	}
-	
+
 	// Check if file exists and is a .tf file
 	if !strings.HasSuffix(filename, ".tf") {
 		http.Error(w, "Only .tf files are allowed", http.StatusBadRequest)
 		return
 	}
-	
+
 	// Read file content
 	content, err := os.ReadFile(cleanFullPath)
 	if err != nil {
@@ -998,26 +1000,45 @@ func (s *Server) handleSourceContent(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	
+
 	contentStr := string(content)
 	lines := strings.Split(contentStr, "\n")
-	
+
 	// Handle line range parameters
 	startLine := 1
-	endLine := len(lines)
-	
-	if startStr := r.URL.Query().Get("start"); startStr != "" {
-		if start, err := strconv.Atoi(startStr); err == nil && start > 0 {
+	startCol := 0
+	endLine := -1
+
+	if startLineStr := r.URL.Query().Get("startLine"); startLineStr != "" {
+		if start, err := strconv.Atoi(startLineStr); err == nil && start > 0 {
 			startLine = start
 		}
 	}
-	
-	if endStr := r.URL.Query().Get("end"); endStr != "" {
-		if end, err := strconv.Atoi(endStr); err == nil && end > 0 {
-			endLine = end
+
+	if startColStr := r.URL.Query().Get("startCol"); startColStr != "" {
+		if start, err := strconv.Atoi(startColStr); err == nil && start > 0 {
+			startCol = start
 		}
 	}
-	
+
+	file, _ := hclsyntax.ParseConfig(
+		content,
+		filename,
+		hcl.Pos{Line: 0, Column: 0},
+	)
+
+	bodySyntax := file.Body.(*hclsyntax.Body)
+	for _, block := range bodySyntax.Blocks {
+		if block.Range().Start.Line == startLine-1 && block.Range().Start.Column == startCol {
+			endLine = block.CloseBraceRange.Start.Line + 1
+		}
+	}
+
+	if endLine == -1 {
+		http.Error(w, "Resource/Module not found", http.StatusNotFound)
+		return
+	}
+
 	// Validate line range
 	if startLine > len(lines) {
 		startLine = len(lines)
@@ -1028,11 +1049,11 @@ func (s *Server) handleSourceContent(w http.ResponseWriter, r *http.Request) {
 	if startLine > endLine {
 		startLine = endLine
 	}
-	
+
 	// Extract requested lines (convert to 0-based indexing)
 	var selectedLines []string
 	var selectedContent string
-	
+
 	if startLine > 0 && endLine > 0 {
 		start := startLine - 1
 		end := endLine
@@ -1042,21 +1063,21 @@ func (s *Server) handleSourceContent(w http.ResponseWriter, r *http.Request) {
 		selectedLines = lines[start:end]
 		selectedContent = strings.Join(selectedLines, "\n")
 	}
-	
+
 	response := map[string]interface{}{
-		"filename":  filename,
-		"content":   selectedContent,
-		"lines":     selectedLines,
-		"startLine": startLine,
-		"endLine":   endLine,
+		"filename":   filename,
+		"content":    selectedContent,
+		"lines":      selectedLines,
+		"startLine":  startLine,
+		"endLine":    endLine,
 		"totalLines": len(lines),
 	}
-	
+
 	// If no line range specified, include full content
-	if r.URL.Query().Get("start") == "" && r.URL.Query().Get("end") == "" {
+	if r.URL.Query().Get("startLine") == "" && r.URL.Query().Get("startCol") == "" {
 		response["content"] = contentStr
 		response["lines"] = lines
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }

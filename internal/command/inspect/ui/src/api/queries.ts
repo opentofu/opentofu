@@ -1,5 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
 import { api, queryKeys } from './client'
+
+import { useQuery } from '@tanstack/react-query'
 
 // Health check query
 export const useHealth = () => {
@@ -51,10 +52,10 @@ export const useSourceFiles = () => {
 }
 
 // Source content query
-export const useSourceContent = (filename: string | undefined, startLine?: number, endLine?: number) => {
+export const useSourceContent = (filename: string | undefined, startLine?: number, startCol?: number) => {
   return useQuery({
-    queryKey: queryKeys.sourceContent(filename || '', startLine, endLine),
-    queryFn: () => api.sourceContent(filename as string, startLine, endLine),
+    queryKey: queryKeys.sourceContent(filename || '', startLine, startCol),
+    queryFn: () => api.sourceContent(filename as string, startLine, startCol),
     enabled: !!filename, // Only run if filename is provided
     staleTime: 15 * 60 * 1000, // 15 minutes
   })

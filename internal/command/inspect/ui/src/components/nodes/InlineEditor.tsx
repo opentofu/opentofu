@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { useSourceContent } from "../../api/queries";
+import { useEffect, useState } from "react";
+
 import type { SourceLocation } from "../../api/schemas";
+import { useSourceContent } from "../../api/queries";
 
 interface InlineEditorProps {
 	nodeId: string;
@@ -18,7 +19,7 @@ export default function InlineEditor({ nodeId, sourceLocation, onSave, onCancel 
 	const { data: sourceData, isLoading: sourceLoading, error } = useSourceContent(
 		sourceLocation.filename,
 		sourceLocation.startLine,
-		sourceLocation.endLine
+		sourceLocation.startCol,
 	);
 
 	useEffect(() => {
