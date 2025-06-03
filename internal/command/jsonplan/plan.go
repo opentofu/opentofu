@@ -142,7 +142,7 @@ type Change struct {
 	// during planning as a string.
 	//
 	// If this is populated, then Importing should also be populated but this
-	// might change in the future. However, nNot all Importing changes will
+	// might change in the future. However, not all Importing changes will
 	// contain generated config.
 	GeneratedConfig string `json:"generated_config,omitempty"`
 }

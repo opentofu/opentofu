@@ -50,12 +50,18 @@ State does not have any significant metadata not included in the common [values 
 
 ```javascript
 {
-  // "values" is a values representation object derived from the values in the
-  // state. Because the state is always fully known, this is always complete.
-  "values": <values-representation>
+  // Version of json format incremented for any change to this format that requires changes to a consuming parser.
+  "format_version": "1.0",
 
   // The key here is left unchanged in OpenTofu for compatibility reasons.
-  "terraform_version": "version.string"
+  "terraform_version": "version.string",
+
+  // "values" is a values representation object derived from the values in the
+  // state. Because the state is always fully known, this is always complete.
+  "values": <values-representation>,
+
+  // "checks" describes the results for any checkable objects
+  "checks": <checks-representation>,
 }
 ```
 
@@ -81,18 +87,13 @@ For ease of consumption by callers, the plan representation includes a partial r
   // the standard value representation, with any as-yet-unknown values omitted.
   "planned_values": <values-representation>,
 
-  // "proposed_unknown" is a representation of the attributes, including any
-  // potentially-unknown attributes. Each value is replaced with "true" or
-  // "false" depending on whether it is known in the proposed plan.
-  "proposed_unknown": <values-representation>,
-
   // "variables" is a representation of all the variables provided for the given
   // plan. This is structured as a map similar to the output map so we can add
   // additional fields in later.
   "variables": {
     "varname": {
       "value": "varvalue",
-      "deprecated": "The variable is deprecated, use another one instead"
+      "deprecated": "The variable is deprecated, use another one instead",
     },
   },
 
@@ -178,7 +179,17 @@ For ease of consumption by callers, the plan representation includes a partial r
       //   cannot read the data during the plan phase because the data
       //   resource depends on at least one managed resource that also has
       //   a pending change in the same plan.
-      //
+      // - "replace_by_triggers" indicates that the resource instance
+	    //   is planned to be replaced because of a corresponding change in a
+	    //   replace_triggered_by reference.
+      // - "delete_because_no_move_target" indicates that the resource
+	    //   appears as the target in a moved block, but no configuration
+	    //   exists for that resource.
+      // - "read_because_check_nested" indicates that the resource must
+	    //   be read during apply (and planning) because it is inside a check
+	    //   block. When the check assertions execute we want them to use
+	    //   the most up-to-date data.
+
       // If there is no special reason to note, OpenTofu will omit this
       // property altogether.
       action_reason: "replace_because_tainted"
@@ -232,7 +243,10 @@ For ease of consumption by callers, the plan representation includes a partial r
 
   // "errored" indicates whether planning failed. An errored plan cannot be applied,
   // but the actions planned before failure may help to understand the error.
-  "errored": false
+  "errored": false,
+
+  // When the plan was run
+  "timestamp": "2023-08-25T00:00:00Z"
 }
 ```
 
@@ -310,7 +324,17 @@ The following example illustrates the structure of a `<values-representation>`:
         // are included in this structure.
         "sensitive_values": {
           "id": true,
-        }
+        },
+
+        // DependsOn contains a list of the resource's dependencies. 
+        // The entries are addresses relative to the containing module.
+        "depends_on": ["foo.bar"],
+
+        // Tainted is true if the resource is tainted in tofu state.
+        "tainted": false,
+
+        // If set, indicates action applies to a "deposed" object rather than its current object
+        "deposed_key": "0gfb240d"
       }
     ]
 
@@ -379,6 +403,9 @@ Because the configuration models are produced at a stage prior to expression eva
       // a default configuration.
       "alias": "foo",
 
+      // the constraint on the version of the provider
+      "version_constraint": "1.1.0"
+
       // "module_address" is included only for provider configurations that are
       // declared in a descendent module, and gives the opaque address for the
       // module that contains the provider configuration.
@@ -402,7 +429,9 @@ Because the configuration models are produced at a stage prior to expression eva
       "example": {
         "expression": <expression-representation>,
         "sensitive": false,
-        "deprecated": "This output is deprecated, use another one instead"
+        "deprecated": "This output is deprecated, use another one instead",
+        "depends_on": ["foo.bar"],
+        "description": "example description",
       }
     },
 
@@ -450,7 +479,8 @@ Because the configuration models are produced at a stage prior to expression eva
         // configuration block. These are omitted if the corresponding argument
         // isn't set.
         "count_expression": <expression-representation>,
-        "for_each_expression": <expression-representation>
+        "for_each_expression": <expression-representation>,
+        "depends_on": ["foo.bar"]
       },
     ],
 
@@ -462,14 +492,11 @@ Because the configuration models are produced at a stage prior to expression eva
 
       // Key is the module call name chosen in the configuration.
       "child": {
-
-        // "resolved_source" is the resolved source address of the module, after
-        // any normalization and expansion. This could be either a
         // go-getter-style source address or a local path starting with "./" or
         // "../". If the user gave a registry source address then this is the
         // final location of the module as returned by the registry, after
         // following any redirect indirection.
-        "resolved_source": "./child"
+        "source": "./child",
 
         // "expressions" describes the expressions for the arguments within the
         // block that correspond to input variables in the child module.
@@ -485,7 +512,9 @@ Because the configuration models are produced at a stage prior to expression eva
         // "module" is a representation of the configuration of the child module
         // itself, using the same structure as the "root_module" object,
         // recursively describing the full module tree.
-        "module": <module-configuration-representation>
+        "module": <module-configuration-representation>,
+        "version_constraint": "1.1.0",
+        "depends_on": ["foo.bar"]
       }
     }
   }
@@ -554,7 +583,8 @@ In some cases, it is the entire content of a block (possibly after certain speci
 }
 ```
 
-For now we expect callers to just hard-code assumptions about the schemas of particular resource types in order to process these expression representations. In a later release we will add new inspection commands to return machine-readable descriptions of the schemas themselves, allowing for more generic handling in programs such as visualization tools.
+For now we expect callers to just hard-code assumptions about the schemas of particular resource types in order to process these expression representations. 
+In a later release we will add new inspection commands to return machine-readable descriptions of the schemas themselves, allowing for more generic handling in programs such as visualization tools.
 
 ## Change Representation
 
@@ -615,7 +645,17 @@ A `<change-representation>` describes the change to the indicated object.
   // replacement (for example, if the resource was tainted). Each path
   // consists of one or more steps, each of which will be a number or a
   // string.
-  "replace_paths": [["triggers"]]
+  "replace_paths": [["triggers"]],
+
+  // If importing is present (ie. not null) then the change is an import operation
+  // in addition to anything mentioned in the actions field.
+  "importing": {
+    // The original ID of this resource used to target it as part of planned import operation
+    "id": "foo"
+  },
+
+  // If importing, there may be a generated config produced
+  "generated_config": "foobar",
 }
 ```
 
