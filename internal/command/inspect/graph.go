@@ -157,6 +157,32 @@ func (gb *GraphBuilder) Build() (*Graph, error) {
 		graph.Nodes = append(graph.Nodes, node)
 	}
 
+	// Build nodes for Variables
+	variables := gb.extractAllVariables()
+	for id, variable := range variables {
+		modulePath := gb.getModulePath(id)
+		var parentID *string
+		if modulePath != "" {
+			parentID = &modulePath
+		} else {
+			rootModuleID := "module.root"
+			parentID = &rootModuleID
+		}
+
+		node := Node{
+			ID:       id,
+			Type:     "variable",
+			ParentID: parentID,
+			Data: map[string]interface{}{
+				"resourceType": "variable",
+				"name":         variable.Name,
+				"source":       "graph_walker", // Indicates this comes from graph walker
+			},
+			Source: gb.extractSourceLocation(variable.DeclRange),
+		}
+		graph.Nodes = append(graph.Nodes, node)
+	}
+
 	// Build edges for dependencies (graph walker approach)
 	// In a full implementation, this would use OpenTofu's actual graph building
 	// to get the complete dependency graph including provider dependencies,
@@ -200,7 +226,7 @@ func (gb *GraphBuilder) extractAllResources() map[string]*configs.Resource {
 	return resources
 }
 
-// extractAllOutputs returns all resources from all modules with full paths
+// extractAllOutputs returns all outputs
 func (gb *GraphBuilder) extractAllOutputs() map[string]*configs.Output {
 	outputs := make(map[string]*configs.Output)
 
@@ -217,6 +243,25 @@ func (gb *GraphBuilder) extractAllOutputs() map[string]*configs.Output {
 	})
 
 	return outputs
+}
+
+// extractAllVariables returns all variables
+func (gb *GraphBuilder) extractAllVariables() map[string]*configs.Variable {
+	variables := make(map[string]*configs.Variable)
+
+	gb.config.DeepEach(func(c *configs.Config) {
+		pathPrefix := ""
+		if len(c.Path) > 0 {
+			pathPrefix = c.Path.String() + "."
+		}
+
+		for _, res := range c.Module.Variables {
+			id := pathPrefix + res.Addr().String()
+			variables[id] = res
+		}
+	})
+
+	return variables
 }
 
 // extractAllModuleCalls returns all module calls with their metadata

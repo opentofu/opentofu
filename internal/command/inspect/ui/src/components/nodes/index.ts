@@ -6,3 +6,4 @@ export { default as UnknownOperandNode } from './UnknownOperandNode';
 export { default as EditButton } from './EditButton';
 export { default as InlineEditor } from './InlineEditor';
 export { default as OutputRootNode } from './OutputRootNode';
+export { default as VariableRootNode } from './VariableRootNode';

@@ -71,6 +71,23 @@ function OutputCard({
 	);
 }
 
+function VariableCard({
+	variable,
+}: {
+	variable: any;
+}) {
+	return (
+		<div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors cursor-pointer">
+			<div className="flex items-start gap-3">
+				<div className="flex-1 min-w-0">
+					<h3 className="font-semibold text-gray-900 truncate">{variable.id}</h3>
+					<p className="text-sm text-gray-600">Variable</p>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 function ResourceCard({
 	resource,
 	onResourceSelect,
@@ -112,7 +129,7 @@ function ResourceCard({
 }
 
 export default function ConfigView({ data, isLoading, error, onResourceSelect }: ConfigViewProps) {
-	const [activeTab, setActiveTab] = useState<"modules" | "resources" | "providers" | "outputs">("modules");
+	const [activeTab, setActiveTab] = useState<"modules" | "resources" | "providers" | "outputs" | "variables">("modules");
 
 	if (error) {
 		return (
@@ -182,6 +199,15 @@ export default function ConfigView({ data, isLoading, error, onResourceSelect }:
 				</button>
 				<button
 					type="button"
+					onClick={() => setActiveTab("variables")}
+					className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+						activeTab === "variables" ? "border-primary-500 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+					}`}
+				>
+					💉 Variables ({data.variables?.length || 0})
+				</button>
+				<button
+					type="button"
 					onClick={() => setActiveTab("outputs")}
 					className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
 						activeTab === "outputs" ? "border-primary-500 text-primary-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
@@ -221,6 +247,17 @@ export default function ConfigView({ data, isLoading, error, onResourceSelect }:
 							<div className="text-center py-8 text-gray-500">
 								<div className="text-4xl mb-2">🏗️</div>
 								<p>No Outputs found</p>
+							</div>
+						)}
+					</div>
+				)}
+
+				{activeTab === "variables" && (
+					<div className="grid gap-4">
+						{data.variables?.map((variable) => <VariableCard key={variable.id} variable={variable} />) || (
+							<div className="text-center py-8 text-gray-500">
+								<div className="text-4xl mb-2">🏗️</div>
+								<p>No Variables found</p>
 							</div>
 						)}
 					</div>

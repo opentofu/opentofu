@@ -1006,18 +1006,11 @@ func (s *Server) handleSourceContent(w http.ResponseWriter, r *http.Request) {
 
 	// Handle line range parameters
 	startLine := 1
-	startCol := 0
 	endLine := -1
 
 	if startLineStr := r.URL.Query().Get("startLine"); startLineStr != "" {
 		if start, err := strconv.Atoi(startLineStr); err == nil && start > 0 {
 			startLine = start
-		}
-	}
-
-	if startColStr := r.URL.Query().Get("startCol"); startColStr != "" {
-		if start, err := strconv.Atoi(startColStr); err == nil && start > 0 {
-			startCol = start
 		}
 	}
 
@@ -1029,8 +1022,9 @@ func (s *Server) handleSourceContent(w http.ResponseWriter, r *http.Request) {
 
 	bodySyntax := file.Body.(*hclsyntax.Body)
 	for _, block := range bodySyntax.Blocks {
-		if block.Range().Start.Line == startLine-1 && block.Range().Start.Column == startCol {
+		if block.Range().Start.Line == startLine-1 {
 			endLine = block.CloseBraceRange.Start.Line + 1
+			break
 		}
 	}
 
@@ -1074,7 +1068,7 @@ func (s *Server) handleSourceContent(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If no line range specified, include full content
-	if r.URL.Query().Get("startLine") == "" && r.URL.Query().Get("startCol") == "" {
+	if r.URL.Query().Get("startLine") == "" {
 		response["content"] = contentStr
 		response["lines"] = lines
 	}

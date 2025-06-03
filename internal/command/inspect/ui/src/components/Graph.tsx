@@ -3,7 +3,7 @@ import { ReactFlow, Background, Controls, useNodesState, useEdgesState, addEdge,
 import "@xyflow/react/dist/style.css";
 import ELK, { ElkNode, ElkExtendedEdge } from "elkjs/lib/elk.bundled.js";
 import type { GraphResponse, GraphNode } from "../api/schemas";
-import { ResourceNode, ModuleNode, ExpressionNode, StaticValueNode, UnknownOperandNode, OutputRootNode } from "./nodes";
+import { ResourceNode, ModuleNode, ExpressionNode, StaticValueNode, UnknownOperandNode, OutputRootNode, VariableRootNode } from "./nodes";
 
 // Node types mapping
 const nodeTypes: NodeTypes = {
@@ -12,6 +12,7 @@ const nodeTypes: NodeTypes = {
 	expression: ExpressionNode,
 	static_value: StaticValueNode,
 	output_root: OutputRootNode,
+	variable: VariableRootNode,
 	unknown_operand: UnknownOperandNode,
 };
 
@@ -297,7 +298,7 @@ export default function Graph({ data, isLoading, error, scope, onNodeSelect }: G
 				return moduleData.depth === 1;
 			}
 			// Include root-level resources, outputs, expressions, static values, and unknown operands
-			if (node.type === "resource" || node.type === "output_root" || node.type === "expression" || node.type === "static_value" || node.type === "unknown_operand") {
+			if (node.type === "resource" || node.type === "variable" || node.type === "output_root" || node.type === "expression" || node.type === "static_value" || node.type === "unknown_operand") {
 				return !node.parentId || node.parentId === "module.root";
 			}
 			return false;
@@ -308,7 +309,7 @@ export default function Graph({ data, isLoading, error, scope, onNodeSelect }: G
 			return node.parentId === scope;
 		}
 		// Show resources, outputs, expressions, static values, and unknown operands that belong to the scope module
-		if (node.type === "resource" || node.type === "output_root" || node.type === "expression" || node.type === "static_value" || node.type === "unknown_operand") {
+		if (node.type === "resource" || node.type === "output_root" || node.type === "variable" ||  node.type === "expression" || node.type === "static_value" || node.type === "unknown_operand") {
 			return node.parentId === scope;
 		}
 		return false;
@@ -426,6 +427,7 @@ export default function Graph({ data, isLoading, error, scope, onNodeSelect }: G
 							<div>🟢 Static Values (Number)</div>
 							<div>🟠 Static Values (Boolean)</div>
 							<div>❓ Unknown Operands</div>
+							<div>🟤 Variables</div>
 							<div>🔴 Outputs</div>
 						</div>
 					</div>
