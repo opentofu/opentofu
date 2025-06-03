@@ -7,6 +7,7 @@ package configs
 
 import (
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/encryption/config"
 )
 
@@ -211,6 +212,13 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 				file.Removed = append(file.Removed, cfg)
 			}
 
+		case "middleware":
+			cfg, cfgDiags := decodeMiddlewareBlock(block)
+			diags = append(diags, cfgDiags...)
+			if cfg != nil {
+				file.Middleware = append(file.Middleware, cfg)
+			}
+
 		default:
 			// Should never happen because the above cases should be exhaustive
 			// for all block type names in our schema.
@@ -310,6 +318,10 @@ var configFileSchema = &hcl.BodySchema{
 		},
 		{
 			Type: "removed",
+		},
+		{
+			Type:       "middleware",
+			LabelNames: []string{"name"},
 		},
 	},
 }

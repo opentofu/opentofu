@@ -49,6 +49,8 @@ type Provider struct {
 
 	ForEach   hcl.Expression
 	Instances map[addrs.InstanceKey]instances.RepetitionData
+
+	Middleware []hcl.Traversal
 }
 
 func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
@@ -124,6 +126,22 @@ func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 				Detail:   fmt.Sprintf("The provider argument name %q is reserved for use by OpenTofu in a future version.", name),
 				Subject:  &attr.NameRange,
 			})
+		}
+	}
+
+	if attr, exists := content.Attributes["middleware"]; exists {
+		if len(attr.Expr.Variables()) > 0 {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Invalid middleware expression",
+				Detail:   "The middleware argument must be a constant value, not an expression with variables.",
+				Subject:  attr.Expr.Range().Ptr(),
+			})
+		} else {
+			// TODO: Define an explicit method for decoding middleware
+			mw, mwDiags := decodeDependsOn(attr) // We're lazy but this method does exactly what we need!
+			diags = append(diags, mwDiags...)
+			provider.Middleware = mw
 		}
 	}
 
@@ -307,6 +325,7 @@ var providerBlockSchema = &hcl.BodySchema{
 		{Name: "count"},
 		{Name: "depends_on"},
 		{Name: "source"},
+		{Name: "middleware"},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
 		{Type: "_"}, // meta-argument escaping block

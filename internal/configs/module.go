@@ -42,6 +42,7 @@ type Module struct {
 	ProviderLocalNames   map[addrs.Provider]string
 	ProviderMetas        map[addrs.Provider]*ProviderMeta
 	Encryption           *config.EncryptionConfig
+	Middleware           map[string]*Middleware
 
 	Variables map[string]*Variable
 	Locals    map[string]*Local
@@ -97,6 +98,7 @@ type File struct {
 	ProviderMetas     []*ProviderMeta
 	RequiredProviders []*RequiredProviders
 	Encryptions       []*config.EncryptionConfig
+	Middleware        []*Middleware
 
 	Variables []*Variable
 	Locals    []*Local
@@ -122,6 +124,24 @@ const (
 	SelectiveLoadBackend    SelectiveLoader = 1
 	SelectiveLoadEncryption SelectiveLoader = 2
 )
+
+// validateProviderMiddleware checks that all middleware referenced in provider
+// configurations actually exist in the module
+func (m *Module) validateProviderMiddleware() hcl.Diagnostics {
+	var diags hcl.Diagnostics
+
+	for _, provider := range m.ProviderConfigs {
+		for _, mwRef := range provider.Middleware {
+			// Extract the middleware name from the traversal
+			// The traversal should be like "middleware.cost_tracker"
+			// You'll need to check if it starts with "middleware." and extract the name
+
+			// Then check if it exists in m.Middleware
+		}
+	}
+
+	return diags
+}
 
 // Apply the selective filter to the input files
 func (s SelectiveLoader) filter(input []*File) []*File {
@@ -343,6 +363,20 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 			continue
 		}
 		m.ProviderConfigs[key] = pc
+	}
+
+	for _, mw := range file.Middleware {
+		key := mw.moduleUniqueKey()
+		if existing, exists := m.Middleware[key]; exists {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Duplicate middleware configuration",
+				Detail:   fmt.Sprintf("A middleware named %q was already defined at %s. Middleware names must be unique within a module.", existing.Name, existing.DeclRange),
+				Subject:  &mw.DeclRange,
+			})
+			continue
+		}
+		m.Middleware[key] = mw
 	}
 
 	for _, pm := range file.ProviderMetas {

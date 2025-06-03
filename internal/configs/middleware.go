@@ -118,3 +118,4 @@ func decodeMiddlewareBlock(block *hcl.Block) (*Middleware, hcl.Diagnostics) {
 func (m *Middleware) moduleUniqueKey() string {
 	return m.Name
 }
+
