@@ -10,8 +10,10 @@ import (
 	"fmt"
 )
 
+var base32Encoding = base32.HexEncoding.WithPadding(base32.NoPadding)
+
 func decodeBase32(raw string) (string, error) {
-	bytes, err := base32.HexEncoding.DecodeString(raw)
+	bytes, err := base32Encoding.DecodeString(raw)
 	if err != nil {
 		return "", fmt.Errorf("invalid base32 encoding")
 	}
@@ -19,5 +21,5 @@ func decodeBase32(raw string) (string, error) {
 }
 
 func encodeBase32(val string) string {
-	return base32.HexEncoding.EncodeToString([]byte(val))
+	return base32Encoding.EncodeToString([]byte(val))
 }
