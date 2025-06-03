@@ -27,8 +27,9 @@ const (
 	// consuming parser.
 	FormatVersion = "1.0"
 
-	ManagedResourceMode = "managed"
-	DataResourceMode    = "data"
+	ManagedResourceMode   = "managed"
+	DataResourceMode      = "data"
+	EphemeralResourceMode = "ephemeral"
 )
 
 // State is the top-level representation of the json format of a tofu
@@ -384,6 +385,8 @@ func marshalResources(resources map[string]*states.Resource, module addrs.Module
 				current.Mode = ManagedResourceMode
 			case addrs.DataResourceMode:
 				current.Mode = DataResourceMode
+			case addrs.EphemeralResourceMode:
+				return ret, fmt.Errorf("ephemeral resource %q detected in the current state. This is an error in OpenTofu", resAddr.String())
 			default:
 				return ret, fmt.Errorf("resource %s has an unsupported mode %s",
 					resAddr.String(),
