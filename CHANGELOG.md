@@ -3,6 +3,7 @@
 ENHANCEMENTS:
 
 * `tofu show` now supports a `-config` option, to be used in conjunction with `-json` to produce a machine-readable summary of the configuration without first creating a plan. ([#2820](https://github.com/opentofu/opentofu/pull/2820))
+* outputs changing from sensitive to insensitive now show output warning on plan that value is no longer redacted ([https://github.com/opentofu/opentofu/pull/2693])
 
 ## Previous Releases
 
