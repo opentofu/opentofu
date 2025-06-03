@@ -10,7 +10,10 @@ import (
 	"fmt"
 )
 
-var base32Encoding = base32.HexEncoding.WithPadding(base32.NoPadding)
+// base32Encoding is our slightly-nonstandard base32 encoding, intentionally
+// using lowercase rather than uppercase letters to match with the fixed
+// prefixes we use to distinguish between different types of keys.
+var base32Encoding = base32.NewEncoding("0123456789abcdefghijklmnopqrstuv").WithPadding(base32.NoPadding)
 
 func decodeBase32(raw string) (string, error) {
 	bytes, err := base32Encoding.DecodeString(raw)

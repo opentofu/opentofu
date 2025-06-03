@@ -140,10 +140,10 @@ var NoValue Value
 
 // NoValueHash is the value that would be returned calling [Value.Hash] on
 // [NoValue], but precomputed to make this case easier to express.
-var NoValueHash [sha256.Size]byte = [...]byte{
+var NoValueHash ValueHash = ValueHash([...]byte{
 	0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9, 0x24,
 	0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52, 0xb8, 0x55,
-}
+})
 
 // Hash returns a SHA256 hash of the raw byte value, intended for saving in
 // a plan file so OpenTofu can verify that data used to create the plan
@@ -152,7 +152,7 @@ var NoValueHash [sha256.Size]byte = [...]byte{
 // It's valid to call this on [NoValue] or on any value equivalent to it; in
 // that case this function returns the SHA256 hash of an empty buffer,
 // which is also available in [NoValueHash] for convenient direct comparisons.
-func (v Value) Hash() [sha256.Size]byte {
+func (v Value) Hash() ValueHash {
 	if len(v) == 0 {
 		return NoValueHash
 	}
@@ -174,6 +174,27 @@ func (v Value) Normalize() Value {
 func (v Value) IsNoValue() bool {
 	return len(v) == 0
 }
+
+type ValueHash [sha256.Size]byte
+
+func ParseValueHash(raw []byte) (ValueHash, error) {
+	if len(raw) != len(NoValueHash) {
+		return NoValueHash, fmt.Errorf("value hash has incorrect length %d", len(raw))
+	}
+	var ret ValueHash
+	copy(ret[:], raw)
+	return ret, nil
+}
+
+func (h ValueHash) String() string {
+	return fmt.Sprintf("0x%064x", h[:])
+}
+
+func (h ValueHash) GoString() string {
+	return fmt.Sprintf("statestore.ValueHash(%#v)", h[:])
+}
+
+type ValueHashes map[Key]ValueHash
 
 // KeySet is a set of [Key].
 type KeySet = collections.Set[Key]

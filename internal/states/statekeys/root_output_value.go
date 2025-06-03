@@ -32,11 +32,7 @@ func NewRootModuleOutputValue(addr addrs.AbsOutputValue) RootModuleOutputValue {
 	return RootModuleOutputValue{name: addr.OutputValue.Name}
 }
 
-func rootModuleOutputValueFromStorage(raw string) (Key, error) {
-	nameStr, err := decodeBase32(raw)
-	if err != nil {
-		return nil, err
-	}
+func rootModuleOutputValueFromStorage(nameStr string) (Key, error) {
 	if !hclsyntax.ValidIdentifier(nameStr) {
 		return nil, fmt.Errorf("invalid output value name")
 	}
