@@ -61,7 +61,7 @@ State does not have any significant metadata not included in the common [values 
   "values": <values-representation>,
 
   // "checks" describes the results for any checkable objects
-  "checks" <checks-representation>,
+  "checks": <checks-representation>,
 }
 ```
 
@@ -93,7 +93,7 @@ For ease of consumption by callers, the plan representation includes a partial r
   "variables": {
     "varname": {
       "value": "varvalue",
-      "deprecated": "The variable is deprecated, use another one instead"
+      "deprecated": "The variable is deprecated, use another one instead",
     },
   },
 
@@ -179,6 +179,16 @@ For ease of consumption by callers, the plan representation includes a partial r
       //   cannot read the data during the plan phase because the data
       //   resource depends on at least one managed resource that also has
       //   a pending change in the same plan.
+      // - "replace_by_triggers" indicates that the resource instance
+	    // is planned to be replaced because of a corresponding change in a
+	    // replace_triggered_by reference.
+      // - "delete_because_no_move_target" indicates that the resource
+	    // appears as the target in a moved block, but no configuration
+	    //  exists for that resource.
+      // - "read_because_check_nested" indicates that the resource must
+	    // be read during apply (and planning) because it is inside a check
+	    // block. When the check assertions execute we want them to use
+	    // the most up-to-date data.
       //
       // If there is no special reason to note, OpenTofu will omit this
       // property altogether.
