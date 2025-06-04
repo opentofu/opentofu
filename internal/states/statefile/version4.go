@@ -571,7 +571,6 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	attributeSensitivePaths, pathsDiags := marshalPaths(paths)
 	diags = diags.Append(pathsDiags)
 
-	log.Printf("[DEBUG] appendInstanceObjectStateV4: MiddlewareMetadata = %v", obj.MiddlewareMetadata)
 	return append(isV4s, instanceObjectStateV4{
 		IndexKey:                rawKey,
 		Deposed:                 string(deposed),

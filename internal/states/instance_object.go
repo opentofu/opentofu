@@ -101,7 +101,6 @@ const (
 // so the caller must not mutate the receiver any further once once this
 // method is called.
 func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*ResourceInstanceObjectSrc, error) {
-	log.Printf("[DEBUG] ResourceInstanceObject.Encode: MiddlewareMetadata = %v", o.MiddlewareMetadata)
 	// If it contains marks, remove these marks before traversing the
 	// structure with UnknownAsNull, and save the PathValueMarks
 	// so we can save them in state.
@@ -146,7 +145,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 
 	sort.Slice(dependencies, func(i, j int) bool { return dependencies[i].String() < dependencies[j].String() })
 
-	return &ResourceInstanceObjectSrc{
+	result := &ResourceInstanceObjectSrc{
 		SchemaVersion:           schemaVersion,
 		AttrsJSON:               src,
 		AttrSensitivePaths:      sensitivePVMs,
@@ -156,7 +155,8 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 		Dependencies:            dependencies,
 		CreateBeforeDestroy:     o.CreateBeforeDestroy,
 		MiddlewareMetadata:      o.MiddlewareMetadata,
-	}, nil
+	}
+	return result, nil
 }
 
 // AsTainted returns a deep copy of the receiver with the status updated to

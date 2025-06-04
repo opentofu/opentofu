@@ -1577,7 +1577,6 @@ func (n *NodeAbstractResourceInstance) plan(
 				}
 				// Store metadata indexed by middleware name
 				plan.MiddlewareMetadata[name] = result.Metadata
-				log.Printf("[DEBUG] Stored post-plan middleware metadata from %q: %v", name, result.Metadata)
 			}
 		}
 
@@ -2709,8 +2708,6 @@ func (n *NodeAbstractResourceInstance) postApplyMiddleware(
 			}
 			// Store metadata indexed by middleware name
 			newState.MiddlewareMetadata[name] = result.Metadata
-			log.Printf("[DEBUG] Stored post-apply middleware metadata from %q: %v", name, result.Metadata)
-			log.Printf("[DEBUG] Total middleware metadata in state: %v", newState.MiddlewareMetadata)
 		}
 	}
 
