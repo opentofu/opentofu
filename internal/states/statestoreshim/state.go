@@ -153,13 +153,14 @@ func LoadPriorState(ctx context.Context, storage statestore.Storage, haveLocks s
 	return state, hashes, err
 }
 
+type outputValueEncoded struct {
+	EncodedValue []byte `msgpack:"value"`
+	Sensitive    bool   `msgpack:"sensitive"`
+	Deprecated   string `msgpack:"deprecated"`
+}
+
 func decodeStateRootOutputValue(key statekeys.RootModuleOutputValue, raw statestore.Value) (*states.OutputValue, error) {
-	type Encoded struct {
-		EncodedValue []byte `msgpack:"value"`
-		Sensitive    bool   `msgpack:"sensitive"`
-		Deprecated   string `msgpack:"deprecated"`
-	}
-	var encoded Encoded
+	var encoded outputValueEncoded
 	err := msgpack.Unmarshal(raw, &encoded)
 	if err != nil {
 		return nil, fmt.Errorf("invalid metadata encoding: %w", err)
@@ -178,27 +179,59 @@ func decodeStateRootOutputValue(key statekeys.RootModuleOutputValue, raw statest
 	}, nil
 }
 
-func decodeStateResourceInstance(_ statekeys.ResourceInstance, raw statestore.Value) (*states.ResourceInstance, addrs.AbsProviderConfig, error) {
-	type EncodedObject struct {
-		SchemaVersion       uint64            `msgpack:"schema_version"`
-		AttrsJSON           []byte            `msgpack:"attributes"`
-		AttrsFlat           map[string]string `msgpack:"legacy_attributes"`
-		Dependencies        []string          `msgpack:"dependencies"`
-		Status              string            `msgpack:"status"`
-		CreateBeforeDestroy bool              `msgpack:"create_before_destroy"`
-		Private             []byte            `msgpack:"private"`
-		// TODO: Sensitive attribute paths
+func encodeStateRootOutputValue(_ statekeys.RootModuleOutputValue, state *states.OutputValue) (statestore.Value, error) {
+	if state == nil || state.Value == cty.NilVal || state.Value.IsNull() {
+		// We represent the absense of the output value by writing
+		// no raw value at all, which the storage layer can choose
+		// to implement either by deleting the entry entirely or
+		// by storing an explicit "not present" marker, at its option.
+		// FIXME: Probably would be better to leave the metadata in place
+		// with a null cty.Value stored if the output value is still
+		// declared in the configuration, so we can retain the metadata
+		// about it being deprecated/sensitive, but we won't worry about
+		// that for this initial prototype.
+		return statestore.NoValue, nil
 	}
-	type Encoded struct {
-		CurrentObject  *EncodedObject           `msgpack:"current"`
-		DeposedObjects map[string]EncodedObject `msgpack:"deposed"`
+	valSrc, err := ctymsgpack.Marshal(state.Value, cty.DynamicPseudoType)
+	if err != nil {
+		return statestore.NoValue, fmt.Errorf("encoding value: %w", err)
+	}
 
-		// Tech debt from the provider for_each project: we still don't actually
-		// have a proper address type for a fully-qualified provider instance. :(
-		ProviderAddr        string `msgpack:"provider"`
-		ProviderInstanceKey any    `msgpack:"provider_instance_key"`
+	encoded := outputValueEncoded{
+		EncodedValue: valSrc,
+		Sensitive:    state.Sensitive,
+		Deprecated:   state.Deprecated,
 	}
-	var encoded Encoded
+	raw, err := msgpack.Marshal(&encoded)
+	if err != nil {
+		return statestore.NoValue, fmt.Errorf("encoding metadata: %w", err)
+	}
+	return statestore.Value(raw), nil
+}
+
+type resourceInstanceEncoded struct {
+	CurrentObject  *resourceInstanceObjectEncoded           `msgpack:"current"`
+	DeposedObjects map[string]resourceInstanceObjectEncoded `msgpack:"deposed"`
+
+	// Tech debt from the provider for_each project: we still don't actually
+	// have a proper address type for a fully-qualified provider instance. :(
+	ProviderAddr        string `msgpack:"provider"`
+	ProviderInstanceKey any    `msgpack:"provider_instance_key"`
+}
+
+type resourceInstanceObjectEncoded struct {
+	SchemaVersion       uint64            `msgpack:"schema_version"`
+	AttrsJSON           []byte            `msgpack:"attributes"`
+	AttrsFlat           map[string]string `msgpack:"legacy_attributes"`
+	Dependencies        []string          `msgpack:"dependencies"`
+	Status              string            `msgpack:"status"`
+	CreateBeforeDestroy bool              `msgpack:"create_before_destroy"`
+	Private             []byte            `msgpack:"private"`
+	// TODO: Sensitive attribute paths
+}
+
+func decodeStateResourceInstance(_ statekeys.ResourceInstance, raw statestore.Value) (*states.ResourceInstance, addrs.AbsProviderConfig, error) {
+	var encoded resourceInstanceEncoded
 	err := msgpack.Unmarshal(raw, &encoded)
 	if err != nil {
 		return nil, addrs.AbsProviderConfig{}, fmt.Errorf("invalid metadata encoding: %w", err)
@@ -250,6 +283,55 @@ func decodeStateResourceInstance(_ statekeys.ResourceInstance, raw statestore.Va
 	}
 
 	return ret, providerAddr, nil
+}
+
+func encodeStateResourceInstance(_ statekeys.ResourceInstance, resourceState *states.Resource, instanceKey addrs.InstanceKey) (statestore.Value, error) {
+	if resourceState == nil {
+		return statestore.NoValue, nil
+	}
+	instState, ok := resourceState.Instances[instanceKey]
+	if !ok {
+		return statestore.NoValue, nil
+	}
+	if instState.ProviderKey != nil {
+		return statestore.NoValue, fmt.Errorf("provider for_each is not supported in this prototype")
+	}
+	if len(instState.Deposed) != 0 {
+		return statestore.NoValue, fmt.Errorf("deposed objects are not supported in this prototype")
+	}
+
+	encoded := resourceInstanceEncoded{
+		ProviderAddr: resourceState.ProviderConfig.String(),
+	}
+	if instState.Current != nil {
+		encoded.CurrentObject = &resourceInstanceObjectEncoded{
+			SchemaVersion:       instState.Current.SchemaVersion,
+			AttrsJSON:           instState.Current.AttrsJSON,
+			AttrsFlat:           instState.Current.AttrsFlat,
+			CreateBeforeDestroy: instState.Current.CreateBeforeDestroy,
+			Private:             instState.Current.Private,
+		}
+		switch instState.Current.Status {
+		case states.ObjectReady:
+			encoded.CurrentObject.Status = "ready"
+		case states.ObjectTainted:
+			encoded.CurrentObject.Status = "tainted"
+		default:
+			return statestore.NoValue, fmt.Errorf("unexpected current object status %s", instState.Current.Status)
+		}
+		if deps := instState.Current.Dependencies; len(deps) != 0 {
+			encoded.CurrentObject.Dependencies = make([]string, len(deps))
+			for i, addr := range deps {
+				encoded.CurrentObject.Dependencies[i] = addr.String()
+			}
+		}
+	}
+
+	raw, err := msgpack.Marshal(&encoded)
+	if err != nil {
+		return statestore.NoValue, err
+	}
+	return statestore.Value(raw), nil
 }
 
 func decodeStateResource(_ statekeys.Resource, raw statestore.Value) (addrs.AbsProviderConfig, error) {

@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statekeys"
 )
 
 // stopHook is a private Hook implementation that OpenTofu uses to
@@ -104,6 +105,11 @@ func (h *stopHook) Stopping() {}
 
 func (h *stopHook) PostStateUpdate(new *states.State) (HookAction, error) {
 	return h.hook()
+}
+
+// StateValueChanged implements Hook.
+func (h *stopHook) StateValueChanged(key statekeys.Key, state *states.State) error {
+	return nil
 }
 
 func (h *stopHook) hook() (HookAction, error) {

@@ -165,7 +165,7 @@ func (v Value) Hash() ValueHash {
 // Currently this just normalizes the "absence of a value" representation
 // to always be [NoValue], rather than some non-nil zero-length [Value].
 func (v Value) Normalize() Value {
-	if len(v) == 0 {
+	if v.IsNoValue() {
 		return NoValue
 	}
 	return v
@@ -195,6 +195,17 @@ func (h ValueHash) GoString() string {
 }
 
 type ValueHashes map[Key]ValueHash
+
+func (hs ValueHashes) Keys() KeySet {
+	if len(hs) == 0 {
+		return nil
+	}
+	ret := make(KeySet, len(hs))
+	for k := range hs {
+		ret[k] = struct{}{}
+	}
+	return ret
+}
 
 // KeySet is a set of [Key].
 type KeySet = collections.Set[Key]

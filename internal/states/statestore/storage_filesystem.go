@@ -313,13 +313,14 @@ func readValueFromFile(f *os.File) (Value, error) {
 	for {
 		buf.Grow(64) // arbitrary minimum buffer space to read into
 		into := buf.AvailableBuffer()
+		into = into[:cap(into)] // we wish to write into the excess capacity
 		n, err := f.ReadAt(into, pos)
 		if err != nil && err != io.EOF {
 			return nil, err
 		}
 		buf.Write(into[:n])
 		pos += int64(n)
-		if err == io.EOF || n == 0 {
+		if err == io.EOF {
 			break
 		}
 	}

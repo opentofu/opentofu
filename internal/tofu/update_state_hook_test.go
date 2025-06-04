@@ -25,7 +25,7 @@ func TestUpdateStateHook(t *testing.T) {
 	ctx.HookHook = mockHook
 	ctx.StateState = state.SyncWrapper()
 
-	if err := updateStateHook(ctx); err != nil {
+	if err := updateStateHook(ctx, nil); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
