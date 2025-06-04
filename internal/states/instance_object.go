@@ -6,7 +6,6 @@
 package states
 
 import (
-	"log"
 	"sort"
 
 	"github.com/zclconf/go-cty/cty"

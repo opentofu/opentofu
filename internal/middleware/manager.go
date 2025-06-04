@@ -76,18 +76,24 @@ func (m *manager) Start(ctx context.Context) error {
 
 	// Create and start clients
 	for _, config := range m.configs {
+		log.Debug("creating middleware client", "name", config.Name, "command", config.Command)
 		client, err := NewClient(config.Name, config)
 		if err != nil {
+			log.Error("failed to create middleware client", "name", config.Name, "error", err)
 			// Clean up any already started clients
 			m.stopAllLocked(ctx)
 			return fmt.Errorf("failed to create middleware client %q: %w", config.Name, err)
 		}
+		log.Debug("middleware client created", "name", config.Name)
 
+		log.Debug("starting middleware client", "name", config.Name)
 		if err := client.Start(ctx); err != nil {
+			log.Error("failed to start middleware client", "name", config.Name, "error", err)
 			// Clean up any already started clients
 			m.stopAllLocked(ctx)
 			return fmt.Errorf("failed to start middleware %q: %w", config.Name, err)
 		}
+		log.Debug("middleware client started", "name", config.Name)
 
 		m.clients = append(m.clients, client)
 	}
@@ -130,8 +136,12 @@ func (m *manager) PrePlan(ctx context.Context, params PrePlanParams) (map[string
 	}
 
 	results := make(map[string]*HookResult)
+	accumulatedMetadata := make(map[string]interface{})
 
 	for i, client := range m.clients {
+		// Add accumulated metadata to params for chaining
+		params.PreviousMiddlewareMetadata = accumulatedMetadata
+		
 		result, err := client.PrePlan(ctx, params)
 		if err != nil {
 			return nil, fmt.Errorf("middleware %q pre-plan failed: %w", m.configs[i].Name, err)
@@ -139,6 +149,11 @@ func (m *manager) PrePlan(ctx context.Context, params PrePlanParams) (map[string
 
 		// Store result keyed by middleware name
 		results[m.configs[i].Name] = result
+
+		// Accumulate metadata for next middleware
+		if result.Metadata != nil {
+			accumulatedMetadata[m.configs[i].Name] = result.Metadata
+		}
 
 		// Check if middleware failed - pre-hooks stop on failure
 		if result.Status == "fail" {
@@ -162,8 +177,12 @@ func (m *manager) PostPlan(ctx context.Context, params PostPlanParams) (map[stri
 
 	// For post-* hooks, we run all middleware regardless of failures
 	results := make(map[string]*HookResult)
+	accumulatedMetadata := make(map[string]interface{})
 
 	for i, client := range m.clients {
+		// Add accumulated metadata to params for chaining
+		params.PreviousMiddlewareMetadata = accumulatedMetadata
+		
 		result, err := client.PostPlan(ctx, params)
 		if err != nil {
 			// Log error but continue with other middleware
@@ -174,6 +193,11 @@ func (m *manager) PostPlan(ctx context.Context, params PostPlanParams) (map[stri
 
 		// Store result keyed by middleware name
 		results[m.configs[i].Name] = result
+		
+		// Accumulate metadata for next middleware
+		if result.Metadata != nil {
+			accumulatedMetadata[m.configs[i].Name] = result.Metadata
+		}
 	}
 
 	return results, nil
@@ -189,8 +213,12 @@ func (m *manager) PreApply(ctx context.Context, params PreApplyParams) (map[stri
 	}
 
 	results := make(map[string]*HookResult)
+	accumulatedMetadata := make(map[string]interface{})
 
 	for i, client := range m.clients {
+		// Add accumulated metadata to params for chaining
+		params.PreviousMiddlewareMetadata = accumulatedMetadata
+		
 		result, err := client.PreApply(ctx, params)
 		if err != nil {
 			return nil, fmt.Errorf("middleware %q pre-apply failed: %w", m.configs[i].Name, err)
@@ -198,6 +226,11 @@ func (m *manager) PreApply(ctx context.Context, params PreApplyParams) (map[stri
 
 		// Store result keyed by middleware name
 		results[m.configs[i].Name] = result
+
+		// Accumulate metadata for next middleware
+		if result.Metadata != nil {
+			accumulatedMetadata[m.configs[i].Name] = result.Metadata
+		}
 
 		// Check if middleware failed - pre-hooks stop on failure
 		if result.Status == "fail" {
@@ -221,8 +254,12 @@ func (m *manager) PostApply(ctx context.Context, params PostApplyParams) (map[st
 
 	// For post-* hooks, we run all middleware regardless of failures
 	results := make(map[string]*HookResult)
+	accumulatedMetadata := make(map[string]interface{})
 
 	for i, client := range m.clients {
+		// Add accumulated metadata to params for chaining
+		params.PreviousMiddlewareMetadata = accumulatedMetadata
+		
 		result, err := client.PostApply(ctx, params)
 		if err != nil {
 			// Log error but continue with other middleware
@@ -233,6 +270,11 @@ func (m *manager) PostApply(ctx context.Context, params PostApplyParams) (map[st
 
 		// Store result keyed by middleware name
 		results[m.configs[i].Name] = result
+		
+		// Accumulate metadata for next middleware
+		if result.Metadata != nil {
+			accumulatedMetadata[m.configs[i].Name] = result.Metadata
+		}
 	}
 
 	return results, nil
@@ -248,8 +290,12 @@ func (m *manager) PreRefresh(ctx context.Context, params PreRefreshParams) (map[
 	}
 
 	results := make(map[string]*HookResult)
+	accumulatedMetadata := make(map[string]interface{})
 
 	for i, client := range m.clients {
+		// Add accumulated metadata to params for chaining
+		params.PreviousMiddlewareMetadata = accumulatedMetadata
+		
 		result, err := client.PreRefresh(ctx, params)
 		if err != nil {
 			return nil, fmt.Errorf("middleware %q pre-refresh failed: %w", m.configs[i].Name, err)
@@ -257,6 +303,11 @@ func (m *manager) PreRefresh(ctx context.Context, params PreRefreshParams) (map[
 
 		// Store result keyed by middleware name
 		results[m.configs[i].Name] = result
+
+		// Accumulate metadata for next middleware
+		if result.Metadata != nil {
+			accumulatedMetadata[m.configs[i].Name] = result.Metadata
+		}
 
 		// Check if middleware failed - pre-hooks stop on failure
 		if result.Status == "fail" {
@@ -280,8 +331,12 @@ func (m *manager) PostRefresh(ctx context.Context, params PostRefreshParams) (ma
 
 	// For post-* hooks, we run all middleware regardless of failures
 	results := make(map[string]*HookResult)
+	accumulatedMetadata := make(map[string]interface{})
 
 	for i, client := range m.clients {
+		// Add accumulated metadata to params for chaining
+		params.PreviousMiddlewareMetadata = accumulatedMetadata
+		
 		result, err := client.PostRefresh(ctx, params)
 		if err != nil {
 			// Log error but continue with other middleware
@@ -292,6 +347,11 @@ func (m *manager) PostRefresh(ctx context.Context, params PostRefreshParams) (ma
 
 		// Store result keyed by middleware name
 		results[m.configs[i].Name] = result
+		
+		// Accumulate metadata for next middleware
+		if result.Metadata != nil {
+			accumulatedMetadata[m.configs[i].Name] = result.Metadata
+		}
 	}
 
 	return results, nil
@@ -314,7 +374,10 @@ func ValidateMiddleware(ctx context.Context, ui cli.Ui, middlewareConfigs []*con
 		}
 
 		// Try to start and initialize
+		log := logging.HCLogger()
+		log.Debug("validating middleware - starting", "name", config.Name)
 		if err := client.Start(ctx); err != nil {
+			log.Error("validation failed - could not start middleware", "name", config.Name, "error", err)
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Failed to start middleware",
@@ -322,21 +385,27 @@ func ValidateMiddleware(ctx context.Context, ui cli.Ui, middlewareConfigs []*con
 				Subject:  &config.DeclRange,
 			})
 		} else {
+			log.Debug("validating middleware - started, sending ping", "name", config.Name)
 			// Send ping to validate communication
 			if err := client.Ping(ctx); err != nil {
+				log.Error("validation failed - ping failed", "name", config.Name, "error", err)
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Middleware ping failed",
 					Detail:   fmt.Sprintf("Failed to ping middleware %q: %s", config.Name, err),
 					Subject:  &config.DeclRange,
 				})
+			} else {
+				log.Debug("validating middleware - ping successful", "name", config.Name)
 			}
 
+			log.Debug("validating middleware - stopping", "name", config.Name)
 			// Stop the middleware
 			if err := client.Stop(ctx); err != nil {
 				// Log but don't fail validation
-				log := logging.HCLogger()
 				log.Warn("failed to stop middleware during validation", "name", config.Name, "error", err)
+			} else {
+				log.Debug("validating middleware - stopped", "name", config.Name)
 			}
 		}
 		// log that it was good

@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"sort"
 
 	version "github.com/hashicorp/go-version"
@@ -801,7 +800,7 @@ type instanceObjectStateV4 struct {
 	Dependencies []string `json:"dependencies,omitempty"`
 
 	CreateBeforeDestroy bool `json:"create_before_destroy,omitempty"`
-	
+
 	// MiddlewareMetadata contains metadata from middleware hooks
 	// that were executed during the apply phase. This is indexed
 	// by the middleware HCL block name to avoid conflicts.

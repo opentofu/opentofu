@@ -1,0 +1,32 @@
+{
+  "name": "@opentofu/middleware-cost-estimator",
+  "version": "0.1.0",
+  "description": "Cost estimation middleware for OpenTofu",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "opentofu-cost-estimator": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "check": "npm run typecheck && npm run lint"
+  },
+  "keywords": ["opentofu", "terraform", "middleware", "cost", "estimation"],
+  "author": "OpenTofu",
+  "license": "MPL-2.0",
+  "dependencies": {
+    "@opentofu/middleware": "file:../sdk"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

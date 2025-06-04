@@ -29,7 +29,6 @@ type Client struct {
 	stderr  io.ReadCloser
 	
 	encoder *json.Encoder
-	decoder *json.Decoder
 	
 	nextID  int32
 	mu      sync.Mutex
@@ -94,9 +93,8 @@ func (c *Client) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 	
-	// Set up JSON encoder/decoder
+	// Set up JSON encoder
 	c.encoder = json.NewEncoder(c.stdin)
-	c.decoder = json.NewDecoder(c.stdout)
 	
 	// Start stderr logger
 	c.stderrScanner = bufio.NewScanner(c.stderr)
@@ -174,9 +172,12 @@ func (c *Client) call(ctx context.Context, method string, params interface{}, re
 		return fmt.Errorf("failed to encode request: %w", err)
 	}
 	
+	// Create a new decoder for this specific response to avoid state issues
+	decoder := json.NewDecoder(c.stdout)
+	
 	// Read response
 	var resp jsonRPCResponse
-	if err := c.decoder.Decode(&resp); err != nil {
+	if err := decoder.Decode(&resp); err != nil {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
 	
@@ -256,6 +257,7 @@ func (c *Client) PrePlan(ctx context.Context, params PrePlanParams) (*HookResult
 		"resource_mode": string(params.ResourceMode),
 		"config":        configJSON,
 		"current_state": currentJSON,
+		"previous_middleware_metadata": params.PreviousMiddlewareMetadata,
 	}
 	
 	var result HookResult
@@ -307,6 +309,7 @@ func (c *Client) PostPlan(ctx context.Context, params PostPlanParams) (*HookResu
 		"planned_state":  plannedJSON,
 		"config":         configJSON,
 		"planned_action": params.PlannedAction,
+		"previous_middleware_metadata": params.PreviousMiddlewareMetadata,
 	}
 	
 	var result HookResult
@@ -358,6 +361,7 @@ func (c *Client) PreApply(ctx context.Context, params PreApplyParams) (*HookResu
 		"planned_state":  plannedJSON,
 		"config":         configJSON,
 		"planned_action": params.PlannedAction,
+		"previous_middleware_metadata": params.PreviousMiddlewareMetadata,
 	}
 	
 	var result HookResult
@@ -408,6 +412,7 @@ func (c *Client) PostApply(ctx context.Context, params PostApplyParams) (*HookRe
 		"config":         configJSON,
 		"applied_action": params.AppliedAction,
 		"failed":         params.Failed,
+		"previous_middleware_metadata": params.PreviousMiddlewareMetadata,
 	}
 	
 	
@@ -437,6 +442,7 @@ func (c *Client) PreRefresh(ctx context.Context, params PreRefreshParams) (*Hook
 		"resource_name": params.ResourceName,
 		"resource_mode": string(params.ResourceMode),
 		"current_state": stateJSON,
+		"previous_middleware_metadata": params.PreviousMiddlewareMetadata,
 	}
 	
 	var result HookResult
@@ -475,6 +481,7 @@ func (c *Client) PostRefresh(ctx context.Context, params PostRefreshParams) (*Ho
 		"before":         beforeJSON,
 		"after":          afterJSON,
 		"drift_detected": params.DriftDetected,
+		"previous_middleware_metadata": params.PreviousMiddlewareMetadata,
 	}
 	
 	var result HookResult

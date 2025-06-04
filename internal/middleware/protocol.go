@@ -36,6 +36,8 @@ type PrePlanParams struct {
 	ResourceMode addrs.ResourceMode `json:"resource_mode"`
 	Config       cty.Value         `json:"config"`
 	CurrentState cty.Value         `json:"current_state"`
+	// Accumulated metadata from previous middleware in the chain
+	PreviousMiddlewareMetadata map[string]interface{} `json:"previous_middleware_metadata,omitempty"`
 }
 
 type PostPlanParams struct {
@@ -47,6 +49,8 @@ type PostPlanParams struct {
 	PlannedState  cty.Value         `json:"planned_state"`
 	Config        cty.Value         `json:"config"`
 	PlannedAction string            `json:"planned_action"`
+	// Accumulated metadata from previous middleware in the chain
+	PreviousMiddlewareMetadata map[string]interface{} `json:"previous_middleware_metadata,omitempty"`
 }
 
 type PreApplyParams struct {
@@ -58,6 +62,8 @@ type PreApplyParams struct {
 	PlannedState  cty.Value         `json:"planned_state"`
 	Config        cty.Value         `json:"config"`
 	PlannedAction string            `json:"planned_action"`
+	// Accumulated metadata from previous middleware in the chain
+	PreviousMiddlewareMetadata map[string]interface{} `json:"previous_middleware_metadata,omitempty"`
 }
 
 type PostApplyParams struct {
@@ -70,6 +76,8 @@ type PostApplyParams struct {
 	Config        cty.Value         `json:"config"`
 	AppliedAction string            `json:"applied_action"`
 	Failed        bool              `json:"failed"`
+	// Accumulated metadata from previous middleware in the chain
+	PreviousMiddlewareMetadata map[string]interface{} `json:"previous_middleware_metadata,omitempty"`
 }
 
 type PreRefreshParams struct {
@@ -78,6 +86,8 @@ type PreRefreshParams struct {
 	ResourceName string            `json:"resource_name"`
 	ResourceMode addrs.ResourceMode `json:"resource_mode"`
 	CurrentState cty.Value         `json:"current_state"`
+	// Accumulated metadata from previous middleware in the chain
+	PreviousMiddlewareMetadata map[string]interface{} `json:"previous_middleware_metadata,omitempty"`
 }
 
 type PostRefreshParams struct {
@@ -88,6 +98,8 @@ type PostRefreshParams struct {
 	Before        cty.Value         `json:"before"`
 	After         cty.Value         `json:"after"`
 	DriftDetected bool              `json:"drift_detected"`
+	// Accumulated metadata from previous middleware in the chain
+	PreviousMiddlewareMetadata map[string]interface{} `json:"previous_middleware_metadata,omitempty"`
 }
 
 // HookResult is returned by all hooks
