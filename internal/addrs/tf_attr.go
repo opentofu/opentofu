@@ -5,6 +5,8 @@
 
 package addrs
 
+import "github.com/zclconf/go-cty/cty"
+
 const (
 	IdentTerraform = "terraform"
 	IdentTofu      = "tofu"
@@ -27,6 +29,10 @@ type TerraformAttr struct {
 
 func (ta TerraformAttr) String() string {
 	return ta.Alias + "." + ta.Name
+}
+
+func (ta TerraformAttr) Path() cty.Path {
+	return cty.GetAttrPath(ta.Alias).GetAttr(ta.Name)
 }
 
 func (ta TerraformAttr) UniqueKey() UniqueKey {
