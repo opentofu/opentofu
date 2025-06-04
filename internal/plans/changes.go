@@ -249,6 +249,11 @@ type ResourceInstanceChange struct {
 	// OpenTofu that relates to this change. OpenTofu will save this
 	// byte-for-byte and return it to the provider in the apply call.
 	Private []byte
+
+	// MiddlewareMetadata contains metadata from middleware hooks
+	// that were executed during the planning phase. This is indexed
+	// by the middleware HCL block name to avoid conflicts.
+	MiddlewareMetadata map[string]map[string]interface{}
 }
 
 // Encode produces a variant of the receiver that has its change values
@@ -266,14 +271,15 @@ func (rc *ResourceInstanceChange) Encode(ty cty.Type) (*ResourceInstanceChangeSr
 		prevRunAddr = rc.Addr
 	}
 	return &ResourceInstanceChangeSrc{
-		Addr:            rc.Addr,
-		PrevRunAddr:     prevRunAddr,
-		DeposedKey:      rc.DeposedKey,
-		ProviderAddr:    rc.ProviderAddr,
-		ChangeSrc:       *cs,
-		ActionReason:    rc.ActionReason,
-		RequiredReplace: rc.RequiredReplace,
-		Private:         rc.Private,
+		Addr:               rc.Addr,
+		PrevRunAddr:        prevRunAddr,
+		DeposedKey:         rc.DeposedKey,
+		ProviderAddr:       rc.ProviderAddr,
+		ChangeSrc:          *cs,
+		ActionReason:       rc.ActionReason,
+		RequiredReplace:    rc.RequiredReplace,
+		Private:            rc.Private,
+		MiddlewareMetadata: rc.MiddlewareMetadata,
 	}, err
 }
 

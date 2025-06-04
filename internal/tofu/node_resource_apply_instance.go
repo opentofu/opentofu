@@ -349,6 +349,10 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 
 	state = maybeTainted(addr.Absolute(evalCtx.Path()), state, diffApply, diags.Err())
 
+	// Call the post-apply hook here so that any middleware metadata will be
+	// included in the state when it's written below
+	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
+
 	if state != nil {
 		// dependencies are always updated to match the configuration during apply
 		state.Dependencies = n.Dependencies
@@ -404,8 +408,6 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 			}
 		}
 	}
-
-	diags = diags.Append(n.postApplyHook(evalCtx, state, diags.Err()))
 	diags = diags.Append(updateStateHook(evalCtx))
 
 	// Post-conditions might block further progress. We intentionally do this

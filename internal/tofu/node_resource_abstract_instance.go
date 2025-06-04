@@ -784,9 +784,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 		return state, diags
 	}
 
-	// Call the middleware
 	mwManager := evalCtx.GetMiddlewareManager(n.ResolvedProvider.ProviderConfig)
-	// log
 	log.Printf("[DEBUG] NodeAbstractResourceInstance.refresh: calling pre-refresh middleware for %s", absAddr)
 
 	// Pre-refresh middleware hook
@@ -799,7 +797,7 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 			CurrentState: state.Value,
 		}
 
-		hookResult, err := mwManager.PreRefresh(ctx, preRefreshParams)
+		hookResults, err := mwManager.PreRefresh(ctx, preRefreshParams)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -809,17 +807,20 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 			return state, diags
 		}
 
-		if hookResult.Status == "fail" {
-			message := hookResult.Message
-			if message == "" {
-				message = "Pre-refresh middleware hook failed"
+		// Check if any middleware failed
+		for name, result := range hookResults {
+			if result.Status == "fail" {
+				message := result.Message
+				if message == "" {
+					message = fmt.Sprintf("Pre-refresh middleware %q failed", name)
+				}
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Middleware rejected refresh",
+					message,
+				))
+				return state, diags
 			}
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Middleware rejected refresh",
-				message,
-			))
-			return state, diags
 		}
 
 		// Note: Metadata is not stored for refresh operations (read-only)
@@ -904,12 +905,11 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 	if diags.HasErrors() {
 		return ret, diags
 	}
-	
+
 	// Post-refresh middleware hook
 	if mwManager != nil {
-		mgr := mwManager.(middleware.Manager)
 		driftDetected := !priorVal.RawEquals(ret.Value)
-		
+
 		postRefreshParams := middleware.PostRefreshParams{
 			Provider:      n.ResolvedProvider.ProviderConfig.Provider.String(),
 			ResourceType:  absAddr.Resource.Resource.Type,
@@ -919,8 +919,8 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 			After:         ret.Value,
 			DriftDetected: driftDetected,
 		}
-		
-		hookResult, err := mgr.PostRefresh(ctx, postRefreshParams)
+
+		hookResults, err := mwManager.PostRefresh(ctx, postRefreshParams)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -929,20 +929,23 @@ func (n *NodeAbstractResourceInstance) refresh(ctx context.Context, evalCtx Eval
 			))
 			return ret, diags
 		}
-		
-		if hookResult.Status == "fail" {
-			message := hookResult.Message
-			if message == "" {
-				message = "Post-refresh middleware hook failed"
+
+		// Check if any middleware failed
+		for name, result := range hookResults {
+			if result.Status == "fail" {
+				message := result.Message
+				if message == "" {
+					message = fmt.Sprintf("Post-refresh middleware %q failed", name)
+				}
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Middleware rejected refresh result",
+					message,
+				))
+				return ret, diags
 			}
-			diags = diags.Append(tfdiags.Sourceless(
-				tfdiags.Error,
-				"Middleware rejected refresh result",
-				message,
-			))
-			return ret, diags
 		}
-		
+
 		// Note: Metadata is not stored for refresh operations (read-only)
 		log.Printf("[DEBUG] NodeAbstractResourceInstance.refresh: post-refresh middleware completed for %s", absAddr)
 	}
@@ -1113,6 +1116,56 @@ func (n *NodeAbstractResourceInstance) plan(
 	}))
 	if diags.HasErrors() {
 		return nil, nil, keyData, diags
+	}
+
+	// Pre-plan middleware hook
+	mwManager := evalCtx.GetMiddlewareManager(n.ResolvedProvider.ProviderConfig)
+	if mwManager != nil {
+		log.Printf("[DEBUG] NodeAbstractResourceInstance.plan: calling pre-plan middleware for %s", n.Addr)
+
+		prePlanParams := middleware.PrePlanParams{
+			Provider:     n.ResolvedProvider.ProviderConfig.Provider.String(),
+			ResourceType: n.Addr.Resource.Resource.Type,
+			ResourceName: n.Addr.Resource.Resource.Name,
+			ResourceMode: n.Addr.Resource.Resource.Mode,
+			Config:       origConfigVal, // Use original config with marks, middleware will handle unknowns
+			CurrentState: priorVal,
+		}
+
+		hookResults, err := mwManager.PrePlan(ctx, prePlanParams)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Middleware error",
+				fmt.Sprintf("Pre-plan middleware hook failed: %s", err),
+			))
+			return nil, nil, keyData, diags
+		}
+
+		// Check if any middleware failed
+		for name, result := range hookResults {
+			if result.Status == "fail" {
+				message := result.Message
+				if message == "" {
+					message = fmt.Sprintf("Pre-plan middleware %q failed", name)
+				}
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Middleware rejected plan",
+					message,
+				))
+				return nil, nil, keyData, diags
+			}
+
+			// Pre-plan hook can modify config
+			if result.ModifiedConfig != nil {
+				// Convert the modified config map back to cty.Value
+				// For now we'll log a warning that modified config is not yet implemented
+				log.Printf("[WARN] Pre-plan middleware %q returned modified config, but this is not yet implemented", name)
+			}
+		}
+
+		log.Printf("[DEBUG] NodeAbstractResourceInstance.plan: pre-plan middleware completed for %s", n.Addr)
 	}
 
 	resp := provider.PlanResourceChange(ctx, providers.PlanResourceChangeRequest{
@@ -1474,6 +1527,61 @@ func (n *NodeAbstractResourceInstance) plan(
 		Status:  states.ObjectPlanned,
 		Value:   plannedNewVal,
 		Private: plannedPrivate,
+	}
+
+	// Post-plan middleware hook
+	if mwManager != nil {
+		log.Printf("[DEBUG] NodeAbstractResourceInstance.plan: calling post-plan middleware for %s", n.Addr)
+
+		postPlanParams := middleware.PostPlanParams{
+			Provider:      n.ResolvedProvider.ProviderConfig.Provider.String(),
+			ResourceType:  n.Addr.Resource.Resource.Type,
+			ResourceName:  n.Addr.Resource.Resource.Name,
+			ResourceMode:  n.Addr.Resource.Resource.Mode,
+			CurrentState:  priorVal,
+			PlannedState:  plannedNewVal,
+			Config:        origConfigVal, // Use original config with marks
+			PlannedAction: action.String(),
+		}
+
+		hookResults, err := mwManager.PostPlan(ctx, postPlanParams)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Middleware error",
+				fmt.Sprintf("Post-plan middleware hook failed: %s", err),
+			))
+			return nil, nil, keyData, diags
+		}
+
+		// Check if any middleware failed, and store metadata
+		for name, result := range hookResults {
+			if result.Status == "fail" {
+				message := result.Message
+				if message == "" {
+					message = fmt.Sprintf("Post-plan middleware %q failed", name)
+				}
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Middleware rejected plan result",
+					message,
+				))
+				return nil, nil, keyData, diags
+			}
+
+			// Store metadata from post-plan hook
+			if result.Metadata != nil {
+				// Initialize the map if needed
+				if plan.MiddlewareMetadata == nil {
+					plan.MiddlewareMetadata = make(map[string]map[string]interface{})
+				}
+				// Store metadata indexed by middleware name
+				plan.MiddlewareMetadata[name] = result.Metadata
+				log.Printf("[DEBUG] Stored post-plan middleware metadata from %q: %v", name, result.Metadata)
+			}
+		}
+
+		log.Printf("[DEBUG] NodeAbstractResourceInstance.plan: post-plan middleware completed for %s", n.Addr)
 	}
 
 	return plan, state, keyData, diags
@@ -2532,6 +2640,84 @@ func (n *NodeAbstractResourceInstance) evalDestroyProvisionerConfig(evalCtx Eval
 	return config, diags
 }
 
+// postApplyMiddleware runs the post-apply middleware hook if configured
+func (n *NodeAbstractResourceInstance) postApplyMiddleware(
+	ctx context.Context,
+	evalCtx EvalContext,
+	change *plans.ResourceInstanceChange,
+	newState *states.ResourceInstanceObject,
+	configVal cty.Value,
+	diags tfdiags.Diagnostics,
+) tfdiags.Diagnostics {
+	mwManager := evalCtx.GetMiddlewareManager(n.ResolvedProvider.ProviderConfig)
+	if mwManager == nil {
+		return diags
+	}
+
+	log.Printf("[DEBUG] NodeAbstractResourceInstance.apply: calling post-apply middleware for %s", n.Addr)
+
+	var newStateVal cty.Value
+	if newState != nil {
+		newStateVal = newState.Value
+	} else {
+		// Resource was deleted
+		newStateVal = cty.NullVal(cty.DynamicPseudoType)
+	}
+
+	postApplyParams := middleware.PostApplyParams{
+		Provider:      n.ResolvedProvider.ProviderConfig.Provider.String(),
+		ResourceType:  n.Addr.Resource.Resource.Type,
+		ResourceName:  n.Addr.Resource.Resource.Name,
+		ResourceMode:  n.Addr.Resource.Resource.Mode,
+		Before:        change.Before,
+		After:         newStateVal,
+		Config:        configVal,
+		AppliedAction: change.Action.String(),
+		Failed:        diags.HasErrors(),
+	}
+
+	hookResults, err := mwManager.PostApply(ctx, postApplyParams)
+	if err != nil {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Middleware error",
+			fmt.Sprintf("Post-apply middleware hook failed: %s", err),
+		))
+		return diags
+	}
+
+	// Check if any middleware failed, and store metadata
+	for name, result := range hookResults {
+		if result.Status == "fail" {
+			message := result.Message
+			if message == "" {
+				message = fmt.Sprintf("Post-apply middleware %q failed", name)
+			}
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Middleware rejected apply result",
+				message,
+			))
+			return diags
+		}
+
+		// Store metadata from post-apply hook
+		if result.Metadata != nil && newState != nil {
+			// Initialize the map if needed
+			if newState.MiddlewareMetadata == nil {
+				newState.MiddlewareMetadata = make(map[string]map[string]interface{})
+			}
+			// Store metadata indexed by middleware name
+			newState.MiddlewareMetadata[name] = result.Metadata
+			log.Printf("[DEBUG] Stored post-apply middleware metadata from %q: %v", name, result.Metadata)
+			log.Printf("[DEBUG] Total middleware metadata in state: %v", newState.MiddlewareMetadata)
+		}
+	}
+
+	log.Printf("[DEBUG] NodeAbstractResourceInstance.apply: post-apply middleware completed for %s", n.Addr)
+	return diags
+}
+
 // apply accepts an applyConfig, instead of using n.Config, so destroy plans can
 // send a nil config. The keyData information can be empty if the config is
 // nil, since it is only used to evaluate the configuration.
@@ -2555,6 +2741,8 @@ func (n *NodeAbstractResourceInstance) apply(
 		// anything, so we'll just echo back the state we were given and
 		// let our internal checks and updates proceed.
 		log.Printf("[TRACE] NodeAbstractResourceInstance.apply: skipping %s because it has no planned action", n.Addr)
+		// Even for NoOp, we should run post-apply middleware
+		diags = n.postApplyMiddleware(ctx, evalCtx, change, state, cty.NullVal(cty.DynamicPseudoType), diags)
 		return state, diags
 	}
 
@@ -2637,7 +2825,53 @@ func (n *NodeAbstractResourceInstance) apply(
 			Status:              state.Status,
 			Value:               change.After,
 		}
+		diags = n.postApplyMiddleware(ctx, evalCtx, change, newState, configVal, diags)
 		return newState, diags
+	}
+
+	// Pre-apply middleware hook
+	mwManager := evalCtx.GetMiddlewareManager(n.ResolvedProvider.ProviderConfig)
+	if mwManager != nil {
+		log.Printf("[DEBUG] NodeAbstractResourceInstance.apply: calling pre-apply middleware for %s", n.Addr)
+
+		preApplyParams := middleware.PreApplyParams{
+			Provider:      n.ResolvedProvider.ProviderConfig.Provider.String(),
+			ResourceType:  n.Addr.Resource.Resource.Type,
+			ResourceName:  n.Addr.Resource.Resource.Name,
+			ResourceMode:  n.Addr.Resource.Resource.Mode,
+			CurrentState:  change.Before,
+			PlannedState:  change.After,
+			Config:        configVal,
+			PlannedAction: change.Action.String(),
+		}
+
+		hookResults, err := mwManager.PreApply(ctx, preApplyParams)
+		if err != nil {
+			diags = diags.Append(tfdiags.Sourceless(
+				tfdiags.Error,
+				"Middleware error",
+				fmt.Sprintf("Pre-apply middleware hook failed: %s", err),
+			))
+			return nil, diags
+		}
+
+		// Check if any middleware failed
+		for name, result := range hookResults {
+			if result.Status == "fail" {
+				message := result.Message
+				if message == "" {
+					message = fmt.Sprintf("Pre-apply middleware %q failed", name)
+				}
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Middleware rejected apply",
+					message,
+				))
+				return nil, diags
+			}
+		}
+
+		log.Printf("[DEBUG] NodeAbstractResourceInstance.apply: pre-apply middleware completed for %s", n.Addr)
 	}
 
 	resp := provider.ApplyResourceChange(ctx, providers.ApplyResourceChangeRequest{
@@ -2836,6 +3070,7 @@ func (n *NodeAbstractResourceInstance) apply(
 		// prior state as the new value, making this effectively a no-op.  If
 		// the item really _has_ been deleted then our next refresh will detect
 		// that and fix it up.
+		diags = n.postApplyMiddleware(ctx, evalCtx, change, state, configVal, diags)
 		return state.DeepCopy(), diags
 
 	case diags.HasErrors() && !newVal.IsNull():
@@ -2853,6 +3088,7 @@ func (n *NodeAbstractResourceInstance) apply(
 			newState.Dependencies = state.Dependencies
 		}
 
+		diags = n.postApplyMiddleware(ctx, evalCtx, change, newState, configVal, diags)
 		return newState, diags
 
 	case !newVal.IsNull():
@@ -2863,10 +3099,12 @@ func (n *NodeAbstractResourceInstance) apply(
 			Private:             resp.Private,
 			CreateBeforeDestroy: createBeforeDestroy,
 		}
+		diags = n.postApplyMiddleware(ctx, evalCtx, change, newState, configVal, diags)
 		return newState, diags
 
 	default:
 		// Non error case, were the object was deleted
+		diags = n.postApplyMiddleware(ctx, evalCtx, change, nil, configVal, diags)
 		return nil, diags
 	}
 }

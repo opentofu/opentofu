@@ -69,6 +69,11 @@ type ResourceInstanceObjectSrc struct {
 	Status              ObjectStatus
 	Dependencies        []addrs.ConfigResource
 	CreateBeforeDestroy bool
+	
+	// MiddlewareMetadata contains metadata from middleware hooks
+	// that were executed during the apply phase. This is indexed
+	// by the middleware HCL block name to avoid conflicts.
+	MiddlewareMetadata map[string]map[string]interface{}
 }
 
 // Decode unmarshals the raw representation of the object attributes. Pass the
@@ -110,6 +115,7 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 		Dependencies:        os.Dependencies,
 		Private:             os.Private,
 		CreateBeforeDestroy: os.CreateBeforeDestroy,
+		MiddlewareMetadata:  os.MiddlewareMetadata,
 	}, nil
 }
 

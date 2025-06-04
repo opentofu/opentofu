@@ -6,6 +6,7 @@
 package states
 
 import (
+	"log"
 	"sort"
 
 	"github.com/zclconf/go-cty/cty"
@@ -50,6 +51,11 @@ type ResourceInstanceObject struct {
 	// destroy operations, we need to record the status to ensure a resource
 	// removed from the config will still be destroyed in the same manner.
 	CreateBeforeDestroy bool
+
+	// MiddlewareMetadata contains metadata from middleware hooks
+	// that were executed during the apply phase. This is indexed
+	// by the middleware HCL block name to avoid conflicts.
+	MiddlewareMetadata map[string]map[string]interface{}
 }
 
 // ObjectStatus represents the status of a RemoteObject.
@@ -95,6 +101,7 @@ const (
 // so the caller must not mutate the receiver any further once once this
 // method is called.
 func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*ResourceInstanceObjectSrc, error) {
+	log.Printf("[DEBUG] ResourceInstanceObject.Encode: MiddlewareMetadata = %v", o.MiddlewareMetadata)
 	// If it contains marks, remove these marks before traversing the
 	// structure with UnknownAsNull, and save the PathValueMarks
 	// so we can save them in state.
@@ -148,6 +155,7 @@ func (o *ResourceInstanceObject) Encode(ty cty.Type, schemaVersion uint64) (*Res
 		Status:                  o.Status,
 		Dependencies:            dependencies,
 		CreateBeforeDestroy:     o.CreateBeforeDestroy,
+		MiddlewareMetadata:      o.MiddlewareMetadata,
 	}, nil
 }
 

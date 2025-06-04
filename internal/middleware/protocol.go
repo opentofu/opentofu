@@ -5,7 +5,6 @@ package middleware
 
 import (
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -36,16 +35,18 @@ type PrePlanParams struct {
 	ResourceName string            `json:"resource_name"`
 	ResourceMode addrs.ResourceMode `json:"resource_mode"`
 	Config       cty.Value         `json:"config"`
+	CurrentState cty.Value         `json:"current_state"`
 }
 
 type PostPlanParams struct {
-	Provider     string            `json:"provider"`
-	ResourceType string            `json:"resource_type"`
-	ResourceName string            `json:"resource_name"`
-	ResourceMode addrs.ResourceMode `json:"resource_mode"`
-	Action       plans.Action      `json:"action"`
-	Before       cty.Value         `json:"before"`
-	After        cty.Value         `json:"after"`
+	Provider      string            `json:"provider"`
+	ResourceType  string            `json:"resource_type"`
+	ResourceName  string            `json:"resource_name"`
+	ResourceMode  addrs.ResourceMode `json:"resource_mode"`
+	CurrentState  cty.Value         `json:"current_state"`
+	PlannedState  cty.Value         `json:"planned_state"`
+	Config        cty.Value         `json:"config"`
+	PlannedAction string            `json:"planned_action"`
 }
 
 type PreApplyParams struct {
@@ -53,19 +54,22 @@ type PreApplyParams struct {
 	ResourceType  string            `json:"resource_type"`
 	ResourceName  string            `json:"resource_name"`
 	ResourceMode  addrs.ResourceMode `json:"resource_mode"`
-	PlannedAction plans.Action      `json:"planned_action"`
-	PlannedValues cty.Value         `json:"planned_values"`
+	CurrentState  cty.Value         `json:"current_state"`
+	PlannedState  cty.Value         `json:"planned_state"`
+	Config        cty.Value         `json:"config"`
+	PlannedAction string            `json:"planned_action"`
 }
 
 type PostApplyParams struct {
-	Provider     string            `json:"provider"`
-	ResourceType string            `json:"resource_type"`
-	ResourceName string            `json:"resource_name"`
-	ResourceMode addrs.ResourceMode `json:"resource_mode"`
-	Action       plans.Action      `json:"action"`
-	Result       string            `json:"result"` // "success" or "failure"
-	State        cty.Value         `json:"state"`
-	Error        string            `json:"error,omitempty"`
+	Provider      string            `json:"provider"`
+	ResourceType  string            `json:"resource_type"`
+	ResourceName  string            `json:"resource_name"`
+	ResourceMode  addrs.ResourceMode `json:"resource_mode"`
+	Before        cty.Value         `json:"before"`
+	After         cty.Value         `json:"after"`
+	Config        cty.Value         `json:"config"`
+	AppliedAction string            `json:"applied_action"`
+	Failed        bool              `json:"failed"`
 }
 
 type PreRefreshParams struct {
@@ -93,6 +97,8 @@ type HookResult struct {
 	// Metadata is only persisted to state for post-plan and post-apply hooks
 	// Other hooks may return metadata for logging but it won't be saved
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
+	// ModifiedConfig is only used by pre-plan hooks to allow modifying the configuration
+	ModifiedConfig map[string]interface{} `json:"modified_config,omitempty"`
 }
 
 // Initialize params and result

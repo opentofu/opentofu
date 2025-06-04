@@ -13,6 +13,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/configs"
@@ -225,10 +226,27 @@ func (c *Client) logStderr() {
 // Hook methods that convert between cty.Value and JSON
 
 func (c *Client) PrePlan(ctx context.Context, params PrePlanParams) (*HookResult, error) {
-	// Convert cty.Value to JSON for the RPC call
-	configJSON, err := ctyjson.Marshal(params.Config, params.Config.Type())
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal config: %w", err)
+	// Convert cty.Values to JSON
+	var configJSON, currentJSON json.RawMessage
+	
+	if !params.Config.IsNull() {
+		// For config, we need to handle unknown values by converting them to null
+		configWithoutUnknowns := cty.UnknownAsNull(params.Config)
+		c, err := ctyjson.Marshal(configWithoutUnknowns, configWithoutUnknowns.Type())
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal config: %w", err)
+		}
+		configJSON = c
+	}
+	
+	if !params.CurrentState.IsNull() {
+		// Current state should not have unknowns, but handle them just in case
+		stateWithoutUnknowns := cty.UnknownAsNull(params.CurrentState)
+		s, err := ctyjson.Marshal(stateWithoutUnknowns, stateWithoutUnknowns.Type())
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal current state: %w", err)
+		}
+		currentJSON = s
 	}
 	
 	rpcParams := map[string]interface{}{
@@ -236,7 +254,8 @@ func (c *Client) PrePlan(ctx context.Context, params PrePlanParams) (*HookResult
 		"resource_type": params.ResourceType,
 		"resource_name": params.ResourceName,
 		"resource_mode": string(params.ResourceMode),
-		"config":        json.RawMessage(configJSON),
+		"config":        configJSON,
+		"current_state": currentJSON,
 	}
 	
 	var result HookResult
@@ -249,32 +268,45 @@ func (c *Client) PrePlan(ctx context.Context, params PrePlanParams) (*HookResult
 
 func (c *Client) PostPlan(ctx context.Context, params PostPlanParams) (*HookResult, error) {
 	// Convert cty.Values to JSON
-	var beforeJSON, afterJSON json.RawMessage
+	var currentJSON, plannedJSON, configJSON json.RawMessage
 	
-	if !params.Before.IsNull() {
-		b, err := ctyjson.Marshal(params.Before, params.Before.Type())
+	if !params.CurrentState.IsNull() {
+		b, err := ctyjson.Marshal(params.CurrentState, params.CurrentState.Type())
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal before: %w", err)
+			return nil, fmt.Errorf("failed to marshal current state: %w", err)
 		}
-		beforeJSON = b
+		currentJSON = b
 	}
 	
-	if !params.After.IsNull() {
-		a, err := ctyjson.Marshal(params.After, params.After.Type())
+	if !params.PlannedState.IsNull() {
+		// Planned state might have unknowns
+		plannedWithoutUnknowns := cty.UnknownAsNull(params.PlannedState)
+		a, err := ctyjson.Marshal(plannedWithoutUnknowns, plannedWithoutUnknowns.Type())
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal after: %w", err)
+			return nil, fmt.Errorf("failed to marshal planned state: %w", err)
 		}
-		afterJSON = a
+		plannedJSON = a
+	}
+	
+	if !params.Config.IsNull() {
+		// For config, we need to handle unknown values by converting them to null
+		configWithoutUnknowns := cty.UnknownAsNull(params.Config)
+		c, err := ctyjson.Marshal(configWithoutUnknowns, configWithoutUnknowns.Type())
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal config: %w", err)
+		}
+		configJSON = c
 	}
 	
 	rpcParams := map[string]interface{}{
-		"provider":      params.Provider,
-		"resource_type": params.ResourceType,
-		"resource_name": params.ResourceName,
-		"resource_mode": string(params.ResourceMode),
-		"action":        params.Action.String(),
-		"before":        beforeJSON,
-		"after":         afterJSON,
+		"provider":       params.Provider,
+		"resource_type":  params.ResourceType,
+		"resource_name":  params.ResourceName,
+		"resource_mode":  string(params.ResourceMode),
+		"current_state":  currentJSON,
+		"planned_state":  plannedJSON,
+		"config":         configJSON,
+		"planned_action": params.PlannedAction,
 	}
 	
 	var result HookResult
@@ -286,10 +318,35 @@ func (c *Client) PostPlan(ctx context.Context, params PostPlanParams) (*HookResu
 }
 
 func (c *Client) PreApply(ctx context.Context, params PreApplyParams) (*HookResult, error) {
-	// Convert cty.Value to JSON for the RPC call
-	plannedJSON, err := ctyjson.Marshal(params.PlannedValues, params.PlannedValues.Type())
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal planned values: %w", err)
+	// Convert cty.Values to JSON
+	var currentJSON, plannedJSON, configJSON json.RawMessage
+	
+	if !params.CurrentState.IsNull() {
+		b, err := ctyjson.Marshal(params.CurrentState, params.CurrentState.Type())
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal current state: %w", err)
+		}
+		currentJSON = b
+	}
+	
+	if !params.PlannedState.IsNull() {
+		// Planned state might have unknowns
+		plannedWithoutUnknowns := cty.UnknownAsNull(params.PlannedState)
+		a, err := ctyjson.Marshal(plannedWithoutUnknowns, plannedWithoutUnknowns.Type())
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal planned state: %w", err)
+		}
+		plannedJSON = a
+	}
+	
+	if !params.Config.IsNull() {
+		// For config, we need to handle unknown values by converting them to null
+		configWithoutUnknowns := cty.UnknownAsNull(params.Config)
+		c, err := ctyjson.Marshal(configWithoutUnknowns, configWithoutUnknowns.Type())
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal config: %w", err)
+		}
+		configJSON = c
 	}
 	
 	rpcParams := map[string]interface{}{
@@ -297,8 +354,10 @@ func (c *Client) PreApply(ctx context.Context, params PreApplyParams) (*HookResu
 		"resource_type":  params.ResourceType,
 		"resource_name":  params.ResourceName,
 		"resource_mode":  string(params.ResourceMode),
-		"planned_action": params.PlannedAction.String(),
-		"planned_values": json.RawMessage(plannedJSON),
+		"current_state":  currentJSON,
+		"planned_state":  plannedJSON,
+		"config":         configJSON,
+		"planned_action": params.PlannedAction,
 	}
 	
 	var result HookResult
@@ -310,31 +369,47 @@ func (c *Client) PreApply(ctx context.Context, params PreApplyParams) (*HookResu
 }
 
 func (c *Client) PostApply(ctx context.Context, params PostApplyParams) (*HookResult, error) {
-	// Convert cty.Value to JSON
-	var stateJSON json.RawMessage
+	// Convert cty.Values to JSON
+	var beforeJSON, afterJSON, configJSON json.RawMessage
 	
-	if !params.State.IsNull() {
-		s, err := ctyjson.Marshal(params.State, params.State.Type())
+	if !params.Before.IsNull() {
+		b, err := ctyjson.SimpleJSONValue{Value: params.Before}.MarshalJSON()
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal state: %w", err)
+			return nil, fmt.Errorf("failed to marshal before state: %w", err)
 		}
-		stateJSON = s
+		beforeJSON = b
+	}
+	
+	if !params.After.IsNull() {
+		a, err := ctyjson.SimpleJSONValue{Value: params.After}.MarshalJSON()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal after state: %w", err)
+		}
+		afterJSON = a
+	}
+	
+	if !params.Config.IsNull() {
+		// For config, we need to handle unknown values by converting them to null
+		configWithoutUnknowns := cty.UnknownAsNull(params.Config)
+		c, err := ctyjson.Marshal(configWithoutUnknowns, configWithoutUnknowns.Type())
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal config: %w", err)
+		}
+		configJSON = c
 	}
 	
 	rpcParams := map[string]interface{}{
-		"provider":      params.Provider,
-		"resource_type": params.ResourceType,
-		"resource_name": params.ResourceName,
-		"resource_mode": string(params.ResourceMode),
-		"action":        params.Action.String(),
-		"result":        params.Result,
-		"state":         stateJSON,
+		"provider":       params.Provider,
+		"resource_type":  params.ResourceType,
+		"resource_name":  params.ResourceName,
+		"resource_mode":  string(params.ResourceMode),
+		"before":         beforeJSON,
+		"after":          afterJSON,
+		"config":         configJSON,
+		"applied_action": params.AppliedAction,
+		"failed":         params.Failed,
 	}
 	
-	// Add error if present
-	if params.Error != "" {
-		rpcParams["error"] = params.Error
-	}
 	
 	var result HookResult
 	if err := c.call(ctx, "post-apply", rpcParams, &result); err != nil {
@@ -349,7 +424,7 @@ func (c *Client) PreRefresh(ctx context.Context, params PreRefreshParams) (*Hook
 	var stateJSON json.RawMessage
 	
 	if !params.CurrentState.IsNull() {
-		s, err := ctyjson.Marshal(params.CurrentState, params.CurrentState.Type())
+		s, err := ctyjson.SimpleJSONValue{Value: params.CurrentState}.MarshalJSON()
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal current state: %w", err)
 		}
@@ -377,7 +452,7 @@ func (c *Client) PostRefresh(ctx context.Context, params PostRefreshParams) (*Ho
 	var beforeJSON, afterJSON json.RawMessage
 	
 	if !params.Before.IsNull() {
-		b, err := ctyjson.Marshal(params.Before, params.Before.Type())
+		b, err := ctyjson.SimpleJSONValue{Value: params.Before}.MarshalJSON()
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal before: %w", err)
 		}
@@ -385,7 +460,7 @@ func (c *Client) PostRefresh(ctx context.Context, params PostRefreshParams) (*Ho
 	}
 	
 	if !params.After.IsNull() {
-		a, err := ctyjson.Marshal(params.After, params.After.Type())
+		a, err := ctyjson.SimpleJSONValue{Value: params.After}.MarshalJSON()
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal after: %w", err)
 		}

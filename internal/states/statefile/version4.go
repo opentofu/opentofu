@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"sort"
 
 	version "github.com/hashicorp/go-version"
@@ -180,6 +181,7 @@ func prepareStateV4(sV4 *stateV4) (*File, tfdiags.Diagnostics) {
 			obj := &states.ResourceInstanceObjectSrc{
 				SchemaVersion:       isV4.SchemaVersion,
 				CreateBeforeDestroy: isV4.CreateBeforeDestroy,
+				MiddlewareMetadata:  isV4.MiddlewareMetadata,
 			}
 
 			{
@@ -569,6 +571,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 	attributeSensitivePaths, pathsDiags := marshalPaths(paths)
 	diags = diags.Append(pathsDiags)
 
+	log.Printf("[DEBUG] appendInstanceObjectStateV4: MiddlewareMetadata = %v", obj.MiddlewareMetadata)
 	return append(isV4s, instanceObjectStateV4{
 		IndexKey:                rawKey,
 		Deposed:                 string(deposed),
@@ -581,6 +584,7 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		PrivateRaw:              privateRaw,
 		Dependencies:            deps,
 		CreateBeforeDestroy:     obj.CreateBeforeDestroy,
+		MiddlewareMetadata:      obj.MiddlewareMetadata,
 	}), diags
 }
 
@@ -798,6 +802,11 @@ type instanceObjectStateV4 struct {
 	Dependencies []string `json:"dependencies,omitempty"`
 
 	CreateBeforeDestroy bool `json:"create_before_destroy,omitempty"`
+	
+	// MiddlewareMetadata contains metadata from middleware hooks
+	// that were executed during the apply phase. This is indexed
+	// by the middleware HCL block name to avoid conflicts.
+	MiddlewareMetadata map[string]map[string]interface{} `json:"middleware_metadata,omitempty"`
 }
 
 type checkResultsV4 struct {

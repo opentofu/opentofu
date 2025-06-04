@@ -23,24 +23,25 @@ type Manager interface {
 	Stop(ctx context.Context) error
 
 	// Hook methods for resources and data sources
+	// All hook methods return a map of results keyed by middleware name
 
 	// PrePlan is called before planning a resource or data source
-	PrePlan(ctx context.Context, params PrePlanParams) (*HookResult, error)
+	PrePlan(ctx context.Context, params PrePlanParams) (map[string]*HookResult, error)
 
 	// PostPlan is called after planning a resource or data source
-	PostPlan(ctx context.Context, params PostPlanParams) (*HookResult, error)
+	PostPlan(ctx context.Context, params PostPlanParams) (map[string]*HookResult, error)
 
 	// PreApply is called before applying changes to a resource or data source
-	PreApply(ctx context.Context, params PreApplyParams) (*HookResult, error)
+	PreApply(ctx context.Context, params PreApplyParams) (map[string]*HookResult, error)
 
 	// PostApply is called after applying changes to a resource or data source
-	PostApply(ctx context.Context, params PostApplyParams) (*HookResult, error)
+	PostApply(ctx context.Context, params PostApplyParams) (map[string]*HookResult, error)
 
 	// PreRefresh is called before refreshing a resource or data source
-	PreRefresh(ctx context.Context, params PreRefreshParams) (*HookResult, error)
+	PreRefresh(ctx context.Context, params PreRefreshParams) (map[string]*HookResult, error)
 
 	// PostRefresh is called after refreshing a resource or data source
-	PostRefresh(ctx context.Context, params PostRefreshParams) (*HookResult, error)
+	PostRefresh(ctx context.Context, params PostRefreshParams) (map[string]*HookResult, error)
 }
 
 // manager implements the Manager interface
@@ -120,7 +121,7 @@ func (m *manager) stopAllLocked(ctx context.Context) error {
 }
 
 // PrePlan calls pre-plan hook on all middleware in order
-func (m *manager) PrePlan(ctx context.Context, params PrePlanParams) (*HookResult, error) {
+func (m *manager) PrePlan(ctx context.Context, params PrePlanParams) (map[string]*HookResult, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -128,8 +129,7 @@ func (m *manager) PrePlan(ctx context.Context, params PrePlanParams) (*HookResul
 		return nil, fmt.Errorf("middleware manager not started")
 	}
 
-	// Accumulate metadata from all middleware
-	aggregatedMetadata := make(map[string]interface{})
+	results := make(map[string]*HookResult)
 
 	for i, client := range m.clients {
 		result, err := client.PrePlan(ctx, params)
@@ -137,27 +137,22 @@ func (m *manager) PrePlan(ctx context.Context, params PrePlanParams) (*HookResul
 			return nil, fmt.Errorf("middleware %q pre-plan failed: %w", m.configs[i].Name, err)
 		}
 
-		// Check if middleware failed
-		if result.Status == "fail" {
-			// Return immediately on failure
-			return result, nil
-		}
+		// Store result keyed by middleware name
+		results[m.configs[i].Name] = result
 
-		// Accumulate metadata namespaced by middleware name
-		if len(result.Metadata) > 0 {
-			aggregatedMetadata[m.configs[i].Name] = result.Metadata
+		// Check if middleware failed - pre-hooks stop on failure
+		if result.Status == "fail" {
+			// Return immediately on failure with results so far
+			return results, nil
 		}
 	}
 
 	// All middleware passed
-	return &HookResult{
-		Status:   "pass",
-		Metadata: aggregatedMetadata,
-	}, nil
+	return results, nil
 }
 
 // PostPlan calls post-plan hook on all middleware in order
-func (m *manager) PostPlan(ctx context.Context, params PostPlanParams) (*HookResult, error) {
+func (m *manager) PostPlan(ctx context.Context, params PostPlanParams) (map[string]*HookResult, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -166,8 +161,7 @@ func (m *manager) PostPlan(ctx context.Context, params PostPlanParams) (*HookRes
 	}
 
 	// For post-* hooks, we run all middleware regardless of failures
-	aggregatedMetadata := make(map[string]interface{})
-	var firstFailure *HookResult
+	results := make(map[string]*HookResult)
 
 	for i, client := range m.clients {
 		result, err := client.PostPlan(ctx, params)
@@ -178,31 +172,15 @@ func (m *manager) PostPlan(ctx context.Context, params PostPlanParams) (*HookRes
 			continue
 		}
 
-		// Track first failure but continue
-		if result.Status == "fail" && firstFailure == nil {
-			firstFailure = result
-		}
-
-		// Accumulate metadata namespaced by middleware name
-		if len(result.Metadata) > 0 {
-			aggregatedMetadata[m.configs[i].Name] = result.Metadata
-		}
+		// Store result keyed by middleware name
+		results[m.configs[i].Name] = result
 	}
 
-	// Return first failure if any, otherwise success
-	if firstFailure != nil {
-		firstFailure.Metadata = aggregatedMetadata
-		return firstFailure, nil
-	}
-
-	return &HookResult{
-		Status:   "pass",
-		Metadata: aggregatedMetadata,
-	}, nil
+	return results, nil
 }
 
 // PreApply calls pre-apply hook on all middleware in order
-func (m *manager) PreApply(ctx context.Context, params PreApplyParams) (*HookResult, error) {
+func (m *manager) PreApply(ctx context.Context, params PreApplyParams) (map[string]*HookResult, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -210,8 +188,7 @@ func (m *manager) PreApply(ctx context.Context, params PreApplyParams) (*HookRes
 		return nil, fmt.Errorf("middleware manager not started")
 	}
 
-	// Accumulate metadata from all middleware
-	aggregatedMetadata := make(map[string]interface{})
+	results := make(map[string]*HookResult)
 
 	for i, client := range m.clients {
 		result, err := client.PreApply(ctx, params)
@@ -219,27 +196,22 @@ func (m *manager) PreApply(ctx context.Context, params PreApplyParams) (*HookRes
 			return nil, fmt.Errorf("middleware %q pre-apply failed: %w", m.configs[i].Name, err)
 		}
 
-		// Check if middleware failed
-		if result.Status == "fail" {
-			// Return immediately on failure
-			return result, nil
-		}
+		// Store result keyed by middleware name
+		results[m.configs[i].Name] = result
 
-		// Accumulate metadata namespaced by middleware name
-		if len(result.Metadata) > 0 {
-			aggregatedMetadata[m.configs[i].Name] = result.Metadata
+		// Check if middleware failed - pre-hooks stop on failure
+		if result.Status == "fail" {
+			// Return immediately on failure with results so far
+			return results, nil
 		}
 	}
 
 	// All middleware passed
-	return &HookResult{
-		Status:   "pass",
-		Metadata: aggregatedMetadata,
-	}, nil
+	return results, nil
 }
 
 // PostApply calls post-apply hook on all middleware in order
-func (m *manager) PostApply(ctx context.Context, params PostApplyParams) (*HookResult, error) {
+func (m *manager) PostApply(ctx context.Context, params PostApplyParams) (map[string]*HookResult, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -248,8 +220,7 @@ func (m *manager) PostApply(ctx context.Context, params PostApplyParams) (*HookR
 	}
 
 	// For post-* hooks, we run all middleware regardless of failures
-	aggregatedMetadata := make(map[string]interface{})
-	var firstFailure *HookResult
+	results := make(map[string]*HookResult)
 
 	for i, client := range m.clients {
 		result, err := client.PostApply(ctx, params)
@@ -260,31 +231,15 @@ func (m *manager) PostApply(ctx context.Context, params PostApplyParams) (*HookR
 			continue
 		}
 
-		// Track first failure but continue
-		if result.Status == "fail" && firstFailure == nil {
-			firstFailure = result
-		}
-
-		// Accumulate metadata namespaced by middleware name
-		if len(result.Metadata) > 0 {
-			aggregatedMetadata[m.configs[i].Name] = result.Metadata
-		}
+		// Store result keyed by middleware name
+		results[m.configs[i].Name] = result
 	}
 
-	// Return first failure if any, otherwise success
-	if firstFailure != nil {
-		firstFailure.Metadata = aggregatedMetadata
-		return firstFailure, nil
-	}
-
-	return &HookResult{
-		Status:   "pass",
-		Metadata: aggregatedMetadata,
-	}, nil
+	return results, nil
 }
 
 // PreRefresh calls pre-refresh hook on all middleware in order
-func (m *manager) PreRefresh(ctx context.Context, params PreRefreshParams) (*HookResult, error) {
+func (m *manager) PreRefresh(ctx context.Context, params PreRefreshParams) (map[string]*HookResult, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -292,8 +247,7 @@ func (m *manager) PreRefresh(ctx context.Context, params PreRefreshParams) (*Hoo
 		return nil, fmt.Errorf("middleware manager not started")
 	}
 
-	// Accumulate metadata from all middleware
-	aggregatedMetadata := make(map[string]interface{})
+	results := make(map[string]*HookResult)
 
 	for i, client := range m.clients {
 		result, err := client.PreRefresh(ctx, params)
@@ -301,27 +255,22 @@ func (m *manager) PreRefresh(ctx context.Context, params PreRefreshParams) (*Hoo
 			return nil, fmt.Errorf("middleware %q pre-refresh failed: %w", m.configs[i].Name, err)
 		}
 
-		// Check if middleware failed
-		if result.Status == "fail" {
-			// Return immediately on failure
-			return result, nil
-		}
+		// Store result keyed by middleware name
+		results[m.configs[i].Name] = result
 
-		// Accumulate metadata namespaced by middleware name
-		if len(result.Metadata) > 0 {
-			aggregatedMetadata[m.configs[i].Name] = result.Metadata
+		// Check if middleware failed - pre-hooks stop on failure
+		if result.Status == "fail" {
+			// Return immediately on failure with results so far
+			return results, nil
 		}
 	}
 
 	// All middleware passed
-	return &HookResult{
-		Status:   "pass",
-		Metadata: aggregatedMetadata,
-	}, nil
+	return results, nil
 }
 
 // PostRefresh calls post-refresh hook on all middleware in order
-func (m *manager) PostRefresh(ctx context.Context, params PostRefreshParams) (*HookResult, error) {
+func (m *manager) PostRefresh(ctx context.Context, params PostRefreshParams) (map[string]*HookResult, error) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -330,8 +279,7 @@ func (m *manager) PostRefresh(ctx context.Context, params PostRefreshParams) (*H
 	}
 
 	// For post-* hooks, we run all middleware regardless of failures
-	aggregatedMetadata := make(map[string]interface{})
-	var firstFailure *HookResult
+	results := make(map[string]*HookResult)
 
 	for i, client := range m.clients {
 		result, err := client.PostRefresh(ctx, params)
@@ -342,27 +290,11 @@ func (m *manager) PostRefresh(ctx context.Context, params PostRefreshParams) (*H
 			continue
 		}
 
-		// Track first failure but continue
-		if result.Status == "fail" && firstFailure == nil {
-			firstFailure = result
-		}
-
-		// Accumulate metadata namespaced by middleware name
-		if len(result.Metadata) > 0 {
-			aggregatedMetadata[m.configs[i].Name] = result.Metadata
-		}
+		// Store result keyed by middleware name
+		results[m.configs[i].Name] = result
 	}
 
-	// Return first failure if any, otherwise success
-	if firstFailure != nil {
-		firstFailure.Metadata = aggregatedMetadata
-		return firstFailure, nil
-	}
-
-	return &HookResult{
-		Status:   "pass",
-		Metadata: aggregatedMetadata,
-	}, nil
+	return results, nil
 }
 
 // ValidateMiddleware validates that middleware can be started during init
