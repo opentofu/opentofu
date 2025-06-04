@@ -156,7 +156,7 @@ func (f *FilesystemStorage) acquireLocks(ctx context.Context, want collections.S
 		// doesn't already exist but just open it normally if it does.
 		// If we create the file then it will initially be empty, which
 		// is okey because [FilesystemStorage.Keys] ignores empty files.
-		file, err := f.root.OpenFile(filename, os.O_CREATE|os.O_RDONLY, os.ModePerm)
+		file, err := f.root.OpenFile(filename, os.O_CREATE|os.O_RDWR, os.ModePerm)
 		if err != nil {
 			return err
 		}
