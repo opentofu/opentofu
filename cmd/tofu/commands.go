@@ -150,6 +150,12 @@ func initCommands(
 			}, nil
 		},
 
+		"drift-check": func() (cli.Command, error) {
+			return &command.DriftCheckCommand{
+				Meta: meta,
+			}, nil
+		},
+
 		"env": func() (cli.Command, error) {
 			return &command.WorkspaceCommand{
 				Meta:       meta,
