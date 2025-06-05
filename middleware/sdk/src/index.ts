@@ -8,6 +8,7 @@ export * from "./stdio-transport";
 export * from "./utils/chain";
 export * from "./utils/resource";
 export * from "./utils/file-logger";
+export * from "./utils/plan";
 
 // Re-export commonly used types for convenience
 export type {
@@ -21,7 +22,22 @@ export type {
   PostApplyParams,
   PreRefreshParams,
   PostRefreshParams,
+  OnPlanCompletedParams,
+  Plan,
+  ResourceChange,
+  Change,
+  Variables,
+  Variable,
+  StateValues,
+  Output,
+  Module,
+  Resource,
+  AttributeValues,
+  Importing,
+  ResourceAttr,
 } from "./types";
+
+export type { PlanSummary, ResourceComparison } from "./utils/plan";
 
 export {
   Middleware,

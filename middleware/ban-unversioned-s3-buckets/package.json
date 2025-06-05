@@ -1,0 +1,32 @@
+{
+  "name": "@opentofu/middleware-ban-unversioned-s3-buckets",
+  "version": "0.1.0",
+  "description": "Middleware to ban unversioned S3 buckets in OpenTofu",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "ban-unversioned-s3-buckets": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "dev": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "check": "npm run typecheck && npm run lint"
+  },
+  "keywords": ["opentofu", "terraform", "middleware", "s3", "security", "compliance"],
+  "author": "OpenTofu",
+  "license": "MPL-2.0",
+  "dependencies": {
+    "@opentofu/middleware": "file:../sdk"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "1.9.4",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  }
+}

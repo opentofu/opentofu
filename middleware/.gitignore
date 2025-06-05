@@ -1,0 +1,52 @@
+# Common patterns for all middleware projects
+
+# Dependencies
+**/node_modules/
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+**/pnpm-lock.yaml
+**/.pnpm-debug.log*
+
+# Build output
+**/dist/
+**/build/
+**/out/
+**/.next/
+**/.nuxt/
+
+# IDE
+**/.vscode/
+**/.idea/
+**/*.swp
+**/*.swo
+**/.DS_Store
+
+# Environment variables
+**/.env
+**/.env.local
+**/.env.*.local
+
+# Testing
+**/coverage/
+**/.nyc_output/
+
+# Logs
+**/logs/
+**/*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+**/*.tmp
+**/*.temp
+**/.cache/
+
+# TypeScript
+**/*.tsbuildinfo
+
+# Package managers
+.yarn/
+.pnpm-store/

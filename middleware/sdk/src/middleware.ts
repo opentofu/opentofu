@@ -19,6 +19,7 @@ export interface MiddlewareHandlers {
   "post-apply"?: (params: MethodParams["post-apply"]) => Promise<HookResult> | HookResult;
   "pre-refresh"?: (params: MethodParams["pre-refresh"]) => Promise<HookResult> | HookResult;
   "post-refresh"?: (params: MethodParams["post-refresh"]) => Promise<HookResult> | HookResult;
+  "on-plan-completed"?: (params: MethodParams["on-plan-completed"]) => Promise<HookResult> | HookResult;
   ping?: () => Promise<{ message: string }> | { message: string };
   shutdown?: () => Promise<void> | void;
 }
@@ -89,7 +90,8 @@ export class Middleware {
         case "pre-apply":
         case "post-apply":
         case "pre-refresh":
-        case "post-refresh": {
+        case "post-refresh":
+        case "on-plan-completed": {
           const handler = this.options.handlers[method];
           if (!handler) {
             // If no handler provided, return pass by default

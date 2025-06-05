@@ -3,6 +3,7 @@ import type {
   InitializeParams,
   InitializeResult,
   MiddlewareCapability,
+  OnPlanCompletedParams,
   PostApplyParams,
   PostPlanParams,
   PostRefreshParams,
@@ -30,6 +31,7 @@ type HandlerMap = {
   "post-apply": HookHandler<PostApplyParams>;
   "pre-refresh": HookHandler<PreRefreshParams>;
   "post-refresh": HookHandler<PostRefreshParams>;
+  "on-plan-completed": HookHandler<OnPlanCompletedParams>;
   ping: PingHandler;
   shutdown: ShutdownHandler;
 };
@@ -143,6 +145,15 @@ export class MiddlewareServer {
   }
 
   /**
+   * Register an on-plan-completed hook handler
+   */
+  onPlanCompleted(handler: HookHandler<OnPlanCompletedParams>): this {
+    this.capabilities.add("on-plan-completed");
+    this.handlers.set("on-plan-completed", handler);
+    return this;
+  }
+
+  /**
    * Register a custom initialize handler
    */
   onInitialize(handler: HookHandler<InitializeParams, InitializeResult>): this {
@@ -191,7 +202,8 @@ export class MiddlewareServer {
       case "pre-apply":
       case "post-apply":
       case "pre-refresh":
-      case "post-refresh": {
+      case "post-refresh":
+      case "on-plan-completed": {
         const hookHandler = this.handlers.get(method as MiddlewareCapability);
         if (hookHandler) {
           return await hookHandler(params);

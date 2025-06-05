@@ -6,6 +6,11 @@ import {
   StdioTransport,
   type PostPlanParams,
   type PrePlanParams,
+  getPlanSummary,
+  getCreatedResources,
+  getUpdatedResources,
+  getResourcesByProvider,
+  type PlanSummary,
 } from "@opentofu/middleware";
 import { estimateResourceCost, type CostEstimate } from "./estimator";
 
@@ -16,7 +21,7 @@ console.error("[COST-ESTIMATOR] Starting cost estimator middleware...");
 const logFile = process.env.COST_ESTIMATOR_LOG_FILE;
 const logger = logFile ? new FileLogger(logFile) : undefined;
 
-console.error(`[COST-ESTIMATOR] Log file: ${logFile || 'none'}`);
+console.error(`[COST-ESTIMATOR] Log file: ${logFile || "none"}`);
 
 // Track costs across plan/apply lifecycle
 const resourceCosts = new Map<string, CostEstimate>();
@@ -43,7 +48,7 @@ server
   .onInitialize(async (params: any) => {
     log(`Initialize called with: ${JSON.stringify(params)}`);
     return {
-      capabilities: ["pre-plan", "post-plan", "post-apply"],
+      capabilities: ["pre-plan", "post-plan", "post-apply", "on-plan-completed"],
     };
   })
   .prePlan(async (params: PrePlanParams) => {
@@ -124,6 +129,51 @@ server
       },
     };
   })
+  .onPlanCompleted((params) => {
+    log("Plan completed, all resources processed");
+
+    // Analyze the full plan using helper utilities
+    const plan = params.plan_json;
+    const summary: PlanSummary = getPlanSummary(plan, params.success);
+
+    log(
+      `Plan summary: ${summary.created} created, ${summary.updated} updated, ${summary.deleted} deleted`,
+    );
+    log(`Plan status: success=${params.success}, errored=${plan.errored}`);
+
+    log(`Plan JSON: ${JSON.stringify(plan, null, 2)}`);
+
+    // Get resources that will incur costs (created or updated)
+    const costIncurringResources = [...getCreatedResources(plan), ...getUpdatedResources(plan)];
+
+    log(`Found ${costIncurringResources.length} resources that may incur costs`);
+
+    // Analyze by provider
+    const awsResources = getResourcesByProvider(plan, "registry.opentofu.org/hashicorp/aws");
+    const azureResources = getResourcesByProvider(plan, "registry.opentofu.org/hashicorp/azurerm");
+    const gcpResources = getResourcesByProvider(plan, "registry.opentofu.org/hashicorp/google");
+
+    log(
+      `Provider breakdown: AWS=${awsResources.length}, Azure=${azureResources.length}, GCP=${gcpResources.length}`,
+    );
+
+    return {
+      status: "pass",
+      message: `Plan analysis: ${summary.created} created, ${summary.updated} updated, ${summary.deleted} deleted`,
+      metadata: {
+        middleware: "cost-estimator",
+        timestamp: new Date().toISOString(),
+        action: "on-plan-completed",
+        plan_summary: summary,
+        cost_incurring_resources: costIncurringResources.length,
+        provider_breakdown: {
+          aws: awsResources.length,
+          azure: azureResources.length,
+          gcp: gcpResources.length,
+        },
+      },
+    };
+  })
   .onShutdown(() => {
     log("Cost estimator shutting down");
   });
@@ -143,12 +193,15 @@ const transport = new StdioTransport({
 
 console.error("[COST-ESTIMATOR] Connecting transport to server...");
 // Start the middleware
-transport.connect(server).then(() => {
-  console.error("[COST-ESTIMATOR] Transport connected, middleware running");
-}).catch((error) => {
-  console.error(`[COST-ESTIMATOR] Failed to start: ${error}`);
-  if (logger) {
-    logger.log(`Failed to start: ${error}`);
-  }
-  process.exit(1);
-});
+transport
+  .connect(server)
+  .then(() => {
+    console.error("[COST-ESTIMATOR] Transport connected, middleware running");
+  })
+  .catch((error) => {
+    console.error(`[COST-ESTIMATOR] Failed to start: ${error}`);
+    if (logger) {
+      logger.log(`Failed to start: ${error}`);
+    }
+    process.exit(1);
+  });

@@ -19,7 +19,8 @@ export type MiddlewareCapability =
   | "pre-apply"
   | "post-apply"
   | "pre-refresh"
-  | "post-refresh";
+  | "post-refresh"
+  | "on-plan-completed";
 
 // Previous middleware metadata passed through the chain
 export type PreviousMiddlewareMetadata = Record<string, any>;
@@ -70,6 +71,14 @@ export interface PostRefreshParams extends BaseParams {
   drift_detected: boolean;
 }
 
+// Plan-level hook parameters
+export interface OnPlanCompletedParams {
+  plan_json: Plan; // Full plan JSON with strong typing
+  success: boolean;
+  errors?: string[];
+  previous_middleware_metadata?: PreviousMiddlewareMetadata;
+}
+
 export type HookStatus = "pass" | "fail" | "error";
 
 export interface HookResult {
@@ -117,6 +126,7 @@ export type MethodParams = {
   "post-apply": PostApplyParams;
   "pre-refresh": PreRefreshParams;
   "post-refresh": PostRefreshParams;
+  "on-plan-completed": OnPlanCompletedParams;
   ping: object;
   shutdown: null;
 };
@@ -129,6 +139,111 @@ export type MethodResult = {
   "post-apply": HookResult;
   "pre-refresh": HookResult;
   "post-refresh": HookResult;
+  "on-plan-completed": HookResult;
   ping: { message: string };
   shutdown: string;
 };
+
+// ===================================================================
+// COMPREHENSIVE JSON PLAN TYPES (based on internal/command/jsonplan)
+// ===================================================================
+
+// Top-level plan structure
+export interface Plan {
+  format_version?: string;
+  terraform_version?: string;
+  variables?: Variables;
+  planned_values?: StateValues;
+  resource_drift?: ResourceChange[];
+  resource_changes?: ResourceChange[];
+  output_changes?: Record<string, Change>;
+  prior_state?: StateValues; // Now properly typed with the same structure as planned_values
+  configuration?: any; // JSON object
+  relevant_attributes?: ResourceAttr[];
+  checks?: any; // JSON object
+  timestamp?: string;
+  errored: boolean;
+}
+
+// Variables types
+export type Variables = Record<string, Variable>;
+
+export interface Variable {
+  value?: any; // JSON value
+}
+
+// State values structure
+export interface StateValues {
+  outputs?: Record<string, Output>;
+  root_module?: Module;
+}
+
+// Output structure
+export interface Output {
+  sensitive: boolean;
+  deprecated?: string;
+  type?: any; // JSON type representation
+  value?: any; // JSON value
+}
+
+// Module structure
+export interface Module {
+  resources?: Resource[];
+  address?: string; // omitted for root module
+  child_modules?: Module[];
+}
+
+// Resource structure (for planned values)
+export interface Resource {
+  address?: string;
+  mode?: string; // "managed" | "data"
+  type?: string;
+  name?: string;
+  index?: any; // JSON representation of instance key
+  provider_name?: string;
+  schema_version: number;
+  values?: AttributeValues;
+  sensitive_values?: any; // JSON object
+}
+
+// Attribute values
+export type AttributeValues = Record<string, any>;
+
+// Resource change structure
+export interface ResourceChange {
+  address?: string;
+  previous_address?: string;
+  module_address?: string;
+  mode?: string; // "managed" | "data"
+  type?: string;
+  name?: string;
+  index?: any; // JSON representation
+  provider_name?: string;
+  deposed?: string;
+  change?: Change;
+  action_reason?: string;
+}
+
+// Change structure
+export interface Change {
+  actions?: string[]; // ["no-op"] | ["create"] | ["read"] | ["update"] | ["delete", "create"] | ["create", "delete"] | ["delete"] | ["forget"]
+  before?: any; // JSON value
+  after?: any; // JSON value
+  after_unknown?: any; // JSON object
+  before_sensitive?: any; // JSON object  
+  after_sensitive?: any; // JSON object
+  replace_paths?: any; // JSON array of arrays
+  importing?: Importing;
+  generated_config?: string;
+}
+
+// Importing structure
+export interface Importing {
+  id?: string;
+}
+
+// Resource attribute for relevant attributes
+export interface ResourceAttr {
+  resource: string;
+  attribute: any; // JSON representation of attribute path
+}
