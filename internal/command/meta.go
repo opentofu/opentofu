@@ -587,7 +587,7 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 		opts.Provisioners = m.testingOverrides.Provisioners
 	} else {
 		var providerFactories map[addrs.Provider]providers.Factory
-		providerFactories, err = m.providerFactories()
+		providerFactories, err = m.providerFactories(m.loadPreconfiguredConfigs(ctx))
 		opts.Providers = providerFactories
 		opts.Provisioners = m.provisionerFactories()
 	}
@@ -964,4 +964,16 @@ func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config 
 
 	}
 	return nil, diags
+}
+
+func (c *Meta) loadPreconfiguredConfigs(ctx context.Context) map[addrs.Provider]*configs.PreconfiguredProvider {
+	var res map[addrs.Provider]*configs.PreconfiguredProvider
+	cfg, _ := c.configLoader.LoadConfig(ctx, ".", configs.StaticModuleCall{}) // TODO load selective
+	if cfg == nil {
+		return res
+	}
+	if cfg.Module.PreconfiguredProviders == nil {
+		return res
+	}
+	return cfg.Module.PreconfiguredProviders.PreconfiguredProviders
 }

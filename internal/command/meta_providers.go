@@ -10,11 +10,13 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"strings"
 
 	plugin "github.com/hashicorp/go-plugin"
+	"github.com/opentofu/opentofu/internal/configs"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	terraformProvider "github.com/opentofu/opentofu/internal/builtin/providers/tf"
@@ -232,7 +234,7 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 // package have been modified outside of the installer. If it returns an error,
 // the returned map may be incomplete or invalid, but will be as complete
 // as possible given the cause of the error.
-func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error) {
+func (m *Meta) providerFactories(preconfiguredProviders map[addrs.Provider]*configs.PreconfiguredProvider) (map[addrs.Provider]providers.Factory, error) {
 	locks, diags := m.lockedDependencies()
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("failed to read dependency lock file: %w", diags.Err())
@@ -275,7 +277,7 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	devOverrideProviders := m.ProviderDevOverrides
 	unmanagedProviders := m.UnmanagedProviders
 
-	factories := make(map[addrs.Provider]providers.Factory, len(providerLocks)+len(internalFactories)+len(unmanagedProviders))
+	factories := make(map[addrs.Provider]providers.Factory, len(providerLocks)+len(internalFactories)+len(unmanagedProviders)+len(preconfiguredProviders))
 	for name, factory := range internalFactories {
 		factories[addrs.NewBuiltInProvider(name)] = factory
 	}
@@ -327,6 +329,16 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	}
 	for provider, localDir := range devOverrideProviders {
 		factories[provider] = devOverrideProviderFactory(provider, localDir)
+	}
+
+	for provider, providerCfg := range preconfiguredProviders {
+		reattach, err := preconfiguredToReattach(providerCfg)
+		if err != nil {
+			return nil, err
+		}
+		if reattach != nil {
+			factories[provider] = preconfiguredProviderFactory(provider, providerCfg, reattach)
+		}
 	}
 	for provider, reattach := range unmanagedProviders {
 		factories[provider] = unmanagedProviderFactory(provider, reattach)
@@ -381,7 +393,7 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 		}
 
 		protoVer := client.NegotiatedVersion()
-		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider)
+		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider, false)
 		if errors.Is(err, errUnsupportedProtocolVersion) {
 			panic(err)
 		}
@@ -392,18 +404,20 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider) (providers.Interface, error) {
+func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider, preconfigured bool) (providers.Interface, error) {
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:
 		p := plugin.(*tfplugin.GRPCProvider)
 		p.PluginClient = pluginClient
 		p.Addr = pluginAddr
+		p.Preconfigured = preconfigured
 		return p, nil
 	case 6:
 		p := plugin.(*tfplugin6.GRPCProvider)
 		p.PluginClient = pluginClient
 		p.Addr = pluginAddr
+		p.Preconfigured = preconfigured
 		return p, nil
 	default:
 		return nil, errUnsupportedProtocolVersion
@@ -476,8 +490,90 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 			protoVer = 5
 		}
 
-		return initializeProviderInstance(raw, protoVer, client, provider)
+		return initializeProviderInstance(raw, protoVer, client, provider, false)
 	}
+}
+
+func preconfiguredProviderFactory(provider addrs.Provider, preconfiguredProvider *configs.PreconfiguredProvider, reattach *plugin.ReattachConfig) providers.Factory {
+	return func() (providers.Interface, error) {
+		config := &plugin.ClientConfig{
+			HandshakeConfig:  tfplugin.Handshake,
+			Logger:           logging.NewProviderLogger("unmanaged."),
+			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
+			Managed:          false,
+			Reattach:         reattach,
+			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", provider)),
+			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", provider)),
+		}
+
+		if preconfiguredProvider.ProtocolVersion == 0 {
+			// As of the 0.15 release, sdk.v2 doesn't include the protocol
+			// version in the ReattachConfig (only recently added to
+			// go-plugin), so client.NegotiatedVersion() always returns 0. We
+			// assume that an unmanaged provider reporting protocol version 0 is
+			// actually using proto v5 for backwards compatibility.
+			if defaultPlugins, ok := tfplugin.VersionedPlugins[5]; ok {
+				config.Plugins = defaultPlugins
+			} else {
+				return nil, errors.New("no supported plugins for protocol 0")
+			}
+		} else if plugins, ok := tfplugin.VersionedPlugins[preconfiguredProvider.ProtocolVersion]; !ok {
+			return nil, fmt.Errorf("no supported plugins for protocol %d", preconfiguredProvider.ProtocolVersion)
+		} else {
+			config.Plugins = plugins
+		}
+
+		client := plugin.NewClient(config)
+		rpcClient, err := client.Client()
+		if err != nil {
+			return nil, err
+		}
+
+		raw, err := rpcClient.Dispense(tfplugin.ProviderPluginName)
+		if err != nil {
+			return nil, err
+		}
+
+		protoVer := client.NegotiatedVersion()
+		if protoVer == 0 {
+			// As of the 0.15 release, sdk.v2 doesn't include the protocol
+			// version in the ReattachConfig (only recently added to
+			// go-plugin), so client.NegotiatedVersion() always returns 0. We
+			// assume that an unmanaged provider reporting protocol version 0 is
+			// actually using proto v5 for backwards compatibility.
+			protoVer = 5
+		}
+
+		return initializeProviderInstance(raw, protoVer, client, provider, true)
+	}
+}
+
+func preconfiguredToReattach(provider *configs.PreconfiguredProvider) (resp *plugin.ReattachConfig, err error) {
+	// TODO
+	//switch c.Addr.Network {
+	//case "unix":
+	//	addr, err = net.ResolveUnixAddr("unix", c.Addr.String)
+	//	if err != nil {
+	//		return unmanagedProviders, fmt.Errorf("Invalid unix socket path %q for %q: %w", c.Addr.String, p, err)
+	//	}
+	//case "tcp":
+	//	addr, err = net.ResolveTCPAddr("tcp", c.Addr.String)
+	//	if err != nil {
+	//		return unmanagedProviders, fmt.Errorf("Invalid TCP address %q for %q: %w", c.Addr.String, p, err)
+	//	}
+	//default:
+	//	return unmanagedProviders, fmt.Errorf("Unknown address type %q for %q", c.Addr.Network, p)
+	//}
+	addr, err := net.ResolveTCPAddr("tcp", provider.Addr)
+	if err != nil {
+		return nil, err
+	}
+	return &plugin.ReattachConfig{
+		Protocol:        plugin.ProtocolGRPC,
+		ProtocolVersion: provider.ProtocolVersion,
+		Addr:            addr,
+		Test:            true, // To block opentofu from calling close
+	}, nil
 }
 
 // providerFactoryError is a stub providers.Factory that returns an error

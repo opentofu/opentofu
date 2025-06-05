@@ -105,6 +105,11 @@ func (p *Parser) loadConfigFile(path string, override bool) (*File, hcl.Diagnost
 					diags = append(diags, reqsDiags...)
 					file.RequiredProviders = append(file.RequiredProviders, reqs)
 
+				case "preconfigured_providers":
+					reqs, reqsDiags := decodePreconfiguredProvider(innerBlock)
+					diags = append(diags, reqsDiags...)
+					file.PreconfiguredProviders = append(file.PreconfiguredProviders, reqs)
+
 				case "provider_meta":
 					providerCfg, cfgDiags := decodeProviderMetaBlock(innerBlock)
 					diags = append(diags, cfgDiags...)
@@ -332,6 +337,9 @@ var terraformBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Type: "required_providers",
+		},
+		{
+			Type: "preconfigured_providers",
 		},
 		{
 			Type:       "provider_meta",

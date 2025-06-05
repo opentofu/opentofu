@@ -77,6 +77,9 @@ type GRPCProvider struct {
 	// to use as the parent context for gRPC API calls.
 	ctx context.Context
 
+	// This is a flag to know not to call methods that are not meant for the externally managed providers
+	Preconfigured bool
+
 	mu sync.Mutex
 	// schema stores the schema for this provider. This is used to properly
 	// serialize the requests for schemas.
@@ -185,6 +188,11 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 
 func (p *GRPCProvider) ValidateProviderConfig(ctx context.Context, r providers.ValidateProviderConfigRequest) (resp providers.ValidateProviderConfigResponse) {
 	logger.Trace("GRPCProvider: ValidateProviderConfig")
+
+	if p.Preconfigured {
+		logger.Info("GRPCProvider: ValidateProviderConfig call skipped since this is a preconfigured provider")
+		return resp
+	}
 
 	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
@@ -342,6 +350,11 @@ func (p *GRPCProvider) UpgradeResourceState(ctx context.Context, r providers.Upg
 func (p *GRPCProvider) ConfigureProvider(ctx context.Context, r providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
 	logger.Trace("GRPCProvider: ConfigureProvider")
 
+	if p.Preconfigured {
+		logger.Info("GRPCProvider.v6: ConfigureProvider call skipped since this is a preconfigured provider")
+		return resp
+	}
+	
 	schema := p.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		resp.Diagnostics = schema.Diagnostics

@@ -126,6 +126,11 @@ func (m *Meta) annotateDependencyLocksWithOverrides(ret *depsfile.Locks) *depsfi
 		log.Printf("[DEBUG] Provider %s is overridden as an \"unmanaged provider\"", addr)
 		ret.SetProviderOverridden(addr)
 	}
+	for addr := range m.loadPreconfiguredConfigs(context.TODO()) {
+		log.Printf("[DEBUG] Provider %s is overridden as a \"preconfigured provider\"", addr)
+		ret.SetProviderOverridden(addr)
+	}
+
 	if m.testingOverrides != nil {
 		for addr := range m.testingOverrides.Providers {
 			log.Printf("[DEBUG] Provider %s is overridden in Meta.testingOverrides", addr)

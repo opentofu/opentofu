@@ -35,13 +35,14 @@ type Module struct {
 
 	ActiveExperiments experiments.Set
 
-	Backend              *Backend
-	CloudConfig          *CloudConfig
-	ProviderConfigs      map[string]*Provider
-	ProviderRequirements *RequiredProviders
-	ProviderLocalNames   map[addrs.Provider]string
-	ProviderMetas        map[addrs.Provider]*ProviderMeta
-	Encryption           *config.EncryptionConfig
+	Backend                *Backend
+	CloudConfig            *CloudConfig
+	ProviderConfigs        map[string]*Provider
+	ProviderRequirements   *RequiredProviders
+	PreconfiguredProviders *PreconfiguredProviders
+	ProviderLocalNames     map[addrs.Provider]string
+	ProviderMetas          map[addrs.Provider]*ProviderMeta
+	Encryption             *config.EncryptionConfig
 
 	Variables map[string]*Variable
 	Locals    map[string]*Local
@@ -91,12 +92,13 @@ type File struct {
 
 	ActiveExperiments experiments.Set
 
-	Backends          []*Backend
-	CloudConfigs      []*CloudConfig
-	ProviderConfigs   []*Provider
-	ProviderMetas     []*ProviderMeta
-	RequiredProviders []*RequiredProviders
-	Encryptions       []*config.EncryptionConfig
+	Backends               []*Backend
+	CloudConfigs           []*CloudConfig
+	ProviderConfigs        []*Provider
+	ProviderMetas          []*ProviderMeta
+	RequiredProviders      []*RequiredProviders
+	PreconfiguredProviders []*PreconfiguredProviders
+	Encryptions            []*config.EncryptionConfig
 
 	Variables []*Variable
 	Locals    []*Local
@@ -203,6 +205,20 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 			mod.ProviderRequirements = r
 		}
 	}
+	for _, file := range primaryFiles {
+		for _, r := range file.PreconfiguredProviders { // TODO andrei this should be allowed only in the root module
+			if mod.PreconfiguredProviders != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate preconfigured providers configuration",
+					Detail:   fmt.Sprintf("A module may have only one preconfigured providers configuration. The preconfigured providers were previously configured at %s.", mod.ProviderRequirements.DeclRange),
+					Subject:  &r.DeclRange,
+				})
+				continue
+			}
+			mod.PreconfiguredProviders = r
+		}
+	}
 
 	// If no required_providers block is configured, create a useful empty
 	// state to reduce nil checks elsewhere
@@ -218,6 +234,11 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 		for _, override := range file.RequiredProviders {
 			for name, rp := range override.RequiredProviders {
 				mod.ProviderRequirements.RequiredProviders[name] = rp
+			}
+		}
+		for _, override := range file.PreconfiguredProviders {
+			for name, pp := range override.PreconfiguredProviders {
+				mod.PreconfiguredProviders.PreconfiguredProviders[name] = pp
 			}
 		}
 	}
