@@ -8,6 +8,7 @@ package tofu
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"slices"
@@ -28,6 +29,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tracing"
 )
@@ -298,6 +300,65 @@ The -target and -exclude options are not for routine use, and are provided only 
 	}
 
 	diags = diags.Append(c.checkApplyGraph(ctx, plan, config))
+
+	// Call OnPlanCompleted for all middleware managers
+	// This needs to happen after the plan is fully built but before we return
+	if plan != nil {
+		// Get the middleware managers from somewhere - we need to pass them through
+		// For now, let's create them again (hackathon style!)
+		middlewareManagers, _ := c.createMiddlewareManagers(ctx, config)
+		if len(middlewareManagers) > 0 {
+			// Marshal the plan to JSON for middleware
+			schemas, _ := c.Schemas(ctx, config, plan.PriorState)
+			// Create a minimal statefile for marshaling
+			sf := &statefile.File{
+				State: plan.PriorState,
+			}
+			planJSON, err := plans.MarshalForLog(config, plan, sf, schemas)
+			if err != nil {
+				log.Printf("[ERROR] Failed to marshal plan for middleware: %s", err)
+			} else {
+				// Convert to JSON bytes
+				planJSONBytes, err := json.Marshal(planJSON)
+				if err != nil {
+					log.Printf("[ERROR] Failed to encode plan JSON for middleware: %s", err)
+				} else {
+					// Call OnPlanCompleted for each middleware manager
+					params := middleware.OnPlanCompletedParams{
+						PlanJSON: json.RawMessage(planJSONBytes),
+						Success:  !diags.HasErrors(),
+					}
+					
+					// Extract error strings from diagnostics
+					if diags.HasErrors() {
+						var errors []string
+						for _, diag := range diags {
+							if diag.Severity() == tfdiags.Error {
+								errors = append(errors, diag.Description().Summary)
+							}
+						}
+						params.Errors = errors
+					}
+					
+					// Call each middleware manager
+					for providerAddr, manager := range middlewareManagers {
+						log.Printf("[DEBUG] Calling OnPlanCompleted for provider %s", providerAddr)
+						results, err := manager.OnPlanCompleted(ctx, params)
+						if err != nil {
+							log.Printf("[ERROR] Middleware OnPlanCompleted failed for provider %s: %s", providerAddr, err)
+						} else {
+							log.Printf("[DEBUG] OnPlanCompleted results for provider %s: %+v", providerAddr, results)
+						}
+					}
+				}
+			}
+			
+			// Clean up middleware managers
+			for _, manager := range middlewareManagers {
+				manager.Stop(ctx)
+			}
+		}
+	}
 
 	return plan, diags
 }

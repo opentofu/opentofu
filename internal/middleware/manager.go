@@ -42,6 +42,11 @@ type Manager interface {
 
 	// PostRefresh is called after refreshing a resource or data source
 	PostRefresh(ctx context.Context, params PostRefreshParams) (map[string]*HookResult, error)
+
+	// Plan-level hook that receives full plan JSON
+
+	// OnPlanCompleted is called when planning is complete (success or failure)
+	OnPlanCompleted(ctx context.Context, params OnPlanCompletedParams) (map[string]*HookResult, error)
 }
 
 // manager implements the Manager interface
@@ -342,6 +347,42 @@ func (m *manager) PostRefresh(ctx context.Context, params PostRefreshParams) (ma
 			// Log error but continue with other middleware
 			log := logging.HCLogger()
 			log.Error("middleware post-refresh failed", "name", m.configs[i].Name, "error", err)
+			continue
+		}
+
+		// Store result keyed by middleware name
+		results[m.configs[i].Name] = result
+		
+		// Accumulate metadata for next middleware
+		if result.Metadata != nil {
+			accumulatedMetadata[m.configs[i].Name] = result.Metadata
+		}
+	}
+
+	return results, nil
+}
+
+// OnPlanCompleted calls plan-completed hook on all middleware in order
+func (m *manager) OnPlanCompleted(ctx context.Context, params OnPlanCompletedParams) (map[string]*HookResult, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	if !m.started {
+		return nil, fmt.Errorf("middleware manager not started")
+	}
+
+	results := make(map[string]*HookResult)
+	accumulatedMetadata := make(map[string]interface{})
+
+	for i, client := range m.clients {
+		// Add accumulated metadata to params for chaining
+		params.PreviousMiddlewareMetadata = accumulatedMetadata
+		
+		result, err := client.OnPlanCompleted(ctx, params)
+		if err != nil {
+			// Log error but continue with other middleware
+			log := logging.HCLogger()
+			log.Error("middleware plan-completed failed", "name", m.configs[i].Name, "error", err)
 			continue
 		}
 

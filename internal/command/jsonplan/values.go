@@ -300,3 +300,8 @@ func marshalPlanModules(
 
 	return ret, nil
 }
+
+// omitUnknowns is a local wrapper for the plans.OmitUnknowns function
+func omitUnknowns(val cty.Value) cty.Value {
+	return plans.OmitUnknowns(val)
+}

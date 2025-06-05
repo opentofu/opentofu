@@ -31,7 +31,8 @@ type Client struct {
 	encoder *json.Encoder
 	
 	nextID  int32
-	mu      sync.Mutex
+	mu      sync.Mutex // protects process lifecycle (start/stop)
+	rpcMu   sync.Mutex // protects JSON-RPC calls
 	
 	// For logging stderr
 	stderrScanner *bufio.Scanner
@@ -157,6 +158,9 @@ func (c *Client) Stop(ctx context.Context) error {
 
 // call makes a JSON-RPC call and waits for the response
 func (c *Client) call(ctx context.Context, method string, params interface{}, result interface{}) error {
+	c.rpcMu.Lock()
+	defer c.rpcMu.Unlock()
+	
 	id := int(atomic.AddInt32(&c.nextID, 1))
 	
 	// Create request
@@ -506,4 +510,21 @@ func (c *Client) Ping(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// OnPlanCompleted calls the plan-completed hook with full plan JSON and completion status
+func (c *Client) OnPlanCompleted(ctx context.Context, params OnPlanCompletedParams) (*HookResult, error) {
+	rpcParams := map[string]interface{}{
+		"plan_json": params.PlanJSON,
+		"success": params.Success,
+		"errors": params.Errors,
+		"previous_middleware_metadata": params.PreviousMiddlewareMetadata,
+	}
+
+	var result HookResult
+	if err := c.call(ctx, "on-plan-completed", rpcParams, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }

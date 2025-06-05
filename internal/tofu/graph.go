@@ -62,7 +62,7 @@ func (g *Graph) walk(ctx context.Context, walker GraphWalker) tfdiags.Diagnostic
 				for _, diag := range diags {
 					if diag.Severity() == tfdiags.Error {
 						desc := diag.Description()
-						log.Printf("[ERROR] vertex %q error: %s", dag.VertexName(v), desc.Summary)
+						log.Printf("[ERROR] vertex %q error: %s: %s", dag.VertexName(v), desc.Summary, desc.Detail)
 					}
 				}
 				log.Printf("[TRACE] vertex %q: visit complete, with errors", dag.VertexName(v))

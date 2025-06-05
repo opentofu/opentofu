@@ -4,8 +4,11 @@
 package middleware
 
 import (
-	"github.com/opentofu/opentofu/internal/addrs"
+	"encoding/json"
+
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/addrs"
 )
 
 // JSON-RPC message types
@@ -121,4 +124,16 @@ type initializeParams struct {
 
 type initializeResult struct {
 	Capabilities []string `json:"capabilities"`
+}
+
+// Plan-level hook parameters - receives the full plan JSON
+type OnPlanCompletedParams struct {
+	// Full plan JSON - contains the complete jsonplan.Plan structure as JSON
+	PlanJSON json.RawMessage `json:"plan_json"`
+	// Whether the plan was successful
+	Success bool `json:"success"`
+	// Any errors that occurred during planning
+	Errors []string `json:"errors,omitempty"`
+	// Accumulated metadata from previous middleware in the chain
+	PreviousMiddlewareMetadata map[string]interface{} `json:"previous_middleware_metadata,omitempty"`
 }
