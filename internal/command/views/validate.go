@@ -41,7 +41,8 @@ func NewValidate(vt arguments.ViewType, view *View) Validate {
 // along with a success/failure message if OpenTofu is able to execute the
 // validation walk.
 type ValidateHuman struct {
-	view *View
+	view        *View
+	machineView *View
 }
 
 var _ Validate = (*ValidateHuman)(nil)
@@ -77,7 +78,8 @@ func (v *ValidateHuman) Diagnostics(diags tfdiags.Diagnostics) {
 // This object includes top-level fields summarizing the result, and an array
 // of JSON diagnostic objects.
 type ValidateJSON struct {
-	view *View
+	view        *View
+	machineView *View
 }
 
 var _ Validate = (*ValidateJSON)(nil)

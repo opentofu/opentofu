@@ -30,6 +30,7 @@ func (c *GetCommand) Run(args []string) int {
 	cmdFlags.BoolVar(&update, "update", false, "update")
 	cmdFlags.StringVar(&testsDirectory, "test-directory", "tests", "test-directory")
 	cmdFlags.BoolVar(&c.outputInJSON, "json", false, "json")
+	cmdFlags.StringVar(&c.machineOutput, "machine-logs", "", "machine output")
 	cmdFlags.Usage = func() { c.Ui.Error(c.Help()) }
 	if err := cmdFlags.Parse(args); err != nil {
 		c.Ui.Error(fmt.Sprintf("Error parsing command-line flags: %s\n", err.Error()))

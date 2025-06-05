@@ -123,6 +123,7 @@ func (v *JSONView) Hook(h json.Hook) {
 }
 
 func (v *JSONView) Outputs(outputs json.Outputs) {
+	v.view.PrintJSONMachineLogs(outputs)
 	v.log.Info(
 		outputs.String(),
 		"type", json.MessageOutputs,

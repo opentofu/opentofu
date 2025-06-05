@@ -312,6 +312,8 @@ Other Options:
 
   -concise                     Disable progress-related messages.
 
+  -machine-logs                Save the logs in an machine-readable format (.ndjson)
+
   -out=path                    Write a plan file to the given path. This can be
                                used as input to the "apply" command.
 

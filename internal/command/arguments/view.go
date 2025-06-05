@@ -33,6 +33,9 @@ type View struct {
 
 	// ShowSensitive is used to display the value of variables marked as sensitive.
 	ShowSensitive bool
+
+	// MachineLogs is used to output machine readable .ndjson
+	MachineLogs string
 }
 
 // ParseView processes CLI arguments, returning a View value and a
@@ -49,6 +52,10 @@ func ParseView(args []string) (*View, []string) {
 	for _, v := range args {
 		if prefix := "-deprecation=module:"; strings.HasPrefix(v, prefix) {
 			common.ModuleDeprecationWarnLvl = tofu.ParseDeprecatedWarningLevel(strings.ReplaceAll(v, prefix, ""))
+			continue // continue to ensure that the counter is not incremented
+		}
+		if prefix := "-machine-logs="; strings.HasPrefix(v, prefix) {
+			common.MachineLogs = strings.ReplaceAll(v, prefix, "")
 			continue // continue to ensure that the counter is not incremented
 		}
 		switch v {

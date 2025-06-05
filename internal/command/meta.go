@@ -299,7 +299,8 @@ type Meta struct {
 	// state even if the remote and local OpenTofu versions don't match.
 	ignoreRemoteVersion bool
 
-	outputInJSON bool
+	outputInJSON  bool
+	machineOutput string
 
 	// Used to cache the root module rootModuleCallCache and known variables.
 	// This helps prevent duplicate errors/warnings.

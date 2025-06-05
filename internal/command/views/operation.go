@@ -155,7 +155,7 @@ func (v *OperationHuman) PlanNextStep(planPath string, genConfigPath string) {
 	}
 
 	if planPath == "" {
-		v.view.streams.Print(
+		v.view.PrintStream(
 			format.WordWrap(
 				"\n"+strings.TrimSpace(planHeaderNoOutput),
 				v.view.outputColumns(),

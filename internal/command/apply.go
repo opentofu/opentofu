@@ -384,6 +384,8 @@ Options:
 
   -concise               Disables progress-related messages in the output.
 
+  -machine-logs          Save the logs in an machine-readable format (.ndjson)
+
   -parallelism=n         Limit the number of parallel resource operations.
                          Defaults to 10.
 

@@ -225,6 +225,8 @@ Options:
 
   -concise               Disables progress-related messages in the output.
 
+  -machine-logs          Save the logs in an machine-readable format (.ndjson)
+
   -parallelism=n         Limit the number of concurrent operations. Defaults to 10.
 
   -target=resource       Resource to target. Operation will be limited to this

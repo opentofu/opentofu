@@ -6,10 +6,16 @@
 package views
 
 import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"time"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/mitchellh/colorstring"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/format"
+	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/terminal"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -42,6 +48,9 @@ type View struct {
 
 	// showSensitive is used to display the value of variables marked as sensitive.
 	showSensitive bool
+
+	// MachineLogs is used to output machine readable .ndjson
+	machineLogs string
 
 	// This unfortunate wart is required to enable rendering of diagnostics which
 	// have associated source code in the configuration. This function pointer
@@ -87,6 +96,7 @@ func (v *View) Configure(view *arguments.View) {
 	v.consolidateWarnings = view.ConsolidateWarnings
 	v.consolidateErrors = view.ConsolidateErrors
 	v.concise = view.Concise
+	v.machineLogs = view.MachineLogs
 	v.ModuleDeprecationWarnLvl = view.ModuleDeprecationWarnLvl
 }
 
@@ -147,6 +157,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 			msg := format.DiagnosticWarningsCompact(diags, v.colorize)
 			msg = "\n" + msg + "\nTo see the full warning notes, run OpenTofu without -compact-warnings.\n"
 			v.streams.Print(msg)
+			v.PrintMachineLogs(msg)
 			return
 		}
 	}
@@ -161,8 +172,10 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 
 		if diag.Severity() == tfdiags.Error {
 			v.streams.Eprint(msg)
+			v.PrintErrorMachineLogs(msg)
 		} else {
 			v.streams.Print(msg)
+			v.PrintMachineLogs(msg)
 		}
 	}
 }
@@ -172,6 +185,7 @@ func (v *View) Diagnostics(diags tfdiags.Diagnostics) {
 // rather than rendering it directly, which can be overwhelming and confusing.
 func (v *View) HelpPrompt(command string) {
 	v.streams.Eprintf(helpPrompt, command)
+	v.PrintErrorMachineLogs(helpPrompt)
 }
 
 const helpPrompt = `
@@ -208,4 +222,71 @@ func (v *View) outputHorizRule() {
 
 func (v *View) SetShowSensitive(showSensitive bool) {
 	v.showSensitive = showSensitive
+}
+
+func (v *View) PrintErrorMachineLogs(msg string) {
+	if v.machineLogs == "" {
+		return
+	}
+
+	writeJSONFile(v.machineLogs, msg)
+}
+
+func (v *View) PrintMachineLogs(msg string) {
+	if v.machineLogs == "" {
+		return
+	}
+
+	writeJSONFile(v.machineLogs, msg)
+}
+
+func (v *View) PrintJSONMachineLogs(msg viewsjson.Outputs) {
+	if v.machineLogs == "" {
+		return
+	}
+
+	for _, jsonOutput := range msg {
+		writeJSONFile(v.machineLogs, string(jsonOutput.Value))
+	}
+}
+
+type MachineLogStruct struct {
+	Data      string    `json:"data"`
+	Timestamp time.Time `json:"timestamp"`
+}
+
+// writeJSONFile marshals a slice of Data into JSON format and writes it to a file.
+// It takes the filename and the data to write, returning an error if any occurs.
+func writeJSONFile(filename string, data string) error {
+	// Marshal the data slice into pretty-printed JSON.
+	// json.MarshalIndent is used for human-readable output.
+	jsonStruct := &MachineLogStruct{
+		Timestamp: time.Now(),
+		Data:      data,
+	}
+	marshalIndented, err := json.MarshalIndent(jsonStruct, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal data to JSON: %w", err)
+	}
+
+	jsonString := fmt.Sprintf("%s\n", marshalIndented)
+
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to open the file %s: %w", filename, err)
+	}
+	if _, err := f.WriteString(jsonString); err != nil {
+		return fmt.Errorf("failed to write JSON to file %s: %w", filename, err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("failed to close JSON file %s: %w", filename, err)
+	}
+	return nil
+}
+
+func (v *View) PrintStream(a ...interface{}) (n int, err error) {
+	for _, x := range a {
+		v.PrintMachineLogs(x.(string))
+	}
+	return v.streams.Print(a...)
 }
