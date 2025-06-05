@@ -5,9 +5,17 @@ import {
   StdioTransport,
   type OnPlanCompletedParams,
   getResourcesByType,
+  FileLogger,
 } from "@opentofu/middleware";
 
-console.error("[BAN-UNVERSIONED-S3] Starting middleware...");
+// Set up logging
+const fileLogger = new FileLogger("/tmp/ban-unversioned-s3.log");
+const log = (message: string) => {
+  console.error(message);
+  fileLogger.log(message);
+};
+
+log("[BAN-UNVERSIONED-S3] Starting middleware...");
 
 const server = new MiddlewareServer({
   name: "ban-unversioned-s3-buckets",
@@ -15,98 +23,117 @@ const server = new MiddlewareServer({
 });
 
 server.onPlanCompleted(async (params: OnPlanCompletedParams) => {
-  console.error("[BAN-UNVERSIONED-S3] Plan completed, checking for unversioned S3 buckets...");
+  log("[BAN-UNVERSIONED-S3] Plan completed, checking for unversioned S3 buckets...");
 
   const plan = params.plan_json;
 
   // Get all S3 bucket resources being created or updated
   const allS3Buckets = getResourcesByType(plan, "aws_s3_bucket");
-  const allS3BucketVersionResources = getResourcesByType(plan, "aws_s3_bucket_versioning");
+  const allS3BucketVersioningResources = getResourcesByType(plan, "aws_s3_bucket_versioning");
 
-  console.error(
-    `[BAN-UNVERSIONED-S3] Found ${allS3Buckets.length} S3 buckets and ${allS3BucketVersionResources.length} versioning resources`,
+  // Filter to only buckets being created or updated (ignore deletions)
+  const relevantBuckets = allS3Buckets.filter((bucket) => {
+    const actions = bucket.change?.actions || [];
+    return actions.includes("create") || actions.includes("update");
+  });
+
+  log(
+    `[BAN-UNVERSIONED-S3] Found ${relevantBuckets.length} S3 buckets being created/updated and ${allS3BucketVersioningResources.length} versioning resources`,
   );
 
-  // Create a map of bucket names/IDs that have versioning
+  // Build a set of bucket IDs that have versioning enabled
   const versionedBucketIds = new Set<string>();
 
-  // For each versioning resource, extract the bucket it references
-  for (const versioningResource of allS3BucketVersionResources) {
-    // Check if it's being created or not deleted
-    const actions = versioningResource.change?.actions || [];
-    if (actions.includes("delete") && !actions.includes("create")) {
-      // Versioning is being removed, don't count it
-      continue;
-    }
+  // Process versioning resources that are active (not being deleted)
+  const activeVersioningResources = allS3BucketVersioningResources.filter((resource) => {
+    const actions = resource.change?.actions || [];
+    // Keep if creating, updating, or no-op (existing)
+    return !actions.includes("delete") || actions.includes("create");
+  });
 
-    // The bucket reference could be in different places depending on the state
+  // Extract bucket references from versioning resources
+  for (const versioningResource of activeVersioningResources) {
     const bucketRef =
       versioningResource.change?.after?.bucket || versioningResource.change?.before?.bucket;
 
     if (bucketRef) {
       versionedBucketIds.add(bucketRef);
+      log(`[BAN-UNVERSIONED-S3] Found versioning for bucket: ${bucketRef}`);
     }
   }
 
-  // Check each S3 bucket to see if it has versioning
-  const unversionedBuckets = allS3Buckets.filter((bucket) => {
-    // Skip buckets being deleted
-    const actions = bucket.change?.actions || [];
-    if (actions.includes("delete") && !actions.includes("create")) {
-      return false;
-    }
-
-    // Get the bucket name/ID from the planned state
+  // Find unversioned buckets
+  const unversionedBuckets = relevantBuckets.filter((bucket) => {
     const bucketName = bucket.change?.after?.bucket || bucket.name;
     const bucketId = bucket.change?.after?.id || bucket.change?.after?.bucket;
 
-    // Check if this bucket has a versioning resource
-    // Match by either the bucket attribute value or by resource name pattern
+    // Check multiple ways to match bucket with versioning
     const hasVersioning =
       versionedBucketIds.has(bucketId) ||
       versionedBucketIds.has(bucketName) ||
-      allS3BucketVersionResources.some((v) => v.name === bucket.name);
+      // Check if versioning resource has same name suffix
+      activeVersioningResources.some((v) => v.name === bucket.name) ||
+      // Check if the bucket ID will be referenced (for new buckets)
+      activeVersioningResources.some((v) => {
+        const ref = v.change?.after?.bucket;
+        return ref && (ref.includes(bucket.name) || ref === `\${aws_s3_bucket.${bucket.name}.id}`);
+      });
 
     if (!hasVersioning) {
-      console.error(
-        `[BAN-UNVERSIONED-S3] Bucket ${bucket.address} does not have versioning enabled`,
-      );
+      log(`[BAN-UNVERSIONED-S3] ❌ Bucket ${bucket.address} does not have versioning enabled`);
+    } else {
+      log(`[BAN-UNVERSIONED-S3] ✅ Bucket ${bucket.address} has versioning enabled`);
     }
 
     return !hasVersioning;
   });
 
+  // Return result
   if (unversionedBuckets.length > 0) {
+    const message = `Found ${unversionedBuckets.length} S3 bucket(s) without versioning enabled: ${unversionedBuckets.map((b) => b.address).join(", ")}`;
+
+    log(`[BAN-UNVERSIONED-S3] FAIL: ${message}`);
+
     return {
       status: "fail",
-      message: `Found ${unversionedBuckets.length} S3 bucket(s) without versioning enabled`,
+      message,
       metadata: {
         middleware: "ban-unversioned-s3-buckets",
         timestamp: new Date().toISOString(),
-        unversioned_buckets: unversionedBuckets.map((b) => b.address),
+        unversioned_buckets: unversionedBuckets.map((b) => ({
+          address: b.address,
+          name: b.name,
+          bucket: b.change?.after?.bucket,
+        })),
+        total_buckets_checked: relevantBuckets.length,
+        versioning_resources_found: activeVersioningResources.length,
       },
     };
   }
 
+  log("[BAN-UNVERSIONED-S3] PASS: All S3 buckets have versioning enabled");
+
   return {
     status: "pass",
-    message: "All S3 buckets have versioning enabled",
+    message: `All ${relevantBuckets.length} S3 bucket(s) have versioning enabled`,
     metadata: {
       middleware: "ban-unversioned-s3-buckets",
       timestamp: new Date().toISOString(),
-      checked_buckets: allS3Buckets.length,
+      buckets_checked: relevantBuckets.length,
+      versioning_resources_found: activeVersioningResources.length,
     },
   };
 });
 
+// Set up transport and start server
 new StdioTransport({
-  logger: (msg) => console.error(`[TRANSPORT] ${msg}`),
+  logger: (msg) => log(`[TRANSPORT] ${msg}`),
 })
   .connect(server)
   .then(() => {
-    console.error("[BAN-UNVERSIONED-S3] Middleware running");
+    log("[BAN-UNVERSIONED-S3] Middleware running and ready");
   })
   .catch((error) => {
-    console.error(`[BAN-UNVERSIONED-S3] Failed to start: ${error}`);
+    log(`[BAN-UNVERSIONED-S3] Failed to start: ${error}`);
     process.exit(1);
   });
