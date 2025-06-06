@@ -40,7 +40,7 @@ func (m *modulePackageFetcherEnvironment) OCIRepositoryStore(ctx context.Context
 	return getOCIRepositoryStore(ctx, registryDomainName, repositoryPath, credsPolicy)
 }
 
-func modulePkgDevMappingOverrides(mainFetcher *getmodules.PackageFetcher, configs []*depsrccfgs.Config) *getmodules.PackageFetcher {
+func modulePkgDepMappingOverrides(mainFetcher *getmodules.PackageFetcher, configs []*depsrccfgs.Config) *getmodules.PackageFetcher {
 	for _, config := range configs {
 		if len(config.SourcePackageRules) != 0 {
 			panic("source package overrides are not implemented in this prototype")

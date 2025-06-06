@@ -253,8 +253,8 @@ func realMain() int {
 		}
 	}
 	if len(depMappingFiles) != 0 {
-		providerSrc = providerDevMappingOverrides(providerSrc, depMappingFiles)
-		modulePkgFetcher = modulePkgDevMappingOverrides(modulePkgFetcher, depMappingFiles)
+		providerSrc = providerDepMappingOverrides(providerSrc, depMappingFiles, config.OCICredentialsPolicy)
+		modulePkgFetcher = modulePkgDepMappingOverrides(modulePkgFetcher, depMappingFiles)
 	}
 
 	// In tests, Commands may already be set to provide mock commands

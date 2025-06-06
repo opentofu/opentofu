@@ -1,3 +1,8 @@
+// Copyright (c) The OpenTofu Authors
+// SPDX-License-Identifier: MPL-2.0
+// Copyright (c) 2023 HashiCorp, Inc.
+// SPDX-License-Identifier: MPL-2.0
+
 package getproviders
 
 import (
@@ -11,13 +16,14 @@ import (
 type mappingConfigSource struct {
 	mainSource Source
 	configs    []*depsrccfgs.Config
+	env        MappingConfigSourceEnv
 }
 
 // NewMappingConfigSource returns a source that wraps another source while
 // preferring to use provider address mappings from the given mapping
 // configuration files if any suitable rules are present.
-func NewMappingConfigSource(mainSource Source, configs []*depsrccfgs.Config) Source {
-	return &mappingConfigSource{mainSource, configs}
+func NewMappingConfigSource(mainSource Source, configs []*depsrccfgs.Config, env MappingConfigSourceEnv) Source {
+	return &mappingConfigSource{mainSource, configs, env}
 }
 
 // AvailableVersions implements Source.
@@ -104,10 +110,17 @@ func (m *mappingConfigSource) sourceForRule(rule *depsrccfgs.ProviderPackageRule
 	case *depsrccfgs.ProviderPackageNetworkMirrorMapper:
 		return nil, fmt.Errorf("network mirror mapping not yet implemented")
 	case *depsrccfgs.ProviderPackageOCIMapper:
-		return nil, fmt.Errorf("oci mapping not yet implemented")
+		return NewOCIRegistryMirrorSource(
+			mapper.RepositoryAddrFunc,
+			m.env.OCIRepositoryStore,
+		), nil
 	default:
 		// The cases above should be exhaustive for all implementations of
 		// [depsrccfgs.ProviderPackageMapper].
 		return nil, fmt.Errorf("don't know how to handle %T", mapper)
 	}
+}
+
+type MappingConfigSourceEnv interface {
+	OCIRepositoryStore(ctx context.Context, registryDomain, repositoryName string) (OCIRepositoryStore, error)
 }

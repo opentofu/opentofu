@@ -7,10 +7,13 @@ package depsrccfgs
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/gocty"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -77,6 +80,15 @@ func decodeProviderPackageRuleBlock(block *hcl.Block) (*ProviderPackageRule, tfd
 		}
 	}
 
+	if ret.Mapper == nil && !diags.HasErrors() {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Missing address mapping configuration",
+			Detail:   "A provider mapping block must include one nested block describing how to map each provider address to an installation method.",
+			Subject:  block.Body.MissingItemRange().Ptr(),
+		})
+	}
+
 	return ret, diags
 }
 
@@ -86,8 +98,8 @@ type ProviderPackageMapper interface {
 }
 
 type ProviderPackageOCIMapper struct {
-	RepositoryAddr hcl.Expression
-	declRange      hcl.Range
+	RepositoryAddrFunc func(addr addrs.Provider) (registryDomain string, repositoryName string, err error)
+	declRange          hcl.Range
 }
 
 var _ ProviderPackageMapper = (*ProviderPackageOCIMapper)(nil)
@@ -105,9 +117,42 @@ func decodeProviderPackageOCIMapperBlock(block *hcl.Block) (ProviderPackageMappe
 		return nil, diags
 	}
 
+	repositoryAddrExpr := content.Attributes["repository_addr"].Expr
 	return &ProviderPackageOCIMapper{
-		RepositoryAddr: content.Attributes["repository_addr"].Expr,
-		declRange:      block.DefRange,
+		RepositoryAddrFunc: func(addr addrs.Provider) (registryDomain string, repositoryName string, err error) {
+			// TODO: Before returning this we should validate that the
+			// template has substitutions for all of the parts of the
+			// provider address pattern that were wildcarded, in a similar
+			// way as we do for oci_mirror in the CLI configuration. That
+			// then allows us to reject an invalid configuration earlier
+			// and return a better error message.
+			hclCtx := &hcl.EvalContext{
+				Variables: map[string]cty.Value{
+					"hostname":  cty.StringVal(addr.Hostname.ForDisplay()),
+					"namespace": cty.StringVal(addr.Namespace),
+					"type":      cty.StringVal(addr.Type),
+				},
+			}
+			val, hclDiags := repositoryAddrExpr.Value(hclCtx)
+			if hclDiags.HasErrors() {
+				// Ideally we should precheck the expression so that there are
+				// as few cases as possible where we end up having to stuff
+				// diagnostics into an error here. Refer to the oci_mirror
+				// handling in CLI configuration for how that's done there.
+				var diags tfdiags.Diagnostics
+				diags = diags.Append(hclDiags)
+				return "", "", diags.Err()
+			}
+			var fullAddr string
+			err = gocty.FromCtyValue(val, &fullAddr)
+			if err != nil {
+				return "", "", fmt.Errorf("invalid repository address value: %w", err)
+			}
+			// FIXME: There's a better parser for this in the CLI configuration package.
+			registryDomain, repositoryName, _ = strings.Cut(fullAddr, "/")
+			return registryDomain, repositoryName, nil
+		},
+		declRange: block.DefRange,
 	}, diags
 }
 
