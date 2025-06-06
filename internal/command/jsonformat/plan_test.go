@@ -7320,8 +7320,8 @@ func TestOutputChanges(t *testing.T) {
 			[]*plans.OutputChangeSrc{
 				outputChange(
 					"d",
-					cty.StringVal("wasSensitive"),
-					cty.StringVal("afterInsensitive"),
+					cty.StringVal("wasSensitive").Mark(marks.Sensitive),
+					cty.StringVal("afterInsensitive").Mark(nil),
 					false,
 				),
 			},
@@ -7361,7 +7361,8 @@ func outputChange(name string, before, after cty.Value, sensitive bool) *plans.O
 	}
 
 	change := &plans.OutputChange{
-		Addr: addr, Change: plans.Change{
+		Addr: addr,
+		Change: plans.Change{
 			Before: before,
 			After:  after,
 		},
