@@ -40,10 +40,6 @@ import (
 	"github.com/opentofu/opentofu/internal/tofu"
 )
 
-const (
-	testCred = "test-auth-token"
-)
-
 var (
 	tfeHost  = "app.terraform.io"
 	credsSrc = svcauth.StaticCredentialsSource(map[svchost.Hostname]svcauth.HostCredentials{
@@ -424,12 +420,18 @@ func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server
 			fakeState := states.NewState()
 			fakeStateFile := statefile.New(fakeState, "boop", 1)
 			var buf bytes.Buffer
-			statefile.Write(fakeStateFile, &buf, encryption.StateEncryptionDisabled())
+			err := statefile.Write(fakeStateFile, &buf, encryption.StateEncryptionDisabled())
+			if err != nil {
+				t.Fatal(err)
+			}
 			respBody := buf.Bytes()
 			w.Header().Set("content-type", "application/json")
 			w.Header().Set("content-length", strconv.FormatInt(int64(len(respBody)), 10))
 			w.WriteHeader(http.StatusOK)
-			w.Write(respBody)
+			_, err = w.Write(respBody)
+			if err != nil {
+				t.Fatal(err)
+			}
 			return
 		}
 
@@ -477,7 +479,10 @@ func testServerWithSnapshotsEnabled(t *testing.T, enabled bool) *httptest.Server
 		}
 
 		w.WriteHeader(http.StatusOK)
-		w.Write(fakeBodyRaw)
+		_, err = w.Write(fakeBodyRaw)
+		if err != nil {
+			t.Fatal(err)
+		}
 	}))
 	serverURL = server.URL
 	return server
@@ -490,20 +495,26 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
 	// Respond to service discovery calls.
 	"/well-known/terraform.json": func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "tfe.v2": "/api/v2/",
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 
 	// Respond to service version constraints calls.
 	"/v1/versions/": func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, fmt.Sprintf(`{
+		_, err := io.WriteString(w, fmt.Sprintf(`{
   "service": "%s",
   "product": "terraform",
   "minimum": "0.1.0",
   "maximum": "10.0.0"
 }`, path.Base(r.URL.Path)))
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 
 	// Respond to pings to get the API version header.
@@ -515,7 +526,7 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
 	// Respond to the initial query to read the hashicorp org entitlements.
 	"/api/v2/organizations/hashicorp/entitlement-set": func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "data": {
     "id": "org-GExadygjSbKP8hsY",
     "type": "entitlement-sets",
@@ -529,12 +540,15 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
     }
   }
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 
 	// Respond to the initial query to read the no-operations org entitlements.
 	"/api/v2/organizations/no-operations/entitlement-set": func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "data": {
     "id": "org-ufxa3y8jSbKP8hsT",
     "type": "entitlement-sets",
@@ -548,13 +562,16 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
     }
   }
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 
 	// All tests that are assumed to pass will use the hashicorp organization,
 	// so for all other organization requests we will return a 404.
 	"/api/v2/organizations/": func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "errors": [
     {
       "status": "404",
@@ -562,6 +579,9 @@ var testDefaultRequestHandlers = map[string]func(http.ResponseWriter, *http.Requ
     }
   ]
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	},
 }
 
