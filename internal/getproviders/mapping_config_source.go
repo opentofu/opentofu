@@ -8,6 +8,7 @@ package getproviders
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/depsrccfgs"
@@ -108,7 +109,9 @@ func (m *mappingConfigSource) sourceForRule(rule *depsrccfgs.ProviderPackageRule
 		// configuration said to do. It'll do for now, though.
 		return m.mainSource, nil
 	case *depsrccfgs.ProviderPackageNetworkMirrorMapper:
-		return nil, fmt.Errorf("network mirror mapping not yet implemented")
+		// TODO: Route our central HTTP client and auth credentials object into
+		// here so this can agree with the behavior of the rest of the system.
+		return NewHTTPMirrorSource(mapper.BaseURL, nil, 10*time.Second), nil
 	case *depsrccfgs.ProviderPackageOCIMapper:
 		return NewOCIRegistryMirrorSource(
 			mapper.RepositoryAddrFunc,

@@ -7,6 +7,7 @@ package depsrccfgs
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 
 	"github.com/hashicorp/hcl/v2"
@@ -169,7 +170,7 @@ type ProviderPackageNetworkMirrorMapper struct {
 	// heirarchical provider source address scheme and so we need only a
 	// base URL here, with the final URL constructed in a fixed scheme
 	// based on the requested source address.
-	BaseURL string
+	BaseURL *url.URL
 
 	declRange hcl.Range
 }
@@ -198,12 +199,20 @@ func decodeProviderPackageNetworkMirrorMapperBlock(block *hcl.Block) (ProviderPa
 	ret := &ProviderPackageNetworkMirrorMapper{
 		declRange: block.DefRange,
 	}
-	err := gocty.FromCtyValue(urlVal, &ret.BaseURL)
+	var baseURLStr string
+	err := gocty.FromCtyValue(urlVal, &baseURLStr)
 	if err != nil {
 		// TODO: better diagnostic
 		diags = diags.Append(err)
 		return nil, diags
 	}
+	baseURL, err := url.Parse(baseURLStr)
+	if err != nil {
+		// TODO: better diagnostic
+		diags = diags.Append(err)
+		return nil, diags
+	}
+	ret.BaseURL = baseURL
 
 	return ret, diags
 }
