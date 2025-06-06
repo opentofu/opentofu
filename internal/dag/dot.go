@@ -268,14 +268,14 @@ func (w *indentWriter) Unindent() { w.level-- }
 
 // the following methods intercept the byte.Buffer writes and insert the
 // indentation when starting a new line.
-func (w *indentWriter) Write(b []byte) (int, error) {
+func (w *indentWriter) Write(b []byte) {
 	w.indent()
-	return w.Buffer.Write(b)
+	w.Buffer.Write(b) //nolint:errcheck // err is always nil
 }
 
-func (w *indentWriter) WriteString(s string) (int, error) {
+func (w *indentWriter) WriteString(s string) {
 	w.indent()
-	return w.Buffer.WriteString(s)
+	w.Buffer.WriteString(s) //nolint:errcheck // err is always nil
 }
 func (w *indentWriter) WriteByte(b byte) error {
 	w.indent()

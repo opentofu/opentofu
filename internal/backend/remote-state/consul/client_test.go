@@ -444,7 +444,7 @@ func TestConsul_lostLockConnection(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		dialed := conns.dialedDone()
 		// kill any open connections
-		conns.Kill()
+		conns.Kill(t)
 		// wait for a new connection to be dialed, and kill it again
 		<-dialed
 	}
@@ -493,12 +493,15 @@ func (u *unreliableConns) dialedDone() chan struct{} {
 
 // Kill these with a deadline, just to make sure we don't end up with any EOFs
 // that get ignored.
-func (u *unreliableConns) Kill() {
+func (u *unreliableConns) Kill(t *testing.T) {
 	u.Lock()
 	defer u.Unlock()
 
 	for _, conn := range u.conns {
-		conn.(*net.TCPConn).SetDeadline(time.Now())
+		err := conn.(*net.TCPConn).SetDeadline(time.Now())
+		if err != nil {
+			t.Fatal("failed to kill connection:", err)
+		}
 	}
 	u.conns = nil
 }

@@ -210,22 +210,28 @@ func testServer(t *testing.T) *httptest.Server {
 	// Respond to service discovery calls.
 	mux.HandleFunc("/well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "state.v2": "/api/v2/",
   "tfe.v2.1": "/api/v2/",
   "versions.v1": "/v1/versions/"
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	// Respond to service version constraints calls.
 	mux.HandleFunc("/v1/versions/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, fmt.Sprintf(`{
+		_, err := io.WriteString(w, fmt.Sprintf(`{
   "service": "%s",
   "product": "terraform",
   "minimum": "0.1.0",
   "maximum": "10.0.0"
 }`, path.Base(r.URL.Path)))
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	// Respond to pings to get the API version header.
@@ -237,7 +243,7 @@ func testServer(t *testing.T) *httptest.Server {
 	// Respond to the initial query to read the hashicorp org entitlements.
 	mux.HandleFunc("/api/v2/organizations/hashicorp/entitlement-set", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "data": {
     "id": "org-GExadygjSbKP8hsY",
     "type": "entitlement-sets",
@@ -251,12 +257,15 @@ func testServer(t *testing.T) *httptest.Server {
     }
   }
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	// Respond to the initial query to read the no-operations org entitlements.
 	mux.HandleFunc("/api/v2/organizations/no-operations/entitlement-set", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.api+json")
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "data": {
     "id": "org-ufxa3y8jSbKP8hsT",
     "type": "entitlement-sets",
@@ -270,13 +279,16 @@ func testServer(t *testing.T) *httptest.Server {
     }
   }
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	// All tests that are assumed to pass will use the hashicorp organization,
 	// so for all other organization requests we will return a 404.
 	mux.HandleFunc("/api/v2/organizations/", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		io.WriteString(w, `{
+		_, err := io.WriteString(w, `{
   "errors": [
     {
       "status": "404",
@@ -284,6 +296,9 @@ func testServer(t *testing.T) *httptest.Server {
     }
   ]
 }`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 
 	return httptest.NewServer(mux)
