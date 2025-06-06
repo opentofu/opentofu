@@ -32,6 +32,10 @@ type RequiredProviders struct {
 	DeclRange         hcl.Range
 }
 
+func DecodeRequiredProvidersBlock(block *hcl.Block) (*RequiredProviders, hcl.Diagnostics) {
+	return decodeRequiredProvidersBlock(block)
+}
+
 func decodeRequiredProvidersBlock(block *hcl.Block) (*RequiredProviders, hcl.Diagnostics) {
 	ret := &RequiredProviders{
 		RequiredProviders: make(map[string]*RequiredProvider),

@@ -23,18 +23,17 @@ import (
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	backendInit "github.com/opentofu/opentofu/internal/backend/init"
-	"github.com/opentofu/opentofu/internal/cloud"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/opentofu/opentofu/internal/configs/stackconfigs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/providercache"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
-	"github.com/opentofu/opentofu/internal/tofumigrate"
 	"github.com/opentofu/opentofu/internal/tracing"
 	tfversion "github.com/opentofu/opentofu/version"
 )
@@ -122,9 +121,14 @@ func (c *InitCommand) Run(args []string) int {
 
 	// Validate the arg count and get the working directory
 	args = cmdFlags.Args()
-	path, err := modulePath(args)
-	if err != nil {
-		c.Ui.Error(err.Error())
+	if len(args) != 1 {
+		c.Ui.Error("Must specify the stack configuration file to use.")
+		return 1
+	}
+	stackConfigFilename := args[0]
+	stackConfig, diags := stackconfigs.LoadConfigFile(stackConfigFilename)
+	if diags.HasErrors() {
+		c.showDiagnostics(diags)
 		return 1
 	}
 
@@ -142,136 +146,12 @@ func (c *InitCommand) Run(args []string) int {
 	var header bool
 
 	if flagFromModule != "" {
-		src := flagFromModule
-
-		empty, err := configs.IsEmptyDir(path)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error validating destination directory: %s", err))
-			return 1
-		}
-		if !empty {
-			c.Ui.Error(strings.TrimSpace(errInitCopyNotEmpty))
-			return 1
-		}
-
-		c.Ui.Output(c.Colorize().Color(fmt.Sprintf(
-			"[reset][bold]Copying configuration[reset] from %q...", src,
-		)))
-		header = true
-
-		hooks := uiModuleInstallHooks{
-			Ui:             c.Ui,
-			ShowLocalPaths: false, // since they are in a weird location for init
-		}
-
-		ctx, span := tracing.Tracer().Start(ctx, "From module", trace.WithAttributes(
-			otelAttr.String("opentofu.module_source", src),
-		))
-		defer span.End()
-
-		initDirFromModuleAbort, initDirFromModuleDiags := c.initDirFromModule(ctx, path, src, hooks)
-		diags = diags.Append(initDirFromModuleDiags)
-		if initDirFromModuleAbort || initDirFromModuleDiags.HasErrors() {
-			c.showDiagnostics(diags)
-			tracing.SetSpanError(span, initDirFromModuleDiags)
-			span.End()
-			return 1
-		}
-
-		c.Ui.Output("")
-	}
-
-	// If our directory is empty, then we're done. We can't get or set up
-	// the backend with an empty directory.
-	empty, err := configs.IsEmptyDir(path)
-	if err != nil {
-		diags = diags.Append(fmt.Errorf("Error checking configuration: %w", err))
-		c.showDiagnostics(diags)
+		c.Ui.Error("-from-module not available in this prototype")
 		return 1
-	}
-	if empty {
-		c.Ui.Output(c.Colorize().Color(strings.TrimSpace(outputInitEmpty)))
-		return 0
-	}
-
-	// Load just the root module to begin backend and module initialization
-	rootModEarly, earlyConfDiags := c.loadSingleModuleWithTests(ctx, path, testsDirectory)
-
-	// There may be parsing errors in config loading but these will be shown later _after_
-	// checking for core version requirement errors. Not meeting the version requirement should
-	// be the first error displayed if that is an issue, but other operations are required
-	// before being able to check core version requirements.
-	if rootModEarly == nil {
-		c.Ui.Error(c.Colorize().Color(strings.TrimSpace(errInitConfigError)))
-		diags = diags.Append(earlyConfDiags)
-		c.showDiagnostics(diags)
-
-		return 1
-	}
-
-	var enc encryption.Encryption
-	// If backend flag is explicitly set to false i.e -backend=false, we disable state and plan encryption
-	if backendFlagSet && !flagBackend {
-		enc = encryption.Disabled()
-	} else {
-		// Load the encryption configuration
-		var encDiags tfdiags.Diagnostics
-		enc, encDiags = c.EncryptionFromModule(rootModEarly)
-		diags = diags.Append(encDiags)
-		if encDiags.HasErrors() {
-			c.showDiagnostics(diags)
-			return 1
-		}
-	}
-
-	var back backend.Backend
-
-	// There may be config errors or backend init errors but these will be shown later _after_
-	// checking for core version requirement errors.
-	var backDiags tfdiags.Diagnostics
-	var backendOutput bool
-
-	switch {
-	case flagCloud && rootModEarly.CloudConfig != nil:
-		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, flagConfigExtra, enc)
-	case flagBackend:
-		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, flagConfigExtra, enc)
-	default:
-		// load the previously-stored backend config
-		back, backDiags = c.Meta.backendFromState(ctx, enc.State())
-	}
-	if backendOutput {
-		header = true
-	}
-
-	var state *states.State
-
-	// If we have a functional backend (either just initialized or initialized
-	// on a previous run) we'll use the current state as a potential source
-	// of provider dependencies.
-	if back != nil {
-		c.ignoreRemoteVersionConflict(back)
-		workspace, err := c.Workspace(ctx)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error selecting workspace: %s", err))
-			return 1
-		}
-		sMgr, err := back.StateMgr(ctx, workspace)
-		if err != nil {
-			c.Ui.Error(fmt.Sprintf("Error loading state: %s", err))
-			return 1
-		}
-
-		if err := sMgr.RefreshState(); err != nil {
-			c.Ui.Error(fmt.Sprintf("Error refreshing state: %s", err))
-			return 1
-		}
-
-		state = sMgr.State()
 	}
 
 	if flagGet {
-		modsOutput, modsAbort, modsDiags := c.getModules(ctx, path, testsDirectory, rootModEarly, flagUpgrade)
+		modsOutput, modsAbort, modsDiags := c.getModules(ctx, stackConfigFilename, flagUpgrade)
 		diags = diags.Append(modsDiags)
 		if modsAbort || modsDiags.HasErrors() {
 			c.showDiagnostics(diags)
@@ -284,7 +164,7 @@ func (c *InitCommand) Run(args []string) int {
 
 	// With all of the modules (hopefully) installed, we can now try to load the
 	// whole configuration tree.
-	config, confDiags := c.loadConfigWithTests(ctx, path, testsDirectory)
+	config, confDiags := c.loadConfig(ctx, stackConfig)
 	// configDiags will be handled after the version constraint check, since an
 	// incorrect version of tofu may be producing errors for configuration
 	// constructs added in later versions.
@@ -299,26 +179,6 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
-	// We've passed the core version check, now we can show errors from the
-	// configuration and backend initialization.
-
-	// Now, we can check the diagnostics from the early configuration and the
-	// backend.
-	diags = diags.Append(earlyConfDiags.StrictDeduplicateMerge(backDiags))
-	if earlyConfDiags.HasErrors() {
-		c.Ui.Error(strings.TrimSpace(errInitConfigError))
-		c.showDiagnostics(diags)
-		return 1
-	}
-
-	// Now, we can show any errors from initializing the backend, but we won't
-	// show the errInitConfigError preamble as we didn't detect problems with
-	// the early configuration.
-	if backDiags.HasErrors() {
-		c.showDiagnostics(diags)
-		return 1
-	}
-
 	// If everything is ok with the core version check and backend initialization,
 	// show other errors from loading the full configuration tree.
 	diags = diags.Append(confDiags)
@@ -328,30 +188,8 @@ func (c *InitCommand) Run(args []string) int {
 		return 1
 	}
 
-	if cb, ok := back.(*cloud.Cloud); ok {
-		if c.RunningInAutomation {
-			if err := cb.AssertImportCompatible(config); err != nil {
-				diags = diags.Append(tfdiags.Sourceless(tfdiags.Error, "Compatibility error", err.Error()))
-				c.showDiagnostics(diags)
-				return 1
-			}
-		}
-	}
-
-	if state != nil {
-		// Since we now have the full configuration loaded, we can use it to migrate the in-memory state view
-		// prior to fetching providers.
-		migratedState, migrateDiags := tofumigrate.MigrateStateProviderAddresses(config, state)
-		diags = diags.Append(migrateDiags)
-		if migrateDiags.HasErrors() {
-			c.showDiagnostics(diags)
-			return 1
-		}
-		state = migratedState
-	}
-
 	// Now that we have loaded all modules, check the module tree for missing providers.
-	providersOutput, providersAbort, providerDiags := c.getProviders(ctx, config, state, flagUpgrade, flagPluginPath, flagLockfile)
+	providersOutput, providersAbort, providerDiags := c.getProviders(ctx, stackConfig, flagUpgrade, flagPluginPath, flagLockfile)
 	diags = diags.Append(providerDiags)
 	if providersAbort || providerDiags.HasErrors() {
 		c.showDiagnostics(diags)
@@ -371,12 +209,7 @@ func (c *InitCommand) Run(args []string) int {
 	// by errors then we'll output them here so that the success message is
 	// still the final thing shown.
 	c.showDiagnostics(diags)
-	_, cloud := back.(*cloud.Cloud)
 	output := outputInitSuccess
-	if cloud {
-		output = outputInitSuccessCloud
-	}
-
 	c.Ui.Output(c.Colorize().Color(strings.TrimSpace(output)))
 
 	if !c.RunningInAutomation {
@@ -384,9 +217,6 @@ func (c *InitCommand) Run(args []string) int {
 		// some more detailed next steps that are appropriate for interactive
 		// shell usage.
 		output = outputInitSuccessCLI
-		if cloud {
-			output = outputInitSuccessCLICloud
-		}
 		c.Ui.Output(c.Colorize().Color(strings.TrimSpace(output)))
 	}
 	return 0
