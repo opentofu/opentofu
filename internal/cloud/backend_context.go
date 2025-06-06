@@ -161,8 +161,8 @@ func (b *Cloud) LocalRun(ctx context.Context, op *backend.Operation) (*backend.L
 }
 
 func (b *Cloud) getRemoteWorkspaceName(localWorkspaceName string) string {
-	switch {
-	case localWorkspaceName == backend.DefaultStateName:
+	switch localWorkspaceName {
+	case backend.DefaultStateName:
 		// The default workspace name is a special case
 		return b.WorkspaceMapping.Name
 	default:

@@ -266,8 +266,8 @@ func realMain() int {
 	}
 
 	// Prefix the args with any args from the EnvCLI targeting this command
-	suffix := strings.Replace(strings.Replace(
-		cliRunner.Subcommand(), "-", "_", -1), " ", "_", -1)
+	suffix := strings.ReplaceAll(strings.ReplaceAll(
+		cliRunner.Subcommand(), "-", "_"), " ", "_")
 	args, err = mergeEnvArgs(
 		fmt.Sprintf("%s_%s", EnvCLI, suffix), cliRunner.Subcommand(), args)
 	if err != nil {
