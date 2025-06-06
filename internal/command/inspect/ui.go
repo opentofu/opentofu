@@ -10,7 +10,6 @@ import (
 )
 
 // Embed the built React app
-//go:embed ui/dist/*
 var uiFS embed.FS
 
 // GetUIFileSystem returns the embedded UI filesystem
@@ -23,6 +22,6 @@ func GetUIFileSystem() http.FileSystem {
 		// return an empty filesystem
 		return http.Dir(".")
 	}
-	
+
 	return http.FS(sub)
 }
