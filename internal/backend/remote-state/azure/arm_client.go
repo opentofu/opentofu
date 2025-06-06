@@ -29,8 +29,6 @@ type ArmClient struct {
 	// These Clients are only initialized if an Access Key isn't provided
 	groupsClient          *resources.GroupsClient
 	storageAccountsClient *armStorage.AccountsClient
-	containersClient      *containers.Client
-	blobsClient           *blobs.Client
 
 	// azureAdStorageAuth is only here if we're using AzureAD Authentication but is an Authorizer for Storage
 	azureAdStorageAuth *autorest.Authorizer

@@ -57,15 +57,15 @@ func (g *marshalGraph) Dot(opts *DotOpts) []byte {
 	}
 
 	var w indentWriter
-	w.WriteString("digraph {\n")
+	w.writeString("digraph {\n")
 	w.Indent()
 
 	// some dot defaults
-	w.WriteString(`compound = "true"` + "\n")
-	w.WriteString(`newrank = "true"` + "\n")
+	w.writeString(`compound = "true"` + "\n")
+	w.writeString(`newrank = "true"` + "\n")
 
 	// the top level graph is written as the first subgraph
-	w.WriteString(`subgraph "root" {` + "\n")
+	w.writeString(`subgraph "root" {` + "\n")
 	g.writeBody(opts, &w)
 
 	// cluster isn't really used other than for naming purposes in some graphs
@@ -80,7 +80,7 @@ func (g *marshalGraph) Dot(opts *DotOpts) []byte {
 	}
 
 	w.Unindent()
-	w.WriteString("}\n")
+	w.writeString("}\n")
 	return w.Bytes()
 }
 
@@ -152,7 +152,8 @@ func (g *marshalGraph) writeSubgraph(sg *marshalGraph, opts *DotOpts, depth int,
 		name = "cluster_" + name
 		sg.Attrs["label"] = sg.Name
 	}
-	w.WriteString(fmt.Sprintf("subgraph %q {\n", name))
+	// writing to the buffer does not produce an error
+	_, _ = fmt.Fprintf(w, "subgraph %q {\n", name)
 	sg.writeBody(opts, w)
 
 	for _, sg := range sg.Subgraphs {
@@ -164,7 +165,7 @@ func (g *marshalGraph) writeBody(opts *DotOpts, w *indentWriter) {
 	w.Indent()
 
 	for _, as := range attrStrings(g.Attrs) {
-		w.WriteString(as + "\n")
+		w.writeString(as + "\n")
 	}
 
 	// list of Vertices that aren't to be included in the dot output
@@ -176,7 +177,7 @@ func (g *marshalGraph) writeBody(opts *DotOpts, w *indentWriter) {
 			continue
 		}
 
-		w.Write(v.dot(g, opts))
+		_, _ = w.Write(v.dot(g, opts))
 	}
 
 	var dotEdges []string
@@ -219,11 +220,11 @@ func (g *marshalGraph) writeBody(opts *DotOpts, w *indentWriter) {
 	sort.Strings(dotEdges)
 
 	for _, e := range dotEdges {
-		w.WriteString(e + "\n")
+		w.writeString(e + "\n")
 	}
 
 	w.Unindent()
-	w.WriteString("}\n")
+	w.writeString("}\n")
 }
 
 func writeAttrs(buf *bytes.Buffer, attrs map[string]string) {
@@ -271,6 +272,12 @@ func (w *indentWriter) Unindent() { w.level-- }
 func (w *indentWriter) Write(b []byte) (int, error) {
 	w.indent()
 	return w.Buffer.Write(b)
+}
+
+// writeString is a helper function to write a string to the indentWriter without the need for handling errors.
+// the errors are ignored here because writing to a bytes.Buffer should never fail
+func (w *indentWriter) writeString(s string) {
+	_, _ = w.WriteString(s)
 }
 
 func (w *indentWriter) WriteString(s string) (int, error) {

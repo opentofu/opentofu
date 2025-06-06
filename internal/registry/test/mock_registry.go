@@ -236,7 +236,11 @@ func mockRegHandler(config map[uint8]struct{}) http.Handler {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(js)
+		_, err = w.Write(js)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
 
 	mux.Handle("/v1/modules/",
@@ -257,7 +261,10 @@ func mockRegHandler(config map[uint8]struct{}) http.Handler {
 
 	mux.HandleFunc("/.well-known/terraform.json", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"modules.v1":"http://localhost/v1/modules/", "providers.v1":"http://localhost/v1/providers/"}`)
+		_, err := io.WriteString(w, `{"modules.v1":"http://localhost/v1/modules/", "providers.v1":"http://localhost/v1/providers/"}`)
+		if err != nil {
+			w.WriteHeader(500)
+		}
 	})
 	return mux
 }

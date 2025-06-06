@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -84,30 +85,39 @@ func (c *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	if err != nil {
 		return "", c.lockError(err)
 	}
-	defer c.cosUnlock(c.bucket, c.lockFile)
+	// Local helper function so we can call it multiple places
+	lockUnlock := func(parent error) error {
+		if err := c.cosUnlock(c.bucket, c.lockFile); err != nil {
+			return errors.Join(
+				fmt.Errorf("error unlocking cos state: %w", c.lockError(err)),
+				parent,
+			)
+		}
+		return parent
+	}
 
 	exists, _, _, err := c.getObject(c.lockFile)
 	if err != nil {
-		return "", c.lockError(err)
+		return "", lockUnlock(c.lockError(err))
 	}
 
 	if exists {
-		return "", c.lockError(fmt.Errorf("lock file %s exists", c.lockFile))
+		return "", lockUnlock(c.lockError(fmt.Errorf("lock file %s exists", c.lockFile)))
 	}
 
 	info.Path = c.lockFile
 	data, err := json.Marshal(info)
 	if err != nil {
-		return "", c.lockError(err)
+		return "", lockUnlock(c.lockError(err))
 	}
 
 	check := fmt.Sprintf("%x", md5.Sum(data))
 	err = c.putObject(c.lockFile, data)
 	if err != nil {
-		return "", c.lockError(err)
+		return "", lockUnlock(c.lockError(err))
 	}
 
-	return check, nil
+	return check, lockUnlock(nil)
 }
 
 // Unlock unlock remote state file
@@ -330,7 +340,10 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 			return fmt.Errorf("failed to empty bucket %v: %w", c.bucket, err)
 		}
 		for _, v := range obs {
-			c.deleteObject(v.Key)
+			err := c.deleteObject(v.Key)
+			if err != nil {
+				return fmt.Errorf("failed to delete object with key %s: %w", v.Key, err)
+			}
 		}
 	}
 

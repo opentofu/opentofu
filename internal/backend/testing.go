@@ -424,7 +424,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 
 	_, err = lockerB.Lock(infoB)
 	if err == nil {
-		lockerA.Unlock(lockIDA)
+		_ = lockerA.Unlock(lockIDA) // test already failed, no need to check err further
 		t.Fatal("client B obtained lock while held by client A")
 	}
 

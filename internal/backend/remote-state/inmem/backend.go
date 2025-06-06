@@ -80,13 +80,16 @@ func (b *Backend) configure(ctx context.Context) error {
 
 	// set the default client lock info per the test config
 	data := schema.FromContextBackendConfig(ctx)
-	if v, ok := data.GetOk("lock_id"); ok && v.(string) != "" {
+	_, hasDefaultLock := locks.m[backend.DefaultStateName]
+	if v, ok := data.GetOk("lock_id"); ok && v.(string) != "" && !hasDefaultLock {
 		info := statemgr.NewLockInfo()
 		info.ID = v.(string)
 		info.Operation = "test"
 		info.Info = "test config"
 
-		locks.lock(backend.DefaultStateName, info)
+		if _, err := locks.lock(backend.DefaultStateName, info); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -140,16 +143,33 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock inmem state: %w", err)
 		}
-		defer s.Unlock(lockID)
+
+		// Local helper function so we can call it multiple places
+		lockUnlock := func(parent error) error {
+			if err := s.Unlock(lockID); err != nil {
+				return errors.Join(
+					fmt.Errorf("error unlocking inmem state: %w", err),
+					parent,
+				)
+			}
+			return parent
+		}
 
 		// If we have no state, we have to create an empty state
 		if v := s.State(); v == nil {
 			if err := s.WriteState(statespkg.NewState()); err != nil {
+				err = lockUnlock(err)
 				return nil, err
 			}
 			if err := s.PersistState(nil); err != nil {
+				err = lockUnlock(err)
 				return nil, err
 			}
+		}
+
+		// Unlock, the state should now be initialized
+		if err := lockUnlock(nil); err != nil {
+			return nil, err
 		}
 	}
 
