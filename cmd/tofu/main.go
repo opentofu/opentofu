@@ -230,6 +230,33 @@ func realMain() int {
 		}
 	}
 
+	// We deal with optional dependency mapping files only after chdir so
+	// that the implicit search will work upwards from the overridden directory
+	// instead of the original directory. However, explicit paths from the
+	// environment are still resolved relative to the original directory because
+	// the environment is a broader scope than this one OpenTofu process, so
+	// we'll pass both paths here.
+	depMappingFiles, diags := loadDependencyMappingConfigFiles(".", originalWd)
+	if len(diags) > 0 {
+		Ui.Error("There are some problems with the dependency mapping files:")
+		for _, diag := range diags {
+			earlyColor := &colorstring.Colorize{
+				Colors:  colorstring.DefaultColors,
+				Disable: true, // Disable color to be conservative until we know better
+				Reset:   true,
+			}
+			Ui.Error(format.Diagnostic(diag, nil, earlyColor, 78))
+		}
+		if diags.HasErrors() {
+			Ui.Error("As a result of the above problems, OpenTofu's provider installer may not behave as intended.\n\n")
+			// We continue to run anyway, because most commands don't do provider installation.
+		}
+	}
+	if len(depMappingFiles) != 0 {
+		providerSrc = providerDevMappingOverrides(providerSrc, depMappingFiles)
+		modulePkgFetcher = modulePkgDevMappingOverrides(modulePkgFetcher, depMappingFiles)
+	}
+
 	// In tests, Commands may already be set to provide mock commands
 	if commands == nil {
 		// Commands get to hold on to the original working directory here,

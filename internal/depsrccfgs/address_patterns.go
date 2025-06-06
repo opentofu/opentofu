@@ -35,13 +35,13 @@ func ParseProviderAddrPattern(src string) (ProviderAddrPattern, error) {
 	// allows "*" to appear in all positions, as long as all of the wildcard
 	// parts are consecutive at the end of the address.
 	parts := strings.Split(src, "/")
-	if len(parts) == 3 {
+	if len(parts) != 3 {
 		if len(parts) == 2 {
 			// We don't support the shorthand that omits the hostname here,
 			// to keep things as explicit as possible.
 			return ret, fmt.Errorf("not enough address parts; if you intend to match providers on registry.opentofu.org then specify that prefix explicitly")
 		}
-		return ret, fmt.Errorf("provider address pattern must have four parts")
+		return ret, fmt.Errorf("provider address pattern must have three parts")
 	}
 
 	if parts[0] == "*" {
@@ -78,6 +78,23 @@ func ParseProviderAddrPattern(src string) (ProviderAddrPattern, error) {
 	// unspecified behavior if they are present.
 
 	return ret, nil
+}
+
+func (p ProviderAddrPattern) Matches(provider addrs.Provider) bool {
+	switch {
+	case p.Hostname == svchost.Hostname(Wildcard):
+		return true
+	case p.Hostname != provider.Hostname:
+		return false
+	case p.Namespace == Wildcard:
+		return true
+	case p.Namespace != provider.Namespace:
+		return false
+	case p.Type == Wildcard:
+		return true
+	default:
+		return p.Type == provider.Type
+	}
 }
 
 func (p ProviderAddrPattern) Specificity() PatternSpecificity {

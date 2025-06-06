@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/opentofu/opentofu/internal/depsrccfgs"
 	"github.com/opentofu/opentofu/internal/getmodules"
 )
 
@@ -37,4 +38,16 @@ func (m *modulePackageFetcherEnvironment) OCIRepositoryStore(ctx context.Context
 		return nil, fmt.Errorf("invalid credentials configuration for OCI registries: %w", err)
 	}
 	return getOCIRepositoryStore(ctx, registryDomainName, repositoryPath, credsPolicy)
+}
+
+func modulePkgDevMappingOverrides(mainFetcher *getmodules.PackageFetcher, configs []*depsrccfgs.Config) *getmodules.PackageFetcher {
+	for _, config := range configs {
+		if len(config.SourcePackageRules) != 0 {
+			panic("source package overrides are not implemented in this prototype")
+		}
+	}
+	// We'll just return what we were given right now, since the module
+	// installation infrastructure isn't yet suitable to deal with this
+	// extra level of configuration.
+	return mainFetcher
 }

@@ -18,6 +18,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
+	"github.com/opentofu/opentofu/internal/depsrccfgs"
 	"github.com/opentofu/opentofu/internal/getproviders"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -268,4 +269,21 @@ func providerDevOverrides(configs []*cliconfig.ProviderInstallation) map[addrs.P
 	// the validation logic in the cliconfig package. Therefore we'll just
 	// ignore any additional configurations in here.
 	return configs[0].DevOverrides
+}
+
+func providerDevMappingOverrides(mainSource getproviders.Source, configs []*depsrccfgs.Config) getproviders.Source {
+	// If we don't have any provider-related rules then we'll keep things
+	// simple and just retain exactly what we were given.
+	ruleCount := 0
+	for _, config := range configs {
+		ruleCount += len(config.ProviderPackageRules)
+	}
+	if ruleCount == 0 {
+		return mainSource
+	}
+
+	// Since we apparently have at least one provider address mapping rule,
+	// we'll wrap the main source in an adapter that prefers to use a
+	// configured mapping whenever one is available.
+	return getproviders.NewMappingConfigSource(mainSource, configs)
 }
