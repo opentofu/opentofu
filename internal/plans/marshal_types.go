@@ -27,6 +27,7 @@ type JSONPlan struct {
 	Checks             json.RawMessage   `json:"checks,omitempty"`
 	Timestamp          string            `json:"timestamp,omitempty"`
 	Errored            bool              `json:"errored"`
+	MiddlewareMetadata map[string]map[string]interface{} `json:"middleware_metadata,omitempty"`
 }
 
 // JSONResourceAttr contains the address and attribute of an external for the

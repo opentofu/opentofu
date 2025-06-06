@@ -117,6 +117,11 @@ type Plan struct {
 
 	// Timestamp is the record of truth for when the plan happened.
 	Timestamp time.Time
+
+	// MiddlewareMetadata contains results from OnPlanCompleted middleware hooks.
+	// This stores the validation results and metadata from plan-level middleware
+	// that ran after the plan was generated.
+	MiddlewareMetadata map[string]map[string]interface{}
 }
 
 // CanApply returns true if and only if the receiving plan includes content

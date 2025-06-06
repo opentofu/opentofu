@@ -178,23 +178,16 @@ server
     log("Cost estimator shutting down");
   });
 
-console.error("[COST-ESTIMATOR] Handlers set up");
-
-console.error("[COST-ESTIMATOR] Creating transport...");
-// Create transport and start
-const transport = new StdioTransport({
+console.error("[COST-ESTIMATOR] Connecting transport to server...");
+// Start the middleware
+new StdioTransport({
   logger: (msg) => {
     console.error(`[TRANSPORT] ${msg}`);
     if (logger) {
       logger.log(`[TRANSPORT] ${msg}`);
     }
   },
-});
-
-console.error("[COST-ESTIMATOR] Connecting transport to server...");
-// Start the middleware
-transport
-  .connect(server)
+}).connect(server)
   .then(() => {
     console.error("[COST-ESTIMATOR] Transport connected, middleware running");
   })

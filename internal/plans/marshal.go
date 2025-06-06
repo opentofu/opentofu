@@ -31,6 +31,7 @@ func MarshalForLog(
 	output.TerraformVersion = version.String()
 	output.Timestamp = p.Timestamp.Format(time.RFC3339)
 	output.Errored = p.Errored
+	output.MiddlewareMetadata = p.MiddlewareMetadata
 
 	err := output.marshalPlanVariables(p.VariableValues, config.Module.Variables)
 	if err != nil {

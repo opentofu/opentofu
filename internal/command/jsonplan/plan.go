@@ -59,6 +59,7 @@ type Plan struct {
 	Checks             json.RawMessage   `json:"checks,omitempty"`
 	Timestamp          string            `json:"timestamp,omitempty"`
 	Errored            bool              `json:"errored"`
+	MiddlewareMetadata map[string]map[string]interface{} `json:"middleware_metadata,omitempty"`
 }
 
 func newPlan() *Plan {

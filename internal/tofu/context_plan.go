@@ -233,14 +233,15 @@ The -target and -exclude options are not for routine use, and are provided only 
 	}
 
 	var plan *plans.Plan
+	var middlewareManagers map[string]middleware.Manager
 	var planDiags tfdiags.Diagnostics
 	switch opts.Mode {
 	case plans.NormalMode:
-		plan, planDiags = c.plan(ctx, config, prevRunState, opts)
+		plan, middlewareManagers, planDiags = c.plan(ctx, config, prevRunState, opts)
 	case plans.DestroyMode:
-		plan, planDiags = c.destroyPlan(ctx, config, prevRunState, opts)
+		plan, middlewareManagers, planDiags = c.destroyPlan(ctx, config, prevRunState, opts)
 	case plans.RefreshOnlyMode:
-		plan, planDiags = c.refreshOnlyPlan(ctx, config, prevRunState, opts)
+		plan, middlewareManagers, planDiags = c.refreshOnlyPlan(ctx, config, prevRunState, opts)
 	default:
 		panic(fmt.Sprintf("unsupported plan mode %s", opts.Mode))
 	}
@@ -304,9 +305,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 	// Call OnPlanCompleted for all middleware managers
 	// This needs to happen after the plan is fully built but before we return
 	if plan != nil {
-		// Get the middleware managers from somewhere - we need to pass them through
-		// For now, let's create them again (hackathon style!)
-		middlewareManagers, _ := c.createMiddlewareManagers(ctx, config)
+		// Use the middleware managers created during planWalk
 		if len(middlewareManagers) > 0 {
 			// Marshal the plan to JSON for middleware
 			schemas, _ := c.Schemas(ctx, config, plan.PriorState)
@@ -328,7 +327,7 @@ The -target and -exclude options are not for routine use, and are provided only 
 						PlanJSON: json.RawMessage(planJSONBytes),
 						Success:  !diags.HasErrors(),
 					}
-					
+
 					// Extract error strings from diagnostics
 					if diags.HasErrors() {
 						var errors []string
@@ -339,20 +338,62 @@ The -target and -exclude options are not for routine use, and are provided only 
 						}
 						params.Errors = errors
 					}
-					
+
+					// Initialize plan middleware metadata if not already present
+					if plan.MiddlewareMetadata == nil {
+						plan.MiddlewareMetadata = make(map[string]map[string]interface{})
+					}
+
 					// Call each middleware manager
 					for providerAddr, manager := range middlewareManagers {
 						log.Printf("[DEBUG] Calling OnPlanCompleted for provider %s", providerAddr)
 						results, err := manager.OnPlanCompleted(ctx, params)
 						if err != nil {
 							log.Printf("[ERROR] Middleware OnPlanCompleted failed for provider %s: %s", providerAddr, err)
+							// Store error information in plan metadata
+							plan.MiddlewareMetadata[providerAddr] = map[string]interface{}{
+								"error":     err.Error(),
+								"timestamp": time.Now().Format(time.RFC3339),
+							}
+							// Add diagnostic for middleware communication error
+							diags = diags.Append(tfdiags.Sourceless(
+								tfdiags.Error,
+								"Middleware communication error",
+								fmt.Sprintf("Failed to communicate with middleware for provider %s: %s", providerAddr, err),
+							))
 						} else {
 							log.Printf("[DEBUG] OnPlanCompleted results for provider %s: %+v", providerAddr, results)
+
+							// Store all middleware results in plan metadata
+							providerMetadata := make(map[string]interface{})
+							for middlewareName, result := range results {
+								providerMetadata[middlewareName] = map[string]interface{}{
+									"status":    result.Status,
+									"message":   result.Message,
+									"metadata":  result.Metadata,
+									"timestamp": time.Now().Format(time.RFC3339),
+								}
+
+								// Check if any middleware returned a failure status
+								if result.Status == "fail" {
+									// Add diagnostic for middleware failure
+									errorMsg := fmt.Sprintf("Middleware %q rejected the plan", middlewareName)
+									if result.Message != "" {
+										errorMsg = fmt.Sprintf("Middleware %q rejected the plan: %s", middlewareName, result.Message)
+									}
+									diags = diags.Append(tfdiags.Sourceless(
+										tfdiags.Error,
+										"Middleware validation failed",
+										errorMsg,
+									))
+								}
+							}
+							plan.MiddlewareMetadata[providerAddr] = providerMetadata
 						}
 					}
 				}
 			}
-			
+
 			// Clean up middleware managers
 			for _, manager := range middlewareManagers {
 				manager.Stop(ctx)
@@ -400,7 +441,7 @@ func SimplePlanOpts(mode plans.Mode, setVariables InputValues) *PlanOpts {
 	}
 }
 
-func (c *Context) plan(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) plan(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, map[string]middleware.Manager, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Mode != plans.NormalMode {
@@ -411,7 +452,7 @@ func (c *Context) plan(ctx context.Context, config *configs.Config, prevRunState
 	importTargetDiags := c.validateImportTargets(config, opts.ImportTargets, opts.GenerateConfigPath)
 	diags = diags.Append(importTargetDiags)
 	if diags.HasErrors() {
-		return nil, diags
+		return nil, nil, diags
 	}
 
 	var endpointsToRemoveDiags tfdiags.Diagnostics
@@ -419,29 +460,29 @@ func (c *Context) plan(ctx context.Context, config *configs.Config, prevRunState
 	diags = diags.Append(endpointsToRemoveDiags)
 
 	if diags.HasErrors() {
-		return nil, diags
+		return nil, nil, diags
 	}
 
-	plan, walkDiags := c.planWalk(ctx, config, prevRunState, opts)
+	plan, middlewareManagers, walkDiags := c.planWalk(ctx, config, prevRunState, opts)
 	diags = diags.Append(walkDiags)
 
-	return plan, diags
+	return plan, middlewareManagers, diags
 }
 
-func (c *Context) refreshOnlyPlan(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) refreshOnlyPlan(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, map[string]middleware.Manager, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Mode != plans.RefreshOnlyMode {
 		panic(fmt.Sprintf("called Context.refreshOnlyPlan with %s", opts.Mode))
 	}
 
-	plan, walkDiags := c.planWalk(ctx, config, prevRunState, opts)
+	plan, middlewareManagers, walkDiags := c.planWalk(ctx, config, prevRunState, opts)
 	diags = diags.Append(walkDiags)
 	if diags.HasErrors() {
 		// Non-nil plan along with errors indicates a non-applyable partial
 		// plan that's only suitable to be shown to the user as extra context
 		// to help understand the errors.
-		return plan, diags
+		return plan, middlewareManagers, diags
 	}
 
 	// If the graph builder and graph nodes correctly obeyed our directive
@@ -469,10 +510,10 @@ func (c *Context) refreshOnlyPlan(ctx context.Context, config *configs.Config, p
 	// they never have any planned actions and so no resource can ever be
 	// "relevant" per the intended meaning of that field.
 
-	return plan, diags
+	return plan, middlewareManagers, diags
 }
 
-func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, map[string]middleware.Manager, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Mode != plans.DestroyMode {
@@ -504,7 +545,7 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 		// the destroy plan should take care of refreshing instances itself,
 		// where the special cases of evaluation and skipping condition checks
 		// can be done.
-		refreshPlan, refreshDiags := c.plan(ctx, config, prevRunState, &refreshOpts)
+		refreshPlan, _, refreshDiags := c.plan(ctx, config, prevRunState, &refreshOpts)
 		if refreshDiags.HasErrors() {
 			// NOTE: Normally we'd append diagnostics regardless of whether
 			// there are errors, just in case there are warnings we'd want to
@@ -518,7 +559,7 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 			// rather not show them here, because this non-destroy plan for
 			// refreshing is largely an implementation detail.)
 			diags = diags.Append(refreshDiags)
-			return nil, diags
+			return nil, nil, diags
 		}
 
 		// We'll use the refreshed state -- which is the  "prior state" from
@@ -533,13 +574,13 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 		log.Printf("[TRACE] Context.destroyPlan: now _really_ creating a destroy plan")
 	}
 
-	destroyPlan, walkDiags := c.planWalk(ctx, config, priorState, opts)
+	destroyPlan, middlewareManagers, walkDiags := c.planWalk(ctx, config, priorState, opts)
 	diags = diags.Append(walkDiags)
 	if walkDiags.HasErrors() {
 		// Non-nil plan along with errors indicates a non-applyable partial
 		// plan that's only suitable to be shown to the user as extra context
 		// to help understand the errors.
-		return destroyPlan, diags
+		return destroyPlan, middlewareManagers, diags
 	}
 
 	if !opts.SkipRefresh {
@@ -553,7 +594,7 @@ func (c *Context) destroyPlan(ctx context.Context, config *configs.Config, prevR
 	diags = diags.Append(rDiags)
 
 	destroyPlan.RelevantAttributes = relevantAttrs
-	return destroyPlan, diags
+	return destroyPlan, middlewareManagers, diags
 }
 
 func (c *Context) prePlanFindAndApplyMoves(config *configs.Config, prevRunState *states.State) ([]refactoring.MoveStatement, refactoring.MoveResults) {
@@ -824,7 +865,7 @@ func importResourceWithoutConfigDiags(addressStr string, config *configs.Import)
 	return &diag
 }
 
-func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
+func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, map[string]middleware.Manager, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	log.Printf("[DEBUG] Building and walking plan graph for %s", opts.Mode)
 
@@ -838,7 +879,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		// We'll return early here, because if we have any moved resource
 		// instances excluded by targeting then planning is likely to encounter
 		// strange problems that may lead to confusing error messages.
-		return nil, diags
+		return nil, nil, diags
 	}
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
@@ -846,13 +887,13 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 	middlewareManagers, middlewareDiags := c.createMiddlewareManagers(ctx, config)
 	diags = diags.Append(middlewareDiags)
 	if diags.HasErrors() {
-		return nil, diags
+		return nil, nil, diags
 	}
 
 	graph, walkOp, moreDiags := c.planGraph(ctx, config, prevRunState, opts, providerFunctionTracker)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
-		return nil, diags
+		return nil, middlewareManagers, diags
 	}
 
 	timestamp := time.Now().UTC()
@@ -876,7 +917,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 
 	importValidateDiags := c.postPlanValidateImports(walker.ImportResolver, allInsts)
 	if importValidateDiags.HasErrors() {
-		return nil, importValidateDiags
+		return nil, middlewareManagers, importValidateDiags
 	}
 
 	moveValidateDiags := c.postPlanValidateMoves(config, moveStmts, allInsts)
@@ -887,7 +928,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 		// comes from the fact that we need to apply the moves before we
 		// actually validate them, because validation depends on the result
 		// of first trying to plan.
-		return nil, moveValidateDiags
+		return nil, middlewareManagers, moveValidateDiags
 	}
 	diags = diags.Append(moveValidateDiags) // might just contain warnings
 
@@ -928,7 +969,7 @@ func (c *Context) planWalk(ctx context.Context, config *configs.Config, prevRunS
 
 		// Other fields get populated by Context.Plan after we return
 	}
-	return plan, diags
+	return plan, middlewareManagers, diags
 }
 
 func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRunState *states.State, opts *PlanOpts, providerFunctionTracker ProviderFunctionMapping) (*Graph, walkOperation, tfdiags.Diagnostics) {
