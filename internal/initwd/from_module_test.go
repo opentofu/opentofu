@@ -302,7 +302,7 @@ func TestDirFromModule_rel_submodules(t *testing.T) {
 		t.Fatalf("failed to switch to temp dir %s: %s", tmpDir, err)
 	}
 	t.Cleanup(func() {
-		os.Chdir(oldDir)
+		os.Chdir(oldDir) //nolint:errcheck // don't care about errors during cleanup
 		// Trigger garbage collection to ensure that all open file handles are closed.
 		// This prevents TempDir RemoveAll cleanup errors on Windows.
 		if runtime.GOOS == "windows" {

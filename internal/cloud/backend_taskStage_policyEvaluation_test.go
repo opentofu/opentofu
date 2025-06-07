@@ -84,7 +84,7 @@ func TestCloud_runTaskStageWithPolicyEvaluation(t *testing.T) {
 		trs := policyEvaluationSummarizer{
 			cloud: b,
 		}
-		c.context.Poll(0, 0, func(i int) (bool, error) {
+		err := c.context.Poll(0, 0, func(i int) (bool, error) {
 			cont, _, _ := trs.Summarize(c.context, c.writer, c.taskStage())
 			if cont {
 				return true, nil
@@ -98,5 +98,8 @@ func TestCloud_runTaskStageWithPolicyEvaluation(t *testing.T) {
 			}
 			return false, nil
 		})
+		if err != nil {
+			t.Fatalf("Error while polling: %v", err)
+		}
 	}
 }
