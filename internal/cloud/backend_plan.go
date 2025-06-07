@@ -620,8 +620,8 @@ func (b *Cloud) shouldRenderStructuredRunOutput(run *tfe.Run) (bool, error) {
 }
 
 func shouldRenderPlan(run *tfe.Run) bool {
-	return !(run.Status == tfe.RunErrored || run.Status == tfe.RunCanceled ||
-		run.Status == tfe.RunDiscarded)
+	return run.Status != tfe.RunErrored && run.Status != tfe.RunCanceled &&
+		run.Status != tfe.RunDiscarded
 }
 
 func shouldGenerateConfig(out string, run *tfe.Run) bool {

@@ -259,7 +259,7 @@ func (c *httpClient) Put(data []byte) error {
 		}
 	*/
 
-	var method string = "POST"
+	method := "POST"
 	if c.UpdateMethod != "" {
 		method = c.UpdateMethod
 	}
