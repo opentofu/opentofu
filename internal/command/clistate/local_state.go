@@ -16,6 +16,7 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
+	"github.com/opentofu/opentofu/internal/flock"
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 )
@@ -200,7 +201,7 @@ func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
 		return "", fmt.Errorf("state %q already locked", s.stateFileOut.Name())
 	}
 
-	if err := s.lock(); err != nil {
+	if err := flock.Lock(s.stateFileOut); err != nil {
 		info, infoErr := s.lockInfo()
 		if infoErr != nil {
 			err = multierror.Append(err, infoErr)
@@ -243,7 +244,7 @@ func (s *LocalState) Unlock(id string) error {
 
 	fileName := s.stateFileOut.Name()
 
-	unlockErr := s.unlock()
+	unlockErr := flock.Unlock(s.stateFileOut)
 
 	s.stateFileOut.Close()
 	s.stateFileOut = nil
