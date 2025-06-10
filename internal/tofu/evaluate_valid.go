@@ -11,7 +11,6 @@ import (
 	"sort"
 
 	"github.com/hashicorp/hcl/v2"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -202,6 +201,8 @@ func (d *evaluationStateData) staticValidateResourceReference(ctx context.Contex
 		modeAdjective = "managed"
 	case addrs.DataResourceMode:
 		modeAdjective = "data"
+	case addrs.EphemeralResourceMode:
+		modeAdjective = "ephemeral"
 	default:
 		// should never happen
 		modeAdjective = "<invalid-mode>"
@@ -209,21 +210,14 @@ func (d *evaluationStateData) staticValidateResourceReference(ctx context.Contex
 
 	cfg := modCfg.Module.ResourceByAddr(addr)
 	if cfg == nil {
-		var suggestion string
-		// A common mistake is omitting the data. prefix when trying to refer
-		// to a data resource, so we'll add a special hint for that.
-		if addr.Mode == addrs.ManagedResourceMode {
-			candidateAddr := addr // not a pointer, so this is a copy
-			candidateAddr.Mode = addrs.DataResourceMode
-			if candidateCfg := modCfg.Module.ResourceByAddr(candidateAddr); candidateCfg != nil {
-				suggestion = fmt.Sprintf("\n\nDid you mean the data resource %s?", candidateAddr)
-			}
-		}
+		// A common mistake is omitting the "data." (or "ephemeral.") prefix when trying to refer
+		// to a data (or ephemeral) resource, so we'll add a special hint for that.
+		suggestion := candidateSuggestion(addr, modCfg)
 
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Reference to undeclared resource`,
-			Detail:   fmt.Sprintf(`A %s resource %q %q has not been declared in %s.%s`, modeAdjective, addr.Type, addr.Name, moduleConfigDisplayAddr(modCfg.Path), suggestion),
+			Detail:   fmt.Sprintf(`There is no %s resource %q %q definition in %s.%s`, modeAdjective, addr.Type, addr.Name, moduleConfigDisplayAddr(modCfg.Path), suggestion),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return diags
@@ -260,7 +254,7 @@ func (d *evaluationStateData) staticValidateResourceReference(ctx context.Contex
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  `Invalid resource type`,
-			Detail:   fmt.Sprintf(`A %s resource type %q is not supported by provider %q.`, modeAdjective, addr.Type, providerFqn.String()),
+			Detail:   fmt.Sprintf(`The %s resource type %q is not supported by provider %q.`, modeAdjective, addr.Type, providerFqn.String()),
 			Subject:  rng.ToHCL().Ptr(),
 		})
 		return diags
@@ -288,6 +282,39 @@ func (d *evaluationStateData) staticValidateResourceReference(ctx context.Contex
 	diags = diags.Append(moreDiags)
 
 	return diags
+}
+
+// candidateSuggestion is trying to return a close candidate by simply trying to find a different type of resource
+// with the same type and name to suggest. We are trying to do so because a common mistake is omitting the "data." (or "ephemeral.")
+// prefix when trying to refer to a data (or ephemeral) resource, so we'll add a special hint for that.
+func candidateSuggestion(addr addrs.Resource, cfg *configs.Config) interface{} {
+	candidateAddr := addr // not a pointer, so this is a copy
+	tpl := "\n\nDid you mean the %s resource %s?"
+	filterOnOtherModes := func(targetModes []addrs.ResourceMode) *configs.Resource {
+		for _, candidateMode := range targetModes {
+			candidateAddr.Mode = candidateMode
+			if b := cfg.Module.ResourceByAddr(candidateAddr); b != nil {
+				return b
+			}
+		}
+		return nil
+	}
+	switch addr.Mode {
+	case addrs.ManagedResourceMode:
+		if candidateCfg := filterOnOtherModes([]addrs.ResourceMode{addrs.DataResourceMode, addrs.EphemeralResourceMode}); candidateCfg != nil {
+			return fmt.Sprintf(tpl, addrs.ResourceModeBlockName(candidateAddr.Mode), candidateAddr)
+		}
+	case addrs.DataResourceMode:
+		if candidateCfg := filterOnOtherModes([]addrs.ResourceMode{addrs.ManagedResourceMode, addrs.EphemeralResourceMode}); candidateCfg != nil {
+			return fmt.Sprintf(tpl, addrs.ResourceModeBlockName(candidateAddr.Mode), candidateAddr)
+		}
+	case addrs.EphemeralResourceMode:
+		if candidateCfg := filterOnOtherModes([]addrs.ResourceMode{addrs.ManagedResourceMode, addrs.DataResourceMode}); candidateCfg != nil {
+			return fmt.Sprintf(tpl, addrs.ResourceModeBlockName(candidateAddr.Mode), candidateAddr)
+		}
+	}
+
+	return ""
 }
 
 func (d *evaluationStateData) staticValidateModuleCallReference(modCfg *configs.Config, addr addrs.ModuleCall, remain hcl.Traversal, rng tfdiags.SourceRange) tfdiags.Diagnostics {
