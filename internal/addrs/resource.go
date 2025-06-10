@@ -532,3 +532,19 @@ func ResourceModeLess(a, b ResourceMode) bool {
 	}
 	return false
 }
+
+// ResourceModeBlockName returns the name of the block that the given ResourceMode is mapped to.
+// At the time of writing this, the string values returned from this one are hardcoded all over the place so this is not
+// the source of truth for the name of those blocks.
+func ResourceModeBlockName(rm ResourceMode) string {
+	switch rm {
+	case ManagedResourceMode:
+		return "resource"
+	case DataResourceMode:
+		return "data"
+	case EphemeralResourceMode:
+		return "ephemeral"
+	default:
+		return "unknown"
+	}
+}
