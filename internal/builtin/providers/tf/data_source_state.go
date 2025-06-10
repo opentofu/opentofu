@@ -81,7 +81,7 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 	} else {
 		// Otherwise we'll just type-check the config object itself.
 		configTy := cfg.GetAttr("config").Type()
-		if configTy != cty.DynamicPseudoType && !(configTy.IsObjectType() || configTy.IsMapType()) {
+		if configTy != cty.DynamicPseudoType && !configTy.IsObjectType() && !configTy.IsMapType() {
 			diags = diags.Append(tfdiags.AttributeValue(
 				tfdiags.Error,
 				"Invalid backend configuration",
@@ -93,7 +93,7 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 
 	{
 		defaultsTy := cfg.GetAttr("defaults").Type()
-		if defaultsTy != cty.DynamicPseudoType && !(defaultsTy.IsObjectType() || defaultsTy.IsMapType()) {
+		if defaultsTy != cty.DynamicPseudoType && !defaultsTy.IsObjectType() && !defaultsTy.IsMapType() {
 			diags = diags.Append(tfdiags.AttributeValue(
 				tfdiags.Error,
 				"Invalid default values",

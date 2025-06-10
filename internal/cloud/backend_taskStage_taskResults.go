@@ -67,15 +67,16 @@ func (trs *taskResultSummarizer) Summarize(context *IntegrationContext, output I
 func summarizeTaskResults(taskResults []*tfe.TaskResult) *taskResultSummary {
 	var pendingCount, errCount, errMandatoryCount, passedCount int
 	for _, task := range taskResults {
-		if task.Status == tfe.TaskUnreachable {
+		switch task.Status {
+		case tfe.TaskUnreachable:
 			return &taskResultSummary{
 				unreachable: true,
 			}
-		} else if task.Status == tfe.TaskRunning || task.Status == tfe.TaskPending {
+		case tfe.TaskPending, tfe.TaskRunning:
 			pendingCount++
-		} else if task.Status == tfe.TaskPassed {
+		case tfe.TaskPassed:
 			passedCount++
-		} else {
+		case tfe.TaskErrored, tfe.TaskFailed:
 			// Everything else is a failure
 			errCount++
 			if task.WorkspaceTaskEnforcementLevel == tfe.Mandatory {
@@ -133,7 +134,7 @@ func (trs *taskResultSummarizer) runTasksWithTaskResults(output IntegrationOutpu
 	}
 
 	// If a mandatory enforcement level is breached, return an error.
-	var overall string = "[green]Passed"
+	overall := "[green]Passed"
 	if firstMandatoryTaskFailed != nil {
 		overall = "[red]Failed"
 		if count.failedMandatory > 1 {

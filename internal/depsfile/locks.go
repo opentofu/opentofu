@@ -222,7 +222,7 @@ func NewProviderLock(addr addrs.Provider, version getproviders.Version, constrai
 // Currently, all providers except builtin and legacy providers are eligible
 // for locking.
 func ProviderIsLockable(addr addrs.Provider) bool {
-	return !(addr.IsBuiltIn() || addr.IsLegacy())
+	return !addr.IsBuiltIn() && !addr.IsLegacy()
 }
 
 // Sources returns the source code of the file the receiver was generated from,

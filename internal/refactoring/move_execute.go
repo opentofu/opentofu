@@ -250,8 +250,8 @@ func statementDependsOn(a, b *MoveStatement) bool {
 	// Since we are only interested in checking if A depends on B, we only need
 	// to check the 4 possibilities above which result in B being executed
 	// first. If we're there's no dependency at all we can return immediately.
-	if !(a.From.NestedWithin(b.To) || a.To.NestedWithin(b.To) ||
-		b.From.NestedWithin(a.From) || b.To.NestedWithin(a.From)) {
+	if !a.From.NestedWithin(b.To) && !a.To.NestedWithin(b.To) &&
+		!b.From.NestedWithin(a.From) && !b.To.NestedWithin(a.From) {
 		return false
 	}
 

@@ -1126,10 +1126,10 @@ func pathString(path cty.Path) string {
 			val := x.Key
 			typ := val.Type()
 			var s string
-			switch {
-			case typ == cty.String:
+			switch typ {
+			case cty.String:
 				s = val.AsString()
-			case typ == cty.Number:
+			case cty.Number:
 				num := val.AsBigFloat()
 				if num.IsInt() {
 					s = num.Text('f', -1)
