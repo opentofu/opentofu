@@ -174,6 +174,8 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		diags = diags.Append(
 			n.dataResourceExecute(ctx, evalCtx),
 		)
+	case addrs.EphemeralResourceMode:
+		// TODO ephemeral - here comes the integration with the actual implementation for ephemeral resources
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}

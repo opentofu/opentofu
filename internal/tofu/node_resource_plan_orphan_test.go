@@ -402,3 +402,27 @@ func TestNodeResourcePlanOrphanExecute_deposed(t *testing.T) {
 		t.Fatalf("unexpected error: %s", diags.Err())
 	}
 }
+
+// TestNodeResourcePlanOrphanExecute_ephemeral is validating that NodePlannableResourceInstanceOrphan.Execute
+// returns the expected error when it's executed against an ephemeral resource.
+// Since ephemeral resources are not meant to be in the state, this case is not really possible in real life.
+func TestNodeResourcePlanOrphanExecute_ephemeral(t *testing.T) {
+	addr := addrs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_object",
+		Name: "foo",
+	}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
+
+	node := NodePlannableResourceInstanceOrphan{
+		NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
+			NodeAbstractResource: NodeAbstractResource{},
+			Addr:                 addr,
+		},
+	}
+	diags := node.Execute(t.Context(), nil, walkPlan)
+	got := diags.Err().Error()
+	want := `An ephemeral resource registered as orphan: Ephemeral resource "ephemeral.test_object.foo" registered as orphan. This is an OpenTofu error. Please report this.`
+	if got != want {
+		t.Fatalf("unexpected error returned.\ngot: %s\nwant:%s", got, want)
+	}
+}

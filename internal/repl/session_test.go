@@ -85,7 +85,7 @@ func TestSession_basicState(t *testing.T) {
 				{
 					Input:         "test_instance.bar.id",
 					Error:         true,
-					ErrorContains: `A managed resource "test_instance" "bar" has not been declared`,
+					ErrorContains: `There is no managed resource "test_instance" "bar" definition in the root module`,
 				},
 			},
 		})
@@ -196,7 +196,7 @@ func TestSession_stateless(t *testing.T) {
 				{
 					Input:         "test_instance.bar.id",
 					Error:         true,
-					ErrorContains: `resource "test_instance" "bar" has not been declared`,
+					ErrorContains: `resource "test_instance" "bar" definition`,
 				},
 			},
 		})
