@@ -838,15 +838,14 @@ func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.Op
 	logger.Trace("GRPCProvider: OpenEphemeralResource")
 
 	schema := p.GetProviderSchema(ctx)
-	if schema.Diagnostics.HasErrors() {
-		resp.Diagnostics = schema.Diagnostics
+	resp.Diagnostics = schema.Diagnostics
+	if resp.Diagnostics.HasErrors() {
 		return resp
 	}
 
 	ephemeralResourceSchema, ok := schema.EphemeralResources[r.TypeName]
 	if !ok {
-		schema.Diagnostics = schema.Diagnostics.Append(fmt.Errorf("unknown ephemeral resource %q", r.TypeName))
-		resp.Diagnostics = schema.Diagnostics
+		resp.Diagnostics = resp.Diagnostics.Append(fmt.Errorf("unknown ephemeral resource %q", r.TypeName))
 		return resp
 	}
 
