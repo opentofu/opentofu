@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/refactoring"
 	"github.com/zclconf/go-cty/cty"
 
@@ -219,5 +220,76 @@ func TestTransformRemovedProvisioners(t *testing.T) {
 	}
 	if diff := cmp.Diff(wantProvisioners, concrete.removedBlockProvisioners, cmpopts.IgnoreUnexported(cty.Value{}, hcl.TraverseRoot{}, hcl.TraverseAttr{}, hclsyntax.Body{})); diff != "" {
 		t.Fatalf("expected no diff between the expected provisioners and the ones configured in NodeDestroyResourceInstance. got:\n %s", diff)
+	}
+}
+
+// TestDiffTransformerEphemeralChanges is having some wierd and theoretically impossible setup steps, but it's done
+// this way to verify that some checks are in place along the way. Check the inline comments for more details.
+func TestDiffTransformerEphemeralChanges(t *testing.T) {
+	g := Graph{Path: addrs.RootModuleInstance}
+
+	beforeVal, err := plans.NewDynamicValue(cty.StringVal(""), cty.String)
+	if err != nil {
+		t.Fatal(err)
+	}
+	afterVal, err := plans.NewDynamicValue(cty.StringVal(""), cty.String)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tf := &DiffTransformer{
+		Config: &configs.Config{
+			Module: &configs.Module{},
+		},
+		Changes: &plans.Changes{
+			Resources: []*plans.ResourceInstanceChangeSrc{
+				{
+					Addr: addrs.Resource{
+						// This is the wierd/stupid setup: the list of changes is NEVER meant to contain an ephemeral resource
+						// since those are computed from the state compared with the currently wanted configuration.
+						// Since ephemeral resources are not meant to be stored in the state file, this should never happen.
+						// This setup is done this way only to be sure that the code path for creating NodeDestroyResourceInstance
+						// is working well and that the node resulted from that returns an error on v.Execute(...)
+						Mode: addrs.EphemeralResourceMode,
+						Type: "aws_secretmanager_secret",
+						Name: "foo",
+					}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					ProviderAddr: addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("aws"),
+						Module:   addrs.RootModule,
+					},
+					ChangeSrc: plans.ChangeSrc{
+						Action: plans.Delete,
+						Before: beforeVal,
+						After:  afterVal,
+					},
+				},
+			},
+		},
+	}
+	if err := tf.Transform(t.Context(), &g); err != nil {
+		t.Fatalf("err: %s", err)
+	}
+
+	actual := strings.TrimSpace(g.String())
+	expected := "ephemeral.aws_secretmanager_secret.foo (destroy)"
+	if actual != expected {
+		t.Fatalf("bad:\n\n%s", actual)
+	}
+
+	verts := g.Vertices()
+	if got := len(verts); got != 1 {
+		t.Fatalf("expected to have exactly one vertex. got: %d", got)
+	}
+
+	// Let's see how NodeDestroyResourceInstance.Execute is behaving when it's for an ephemeral resource
+	v, ok := verts[0].(*NodeDestroyResourceInstance)
+	if !ok {
+		t.Fatalf("expected that the only created vertex to be NodeDestroyResourceInstance. got %s", reflect.TypeOf(verts[0]))
+	}
+	diags := v.Execute(t.Context(), nil, walkApply)
+	got := diags.Err().Error()
+	want := "Destroy invoked for an ephemeral resource: A destroy operation has been invoked for the ephemeral resource \"ephemeral.aws_secretmanager_secret.foo\". This is an OpenTofu error. Please report this."
+	if got != want {
+		t.Fatalf("unexpected error returned.\ngot: %s\nwant:%s", got, want)
 	}
 }

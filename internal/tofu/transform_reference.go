@@ -201,7 +201,7 @@ func (t attachDataResourceDependsOnTransformer) Transform(_ context.Context, g *
 
 		// Only data need to attach depends_on, so they can determine if they
 		// are eligible to be read during plan.
-		if depender.ResourceAddr().Resource.Mode != addrs.DataResourceMode {
+		if depender.ResourceAddr().Resource.Mode != addrs.DataResourceMode { // TODO ephemeral - implement a similar transformer for ephemeral resources or reuse this one
 			continue
 		}
 
@@ -426,7 +426,7 @@ func (m ReferenceMap) dependsOn(g *Graph, depender graphNodeDependsOn) ([]dag.Ve
 func (m ReferenceMap) dataDependsOn(depender graphNodeDependsOn) []*addrs.Reference {
 	var refs []*addrs.Reference
 	if n, ok := depender.(GraphNodeConfigResource); ok &&
-		n.ResourceAddr().Resource.Mode == addrs.DataResourceMode {
+		n.ResourceAddr().Resource.Mode == addrs.DataResourceMode { // TODO ephemeral - implement a similar method for ephemeral
 		for _, r := range depender.References() {
 
 			var resAddr addrs.Resource
