@@ -78,6 +78,9 @@ const (
 	uiResourceDestroy
 	uiResourceRead
 	uiResourceNoOp
+	uiResourceOpen
+	uiResourceRenew
+	uiResourceClose
 )
 
 func (h *UiHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (tofu.HookAction, error) {
@@ -102,6 +105,15 @@ func (h *UiHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation,
 	case plans.Read:
 		operation = "Reading..."
 		op = uiResourceRead
+	case plans.Open:
+		operation = "Opening..."
+		op = uiResourceOpen
+	case plans.Renew:
+		operation = "Renewing..."
+		op = uiResourceRenew
+	case plans.Close:
+		operation = "Closing..."
+		op = uiResourceClose
 	case plans.NoOp:
 		op = uiResourceNoOp
 	default:
@@ -174,6 +186,12 @@ func (h *UiHook) stillApplying(state uiResourceState) {
 			msg = "Still creating..."
 		case uiResourceRead:
 			msg = "Still reading..."
+		case uiResourceOpen:
+			msg = "Still opening..."
+		case uiResourceRenew:
+			msg = "Still renewing..."
+		case uiResourceClose:
+			msg = "Still closing..."
 		case uiResourceUnknown:
 			return
 		}
@@ -220,6 +238,12 @@ func (h *UiHook) PostApply(addr addrs.AbsResourceInstance, gen states.Generation
 		msg = "Creation complete"
 	case uiResourceRead:
 		msg = "Read complete"
+	case uiResourceOpen:
+		msg = "Open complete"
+	case uiResourceRenew:
+		msg = "Renew complete"
+	case uiResourceClose:
+		msg = "Close complete"
 	case uiResourceNoOp:
 		// We don't make any announcements about no-op changes
 		return tofu.HookActionContinue, nil
