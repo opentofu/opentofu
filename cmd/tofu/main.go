@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"runtime/pprof"
 	"strings"
 	"time"
 
@@ -40,6 +41,8 @@ const (
 
 	// The parent process will create a file to collect crash logs
 	envTmpLogPath = "TF_TEMP_LOG_PATH"
+
+	EnvCPUProfile = "TOFU_CPU_PROFILE"
 )
 
 // ui wraps the primary output cli.Ui, and redirects Warn calls to Output
@@ -67,6 +70,29 @@ func main() {
 
 func realMain() int {
 	defer logging.PanicHandler()
+
+	// Create a go CPU profile if requested
+	// This is more intense and potentially disruptive compared to OpenTelementry tracing and does not integrate with providers
+	// It does however provide a deeper window (with more noise) into performance bottlenecks that are identified by a user
+	// or with OpenTelemetry tracing
+	if cpuProfile := os.Getenv(EnvCPUProfile); cpuProfile != "" {
+		cpuProfileOut, err := os.Create(cpuProfile)
+		if err != nil {
+			Ui.Error(fmt.Sprintf("Could not open cpu profile output: %s", err))
+			return 1
+		}
+		defer func() {
+			err := cpuProfileOut.Close()
+			if err != nil {
+				Ui.Error(fmt.Sprintf("Could not close cpu profile: %s", err))
+			}
+		}()
+		if err := pprof.StartCPUProfile(cpuProfileOut); err != nil {
+			Ui.Error(fmt.Sprintf("Could not start cpu profile: %s", err))
+			return 1
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	ctx, err := tracing.OpenTelemetryInit(context.Background())
 	if err != nil {
