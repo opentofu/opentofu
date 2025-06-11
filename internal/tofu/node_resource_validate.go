@@ -484,7 +484,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		}
 
 		resp := provider.ValidateEphemeralConfig(ctx, req)
-		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String())) // TODO andrei test this with the branch for this particular feature
+		diags = diags.Append(resp.Diagnostics.InConfigBody(n.Config.Config, n.Addr.String()))
 	}
 
 	return diags
