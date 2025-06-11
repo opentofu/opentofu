@@ -33,14 +33,10 @@ jobs:
         with:
           ref: ${{matrix.branch}}
 
-      - name: Determine Go version
-        id: go
-        uses: ./.github/actions/go-version
-
       - name: Install Go toolchain
         uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
-          go-version: ${{steps.go.outputs.version}}
+          go-version-file: 'go.mod'
 
       - name: Install govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@d1f380186385b4f64e00313f31743df8e4b89a77 # v1.1.4
