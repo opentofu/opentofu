@@ -69,6 +69,15 @@ func TestNewModule_resource_providers(t *testing.T) {
 	wantBar := addrs.NewProvider(addrs.DefaultProviderRegistryHost, "bar", "test")
 
 	// root module
+	if got, want := len(cfg.Module.ManagedResources), 2; got != want {
+		t.Fatalf("expected to have %d managed resources in the root module but got %d", want, got)
+	}
+	if got, want := len(cfg.Module.DataResources), 1; got != want {
+		t.Fatalf("expected to have %d data sources in the root module but got %d", want, got)
+	}
+	if got, want := len(cfg.Module.EphemeralResources), 2; got != want {
+		t.Fatalf("expected to have %d ephemeral resources in the root module but got %d", want, got)
+	}
 	if !cfg.Module.ManagedResources["test_instance.explicit"].Provider.Equals(wantFoo) {
 		t.Fatalf("wrong provider for \"test_instance.explicit\"\ngot:  %s\nwant: %s",
 			cfg.Module.ManagedResources["test_instance.explicit"].Provider,
@@ -90,8 +99,31 @@ func TestNewModule_resource_providers(t *testing.T) {
 		)
 	}
 
+	// ephemeral resources test
+	if !cfg.Module.EphemeralResources["ephemeral.test_ephemeral.explicit"].Provider.Equals(wantFoo) {
+		t.Fatalf("wrong provider for \"test_ephemeral.explicit\"\ngot:  %s\nwant: %s",
+			cfg.Module.EphemeralResources["test_ephemeral.explicit"].Provider,
+			wantFoo,
+		)
+	}
+	if !cfg.Module.EphemeralResources["ephemeral.test_ephemeral.implicit"].Provider.Equals(wantImplicit) {
+		t.Fatalf("wrong provider for \"test_ephemeral.implicit\"\ngot:  %s\nwant: %s",
+			cfg.Module.EphemeralResources["test_instance.implicit"].Provider,
+			wantImplicit,
+		)
+	}
+
 	// child module
 	cm := cfg.Children["child"].Module
+	if got, want := len(cm.ManagedResources), 3; got != want {
+		t.Fatalf("expected to have %d managed resources in the child module but got %d", want, got)
+	}
+	if got, want := len(cm.DataResources), 0; got != want {
+		t.Fatalf("expected to have %d data sources in the child module but got %d", want, got)
+	}
+	if got, want := len(cm.EphemeralResources), 2; got != want {
+		t.Fatalf("expected to have %d ephemeral resources in the child module but got %d", want, got)
+	}
 	if !cm.ManagedResources["test_instance.explicit"].Provider.Equals(wantBar) {
 		t.Fatalf("wrong provider for \"module.child.test_instance.explicit\"\ngot:  %s\nwant: %s",
 			cfg.Module.ManagedResources["test_instance.explicit"].Provider,
@@ -102,6 +134,19 @@ func TestNewModule_resource_providers(t *testing.T) {
 		t.Fatalf("wrong provider for \"module.child.test_instance.implicit\"\ngot:  %s\nwant: %s",
 			cfg.Module.ManagedResources["test_instance.implicit"].Provider,
 			wantImplicit,
+		)
+	}
+	// ephemeral
+	if !cm.EphemeralResources["ephemeral.test_ephemeral.other_explicit"].Provider.Equals(wantFoo) {
+		t.Fatalf("wrong provider for \"module.child.ephemeral.test_ephemeral.other_explicit\"\ngot:  %s\nwant: %s",
+			cfg.Module.EphemeralResources["ephemeral.test_ephemeral.other_explicit"].Provider,
+			wantFoo,
+		)
+	}
+	if !cm.EphemeralResources["ephemeral.test_ephemeral.other_implicit"].Provider.Equals(wantImplicit) {
+		t.Fatalf("wrong provider for \"module.child.ephemeral.test_ephemeral.other_implicit\"\ngot:  %s\nwant: %s",
+			cfg.Module.EphemeralResources["ephemeral.test_ephemeral.other_implicit"].Provider,
+			wantFoo,
 		)
 	}
 }
@@ -291,15 +336,21 @@ func TestModule_implied_provider(t *testing.T) {
 	}{
 		{"foo_resource.a", foo},
 		{"data.foo_resource.b", foo},
-		{"bar_resource.c", bar},
-		{"data.bar_resource.d", bar},
-		{"whatever_resource.e", whatever},
-		{"data.whatever_resource.f", whatever},
+		{"ephemeral.foo_resource.c", foo},
+		{"bar_resource.d", bar},
+		{"data.bar_resource.e", bar},
+		{"ephemeral.bar_resource.f", bar},
+		{"whatever_resource.g", whatever},
+		{"data.whatever_resource.h", whatever},
+		{"ephemeral.whatever_resource.i", whatever},
 	}
 	for _, test := range tests {
 		resources := mod.ManagedResources
-		if strings.HasPrefix(test.Address, "data.") {
+		switch test.Address[:strings.Index(test.Address, ".")+1] {
+		case "data.":
 			resources = mod.DataResources
+		case "ephemeral.":
+			resources = mod.EphemeralResources
 		}
 		resource, exists := resources[test.Address]
 		if !exists {
@@ -442,4 +493,31 @@ func TestModule_cloud_duplicate_overrides(t *testing.T) {
 	if got := diags.Error(); !strings.Contains(got, want) {
 		t.Fatalf("expected module error to contain %q\nerror was:\n%s", want, got)
 	}
+}
+
+func TestResourceByAddr(t *testing.T) {
+	managedResource := &Resource{Mode: addrs.ManagedResourceMode, Name: "name", Type: "test_resource"}
+	dataResource := &Resource{Mode: addrs.DataResourceMode, Name: "name", Type: "test_data"}
+	ephemeralResource := &Resource{Mode: addrs.EphemeralResourceMode, Name: "name", Type: "test_ephemeral"}
+	m := Module{
+		ManagedResources: map[string]*Resource{
+			managedResource.Addr().String(): managedResource,
+		},
+		DataResources: map[string]*Resource{
+			dataResource.Addr().String(): dataResource,
+		},
+		EphemeralResources: map[string]*Resource{
+			ephemeralResource.Addr().String(): ephemeralResource,
+		},
+	}
+	if got, want := m.ResourceByAddr(managedResource.Addr()), managedResource; got != want {
+		t.Fatalf("expected resource %+v but got %+v", want, got)
+	}
+	if got, want := m.ResourceByAddr(dataResource.Addr()), dataResource; got != want {
+		t.Fatalf("expected resource %+v but got %+v", want, got)
+	}
+	if got, want := m.ResourceByAddr(ephemeralResource.Addr()), ephemeralResource; got != want {
+		t.Fatalf("expected resource %+v but got %+v", want, got)
+	}
+
 }

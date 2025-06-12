@@ -38,11 +38,11 @@ func TestStaticValidateReferences(t *testing.T) {
 		},
 		{
 			Ref:     "aws_instance.nonexist",
-			WantErr: `Reference to undeclared resource: A managed resource "aws_instance" "nonexist" has not been declared in the root module.`,
+			WantErr: `Reference to undeclared resource: There is no managed resource "aws_instance" "nonexist" definition in the root module.`,
 		},
 		{
 			Ref: "beep.boop",
-			WantErr: `Reference to undeclared resource: A managed resource "beep" "boop" has not been declared in the root module.
+			WantErr: `Reference to undeclared resource: There is no managed resource "beep" "boop" definition in the root module.
 
 Did you mean the data resource data.beep.boop?`,
 		},
@@ -70,7 +70,7 @@ For example, to correlate with indices of a referring resource, use:
 		},
 		{
 			Ref:     "boop_whatever.nope",
-			WantErr: `Invalid resource type: A managed resource type "boop_whatever" is not supported by provider "registry.opentofu.org/foobar/beep".`,
+			WantErr: `Invalid resource type: The managed resource type "boop_whatever" is not supported by provider "registry.opentofu.org/foobar/beep".`,
 		},
 		{
 			Ref:     "data.boop_data.boop_nested",
@@ -80,6 +80,24 @@ For example, to correlate with indices of a referring resource, use:
 			Ref:     "data.boop_data.boop_nested",
 			WantErr: ``,
 			Src:     addrs.Check{Name: "foo"},
+		},
+		{
+			Ref: "foo.bar",
+			WantErr: `Reference to undeclared resource: There is no managed resource "foo" "bar" definition in the root module.
+
+Did you mean the ephemeral resource ephemeral.foo.bar?`,
+		},
+		{
+			Ref: "data.foo.bar",
+			WantErr: `Reference to undeclared resource: There is no data resource "foo" "bar" definition in the root module.
+
+Did you mean the ephemeral resource ephemeral.foo.bar?`,
+		},
+		{
+			Ref: "ephemeral.beep.boop",
+			WantErr: `Reference to undeclared resource: There is no ephemeral resource "beep" "boop" definition in the root module.
+
+Did you mean the data resource data.beep.boop?`,
 		},
 	}
 

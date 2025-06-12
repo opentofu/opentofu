@@ -72,7 +72,7 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 
 		// We prompt for input only for provider configurations defined in
 		// the root module. Provider configurations in other modules are a
-		// legacy thing we no longer recommend, and even if they weren't we
+		// legacy thing we no longer recommend, and even if they weren't, we
 		// can't practically prompt for their inputs here because we've not
 		// yet done "expansion" and so we don't know whether the modules are
 		// using count or for_each.
@@ -88,28 +88,9 @@ func (c *Context) Input(ctx context.Context, config *configs.Config, mode InputM
 		// We also need to detect _implied_ provider configs from resources.
 		// These won't have *configs.Provider objects, but they will still
 		// exist in the map and we'll just treat them as empty below.
-		for _, rc := range config.Module.ManagedResources {
-			pa := rc.ProviderConfigAddr()
-			if pa.Alias != "" {
-				continue // alias configurations cannot be implied
-			}
-			if _, exists := pcs[pa.String()]; !exists {
-				pcs[pa.String()] = nil
-				pas[pa.String()] = pa
-				log.Printf("[TRACE] Context.Input: Provider %s implied by resource block at %s", pa, rc.DeclRange)
-			}
-		}
-		for _, rc := range config.Module.DataResources {
-			pa := rc.ProviderConfigAddr()
-			if pa.Alias != "" {
-				continue // alias configurations cannot be implied
-			}
-			if _, exists := pcs[pa.String()]; !exists {
-				pcs[pa.String()] = nil
-				pas[pa.String()] = pa
-				log.Printf("[TRACE] Context.Input: Provider %s implied by data block at %s", pa, rc.DeclRange)
-			}
-		}
+		collectResourcesImplicitProvider(config.Module.ManagedResources, pcs, pas)
+		collectResourcesImplicitProvider(config.Module.DataResources, pcs, pas)
+		collectResourcesImplicitProvider(config.Module.EphemeralResources, pcs, pas)
 
 		for pk, pa := range pas {
 			pc := pcs[pk] // will be nil if this is an implied config
@@ -220,4 +201,22 @@ func schemaForInputSniffing(schema *hcl.BodySchema) *hcl.BodySchema {
 	}
 
 	return ret
+}
+
+// collectResourcesImplicitProvider collects in "pas" all the provider addresses that are not having an explicit configuration
+// existing in "pcs". In other words, it collects all the implicit providers from resources that are not explicitly configured.
+// Later on, this information is used to determine what implicit providers need additional configuration and OpenTofu
+// will ask for input on configuring those.
+func collectResourcesImplicitProvider(resources map[string]*configs.Resource, pcs map[string]*configs.Provider, pas map[string]addrs.LocalProviderConfig) {
+	for _, rc := range resources {
+		pa := rc.ProviderConfigAddr()
+		if pa.Alias != "" {
+			continue // alias configurations cannot be implied
+		}
+		if _, exists := pcs[pa.String()]; !exists {
+			pcs[pa.String()] = nil
+			pas[pa.String()] = pa
+			log.Printf("[TRACE] Context.Input: Provider %s implied by %s block at %s", pa, addrs.ResourceModeBlockName(rc.Addr().Mode), rc.DeclRange)
+		}
+	}
 }
