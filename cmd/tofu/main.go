@@ -173,7 +173,7 @@ func realMain() int {
 
 	modulePkgFetcher := remoteModulePackageFetcher(ctx, config.OCICredentialsPolicy)
 
-	providerSrc, diags := providerSource(config.ProviderInstallation, services, config.OCICredentialsPolicy)
+	providerSrc, diags := providerSource(ctx, config.ProviderInstallation, services, config.OCICredentialsPolicy)
 	if len(diags) > 0 {
 		Ui.Error("There are some problems with the provider_installation configuration:")
 		for _, diag := range diags {

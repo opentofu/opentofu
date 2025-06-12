@@ -149,6 +149,7 @@ type OCIRegistryMirrorSource struct {
 var _ Source = (*OCIRegistryMirrorSource)(nil)
 
 func NewOCIRegistryMirrorSource(
+	_ context.Context,
 	resolveRepositoryAddr func(addr addrs.Provider) (registryDomain, repositoryName string, err error),
 	getRepositoryStore func(ctx context.Context, registryDomain, repositoryName string) (OCIRepositoryStore, error),
 ) *OCIRegistryMirrorSource {

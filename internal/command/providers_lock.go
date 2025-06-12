@@ -121,7 +121,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	var source getproviders.Source
 	switch {
 	case fsMirrorDir != "":
-		source = getproviders.NewFilesystemMirrorSource(fsMirrorDir)
+		source = getproviders.NewFilesystemMirrorSource(ctx, fsMirrorDir)
 	case netMirrorURL != "":
 		u, err := url.Parse(netMirrorURL)
 		if err != nil || u.Scheme != "https" {
@@ -139,12 +139,12 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 		// this client is not suitable for the HTTP mirror source, so we
 		// don't use this client directly.
 		httpTimeout := c.registryHTTPClient(ctx).HTTPClient.Timeout
-		source = getproviders.NewHTTPMirrorSource(u, c.Services.CredentialsSource(), httpTimeout)
+		source = getproviders.NewHTTPMirrorSource(ctx, u, c.Services.CredentialsSource(), httpTimeout)
 	default:
 		// With no special options we consult upstream registries directly,
 		// because that gives us the most information to produce as complete
 		// and portable as possible a lock entry.
-		source = getproviders.NewRegistrySource(c.Services, c.registryHTTPClient(ctx))
+		source = getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx))
 	}
 
 	config, confDiags := c.loadConfig(ctx, ".")

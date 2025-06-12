@@ -631,7 +631,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		// the usual sources and forces OpenTofu to consult only the given
 		// directories. Anything not available in one of those directories
 		// is not available for installation.
-		source := c.providerCustomLocalDirectorySource(pluginDirs)
+		source := c.providerCustomLocalDirectorySource(ctx, pluginDirs)
 		inst = c.providerInstallerCustomSource(source)
 
 		// The default (or configured) search paths are logged earlier, in provider_source.go

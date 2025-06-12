@@ -75,7 +75,7 @@ func testRegistryServices(t *testing.T) (services *disco.Disco, baseURL string, 
 // of your test in order to shut down the test server.
 func testRegistrySource(t *testing.T) (source *RegistrySource, baseURL string, cleanup func()) {
 	services, baseURL, close := testRegistryServices(t)
-	source = NewRegistrySource(services, nil)
+	source = NewRegistrySource(t.Context(), services, nil)
 	return source, baseURL, close
 }
 
