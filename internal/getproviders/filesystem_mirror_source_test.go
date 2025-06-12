@@ -18,7 +18,7 @@ import (
 )
 
 func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
-	source := NewFilesystemMirrorSource("testdata/filesystem-mirror")
+	source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror")
 	got, err := source.AllAvailablePackages()
 	if err != nil {
 		t.Fatal(err)
@@ -102,7 +102,7 @@ func TestFilesystemMirrorSourceAllAvailablePackages(t *testing.T) {
 // In this test the directory layout is invalid (missing the hostname
 // subdirectory). The provider installer should ignore the invalid directory.
 func TestFilesystemMirrorSourceAllAvailablePackages_invalid(t *testing.T) {
-	source := NewFilesystemMirrorSource("testdata/filesystem-mirror-invalid")
+	source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror-invalid")
 	_, err := source.AllAvailablePackages()
 	if err != nil {
 		t.Fatal(err)
@@ -110,7 +110,7 @@ func TestFilesystemMirrorSourceAllAvailablePackages_invalid(t *testing.T) {
 }
 
 func TestFilesystemMirrorSourceAvailableVersions(t *testing.T) {
-	source := NewFilesystemMirrorSource("testdata/filesystem-mirror")
+	source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror")
 	got, _, err := source.AvailableVersions(context.Background(), nullProvider)
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +132,7 @@ func TestFilesystemMirrorSourceAvailableVersions_Unspecified(t *testing.T) {
 		Namespace: "testnamespace",
 		Type:      "unspecified",
 	}
-	source := NewFilesystemMirrorSource("testdata/filesystem-mirror-unspecified")
+	source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror-unspecified")
 	got, warn, err := source.AvailableVersions(context.Background(), unspecifiedProvider)
 	if err != nil {
 		t.Fatal(err)
@@ -152,7 +152,7 @@ func TestFilesystemMirrorSourceAvailableVersions_Unspecified(t *testing.T) {
 }
 func TestFilesystemMirrorSourcePackageMeta(t *testing.T) {
 	t.Run("available platform", func(t *testing.T) {
-		source := NewFilesystemMirrorSource("testdata/filesystem-mirror")
+		source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror")
 		got, err := source.PackageMeta(
 			context.Background(),
 			nullProvider,
@@ -176,7 +176,7 @@ func TestFilesystemMirrorSourcePackageMeta(t *testing.T) {
 		}
 	})
 	t.Run("unavailable platform", func(t *testing.T) {
-		source := NewFilesystemMirrorSource("testdata/filesystem-mirror")
+		source := NewFilesystemMirrorSource(t.Context(), "testdata/filesystem-mirror")
 		// We'll request a version that does exist in the fixture directory,
 		// but for a platform that isn't supported.
 		_, err := source.PackageMeta(

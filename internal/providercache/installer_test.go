@@ -2518,7 +2518,7 @@ func TestEnsureProviderVersions(t *testing.T) {
 
 func TestEnsureProviderVersions_local_source(t *testing.T) {
 	// create filesystem source using the test provider cache dir
-	source := getproviders.NewFilesystemMirrorSource("testdata/cachedir")
+	source := getproviders.NewFilesystemMirrorSource(t.Context(), "testdata/cachedir")
 
 	// create a temporary workdir
 	tmpDirPath := t.TempDir()
@@ -2740,7 +2740,7 @@ func testServices(t *testing.T) (services *disco.Disco, baseURL string, cleanup 
 // of your test in order to shut down the test server.
 func testRegistrySource(t *testing.T) (source *getproviders.RegistrySource, baseURL string, cleanup func()) {
 	services, baseURL, close := testServices(t)
-	source = getproviders.NewRegistrySource(services, nil)
+	source = getproviders.NewRegistrySource(t.Context(), services, nil)
 	return source, baseURL, close
 }
 

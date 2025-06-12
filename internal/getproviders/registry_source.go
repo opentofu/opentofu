@@ -29,12 +29,12 @@ var _ Source = (*RegistrySource)(nil)
 
 // NewRegistrySource creates and returns a new source that will install
 // providers from their originating provider registries.
-func NewRegistrySource(services *disco.Disco, httpClient *retryablehttp.Client) *RegistrySource {
+func NewRegistrySource(ctx context.Context, services *disco.Disco, httpClient *retryablehttp.Client) *RegistrySource {
 	if httpClient == nil {
 		// As an aid to our tests that don't really care that much about
 		// the HTTP client configuration, we'll provide some reasonable
 		// defaults if no custom client is provided.
-		httpClient = httpclient.NewForRegistryRequests(context.Background(), 1, 10*time.Second)
+		httpClient = httpclient.NewForRegistryRequests(ctx, 1, 10*time.Second)
 	}
 
 	return &RegistrySource{

@@ -112,7 +112,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	// directory without needing to first disable that local mirror
 	// in the CLI configuration.
 	source := getproviders.NewMemoizeSource(
-		getproviders.NewRegistrySource(c.Services, c.registryHTTPClient(ctx)),
+		getproviders.NewRegistrySource(ctx, c.Services, c.registryHTTPClient(ctx)),
 	)
 
 	// Providers from registries always use HTTP, so we don't need the full

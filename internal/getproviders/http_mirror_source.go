@@ -46,8 +46,8 @@ var _ Source = (*HTTPMirrorSource)(nil)
 // (When the URL comes from user input, such as in the CLI config, it's the
 // UI/config layer's responsibility to validate this and return a suitable
 // error message for the end-user audience.)
-func NewHTTPMirrorSource(baseURL *url.URL, creds svcauth.CredentialsSource, requestTimeout time.Duration) *HTTPMirrorSource {
-	httpClient := httpclient.NewForRegistryRequests(context.TODO(), 0, requestTimeout)
+func NewHTTPMirrorSource(ctx context.Context, baseURL *url.URL, creds svcauth.CredentialsSource, requestTimeout time.Duration) *HTTPMirrorSource {
+	httpClient := httpclient.NewForRegistryRequests(ctx, 0, requestTimeout)
 	httpClient.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 		// If we get redirected more than five times we'll assume we're
 		// in a redirect loop and bail out, rather than hanging forever.
