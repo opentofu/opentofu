@@ -352,6 +352,25 @@ func (s *State) ProviderAddrs() []addrs.AbsProviderConfig {
 	return ret
 }
 
+func (s *State) ResourceTypes() map[addrs.Provider]map[string]int {
+	if s == nil {
+		return nil
+	}
+
+	m := make(map[addrs.Provider]map[string]int)
+	for _, ms := range s.Modules {
+		for _, rc := range ms.Resources {
+			pm, ok := m[rc.ProviderConfig.Provider]
+			if !ok {
+				pm = make(map[string]int)
+				m[rc.ProviderConfig.Provider] = pm
+			}
+			pm[rc.Addr.Resource.Type] += 1
+		}
+	}
+	return m
+}
+
 // ProviderRequirements returns a description of all of the providers that
 // are required to work with the receiving state.
 //
