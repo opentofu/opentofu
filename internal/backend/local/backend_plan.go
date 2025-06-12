@@ -104,6 +104,10 @@ func (b *Local) opPlan(
 		}
 	}()
 
+	// We pass the caller's watch requests directly to the language runtime,
+	// which handles them by talking directly to the included callback functions.
+	lr.PlanOpts.WatchRequests = op.WatchRequests
+
 	// Since planning doesn't immediately change the persisted state, the
 	// resulting state is always just the input state.
 	runningOp.State = lr.InputState

@@ -8,6 +8,8 @@ package addrs
 import (
 	"fmt"
 	"strings"
+
+	"github.com/zclconf/go-cty/cty"
 )
 
 // ProviderFunction is the address of a provider defined function.
@@ -23,6 +25,11 @@ func (v ProviderFunction) String() string {
 		return fmt.Sprintf("provider::%s::%s::%s", v.ProviderName, v.ProviderAlias, v.Function)
 	}
 	return fmt.Sprintf("provider::%s::%s", v.ProviderName, v.Function)
+}
+
+func (v ProviderFunction) Path() cty.Path {
+	// FIXME: Do something about this odd case
+	panic("ProviderFunction is a weird thing to implement Referenceable")
 }
 
 func (v ProviderFunction) UniqueKey() UniqueKey {

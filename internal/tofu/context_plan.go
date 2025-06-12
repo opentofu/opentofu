@@ -105,6 +105,13 @@ type PlanOpts struct {
 	// the state.
 	RemoveStatements []*refactoring.RemoveStatement
 
+	// WatchRequests are optional requests to be notified via callback once
+	// the value associated with a particular reference has been settled.
+	//
+	// This is intended to enable the CLI layer to offer the "-watch" option
+	// to expose values for debugging purposes.
+	WatchRequests []WatchRequest
+
 	// GenerateConfig tells OpenTofu where to write any generated configuration
 	// for any ImportTargets that do not have configuration already.
 	//
@@ -872,6 +879,7 @@ func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRun
 			Targets:                 opts.Targets,
 			Excludes:                opts.Excludes,
 			ForceReplace:            opts.ForceReplace,
+			WatchRequests:           opts.WatchRequests,
 			skipRefresh:             opts.SkipRefresh,
 			preDestroyRefresh:       opts.PreDestroyRefresh,
 			Operation:               walkPlan,
@@ -890,6 +898,7 @@ func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRun
 			Plugins:                 c.plugins,
 			Targets:                 opts.Targets,
 			Excludes:                opts.Excludes,
+			WatchRequests:           opts.WatchRequests,
 			skipRefresh:             opts.SkipRefresh,
 			skipPlanChanges:         true, // this activates "refresh only" mode.
 			Operation:               walkPlan,
@@ -905,6 +914,7 @@ func (c *Context) planGraph(ctx context.Context, config *configs.Config, prevRun
 			Plugins:                 c.plugins,
 			Targets:                 opts.Targets,
 			Excludes:                opts.Excludes,
+			WatchRequests:           opts.WatchRequests,
 			skipRefresh:             opts.SkipRefresh,
 			Operation:               walkPlanDestroy,
 			ProviderFunctionTracker: providerFunctionTracker,

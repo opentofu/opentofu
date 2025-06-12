@@ -7,6 +7,8 @@ package addrs
 
 import (
 	"fmt"
+
+	"github.com/zclconf/go-cty/cty"
 )
 
 // ModuleCall is the address of a call from the current module to a child
@@ -18,6 +20,10 @@ type ModuleCall struct {
 
 func (c ModuleCall) String() string {
 	return "module." + c.Name
+}
+
+func (c ModuleCall) Path() cty.Path {
+	return cty.GetAttrPath("module").GetAttr(c.Name)
 }
 
 func (c ModuleCall) UniqueKey() UniqueKey {
@@ -110,6 +116,14 @@ func (c ModuleCallInstance) String() string {
 	return fmt.Sprintf("module.%s%s", c.Call.Name, c.Key)
 }
 
+func (c ModuleCallInstance) Path() cty.Path {
+	ret := c.Call.Path()
+	if c.Key != NoKey {
+		ret = ret.Index(c.Key.Value())
+	}
+	return ret
+}
+
 func (c ModuleCallInstance) UniqueKey() UniqueKey {
 	return c // A ModuleCallInstance is its own UniqueKey
 }
@@ -155,6 +169,10 @@ func (m ModuleCallOutput) String() string {
 	return fmt.Sprintf("%s.%s", m.Call.String(), m.Name)
 }
 
+func (m ModuleCallOutput) Path() cty.Path {
+	return m.Call.Path().GetAttr(m.Name)
+}
+
 func (m ModuleCallOutput) UniqueKey() UniqueKey {
 	return m // A ModuleCallOutput is its own UniqueKey
 }
@@ -180,6 +198,10 @@ func (co ModuleCallInstanceOutput) ModuleCallOutput() ModuleCallOutput {
 
 func (co ModuleCallInstanceOutput) String() string {
 	return fmt.Sprintf("%s.%s", co.Call.String(), co.Name)
+}
+
+func (co ModuleCallInstanceOutput) Path() cty.Path {
+	return co.Call.Path().GetAttr(co.Name)
 }
 
 func (co ModuleCallInstanceOutput) UniqueKey() UniqueKey {

@@ -61,6 +61,28 @@ func (r *Reference) DisplayString() string {
 	return ret.String()
 }
 
+func (r *Reference) Path() cty.Path {
+	// NOTE: The docstring for [Referenceable.Path] says that all
+	// implementations are required to return something we can safely append
+	// to without causing a data race.
+	ret := r.Subject.Path()
+	for _, step := range r.Remaining {
+		switch step := step.(type) {
+		case hcl.TraverseRoot:
+			ret = ret.GetAttr(step.Name)
+		case hcl.TraverseAttr:
+			ret = ret.GetAttr(step.Name)
+		case hcl.TraverseIndex:
+			ret = ret.Index(step.Key)
+		default:
+			// Should not happen because the above step types are the only
+			// reasonable ones that should end up in r.Remaining.
+			panic(fmt.Sprintf("unsupported traversal step type %T", step))
+		}
+	}
+	return ret
+}
+
 // ParseRef attempts to extract a referenceable address from the prefix of the
 // given traversal, which must be an absolute traversal or this function
 // will panic.
