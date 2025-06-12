@@ -120,7 +120,9 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 			n.dataResourceExecute(ctx, evalCtx),
 		)
 	case addrs.EphemeralResourceMode:
-		// TODO ephemeral - here comes the integration with the actual implementation for ephemeral resources
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
@@ -175,6 +177,54 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx context.Context,
 	// until the user makes the condition succeed.
 	checkDiags := evalCheckRules(
 		ctx,
+		addrs.ResourcePostcondition,
+		n.Config.Postconditions,
+		evalCtx, addr, repeatData,
+		checkRuleSeverity,
+	)
+	diags = diags.Append(checkDiags)
+
+	return diags
+}
+
+func (n *NodePlannableResourceInstance) ephemeralResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
+	config := n.Config
+	addr := n.ResourceInstanceAddr()
+
+	_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	diags = diags.Append(err)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	diags = diags.Append(validateSelfRef(addr.Resource, config.Config, providerSchema))
+	if diags.HasErrors() {
+		return diags
+	}
+
+	checkRuleSeverity := tfdiags.Error
+	if n.skipPlanChanges || n.preDestroyRefresh {
+		checkRuleSeverity = tfdiags.Warning
+	}
+
+	_, state, repeatData, planDiags := n.planEphemeralResource(ctx, evalCtx, checkRuleSeverity, n.skipPlanChanges)
+	diags = diags.Append(planDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// write ephemeral resource only in the working state to make it accessible to the evaluator.
+	// This is later filtered out when it comes to the state writing
+	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, state, workingState))
+	if diags.HasErrors() {
+		return diags
+	}
+
+	// Post-conditions might block further progress. We intentionally do this
+	// _after_ writing the state/diff because we want to check against
+	// the result of the operation, and to fail on future operations
+	// until the user makes the condition succeed.
+	checkDiags := evalCheckRules(
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		evalCtx, addr, repeatData,
