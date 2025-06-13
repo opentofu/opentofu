@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
@@ -80,6 +82,29 @@ type NodeAbstractResourceInstance struct {
 	generatedConfigHCL string
 
 	ResolvedProviderKey addrs.InstanceKey
+
+	// These are the fields that should be strictly used when this node is acting upon an ephemeral resource.
+	// The ephemeralDiags and closeCh are initialized right before scheduling the renewal process.
+	//
+	// closeCh is the channel that will be close to stop the renewal goroutine.
+	// This is closed when the NodeAbstractResourceInstance.Close is called. NodeAbstractResourceInstance.Close will
+	// return immediately if renewStarted.Load() == false, meaning that the goroutine for ephemeral resource
+	// renewal never started.
+	//
+	// ephemeralDiags is used by the renewal goroutine to return whatever issues it encountered during the process.
+	// This is the channel that NodeAbstractResourceInstance.Close is blocking on, so be sure that when the goroutine
+	// is getting closed, there is something written into ephemeralDiags. Otherwise, NodeAbstractResourceInstance.Close
+	// will wait for a specific timeout before returning only a timeout diagnostic.
+	// The same channel is also used by the NodeAbstractResourceInstance.closeEphemeralResource to add the diagnostics
+	// that it encountered, if any.
+	//
+	// renewStarted is just used as a semaphore to be able to detect when an ephemeral resource renewal process didn't
+	// start so calls to NodeAbstractResourceInstance.Close can return no diagnostics whatsoever.
+	// A common reason for which the renewal goroutine can be skipped from being created is when the ephemeral
+	// resource is deferred for the apply phase.
+	closeCh        chan struct{}
+	ephemeralDiags chan tfdiags.Diagnostics
+	renewStarted   atomic.Bool
 }
 
 // NewNodeAbstractResourceInstance creates an abstract resource instance graph
@@ -1796,7 +1821,7 @@ func (n *NodeAbstractResourceInstance) providerMetas(ctx context.Context, evalCt
 	return metaConfigVal, diags
 }
 
-func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, []byte, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var newVal cty.Value
 
@@ -1805,13 +1830,13 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, nil, diags
 	}
 	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
 	if schema == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
 		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", n.ResolvedProvider.ProviderConfig, n.Addr.ContainingResource().Resource.Type))
-		return newVal, diags
+		return newVal, nil, diags
 	}
 
 	// Unmark before sending to provider, will re-mark before returning
@@ -1828,7 +1853,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	)
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, nil, diags
 	}
 
 	// If we get down here then our configuration is complete and we're ready
@@ -1839,7 +1864,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return h.PreApply(n.Addr, states.CurrentGen, plans.Open, cty.NullVal(configVal.Type()), configVal)
 	}))
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, nil, diags
 	}
 
 	req := providers.OpenEphemeralResourceRequest{
@@ -1849,7 +1874,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	resp := provider.OpenEphemeralResource(ctx, req)
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, nil, diags
 	}
 	newVal = resp.Result // TODO andrei handle the renew/private/defer. For defer, check upstream, there is another place where I've seen something about this (look for trace logs)
 	if newVal == cty.NilVal {
@@ -1869,7 +1894,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		))
 	}
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, nil, diags
 	}
 
 	if newVal.IsNull() {
@@ -1898,11 +1923,19 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		newVal = newVal.MarkWithPaths(pvm)
 	}
 
+	// Initialize the closing channel and the channel that sends diagnostics back to the
+	// NodeAbstractResourceInstance.Close caller.
+	n.closeCh = make(chan struct{}, 1)
+	n.ephemeralDiags = make(chan tfdiags.Diagnostics, 1)
+	// The renewer is taking care of calling provider.Renew if resp.RenewAt != nil.
+	// But if resp.RenewAt == nil, renewer holds only the resp.Private that will be used later
+	// when calling provider.CloseEphemeralResource.
+	go n.startEphemeralRenew(ctx, evalCtx, resp.RenewAt, resp.Private)
 	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
 		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
 	}))
 
-	return newVal, diags
+	return newVal, resp.Private, diags
 }
 
 // planDataSource deals with the main part of the data resource lifecycle:
@@ -2148,7 +2181,7 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx Ev
 
 	depsToUse := n.dependsOn
 
-	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
+	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode || n.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode { // TODO andrei
 		if n.Config.HasCustomConditions() {
 			// For a data resource with custom conditions we need to look at
 			// the full set of resource dependencies -- both direct and
@@ -2159,11 +2192,14 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx Ev
 	}
 
 	for _, d := range depsToUse {
-		if d.Resource.Mode == addrs.DataResourceMode {
+		if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode && d.Resource.Mode == addrs.DataResourceMode {
 			// Data sources have no external side effects, so they pose a need
 			// to delay this read. If they do have a change planned, it must be
 			// because of a dependency on a managed resource, in which case
 			// we'll also encounter it in this list of dependencies.
+			continue
+		}
+		if n.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode && d.Resource.Mode == addrs.EphemeralResourceMode {
 			continue
 		}
 		// TODO ephemeral - since a data source cannot have write-only attributes, a data source that is referencing
@@ -3080,7 +3116,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 			PrevRunAddr:  n.prevRunAddr(evalCtx),
 			ProviderAddr: n.ResolvedProvider.ProviderConfig,
 			Change: plans.Change{
-				Action: plans.Read,
+				Action: plans.Open,
 				Before: priorVal,
 				After:  proposedNewVal,
 			},
@@ -3101,7 +3137,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 
 	// We have a complete configuration with no dependencies to wait on, so we
 	// can read the data source into the state.
-	newVal, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
+	newVal, privateData, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
 
 	// Now we've loaded the data, and diags tells us whether we were successful
 	// or not, we are going to create our plannedChange and our
@@ -3113,10 +3149,113 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 	if !diags.HasErrors() {
 		// Finally, let's make our new state.
 		plannedNewState = &states.ResourceInstanceObject{
-			Value:  newVal,
-			Status: states.ObjectReady,
+			Value:   newVal,
+			Status:  states.ObjectReady,
+			Private: privateData, // TODO andrei - decide if we are working with this private data or we are going to work only with the one from the renewer
 		}
 	}
 
 	return plannedChange, plannedNewState, keyData, diags
+}
+
+func (n *NodeAbstractResourceInstance) startEphemeralRenew(ctx context.Context, evalContext EvalContext, renewAt *time.Time, privateData []byte) {
+	if n.Addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
+		return
+	}
+	n.renewStarted.Store(true)
+	privateData, diags := n.renewEphemeral(ctx, evalContext, renewAt, privateData)
+	// wait for the close signal. This is like this because the renewEphemeral can return right away if the renewAt is nil.
+	// But the close of the ephemeral should happen only when the graph walk is reaching the execution of the closing
+	// ephemeral resource node.
+	<-n.closeCh
+	diags = diags.Append(n.closeEphemeralResource(ctx, evalContext, privateData))
+	n.ephemeralDiags <- diags
+}
+
+func (n *NodeAbstractResourceInstance) closeEphemeralResource(ctx context.Context, evalContext EvalContext, privateData []byte) (diags tfdiags.Diagnostics) {
+	provider, _, err := getProvider(ctx, evalContext, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	if err != nil {
+		diags = diags.Append(err)
+		n.ephemeralDiags <- diags
+		return
+	}
+	req := providers.CloseEphemeralResourceRequest{
+		TypeName: n.Addr.Resource.Resource.Type,
+		Private:  privateData,
+	}
+
+	diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
+		return h.PreApply(n.Addr, states.CurrentGen, plans.Close, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject)) // TODO andrei check this empty object
+	}))
+	resp := provider.CloseEphemeralResource(ctx, req)
+	diags = diags.Append(resp.Diagnostics)
+
+	diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
+		return h.PostApply(n.Addr, states.CurrentGen, cty.NullVal(cty.EmptyObject), diags.Err())
+	}))
+	return diags.Append(diags)
+}
+
+// renewEphemeral is meant to be called into a goroutine. This method listens on ctx.Done and n.closeCh for ending the job and
+// to return the data.
+func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalContext EvalContext, renewAt *time.Time, privateData []byte) ([]byte, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	for {
+		if renewAt == nil {
+			return privateData, diags
+		}
+		select {
+		case <-time.After(time.Until(*renewAt)):
+		case <-n.closeCh:
+			return privateData, diags
+		case <-ctx.Done():
+			return privateData, diags
+		}
+		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
+			return h.PreApply(n.Addr, states.CurrentGen, plans.Renew, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject)) // TODO andrei check this empty object
+		}))
+		provider, _, err := getProvider(ctx, evalContext, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+		if err != nil {
+			diags = diags.Append(err)
+			// in case we cannot get the provider, let's retry. We could also add some kind of maxRetries
+			retry := time.Now().Add(4 * time.Second) // TODO andrei should we parametrize this somehow?
+			renewAt = &retry
+			continue
+		}
+		req := providers.RenewEphemeralResourceRequest{
+			TypeName: n.Addr.Resource.Resource.Type,
+			Private:  privateData,
+		}
+		resp := provider.RenewEphemeralResource(ctx, req)
+		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
+			return h.PostApply(n.Addr, states.CurrentGen, cty.NullVal(cty.EmptyObject), resp.Diagnostics.Err())
+		}))
+		renewAt = resp.RenewAt
+		privateData = resp.Private
+	}
+}
+
+// TODO andrei add more comments
+func (n *NodeAbstractResourceInstance) Close() tfdiags.Diagnostics {
+	if !n.renewStarted.Load() {
+		// If the ephemeral resource has been deferred, this method needs to return immediately.
+		return nil
+	}
+	defer func() {
+		close(n.ephemeralDiags)
+		n.renewStarted.Store(false)
+	}()
+	close(n.closeCh)
+	timeout := 10 * time.Second
+	select {
+	case d := <-n.ephemeralDiags:
+		return d
+	case <-time.After(timeout):
+		return tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Closing ephemeral resource timed out",
+			Detail:   fmt.Sprintf("The ephemeral resource %q timed out on closing after %s", n.Addr.String(), timeout),
+			Subject:  n.Config.DeclRange.Ptr(),
+		})
+	}
 }
