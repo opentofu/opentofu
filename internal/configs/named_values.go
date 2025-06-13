@@ -53,6 +53,10 @@ type Variable struct {
 	DeclRange hcl.Range
 }
 
+func DecodeVariableBlock(block *hcl.Block) (*Variable, hcl.Diagnostics) {
+	return decodeVariableBlock(block, false)
+}
+
 func decodeVariableBlock(block *hcl.Block, override bool) (*Variable, hcl.Diagnostics) {
 	v := &Variable{
 		Name:      block.Labels[0],
@@ -531,6 +535,10 @@ type Local struct {
 	Expr hcl.Expression
 
 	DeclRange hcl.Range
+}
+
+func DecodeLocalsBlock(block *hcl.Block) ([]*Local, hcl.Diagnostics) {
+	return decodeLocalsBlock(block)
 }
 
 func decodeLocalsBlock(block *hcl.Block) ([]*Local, hcl.Diagnostics) {
