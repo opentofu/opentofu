@@ -8,22 +8,22 @@ package azure
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/2017-03-09/resources/mgmt/resources"
-	armStorage "github.com/Azure/azure-sdk-for-go/services/storage/mgmt/2021-01-01/storage"
-	"github.com/Azure/go-autorest/autorest"
-	sasStorage "github.com/hashicorp/go-azure-helpers/storage"
-	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/containers"
-)
-
-const (
-	// required for Azure Stack
-	sasSignedVersion = "2015-04-05"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/storage/armstorage"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/sas"
+	"github.com/opentofu/opentofu/internal/backend/remote-state/azure/auth"
+	"github.com/opentofu/opentofu/internal/httpclient"
 )
 
 // verify that we are doing ACC tests or the Azure tests specifically
@@ -35,195 +35,191 @@ func testAccAzureBackend(t *testing.T) {
 	}
 }
 
-// these kind of tests can only run when within Azure (e.g. MSI)
-func testAccAzureBackendRunningInAzure(t *testing.T) {
-	testAccAzureBackend(t)
-
-	if os.Getenv("TF_RUNNING_IN_AZURE") == "" {
-		t.Skip("Skipping test since not running in Azure")
-	}
-}
-
-func buildTestClient(t *testing.T, res resourceNames) *ArmClient {
-	subscriptionID := os.Getenv("ARM_SUBSCRIPTION_ID")
-	tenantID := os.Getenv("ARM_TENANT_ID")
-	clientID := os.Getenv("ARM_CLIENT_ID")
-	clientSecret := os.Getenv("ARM_CLIENT_SECRET")
-	msiEnabled := strings.EqualFold(os.Getenv("ARM_USE_MSI"), "true")
-	environment := os.Getenv("ARM_ENVIRONMENT")
-
-	hasCredentials := (clientID != "" && clientSecret != "") || msiEnabled
-	if !hasCredentials {
-		t.Fatal("Azure credentials missing or incomplete")
-	}
-
-	if subscriptionID == "" {
-		t.Fatalf("Missing ARM_SUBSCRIPTION_ID")
-	}
-
-	if tenantID == "" {
-		t.Fatalf("Missing ARM_TENANT_ID")
-	}
-
-	if environment == "" {
-		t.Fatalf("Missing ARM_ENVIRONMENT")
-	}
-
-	// location isn't used in this method, but is in the other test methods
-	location := os.Getenv("ARM_LOCATION")
-	if location == "" {
-		t.Fatalf("Missing ARM_LOCATION")
-	}
-
-	// Endpoint is optional (only for Stack)
-	endpoint := os.Getenv("ARM_ENDPOINT")
-
-	armClient, err := buildArmClient(t.Context(), BackendConfig{
-		SubscriptionID:                subscriptionID,
-		TenantID:                      tenantID,
-		ClientID:                      clientID,
-		ClientSecret:                  clientSecret,
-		CustomResourceManagerEndpoint: endpoint,
-		Environment:                   environment,
-		ResourceGroupName:             res.resourceGroup,
-		StorageAccountName:            res.storageAccountName,
-		UseMsi:                        msiEnabled,
-		UseAzureADAuthentication:      res.useAzureADAuth,
-		TimeoutSeconds:                defaultTimeout,
-	})
-	if err != nil {
-		t.Fatalf("Failed to build ArmClient: %+v", err)
-	}
-
-	return armClient
-}
-
-func buildSasToken(accountName, accessKey string) (*string, error) {
-	// grant full access to Objects in the Blob Storage Account
-	permissions := "rwdlacup" // full control
-	resourceTypes := "sco"    // service, container, object
-	services := "b"           // blob
-
-	// Details on how to do this are here:
-	// https://docs.microsoft.com/en-us/rest/api/storageservices/Constructing-an-Account-SAS
-	signedProtocol := "https,http"
-	signedIp := ""
-	signedVersion := sasSignedVersion
-
-	utcNow := time.Now().UTC()
-
-	// account for servers being up to 5 minutes out
-	startDate := utcNow.Add(time.Minute * -5).Format(time.RFC3339)
-	endDate := utcNow.Add(time.Hour * 24).Format(time.RFC3339)
-
-	sasToken, err := sasStorage.ComputeAccountSASToken(accountName, accessKey, permissions, services, resourceTypes,
-		startDate, endDate, signedProtocol, signedIp, signedVersion)
-	if err != nil {
-		return nil, fmt.Errorf("Error computing SAS Token: %w", err)
-	}
-	log.Printf("SAS Token should be %q", sasToken)
-	return &sasToken, nil
-}
-
 type resourceNames struct {
+	subscriptionID          string
+	tenantID                string
 	resourceGroup           string
 	location                string
 	storageAccountName      string
 	storageContainerName    string
 	storageKeyName          string
 	storageAccountAccessKey string
-	useAzureADAuth          bool
 }
 
 func testResourceNames(rString string, keyName string) resourceNames {
 	return resourceNames{
+		subscriptionID:       os.Getenv("ARM_SUBSCRIPTION_ID"),
+		tenantID:             os.Getenv("ARM_TENANT_ID"),
 		resourceGroup:        fmt.Sprintf("acctestRG-backend-%s-%s", strings.Replace(time.Now().Local().Format("060102150405.00"), ".", "", 1), rString),
 		location:             os.Getenv("ARM_LOCATION"),
 		storageAccountName:   fmt.Sprintf("acctestsa%s", rString),
 		storageContainerName: "acctestcont",
 		storageKeyName:       keyName,
-		useAzureADAuth:       false,
 	}
 }
 
-func (c *ArmClient) buildTestResources(t *testing.T, ctx context.Context, names *resourceNames) error {
-	t.Helper()
-	t.Logf("Creating Resource Group %q", names.resourceGroup)
-	_, err := c.groupsClient.CreateOrUpdate(ctx, names.resourceGroup, resources.Group{Location: &names.location})
+// createTestResources creates a resource group, a storage account, and a storage container.
+// Additionally, it sets the storageAccountAccessKey to a valid key on that storage account,
+// and returns a client for both the storage container and the resource group (the latter for
+// cleanup purposes).
+func createTestResources(t *testing.T, res *resourceNames, authCred azcore.TokenCredential) (*armresources.ResourceGroupsClient, *container.Client, error) {
+	client := httpclient.New(t.Context())
+	resourceGroupClient, err := auth.NewResourceClient(client, authCred, res.subscriptionID)
 	if err != nil {
-		return fmt.Errorf("failed to create test resource group: %w", err)
+		return nil, nil, err
 	}
 
-	t.Logf("Creating Storage Account %q in Resource Group %q", names.storageAccountName, names.resourceGroup)
-	storageProps := armStorage.AccountCreateParameters{
-		Sku: &armStorage.Sku{
-			Name: armStorage.StandardLRS,
-			Tier: armStorage.Standard,
+	// Create Resource Group
+	_, err = resourceGroupClient.CreateOrUpdate(t.Context(), res.resourceGroup, armresources.ResourceGroup{Location: &res.location}, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating resource group: %w", err)
+	}
+
+	accountsClient, err := auth.NewStorageAccountsClient(client, authCred, cloud.AzurePublic, res.subscriptionID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create Storage Account
+	future, err := accountsClient.BeginCreate(t.Context(), res.resourceGroup, res.storageAccountName, armstorage.AccountCreateParameters{
+		Kind:     to.Ptr(armstorage.KindStorageV2),
+		Location: &res.location,
+		SKU: &armstorage.SKU{
+			Name: to.Ptr(armstorage.SKUNameStandardLRS),
+			Tier: to.Ptr(armstorage.SKUTierStandard),
 		},
-		Location: &names.location,
-	}
-	if names.useAzureADAuth {
-		allowSharedKeyAccess := false
-		storageProps.AccountPropertiesCreateParameters = &armStorage.AccountPropertiesCreateParameters{
-			AllowSharedKeyAccess: &allowSharedKeyAccess,
-		}
-	}
-	future, err := c.storageAccountsClient.Create(ctx, names.resourceGroup, names.storageAccountName, storageProps)
+	}, nil)
 	if err != nil {
-		return fmt.Errorf("failed to create test storage account: %w", err)
+		return nil, nil, fmt.Errorf("failed to create test storage account: %w", err)
 	}
-
-	err = future.WaitForCompletionRef(ctx, c.storageAccountsClient.Client)
+	// Wait until the Storage Account is fully created
+	_, err = future.PollUntilDone(t.Context(), nil)
 	if err != nil {
-		return fmt.Errorf("failed waiting for the creation of storage account: %w", err)
+		return nil, nil, fmt.Errorf("failed waiting for the creation of storage account: %w", err)
 	}
 
-	containersClient := containers.NewWithEnvironment(c.environment)
-	if names.useAzureADAuth {
-		containersClient.Client.Authorizer = *c.azureAdStorageAuth
-	} else {
-		t.Logf("fetching access key for storage account")
-		resp, err := c.storageAccountsClient.ListKeys(ctx, names.resourceGroup, names.storageAccountName, "")
-		if err != nil {
-			return fmt.Errorf("failed to list storage account keys %w:", err)
-		}
-
-		keys := *resp.Keys
-		accessKey := *keys[0].Value
-		names.storageAccountAccessKey = accessKey
-
-		storageAuth, err := autorest.NewSharedKeyAuthorizer(names.storageAccountName, accessKey, autorest.SharedKey)
-		if err != nil {
-			return fmt.Errorf("Error building Authorizer: %w", err)
-		}
-
-		containersClient.Client.Authorizer = storageAuth
-	}
-
-	t.Logf("Creating Container %q in Storage Account %q (Resource Group %q)", names.storageContainerName, names.storageAccountName, names.resourceGroup)
-	_, err = containersClient.Create(ctx, names.storageAccountName, names.storageContainerName, containers.CreateInput{})
+	containerClient, key, err := auth.NewContainerClientWithSharedKeyCredentialAndKey(
+		t.Context(),
+		auth.StorageAddresses{
+			CloudConfig:      cloud.AzurePublic,
+			SubscriptionID:   res.subscriptionID,
+			StorageAccount:   res.storageAccountName,
+			StorageSuffix:    "core.windows.net",
+			ResourceGroup:    res.resourceGroup,
+			StorageContainer: res.storageContainerName,
+		},
+		authCred,
+	)
 	if err != nil {
-		return fmt.Errorf("failed to create storage container: %w", err)
+		return nil, nil, err
 	}
 
-	return nil
+	// The storage account access key is used in some tests: we "return" it through the resource name pointer
+	res.storageAccountAccessKey = key
+
+	// Create a Storage Container
+	_, err = containerClient.Create(t.Context(), nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("error creating storage container: %w", err)
+	}
+	return resourceGroupClient, containerClient, nil
 }
 
-func (c ArmClient) destroyTestResources(t *testing.T, resources resourceNames) error {
-	ctx := context.Background() // t.Context() is invalid during t.Cleanup
+var PERMISSIONS sas.AccountPermissions = sas.AccountPermissions{
+	Read:    true,
+	Write:   true,
+	Delete:  true,
+	List:    true,
+	Add:     true,
+	Create:  true,
+	Update:  true,
+	Process: true,
+}
 
-	t.Helper()
-	t.Logf("[DEBUG] Deleting Resource Group %q..", resources.resourceGroup)
-	future, err := c.groupsClient.Delete(ctx, resources.resourceGroup)
+func getSASToken(sharedKey *sas.SharedKeyCredential) (string, error) {
+	utcNow := time.Now().UTC()
+
+	// account for servers being up to 5 minutes out
+	startDate := utcNow.Add(time.Minute * -5)
+	endDate := utcNow.Add(time.Hour * 24)
+
+	qps, err := sas.AccountSignatureValues{
+		Version:       sas.Version,
+		Protocol:      sas.ProtocolHTTPS,
+		StartTime:     startDate,
+		ExpiryTime:    endDate,
+		Permissions:   PERMISSIONS.String(),
+		ResourceTypes: "sco",
+	}.SignWithSharedKey(sharedKey)
 	if err != nil {
-		return fmt.Errorf("Error deleting Resource Group: %w", err)
+		return "", err
+	}
+	return qps.Encode(), nil
+}
+
+func deleteBlobsInMSI(t *testing.T, storageAccountName, resourceGroupName, containerName string) {
+	client := httpclient.New(t.Context())
+
+	authCred, err := azidentity.NewManagedIdentityCredential(
+		&azidentity.ManagedIdentityCredentialOptions{ClientOptions: azcore.ClientOptions{
+			Telemetry: policy.TelemetryOptions{
+				Disabled: true,
+			},
+			Transport: client,
+			Cloud:     cloud.AzurePublic,
+		}},
+	)
+	if err != nil {
+		t.Logf("Skipping deleting blobs in container %s due to error obtaining credentials: %v", containerName, err)
+		return
+	}
+	names := auth.StorageAddresses{
+		CloudConfig:      cloud.AzurePublic,
+		ResourceGroup:    resourceGroupName,
+		StorageAccount:   storageAccountName,
+		StorageContainer: containerName,
+		StorageSuffix:    "core.windows.net",
 	}
 
-	t.Logf("[DEBUG] Waiting for deletion of Resource Group %q..", resources.resourceGroup)
-	err = future.WaitForCompletionRef(ctx, c.groupsClient.Client)
+	containerClient, err := auth.NewContainerClient(t.Context(), names, authCred)
 	if err != nil {
-		return fmt.Errorf("Error waiting for the deletion of Resource Group: %w", err)
+		t.Logf("Skipping deleting blobs in container %s due to error obtaining container client: %v", containerName, err)
+		return
 	}
 
-	return nil
+	pager := containerClient.NewListBlobsFlatPager(nil)
+	for pager.More() {
+		resp, err := pager.NextPage(t.Context())
+		if err != nil || resp.Segment == nil || resp.Segment.BlobItems == nil {
+			t.Logf("error getting blob page, ignoring and continuing: %v", err)
+			continue
+		}
+		for _, obj := range resp.Segment.BlobItems {
+			_, err := containerClient.NewBlobClient(*obj.Name).Delete(t.Context(), nil)
+			if err != nil {
+				t.Logf("error deleting blob, ignoring and continuing: %v", err)
+				continue
+			}
+		}
+	}
+}
+
+func destroyTestResources(t *testing.T, resourceGroupClient *armresources.ResourceGroupsClient, res resourceNames) {
+	_, err := resourceGroupClient.BeginDelete(context.Background(), res.resourceGroup, nil)
+	if err != nil {
+		t.Fatalf("Error deleting Resource Group: %v", err)
+	}
+}
+
+func emptyAuthConfig() *auth.Config {
+	return &auth.Config{
+		AzureCLIAuthConfig: auth.AzureCLIAuthConfig{
+			CLIAuthEnabled: true,
+		},
+		ClientSecretCredentialAuthConfig: auth.ClientSecretCredentialAuthConfig{},
+		ClientCertificateAuthConfig:      auth.ClientCertificateAuthConfig{},
+		OIDCAuthConfig:                   auth.OIDCAuthConfig{},
+		MSIAuthConfig:                    auth.MSIAuthConfig{},
+		StorageAddresses:                 auth.StorageAddresses{},
+	}
 }

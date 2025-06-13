@@ -11,14 +11,13 @@ import (
 	"log"
 	"sort"
 	"strings"
-	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
+	"github.com/Azure/azure-sdk-for-go/sdk/storage/azblob/container"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
-	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/blobs"
-	"github.com/tombuildsstuff/giovanni/storage/2018-11-09/blob/containers"
 )
 
 const (
@@ -29,20 +28,15 @@ const (
 
 // getContextWithTimeout returns a context with timeout based on the timeoutSeconds
 func (b *Backend) getContextWithTimeout(ctx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(ctx, time.Duration(b.armClient.timeoutSeconds)*time.Second)
+	return context.WithTimeout(ctx, b.timeout)
 }
 
 func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	ctx, cancel := b.getContextWithTimeout(ctx)
 	defer cancel()
 
-	client, err := b.armClient.getContainersClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	prefix := b.keyName + keyEnvPrefix
-	result, err := getPaginatedResults(ctx, client, prefix, b.armClient.storageAccountName, b.containerName)
+	result, err := getPaginatedResults(ctx, b.containerClient, prefix)
 	if err != nil {
 		return nil, err
 	}
@@ -57,36 +51,24 @@ func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) erro
 
 	ctx, cancel := b.getContextWithTimeout(ctx)
 	defer cancel()
-	client, err := b.armClient.getBlobClient(ctx)
-	if err != nil {
-		return err
-	}
+	blobClient := b.containerClient.NewBlockBlobClient(b.path(name))
 
-	if resp, err := client.Delete(ctx, b.armClient.storageAccountName, b.containerName, b.path(name), blobs.DeleteInput{}); err != nil {
-		if resp.Response.StatusCode != 404 {
-			return err
+	if _, err := blobClient.Delete(ctx, nil); err != nil {
+		if !notFoundError(err) {
+			return fmt.Errorf("error deleting blob: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
-	ctx, cancel := b.getContextWithTimeout(ctx)
-	defer cancel()
-
-	blobClient, err := b.armClient.getBlobClient(ctx)
-	if err != nil {
-		return nil, err
-	}
+func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
+	blobClient := b.containerClient.NewBlockBlobClient(b.path(name))
 
 	client := &RemoteClient{
-		giovanniBlobClient: *blobClient,
-		containerName:      b.containerName,
-		keyName:            b.path(name),
-		accountName:        b.accountName,
-		snapshot:           b.snapshot,
-		timeoutSeconds:     b.armClient.timeoutSeconds,
+		blobClient: blobClient,
+		snapshot:   b.snapshot,
+		timeout:    b.timeout,
 	}
 
 	stateMgr := remote.NewState(client, b.encryption)
@@ -114,28 +96,18 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 			return parent
 		}
 
-		// Grab the value
-		if err := stateMgr.RefreshState(context.TODO()); err != nil {
+		if err := stateMgr.WriteState(states.NewState()); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}
-		//if this isn't the default state name, we need to create the object so
-		//it's listed by States.
-		if v := stateMgr.State(); v == nil {
-			// If we have no state, we have to create an empty state
-			if err := stateMgr.WriteState(states.NewState()); err != nil {
-				err = lockUnlock(err)
-				return nil, err
-			}
-			if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
-				err = lockUnlock(err)
-				return nil, err
-			}
+		if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
+			err = lockUnlock(err)
+			return nil, err
+		}
 
-			// Unlock, the state should now be initialized
-			if err := lockUnlock(nil); err != nil {
-				return nil, err
-			}
+		// Unlock, the state should now be initialized
+		if err := lockUnlock(nil); err != nil {
+			return nil, err
 		}
 	}
 
@@ -159,35 +131,35 @@ You may have to force-unlock this state in order to use it again.
 `
 
 type azureClient interface {
-	ListBlobs(ctx context.Context, accountName, containerName string, input containers.ListBlobsInput) (result containers.ListBlobsResult, err error)
+	NewListBlobsFlatPager(o *container.ListBlobsFlatOptions) *runtime.Pager[container.ListBlobsFlatResponse]
 }
 
-func getPaginatedResults(ctx context.Context, client azureClient, prefix, accName, containerName string) ([]string, error) {
+func getPaginatedResults(ctx context.Context, client azureClient, prefix string) ([]string, error) {
 	count := 1
 	initialMarker := ""
 
-	params := containers.ListBlobsInput{
+	params := container.ListBlobsFlatOptions{
 		Prefix: &prefix,
 		Marker: &initialMarker,
 	}
 	result := []string{backend.DefaultStateName}
+	pager := client.NewListBlobsFlatPager(&params)
 
-	for {
+	for pager.More() {
 		log.Printf("[TRACE] Getting page %d of blob results", count)
-		resp, err := client.ListBlobs(ctx, accName, containerName, params)
+
+		resp, err := pager.NextPage(ctx)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error listing blobs: %w", err)
 		}
 
-		// Used to paginate blobs, saving the NextMarker result from ListBlobs
-		params.Marker = resp.NextMarker
-		for _, obj := range resp.Blobs.Blobs {
+		for _, obj := range resp.Segment.BlobItems {
 			key := obj.Name
-			if !strings.HasPrefix(key, prefix) {
+			if !strings.HasPrefix(*key, prefix) {
 				continue
 			}
 
-			name := strings.TrimPrefix(key, prefix)
+			name := strings.TrimPrefix(*key, prefix)
 			// we store the state in a key, not a directory
 			if strings.Contains(name, "/") {
 				continue
@@ -196,9 +168,6 @@ func getPaginatedResults(ctx context.Context, client azureClient, prefix, accNam
 		}
 
 		count++
-		if params.Marker == nil || *params.Marker == "" {
-			break
-		}
 	}
 
 	sort.Strings(result[1:])
