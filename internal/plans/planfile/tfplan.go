@@ -6,6 +6,7 @@
 package planfile
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"time"
@@ -20,6 +21,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/plans/internal/planproto"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statestore"
 	"github.com/opentofu/opentofu/version"
 )
 
@@ -247,25 +249,58 @@ func readTfplan(r io.Reader) (*plans.Plan, error) {
 		plan.VariableValues[name] = val
 	}
 
-	if rawBackend := rawPlan.Backend; rawBackend == nil {
-		return nil, fmt.Errorf("plan file has no backend settings; backend settings are required")
-	} else {
-		config, err := valueFromTfplan(rawBackend.Config)
-		if err != nil {
-			return nil, fmt.Errorf("plan file has invalid backend configuration: %w", err)
-		}
-		plan.Backend = plans.Backend{
-			Type:      rawBackend.Type,
-			Config:    config,
-			Workspace: rawBackend.Workspace,
-		}
+	plan.StateLocksShared, err = stateKeyHashesFromTfplan(rawPlan.SharedLocks)
+	if err != nil {
+		return nil, fmt.Errorf("invalid shared state locks: %w", err)
 	}
+	plan.StateLocksExclusive, err = stateKeyHashesFromTfplan(rawPlan.ExclusiveLocks)
+	if err != nil {
+		return nil, fmt.Errorf("invalid exclusive state locks: %w", err)
+	}
+
+	/*
+		if rawBackend := rawPlan.Backend; rawBackend == nil {
+			return nil, fmt.Errorf("plan file has no backend settings; backend settings are required")
+		} else {
+			config, err := valueFromTfplan(rawBackend.Config)
+			if err != nil {
+				return nil, fmt.Errorf("plan file has invalid backend configuration: %w", err)
+			}
+			plan.Backend = plans.Backend{
+				Type:      rawBackend.Type,
+				Config:    config,
+				Workspace: rawBackend.Workspace,
+			}
+		}
+	*/
 
 	if plan.Timestamp, err = time.Parse(time.RFC3339, rawPlan.Timestamp); err != nil {
 		return nil, fmt.Errorf("invalid value for timestamp %s: %w", rawPlan.Timestamp, err)
 	}
 
 	return plan, nil
+}
+
+func stateKeyHashesFromTfplan(raw map[string][]byte) (statestore.ValueHashes, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var errs error
+	ret := make(statestore.ValueHashes, len(raw))
+	for rawKey, rawHash := range raw {
+		key, err := statestore.ParseKey(rawKey)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		hash, err := statestore.ParseValueHash(rawHash)
+		if err != nil {
+			errs = errors.Join(errs, err)
+			continue
+		}
+		ret[key] = hash
+	}
+	return ret, errs
 }
 
 func resourceChangeFromTfplan(rawChange *planproto.ResourceInstanceChange) (*plans.ResourceInstanceChangeSrc, error) {
@@ -630,18 +665,23 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 		rawPlan.Variables[name] = valueToTfplan(val)
 	}
 
-	if plan.Backend.Type == "" || plan.Backend.Config == nil {
-		// This suggests a bug in the code that created the plan, since it
-		// ought to always have a backend populated, even if it's the default
-		// "local" backend with a local state file.
-		return fmt.Errorf("plan does not have a backend configuration")
-	}
+	rawPlan.SharedLocks = stateKeyHashesToTfplan(plan.StateLocksShared)
+	rawPlan.ExclusiveLocks = stateKeyHashesToTfplan(plan.StateLocksExclusive)
 
-	rawPlan.Backend = &planproto.Backend{
-		Type:      plan.Backend.Type,
-		Config:    valueToTfplan(plan.Backend.Config),
-		Workspace: plan.Backend.Workspace,
-	}
+	/*
+		if plan.Backend.Type == "" || plan.Backend.Config == nil {
+			// This suggests a bug in the code that created the plan, since it
+			// ought to always have a backend populated, even if it's the default
+			// "local" backend with a local state file.
+			return fmt.Errorf("plan does not have a backend configuration")
+		}
+
+		rawPlan.Backend = &planproto.Backend{
+			Type:      plan.Backend.Type,
+			Config:    valueToTfplan(plan.Backend.Config),
+			Workspace: plan.Backend.Workspace,
+		}
+	*/
 
 	rawPlan.Timestamp = plan.Timestamp.Format(time.RFC3339)
 
@@ -656,6 +696,17 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 	}
 
 	return nil
+}
+
+func stateKeyHashesToTfplan(hashes statestore.ValueHashes) map[string][]byte {
+	if len(hashes) == 0 {
+		return nil
+	}
+	ret := make(map[string][]byte, len(hashes))
+	for key, hash := range hashes {
+		ret[key.Name()] = hash[:]
+	}
+	return ret
 }
 
 func resourceAttrToTfplan(ra globalref.ResourceAttr) (*planproto.PlanResourceAttr, error) {

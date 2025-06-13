@@ -10,12 +10,16 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/command/arguments"
 	"github.com/opentofu/opentofu/internal/command/views"
+	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans/planfile"
+	"github.com/opentofu/opentofu/internal/states/statestoreshim"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/opentofu/opentofu/internal/tofu"
 )
 
 // ApplyCommand is a Command implementation that applies a OpenTofu
@@ -74,16 +78,8 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// Inject variables from args into meta for static evaluation
 	c.GatherVariables(args.Vars)
 
-	// Load the encryption configuration
-	enc, encDiags := c.Encryption(ctx)
-	diags = diags.Append(encDiags)
-	if encDiags.HasErrors() {
-		view.Diagnostics(diags)
-		return 1
-	}
-
 	// Attempt to load the plan file, if specified
-	planFile, diags := c.LoadPlanFile(args.PlanPath, enc)
+	planFile, diags := c.LoadPlanFile(args.PlanPath, encryption.Disabled())
 	if diags.HasErrors() {
 		view.Diagnostics(diags)
 		return 1
@@ -113,51 +109,65 @@ func (c *ApplyCommand) Run(rawArgs []string) int {
 	// object state for now.
 	c.Meta.parallelism = args.Operation.Parallelism
 
-	// Prepare the backend, passing the plan file if present, and the
-	// backend-specific arguments
-	be, beDiags := c.PrepareBackend(ctx, planFile, args.State, args.ViewType, enc.State())
-	diags = diags.Append(beDiags)
-	if diags.HasErrors() {
+	planReader, ok := planFile.Local()
+	if !ok {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Can't use a remotely-created plan",
+			"The granular state storage prototype does not currently support remote saved plans.",
+		))
 		view.Diagnostics(diags)
 		return 1
 	}
 
-	// Build the operation request
-	opReq, opDiags := c.OperationRequest(ctx, be, view, args.ViewType, planFile, args.Operation, args.AutoApprove, enc)
-	diags = diags.Append(opDiags)
-
-	// Before we delegate to the backend, we'll print any warning diagnostics
-	// we've accumulated here, since the backend will start fresh with its own
-	// diagnostics.
-	view.Diagnostics(diags)
-	if diags.HasErrors() {
+	plan, err := planReader.ReadPlan()
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
 		return 1
 	}
-	diags = nil
-
-	// Run the operation
-	op, diags := c.RunOperation(ctx, be, opReq)
-	view.Diagnostics(diags)
-	if diags.HasErrors() {
+	config, moreDiags := planReader.ReadConfig(ctx, configs.NewStaticModuleCall(addrs.RootModule, nil, ".", "default"))
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		view.Diagnostics(diags)
 		return 1
 	}
 
-	if op.Result != backend.OperationSuccess {
-		return op.Result.ExitStatus()
+	stateStore, err := c.stateStorage()
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
+		return 1
 	}
 
-	// Render the resource count and outputs, unless those counts are being
-	// rendered already in a remote OpenTofu process.
-	if rb, isRemoteBackend := be.(BackendWithRemoteTerraformVersion); !isRemoteBackend || rb.IsLocalOperations() {
-		view.ResourceCount(args.State.StateOutPath)
-		if !c.Destroy && op.State != nil {
-			view.Outputs(op.State.RootModule().OutputValues)
-		}
+	lockedKeys, err := statestoreshim.PrepareToApplyPlan(ctx, plan, stateStore)
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
+		return 1
+	}
+	defer stateStore.Unlock(ctx, lockedKeys)
+
+	tofuCtxOpts, err := c.contextOpts(ctx)
+	if err != nil {
+		diags = diags.Append(err)
+		view.Diagnostics(diags)
+		return 1
+	}
+	// We'll add an extra hook here so that we'll get notified each time
+	// the language runtime thinks we should write something to the state.
+	tofuCtxOpts.Hooks = append(tofuCtxOpts.Hooks, statestoreshim.NewStateUpdateHook(stateStore))
+	tofuCtx, moreDiags := tofu.NewContext(tofuCtxOpts)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		view.Diagnostics(diags)
+		return 1
 	}
 
-	view.Diagnostics(diags)
-
-	if diags.HasErrors() {
+	_, moreDiags = tofuCtx.Apply(ctx, plan, config)
+	diags = diags.Append(moreDiags)
+	if moreDiags.HasErrors() {
+		view.Diagnostics(diags)
 		return 1
 	}
 
@@ -203,9 +213,15 @@ func (c *ApplyCommand) LoadPlanFile(path string, enc encryption.Encryption) (*pl
 			))
 			return nil, diags
 		}
+		return planFile, diags
+	} else {
+		diags = diags.Append(tfdiags.Sourceless(
+			tfdiags.Error,
+			"Saved plan file is required",
+			"The granular state storage prototype currently supports only the separated plan/apply workflow, so a plan file is required for now.",
+		))
+		return nil, diags
 	}
-
-	return planFile, diags
 }
 
 func (c *ApplyCommand) PrepareBackend(ctx context.Context, planFile *planfile.WrappedPlanFile, args *arguments.State, viewType arguments.ViewType, enc encryption.StateEncryption) (backend.Enhanced, tfdiags.Diagnostics) {
