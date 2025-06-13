@@ -230,6 +230,9 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		// configuration
 		&attachDataResourceDependsOnTransformer{},
 
+		// TODO andrei check and test this part
+		//&attachEphemeralResourceDependsOnTransformer{},
+
 		// DestroyEdgeTransformer is only required during a plan so that the
 		// TargetingTransformer can determine which nodes to keep in the graph.
 		&DestroyEdgeTransformer{
@@ -246,6 +249,12 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 		// Detect when create_before_destroy must be forced on for a particular
 		// node due to dependency edges, to avoid graph cycles during apply.
 		&ForcedCBDTransformer{},
+
+		// Detect the ephemeral plannable resources and create nodes to close them
+		&CloseableResourceTransformer{
+			// Closeable nodes are not needed to be added during validate.
+			skip: b.Operation == walkValidate,
+		},
 
 		// Close opened plugin connections
 		&CloseProviderTransformer{},
