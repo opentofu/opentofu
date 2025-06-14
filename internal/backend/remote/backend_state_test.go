@@ -53,7 +53,10 @@ func TestRemoteClient_Put_withRunID(t *testing.T) {
 	// Create a new empty state.
 	sf := statefile.New(states.NewState(), "", 0)
 	var buf bytes.Buffer
-	statefile.Write(sf, &buf, encryption.StateEncryptionDisabled())
+	err := statefile.Write(sf, &buf, encryption.StateEncryptionDisabled())
+	if err != nil {
+		t.Fatalf("error writing to statefile, got %v", err)
+	}
 
 	// Store the new state to verify (this will be done
 	// by the mock that is used) that the run ID is set.

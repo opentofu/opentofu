@@ -340,7 +340,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 			continue
 		}
 
-		err = os.MkdirAll(instPath, os.ModePerm)
+		err := os.MkdirAll(instPath, os.ModePerm)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -353,7 +353,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		// We copy rather than "rename" here because renaming between directories
 		// can be tricky in edge-cases like network filesystems, etc.
 		log.Printf("[TRACE] copying new module %s from %s to %s", newKey, record.Dir, instPath)
-		err := copy.CopyDir(instPath, tempPath)
+		err = copy.CopyDir(instPath, tempPath)
 		if err != nil {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,
@@ -377,7 +377,7 @@ func DirFromModule(ctx context.Context, loader *configload.Loader, rootDir, modu
 		hooks.Install(newRecord.Key, newRecord.Version, newRecord.Dir)
 	}
 
-	retManifest.WriteSnapshotToDir(modulesDir)
+	err = retManifest.WriteSnapshotToDir(modulesDir)
 	if err != nil {
 		diags = diags.Append(tfdiags.Sourceless(
 			tfdiags.Error,

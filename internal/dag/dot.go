@@ -47,6 +47,8 @@ type DotNode struct {
 }
 
 // Returns the DOT representation of this Graph.
+//
+//nolint:errcheck // writing to the buffer does not produce an error
 func (g *marshalGraph) Dot(opts *DotOpts) []byte {
 	if opts == nil {
 		opts = &DotOpts{
@@ -152,7 +154,7 @@ func (g *marshalGraph) writeSubgraph(sg *marshalGraph, opts *DotOpts, depth int,
 		name = "cluster_" + name
 		sg.Attrs["label"] = sg.Name
 	}
-	w.WriteString(fmt.Sprintf("subgraph %q {\n", name))
+	fmt.Fprintf(w, "subgraph %q {\n", name) //nolint:errcheck // writing to the buffer does not produce an error
 	sg.writeBody(opts, w)
 
 	for _, sg := range sg.Subgraphs {
@@ -160,6 +162,7 @@ func (g *marshalGraph) writeSubgraph(sg *marshalGraph, opts *DotOpts, depth int,
 	}
 }
 
+//nolint:errcheck // writing to the buffer does not produce an error
 func (g *marshalGraph) writeBody(opts *DotOpts, w *indentWriter) {
 	w.Indent()
 

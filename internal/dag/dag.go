@@ -105,7 +105,7 @@ func (g *AcyclicGraph) TransitiveReduction() {
 	for _, u := range g.Vertices() {
 		uTargets := g.downEdgesNoCopy(u)
 
-		g.DepthFirstWalk(g.downEdgesNoCopy(u), func(v Vertex, d int) error {
+		g.DepthFirstWalk(g.downEdgesNoCopy(u), func(v Vertex, d int) error { //nolint:errcheck // err is always returned as nil
 			shared := uTargets.Intersection(g.downEdgesNoCopy(v))
 			for _, vPrime := range shared {
 				g.RemoveEdge(BasicEdge(u, vPrime))

@@ -983,15 +983,6 @@ func generalError(msg string, err error) error {
 	}
 }
 
-func checkConstraintsWarning(err error) tfdiags.Diagnostic {
-	return tfdiags.Sourceless(
-		tfdiags.Warning,
-		fmt.Sprintf("Failed to check version constraints: %v", err),
-		"Checking version constraints is considered optional, but this is an"+
-			"unexpected error which should be reported.",
-	)
-}
-
 // The newline in this error is to make it look good in the CLI!
 const initialRetryError = `
 [reset][yellow]There was an error connecting to the remote backend. Please do not exit
