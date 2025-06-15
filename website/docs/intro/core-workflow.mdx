@@ -1,7 +1,7 @@
 ---
 sidebar_label: Working with OpenTofu
 sidebar_position: 6
-description: 'An overview of how individuals, teams, and organizations can use OpenTofu. '
+description: "An overview of how individuals, teams, and organizations can use OpenTofu. "
 ---
 
 # Working with OpenTofu
@@ -54,7 +54,7 @@ expect.
 $ vim main.tf
 
 # Review plan
-$ tofu plan
+$ tofu plan -out "tfplan"
 
 # Make additional edits, and repeat
 $ vim main.tf
@@ -81,7 +81,7 @@ proceeding to change any infrastructure, that's the command you run for final
 review.
 
 ```sh
-$ tofu apply
+$ tofu apply "tfplan"
 
 An execution plan has been generated and is shown below.
 # ...
