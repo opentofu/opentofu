@@ -5,6 +5,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -18,7 +19,7 @@ import (
 	"github.com/zclconf/go-cty/cty/gocty"
 )
 
-func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
+func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyData instances.RepetitionData) (string, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if expr == nil {
@@ -31,7 +32,7 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 	}
 
 	// evaluate the import ID and take into consideration the for_each key (if exists)
-	importIdVal, evalDiags := evaluateExprWithRepetitionData(ctx, expr, cty.String, keyData)
+	importIdVal, evalDiags := evaluateExprWithRepetitionData(context.TODO(), evalCtx, expr, cty.String, keyData)
 	diags = diags.Append(evalDiags)
 
 	if importIdVal.IsNull() {
@@ -82,9 +83,9 @@ func evaluateImportIdExpression(expr hcl.Expression, ctx EvalContext, keyData in
 // it to produce a value, while taking into consideration any repetition key
 // (a single combination of each.key and each.value of a for_each argument)
 // that should be a part of the scope.
-func evaluateExprWithRepetitionData(ctx EvalContext, expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
-	scope := ctx.EvaluationScope(nil, nil, keyData)
-	return scope.EvalExpr(expr, wantType)
+func evaluateExprWithRepetitionData(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, wantType cty.Type, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+	scope := evalCtx.EvaluationScope(nil, nil, keyData)
+	return scope.EvalExpr(ctx, expr, wantType)
 }
 
 // EvaluateImportAddress takes the raw reference expression of the import address
@@ -93,8 +94,8 @@ func evaluateExprWithRepetitionData(ctx EvalContext, expr hcl.Expression, wantTy
 // The implementation is inspired by config.AbsTraversalForImportToExpr, but this time we can evaluate the expression
 // in the indexes of expressions. If we encounter a hclsyntax.IndexExpr, we can evaluate the Key expression and create
 // an Index Traversal, adding it to the Traverser
-func evaluateImportAddress(ctx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
-	traversal, diags := traversalForImportExpr(ctx, expr, keyData)
+func evaluateImportAddress(evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (addrs.AbsResourceInstance, tfdiags.Diagnostics) {
+	traversal, diags := traversalForImportExpr(evalCtx, expr, keyData)
 	if diags.HasErrors() {
 		return addrs.AbsResourceInstance{}, diags
 	}
@@ -102,21 +103,21 @@ func evaluateImportAddress(ctx EvalContext, expr hcl.Expression, keyData instanc
 	return addrs.ParseAbsResourceInstance(traversal)
 }
 
-func traversalForImportExpr(ctx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.Traversal, tfdiags.Diagnostics) {
+func traversalForImportExpr(evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.Traversal, tfdiags.Diagnostics) {
 	var traversal hcl.Traversal
 	var diags tfdiags.Diagnostics
 
 	switch e := expr.(type) {
 	case *hclsyntax.IndexExpr:
-		t, d := traversalForImportExpr(ctx, e.Collection, keyData)
+		t, d := traversalForImportExpr(evalCtx, e.Collection, keyData)
 		diags = diags.Append(d)
 		traversal = append(traversal, t...)
 
-		tIndex, dIndex := parseImportIndexKeyExpr(ctx, e.Key, keyData)
+		tIndex, dIndex := parseImportIndexKeyExpr(evalCtx, e.Key, keyData)
 		diags = diags.Append(dIndex)
 		traversal = append(traversal, tIndex)
 	case *hclsyntax.RelativeTraversalExpr:
-		t, d := traversalForImportExpr(ctx, e.Source, keyData)
+		t, d := traversalForImportExpr(evalCtx, e.Source, keyData)
 		diags = diags.Append(d)
 		traversal = append(traversal, t...)
 		traversal = append(traversal, e.Traversal...)
@@ -139,13 +140,13 @@ func traversalForImportExpr(ctx EvalContext, expr hcl.Expression, keyData instan
 // import target address, into a traversal of type hcl.TraverseIndex.
 // After evaluation, the expression must be known, not null, not sensitive, and must be a string (for_each) or a number
 // (count)
-func parseImportIndexKeyExpr(ctx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.TraverseIndex, tfdiags.Diagnostics) {
+func parseImportIndexKeyExpr(evalCtx EvalContext, expr hcl.Expression, keyData instances.RepetitionData) (hcl.TraverseIndex, tfdiags.Diagnostics) {
 	idx := hcl.TraverseIndex{
 		SrcRange: expr.Range(),
 	}
 
 	// evaluate and take into consideration the for_each key (if exists)
-	val, diags := evaluateExprWithRepetitionData(ctx, expr, cty.DynamicPseudoType, keyData)
+	val, diags := evaluateExprWithRepetitionData(context.TODO(), evalCtx, expr, cty.DynamicPseudoType, keyData)
 	if diags.HasErrors() {
 		return idx, diags
 	}

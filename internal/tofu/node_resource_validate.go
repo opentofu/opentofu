@@ -494,7 +494,7 @@ func (n *NodeValidatableResource) evaluateExpr(evalCtx EvalContext, expr hcl.Exp
 
 	scope := evalCtx.EvaluationScope(self, nil, keyData)
 
-	hclCtx, moreDiags := scope.EvalContext(refs)
+	hclCtx, moreDiags := scope.EvalContext(context.TODO(), refs)
 	diags = diags.Append(moreDiags)
 
 	result, hclDiags := expr.Value(hclCtx)
@@ -611,7 +611,7 @@ func validateDependsOn(evalCtx EvalContext, dependsOn []hcl.Traversal) (diags tf
 		if !diags.HasErrors() {
 			scope := evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
 			if scope != nil { // sometimes nil in tests, due to incomplete mocks
-				_, refDiags = scope.EvalReference(ref, cty.DynamicPseudoType)
+				_, refDiags = scope.EvalReference(context.TODO(), ref, cty.DynamicPseudoType)
 				diags = diags.Append(refDiags)
 			}
 		}

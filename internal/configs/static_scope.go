@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -150,7 +151,7 @@ func (s staticScopeData) GetLocalValue(ident addrs.LocalValue, rng tfdiags.Sourc
 		return cty.DynamicVal, diags
 	}
 
-	val, valDiags := scope.EvalExpr(local.Expr, cty.DynamicPseudoType)
+	val, valDiags := scope.EvalExpr(context.TODO(), local.Expr, cty.DynamicPseudoType)
 	return val, s.enhanceDiagnostics(id, diags.Append(valDiags))
 }
 

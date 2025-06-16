@@ -98,7 +98,7 @@ resource "foo" "bar" {}
 		emptyEval := StaticEvaluator{}
 
 		// Expr with no traversals shouldn't access any fields
-		value, diags := emptyEval.Evaluate(mod.Locals["static"].Expr, dummyIdentifier)
+		value, diags := emptyEval.Evaluate(t.Context(), mod.Locals["static"].Expr, dummyIdentifier)
 		if diags.HasErrors() {
 			t.Error(diags)
 		}
@@ -113,7 +113,7 @@ resource "foo" "bar" {}
 				t.Fatalf("should panic")
 			}
 		}()
-		_, _ = emptyEval.Evaluate(mod.Locals["static_ref"].Expr, dummyIdentifier)
+		_, _ = emptyEval.Evaluate(t.Context(), mod.Locals["static_ref"].Expr, dummyIdentifier)
 	})
 
 	t.Run("Simple static cases", func(t *testing.T) {
@@ -132,7 +132,7 @@ resource "foo" "bar" {}
 		}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
-				value, diags := eval.Evaluate(mod.Locals[local.ident].Expr, dummyIdentifier)
+				value, diags := eval.Evaluate(t.Context(), mod.Locals[local.ident].Expr, dummyIdentifier)
 				if diags.HasErrors() {
 					t.Error(diags)
 				}
@@ -168,7 +168,7 @@ resource "foo" "bar" {}
 		}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
-				value, diags := eval.Evaluate(mod.Locals[local.ident].Expr, dummyIdentifier)
+				value, diags := eval.Evaluate(t.Context(), mod.Locals[local.ident].Expr, dummyIdentifier)
 				if diags.HasErrors() {
 					t.Error(diags)
 				}
@@ -193,7 +193,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(t.Context(), badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, []string{local.diag})
 			})
 		}
@@ -222,7 +222,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(t.Context(), badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, local.diags)
 			})
 		}
@@ -241,7 +241,7 @@ resource "foo" "bar" {}
 		eval := NewStaticEvaluator(mod, call)
 
 		badref := mod.Locals["ref_c"]
-		_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
+		_, diags := eval.Evaluate(t.Context(), badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 		assertExactDiagnostics(t, diags, []string{
 			"eval.tf:2,1-15: Variable value not provided; var.str not included",
 			"eval.tf:47,2-17: Unable to compute static value; local.ref_a depends on var.str which is not available",
@@ -264,7 +264,7 @@ resource "foo" "bar" {}
 		for _, local := range locals {
 			t.Run(local.ident, func(t *testing.T) {
 				badref := mod.Locals[local.ident]
-				_, diags := eval.Evaluate(badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
+				_, diags := eval.Evaluate(t.Context(), badref.Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", badref.Name), DeclRange: badref.DeclRange})
 				assertExactDiagnostics(t, diags, []string{local.diag})
 			})
 		}
@@ -275,7 +275,7 @@ resource "foo" "bar" {}
 		mod, _ := NewModule([]*File{file}, nil, call, "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, call)
 
-		value, diags := eval.Evaluate(mod.Locals["ws"].Expr, dummyIdentifier)
+		value, diags := eval.Evaluate(t.Context(), mod.Locals["ws"].Expr, dummyIdentifier)
 		if diags.HasErrors() {
 			t.Error(diags)
 		}
@@ -288,7 +288,7 @@ resource "foo" "bar" {}
 		mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 		eval := NewStaticEvaluator(mod, RootModuleCallForTesting())
 
-		value, diags := eval.Evaluate(mod.Locals["func"].Expr, dummyIdentifier)
+		value, diags := eval.Evaluate(t.Context(), mod.Locals["func"].Expr, dummyIdentifier)
 		if diags.HasErrors() {
 			t.Error(diags)
 		}
@@ -296,9 +296,9 @@ resource "foo" "bar" {}
 			t.Errorf("Expected %s got %s", "f887f41a53a46e2d40a3f8f86cacaaa2", value.AsString())
 		}
 
-		_, diags = eval.Evaluate(mod.Locals["missing_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["missing_func"].Name), DeclRange: mod.Locals["missing_func"].DeclRange})
+		_, diags = eval.Evaluate(t.Context(), mod.Locals["missing_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["missing_func"].Name), DeclRange: mod.Locals["missing_func"].DeclRange})
 		assertExactDiagnostics(t, diags, []string{`eval.tf:60,17-27: Call to unknown function; There is no function named "missing_fn".`})
-		_, diags = eval.Evaluate(mod.Locals["provider_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["provider_func"].Name), DeclRange: mod.Locals["provider_func"].DeclRange})
+		_, diags = eval.Evaluate(t.Context(), mod.Locals["provider_func"].Expr, StaticIdentifier{Subject: fmt.Sprintf("local.%s", mod.Locals["provider_func"].Name), DeclRange: mod.Locals["provider_func"].DeclRange})
 		assertExactDiagnostics(t, diags, []string{`eval.tf:61,18-36: Provider function in static context; Unable to use provider::type::fn in static context, which is required by local.provider_func`})
 	})
 }
@@ -333,7 +333,7 @@ func TestStaticEvaluator_DecodeExpression(t *testing.T) {
 		t.Run(tc.expr, func(t *testing.T) {
 			expr, _ := hclsyntax.ParseExpression([]byte(tc.expr), "eval.tf", hcl.InitialPos)
 			var str string
-			diags := eval.DecodeExpression(expr, dummyIdentifier, &str)
+			diags := eval.DecodeExpression(t.Context(), expr, dummyIdentifier, &str)
 			assertExactDiagnostics(t, diags, tc.diags)
 		})
 	}

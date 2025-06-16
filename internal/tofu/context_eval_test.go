@@ -77,7 +77,7 @@ func TestContextEval(t *testing.T) {
 		t.Run(test.Input, func(t *testing.T) {
 			// Parse the test input as an expression
 			expr, _ := hclsyntax.ParseExpression([]byte(test.Input), "<test-input>", hcl.Pos{Line: 1, Column: 1})
-			got, diags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+			got, diags := scope.EvalExpr(t.Context(), expr, cty.DynamicPseudoType)
 
 			if diags.HasErrors() {
 				t.Fatalf("unexpected error: %s", diags.Err())

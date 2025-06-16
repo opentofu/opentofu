@@ -406,7 +406,7 @@ func TestScopeEvalContext(t *testing.T) {
 					Key: addrs.IntKey(1),
 				},
 			}
-			ctx, ctxDiags := scope.EvalContext(refs)
+			ctx, ctxDiags := scope.EvalContext(t.Context(), refs)
 			if ctxDiags.HasErrors() {
 				t.Fatal(ctxDiags.Err())
 			}
@@ -455,7 +455,7 @@ func TestScopeEvalContextWithParent(t *testing.T) {
 			},
 		}
 
-		child, diags := scope.EvalContextWithParent(parent, nil)
+		child, diags := scope.EvalContextWithParent(t.Context(), parent, nil)
 		if len(diags) != 0 {
 			t.Errorf("Unexpected diagnostics:")
 			for _, diag := range diags {
@@ -492,7 +492,7 @@ func TestScopeEvalContextWithParent(t *testing.T) {
 	t.Run("zero-parent", func(t *testing.T) {
 		scope := &Scope{}
 
-		root, diags := scope.EvalContextWithParent(nil, nil)
+		root, diags := scope.EvalContextWithParent(t.Context(), nil, nil)
 		if len(diags) != 0 {
 			t.Errorf("Unexpected diagnostics:")
 			for _, diag := range diags {
@@ -774,12 +774,12 @@ func TestScopeExpandEvalBlock(t *testing.T) {
 				ParseRef: addrs.ParseRef,
 			}
 
-			body, expandDiags := scope.ExpandBlock(body, schema)
+			body, expandDiags := scope.ExpandBlock(t.Context(), body, schema)
 			if expandDiags.HasErrors() {
 				t.Fatal(expandDiags.Err())
 			}
 
-			got, valDiags := scope.EvalBlock(body, schema)
+			got, valDiags := scope.EvalBlock(t.Context(), body, schema)
 			if valDiags.HasErrors() {
 				t.Fatal(valDiags.Err())
 			}
@@ -1003,7 +1003,7 @@ func Test_enhanceFunctionDiags(t *testing.T) {
 
 			scope := &Scope{}
 
-			ctx, ctxDiags := scope.EvalContext(nil)
+			ctx, ctxDiags := scope.EvalContext(t.Context(), nil)
 			if ctxDiags.HasErrors() {
 				t.Fatalf("Unexpected ctxDiags, %#v", ctxDiags)
 			}

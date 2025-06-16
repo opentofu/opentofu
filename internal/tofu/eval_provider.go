@@ -70,7 +70,7 @@ func resolveProviderModuleInstance(ctx EvalContext, keyExpr hcl.Expression, modu
 func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	keyVal, keyDiags := keyScope.EvalExpr(keyExpr, cty.DynamicPseudoType)
+	keyVal, keyDiags := keyScope.EvalExpr(context.TODO(), keyExpr, cty.DynamicPseudoType)
 	diags = diags.Append(keyDiags)
 	if keyDiags.HasErrors() {
 		return nil, diags

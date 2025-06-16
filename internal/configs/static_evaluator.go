@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -87,13 +88,13 @@ func (s *StaticEvaluator) scope(ident StaticIdentifier) *lang.Scope {
 	return newStaticScope(s, ident)
 }
 
-func (s StaticEvaluator) Evaluate(expr hcl.Expression, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
-	val, diags := s.scope(ident).EvalExpr(expr, cty.DynamicPseudoType)
+func (s StaticEvaluator) Evaluate(ctx context.Context, expr hcl.Expression, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+	val, diags := s.scope(ident).EvalExpr(ctx, expr, cty.DynamicPseudoType)
 	return val, diags.ToHCL()
 }
 
-func (s StaticEvaluator) DecodeExpression(expr hcl.Expression, ident StaticIdentifier, val any) hcl.Diagnostics {
-	srcVal, diags := s.Evaluate(expr, ident)
+func (s StaticEvaluator) DecodeExpression(ctx context.Context, expr hcl.Expression, ident StaticIdentifier, val any) hcl.Diagnostics {
+	srcVal, diags := s.Evaluate(ctx, expr, ident)
 	if diags.HasErrors() {
 		return diags
 	}
@@ -110,7 +111,7 @@ func (s StaticEvaluator) DecodeExpression(expr hcl.Expression, ident StaticIdent
 	return diags.Extend(gohcl.DecodeValue(srcVal, expr.StartRange(), expr.Range(), val))
 }
 
-func (s StaticEvaluator) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
+func (s StaticEvaluator) DecodeBlock(ctx context.Context, body hcl.Body, spec hcldec.Spec, ident StaticIdentifier) (cty.Value, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	refs, refsDiags := lang.References(addrs.ParseRef, hcldec.Variables(body, spec))
@@ -119,22 +120,22 @@ func (s StaticEvaluator) DecodeBlock(body hcl.Body, spec hcldec.Spec, ident Stat
 		return cty.DynamicVal, diags
 	}
 
-	ctx, ctxDiags := s.scope(ident).EvalContext(refs)
+	hclCtx, ctxDiags := s.scope(ident).EvalContext(ctx, refs)
 	diags = append(diags, ctxDiags.ToHCL()...)
 	if diags.HasErrors() {
 		return cty.DynamicVal, diags
 	}
 
-	val, valDiags := hcldec.Decode(body, spec, ctx)
+	val, valDiags := hcldec.Decode(body, spec, hclCtx)
 	diags = append(diags, valDiags...)
 	return val, diags
 }
 
-func (s StaticEvaluator) EvalContext(ident StaticIdentifier, refs []*addrs.Reference) (*hcl.EvalContext, hcl.Diagnostics) {
-	return s.EvalContextWithParent(nil, ident, refs)
+func (s StaticEvaluator) EvalContext(ctx context.Context, ident StaticIdentifier, refs []*addrs.Reference) (*hcl.EvalContext, hcl.Diagnostics) {
+	return s.EvalContextWithParent(ctx, nil, ident, refs)
 }
 
-func (s StaticEvaluator) EvalContextWithParent(parent *hcl.EvalContext, ident StaticIdentifier, refs []*addrs.Reference) (*hcl.EvalContext, hcl.Diagnostics) {
-	evalCtx, diags := s.scope(ident).EvalContextWithParent(parent, refs)
+func (s StaticEvaluator) EvalContextWithParent(ctx context.Context, parent *hcl.EvalContext, ident StaticIdentifier, refs []*addrs.Reference) (*hcl.EvalContext, hcl.Diagnostics) {
+	evalCtx, diags := s.scope(ident).EvalContextWithParent(ctx, parent, refs)
 	return evalCtx, diags.ToHCL()
 }

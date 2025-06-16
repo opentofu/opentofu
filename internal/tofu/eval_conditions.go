@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -103,7 +104,7 @@ func validateCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalCo
 	}
 	scope := ctx.EvaluationScope(selfReference, sourceReference, keyData)
 
-	hclCtx, moreDiags := scope.EvalContext(refs)
+	hclCtx, moreDiags := scope.EvalContext(context.TODO(), refs)
 	diags = diags.Append(moreDiags)
 
 	errorMessage, moreDiags := evalCheckErrorMessage(rule.ErrorMessage, hclCtx)

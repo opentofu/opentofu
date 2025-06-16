@@ -291,11 +291,11 @@ func (c *MockEvalContext) installSimpleEval() {
 		if scope := c.EvaluationScopeScope; scope != nil {
 			// Fully-functional codepath.
 			var diags tfdiags.Diagnostics
-			body, diags = scope.ExpandBlock(body, schema)
+			body, diags = scope.ExpandBlock(context.TODO(), body, schema)
 			if diags.HasErrors() {
 				return cty.DynamicVal, body, diags
 			}
-			val, evalDiags := c.EvaluationScopeScope.EvalBlock(body, schema)
+			val, evalDiags := c.EvaluationScopeScope.EvalBlock(context.TODO(), body, schema)
 			diags = diags.Append(evalDiags)
 			if evalDiags.HasErrors() {
 				return cty.DynamicVal, body, diags
@@ -310,7 +310,7 @@ func (c *MockEvalContext) installSimpleEval() {
 	c.EvaluateExprResultFunc = func(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 		if scope := c.EvaluationScopeScope; scope != nil {
 			// Fully-functional codepath.
-			return scope.EvalExpr(expr, wantType)
+			return scope.EvalExpr(context.TODO(), expr, wantType)
 		}
 
 		// Fallback codepath supporting constant values only.
