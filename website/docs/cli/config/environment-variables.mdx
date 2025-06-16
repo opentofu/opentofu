@@ -202,3 +202,12 @@ If the key (or similar) has non-alphanumeric characters in it, beware that your 
 
 Make sure your secret doesn't get changed by your shell without you realizing. This is also shell dependent, but common ways of avoiding this are using single quotes or escaping special characters with a backslash.
 :::
+
+## TOFU_CPU_PROFILE
+
+Set `TOFU_CPU_PROFILE` to instruct OpenTofu to write a [Go pprof file](https://pkg.go.dev/runtime/pprof). These profiles can be used to help developers identify hot-spots in OpenTofu's codebase that slow down execution.  It pairs well with the more granular and well structured OpenTelemetry tracing (available in OpenTofu 1.10.0). For more information on profiling in Go, see https://go.dev/blog/pprof.  As this uses the go runtime's pprof tooling directly, is not covered under the compatibility promise and is subject to change / removal at any time.
+
+```shell
+TOFU_CPU_PROFILE=./tofu.pprof tofu plan
+go tool pprof -http ./tofu.pprof
+```
