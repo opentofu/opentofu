@@ -90,7 +90,7 @@ func (n *NodeApplyableProvider) initInstances(ctx context.Context, evalCtx EvalC
 	}
 
 	for _, key := range initKeys {
-		_, err := evalCtx.InitProvider(n.Addr, key)
+		_, err := evalCtx.InitProvider(ctx, n.Addr, key)
 		diags = diags.Append(err)
 	}
 	if diags.HasErrors() {
@@ -135,7 +135,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 	)
 	defer span.End()
 
-	configBody := buildProviderConfig(evalCtx, n.Addr, n.ProviderConfig())
+	configBody := buildProviderConfig(ctx, evalCtx, n.Addr, n.ProviderConfig())
 
 	// if a provider config is empty (only an alias), return early and don't continue
 	// validation. validate doesn't need to fully configure the provider itself, so
@@ -203,7 +203,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 
 	config := n.ProviderConfig()
 
-	configBody := buildProviderConfig(evalCtx, n.Addr, config)
+	configBody := buildProviderConfig(ctx, evalCtx, n.Addr, config)
 
 	resp := provider.GetProviderSchema(ctx)
 	diags := resp.Diagnostics.InConfigBody(configBody, n.Addr.InstanceString(providerKey))
@@ -273,7 +273,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 		log.Printf("[WARN] ValidateProviderConfig from %q changed the config value, but that value is unused", n.Addr)
 	}
 
-	configDiags := evalCtx.ConfigureProvider(n.Addr, providerKey, unmarkedConfigVal)
+	configDiags := evalCtx.ConfigureProvider(ctx, n.Addr, providerKey, unmarkedConfigVal)
 	diags = diags.Append(configDiags.InConfigBody(configBody, n.Addr.InstanceString(providerKey)))
 	if diags.HasErrors() && config == nil {
 		// If there isn't an explicit "provider" block in the configuration,

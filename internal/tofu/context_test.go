@@ -314,7 +314,7 @@ func TestContext_contextValuesPropagation(t *testing.T) {
 		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateProviderConfig",
 		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateDataResourceConfig",
 		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ValidateResourceConfig",
-		//"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).Configure", // FIXME: Not working yet
+		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ConfigureProvider",
 		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ReadDataSource",
 		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).PlanResourceChange",
 		"github.com/opentofu/opentofu/internal/tofu.(*MockProvider).ApplyResourceChange",

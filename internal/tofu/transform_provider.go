@@ -595,8 +595,8 @@ func (n *graphNodeCloseProvider) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable impl.
-func (n *graphNodeCloseProvider) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
-	return diags.Append(evalCtx.CloseProvider(n.Addr))
+func (n *graphNodeCloseProvider) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+	return diags.Append(evalCtx.CloseProvider(ctx, n.Addr))
 }
 
 func (n *graphNodeCloseProvider) CloseProviderAddr() addrs.AbsProviderConfig {

@@ -93,7 +93,7 @@ func (n *graphNodeImportState) Execute(ctx context.Context, evalCtx EvalContext,
 			ResolvedProvider: n.ResolvedProvider,
 		},
 	}
-	diags = diags.Append(asAbsNode.resolveProvider(evalCtx, true, states.NotDeposed))
+	diags = diags.Append(asAbsNode.resolveProvider(ctx, evalCtx, true, states.NotDeposed))
 	if diags.HasErrors() {
 		return diags
 	}

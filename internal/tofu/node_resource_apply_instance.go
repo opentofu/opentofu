@@ -155,7 +155,7 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 		return diags
 	}
 
-	diags = n.resolveProvider(evalCtx, true, states.NotDeposed)
+	diags = n.resolveProvider(ctx, evalCtx, true, states.NotDeposed)
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
 		return diags

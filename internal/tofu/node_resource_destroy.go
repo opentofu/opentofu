@@ -155,7 +155,7 @@ func (n *NodeDestroyResourceInstance) Execute(ctx context.Context, evalCtx EvalC
 	// Eval info is different depending on what kind of resource this is
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		diags = n.resolveProvider(evalCtx, false, states.NotDeposed)
+		diags = n.resolveProvider(ctx, evalCtx, false, states.NotDeposed)
 		if diags.HasErrors() {
 			tracing.SetSpanError(span, diags)
 			return diags

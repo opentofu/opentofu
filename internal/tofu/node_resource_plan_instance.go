@@ -100,7 +100,7 @@ func (n *NodePlannableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 	)
 	defer span.End()
 
-	diags := n.resolveProvider(evalCtx, true, states.NotDeposed)
+	diags := n.resolveProvider(ctx, evalCtx, true, states.NotDeposed)
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
 		return diags
