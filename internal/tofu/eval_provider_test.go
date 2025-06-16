@@ -28,7 +28,7 @@ func TestBuildProviderConfig(t *testing.T) {
 		Provider: addrs.NewDefaultProvider("foo"),
 	}
 
-	ctx := &MockEvalContext{
+	evalCtx := &MockEvalContext{
 		// The input values map is expected to contain only keys that aren't
 		// already present in the config, since we skip prompting for
 		// attributes that are already set.
@@ -36,7 +36,7 @@ func TestBuildProviderConfig(t *testing.T) {
 			"set_by_input": cty.StringVal("input"),
 		},
 	}
-	gotBody := buildProviderConfig(ctx, providerAddr, &configs.Provider{
+	gotBody := buildProviderConfig(t.Context(), evalCtx, providerAddr, &configs.Provider{
 		Name:   "foo",
 		Config: configBody,
 	})

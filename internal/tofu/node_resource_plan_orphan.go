@@ -75,7 +75,7 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 	var diags tfdiags.Diagnostics
 	switch addr.Resource.Resource.Mode {
 	case addrs.ManagedResourceMode:
-		resolveDiags := n.resolveProvider(evalCtx, true, states.NotDeposed)
+		resolveDiags := n.resolveProvider(ctx, evalCtx, true, states.NotDeposed)
 		diags = diags.Append(resolveDiags)
 		if resolveDiags.HasErrors() {
 			tracing.SetSpanError(span, diags)

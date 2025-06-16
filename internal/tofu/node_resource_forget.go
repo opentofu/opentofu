@@ -54,7 +54,7 @@ func (n *NodeForgetResourceInstance) Execute(ctx context.Context, evalCtx EvalCo
 		log.Printf("[WARN] NodeForgetResourceInstance for %s with no state", addr)
 	}
 
-	diags = n.resolveProvider(evalCtx, false, states.NotDeposed)
+	diags = n.resolveProvider(ctx, evalCtx, false, states.NotDeposed)
 	if diags.HasErrors() {
 		return diags
 	}

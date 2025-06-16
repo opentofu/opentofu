@@ -39,13 +39,13 @@ func TestBuiltinEvalContextProviderInput(t *testing.T) {
 	}
 
 	expected1 := map[string]cty.Value{"value": cty.StringVal("foo")}
-	ctx1.SetProviderInput(providerAddr1, expected1)
+	ctx1.SetProviderInput(t.Context(), providerAddr1, expected1)
 
 	try2 := map[string]cty.Value{"value": cty.StringVal("bar")}
-	ctx2.SetProviderInput(providerAddr2, try2) // ignored because not a root module
+	ctx2.SetProviderInput(t.Context(), providerAddr2, try2) // ignored because not a root module
 
-	actual1 := ctx1.ProviderInput(providerAddr1)
-	actual2 := ctx2.ProviderInput(providerAddr2)
+	actual1 := ctx1.ProviderInput(t.Context(), providerAddr1)
+	actual2 := ctx2.ProviderInput(t.Context(), providerAddr2)
 
 	if !reflect.DeepEqual(actual1, expected1) {
 		t.Errorf("wrong result 1\ngot:  %#v\nwant: %#v", actual1, expected1)
@@ -78,11 +78,11 @@ func TestBuildingEvalContextInitProvider(t *testing.T) {
 		Alias:    "foo",
 	}
 
-	_, err := ctx.InitProvider(providerAddrDefault, addrs.NoKey)
+	_, err := ctx.InitProvider(t.Context(), providerAddrDefault, addrs.NoKey)
 	if err != nil {
 		t.Fatalf("error initializing provider test: %s", err)
 	}
-	_, err = ctx.InitProvider(providerAddrAlias, addrs.NoKey)
+	_, err = ctx.InitProvider(t.Context(), providerAddrAlias, addrs.NoKey)
 	if err != nil {
 		t.Fatalf("error initializing provider test.foo: %s", err)
 	}

@@ -139,7 +139,7 @@ func (n *NodeAbstractResourceInstance) References() []*addrs.Reference {
 	return nil
 }
 
-func (n *NodeAbstractResourceInstance) resolveProvider(evalCtx EvalContext, hasExpansionData bool, deposedKey states.DeposedKey) tfdiags.Diagnostics {
+func (n *NodeAbstractResourceInstance) resolveProvider(ctx context.Context, evalCtx EvalContext, hasExpansionData bool, deposedKey states.DeposedKey) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] Resolving provider key for %s", n.Addr)
@@ -230,7 +230,7 @@ func (n *NodeAbstractResourceInstance) resolveProvider(evalCtx EvalContext, hasE
 		panic("EnsureProvider used with uninitialized provider configuration address")
 	}
 
-	provider := evalCtx.Provider(n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	provider := evalCtx.Provider(ctx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 	if provider != nil {
 		// All good
 		return nil

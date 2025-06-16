@@ -61,7 +61,7 @@ func (n *NodePlanDestroyableResourceInstance) Execute(ctx context.Context, evalC
 	)
 	defer span.End()
 
-	diags = diags.Append(n.resolveProvider(evalCtx, false, states.NotDeposed))
+	diags = diags.Append(n.resolveProvider(ctx, evalCtx, false, states.NotDeposed))
 	if diags.HasErrors() {
 		tracing.SetSpanError(span, diags)
 		return diags

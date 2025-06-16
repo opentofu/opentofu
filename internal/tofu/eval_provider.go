@@ -24,14 +24,14 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-func buildProviderConfig(ctx EvalContext, addr addrs.AbsProviderConfig, config *configs.Provider) hcl.Body {
+func buildProviderConfig(ctx context.Context, evalCtx EvalContext, addr addrs.AbsProviderConfig, config *configs.Provider) hcl.Body {
 	var configBody hcl.Body
 	if config != nil {
 		configBody = config.Config
 	}
 
 	var inputBody hcl.Body
-	inputConfig := ctx.ProviderInput(addr)
+	inputConfig := evalCtx.ProviderInput(ctx, addr)
 	if len(inputConfig) > 0 {
 		inputBody = configs.SynthBody("<input-prompt>", inputConfig)
 	}
@@ -135,7 +135,7 @@ func getProvider(ctx context.Context, evalCtx EvalContext, addr addrs.AbsProvide
 		// Should never happen
 		panic("GetProvider used with uninitialized provider configuration address")
 	}
-	provider := evalCtx.Provider(addr, providerKey)
+	provider := evalCtx.Provider(ctx, addr, providerKey)
 	if provider == nil {
 		return nil, providers.ProviderSchema{}, fmt.Errorf("provider %s not initialized", addr.InstanceString(providerKey))
 	}
