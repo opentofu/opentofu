@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -81,7 +82,7 @@ func (b *Backend) Hash(schema *configschema.Block) (int, hcl.Diagnostics) {
 }
 
 func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
-	return b.Eval.DecodeBlock(b.Config, schema.DecoderSpec(), StaticIdentifier{
+	return b.Eval.DecodeBlock(context.TODO(), b.Config, schema.DecoderSpec(), StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("backend.%s", b.Type),
 		DeclRange: b.DeclRange,
@@ -102,7 +103,7 @@ func (b *Backend) referenceDiagnostics(schema *configschema.Block) hcl.Diagnosti
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("backend.%s", b.Type),
 		DeclRange: b.DeclRange,
-	}).EvalContext(refs)
+	}).EvalContext(context.TODO(), refs)
 	diags = append(diags, ctxDiags.ToHCL()...)
 
 	return diags

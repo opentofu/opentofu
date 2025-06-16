@@ -1285,7 +1285,7 @@ func TestFunctions(t *testing.T) {
 							return
 						}
 
-						_, diags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+						_, diags := scope.EvalExpr(t.Context(), expr, cty.DynamicPseudoType)
 						if !diags.HasErrors() {
 							t.Errorf("experimental function %q succeeded without its experiment %s enabled\nexpr: %s", funcName, experiment.Keyword(), test.src)
 						}
@@ -1321,7 +1321,7 @@ func TestFunctions(t *testing.T) {
 						return
 					}
 
-					got, diags := scope.EvalExpr(expr, cty.DynamicPseudoType)
+					got, diags := scope.EvalExpr(t.Context(), expr, cty.DynamicPseudoType)
 					if diags.HasErrors() {
 						for _, diag := range diags {
 							t.Errorf("%s: %s", diag.Description().Summary, diag.Description().Detail)

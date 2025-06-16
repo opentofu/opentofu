@@ -71,33 +71,33 @@ func (ctx *TestContext) EvaluateAgainstPlan(run *moduletest.Run) {
 	ctx.evaluate(ctx.State.SyncWrapper(), ctx.Plan.Changes.SyncWrapper(), run, walkPlan)
 }
 
-func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
+func (tc *TestContext) evaluate(state *states.SyncState, changes *plans.ChangesSync, run *moduletest.Run, operation walkOperation) {
 	// The state does not include the module that has no resources, making its outputs unusable.
 	// synchronizeStates function synchronizes the state with the planned state, ensuring inclusion of all modules.
-	if ctx.Plan != nil && ctx.Plan.PlannedState != nil &&
-		len(ctx.State.Modules) != len(ctx.Plan.PlannedState.Modules) {
-		state = synchronizeStates(ctx.State, ctx.Plan.PlannedState)
+	if tc.Plan != nil && tc.Plan.PlannedState != nil &&
+		len(tc.State.Modules) != len(tc.Plan.PlannedState.Modules) {
+		state = synchronizeStates(tc.State, tc.Plan.PlannedState)
 	}
 
 	data := &evaluationStateData{
 		Evaluator: &Evaluator{
 			Operation: operation,
-			Meta:      ctx.meta,
-			Config:    ctx.Config,
-			Plugins:   ctx.plugins,
+			Meta:      tc.meta,
+			Config:    tc.Config,
+			Plugins:   tc.plugins,
 			State:     state,
 			Changes:   changes,
 			VariableValues: func() map[string]map[string]cty.Value {
 				variables := map[string]map[string]cty.Value{
 					addrs.RootModule.String(): make(map[string]cty.Value),
 				}
-				for name, variable := range ctx.Variables {
+				for name, variable := range tc.Variables {
 					variables[addrs.RootModule.String()][name] = variable.Value
 				}
 				return variables
 			}(),
 			VariableValuesLock: new(sync.Mutex),
-			PlanTimestamp:      ctx.Plan.Timestamp,
+			PlanTimestamp:      tc.Plan.Timestamp,
 		},
 		ModulePath:      nil, // nil for the root module
 		InstanceKeyData: EvalDataForNoInstanceKey,
@@ -121,7 +121,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 			return inst
 		}
 
-		factory, ok := ctx.plugins.providerFactories[addr]
+		factory, ok := tc.plugins.providerFactories[addr]
 		if !ok {
 			log.Printf("[WARN] Unable to find provider %s in test context", addr)
 			providerInstances[addr] = nil
@@ -144,11 +144,11 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		Data:          data,
 		BaseDir:       ".",
 		PureOnly:      operation != walkApply,
-		PlanTimestamp: ctx.Plan.Timestamp,
-		ProviderFunctions: func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+		PlanTimestamp: tc.Plan.Timestamp,
+		ProviderFunctions: func(ctx context.Context, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 			// This is a simpler flow than what is allowed during normal exection.
 			// We only support non-configured functions here.
-			pr, ok := ctx.Config.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
+			pr, ok := tc.Config.Module.ProviderRequirements.RequiredProviders[pf.ProviderName]
 			if !ok {
 				return nil, tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
 					Severity: hcl.DiagError,
@@ -160,7 +160,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 
 			provider := providerSupplier(pr.Type)
 
-			return evalContextProviderFunction(provider, walkPlan, pf, rng)
+			return evalContextProviderFunction(ctx, provider, walkPlan, pf, rng)
 		},
 	}
 
@@ -178,7 +178,7 @@ func (ctx *TestContext) evaluate(state *states.SyncState, changes *plans.Changes
 		diags = diags.Append(moreDiags)
 		refs = append(refs, moreRefs...)
 
-		hclCtx, moreDiags := scope.EvalContext(refs)
+		hclCtx, moreDiags := scope.EvalContext(context.TODO(), refs)
 		diags = diags.Append(moreDiags)
 
 		errorMessage, moreDiags := evalCheckErrorMessage(rule.ErrorMessage, hclCtx)

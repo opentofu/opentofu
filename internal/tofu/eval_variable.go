@@ -6,6 +6,7 @@
 package tofu
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"strings"
@@ -253,7 +254,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 			continue
 		}
 
-		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(append(condRefs, errRefs...))
+		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(context.TODO(), append(condRefs, errRefs...))
 		diags = diags.Append(ctxDiags)
 		if diags.HasErrors() {
 			continue

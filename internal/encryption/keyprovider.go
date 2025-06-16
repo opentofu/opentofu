@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -209,7 +210,7 @@ func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig
 		return diags
 	}
 
-	evalCtx, evalDiags := staticEval.EvalContextWithParent(kpData.hclEvalContext("key_provider"), configs.StaticIdentifier{
+	evalCtx, evalDiags := staticEval.EvalContextWithParent(context.TODO(), kpData.hclEvalContext("key_provider"), configs.StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: enc.DeclRange,

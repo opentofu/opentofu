@@ -21,7 +21,7 @@ import (
 
 // This builds a provider function using an EvalContext and some additional information
 // This is split out of BuiltinEvalContext for testing
-func evalContextProviderFunction(provider providers.Interface, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+func evalContextProviderFunction(ctx context.Context, provider providers.Interface, op walkOperation, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// First try to look up the function from provider schema
@@ -54,7 +54,7 @@ func evalContextProviderFunction(provider providers.Interface, op walkOperation,
 		}
 
 		// The provider may be configured and present additional functions via GetFunctions
-		specs := provider.GetFunctions(context.TODO())
+		specs := provider.GetFunctions(ctx)
 		if specs.Diagnostics.HasErrors() {
 			return nil, specs.Diagnostics
 		}
@@ -71,7 +71,7 @@ func evalContextProviderFunction(provider providers.Interface, op walkOperation,
 		}
 	}
 
-	fn := providerFunction(pf.Function, spec, provider)
+	fn := providerFunction(ctx, pf.Function, spec, provider)
 
 	return &fn, nil
 
@@ -80,7 +80,7 @@ func evalContextProviderFunction(provider providers.Interface, op walkOperation,
 // Turn a provider function spec into a cty callable function
 // This will use the instance factory to get a provider to support the
 // function call.
-func providerFunction(name string, spec providers.FunctionSpec, provider providers.Interface) function.Function {
+func providerFunction(ctx context.Context, name string, spec providers.FunctionSpec, provider providers.Interface) function.Function {
 	params := make([]function.Parameter, len(spec.Parameters))
 	for i, param := range spec.Parameters {
 		params[i] = providerFunctionParameter(param)
@@ -93,7 +93,7 @@ func providerFunction(name string, spec providers.FunctionSpec, provider provide
 	}
 
 	impl := func(args []cty.Value, retType cty.Type) (cty.Value, error) {
-		resp := provider.CallFunction(context.TODO(), providers.CallFunctionRequest{
+		resp := provider.CallFunction(ctx, providers.CallFunctionRequest{
 			Name:      name,
 			Arguments: args,
 		})

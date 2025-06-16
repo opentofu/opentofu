@@ -126,7 +126,7 @@ func TestFunctions(t *testing.T) {
 
 	// Function missing (validate)
 	mockProvider.GetFunctionsCalled = false
-	_, diags := evalContextProviderFunction(mockProvider, walkValidate, providerFunc("provider::mockname::missing"), rng)
+	_, diags := evalContextProviderFunction(t.Context(), mockProvider, walkValidate, providerFunc("provider::mockname::missing"), rng)
 	if diags.HasErrors() {
 		t.Fatal(diags.Err())
 	}
@@ -136,7 +136,7 @@ func TestFunctions(t *testing.T) {
 
 	// Function missing (Non-validate)
 	mockProvider.GetFunctionsCalled = false
-	_, diags = evalContextProviderFunction(mockProvider, walkPlan, providerFunc("provider::mockname::missing"), rng)
+	_, diags = evalContextProviderFunction(t.Context(), mockProvider, walkPlan, providerFunc("provider::mockname::missing"), rng)
 	if !diags.HasErrors() {
 		t.Fatal("expected unknown function")
 	}
@@ -158,7 +158,7 @@ func TestFunctions(t *testing.T) {
 	// Load functions into ctx
 	for _, fn := range []string{"echo", "concat", "coalesce", "unknown_param", "error_param"} {
 		pf := providerFunc("provider::mockname::" + fn)
-		impl, diags := evalContextProviderFunction(mockProvider, walkPlan, pf, rng)
+		impl, diags := evalContextProviderFunction(t.Context(), mockProvider, walkPlan, pf, rng)
 		if diags.HasErrors() {
 			t.Fatal(diags.Err())
 		}

@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -165,7 +166,7 @@ func (mc *ModuleCall) decodeStaticSource(eval *StaticEvaluator) hcl.Diagnostics 
 	}
 
 	// Decode source field
-	diags := eval.DecodeExpression(mc.Source, StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("module.%s.source", mc.Name), DeclRange: mc.Source.Range()}, &mc.SourceAddrRaw)
+	diags := eval.DecodeExpression(context.TODO(), mc.Source, StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("module.%s.source", mc.Name), DeclRange: mc.Source.Range()}, &mc.SourceAddrRaw)
 	if !diags.HasErrors() {
 		// NOTE: This code was originally executed as part of decodeModuleBlock and is now deferred until we have the config merged and static context built
 		var err error
@@ -232,7 +233,7 @@ func (mc *ModuleCall) decodeStaticVersion(eval *StaticEvaluator) hcl.Diagnostics
 		return diags
 	}
 
-	val, valDiags := eval.Evaluate(mc.VersionAttr.Expr, StaticIdentifier{
+	val, valDiags := eval.Evaluate(context.TODO(), mc.VersionAttr.Expr, StaticIdentifier{
 		Module:    eval.call.addr,
 		Subject:   fmt.Sprintf("module.%s.version", mc.Name),
 		DeclRange: mc.VersionAttr.Range,
@@ -274,7 +275,7 @@ func (mc *ModuleCall) decodeStaticVariables(eval *StaticEvaluator) {
 			Subject:   fmt.Sprintf("var.%s", variable.Name),
 			DeclRange: v.Range,
 		}
-		return eval.Evaluate(v.Expr, ident)
+		return eval.Evaluate(context.TODO(), v.Expr, ident)
 	}
 }
 

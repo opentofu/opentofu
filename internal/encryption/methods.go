@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -61,7 +62,7 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 		return nil, diags
 	}
 
-	hclCtx, evalDiags := staticEval.EvalContextWithParent(hclCtx, configs.StaticIdentifier{
+	hclCtx, evalDiags := staticEval.EvalContextWithParent(context.TODO(), hclCtx, configs.StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("encryption.method.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: enc.DeclRange,

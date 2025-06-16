@@ -307,16 +307,16 @@ func (c *BuiltinEvalContext) CloseProvisioners() error {
 func (c *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	scope := c.EvaluationScope(self, nil, keyData)
-	body, evalDiags := scope.ExpandBlock(body, schema)
+	body, evalDiags := scope.ExpandBlock(context.TODO(), body, schema)
 	diags = diags.Append(evalDiags)
-	val, evalDiags := scope.EvalBlock(body, schema)
+	val, evalDiags := scope.EvalBlock(context.TODO(), body, schema)
 	diags = diags.Append(evalDiags)
 	return val, body, diags
 }
 
 func (c *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	scope := c.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
-	return scope.EvalExpr(expr, wantType)
+	return scope.EvalExpr(context.TODO(), expr, wantType)
 }
 
 func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
@@ -457,7 +457,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 		return c.Evaluator.Scope(data, self, source, nil)
 	}
 
-	scope := c.Evaluator.Scope(data, self, source, func(pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
+	scope := c.Evaluator.Scope(data, self, source, func(ctx context.Context, pf addrs.ProviderFunction, rng tfdiags.SourceRange) (*function.Function, tfdiags.Diagnostics) {
 		providedBy, ok := c.ProviderFunctionTracker.Lookup(c.PathValue.Module(), pf)
 		if !ok {
 			// This should not be possible if references are tracked correctly
@@ -483,7 +483,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 			}
 		}
 
-		provider := c.Provider(context.TODO(), providedBy.Provider, providerKey)
+		provider := c.Provider(ctx, providedBy.Provider, providerKey)
 
 		if provider == nil {
 			// This should not be possible if references are tracked correctly
@@ -495,7 +495,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 			})
 		}
 
-		return evalContextProviderFunction(provider, c.Evaluator.Operation, pf, rng)
+		return evalContextProviderFunction(ctx, provider, c.Evaluator.Operation, pf, rng)
 	})
 	scope.SetActiveExperiments(mc.Module.ActiveExperiments)
 

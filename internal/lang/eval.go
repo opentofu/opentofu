@@ -6,7 +6,9 @@
 package lang
 
 import (
+	"context"
 	"fmt"
+	"maps"
 	"reflect"
 	"strings"
 
@@ -32,16 +34,16 @@ import (
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete or invalid.
-func (s *Scope) ExpandBlock(body hcl.Body, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
+func (s *Scope) ExpandBlock(ctx context.Context, body hcl.Body, schema *configschema.Block) (hcl.Body, tfdiags.Diagnostics) {
 	spec := schema.DecoderSpec()
 
 	traversals := dynblock.ExpandVariablesHCLDec(body, spec)
 	refs, diags := References(s.ParseRef, traversals)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 
-	return dynblock.Expand(body, ctx), diags
+	return dynblock.Expand(body, hclCtx), diags
 }
 
 // EvalBlock evaluates the given body using the given block schema and returns
@@ -54,12 +56,12 @@ func (s *Scope) ExpandBlock(body hcl.Body, schema *configschema.Block) (hcl.Body
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete or invalid.
-func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalBlock(ctx context.Context, body hcl.Body, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
 	spec := schema.DecoderSpec()
 
 	refs, diags := ReferencesInBlock(s.ParseRef, body, schema)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
 		// We'll stop early if we found problems in the references, because
@@ -75,7 +77,7 @@ func (s *Scope) EvalBlock(body hcl.Body, schema *configschema.Block) (cty.Value,
 	// whose type is the attribute name.
 	body = blocktoattr.FixUpBlockAttrs(body, schema)
 
-	val, evalDiags := hcldec.Decode(body, spec, ctx)
+	val, evalDiags := hcldec.Decode(body, spec, hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
 
 	val, depDiags := marks.ExtractDeprecationDiagnosticsWithBody(val, body)
@@ -173,10 +175,10 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete, but will always be of the requested type.
-func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalExpr(ctx context.Context, expr hcl.Expression, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
 	refs, diags := ReferencesInExpr(s.ParseRef, expr)
 
-	ctx, ctxDiags := s.EvalContext(refs)
+	hclCtx, ctxDiags := s.EvalContext(ctx, refs)
 	diags = diags.Append(ctxDiags)
 	if diags.HasErrors() {
 		// We'll stop early if we found problems in the references, because
@@ -184,7 +186,7 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 		return cty.UnknownVal(wantType), diags
 	}
 
-	val, evalDiags := expr.Value(ctx)
+	val, evalDiags := expr.Value(hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
 
 	if wantType != cty.DynamicPseudoType {
@@ -198,7 +200,7 @@ func (s *Scope) EvalExpr(expr hcl.Expression, wantType cty.Type) (cty.Value, tfd
 				Detail:      fmt.Sprintf("Invalid expression value: %s.", tfdiags.FormatError(convErr)),
 				Subject:     expr.Range().Ptr(),
 				Expression:  expr,
-				EvalContext: ctx,
+				EvalContext: hclCtx,
 			})
 		}
 	}
@@ -271,15 +273,15 @@ func enhanceFunctionDiag(diag *hcl.Diagnostic, funcExtra hclsyntax.FunctionCallU
 //
 // If the returned diagnostics contains errors then the result may be
 // incomplete, but will always be of the requested type.
-func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalReference(ctx context.Context, ref *addrs.Reference, wantType cty.Type) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// We cheat a bit here and just build an EvalContext for our requested
 	// reference with the "self" address overridden, and then pull the "self"
 	// result out of it to return.
-	ctx, ctxDiags := s.evalContext(nil, []*addrs.Reference{ref}, ref.Subject)
+	hclCtx, ctxDiags := s.evalContext(ctx, nil, []*addrs.Reference{ref}, ref.Subject)
 	diags = diags.Append(ctxDiags)
-	val := ctx.Variables["self"]
+	val := hclCtx.Variables["self"]
 	if val == cty.NilVal {
 		val = cty.DynamicVal
 	}
@@ -305,19 +307,26 @@ func (s *Scope) EvalReference(ref *addrs.Reference, wantType cty.Type) (cty.Valu
 // Most callers should prefer to use the evaluation helper methods that
 // this type offers, but this is here for less common situations where the
 // caller will handle the evaluation calls itself.
-func (s *Scope) EvalContext(refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-	return s.evalContext(nil, refs, s.SelfAddr)
+//
+// The [context.Context] passed to this function is the one that will be used
+// when making requests to providers if any of the references are to
+// provider-defined functions, and so callers should typically use
+// the resulting evaluation context immediately after the call and not
+// share it with other parts of the system where a different [context.Context]
+// would be more appropriate to use.
+func (s *Scope) EvalContext(ctx context.Context, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.evalContext(ctx, nil, refs, s.SelfAddr)
 }
 
 // EvalContextWithParent is exactly the same as EvalContext except the resulting hcl.EvalContext
 // will be derived from the given parental hcl.EvalContext. It will enable different hcl mechanisms
 // to iteratively lookup target functions and variables in EvalContext's parent.
 // See Traversal.TraverseAbs (hcl) or FunctionCallExpr.Value (hcl/hclsyntax) for more details.
-func (s *Scope) EvalContextWithParent(p *hcl.EvalContext, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
-	return s.evalContext(p, refs, s.SelfAddr)
+func (s *Scope) EvalContextWithParent(ctx context.Context, p *hcl.EvalContext, refs []*addrs.Reference) (*hcl.EvalContext, tfdiags.Diagnostics) {
+	return s.evalContext(ctx, p, refs, s.SelfAddr)
 }
 
-func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
+func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs []*addrs.Reference, selfAddr addrs.Referenceable) (*hcl.EvalContext, tfdiags.Diagnostics) {
 	if s == nil {
 		panic("attempt to construct EvalContext for nil Scope")
 	}
@@ -326,17 +335,17 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 
 	// Calling NewChild() on a nil parent will
 	// produce an EvalContext with no parent.
-	ctx := parent.NewChild()
-	ctx.Functions = make(map[string]function.Function)
-	ctx.Variables = make(map[string]cty.Value)
+	hclCtx := parent.NewChild()
+	hclCtx.Functions = make(map[string]function.Function)
+	hclCtx.Variables = make(map[string]cty.Value)
 
-	for name, fn := range s.Functions() {
-		ctx.Functions[name] = fn
-	}
+	// The built-in functions are our starting point, but we might add extra
+	// provider-defined functions below.
+	maps.Copy(hclCtx.Functions, s.Functions())
 
 	// Easy path for common case where there are no references at all.
 	if len(refs) == 0 {
-		return ctx, diags
+		return hclCtx, diags
 	}
 
 	// First we'll do static validation of the references. This catches things
@@ -345,7 +354,7 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 	staticDiags := s.Data.StaticValidateReferences(refs, selfAddr, s.SourceAddr)
 	diags = diags.Append(staticDiags)
 	if staticDiags.HasErrors() {
-		return ctx, diags
+		return hclCtx, diags
 	}
 
 	// The reference set we are given has not been de-duped, and so there can
@@ -366,12 +375,12 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 
 		if subj, ok := ref.Subject.(addrs.ProviderFunction); ok {
 			// Inject function directly into context
-			if _, ok := ctx.Functions[subj.String()]; !ok {
-				fn, fnDiags := s.ProviderFunctions(subj, ref.SourceRange)
+			if _, ok := hclCtx.Functions[subj.String()]; !ok {
+				fn, fnDiags := s.ProviderFunctions(ctx, subj, ref.SourceRange)
 				diags = diags.Append(fnDiags)
 
 				if !fnDiags.HasErrors() {
-					ctx.Functions[subj.String()] = *fn
+					hclCtx.Functions[subj.String()] = *fn
 				}
 			}
 
@@ -381,9 +390,9 @@ func (s *Scope) evalContext(parent *hcl.EvalContext, refs []*addrs.Reference, se
 		diags = diags.Append(varBuilder.putValueBySubject(ref))
 	}
 
-	varBuilder.buildAllVariablesInto(ctx.Variables)
+	varBuilder.buildAllVariablesInto(hclCtx.Variables)
 
-	return ctx, diags
+	return hclCtx, diags
 }
 
 type evalVarBuilder struct {
