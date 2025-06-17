@@ -34,7 +34,7 @@ func TestEvaluateCountExpression(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			ctx := &MockEvalContext{}
 			ctx.installSimpleEval()
-			countVal, diags := evaluateCountExpression(test.Expr, ctx, nil)
+			countVal, diags := evaluateCountExpression(t.Context(), test.Expr, ctx, nil)
 
 			if len(diags) != 0 {
 				t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))

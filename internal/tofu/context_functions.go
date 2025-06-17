@@ -25,7 +25,7 @@ func evalContextProviderFunction(ctx context.Context, provider providers.Interfa
 	var diags tfdiags.Diagnostics
 
 	// First try to look up the function from provider schema
-	schema := provider.GetProviderSchema(context.TODO())
+	schema := provider.GetProviderSchema(ctx)
 	if schema.Diagnostics.HasErrors() {
 		return nil, schema.Diagnostics
 	}

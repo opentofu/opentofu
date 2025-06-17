@@ -929,7 +929,7 @@ func TestScopeEvalSelfBlock(t *testing.T) {
 				ParseRef: addrs.ParseRef,
 			}
 
-			gotVal, ctxDiags := scope.EvalSelfBlock(body, test.Self, schema, test.KeyData)
+			gotVal, ctxDiags := scope.EvalSelfBlock(t.Context(), body, test.Self, schema, test.KeyData)
 			if ctxDiags.HasErrors() {
 				t.Fatal(ctxDiags.Err())
 			}

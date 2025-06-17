@@ -170,7 +170,7 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx context.Context, eval
 				}
 			}
 			if validExpansion {
-				n.ResolvedProviderKey, diags = resolveProviderResourceInstance(evalCtx, n.Config.ProviderConfigRef.KeyExpression, n.Addr)
+				n.ResolvedProviderKey, diags = resolveProviderResourceInstance(ctx, evalCtx, n.Config.ProviderConfigRef.KeyExpression, n.Addr)
 			} else {
 				useStateFallback = true
 			}
@@ -194,7 +194,7 @@ func (n *NodeAbstractResourceInstance) resolveProvider(ctx context.Context, eval
 			}
 			if validExpansion {
 				// We can use the standard resolver
-				n.ResolvedProviderKey, diags = resolveProviderModuleInstance(evalCtx, n.ResolvedProvider.KeyExpression, moduleInstanceForKey, n.Addr.String())
+				n.ResolvedProviderKey, diags = resolveProviderModuleInstance(ctx, evalCtx, n.ResolvedProvider.KeyExpression, moduleInstanceForKey, n.Addr.String())
 			} else {
 				useStateFallback = true
 			}
@@ -927,11 +927,12 @@ func (n *NodeAbstractResourceInstance) plan(
 	}
 
 	// Evaluate the configuration
-	forEach, _ := evaluateForEachExpression(n.Config.ForEach, evalCtx, n.Addr)
+	forEach, _ := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, n.Addr)
 
 	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
 	checkDiags := evalCheckRules(
+		ctx,
 		addrs.ResourcePrecondition,
 		n.Config.Preconditions,
 		evalCtx, n.Addr, keyData,
@@ -1825,10 +1826,11 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 	objTy := schema.ImpliedType()
 	priorVal := cty.NullVal(objTy)
 
-	forEach, _ := evaluateForEachExpression(config.ForEach, evalCtx, n.Addr)
+	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr)
 	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
 	checkDiags := evalCheckRules(
+		ctx,
 		addrs.ResourcePrecondition,
 		n.Config.Preconditions,
 		evalCtx, n.Addr, keyData,
@@ -2104,10 +2106,11 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx context.Context, eval
 		return nil, keyData, diags
 	}
 
-	forEach, _ := evaluateForEachExpression(config.ForEach, evalCtx, n.Addr)
+	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr)
 	keyData = EvalDataForInstanceKey(n.Addr.Resource.Key, forEach)
 
 	checkDiags := evalCheckRules(
+		ctx,
 		addrs.ResourcePrecondition,
 		n.Config.Preconditions,
 		evalCtx, n.Addr, keyData,
@@ -2259,14 +2262,14 @@ func filterProvisioners(provisioners []*configs.Provisioner, when configs.Provis
 }
 
 // applyProvisioners executes the provisioners for a resource.
-func (n *NodeAbstractResourceInstance) applyProvisioners(_ context.Context, evalCtx EvalContext, state *states.ResourceInstanceObject, when configs.ProvisionerWhen, provs []*configs.Provisioner) tfdiags.Diagnostics {
+func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, evalCtx EvalContext, state *states.ResourceInstanceObject, when configs.ProvisionerWhen, provs []*configs.Provisioner) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// this self is only used for destroy provisioner evaluation, and must
 	// refer to the last known value of the resource.
 	self := state.Value
 
-	var evalScope func(EvalContext, hcl.Body, cty.Value, *configschema.Block) (cty.Value, tfdiags.Diagnostics)
+	var evalScope func(context.Context, EvalContext, hcl.Body, cty.Value, *configschema.Block) (cty.Value, tfdiags.Diagnostics)
 	switch when {
 	case configs.ProvisionerWhenDestroy:
 		evalScope = n.evalDestroyProvisionerConfig
@@ -2300,7 +2303,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(_ context.Context, eval
 			return diags
 		}
 
-		config, configDiags := evalScope(evalCtx, prov.Config, self, schema)
+		config, configDiags := evalScope(ctx, evalCtx, prov.Config, self, schema)
 		diags = diags.Append(configDiags)
 		if diags.HasErrors() {
 			return diags
@@ -2332,7 +2335,7 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(_ context.Context, eval
 
 		if connBody != nil {
 			var connInfoDiags tfdiags.Diagnostics
-			connInfo, connInfoDiags = evalScope(evalCtx, connBody, self, connectionBlockSupersetSchema)
+			connInfo, connInfoDiags = evalScope(ctx, evalCtx, connBody, self, connectionBlockSupersetSchema)
 			diags = diags.Append(connInfoDiags)
 			if diags.HasErrors() {
 				return diags
@@ -2417,10 +2420,10 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(_ context.Context, eval
 	return diags
 }
 
-func (n *NodeAbstractResourceInstance) evalProvisionerConfig(evalCtx EvalContext, body hcl.Body, self cty.Value, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) evalProvisionerConfig(ctx context.Context, evalCtx EvalContext, body hcl.Body, self cty.Value, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	forEach, forEachDiags := evaluateForEachExpression(n.Config.ForEach, evalCtx, n.Addr)
+	forEach, forEachDiags := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, n.Addr)
 	diags = diags.Append(forEachDiags)
 
 	keyData := EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
@@ -2432,7 +2435,7 @@ func (n *NodeAbstractResourceInstance) evalProvisionerConfig(evalCtx EvalContext
 }
 
 // during destroy a provisioner can only evaluate within the scope of the parent resource
-func (n *NodeAbstractResourceInstance) evalDestroyProvisionerConfig(evalCtx EvalContext, body hcl.Body, self cty.Value, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) evalDestroyProvisionerConfig(ctx context.Context, evalCtx EvalContext, body hcl.Body, self cty.Value, schema *configschema.Block) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// For a destroy-time provisioner forEach is intentionally nil here,
@@ -2442,7 +2445,7 @@ func (n *NodeAbstractResourceInstance) evalDestroyProvisionerConfig(evalCtx Eval
 	keyData := EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, nil)
 
 	evalScope := evalCtx.EvaluationScope(n.ResourceInstanceAddr().Resource, nil, keyData)
-	config, evalDiags := evalScope.EvalSelfBlock(body, self, schema, keyData)
+	config, evalDiags := evalScope.EvalSelfBlock(ctx, body, self, schema, keyData)
 	diags = diags.Append(evalDiags)
 
 	return config, diags

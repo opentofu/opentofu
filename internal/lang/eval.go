@@ -90,7 +90,7 @@ func (s *Scope) EvalBlock(ctx context.Context, body hcl.Body, schema *configsche
 // object and instance key data. References to the object must use self, and the
 // key data will only contain count.index or each.key. The static values for
 // terraform and path will also be available in this context.
-func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschema.Block, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+func (s *Scope) EvalSelfBlock(ctx context.Context, body hcl.Body, self cty.Value, schema *configschema.Block, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	spec := schema.DecoderSpec()
@@ -126,12 +126,12 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 
 		switch subj := ref.Subject.(type) {
 		case addrs.PathAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetPathAttr(subj, ref.SourceRange))
+			val, valDiags := normalizeRefValue(s.Data.GetPathAttr(ctx, subj, ref.SourceRange))
 			diags = diags.Append(valDiags)
 			pathAttrs[subj.Name] = val
 
 		case addrs.TerraformAttr:
-			val, valDiags := normalizeRefValue(s.Data.GetTerraformAttr(subj, ref.SourceRange))
+			val, valDiags := normalizeRefValue(s.Data.GetTerraformAttr(ctx, subj, ref.SourceRange))
 			diags = diags.Append(valDiags)
 			terraformAttrs[subj.Name] = val
 
@@ -154,13 +154,13 @@ func (s *Scope) EvalSelfBlock(body hcl.Body, self cty.Value, schema *configschem
 	vals["terraform"] = cty.ObjectVal(terraformAttrs)
 	vals["tofu"] = cty.ObjectVal(terraformAttrs)
 
-	ctx := &hcl.EvalContext{
+	hclCtx := &hcl.EvalContext{
 		Variables: vals,
 		// TODO consider if any provider functions make sense here
 		Functions: s.Functions(),
 	}
 
-	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), ctx)
+	val, decDiags := hcldec.Decode(body, schema.DecoderSpec(), hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(decDiags))
 	return val, diags
 }
@@ -351,7 +351,7 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 	// First we'll do static validation of the references. This catches things
 	// early that might otherwise not get caught due to unknown values being
 	// present in the scope during planning.
-	staticDiags := s.Data.StaticValidateReferences(refs, selfAddr, s.SourceAddr)
+	staticDiags := s.Data.StaticValidateReferences(ctx, refs, selfAddr, s.SourceAddr)
 	diags = diags.Append(staticDiags)
 	if staticDiags.HasErrors() {
 		return hclCtx, diags
@@ -369,7 +369,7 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 
 	for _, ref := range refs {
 		if ref.Subject == addrs.Self {
-			diags.Append(varBuilder.putSelfValue(selfAddr, ref))
+			diags.Append(varBuilder.putSelfValue(ctx, selfAddr, ref))
 			continue
 		}
 
@@ -387,7 +387,7 @@ func (s *Scope) evalContext(ctx context.Context, parent *hcl.EvalContext, refs [
 			continue
 		}
 
-		diags = diags.Append(varBuilder.putValueBySubject(ref))
+		diags = diags.Append(varBuilder.putValueBySubject(ctx, ref))
 	}
 
 	varBuilder.buildAllVariablesInto(hclCtx.Variables)
@@ -430,7 +430,7 @@ func (s *Scope) newEvalVarBuilder() *evalVarBuilder {
 	}
 }
 
-func (b *evalVarBuilder) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.Reference) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putSelfValue(ctx context.Context, selfAddr addrs.Referenceable, ref *addrs.Reference) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	if selfAddr == nil {
@@ -457,7 +457,7 @@ func (b *evalVarBuilder) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.R
 		panic("BUG: self addr must be a resource instance, got " + reflect.TypeOf(selfAddr).String())
 	}
 
-	val, valDiags := normalizeRefValue(b.s.Data.GetResource(subj.ContainingResource(), ref.SourceRange))
+	val, valDiags := normalizeRefValue(b.s.Data.GetResource(ctx, subj.ContainingResource(), ref.SourceRange))
 
 	diags = diags.Append(valDiags)
 
@@ -480,7 +480,7 @@ func (b *evalVarBuilder) putSelfValue(selfAddr addrs.Referenceable, ref *addrs.R
 	return diags
 }
 
-func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putValueBySubject(ctx context.Context, ref *addrs.Reference) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	rawSubj := ref.Subject
@@ -502,34 +502,34 @@ func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnos
 
 	switch subj := rawSubj.(type) {
 	case addrs.Resource:
-		diags = diags.Append(b.putResourceValue(subj, rng))
+		diags = diags.Append(b.putResourceValue(ctx, subj, rng))
 
 	case addrs.ModuleCall:
-		b.wholeModules[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetModule(subj, rng))
+		b.wholeModules[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetModule(ctx, subj, rng))
 
 	case addrs.InputVariable:
-		b.inputVariables[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetInputVariable(subj, rng))
+		b.inputVariables[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetInputVariable(ctx, subj, rng))
 
 	case addrs.LocalValue:
-		b.localValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetLocalValue(subj, rng))
+		b.localValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetLocalValue(ctx, subj, rng))
 
 	case addrs.PathAttr:
-		b.pathAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetPathAttr(subj, rng))
+		b.pathAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetPathAttr(ctx, subj, rng))
 
 	case addrs.TerraformAttr:
-		b.terraformAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetTerraformAttr(subj, rng))
+		b.terraformAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetTerraformAttr(ctx, subj, rng))
 
 	case addrs.CountAttr:
-		b.countAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCountAttr(subj, rng))
+		b.countAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCountAttr(ctx, subj, rng))
 
 	case addrs.ForEachAttr:
-		b.forEachAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetForEachAttr(subj, rng))
+		b.forEachAttrs[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetForEachAttr(ctx, subj, rng))
 
 	case addrs.OutputValue:
-		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetOutput(subj, rng))
+		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetOutput(ctx, subj, rng))
 
 	case addrs.Check:
-		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCheckBlock(subj, rng))
+		b.outputValues[subj.Name], normDiags = normalizeRefValue(b.s.Data.GetCheckBlock(ctx, subj, rng))
 
 	default:
 		// Should never happen
@@ -541,7 +541,7 @@ func (b *evalVarBuilder) putValueBySubject(ref *addrs.Reference) tfdiags.Diagnos
 	return diags
 }
 
-func (b *evalVarBuilder) putResourceValue(res addrs.Resource, rng tfdiags.SourceRange) tfdiags.Diagnostics {
+func (b *evalVarBuilder) putResourceValue(ctx context.Context, res addrs.Resource, rng tfdiags.SourceRange) tfdiags.Diagnostics {
 	var into map[string]map[string]cty.Value
 
 	switch res.Mode {
@@ -555,7 +555,7 @@ func (b *evalVarBuilder) putResourceValue(res addrs.Resource, rng tfdiags.Source
 		panic(fmt.Errorf("BUG: got undefined ResourceMode %s", res.Mode))
 	}
 
-	val, diags := normalizeRefValue(b.s.Data.GetResource(res, rng))
+	val, diags := normalizeRefValue(b.s.Data.GetResource(ctx, res, rng))
 
 	if into[res.Type] == nil {
 		into[res.Type] = make(map[string]cty.Value)

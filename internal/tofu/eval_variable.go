@@ -202,14 +202,14 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 // This must be used only after any side-effects that make the value of the
 // variable available for use in expression evaluation, such as
 // EvalModuleCallArgument for variables in descendent modules.
-func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, ctx EvalContext) (diags tfdiags.Diagnostics) {
+func evalVariableValidations(ctx context.Context, addr addrs.AbsInputVariableInstance, config *configs.Variable, expr hcl.Expression, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
 	if config == nil || len(config.Validations) == 0 {
 		log.Printf("[TRACE] evalVariableValidations: no validation rules declared for %s, so skipping", addr)
 		return nil
 	}
 	log.Printf("[TRACE] evalVariableValidations: validating %s", addr)
 
-	checkState := ctx.Checks()
+	checkState := evalCtx.Checks()
 	if !checkState.ConfigHasChecks(addr.ConfigCheckable()) {
 		// We have nothing to do if this object doesn't have any checks,
 		// but the "rules" slice should agree that we don't.
@@ -228,7 +228,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 	// bypass our usual evaluation machinery here and just produce a minimal
 	// evaluation context containing just the required value, and thus avoid
 	// the problem that ctx's evaluation functions refer to the wrong module.
-	val := ctx.GetVariableValue(addr)
+	val := evalCtx.GetVariableValue(addr)
 	if val == cty.NilVal {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -254,7 +254,7 @@ func evalVariableValidations(addr addrs.AbsInputVariableInstance, config *config
 			continue
 		}
 
-		hclCtx, ctxDiags := ctx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(context.TODO(), append(condRefs, errRefs...))
+		hclCtx, ctxDiags := evalCtx.WithPath(addr.Module).EvaluationScope(nil, nil, EvalDataForNoInstanceKey).EvalContext(ctx, append(condRefs, errRefs...))
 		diags = diags.Append(ctxDiags)
 		if diags.HasErrors() {
 			continue

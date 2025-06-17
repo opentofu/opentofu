@@ -35,7 +35,7 @@ func TestEvaluatorGetTerraformAttr(t *testing.T) {
 
 	t.Run("terraform.workspace", func(t *testing.T) {
 		want := cty.StringVal("foo")
-		got, diags := scope.Data.GetTerraformAttr(addrs.NewTerraformAttr("terraform", "workspace"), tfdiags.SourceRange{})
+		got, diags := scope.Data.GetTerraformAttr(t.Context(), addrs.NewTerraformAttr("terraform", "workspace"), tfdiags.SourceRange{})
 		if len(diags) != 0 {
 			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
 		}
@@ -46,7 +46,7 @@ func TestEvaluatorGetTerraformAttr(t *testing.T) {
 
 	t.Run("tofu.workspace", func(t *testing.T) {
 		want := cty.StringVal("foo")
-		got, diags := scope.Data.GetTerraformAttr(addrs.NewTerraformAttr("tofu", "workspace"), tfdiags.SourceRange{})
+		got, diags := scope.Data.GetTerraformAttr(t.Context(), addrs.NewTerraformAttr("tofu", "workspace"), tfdiags.SourceRange{})
 		if len(diags) != 0 {
 			t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
 		}
@@ -74,7 +74,7 @@ func TestEvaluatorGetPathAttr(t *testing.T) {
 
 	t.Run("module", func(t *testing.T) {
 		want := cty.StringVal("bar/baz")
-		got, diags := scope.Data.GetPathAttr(addrs.PathAttr{
+		got, diags := scope.Data.GetPathAttr(t.Context(), addrs.PathAttr{
 			Name: "module",
 		}, tfdiags.SourceRange{})
 		if len(diags) != 0 {
@@ -87,7 +87,7 @@ func TestEvaluatorGetPathAttr(t *testing.T) {
 
 	t.Run("root", func(t *testing.T) {
 		want := cty.StringVal("bar/baz")
-		got, diags := scope.Data.GetPathAttr(addrs.PathAttr{
+		got, diags := scope.Data.GetPathAttr(t.Context(), addrs.PathAttr{
 			Name: "root",
 		}, tfdiags.SourceRange{})
 		if len(diags) != 0 {
@@ -139,7 +139,7 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 	scope := evaluator.Scope(data, nil, nil, nil)
 
 	want := cty.StringVal("first").Mark(marks.Sensitive)
-	got, diags := scope.Data.GetOutput(addrs.OutputValue{
+	got, diags := scope.Data.GetOutput(t.Context(), addrs.OutputValue{
 		Name: "some_output",
 	}, tfdiags.SourceRange{})
 
@@ -151,7 +151,7 @@ func TestEvaluatorGetOutputValue(t *testing.T) {
 	}
 
 	want = cty.StringVal("second")
-	got, diags = scope.Data.GetOutput(addrs.OutputValue{
+	got, diags = scope.Data.GetOutput(t.Context(), addrs.OutputValue{
 		Name: "some_other_output",
 	}, tfdiags.SourceRange{})
 
@@ -206,7 +206,7 @@ func TestEvaluatorGetInputVariable(t *testing.T) {
 	scope := evaluator.Scope(data, nil, nil, nil)
 
 	want := cty.StringVal("bar").Mark(marks.Sensitive)
-	got, diags := scope.Data.GetInputVariable(addrs.InputVariable{
+	got, diags := scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
 		Name: "some_var",
 	}, tfdiags.SourceRange{})
 
@@ -218,7 +218,7 @@ func TestEvaluatorGetInputVariable(t *testing.T) {
 	}
 
 	want = cty.StringVal("boop").Mark(marks.Sensitive)
-	got, diags = scope.Data.GetInputVariable(addrs.InputVariable{
+	got, diags = scope.Data.GetInputVariable(t.Context(), addrs.InputVariable{
 		Name: "some_other_var",
 	}, tfdiags.SourceRange{})
 
@@ -391,7 +391,7 @@ func TestEvaluatorGetResource(t *testing.T) {
 		Type: "test_resource",
 		Name: "foo",
 	}
-	got, diags := scope.Data.GetResource(addr, tfdiags.SourceRange{})
+	got, diags := scope.Data.GetResource(t.Context(), addr, tfdiags.SourceRange{})
 
 	if len(diags) != 0 {
 		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -532,7 +532,7 @@ func TestEvaluatorGetResource_changes(t *testing.T) {
 		}).Mark(marks.Sensitive),
 	})
 
-	got, diags := scope.Data.GetResource(addr, tfdiags.SourceRange{})
+	got, diags := scope.Data.GetResource(t.Context(), addr, tfdiags.SourceRange{})
 
 	if len(diags) != 0 {
 		t.Errorf("unexpected diagnostics %s", spew.Sdump(diags))
@@ -559,7 +559,7 @@ func TestEvaluatorGetModule(t *testing.T) {
 	}
 	scope := evaluator.Scope(data, nil, nil, nil)
 	want := cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("bar").Mark(marks.Sensitive)})
-	got, diags := scope.Data.GetModule(addrs.ModuleCall{
+	got, diags := scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
 
@@ -587,7 +587,7 @@ func TestEvaluatorGetModule(t *testing.T) {
 	}
 	scope = evaluator.Scope(data, nil, nil, nil)
 	want = cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("baz").Mark(marks.Sensitive)})
-	got, diags = scope.Data.GetModule(addrs.ModuleCall{
+	got, diags = scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
 
@@ -605,7 +605,7 @@ func TestEvaluatorGetModule(t *testing.T) {
 	}
 	scope = evaluator.Scope(data, nil, nil, nil)
 	want = cty.ObjectVal(map[string]cty.Value{"out": cty.StringVal("baz").Mark(marks.Sensitive)})
-	got, diags = scope.Data.GetModule(addrs.ModuleCall{
+	got, diags = scope.Data.GetModule(t.Context(), addrs.ModuleCall{
 		Name: "mod",
 	}, tfdiags.SourceRange{})
 

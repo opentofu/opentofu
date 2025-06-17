@@ -435,6 +435,6 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Conte
 		Steps: steps,
 		Name:  "nodeExpandPlannableResource",
 	}
-	graph, graphDiags := b.Build(context.TODO(), addr.Module)
+	graph, graphDiags := b.Build(ctx, addr.Module)
 	return graph, diags.Append(graphDiags).ErrWithWarnings()
 }

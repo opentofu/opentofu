@@ -133,7 +133,7 @@ For example, to correlate with indices of a referring resource, use:
 				Evaluator: evaluator,
 			}
 
-			diags = data.StaticValidateReferences(refs, nil, test.Src)
+			diags = data.StaticValidateReferences(t.Context(), refs, nil, test.Src)
 			if diags.HasErrors() {
 				if test.WantErr == "" {
 					t.Fatalf("Unexpected diagnostics: %s", diags.Err())
