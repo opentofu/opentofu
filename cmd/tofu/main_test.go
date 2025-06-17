@@ -337,7 +337,6 @@ func TestMkConfigDir_new(t *testing.T) {
 
 func TestMkConfigDir_exists(t *testing.T) {
 	tmpConfigDir := filepath.Join(t.TempDir(), ".terraform.d")
-	os.Mkdir(tmpConfigDir, os.ModePerm)
 
 	err := mkConfigDir(tmpConfigDir)
 	if err != nil {

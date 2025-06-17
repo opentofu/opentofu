@@ -181,7 +181,7 @@ func (c *RemoteClient) Put(data []byte) error {
 			// the user. We may end up with dangling chunks but there is no way
 			// to be sure we won't.
 			path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
-			kv.DeleteTree(path, nil)
+			_, _ = kv.DeleteTree(path, nil)
 		}
 	}
 
@@ -307,11 +307,17 @@ func (c *RemoteClient) Delete() error {
 	}
 
 	_, err = kv.Delete(c.Path, nil)
+	if err != nil {
+		return err
+	}
 
 	// If there were chunks we need to remove them
 	if chunked {
 		path := strings.TrimRight(c.Path, "/") + fmt.Sprintf("/tfstate.%s/", hash)
-		kv.DeleteTree(path, nil)
+		_, err = kv.DeleteTree(path, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	return err
@@ -539,7 +545,8 @@ func (c *RemoteClient) createSession() (string, error) {
 	log.Println("[INFO] created consul lock session", id)
 
 	// keep the session renewed
-	go session.RenewPeriodic(lockSessionTTL, id, nil, ctx.Done())
+	// there's not really any good way of propagating errors from this function, so we ignore them
+	go session.RenewPeriodic(lockSessionTTL, id, nil, ctx.Done()) //nolint:errcheck
 
 	return id, nil
 }
@@ -574,8 +581,14 @@ func (c *RemoteClient) unlock(id string) error {
 		}
 		// We ignore the errors that may happen during cleanup
 		kv := c.Client.KV()
-		kv.Delete(c.lockPath()+lockSuffix, nil)
-		kv.Delete(c.lockPath()+lockInfoSuffix, nil)
+		_, err = kv.Delete(c.lockPath()+lockSuffix, nil)
+		if err != nil {
+			log.Printf("[ERROR] could not delete lock @ %s: %s\n", c.lockPath()+lockSuffix, err)
+		}
+		_, err = kv.Delete(c.lockPath()+lockInfoSuffix, nil)
+		if err != nil {
+			log.Printf("[ERROR] could not delete lock info @ %s: %s\n", c.lockPath()+lockInfoSuffix, err)
+		}
 
 		return nil
 	}
@@ -618,7 +631,10 @@ func (c *RemoteClient) unlock(id string) error {
 
 	// This is only cleanup, and will fail if the lock was immediately taken by
 	// another client, so we don't report an error to the user here.
-	c.consulLock.Destroy()
+	err := c.consulLock.Destroy()
+	if err != nil {
+		log.Printf("[ERROR] could not destroy consul lock: %s\n", err)
+	}
 
 	return errs
 }
@@ -644,7 +660,10 @@ func uncompressState(data []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	b.ReadFrom(gz)
+	_, err = b.ReadFrom(gz)
+	if err != nil {
+		return nil, err
+	}
 	if err := gz.Close(); err != nil {
 		return nil, err
 	}

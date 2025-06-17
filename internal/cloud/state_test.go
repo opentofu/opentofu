@@ -182,7 +182,7 @@ func TestCloudLocks(t *testing.T) {
 
 	_, err = lockerB.Lock(infoB)
 	if err == nil {
-		lockerA.Unlock(lockIDA)
+		_ = lockerA.Unlock(lockIDA) // test already failed, no need to check err further
 		t.Fatal("client B obtained lock while held by client A")
 	}
 	if _, ok := err.(*statemgr.LockError); !ok {
@@ -335,12 +335,15 @@ func TestState_PersistState(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			cloudState.WriteState(states.BuildState(func(s *states.SyncState) {
+			err = cloudState.WriteState(states.BuildState(func(s *states.SyncState) {
 				s.SetOutputValue(
 					addrs.OutputValue{Name: "boop"}.Absolute(addrs.RootModuleInstance),
 					cty.StringVal("beep"), false, "",
 				)
 			}))
+			if err != nil {
+				t.Fatal(err)
+			}
 
 			err = cloudState.PersistState(nil)
 			if err != nil {

@@ -324,7 +324,9 @@ in order to capture the filesystem context the remote workspace expects:
 						log.Printf("[ERROR] error searching process ID: %v", err)
 						return
 					}
-					p.Signal(syscall.SIGINT)
+					if err := p.Signal(syscall.SIGINT); err != nil {
+						log.Printf("[ERROR] error sending interrupt signal: %v", err)
+					}
 				}
 			}
 		}()

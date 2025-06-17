@@ -136,7 +136,10 @@ func testRunner(t *testing.T, cases testCases, orgCount int, tfEnvFlags ...strin
 					if lenInput > 0 {
 						for i := 0; i < lenInput; i++ {
 							input := tfCmd.userInput[i]
-							exp.SendLine(input)
+							_, err := exp.SendLine(input)
+							if err != nil {
+								subtest.Fatal(err)
+							}
 							// use the index to find the corresponding
 							// output that matches the input.
 							if lenInputOutput-1 >= i {
@@ -183,6 +186,13 @@ func setTfeClient() {
 	}
 }
 
+func chdirOCF(dir string) {
+	if err := os.Chdir(dir); err != nil {
+		fmt.Printf("Could not change directories: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 func setupBinary() func() {
 	log.Println("Setting up terraform binary")
 	tmpTerraformBinaryDir, err := os.MkdirTemp("", "terraform-test")
@@ -192,9 +202,9 @@ func setupBinary() func() {
 	}
 	log.Println(tmpTerraformBinaryDir)
 	currentDir, err := os.Getwd()
-	defer os.Chdir(currentDir)
+	defer chdirOCF(currentDir)
 	if err != nil {
-		fmt.Printf("Could not change directories: %v\n", err)
+		fmt.Printf("Could not get current directory: %v\n", err)
 		os.Exit(1)
 	}
 	// Getting top level dir
@@ -204,10 +214,7 @@ func setupBinary() func() {
 	topLevel := len(dirPaths) - 3
 	topDir := strings.Join(dirPaths[0:topLevel], "/")
 
-	if err := os.Chdir(topDir); err != nil {
-		fmt.Printf("Could not change directories: %v\n", err)
-		os.Exit(1)
-	}
+	chdirOCF(topDir)
 
 	cmd := exec.Command(
 		"go",

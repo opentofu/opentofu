@@ -137,11 +137,16 @@ type testHTTPHandler struct {
 func (h *testHTTPHandler) Handle(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		w.Write(h.Data)
+		if _, err := w.Write(h.Data); err != nil {
+			w.WriteHeader(500)
+			return
+		}
+		w.WriteHeader(200)
 	case "PUT":
 		buf := new(bytes.Buffer)
 		if _, err := io.Copy(buf, r.Body); err != nil {
 			w.WriteHeader(500)
+			return
 		}
 		w.WriteHeader(201)
 		h.Data = buf.Bytes()
@@ -149,6 +154,7 @@ func (h *testHTTPHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		buf := new(bytes.Buffer)
 		if _, err := io.Copy(buf, r.Body); err != nil {
 			w.WriteHeader(500)
+			return
 		}
 		h.Data = buf.Bytes()
 	case "LOCK":
@@ -164,7 +170,8 @@ func (h *testHTTPHandler) Handle(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	default:
 		w.WriteHeader(500)
-		w.Write([]byte(fmt.Sprintf("Unknown method: %s", r.Method)))
+		// this is already returning a 500, no need for further error checking
+		_, _ = fmt.Fprintf(w, "Unknown method: %s", r.Method)
 	}
 }
 
@@ -172,7 +179,11 @@ func (h *testHTTPHandler) Handle(w http.ResponseWriter, r *http.Request) {
 func (h *testHTTPHandler) HandleWebDAV(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
-		w.Write(h.Data)
+		if _, err := w.Write(h.Data); err != nil {
+			w.WriteHeader(500)
+			return
+		}
+		w.WriteHeader(200)
 	case "PUT":
 		buf := new(bytes.Buffer)
 		if _, err := io.Copy(buf, r.Body); err != nil {
@@ -190,7 +201,8 @@ func (h *testHTTPHandler) HandleWebDAV(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	default:
 		w.WriteHeader(500)
-		w.Write([]byte(fmt.Sprintf("Unknown method: %s", r.Method)))
+		// this is already returning a 500, no need for further error checking
+		_, _ = fmt.Fprintf(w, "Unknown method: %s", r.Method)
 	}
 }
 
