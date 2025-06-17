@@ -53,24 +53,24 @@ func buildProviderConfig(ctx context.Context, evalCtx EvalContext, addr addrs.Ab
 	}
 }
 
-func resolveProviderResourceInstance(ctx EvalContext, keyExpr hcl.Expression, resourcePath addrs.AbsResourceInstance) (addrs.InstanceKey, tfdiags.Diagnostics) {
-	keyData := ctx.InstanceExpander().GetResourceInstanceRepetitionData(resourcePath)
-	keyScope := ctx.EvaluationScope(nil, nil, keyData)
-	return resolveProviderInstance(keyExpr, keyScope, resourcePath.String())
+func resolveProviderResourceInstance(ctx context.Context, evalCtx EvalContext, keyExpr hcl.Expression, resourcePath addrs.AbsResourceInstance) (addrs.InstanceKey, tfdiags.Diagnostics) {
+	keyData := evalCtx.InstanceExpander().GetResourceInstanceRepetitionData(resourcePath)
+	keyScope := evalCtx.EvaluationScope(nil, nil, keyData)
+	return resolveProviderInstance(ctx, keyExpr, keyScope, resourcePath.String())
 }
 
-func resolveProviderModuleInstance(ctx EvalContext, keyExpr hcl.Expression, modulePath addrs.ModuleInstance, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
-	keyData := ctx.InstanceExpander().GetModuleInstanceRepetitionData(modulePath)
+func resolveProviderModuleInstance(ctx context.Context, evalCtx EvalContext, keyExpr hcl.Expression, modulePath addrs.ModuleInstance, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
+	keyData := evalCtx.InstanceExpander().GetModuleInstanceRepetitionData(modulePath)
 	// module providers block is evaluated in the parent module scope, similar to GraphNodeReferenceOutside
 	evalPath := modulePath.Parent()
-	keyScope := ctx.WithPath(evalPath).EvaluationScope(nil, nil, keyData)
-	return resolveProviderInstance(keyExpr, keyScope, source)
+	keyScope := evalCtx.WithPath(evalPath).EvaluationScope(nil, nil, keyData)
+	return resolveProviderInstance(ctx, keyExpr, keyScope, source)
 }
 
-func resolveProviderInstance(keyExpr hcl.Expression, keyScope *lang.Scope, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
+func resolveProviderInstance(ctx context.Context, keyExpr hcl.Expression, keyScope *lang.Scope, source string) (addrs.InstanceKey, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
-	keyVal, keyDiags := keyScope.EvalExpr(context.TODO(), keyExpr, cty.DynamicPseudoType)
+	keyVal, keyDiags := keyScope.EvalExpr(ctx, keyExpr, cty.DynamicPseudoType)
 	diags = diags.Append(keyDiags)
 	if keyDiags.HasErrors() {
 		return nil, diags

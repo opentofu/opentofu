@@ -151,7 +151,7 @@ func (n *nodeCheckAssert) Path() addrs.ModuleInstance {
 	return n.addr.Module
 }
 
-func (n *nodeCheckAssert) Execute(_ context.Context, evalCtx EvalContext, _ walkOperation) tfdiags.Diagnostics {
+func (n *nodeCheckAssert) Execute(ctx context.Context, evalCtx EvalContext, _ walkOperation) tfdiags.Diagnostics {
 
 	// We only want to actually execute the checks during specific
 	// operations, such as plan and applies.
@@ -164,6 +164,7 @@ func (n *nodeCheckAssert) Execute(_ context.Context, evalCtx EvalContext, _ walk
 		}
 
 		return evalCheckRules(
+			ctx,
 			addrs.CheckAssertion,
 			n.config.Asserts,
 			evalCtx,
@@ -177,7 +178,7 @@ func (n *nodeCheckAssert) Execute(_ context.Context, evalCtx EvalContext, _ walk
 	// diagnostics if references do not exist etc.
 	var diags tfdiags.Diagnostics
 	for ix, assert := range n.config.Asserts {
-		_, _, moreDiags := validateCheckRule(addrs.NewCheckRule(n.addr, addrs.CheckAssertion, ix), assert, evalCtx, EvalDataForNoInstanceKey)
+		_, _, moreDiags := validateCheckRule(ctx, addrs.NewCheckRule(n.addr, addrs.CheckAssertion, ix), assert, evalCtx, EvalDataForNoInstanceKey)
 		diags = diags.Append(moreDiags)
 	}
 	return diags

@@ -231,6 +231,7 @@ func (n *NodeApplyableResourceInstance) dataResourceExecute(ctx context.Context,
 	// the result of the operation, and to fail on future operations
 	// until the user makes the condition succeed.
 	checkDiags := evalCheckRules(
+		ctx,
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		evalCtx, n.ResourceInstanceAddr(),
@@ -334,7 +335,7 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 	// If there is no change, there was nothing to apply, and we don't need to
 	// re-write the state, but we do need to re-evaluate postconditions.
 	if diffApply.Action == plans.NoOp {
-		return diags.Append(n.managedResourcePostconditions(evalCtx, repeatData))
+		return diags.Append(n.managedResourcePostconditions(ctx, evalCtx, repeatData))
 	}
 
 	state, applyDiags := n.apply(ctx, evalCtx, state, diffApply, n.Config, repeatData, n.CreateBeforeDestroy())
@@ -412,12 +413,13 @@ func (n *NodeApplyableResourceInstance) managedResourceExecute(ctx context.Conte
 	// _after_ writing the state because we want to check against
 	// the result of the operation, and to fail on future operations
 	// until the user makes the condition succeed.
-	return diags.Append(n.managedResourcePostconditions(evalCtx, repeatData))
+	return diags.Append(n.managedResourcePostconditions(ctx, evalCtx, repeatData))
 }
 
-func (n *NodeApplyableResourceInstance) managedResourcePostconditions(evalCtx EvalContext, repeatData instances.RepetitionData) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableResourceInstance) managedResourcePostconditions(ctx context.Context, evalCtx EvalContext, repeatData instances.RepetitionData) (diags tfdiags.Diagnostics) {
 
 	checkDiags := evalCheckRules(
+		ctx,
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		evalCtx, n.ResourceInstanceAddr(), repeatData,

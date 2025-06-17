@@ -477,7 +477,7 @@ func (c *BuiltinEvalContext) EvaluationScope(self addrs.Referenceable, source ad
 			}
 
 			var keyDiags tfdiags.Diagnostics
-			providerKey, keyDiags = resolveProviderModuleInstance(c, providedBy.KeyExpression, moduleInstanceForKey, c.PathValue.String()+" "+pf.String())
+			providerKey, keyDiags = resolveProviderModuleInstance(ctx, c, providedBy.KeyExpression, moduleInstanceForKey, c.PathValue.String()+" "+pf.String())
 			if keyDiags.HasErrors() {
 				return nil, keyDiags
 			}

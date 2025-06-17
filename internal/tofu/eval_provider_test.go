@@ -96,7 +96,7 @@ func TestResolveProviderInstance_TypeConversion(t *testing.T) {
 				BaseDir: ".",
 			}
 			// call of the function to test
-			actualKey, diags := resolveProviderInstance(expr, scope, "test-source")
+			actualKey, diags := resolveProviderInstance(t.Context(), expr, scope, "test-source")
 
 			if diags.HasErrors() {
 				t.Fatalf("Unexpected error: %s", diags.Err())

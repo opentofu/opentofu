@@ -33,10 +33,10 @@ import (
 //
 // If any of the rules do not pass, the returned diagnostics will contain
 // errors. Otherwise, it will either be empty or contain only warnings.
-func evalCheckRules(typ addrs.CheckRuleType, rules []*configs.CheckRule, ctx EvalContext, self addrs.Checkable, keyData instances.RepetitionData, diagSeverity tfdiags.Severity) tfdiags.Diagnostics {
+func evalCheckRules(ctx context.Context, typ addrs.CheckRuleType, rules []*configs.CheckRule, evalCtx EvalContext, self addrs.Checkable, keyData instances.RepetitionData, diagSeverity tfdiags.Severity) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
-	checkState := ctx.Checks()
+	checkState := evalCtx.Checks()
 	if !checkState.ConfigHasChecks(self.ConfigCheckable()) {
 		// We have nothing to do if this object doesn't have any checks,
 		// but the "rules" slice should agree that we don't.
@@ -54,7 +54,7 @@ func evalCheckRules(typ addrs.CheckRuleType, rules []*configs.CheckRule, ctx Eva
 	severity := diagSeverity.ToHCL()
 
 	for i, rule := range rules {
-		result, ruleDiags := evalCheckRule(addrs.NewCheckRule(self, typ, i), rule, ctx, keyData, severity)
+		result, ruleDiags := evalCheckRule(ctx, addrs.NewCheckRule(self, typ, i), rule, evalCtx, keyData, severity)
 		diags = diags.Append(ruleDiags)
 
 		log.Printf("[TRACE] evalCheckRules: %s status is now %s", self, result.Status)
@@ -73,7 +73,7 @@ type checkResult struct {
 	FailureMessage string
 }
 
-func validateCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalContext, keyData instances.RepetitionData) (string, *hcl.EvalContext, tfdiags.Diagnostics) {
+func validateCheckRule(ctx context.Context, addr addrs.CheckRule, rule *configs.CheckRule, evalCtx EvalContext, keyData instances.RepetitionData) (string, *hcl.EvalContext, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	refs, moreDiags := lang.ReferencesInExpr(addrs.ParseRef, rule.Condition)
@@ -102,9 +102,9 @@ func validateCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalCo
 			panic(fmt.Sprintf("Invalid source reference type %t", addr.Container))
 		}
 	}
-	scope := ctx.EvaluationScope(selfReference, sourceReference, keyData)
+	scope := evalCtx.EvaluationScope(selfReference, sourceReference, keyData)
 
-	hclCtx, moreDiags := scope.EvalContext(context.TODO(), refs)
+	hclCtx, moreDiags := scope.EvalContext(ctx, refs)
 	diags = diags.Append(moreDiags)
 
 	errorMessage, moreDiags := evalCheckErrorMessage(rule.ErrorMessage, hclCtx)
@@ -113,11 +113,11 @@ func validateCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalCo
 	return errorMessage, hclCtx, diags
 }
 
-func evalCheckRule(addr addrs.CheckRule, rule *configs.CheckRule, ctx EvalContext, keyData instances.RepetitionData, severity hcl.DiagnosticSeverity) (checkResult, tfdiags.Diagnostics) {
+func evalCheckRule(ctx context.Context, addr addrs.CheckRule, rule *configs.CheckRule, evalCtx EvalContext, keyData instances.RepetitionData, severity hcl.DiagnosticSeverity) (checkResult, tfdiags.Diagnostics) {
 	// NOTE: Intentionally not passing the caller's selected severity in here,
 	// because this reports errors in the configuration itself, not the failure
 	// of an otherwise-valid condition.
-	errorMessage, hclCtx, diags := validateCheckRule(addr, rule, ctx, keyData)
+	errorMessage, hclCtx, diags := validateCheckRule(ctx, addr, rule, evalCtx, keyData)
 
 	const errInvalidCondition = "Invalid condition result"
 

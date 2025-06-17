@@ -196,7 +196,7 @@ func TestNodePlanDeposedResourceInstanceObject_Execute(t *testing.T) {
 			deposedKey := states.NewDeposedKey()
 			absResource := mustResourceInstanceAddr(test.nodeAddress)
 
-			evalCtx, p := initMockEvalContext(test.nodeAddress, deposedKey)
+			evalCtx, p := initMockEvalContext(t.Context(), test.nodeAddress, deposedKey)
 
 			node := NodePlanDeposedResourceInstanceObject{
 				NodeAbstractResourceInstance: &NodeAbstractResourceInstance{
@@ -231,7 +231,7 @@ func TestNodeDestroyDeposedResourceInstanceObject_Execute(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	state := states.NewState()
 	absResourceAddr := "test_instance.foo"
-	evalCtx, _ := initMockEvalContext(absResourceAddr, deposedKey)
+	evalCtx, _ := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
 
 	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeDestroyDeposedResourceInstanceObject{
@@ -327,7 +327,7 @@ func TestNodeForgetDeposedResourceInstanceObject_Execute(t *testing.T) {
 	deposedKey := states.NewDeposedKey()
 	state := states.NewState()
 	absResourceAddr := "test_instance.foo"
-	evalCtx, _ := initMockEvalContext(absResourceAddr, deposedKey)
+	evalCtx, _ := initMockEvalContext(t.Context(), absResourceAddr, deposedKey)
 
 	absResource := mustResourceInstanceAddr(absResourceAddr)
 	node := NodeForgetDeposedResourceInstanceObject{
@@ -350,7 +350,7 @@ func TestNodeForgetDeposedResourceInstanceObject_Execute(t *testing.T) {
 	}
 }
 
-func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*MockEvalContext, *MockProvider) {
+func initMockEvalContext(ctx context.Context, resourceAddrs string, deposedKey states.DeposedKey) (*MockEvalContext, *MockProvider) {
 	state := states.NewState()
 	absResource := mustResourceInstanceAddr(resourceAddrs)
 
@@ -385,7 +385,7 @@ func initMockEvalContext(resourceAddrs string, deposedKey states.DeposedKey) (*M
 	}
 
 	p := testProvider("test")
-	p.ConfigureProvider(context.TODO(), providers.ConfigureProviderRequest{})
+	p.ConfigureProvider(ctx, providers.ConfigureProviderRequest{})
 	p.GetProviderSchemaResponse = &schema
 
 	p.UpgradeResourceStateResponse = &providers.UpgradeResourceStateResponse{

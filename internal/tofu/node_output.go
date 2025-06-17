@@ -303,7 +303,7 @@ func (n *NodeApplyableOutput) References() []*addrs.Reference {
 }
 
 // GraphNodeExecutable
-func (n *NodeApplyableOutput) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	state := evalCtx.State()
 	if state == nil {
 		return
@@ -331,6 +331,7 @@ func (n *NodeApplyableOutput) Execute(_ context.Context, evalCtx EvalContext, op
 			checkRuleSeverity = tfdiags.Warning
 		}
 		checkDiags := evalCheckRules(
+			ctx,
 			addrs.OutputPrecondition,
 			n.Config.Preconditions,
 			evalCtx, n.Addr, EvalDataForNoInstanceKey,
@@ -368,7 +369,7 @@ func (n *NodeApplyableOutput) Execute(_ context.Context, evalCtx EvalContext, op
 		// We'll handle errors below, after we have loaded the module.
 		// Outputs don't have a separate mode for validation, so validate
 		// depends_on expressions here too
-		diags = diags.Append(validateDependsOn(evalCtx, n.Config.DependsOn))
+		diags = diags.Append(validateDependsOn(ctx, evalCtx, n.Config.DependsOn))
 
 		// For root module outputs in particular, an output value must be
 		// statically declared as sensitive in order to dynamically return

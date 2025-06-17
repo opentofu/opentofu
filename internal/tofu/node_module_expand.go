@@ -113,7 +113,7 @@ func (n *nodeExpandModule) ReferenceOutside() (selfPath, referencePath addrs.Mod
 }
 
 // GraphNodeExecutable
-func (n *nodeExpandModule) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeExpandModule) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	expander := evalCtx.InstanceExpander()
 	_, call := n.Addr.Call()
 
@@ -124,7 +124,7 @@ func (n *nodeExpandModule) Execute(_ context.Context, evalCtx EvalContext, op wa
 		evalCtx = evalCtx.WithPath(module)
 		switch {
 		case n.ModuleCall.Count != nil:
-			count, ctDiags := evaluateCountExpression(n.ModuleCall.Count, evalCtx, module)
+			count, ctDiags := evaluateCountExpression(ctx, n.ModuleCall.Count, evalCtx, module)
 			diags = diags.Append(ctDiags)
 			if diags.HasErrors() {
 				return diags
@@ -132,7 +132,7 @@ func (n *nodeExpandModule) Execute(_ context.Context, evalCtx EvalContext, op wa
 			expander.SetModuleCount(module, call, count)
 
 		case n.ModuleCall.ForEach != nil:
-			forEach, feDiags := evaluateForEachExpression(n.ModuleCall.ForEach, evalCtx, module)
+			forEach, feDiags := evaluateForEachExpression(ctx, n.ModuleCall.ForEach, evalCtx, module)
 			diags = diags.Append(feDiags)
 			if diags.HasErrors() {
 				return diags
@@ -247,7 +247,7 @@ type nodeValidateModule struct {
 var _ GraphNodeExecutable = (*nodeValidateModule)(nil)
 
 // GraphNodeEvalable
-func (n *nodeValidateModule) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeValidateModule) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	_, call := n.Addr.Call()
 	expander := evalCtx.InstanceExpander()
 
@@ -263,17 +263,17 @@ func (n *nodeValidateModule) Execute(_ context.Context, evalCtx EvalContext, op 
 		// a full expansion, presuming these errors will be caught in later steps
 		switch {
 		case n.ModuleCall.Count != nil:
-			_, countDiags := evaluateCountExpressionValue(n.ModuleCall.Count, evalCtx)
+			_, countDiags := evaluateCountExpressionValue(ctx, n.ModuleCall.Count, evalCtx)
 			diags = diags.Append(countDiags)
 
 		case n.ModuleCall.ForEach != nil:
 			const unknownsAllowed = true
 			const tupleNotAllowed = false
-			_, forEachDiags := evaluateForEachExpressionValue(n.ModuleCall.ForEach, evalCtx, unknownsAllowed, tupleNotAllowed, module)
+			_, forEachDiags := evaluateForEachExpressionValue(ctx, n.ModuleCall.ForEach, evalCtx, unknownsAllowed, tupleNotAllowed, module)
 			diags = diags.Append(forEachDiags)
 		}
 
-		diags = diags.Append(validateDependsOn(evalCtx, n.ModuleCall.DependsOn))
+		diags = diags.Append(validateDependsOn(ctx, evalCtx, n.ModuleCall.DependsOn))
 
 		// now set our own mode to single
 		expander.SetModuleSingle(module, call)

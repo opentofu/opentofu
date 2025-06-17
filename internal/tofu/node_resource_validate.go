@@ -65,7 +65,7 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 
 	diags = diags.Append(n.validateResource(ctx, evalCtx))
 
-	diags = diags.Append(n.validateCheckRules(evalCtx, n.Config))
+	diags = diags.Append(n.validateCheckRules(ctx, evalCtx, n.Config))
 
 	if managed := n.Config.Managed; managed != nil {
 		// Validate all the provisioners
@@ -313,7 +313,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 
 		// Basic type-checking of the count argument. More complete validation
 		// of this will happen when we DynamicExpand during the plan walk.
-		countDiags := validateCount(evalCtx, n.Config.Count)
+		countDiags := validateCount(ctx, evalCtx, n.Config.Count)
 		diags = diags.Append(countDiags)
 
 	case n.Config.ForEach != nil:
@@ -323,11 +323,11 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		}
 
 		// Evaluate the for_each expression here so we can expose the diagnostics
-		forEachDiags := validateForEach(evalCtx, n.Config.ForEach)
+		forEachDiags := validateForEach(ctx, evalCtx, n.Config.ForEach)
 		diags = diags.Append(forEachDiags)
 	}
 
-	diags = diags.Append(validateDependsOn(evalCtx, n.Config.DependsOn))
+	diags = diags.Append(validateDependsOn(ctx, evalCtx, n.Config.DependsOn))
 
 	// Validate the provider_meta block for the provider this resource
 	// belongs to, if there is one.
@@ -486,7 +486,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 	return diags
 }
 
-func (n *NodeValidatableResource) evaluateExpr(evalCtx EvalContext, expr hcl.Expression, wantTy cty.Type, self addrs.Referenceable, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
+func (n *NodeValidatableResource) evaluateExpr(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, wantTy cty.Type, self addrs.Referenceable, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	refs, refDiags := lang.ReferencesInExpr(addrs.ParseRef, expr)
@@ -494,7 +494,7 @@ func (n *NodeValidatableResource) evaluateExpr(evalCtx EvalContext, expr hcl.Exp
 
 	scope := evalCtx.EvaluationScope(self, nil, keyData)
 
-	hclCtx, moreDiags := scope.EvalContext(context.TODO(), refs)
+	hclCtx, moreDiags := scope.EvalContext(ctx, refs)
 	diags = diags.Append(moreDiags)
 
 	result, hclDiags := expr.Value(hclCtx)
@@ -537,32 +537,32 @@ func (n *NodeValidatableResource) stubRepetitionData(hasCount, hasForEach bool) 
 	return keyData, selfAddr
 }
 
-func (n *NodeValidatableResource) validateCheckRules(evalCtx EvalContext, config *configs.Resource) tfdiags.Diagnostics {
+func (n *NodeValidatableResource) validateCheckRules(ctx context.Context, evalCtx EvalContext, config *configs.Resource) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	keyData, selfAddr := n.stubRepetitionData(n.Config.Count != nil, n.Config.ForEach != nil)
 
 	for _, cr := range config.Preconditions {
-		_, conditionDiags := n.evaluateExpr(evalCtx, cr.Condition, cty.Bool, nil, keyData)
+		_, conditionDiags := n.evaluateExpr(ctx, evalCtx, cr.Condition, cty.Bool, nil, keyData)
 		diags = diags.Append(conditionDiags)
 
-		_, errorMessageDiags := n.evaluateExpr(evalCtx, cr.ErrorMessage, cty.Bool, nil, keyData)
+		_, errorMessageDiags := n.evaluateExpr(ctx, evalCtx, cr.ErrorMessage, cty.Bool, nil, keyData)
 		diags = diags.Append(errorMessageDiags)
 	}
 
 	for _, cr := range config.Postconditions {
-		_, conditionDiags := n.evaluateExpr(evalCtx, cr.Condition, cty.Bool, selfAddr, keyData)
+		_, conditionDiags := n.evaluateExpr(ctx, evalCtx, cr.Condition, cty.Bool, selfAddr, keyData)
 		diags = diags.Append(conditionDiags)
 
-		_, errorMessageDiags := n.evaluateExpr(evalCtx, cr.ErrorMessage, cty.Bool, selfAddr, keyData)
+		_, errorMessageDiags := n.evaluateExpr(ctx, evalCtx, cr.ErrorMessage, cty.Bool, selfAddr, keyData)
 		diags = diags.Append(errorMessageDiags)
 	}
 
 	return diags
 }
 
-func validateCount(evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
-	val, countDiags := evaluateCountExpressionValue(expr, evalCtx)
+func validateCount(ctx context.Context, evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
+	val, countDiags := evaluateCountExpressionValue(ctx, expr, evalCtx)
 	// If the value isn't known then that's the best we can do for now, but
 	// we'll check more thoroughly during the plan walk
 	if !val.IsKnown() {
@@ -576,11 +576,11 @@ func validateCount(evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diag
 	return diags
 }
 
-func validateForEach(evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
+func validateForEach(ctx context.Context, evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Diagnostics) {
 	const unknownsAllowed = true
 	const tupleNotAllowed = false
 
-	val, forEachDiags := evaluateForEachExpressionValue(expr, evalCtx, unknownsAllowed, tupleNotAllowed, nil)
+	val, forEachDiags := evaluateForEachExpressionValue(ctx, expr, evalCtx, unknownsAllowed, tupleNotAllowed, nil)
 	// If the value isn't known then that's the best we can do for now, but
 	// we'll check more thoroughly during the plan walk
 	if !val.IsKnown() {
@@ -592,7 +592,7 @@ func validateForEach(evalCtx EvalContext, expr hcl.Expression) (diags tfdiags.Di
 	return diags
 }
 
-func validateDependsOn(evalCtx EvalContext, dependsOn []hcl.Traversal) (diags tfdiags.Diagnostics) {
+func validateDependsOn(ctx context.Context, evalCtx EvalContext, dependsOn []hcl.Traversal) (diags tfdiags.Diagnostics) {
 	for _, traversal := range dependsOn {
 		ref, refDiags := addrs.ParseRef(traversal)
 		diags = diags.Append(refDiags)
@@ -611,7 +611,7 @@ func validateDependsOn(evalCtx EvalContext, dependsOn []hcl.Traversal) (diags tf
 		if !diags.HasErrors() {
 			scope := evalCtx.EvaluationScope(nil, nil, EvalDataForNoInstanceKey)
 			if scope != nil { // sometimes nil in tests, due to incomplete mocks
-				_, refDiags = scope.EvalReference(context.TODO(), ref, cty.DynamicPseudoType)
+				_, refDiags = scope.EvalReference(ctx, ref, cty.DynamicPseudoType)
 				diags = diags.Append(refDiags)
 			}
 		}

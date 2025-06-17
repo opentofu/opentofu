@@ -151,10 +151,10 @@ func (n *nodeModuleVariable) ModulePath() addrs.Module {
 }
 
 // GraphNodeExecutable
-func (n *nodeModuleVariable) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeModuleVariable) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) (diags tfdiags.Diagnostics) {
 	log.Printf("[TRACE] nodeModuleVariable: evaluating %s", n.Addr)
 
-	val, err := n.evalModuleVariable(evalCtx, op == walkValidate)
+	val, err := n.evalModuleVariable(ctx, evalCtx, op == walkValidate)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
 		return diags
@@ -190,7 +190,7 @@ func (n *nodeModuleVariable) DotNode(name string, opts *dag.DotOpts) *dag.DotNod
 // validateOnly indicates that this evaluation is only for config
 // validation, and we will not have any expansion module instance
 // repetition data.
-func (n *nodeModuleVariable) evalModuleVariable(evalCtx EvalContext, validateOnly bool) (cty.Value, error) {
+func (n *nodeModuleVariable) evalModuleVariable(ctx context.Context, evalCtx EvalContext, validateOnly bool) (cty.Value, error) {
 	var diags tfdiags.Diagnostics
 	var givenVal cty.Value
 	var errSourceRange tfdiags.SourceRange
@@ -214,7 +214,7 @@ func (n *nodeModuleVariable) evalModuleVariable(evalCtx EvalContext, validateOnl
 		}
 
 		scope := evalCtx.EvaluationScope(nil, nil, moduleInstanceRepetitionData)
-		val, moreDiags := scope.EvalExpr(context.TODO(), expr, cty.DynamicPseudoType)
+		val, moreDiags := scope.EvalExpr(ctx, expr, cty.DynamicPseudoType)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return cty.DynamicVal, diags.ErrWithWarnings()

@@ -172,6 +172,7 @@ func (n *NodePlannableResourceInstance) dataResourceExecute(ctx context.Context,
 	// the result of the operation, and to fail on future operations
 	// until the user makes the condition succeed.
 	checkDiags := evalCheckRules(
+		ctx,
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		evalCtx, addr, repeatData,
@@ -412,6 +413,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		// (Note that some preconditions will end up being skipped during
 		// planning, because their conditions depend on values not yet known.)
 		checkDiags := evalCheckRules(
+			ctx,
 			addrs.ResourcePostcondition,
 			n.Config.Postconditions,
 			evalCtx, n.ResourceInstanceAddr(), repeatData,
@@ -426,10 +428,11 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		// values, which could result in a post-condition check relying on that
 		// value being inaccurate. Unless we decide to store the value of the
 		// for-each expression in state, this is unavoidable.
-		forEach, _ := evaluateForEachExpression(n.Config.ForEach, evalCtx, n.ResourceAddr())
+		forEach, _ := evaluateForEachExpression(ctx, n.Config.ForEach, evalCtx, n.ResourceAddr())
 		repeatData := EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
 		checkDiags := evalCheckRules(
+			ctx,
 			addrs.ResourcePrecondition,
 			n.Config.Preconditions,
 			evalCtx, addr, repeatData,
@@ -453,6 +456,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 		// even if pre-conditions generated diagnostics, because we have no
 		// planned changes to block.
 		checkDiags = evalCheckRules(
+			ctx,
 			addrs.ResourcePostcondition,
 			n.Config.Postconditions,
 			evalCtx, addr, repeatData,

@@ -199,7 +199,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		for name, test := range tests {
 			t.Run(name, func(t *testing.T) {
 				addr := addrs.InputVariable{Name: name}
-				gotFinalVal, moreDiags := scope.Data.GetInputVariable(addr, tfdiags.SourceRange{Filename: "test.tf"})
+				gotFinalVal, moreDiags := scope.Data.GetInputVariable(t.Context(), addr, tfdiags.SourceRange{Filename: "test.tf"})
 				assertNoDiagnostics(t, moreDiags.ToHCL())
 
 				if !test.wantFinalVal.RawEquals(gotFinalVal) {
@@ -233,7 +233,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.InputVariable{Name: "bad_default"}
-		_, moreDiags := scope.Data.GetInputVariable(addr, tfdiags.SourceRange{Filename: "test.tf"})
+		_, moreDiags := scope.Data.GetInputVariable(t.Context(), addr, tfdiags.SourceRange{Filename: "test.tf"})
 		if !moreDiags.HasErrors() {
 			t.Fatal("unexpected success; want a type conversion error")
 		}
@@ -271,7 +271,7 @@ func TestStaticScope_GetInputVariable(t *testing.T) {
 		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.InputVariable{Name: "not_nullable"}
-		_, moreDiags := scope.Data.GetInputVariable(addr, tfdiags.SourceRange{Filename: "test.tf"})
+		_, moreDiags := scope.Data.GetInputVariable(t.Context(), addr, tfdiags.SourceRange{Filename: "test.tf"})
 		if !moreDiags.HasErrors() {
 			t.Fatal("unexpected success; want an error about the variable being required")
 		}
@@ -313,7 +313,7 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.LocalValue{Name: "foo"}
-		got, moreDiags := scope.Data.GetLocalValue(addr, tfdiags.SourceRange{Filename: "test.tf"})
+		got, moreDiags := scope.Data.GetLocalValue(t.Context(), addr, tfdiags.SourceRange{Filename: "test.tf"})
 		want := cty.StringVal("bar")
 		assertNoDiagnostics(t, moreDiags.ToHCL())
 		if !got.RawEquals(want) {
@@ -344,7 +344,7 @@ func TestStaticScope_GetLocalValue(t *testing.T) {
 		scope := newStaticScope(eval, test_ident)
 
 		addr := addrs.LocalValue{Name: "nonexist"}
-		_, moreDiags := scope.Data.GetLocalValue(addr, tfdiags.SourceRange{Filename: "test.tf"})
+		_, moreDiags := scope.Data.GetLocalValue(t.Context(), addr, tfdiags.SourceRange{Filename: "test.tf"})
 		if !moreDiags.HasErrors() {
 			t.Fatal("unexpected success; want error")
 		}

@@ -1172,11 +1172,11 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 
 			// Build a mock context to allow the function under test to
 			// retrieve the variable value and evaluate the expressions
-			ctx := &MockEvalContext{}
+			evalCtx := &MockEvalContext{}
 
 			// We need a minimal scope to allow basic functions to be passed to
 			// the HCL scope
-			ctx.EvaluationScopeScope = &lang.Scope{
+			evalCtx.EvaluationScopeScope = &lang.Scope{
 				Data: &evaluationStateData{Evaluator: &Evaluator{
 					Config:             cfg,
 					VariableValuesLock: &sync.Mutex{},
@@ -1185,21 +1185,21 @@ func TestEvalVariableValidations_jsonErrorMessageEdgeCase(t *testing.T) {
 					}},
 				}},
 			}
-			ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+			evalCtx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 				if got, want := addr.String(), varAddr.String(); got != want {
 					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
 				}
 				return test.given
 			}
-			ctx.ChecksState = checks.NewState(cfg)
-			ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+			evalCtx.ChecksState = checks.NewState(cfg)
+			evalCtx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
 
 			gotDiags := evalVariableValidations(
-				varAddr, varCfg, nil, ctx,
+				t.Context(), varAddr, varCfg, nil, evalCtx,
 			)
 
-			if ctx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
-				t.Errorf("expected check result %s but instead %s", test.status, ctx.ChecksState.ObjectCheckStatus(varAddr))
+			if evalCtx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
+				t.Errorf("expected check result %s but instead %s", test.status, evalCtx.ChecksState.ObjectCheckStatus(varAddr))
 			}
 
 			if len(test.wantErr) == 0 && len(test.wantWarn) == 0 {
@@ -1333,11 +1333,11 @@ variable "bar" {
 
 			// Build a mock context to allow the function under test to
 			// retrieve the variable value and evaluate the expressions
-			ctx := &MockEvalContext{}
+			evalCtx := &MockEvalContext{}
 
 			// We need a minimal scope to allow basic functions to be passed to
 			// the HCL scope
-			ctx.EvaluationScopeScope = &lang.Scope{
+			evalCtx.EvaluationScopeScope = &lang.Scope{
 				Data: &evaluationStateData{Evaluator: &Evaluator{
 					Config:             cfg,
 					VariableValuesLock: &sync.Mutex{},
@@ -1346,7 +1346,7 @@ variable "bar" {
 					}},
 				}},
 			}
-			ctx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
+			evalCtx.GetVariableValueFunc = func(addr addrs.AbsInputVariableInstance) cty.Value {
 				if got, want := addr.String(), varAddr.String(); got != want {
 					t.Errorf("incorrect argument to GetVariableValue: got %s, want %s", got, want)
 				}
@@ -1356,15 +1356,15 @@ variable "bar" {
 				// configured sensitivity.
 				return test.given
 			}
-			ctx.ChecksState = checks.NewState(cfg)
-			ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
+			evalCtx.ChecksState = checks.NewState(cfg)
+			evalCtx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
 
 			gotDiags := evalVariableValidations(
-				varAddr, varCfg, nil, ctx,
+				t.Context(), varAddr, varCfg, nil, evalCtx,
 			)
 
-			if ctx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
-				t.Errorf("expected check result %s but instead %s", test.status, ctx.ChecksState.ObjectCheckStatus(varAddr))
+			if evalCtx.ChecksState.ObjectCheckStatus(varAddr) != test.status {
+				t.Errorf("expected check result %s but instead %s", test.status, evalCtx.ChecksState.ObjectCheckStatus(varAddr))
 			}
 
 			if len(test.wantErr) == 0 {
@@ -1437,7 +1437,7 @@ func TestEvalVariableValidations_sensitiveValueDiagnostics(t *testing.T) {
 	ctx.ChecksState.ReportCheckableObjects(varAddr.ConfigCheckable(), addrs.MakeSet[addrs.Checkable](varAddr))
 
 	gotDiags := evalVariableValidations(
-		varAddr, cfg.Module.Variables["foo"], nil, ctx,
+		t.Context(), varAddr, cfg.Module.Variables["foo"], nil, ctx,
 	)
 	if !gotDiags.HasErrors() {
 		t.Fatalf("unexpected success; want validation error")
