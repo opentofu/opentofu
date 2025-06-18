@@ -301,7 +301,7 @@ func TestParserLoadConfigFileError(t *testing.T) {
 			// See https://github.com/opentofu/opentofu/issues/1467 for more details
 			eval := NewStaticEvaluator(nil, RootModuleCallForTesting())
 			for _, mc := range file.ModuleCalls {
-				mDiags := mc.decodeStaticFields(eval)
+				mDiags := mc.decodeStaticFields(t.Context(), eval)
 				diags = append(diags, mDiags...)
 			}
 

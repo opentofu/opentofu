@@ -753,7 +753,7 @@ func testBackendState(t *testing.T, s *states.State, c int) (*legacy.State, *htt
 	}
 	b := backendInit.Backend("http")(encryption.StateEncryptionDisabled())
 	configSchema := b.ConfigSchema()
-	hash, _ := backendConfig.Hash(configSchema)
+	hash, _ := backendConfig.Hash(t.Context(), configSchema)
 
 	state := legacy.NewState()
 	state.Backend = &legacy.BackendState{

@@ -114,19 +114,19 @@ func filterKeyProviderReferences(cfg *config.EncryptionConfig, deps []hcl.Traver
 
 // setupKeyProviders sets up the key providers for encryption. It returns a list of diagnostics if any of the key providers
 // are invalid.
-func setupKeyProviders(enc *config.EncryptionConfig, cfgs []config.KeyProviderConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) (*hcl.EvalContext, hcl.Diagnostics) {
+func setupKeyProviders(ctx context.Context, enc *config.EncryptionConfig, cfgs []config.KeyProviderConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) (*hcl.EvalContext, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
 	kpData := make(valueMap)
 
 	for _, keyProviderConfig := range cfgs {
-		diags = diags.Extend(setupKeyProvider(enc, keyProviderConfig, kpData, nil, meta, reg, staticEval))
+		diags = diags.Extend(setupKeyProvider(ctx, enc, keyProviderConfig, kpData, nil, meta, reg, staticEval))
 	}
 
 	return kpData.hclEvalContext("key_provider"), diags
 }
 
-func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig, kpData valueMap, stack []config.KeyProviderConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) hcl.Diagnostics {
+func setupKeyProvider(ctx context.Context, enc *config.EncryptionConfig, cfg config.KeyProviderConfig, kpData valueMap, stack []config.KeyProviderConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) hcl.Diagnostics {
 	// Check if we have already setup this Descriptor (due to dependency loading)
 	// if we've already setup this key provider, then we don't need to do it again
 	// and we can return early
@@ -204,13 +204,13 @@ func setupKeyProvider(enc *config.EncryptionConfig, cfg config.KeyProviderConfig
 
 	// Ensure all key provider dependencies have been initialized
 	for _, kp := range kpConfigs {
-		diags = diags.Extend(setupKeyProvider(enc, kp, kpData, stack, meta, reg, staticEval))
+		diags = diags.Extend(setupKeyProvider(ctx, enc, kp, kpData, stack, meta, reg, staticEval))
 	}
 	if diags.HasErrors() {
 		return diags
 	}
 
-	evalCtx, evalDiags := staticEval.EvalContextWithParent(context.TODO(), kpData.hclEvalContext("key_provider"), configs.StaticIdentifier{
+	evalCtx, evalDiags := staticEval.EvalContextWithParent(ctx, kpData.hclEvalContext("key_provider"), configs.StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("encryption.key_provider.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: enc.DeclRange,

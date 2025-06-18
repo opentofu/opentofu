@@ -60,11 +60,11 @@ func (m *Meta) backendMigrateState(ctx context.Context, opts *backendMigrateOpts
 	_, sourceTFC = opts.Source.(*cloud.Cloud)
 	_, destinationTFC = opts.Destination.(*cloud.Cloud)
 
-	sourceWorkspaces, sourceSingleState, err := retrieveWorkspaces(opts.Source, opts.SourceType)
+	sourceWorkspaces, sourceSingleState, err := retrieveWorkspaces(ctx, opts.Source, opts.SourceType)
 	if err != nil {
 		return err
 	}
-	destinationWorkspaces, destinationSingleState, err := retrieveWorkspaces(opts.Destination, opts.SourceType)
+	destinationWorkspaces, destinationSingleState, err := retrieveWorkspaces(ctx, opts.Destination, opts.SourceType)
 	if err != nil {
 		return err
 	}
@@ -537,10 +537,10 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 	return m.confirm(inputOpts)
 }
 
-func retrieveWorkspaces(back backend.Backend, sourceType string) ([]string, bool, error) {
+func retrieveWorkspaces(ctx context.Context, back backend.Backend, sourceType string) ([]string, bool, error) {
 	var singleState bool
 	var err error
-	workspaces, err := back.Workspaces(context.TODO())
+	workspaces, err := back.Workspaces(ctx)
 	if err == backend.ErrWorkspacesNotSupported {
 		singleState = true
 		err = nil
@@ -557,13 +557,13 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 	_, sourceTFC := opts.Source.(*cloud.Cloud)
 	cloudBackendDestination, destinationTFC := opts.Destination.(*cloud.Cloud)
 
-	sourceWorkspaces, sourceSingleState, err := retrieveWorkspaces(opts.Source, opts.SourceType)
+	sourceWorkspaces, sourceSingleState, err := retrieveWorkspaces(ctx, opts.Source, opts.SourceType)
 	if err != nil {
 		return err
 	}
 	// to be used below, not yet implemented
 	// destinationWorkspaces, destinationSingleState
-	_, _, err = retrieveWorkspaces(opts.Destination, opts.SourceType)
+	_, _, err = retrieveWorkspaces(ctx, opts.Destination, opts.SourceType)
 	if err != nil {
 		return err
 	}

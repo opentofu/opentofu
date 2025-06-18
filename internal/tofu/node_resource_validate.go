@@ -98,7 +98,7 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 // validateProvisioner validates the configuration of a provisioner belonging to
 // a resource. The provisioner config is expected to contain the merged
 // connection configurations.
-func (n *NodeValidatableResource) validateProvisioner(_ context.Context, evalCtx EvalContext, p *configs.Provisioner) tfdiags.Diagnostics {
+func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalCtx EvalContext, p *configs.Provisioner) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	provisioner, err := evalCtx.Provisioner(p.Type)
@@ -119,7 +119,7 @@ func (n *NodeValidatableResource) validateProvisioner(_ context.Context, evalCtx
 	}
 
 	// Validate the provisioner's own config first
-	configVal, _, configDiags := n.evaluateBlock(evalCtx, p.Config, provisionerSchema)
+	configVal, _, configDiags := n.evaluateBlock(ctx, evalCtx, p.Config, provisionerSchema)
 	diags = diags.Append(configDiags)
 
 	if configVal == cty.NilVal {
@@ -143,16 +143,16 @@ func (n *NodeValidatableResource) validateProvisioner(_ context.Context, evalCtx
 		// configuration keys that are not valid for *any* communicator, catching
 		// typos early rather than waiting until we actually try to run one of
 		// the resource's provisioners.
-		_, _, connDiags := n.evaluateBlock(evalCtx, p.Connection.Config, connectionBlockSupersetSchema)
+		_, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, connectionBlockSupersetSchema)
 		diags = diags.Append(connDiags)
 	}
 	return diags
 }
 
-func (n *NodeValidatableResource) evaluateBlock(evalCtx EvalContext, body hcl.Body, schema *configschema.Block) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (n *NodeValidatableResource) evaluateBlock(ctx context.Context, evalCtx EvalContext, body hcl.Body, schema *configschema.Block) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	keyData, selfAddr := n.stubRepetitionData(n.Config.Count != nil, n.Config.ForEach != nil)
 
-	return evalCtx.EvaluateBlock(body, schema, selfAddr, keyData)
+	return evalCtx.EvaluateBlock(ctx, body, schema, selfAddr, keyData)
 }
 
 // connectionBlockSupersetSchema is a schema representing the superset of all
@@ -392,7 +392,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			return diags
 		}
 
-		configVal, _, valDiags := evalCtx.EvaluateBlock(n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags
@@ -466,7 +466,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 			return diags
 		}
 
-		configVal, _, valDiags := evalCtx.EvaluateBlock(n.Config.Config, schema, nil, keyData)
+		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
 		diags = diags.Append(valDiags)
 		if valDiags.HasErrors() {
 			return diags

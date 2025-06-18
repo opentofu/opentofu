@@ -165,7 +165,7 @@ func (n *NodeApplyableProvider) ValidateProvider(ctx context.Context, evalCtx Ev
 		data = n.Config.Instances[providerKey]
 	}
 
-	configVal, _, evalDiags := evalCtx.EvaluateBlock(configBody, configSchema, nil, data)
+	configVal, _, evalDiags := evalCtx.EvaluateBlock(ctx, configBody, configSchema, nil, data)
 	if evalDiags.HasErrors() {
 		tracing.SetSpanError(span, diags)
 		return diags.Append(evalDiags)
@@ -218,7 +218,7 @@ func (n *NodeApplyableProvider) ConfigureProvider(ctx context.Context, evalCtx E
 		data = n.Config.Instances[providerKey]
 	}
 
-	configVal, configBody, evalDiags := evalCtx.EvaluateBlock(configBody, configSchema, nil, data)
+	configVal, configBody, evalDiags := evalCtx.EvaluateBlock(ctx, configBody, configSchema, nil, data)
 	diags = diags.Append(evalDiags)
 	if evalDiags.HasErrors() {
 		tracing.SetSpanError(span, diags)

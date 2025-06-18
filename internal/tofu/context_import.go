@@ -114,20 +114,20 @@ func NewImportResolver() *ImportResolver {
 // them. The resolved import target would be an EvaluatedConfigImportTarget.
 // This function mutates the EvalContext's ImportResolver, adding the resolved import target.
 // The function errors if we failed to evaluate the ID or the address.
-func (ri *ImportResolver) ExpandAndResolveImport(importTarget *ImportTarget, ctx EvalContext) tfdiags.Diagnostics {
+func (ri *ImportResolver) ExpandAndResolveImport(ctx context.Context, importTarget *ImportTarget, evalCtx EvalContext) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 
 	// The import block expressions are declared within the root module.
 	// We need to explicitly use the context with the path of the root module, so that all references will be
 	// relative to the root module
-	rootCtx := ctx.WithPath(addrs.RootModuleInstance)
+	rootCtx := evalCtx.WithPath(addrs.RootModuleInstance)
 
 	if importTarget.Config.ForEach != nil {
 		const unknownsNotAllowed = false
 		const tupleAllowed = true
 
 		// The import target has a for_each attribute, so we need to expand it
-		forEachVal, evalDiags := evaluateForEachExpressionValue(context.TODO(), importTarget.Config.ForEach, rootCtx, unknownsNotAllowed, tupleAllowed, nil)
+		forEachVal, evalDiags := evaluateForEachExpressionValue(ctx, importTarget.Config.ForEach, rootCtx, unknownsNotAllowed, tupleAllowed, nil)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			return diags

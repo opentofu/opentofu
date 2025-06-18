@@ -30,7 +30,7 @@ func evalContextScope(ctx context.Context, evalCtx EvalContext) evalchecks.Conte
 
 func evalContextEvaluate(ctx context.Context, evalCtx EvalContext) evalchecks.EvaluateFunc {
 	return func(expr hcl.Expression) (cty.Value, tfdiags.Diagnostics) {
-		return evalCtx.EvaluateExpr(expr, cty.Number, nil)
+		return evalCtx.EvaluateExpr(ctx, expr, cty.Number, nil)
 	}
 }
 

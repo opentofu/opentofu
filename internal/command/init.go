@@ -216,7 +216,7 @@ func (c *InitCommand) Run(args []string) int {
 	} else {
 		// Load the encryption configuration
 		var encDiags tfdiags.Diagnostics
-		enc, encDiags = c.EncryptionFromModule(rootModEarly)
+		enc, encDiags = c.EncryptionFromModule(ctx, rootModEarly)
 		diags = diags.Append(encDiags)
 		if encDiags.HasErrors() {
 			c.showDiagnostics(diags)

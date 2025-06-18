@@ -503,7 +503,7 @@ func (m *Meta) backendConfig(ctx context.Context, opts *BackendOpts) (*configs.B
 
 	configSchema := b.ConfigSchema()
 	configBody := c.Config
-	configHash, cfgDiags := c.Hash(configSchema)
+	configHash, cfgDiags := c.Hash(ctx, configSchema)
 	diags = diags.Append(cfgDiags)
 	if diags.HasErrors() {
 		return nil, 0, diags
@@ -668,7 +668,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 		// AND we're not providing any overrides. An override can mean a change overriding an unchanged backend block (indicated by the hash value).
 		if (uint64(cHash) == s.Backend.Hash) && (!opts.Init || opts.ConfigOverride == nil) {
 			log.Printf("[TRACE] Meta.Backend: using already-initialized, unchanged %q backend configuration", c.Type)
-			savedBackend, diags := m.savedBackend(sMgr, enc)
+			savedBackend, diags := m.savedBackend(ctx, sMgr, enc)
 			// Verify that selected workspace exist. Otherwise prompt user to create one
 			if opts.Init && savedBackend != nil {
 				if err := m.selectWorkspace(ctx, savedBackend); err != nil {
@@ -683,9 +683,9 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 		// -backend-config options) is the same, then we're just initializing a previously
 		// configured backend. The literal configuration may differ, however, so while we
 		// don't need to migrate, we update the backend cache hash value.
-		if !m.backendConfigNeedsMigration(c, s.Backend) {
+		if !m.backendConfigNeedsMigration(ctx, c, s.Backend) {
 			log.Printf("[TRACE] Meta.Backend: using already-initialized %q backend configuration", c.Type)
-			savedBackend, moreDiags := m.savedBackend(sMgr, enc)
+			savedBackend, moreDiags := m.savedBackend(ctx, sMgr, enc)
 			diags = diags.Append(moreDiags)
 			if moreDiags.HasErrors() {
 				return nil, diags
@@ -918,7 +918,7 @@ func (m *Meta) backend_c_r_S(
 	}
 
 	// Initialize the configured backend
-	b, moreDiags := m.savedBackend(sMgr, enc)
+	b, moreDiags := m.savedBackend(ctx, sMgr, enc)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -1010,7 +1010,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 	}
 
 	// Get the backend
-	b, configVal, moreDiags := m.backendInitFromConfig(c, enc)
+	b, configVal, moreDiags := m.backendInitFromConfig(ctx, c, enc)
 	diags = diags.Append(moreDiags)
 	if diags.HasErrors() {
 		return nil, diags
@@ -1171,7 +1171,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 	}
 
 	// Get the backend
-	b, configVal, moreDiags := m.backendInitFromConfig(c, enc)
+	b, configVal, moreDiags := m.backendInitFromConfig(ctx, c, enc)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return nil, diags
@@ -1185,7 +1185,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 	// state lives.
 	if cloudMode != cloud.ConfigChangeInPlace {
 		// Grab the existing backend
-		oldB, oldBDiags := m.savedBackend(sMgr, enc)
+		oldB, oldBDiags := m.savedBackend(ctx, sMgr, enc)
 		diags = diags.Append(oldBDiags)
 		if oldBDiags.HasErrors() {
 			return nil, diags
@@ -1266,7 +1266,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 // TODO: This is extremely similar to Meta.backendFromState() but for legacy reasons this is the
 // function used by the migration APIs within this file. The other handles 'init -backend=false',
 // specifically.
-func (m *Meta) savedBackend(sMgr *clistate.LocalState, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
+func (m *Meta) savedBackend(ctx context.Context, sMgr *clistate.LocalState, enc encryption.StateEncryption) (backend.Backend, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	s := sMgr.State()
@@ -1300,7 +1300,7 @@ func (m *Meta) savedBackend(sMgr *clistate.LocalState, enc encryption.StateEncry
 		return nil, diags
 	}
 
-	configDiags := b.Configure(context.TODO(), newVal)
+	configDiags := b.Configure(ctx, newVal)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, diags
@@ -1349,7 +1349,7 @@ func (m *Meta) updateSavedBackendHash(cHash int, sMgr *clistate.LocalState) tfdi
 // this function will conservatively assume that migration is required,
 // expecting that the migration code will subsequently deal with the same
 // errors.
-func (m *Meta) backendConfigNeedsMigration(c *configs.Backend, s *legacy.BackendState) bool {
+func (m *Meta) backendConfigNeedsMigration(ctx context.Context, c *configs.Backend, s *legacy.BackendState) bool {
 	if s == nil || s.Empty() {
 		log.Print("[TRACE] backendConfigNeedsMigration: no cached config, so migration is required")
 		return true
@@ -1373,7 +1373,7 @@ func (m *Meta) backendConfigNeedsMigration(c *configs.Backend, s *legacy.Backend
 	// some of the required arguments might be satisfied from outside of the body we're
 	// evaluating here.
 	schema := b.ConfigSchema().NoneRequired()
-	givenVal, diags := c.Decode(schema)
+	givenVal, diags := c.Decode(ctx, schema)
 	if diags.HasErrors() {
 		log.Printf("[TRACE] backendConfigNeedsMigration: failed to decode given config; migration codepath must handle problem: %s", diags.Error())
 		return true // let the migration codepath deal with these errors
@@ -1397,7 +1397,7 @@ func (m *Meta) backendConfigNeedsMigration(c *configs.Backend, s *legacy.Backend
 	return true
 }
 
-func (m *Meta) backendInitFromConfig(c *configs.Backend, enc encryption.StateEncryption) (backend.Backend, cty.Value, tfdiags.Diagnostics) {
+func (m *Meta) backendInitFromConfig(ctx context.Context, c *configs.Backend, enc encryption.StateEncryption) (backend.Backend, cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	// Get the backend
@@ -1409,7 +1409,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend, enc encryption.StateEnc
 	b := f(enc)
 
 	schema := b.ConfigSchema()
-	configVal, hclDiags := c.Decode(schema.NoneRequired())
+	configVal, hclDiags := c.Decode(ctx, schema.NoneRequired())
 	diags = diags.Append(hclDiags)
 	if hclDiags.HasErrors() {
 		return nil, cty.NilVal, diags
@@ -1445,7 +1445,7 @@ func (m *Meta) backendInitFromConfig(c *configs.Backend, enc encryption.StateEnc
 		return nil, cty.NilVal, diags
 	}
 
-	configureDiags := b.Configure(context.TODO(), newVal)
+	configureDiags := b.Configure(ctx, newVal)
 	diags = diags.Append(configureDiags.InConfigBody(c.Config, ""))
 
 	// If the result of loading the backend is an enhanced backend,

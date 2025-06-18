@@ -48,7 +48,7 @@ func decodeBackendBlock(block *hcl.Block) (*Backend, hcl.Diagnostics) {
 // for the purpose of hashing, so that an incomplete configuration can still
 // be hashed. Other errors, such as extraneous attributes, have no such special
 // case.
-func (b *Backend) Hash(schema *configschema.Block) (int, hcl.Diagnostics) {
+func (b *Backend) Hash(ctx context.Context, schema *configschema.Block) (int, hcl.Diagnostics) {
 	// Don't fail if required attributes are not set. Instead, we'll just
 	// hash them as nulls.
 	schema = schema.NoneRequired()
@@ -57,9 +57,9 @@ func (b *Backend) Hash(schema *configschema.Block) (int, hcl.Diagnostics) {
 	// errors.  I don't want to try to change that at this point, but it may be worth doing
 	// at some point. For now, I'm just looking to see if there are any references that are
 	// not valid that the user should look at, instead of just producing an invalid backend object.
-	diags := b.referenceDiagnostics(schema)
+	diags := b.referenceDiagnostics(ctx, schema)
 
-	val, _ := b.Decode(schema)
+	val, _ := b.Decode(ctx, schema)
 	if val == cty.NilVal {
 		val = cty.UnknownVal(schema.ImpliedType())
 	}
@@ -81,8 +81,8 @@ func (b *Backend) Hash(schema *configschema.Block) (int, hcl.Diagnostics) {
 	return toHash.Hash(), diags
 }
 
-func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
-	return b.Eval.DecodeBlock(context.TODO(), b.Config, schema.DecoderSpec(), StaticIdentifier{
+func (b *Backend) Decode(ctx context.Context, schema *configschema.Block) (cty.Value, hcl.Diagnostics) {
+	return b.Eval.DecodeBlock(ctx, b.Config, schema.DecoderSpec(), StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("backend.%s", b.Type),
 		DeclRange: b.DeclRange,
@@ -90,7 +90,7 @@ func (b *Backend) Decode(schema *configschema.Block) (cty.Value, hcl.Diagnostics
 }
 
 // This is a hack that may not be needed, but preserves the idea that invalid backends will show a cryptic error about running init during plan/apply startup.
-func (b *Backend) referenceDiagnostics(schema *configschema.Block) hcl.Diagnostics {
+func (b *Backend) referenceDiagnostics(ctx context.Context, schema *configschema.Block) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	refs, refsDiags := lang.References(addrs.ParseRef, hcldec.Variables(b.Config, schema.DecoderSpec()))
@@ -103,7 +103,7 @@ func (b *Backend) referenceDiagnostics(schema *configschema.Block) hcl.Diagnosti
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("backend.%s", b.Type),
 		DeclRange: b.DeclRange,
-	}).EvalContext(context.TODO(), refs)
+	}).EvalContext(ctx, refs)
 	diags = append(diags, ctxDiags.ToHCL()...)
 
 	return diags

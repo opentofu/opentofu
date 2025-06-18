@@ -20,7 +20,7 @@ import (
 )
 
 // setupMethod sets up a single method for encryption. It returns a list of diagnostics if the method is invalid.
-func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) (method.Method, hcl.Diagnostics) {
+func setupMethod(ctx context.Context, enc *config.EncryptionConfig, cfg config.MethodConfig, meta keyProviderMetadata, reg registry.Registry, staticEval *configs.StaticEvaluator) (method.Method, hcl.Diagnostics) {
 	// Lookup the definition of the encryption method from the registry
 	encryptionMethod, err := reg.GetMethodDescriptor(method.ID(cfg.Type))
 	if err != nil {
@@ -56,13 +56,13 @@ func setupMethod(enc *config.EncryptionConfig, cfg config.MethodConfig, meta key
 		return nil, diags
 	}
 
-	hclCtx, kpDiags := setupKeyProviders(enc, kpConfigs, meta, reg, staticEval)
+	hclCtx, kpDiags := setupKeyProviders(ctx, enc, kpConfigs, meta, reg, staticEval)
 	diags = diags.Extend(kpDiags)
 	if diags.HasErrors() {
 		return nil, diags
 	}
 
-	hclCtx, evalDiags := staticEval.EvalContextWithParent(context.TODO(), hclCtx, configs.StaticIdentifier{
+	hclCtx, evalDiags := staticEval.EvalContextWithParent(ctx, hclCtx, configs.StaticIdentifier{
 		Module:    addrs.RootModule,
 		Subject:   fmt.Sprintf("encryption.method.%s.%s", cfg.Type, cfg.Name),
 		DeclRange: enc.DeclRange,

@@ -6,6 +6,7 @@
 package configs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
@@ -246,12 +247,12 @@ func NewModule(primaryFiles, overrideFiles []*File, call StaticModuleCall, sourc
 
 	// Process all module calls now that we have the static context
 	for _, mc := range mod.ModuleCalls {
-		mDiags := mc.decodeStaticFields(mod.StaticEvaluator)
+		mDiags := mc.decodeStaticFields(context.TODO(), mod.StaticEvaluator)
 		diags = append(diags, mDiags...)
 	}
 
 	for _, pc := range mod.ProviderConfigs {
-		pDiags := pc.decodeStaticFields(mod.StaticEvaluator)
+		pDiags := pc.decodeStaticFields(context.TODO(), mod.StaticEvaluator)
 		diags = append(diags, pDiags...)
 	}
 

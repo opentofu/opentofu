@@ -364,7 +364,7 @@ func (testCase btmTestCase) newTestRun(reg registry.Registry, staticEval *config
 		var methods []method.Method
 		methodConfigs, diags := methodConfigsFromTarget(cfg, target, "test", cfg.State.Enforced)
 		for _, methodConfig := range methodConfigs {
-			m, mDiags := setupMethod(cfg, methodConfig, meta, reg, staticEval)
+			m, mDiags := setupMethod(t.Context(), cfg, methodConfig, meta, reg, staticEval)
 			diags = diags.Extend(mDiags)
 			if !mDiags.HasErrors() {
 				methods = append(methods, m)

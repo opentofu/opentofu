@@ -405,13 +405,13 @@ terraform {
 
 			mod, _ := NewModule([]*File{file}, nil, RootModuleCallForTesting(), "dir", SelectiveLoadAll)
 
-			_, diags := mod.Backend.Hash(schema)
+			_, diags := mod.Backend.Hash(t.Context(), schema)
 			if diags.HasErrors() {
 				assertExactDiagnostics(t, diags, tc.diags)
 				return
 			}
 
-			_, diags = mod.Backend.Decode(schema)
+			_, diags = mod.Backend.Decode(t.Context(), schema)
 
 			assertExactDiagnostics(t, diags, tc.diags)
 		})
