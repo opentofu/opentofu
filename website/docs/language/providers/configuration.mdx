@@ -316,7 +316,7 @@ same provider configuration block, but can they each be bound to a different
 instance.
 
 :::warning
-**The `for_each` expression for a resource must not exactly match the
+**The `for_each` expression for a resource must *be different* from the
 `for_each` expression for its associated provider configuration.**
 
 OpenTofu uses a provider instance to plan and apply _all_ actions related
@@ -337,7 +337,63 @@ OpenTofu to propose to destroy the `aws_vpc.private` instance for that
 region while retaining the provider instance needed to plan and apply that
 action. You can then remove the element altogether on the next round, once
 all of the associated resource instances have been destroyed.
+
+Given the following configuration, for example:
+
+```hcl
+provider "aws" {
+  alias    = "by_region"
+  for_each = local.aws_regions
+  region = each.value
+}
+resource "aws_cloudwatch_log_group" "lambda_cloudfront" {
+  name     = "/aws/lambda/${each.key}.lambda"
+  for_each = local.aws_regions
+  provider = aws.by_region[each.key]
+}
+```
+
+The provider "aws" for_each is equal to the resource provider's for_each on "lambda_cloudfront"
+on the code above, both being `local.aws_regions`.
+This is known to cause errors, since if a region needs to be removed, you would need a few manual steps using `tofu apply -destroy`
+in order to remove the resources first and then remove the region provider instance later. It's an error-prone approach that will be 
+best shown below on how to deal with it.
 :::
+
+### Deleting a provider instance
+
+As explained above, a resource should always be defined using a different `for_each` expression 
+that is a subset of the provider configuration:
+
+```hcl
+variable "aws_active_regions" {
+  type = set(string)
+  default = ["us-east-1", "sa-east-1"]
+}
+
+variable "aws_disabled_regions" {
+  description = "A list of regions that should be disabled and all resources removed."
+  type        = set(string)
+  default     = []
+}
+
+// Superset of the provider configuration
+provider "aws" {
+  alias    = "by_region"
+  for_each = var.aws_active_regions
+  region   = each.key
+}
+
+// Resource using a subset of the provider's configuration
+resource "aws_cloudwatch_log_group" "lambda_cloudfront" {
+  name     = "/aws/lambda/${each.key}.lambda"
+  provider = aws.by_region[each.key]
+  for_each = setsubtract(var.aws_active_regions, var.aws_disabled_regions)
+}
+```
+
+Now, if a region needs to be removed from these resources, a round of changing the `aws_disabled_regions`, running 
+`tofu plan` and `tofu apply`, then removing subsequently this region from both variables would be enough.
 
 ### Passing provider configurations between modules
 
