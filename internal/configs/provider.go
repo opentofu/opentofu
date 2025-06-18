@@ -52,6 +52,10 @@ type Provider struct {
 	Instances map[addrs.InstanceKey]instances.RepetitionData
 }
 
+func DecodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
+	return decodeProviderBlock(block)
+}
+
 func decodeProviderBlock(block *hcl.Block) (*Provider, hcl.Diagnostics) {
 	var diags hcl.Diagnostics
 
