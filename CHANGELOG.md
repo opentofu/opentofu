@@ -6,6 +6,10 @@ ENHANCEMENTS:
 * `tofu validate` now supports running in a module that contains provider configuration_aliases. ([#2905](https://github.com/opentofu/opentofu/pull/2905))
 * `tofu show` now supports a `-config` option, to be used in conjunction with `-json` to produce a machine-readable summary of the configuration without first creating a plan. ([#2820](https://github.com/opentofu/opentofu/pull/2820))
 
+BUG FIXES:
+
+* The `tofu.rc` configuration file now properly takes precedence over `terraform.rc` on Windows ([#2891](https://github.com/opentofu/opentofu/pull/2891))
+
 ## Previous Releases
 
 For information on prior major and minor releases, refer to their changelogs:
