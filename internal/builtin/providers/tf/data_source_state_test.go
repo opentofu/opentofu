@@ -328,7 +328,7 @@ func TestState_basic(t *testing.T) {
 			var got cty.Value
 			if !diags.HasErrors() && config.IsWhollyKnown() {
 				var moreDiags tfdiags.Diagnostics
-				got, moreDiags = dataSourceRemoteStateRead(config, encryption.StateEncryptionDisabled(), addrs.AbsResourceInstance{
+				got, moreDiags = dataSourceRemoteStateRead(t.Context(), config, encryption.StateEncryptionDisabled(), addrs.AbsResourceInstance{
 					Resource: addrs.ResourceInstance{
 						Resource: addrs.Resource{
 							Mode: addrs.DataResourceMode,

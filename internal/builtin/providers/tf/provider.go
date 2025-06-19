@@ -91,7 +91,7 @@ func (p *Provider) ReadDataSource(_ context.Context, req providers.ReadDataSourc
 	panic("Should not be called directly, special case for terraform_remote_state")
 }
 
-func (p *Provider) ReadDataSourceEncrypted(_ context.Context, req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse {
+func (p *Provider) ReadDataSourceEncrypted(ctx context.Context, req providers.ReadDataSourceRequest, path addrs.AbsResourceInstance, enc encryption.Encryption) providers.ReadDataSourceResponse {
 	// call function
 	var res providers.ReadDataSourceResponse
 
@@ -113,7 +113,7 @@ func (p *Provider) ReadDataSourceEncrypted(_ context.Context, req providers.Read
 
 	log.Printf("[DEBUG] accessing remote state at %s", key)
 
-	newState, diags := dataSourceRemoteStateRead(req.Config, enc.RemoteState(key), path)
+	newState, diags := dataSourceRemoteStateRead(ctx, req.Config, enc.RemoteState(key), path)
 
 	if diags.HasErrors() {
 		diags = diags.Append(fmt.Errorf("%s: Unable to read remote state", path.String()))

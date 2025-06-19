@@ -106,7 +106,7 @@ func dataSourceRemoteStateValidate(cfg cty.Value) tfdiags.Diagnostics {
 	return diags
 }
 
-func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption, path addrs.AbsResourceInstance) (cty.Value, tfdiags.Diagnostics) {
+func dataSourceRemoteStateRead(ctx context.Context, d cty.Value, enc encryption.StateEncryption, path addrs.AbsResourceInstance) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	b, cfg, moreDiags := getBackend(d, enc)
@@ -115,9 +115,7 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption, path
 		return cty.NilVal, diags
 	}
 
-	// TODO: Plumb a real context in here, once [providers.Interface] has
-	// been updated to allow one to pass through its API.
-	configureDiags := b.Configure(context.TODO(), cfg)
+	configureDiags := b.Configure(ctx, cfg)
 	if configureDiags.HasErrors() {
 		diags = diags.Append(configureDiags.Err())
 		return cty.NilVal, diags
@@ -137,7 +135,7 @@ func dataSourceRemoteStateRead(d cty.Value, enc encryption.StateEncryption, path
 		workspaceName = workspaceVal.AsString()
 	}
 
-	state, err := b.StateMgr(context.TODO(), workspaceName)
+	state, err := b.StateMgr(ctx, workspaceName)
 	if err != nil {
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
