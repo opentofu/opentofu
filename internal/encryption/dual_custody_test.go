@@ -57,7 +57,7 @@ func TestDualCustody(t *testing.T) {
 
 	staticEval := configs.NewStaticEvaluator(nil, configs.RootModuleCallForTesting())
 
-	enc, diags := New(reg, parsedSourceConfig, staticEval)
+	enc, diags := New(t.Context(), reg, parsedSourceConfig, staticEval)
 	if diags.HasErrors() {
 		t.Fatalf("%v", diags.Error())
 	}

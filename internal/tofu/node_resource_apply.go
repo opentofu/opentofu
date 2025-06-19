@@ -51,13 +51,13 @@ func (n *nodeExpandApplyableResource) Name() string {
 	return n.NodeAbstractResource.Name() + " (expand)"
 }
 
-func (n *nodeExpandApplyableResource) Execute(_ context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
+func (n *nodeExpandApplyableResource) Execute(ctx context.Context, evalCtx EvalContext, op walkOperation) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	expander := evalCtx.InstanceExpander()
 	moduleInstances := expander.ExpandModule(n.Addr.Module)
 	for _, module := range moduleInstances {
 		evalCtx = evalCtx.WithPath(module)
-		diags = diags.Append(n.writeResourceState(evalCtx, n.Addr.Resource.Absolute(module)))
+		diags = diags.Append(n.writeResourceState(ctx, evalCtx, n.Addr.Resource.Absolute(module)))
 	}
 
 	return diags

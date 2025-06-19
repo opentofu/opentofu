@@ -147,18 +147,18 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 	return mc, diags
 }
 
-func (mc *ModuleCall) decodeStaticFields(eval *StaticEvaluator) hcl.Diagnostics {
+func (mc *ModuleCall) decodeStaticFields(ctx context.Context, eval *StaticEvaluator) hcl.Diagnostics {
 	mc.Workspace = eval.call.workspace
-	mc.decodeStaticVariables(eval)
+	mc.decodeStaticVariables(ctx, eval)
 
 	var diags hcl.Diagnostics
-	diags = diags.Extend(mc.decodeStaticVersion(eval))
+	diags = diags.Extend(mc.decodeStaticVersion(ctx, eval))
 	// decodeStaticSource depends on mc.VersionAttr, so it must be called after decodeStaticVersion
-	diags = diags.Extend(mc.decodeStaticSource(eval))
+	diags = diags.Extend(mc.decodeStaticSource(ctx, eval))
 	return diags
 }
 
-func (mc *ModuleCall) decodeStaticSource(eval *StaticEvaluator) hcl.Diagnostics {
+func (mc *ModuleCall) decodeStaticSource(ctx context.Context, eval *StaticEvaluator) hcl.Diagnostics {
 	if mc.Source == nil {
 		// This is an invalid module.  We already have error handling that has more context and can produce better errors in this
 		// scenario.  Follow the trail of mc.SourceAddr -> req.SourceAddr through the command package.
@@ -166,7 +166,7 @@ func (mc *ModuleCall) decodeStaticSource(eval *StaticEvaluator) hcl.Diagnostics 
 	}
 
 	// Decode source field
-	diags := eval.DecodeExpression(context.TODO(), mc.Source, StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("module.%s.source", mc.Name), DeclRange: mc.Source.Range()}, &mc.SourceAddrRaw)
+	diags := eval.DecodeExpression(ctx, mc.Source, StaticIdentifier{Module: eval.call.addr, Subject: fmt.Sprintf("module.%s.source", mc.Name), DeclRange: mc.Source.Range()}, &mc.SourceAddrRaw)
 	if !diags.HasErrors() {
 		// NOTE: This code was originally executed as part of decodeModuleBlock and is now deferred until we have the config merged and static context built
 		var err error
@@ -226,14 +226,14 @@ func (mc *ModuleCall) decodeStaticSource(eval *StaticEvaluator) hcl.Diagnostics 
 	return diags
 }
 
-func (mc *ModuleCall) decodeStaticVersion(eval *StaticEvaluator) hcl.Diagnostics {
+func (mc *ModuleCall) decodeStaticVersion(ctx context.Context, eval *StaticEvaluator) hcl.Diagnostics {
 	var diags hcl.Diagnostics
 
 	if mc.VersionAttr == nil {
 		return diags
 	}
 
-	val, valDiags := eval.Evaluate(context.TODO(), mc.VersionAttr.Expr, StaticIdentifier{
+	val, valDiags := eval.Evaluate(ctx, mc.VersionAttr.Expr, StaticIdentifier{
 		Module:    eval.call.addr,
 		Subject:   fmt.Sprintf("module.%s.version", mc.Name),
 		DeclRange: mc.VersionAttr.Range,
@@ -254,7 +254,7 @@ func (mc *ModuleCall) decodeStaticVersion(eval *StaticEvaluator) hcl.Diagnostics
 	return diags.Extend(verDiags)
 }
 
-func (mc *ModuleCall) decodeStaticVariables(eval *StaticEvaluator) {
+func (mc *ModuleCall) decodeStaticVariables(ctx context.Context, eval *StaticEvaluator) {
 	attr, _ := mc.Config.JustAttributes()
 
 	mc.Variables = func(variable *Variable) (cty.Value, hcl.Diagnostics) {
@@ -275,7 +275,7 @@ func (mc *ModuleCall) decodeStaticVariables(eval *StaticEvaluator) {
 			Subject:   fmt.Sprintf("var.%s", variable.Name),
 			DeclRange: v.Range,
 		}
-		return eval.Evaluate(context.TODO(), v.Expr, ident)
+		return eval.Evaluate(ctx, v.Expr, ident)
 	}
 }
 

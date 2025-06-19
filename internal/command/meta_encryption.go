@@ -34,12 +34,12 @@ func (m *Meta) EncryptionFromPath(ctx context.Context, path string) (encryption.
 	if diags.HasErrors() {
 		return nil, diags
 	}
-	enc, encDiags := m.EncryptionFromModule(module)
+	enc, encDiags := m.EncryptionFromModule(ctx, module)
 	diags = diags.Append(encDiags)
 	return enc, diags
 }
 
-func (m *Meta) EncryptionFromModule(module *configs.Module) (encryption.Encryption, tfdiags.Diagnostics) {
+func (m *Meta) EncryptionFromModule(ctx context.Context, module *configs.Module) (encryption.Encryption, tfdiags.Diagnostics) {
 	cfg := module.Encryption
 	var diags tfdiags.Diagnostics
 
@@ -53,7 +53,7 @@ func (m *Meta) EncryptionFromModule(module *configs.Module) (encryption.Encrypti
 		cfg = cfg.Merge(envCfg)
 	}
 
-	enc, encDiags := encryption.New(encryption.DefaultRegistry, cfg, module.StaticEvaluator)
+	enc, encDiags := encryption.New(ctx, encryption.DefaultRegistry, cfg, module.StaticEvaluator)
 	diags = diags.Append(encDiags)
 
 	return enc, diags

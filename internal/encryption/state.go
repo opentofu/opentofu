@@ -6,6 +6,7 @@
 package encryption
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -58,8 +59,8 @@ type stateEncryption struct {
 	base *baseEncryption
 }
 
-func newStateEncryption(enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (StateEncryption, hcl.Diagnostics) {
-	base, diags := newBaseEncryption(enc, target, enforced, name, staticEval)
+func newStateEncryption(ctx context.Context, enc *encryption, target *config.TargetConfig, enforced bool, name string, staticEval *configs.StaticEvaluator) (StateEncryption, hcl.Diagnostics) {
+	base, diags := newBaseEncryption(ctx, enc, target, enforced, name, staticEval)
 	return &stateEncryption{base}, diags
 }
 
@@ -88,7 +89,7 @@ func (s *stateEncryption) EncryptState(plainState []byte) ([]byte, error) {
 }
 
 func (s *stateEncryption) DecryptState(encryptedState []byte) ([]byte, EncryptionStatus, error) {
-	decryptedState, status, err := s.base.decrypt(encryptedState, func(data []byte) error {
+	decryptedState, status, err := s.base.decrypt(context.TODO(), encryptedState, func(data []byte) error {
 		tmp := struct {
 			FormatVersion string `json:"terraform_version"`
 		}{}

@@ -352,7 +352,7 @@ func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, 
 			// This has to run before we have a state lock, since evaluation also
 			// reads the state
 			var evalDiags tfdiags.Diagnostics
-			val, evalDiags = evalCtx.EvaluateExpr(n.Config.Expr, cty.DynamicPseudoType, nil)
+			val, evalDiags = evalCtx.EvaluateExpr(ctx, n.Config.Expr, cty.DynamicPseudoType, nil)
 			diags = diags.Append(evalDiags)
 
 		// If the module is being overridden and we have a value to use,

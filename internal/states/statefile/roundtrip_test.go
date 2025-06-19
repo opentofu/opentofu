@@ -84,7 +84,7 @@ func TestRoundtrip(t *testing.T) {
 func TestRoundtripEncryption(t *testing.T) {
 	const path = "testdata/roundtrip/v4-modules.out.tfstate"
 
-	enc := enctest.EncryptionWithFallback().State()
+	enc := enctest.EncryptionWithFallback(t).State()
 
 	unencryptedInput, err := os.Open(path)
 	if err != nil {

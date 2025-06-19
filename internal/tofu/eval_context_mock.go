@@ -250,7 +250,7 @@ func (c *MockEvalContext) CloseProvisioners() error {
 	return nil
 }
 
-func (c *MockEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateBlock(_ context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	c.EvaluateBlockCalled = true
 	c.EvaluateBlockBody = body
 	c.EvaluateBlockSchema = schema
@@ -262,7 +262,7 @@ func (c *MockEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Bloc
 	return c.EvaluateBlockResult, c.EvaluateBlockExpandedBody, c.EvaluateBlockDiags
 }
 
-func (c *MockEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateExpr(_ context.Context, expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	c.EvaluateExprCalled = true
 	c.EvaluateExprExpr = expr
 	c.EvaluateExprWantType = wantType
@@ -273,7 +273,7 @@ func (c *MockEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, s
 	return c.EvaluateExprResult, c.EvaluateExprDiags
 }
 
-func (c *MockEvalContext) EvaluateReplaceTriggeredBy(hcl.Expression, instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
+func (c *MockEvalContext) EvaluateReplaceTriggeredBy(context.Context, hcl.Expression, instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
 	return nil, false, nil
 }
 

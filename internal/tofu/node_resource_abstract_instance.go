@@ -950,7 +950,7 @@ func (n *NodeAbstractResourceInstance) plan(
 		return plannedChange, currentState.DeepCopy(), keyData, diags
 	}
 
-	origConfigVal, _, configDiags := evalCtx.EvaluateBlock(config.Config, schema, nil, keyData)
+	origConfigVal, _, configDiags := evalCtx.EvaluateBlock(ctx, config.Config, schema, nil, keyData)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, nil, keyData, diags
@@ -1788,7 +1788,7 @@ func (n *NodeAbstractResourceInstance) providerMetas(ctx context.Context, evalCt
 				})
 			} else {
 				var configDiags tfdiags.Diagnostics
-				metaConfigVal, _, configDiags = evalCtx.EvaluateBlock(m.Config, providerSchema.ProviderMeta.Block, nil, EvalDataForNoInstanceKey)
+				metaConfigVal, _, configDiags = evalCtx.EvaluateBlock(ctx, m.Config, providerSchema.ProviderMeta.Block, nil, EvalDataForNoInstanceKey)
 				diags = diags.Append(configDiags)
 			}
 		}
@@ -1842,7 +1842,7 @@ func (n *NodeAbstractResourceInstance) planDataSource(ctx context.Context, evalC
 	}
 
 	var configDiags tfdiags.Diagnostics
-	configVal, _, configDiags = evalCtx.EvaluateBlock(config.Config, schema, nil, keyData)
+	configVal, _, configDiags = evalCtx.EvaluateBlock(ctx, config.Config, schema, nil, keyData)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, nil, keyData, diags
@@ -2131,7 +2131,7 @@ func (n *NodeAbstractResourceInstance) applyDataSource(ctx context.Context, eval
 		return nil, keyData, diags
 	}
 
-	configVal, _, configDiags := evalCtx.EvaluateBlock(config.Config, schema, nil, keyData)
+	configVal, _, configDiags := evalCtx.EvaluateBlock(ctx, config.Config, schema, nil, keyData)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, keyData, diags
@@ -2428,7 +2428,7 @@ func (n *NodeAbstractResourceInstance) evalProvisionerConfig(ctx context.Context
 
 	keyData := EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
-	config, _, configDiags := evalCtx.EvaluateBlock(body, schema, n.ResourceInstanceAddr().Resource, keyData)
+	config, _, configDiags := evalCtx.EvaluateBlock(ctx, body, schema, n.ResourceInstanceAddr().Resource, keyData)
 	diags = diags.Append(configDiags)
 
 	return config, diags
@@ -2493,7 +2493,7 @@ func (n *NodeAbstractResourceInstance) apply(
 	configVal := cty.NullVal(cty.DynamicPseudoType)
 	if applyConfig != nil {
 		var configDiags tfdiags.Diagnostics
-		configVal, _, configDiags = evalCtx.EvaluateBlock(applyConfig.Config, schema, nil, keyData)
+		configVal, _, configDiags = evalCtx.EvaluateBlock(ctx, applyConfig.Config, schema, nil, keyData)
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return nil, diags

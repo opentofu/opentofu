@@ -163,7 +163,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 		// plan. In the destroy plan mode, import blocks are not relevant, that's why we skip resolving imports
 		skipImports := importTarget.IsFromImportBlock() && !n.preDestroyRefresh
 		if skipImports {
-			err := importResolver.ExpandAndResolveImport(importTarget, evalCtx)
+			err := importResolver.ExpandAndResolveImport(context.TODO(), importTarget, evalCtx)
 			diags = diags.Append(err)
 		}
 	}
@@ -221,7 +221,7 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(ctx context.Contex
 	// writeResourceState is responsible for informing the expander of what
 	// repetition mode this resource has, which allows expander.ExpandResource
 	// to work below.
-	moreDiags := n.writeResourceState(moduleCtx, resAddr)
+	moreDiags := n.writeResourceState(ctx, moduleCtx, resAddr)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return diags.ErrWithWarnings()

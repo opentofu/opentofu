@@ -320,7 +320,7 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 			repData.EachValue = cty.DynamicVal
 		}
 
-		diags = diags.Append(n.replaceTriggered(evalCtx, repData))
+		diags = diags.Append(n.replaceTriggered(ctx, evalCtx, repData))
 		if diags.HasErrors() {
 			return diags
 		}
@@ -471,14 +471,14 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 // replaceTriggered checks if this instance needs to be replace due to a change
 // in a replace_triggered_by reference. If replacement is required, the
 // instance address is added to forceReplace
-func (n *NodePlannableResourceInstance) replaceTriggered(evalCtx EvalContext, repData instances.RepetitionData) tfdiags.Diagnostics {
+func (n *NodePlannableResourceInstance) replaceTriggered(ctx context.Context, evalCtx EvalContext, repData instances.RepetitionData) tfdiags.Diagnostics {
 	var diags tfdiags.Diagnostics
 	if n.Config == nil {
 		return diags
 	}
 
 	for _, expr := range n.Config.TriggersReplacement {
-		ref, replace, evalDiags := evalCtx.EvaluateReplaceTriggeredBy(expr, repData)
+		ref, replace, evalDiags := evalCtx.EvaluateReplaceTriggeredBy(ctx, expr, repData)
 		diags = diags.Append(evalDiags)
 		if diags.HasErrors() {
 			continue
@@ -622,7 +622,7 @@ func (n *NodePlannableResourceInstance) importState(ctx context.Context, evalCtx
 			}
 		}
 
-		valueWithConfigurationSchemaMarks, _, configDiags := evalCtx.EvaluateBlock(n.Config.Config, n.Schema, nil, keyData)
+		valueWithConfigurationSchemaMarks, _, configDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, n.Schema, nil, keyData)
 		diags = diags.Append(configDiags)
 		if configDiags.HasErrors() {
 			return instanceRefreshState, diags

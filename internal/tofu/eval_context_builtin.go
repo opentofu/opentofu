@@ -304,22 +304,22 @@ func (c *BuiltinEvalContext) CloseProvisioners() error {
 	return diags.Err()
 }
 
-func (c *BuiltinEvalContext) EvaluateBlock(body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
+func (c *BuiltinEvalContext) EvaluateBlock(ctx context.Context, body hcl.Body, schema *configschema.Block, self addrs.Referenceable, keyData InstanceKeyEvalData) (cty.Value, hcl.Body, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	scope := c.EvaluationScope(self, nil, keyData)
-	body, evalDiags := scope.ExpandBlock(context.TODO(), body, schema)
+	body, evalDiags := scope.ExpandBlock(ctx, body, schema)
 	diags = diags.Append(evalDiags)
-	val, evalDiags := scope.EvalBlock(context.TODO(), body, schema)
+	val, evalDiags := scope.EvalBlock(ctx, body, schema)
 	diags = diags.Append(evalDiags)
 	return val, body, diags
 }
 
-func (c *BuiltinEvalContext) EvaluateExpr(expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
+func (c *BuiltinEvalContext) EvaluateExpr(ctx context.Context, expr hcl.Expression, wantType cty.Type, self addrs.Referenceable) (cty.Value, tfdiags.Diagnostics) {
 	scope := c.EvaluationScope(self, nil, EvalDataForNoInstanceKey)
-	return scope.EvalExpr(context.TODO(), expr, wantType)
+	return scope.EvalExpr(ctx, expr, wantType)
 }
 
-func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
+func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(ctx context.Context, expr hcl.Expression, repData instances.RepetitionData) (*addrs.Reference, bool, tfdiags.Diagnostics) {
 
 	// get the reference to lookup changes in the plan
 	ref, diags := evalReplaceTriggeredByExpr(expr, repData)
@@ -397,7 +397,7 @@ func (c *BuiltinEvalContext) EvaluateReplaceTriggeredBy(expr hcl.Expression, rep
 	// Since we have a traversal after the resource reference, we will need to
 	// decode the changes, which means we need a schema.
 	providerAddr := change.ProviderAddr
-	schema, err := c.ProviderSchema(context.TODO(), providerAddr)
+	schema, err := c.ProviderSchema(ctx, providerAddr)
 	if err != nil {
 		diags = diags.Append(err)
 		return nil, false, diags
