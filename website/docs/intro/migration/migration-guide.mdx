@@ -7,7 +7,7 @@ description: |-
 
 # Migration Guide
 
-This guide walks you through migrating from Terraform to OpenTofu. OpenTofu is designed as a drop-in replacement for Terraform, and in most cases, your existing Terraform configurations will work without modification.
+This guide walks you through migrating from Terraform to OpenTofu. It is designed to be safe and reversible, allowing you to test OpenTofu without disrupting your existing infrastructure.
 
 ## Prerequisites
 
@@ -105,13 +105,3 @@ If you encounter issues during migration:
 - Join the <a href="/slack/">OpenTofu Slack</a>
 - Ask on [GitHub Discussions](https://github.com/orgs/opentofu/discussions)
 - Report bugs on [GitHub Issues](https://github.com/opentofu/opentofu/issues)
-
-## Common considerations
-
-### State file compatibility
-
-OpenTofu maintains compatibility with Terraform state files. State files can be shared between Terraform and OpenTofu, making migration reversible.
-
-### Configuration compatibility
-
-OpenTofu aims to maintain compatibility with Terraform's HCL configuration language. Most configurations will work without modification.
