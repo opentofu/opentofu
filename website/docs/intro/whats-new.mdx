@@ -7,60 +7,216 @@ description: |-
 
 # What's new in OpenTofu 1.10?
 
+OpenTofu 1.10 brings major improvements to how you distribute and manage your infrastructure code, with OCI registry support, native S3 state locking, and enhanced observability through OpenTelemetry tracing.
+
 This page will run you through the most important changes in OpenTofu 1.10:
 
-- [New features](#new-features)
-  - [New built-in functions](#new-built-in-functions)
-  - [Moved for different resource types](#moved-for-different-resource-types)
-- [Improvements to existing features](#improvements-to-existing-features)
-  - [External programs as encryption key providers (experimental)](#external-programs-as-encryption-key-providers-experimental)
-  - [Smaller improvements](#smaller-improvements)
-- [Deprecations](#deprecations)
-  - [Using `ghcr.io/opentofu/opentofu` as a base image](#using-ghcrioopentofuopentofu-as-a-base-image)
+- [OCI Registry Support](#oci-registry-support)
+- [Native S3 State Locking](#native-s3-state-locking)
+- [OpenTelemetry Tracing (Experimental)](#opentelemetry-tracing-experimental)
+- [Target and Exclude Files](#target-and-exclude-files)
+- [Global Provider Cache Lock](#global-provider-cache-lock)
+- [Deprecation Support (Experimental)](#deprecation-support-experimental)
+- [Enhanced moved and removed blocks](#enhanced-moved-and-removed-blocks)
+- [External Key Providers](#external-key-providers)
+- [Breaking Changes](#breaking-changes)
+- [Smaller improvements](#smaller-improvements)
 - [Bugfixes](#bugfixes)
 
-## New features
+## OCI Registry Support
 
-### New built-in functions
+OpenTofu can now use OCI (Open Container Initiative) registries to distribute both providers and modules, enabling you to use your existing container registry infrastructure for infrastructure-as-code components.
 
-New builtin provider functions added ([#2306](https://github.com/opentofu/opentofu/pull/2306)) :
+Configure OCI registry provider mirrors in your [CLI configuration](/docs/cli/config/config-file):
 
-- `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object.
-- `provider::terraform::encode_tfvars` - Encode an object into a string with the same format as a TFVars file.
-- `provider::terraform::encode_expr` - Encode an arbitrary expression into a string with valid OpenTofu syntax.
+```hcl
+provider_installation {
+  oci_mirror {
+    repository_template = "example.com/opentofu-providers/${namespace}/${type}"
+    include             = ["registry.opentofu.org/*/*"]
+  }
+}
+```
 
-### Moved for different resource types
+Use module packages from OCI registries directly as a new [module source type](/docs/language/modules/sources/):
 
-- `moved` block can now be used to migrate between different types of resources ([docs](../language/modules/develop/refactoring.mdx#changing-a-resource-type)).
-- Builtin provider now supports migration from `null_resource` to `terraform_data` resource.
+```hcl
+module "vpc" {
+  source  = "oci://example.com/terraform-modules/vpc/aws"
+}
+```
 
-## Improvements to existing features
+This feature is particularly valuable for air-gapped environments and organizations that want to use their existing container registry infrastructure.
 
-### External programs as encryption key providers (experimental)
+You can find more information on OpenTofu's OCI artifact formats, and instructions for building your own artifacts, in [OCI Registry Integrations](/docs/main/cli/oci_registries/).
 
-State encryption now supports using external programs as key providers. Additionally, the PBKDF2 key provider now supports chaining via the `chain` parameter. For details, [see the related documentation](../language/state/encryption.mdx#external-experimental)
+## Native S3 State Locking
 
-This functionality is experimental and may be changed in future OpenTofu versions.
+The S3 backend now supports native state locking without requiring DynamoDB, simplifying your infrastructure and reducing costs.
 
-### Smaller improvements
+```hcl
+terraform {
+  backend "s3" {
+    bucket       = "my-terraform-state"
+    key          = "prod/terraform.tfstate"
+    region       = "us-east-1"
+    use_lockfile = true  # Enable native S3 locking
+  }
+}
+```
 
-* OpenTofu will now recommend using `-exclude` instead of `-target`, when possible, in the error messages about unknown values in `count` and `for_each` arguments, thereby providing a more definitive workaround. ([#2154](https://github.com/opentofu/opentofu/pull/2154))
+This feature leverages S3's conditional writes to provide reliable state locking using only your S3 bucket. Migration from DynamoDB-based locking is straightforward, with support for dual locking during the transition period. See the [S3 backend documentation](../language/settings/backends/s3.mdx#s3-state-locking) for details.
 
-## Deprecations
+## OpenTelemetry Tracing (Experimental)
 
-### Using `ghcr.io/opentofu/opentofu` as a base image
+Debug and optimize your OpenTofu operations with built-in OpenTelemetry support. Tracing is disabled by default to ensure privacy.
 
-Using the `ghcr.io/opentofu/opentofu` image as a base image for custom images is deprecated and doesn't work as of OpenTofu 1.10. The reason behind this change is security: while we regularly update OpenTofu itself when security-relevant updates arise, providing a base image would require an update roughly once a week, which we are currently not equipped to do.
+Enable tracing by setting environment variables:
 
-However, we have added instructions on building your own base image in the [containerized installation instructions](./install/docker.mdx#building-your-own-image).
+```bash
+export OTEL_TRACES_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+export OTEL_EXPORTER_OTLP_INSECURE=true
+```
+
+OpenTofu will then send traces to your configured collector (such as Jaeger or Grafana Tempo), helping you identify performance bottlenecks and debug complex operations. Learn more in the [tracing documentation](../internals/tracing.mdx).
+
+## Target and Exclude Files
+
+New `-target-file` and `-exclude-file` options allow you to manage resource targeting through version-controlled files:
+
+```bash
+tofu plan -target-file=targets/production.txt
+tofu apply -exclude-file=excludes/experimental.txt
+```
+
+The file format is simple - one resource address per line with support for comments:
+
+```
+# Critical infrastructure components
+module.networking.aws_vpc.main
+module.networking.aws_subnet.public[*]
+
+# Database infrastructure
+module.database.aws_db_instance.primary
+```
+
+This feature is perfect for CI/CD pipelines, phased deployments, and team collaboration.
+
+## Global Provider Cache Lock
+
+Concurrent OpenTofu operations can now safely share the provider cache, preventing corruption and conflicts in CI/CD environments and when using tools like Terragrunt.
+
+Enable the global cache with:
+
+```bash
+export TF_PLUGIN_CACHE_DIR=/path/to/shared/cache
+```
+
+The filesystem-level locking ensures only one process can modify a provider at a time, while others wait gracefully. This makes the provider cache ready for large-scale parallel operations.
+
+## Deprecation Support (Experimental)
+
+Module authors can now mark variables and outputs as deprecated, helping users migrate to newer APIs gracefully:
+
+```hcl
+variable "instance_type" {
+  type        = string
+  deprecated  = "Use var.compute_type instead"
+}
+
+output "instance_ip" {
+  value       = aws_instance.main.public_ip
+  deprecated  = "Use output.instance_details for more information"
+}
+```
+
+Users will see clear warnings when using deprecated features, making module evolution more manageable.
+
+## Enhanced moved and removed blocks
+
+The `moved` block now supports migrating resources between different types, including built-in support for migrating from `null_resource` to `terraform_data`:
+
+```hcl
+moved {
+  from = null_resource.example
+  to   = terraform_data.example
+}
+```
+
+The `removed` block now supports lifecycle rules and provisioners:
+
+```hcl
+removed {
+  from = aws_instance.legacy
+  
+  lifecycle {
+    destroy = false
+  }
+}
+```
+
+These enhancements make infrastructure refactoring more powerful and flexible. See the [refactoring documentation](../language/modules/develop/refactoring.mdx) for more details.
+
+## External Key Providers
+
+State encryption now fully supports external key providers, allowing integration with your preferred secret management tools:
+
+```hcl
+terraform {
+  encryption {
+    key_provider "external" "password_manager" {
+      command = ["op", "read", "op://vault/terraform/key"]
+    }
+    
+    method "aes_gcm" "state" {
+      keys = key_provider.external.password_manager
+    }
+    
+    state {
+      method = method.aes_gcm.state
+    }
+  }
+}
+```
+
+You can also chain key providers for enhanced security. Learn more in the [state encryption documentation](../language/state/encryption.mdx#key-providers).
+
+## Breaking Changes
+
+### Platform Requirements
+- **Linux**: Now requires kernel 3.2 or later
+- **macOS**: Now requires macOS 11 (Big Sur) or later
+- **Windows**: More conservative symlink handling
+
+### Docker Image
+The `ghcr.io/opentofu/opentofu` image is no longer supported as a base image. See [building your own image](../intro/install/docker.mdx#building-your-own-image) for alternatives.
+
+### PostgreSQL Backend
+The locking mechanism has changed. You should not use OpenTofu 1.10 in parallel with earlier versions when sharing the same PostgreSQL database because the locking implementation has changed. Mixing versions can lead to conflicting writes and could cause data loss.
+
+## Smaller improvements
+
+- The `element` function now supports negative indices: `element(list, -1)` returns the last element
+- New `-concise` flag for cleaner automation output
+- PostgreSQL backend supports custom table names for multi-project setups
+- HTTP backend now supports force-unlock
+- Provider installation performance improvements
+- Improved error messages for type conversion failures
+- New built-in provider functions:
+  - `provider::terraform::decode_tfvars` - Decode a TFVars file content into an object
+  - `provider::terraform::encode_tfvars` - Encode an object into a string with TFVars format
+  - `provider::terraform::encode_expr` - Encode an expression into valid OpenTofu syntax
+- OpenTofu now recommends `-exclude` instead of `-target` in error messages about unknown values in `count` and `for_each`
 
 ## Bugfixes
 
-:::warning
-OpenTofu 1.10 changed how workspace creation locking works. It is unsafe to
-use `pg` backend with multiple OpenTofu versions (under 1.10) in parallel if those
-are sharing the same underlying database.
-:::
+- Fixed provider name validation crash in `provider_meta` block
+- PostgreSQL backend no longer fails on workspace creation for parallel returns
+- Fixed null value handling in `element`, `slice`, and `values` functions
+- Resolved state encryption issues with backend interactions
+- Fixed import block generation improvements
+- Better handling of provider installation errors
+- Fixed dependency graph issues with import blocks
 
-- Fixed an issue where an invalid provider name in the `provider_meta` block would crash OpenTofu rather than report an error ([#2347](https://github.com/opentofu/opentofu/pull/2347))
-- `pg` backend doesn't fail on workspace creation for parallel runs, when the database is shared across multiple projects. ([#2411](https://github.com/opentofu/opentofu/pull/2411))
+For a complete list of changes, see the [full changelog](https://github.com/opentofu/opentofu/blob/v1.10/CHANGELOG.md).
