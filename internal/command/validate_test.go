@@ -166,6 +166,24 @@ func TestSameImportTargetMultipleTimesShouldFail(t *testing.T) {
 	}
 }
 
+func TestUndefinedVariableAsImportIDShouldFail(t *testing.T) {
+	output, code := setupTest(t, "validate-invalid/import_undefined_var")
+	if code != 1 {
+		t.Fatalf("Should have failed: %d\n\n%s", code, output.Stderr())
+	}
+	wantError := `Error: Undefined variable`
+	if !strings.Contains(output.Stderr(), wantError) {
+		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
+	}
+}
+
+func TestUndefinedResourceAsImportTargetShouldSucceed(t *testing.T) {
+	// -generate-config-out is the reason we can have undefined resources as targets
+	output, code := setupTest(t, "validate-valid/import_undefined_resource")
+	if code != 0 {
+		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
+	}
+}
 func TestOutputWithoutValueShouldFail(t *testing.T) {
 	output, code := setupTest(t, "validate-invalid/outputs")
 	if code != 1 {
