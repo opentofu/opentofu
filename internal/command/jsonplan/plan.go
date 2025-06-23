@@ -397,8 +397,7 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 		}
 
 		if addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
-			continue // We skip ephemeral resources from being written into the plan file. // TODO andrei test this
-			//return nil, fmt.Errorf("detected ephemeral resource %q in the plan file. This is an OpenTofu error", addr.String())
+			continue // We skip ephemeral resources from being written into the plan file.
 		}
 		dataSource := addr.Resource.Resource.Mode == addrs.DataResourceMode
 		// We create "delete" actions for data resources so we can clean up
