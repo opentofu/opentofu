@@ -570,7 +570,7 @@ func actionDescription(action plans.Action) string {
 	case plans.Forget:
 		return "  [red].[reset] forget"
 	case plans.Open | plans.Renew | plans.Close:
-		panic(fmt.Sprintf("ephemeral changes are not meant to be printed"))
+		panic("ephemeral changes are not meant to be printed")
 
 	default:
 		panic(fmt.Sprintf("unrecognized change type: %s", action.String()))
