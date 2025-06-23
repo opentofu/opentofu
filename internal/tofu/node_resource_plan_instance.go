@@ -229,6 +229,7 @@ func (n *NodePlannableResourceInstance) ephemeralResourceExecute(ctx context.Con
 	// the result of the operation, and to fail on future operations
 	// until the user makes the condition succeed.
 	checkDiags := evalCheckRules(
+		ctx,
 		addrs.ResourcePostcondition,
 		n.Config.Postconditions,
 		evalCtx, addr, repeatData,
