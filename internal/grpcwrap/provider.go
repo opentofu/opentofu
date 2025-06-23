@@ -440,9 +440,6 @@ func (p *provider) OpenEphemeralResource(ctx context.Context, req *tfplugin5.Ope
 	}
 
 	resp.Private = openResp.Private
-	if openResp.Deferred != nil {
-		resp.Deferred = &tfplugin5.Deferred{Reason: resp.Deferred.Reason}
-	}
 	if openResp.RenewAt != nil {
 		resp.RenewAt = timestamppb.New(*openResp.RenewAt)
 	}
