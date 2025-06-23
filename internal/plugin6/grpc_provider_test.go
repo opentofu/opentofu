@@ -1050,29 +1050,22 @@ func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
 			}),
 		})
 
-		checkDiags(t, resp.Diagnostics)
+		if len(resp.Diagnostics) != 1 {
+			t.Fatalf("expected to have one diagnostic but got %d", len(resp.Diagnostics))
+		}
+		if got, want := resp.Diagnostics[0].Description().Summary, "Resource configuration is incomplete"; got != want {
+			t.Fatalf("wanted diagnostic summary %q but got %q", want, got)
+		}
 
 		expected := cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("bar"),
 		})
-
 		if diff := cmp.Diff(expected, resp.Result, typeComparer, valueComparer, equateEmpty); diff != "" {
 			t.Fatalf("expected to have no diff between the expected result and result from the openEphemeral. got: %s", diff)
 		}
-
-		{
-			if resp.Deferred == nil {
-				t.Fatal("unexpected nil deferred")
-			}
-			if got, want := resp.Deferred.Reason, providers.DeferredReasonResourceConfigUnknown; got != want {
-				t.Fatalf("unexpected deferred reason. got: %d, want %d", got, want)
-			}
-		}
-
 		if resp.RenewAt == nil || !future.Equal(*resp.RenewAt) {
 			t.Fatalf("unexpected renewAt. got: %s, want %s", resp.RenewAt, future)
 		}
-
 		if got, want := resp.Private, []byte("private data"); !slices.Equal(got, want) {
 			t.Fatalf("unexpected private data. got: %q, want %q", got, want)
 		}
