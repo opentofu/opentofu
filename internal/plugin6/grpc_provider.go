@@ -865,14 +865,15 @@ func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.Op
 	}
 	resp.Result = result
 	resp.Private = protoResp.Private
-	if protoResp.Deferred != nil {
-		resp.Deferred = &providers.Deferred{
-			Reason: providers.DeferredReason(protoResp.Deferred.Reason),
-		}
-	}
 	if protoResp.RenewAt != nil {
 		renewAt := protoResp.RenewAt.AsTime()
 		resp.RenewAt = &renewAt
+	}
+	
+	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
+		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
+		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
+		return resp
 	}
 
 	return resp
