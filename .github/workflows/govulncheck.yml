@@ -23,6 +23,7 @@ jobs:
       matrix:
         include:
           - { branch: main }
+          - { branch: v1.10 }
           - { branch: v1.9 }
           - { branch: v1.8 }
           - { branch: v1.7 }
