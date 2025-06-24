@@ -22,7 +22,6 @@ import (
 	"github.com/opentofu/opentofu/internal/checks"
 	"github.com/zclconf/go-cty/cty"
 
-	// "github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -8420,6 +8419,47 @@ func TestContext2Plan_removedModuleButModuleBlockStillExists(t *testing.T) {
 
 	if got, want := diags.Err().Error(), "Removed module block still exists"; !strings.Contains(got, want) {
 		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
+	}
+}
+
+// TestContext2Plan_ephemeralResourceDeferred is testing that an ephemeral resource gets deferred
+// when the resource that it's dependent on is having pending changes.
+func TestContext2Plan_ephemeralResourceDeferred(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+			resource "test_object" "testres" {
+			}
+			ephemeral "test_object" "testeph" {
+				depends_on = [
+					test_object.testres
+				]
+			}
+		`,
+	})
+
+	state := states.BuildState(func(s *states.SyncState) {})
+
+	p := simpleMockProvider()
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(p),
+		},
+	})
+	hook := &testHook{}
+	ctx.hooks = append(ctx.hooks, hook)
+
+	_, diags := ctx.Plan(context.Background(), m, state, &PlanOpts{
+		Mode: plans.NormalMode,
+	})
+
+	if diags.HasErrors() {
+		t.Fatalf("unexpected errors: %s", diags.Err())
+	}
+
+	// last call should have been on the ephemeral defer
+	deferCall := hook.Calls[len(hook.Calls)-1]
+	if wantAction, wantInstID := "Deferred", "ephemeral_test_object.testeph"; deferCall.Action != wantAction && deferCall.InstanceID != wantInstID {
+		t.Fatalf("expected the last call to be a %q for %q. got action %q for %q", wantAction, wantInstID, deferCall.Action, deferCall.InstanceID)
 	}
 }
 

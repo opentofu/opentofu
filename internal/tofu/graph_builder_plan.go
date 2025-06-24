@@ -226,12 +226,9 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 
 		&AttachDependenciesTransformer{},
 
-		// Make sure data sources are aware of any depends_on from the
-		// configuration
-		&attachDataResourceDependsOnTransformer{},
-
-		// TODO andrei check and test this part
-		//&attachEphemeralResourceDependsOnTransformer{},
+		// Make sure data sources and ephemeral resources are aware of any
+		// depends_on from the configuration
+		&attachResourceDependsOnTransformer{},
 
 		// DestroyEdgeTransformer is only required during a plan so that the
 		// TargetingTransformer can determine which nodes to keep in the graph.

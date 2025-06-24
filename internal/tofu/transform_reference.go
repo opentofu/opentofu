@@ -65,28 +65,28 @@ type graphNodeDependsOn interface {
 	DependsOn() []*addrs.Reference
 }
 
-// graphNodeAttachDataResourceDependsOn records all resources that are transitively
+// graphNodeAttachResourceDependsOn records all resources that are transitively
 // referenced through depends_on in the configuration. This is used by data
-// resources to determine if they can be read during the plan, or if they need
-// to be further delayed until apply.
+// resources and ephemeral resources to determine if they can be processed during the plan,
+// or if they need to be further delayed until apply.
 // We can only use an addrs.ConfigResource address here, because modules are
 // not yet expended in the graph. While this will cause some extra data
 // resources to show in the plan when their depends_on references may be in
 // unrelated module instances, the fact that it only happens when there are any
 // resource updates pending means we can still avoid the problem of the
 // "perpetual diff"
-type graphNodeAttachDataResourceDependsOn interface {
+type graphNodeAttachResourceDependsOn interface {
 	GraphNodeConfigResource
 	graphNodeDependsOn
 
-	// AttachDataResourceDependsOn stores the discovered dependencies in the
+	// AttachResourceDependsOn stores the discovered dependencies in the
 	// resource node for evaluation later.
 	//
 	// The force parameter indicates that even if there are no dependencies,
 	// force the data source to act as though there are for refresh purposes.
 	// This is needed because yet-to-be-created resources won't be in the
 	// initial refresh graph, but may still be referenced through depends_on.
-	AttachDataResourceDependsOn(deps []addrs.ConfigResource, force bool)
+	AttachResourceDependsOn(deps []addrs.ConfigResource, force bool)
 }
 
 // GraphNodeReferenceOutside is an interface that can optionally be implemented.
@@ -181,12 +181,13 @@ func (m depMap) add(v dag.Vertex) {
 	}
 }
 
-// attachDataResourceDependsOnTransformer records all resources transitively
+// attachResourceDependsOnTransformer records all resources transitively
 // referenced through a configuration depends_on.
-type attachDataResourceDependsOnTransformer struct {
+// This transformer is applicable strictly for data sources and ephemeral resources.
+type attachResourceDependsOnTransformer struct {
 }
 
-func (t attachDataResourceDependsOnTransformer) Transform(_ context.Context, g *Graph) error {
+func (t attachResourceDependsOnTransformer) Transform(_ context.Context, g *Graph) error {
 	// First we need to make a map of referenceable addresses to their vertices.
 	// This is very similar to what's done in ReferenceTransformer, but we keep
 	// implementation separate as they may need to change independently.
@@ -194,20 +195,21 @@ func (t attachDataResourceDependsOnTransformer) Transform(_ context.Context, g *
 	refMap := NewReferenceMap(vertices)
 
 	for _, v := range vertices {
-		depender, ok := v.(graphNodeAttachDataResourceDependsOn)
+		depender, ok := v.(graphNodeAttachResourceDependsOn)
 		if !ok {
 			continue
 		}
 
-		// Only data need to attach depends_on, so they can determine if they
+		// Only data and ephemeral need to attach depends_on, so they can determine if they
 		// are eligible to be read during plan.
-		if depender.ResourceAddr().Resource.Mode != addrs.DataResourceMode { // TODO ephemeral - implement a similar transformer for ephemeral resources or reuse this one
+		if depender.ResourceAddr().Resource.Mode != addrs.DataResourceMode && depender.ResourceAddr().Resource.Mode != addrs.EphemeralResourceMode {
 			continue
 		}
 
 		// depMap will only add resource references then dedupe
 		deps := make(depMap)
-		dependsOnDeps, fromModule := refMap.dependsOn(addrs.DataResourceMode, g, depender)
+		// NOTE: dependsOn is taking the depender type for inner works. This can be addrs.DataResourceMode or addrs.EphemeralResourceMode.
+		dependsOnDeps, fromModule := refMap.dependsOn(depender.ResourceAddr().Resource.Mode, g, depender)
 		for _, dep := range dependsOnDeps {
 			// any the dependency
 			deps.add(dep)
@@ -218,52 +220,8 @@ func (t attachDataResourceDependsOnTransformer) Transform(_ context.Context, g *
 			res = append(res, d)
 		}
 
-		log.Printf("[TRACE] attachDataDependenciesTransformer: %s depends on %s", depender.ResourceAddr(), res)
-		depender.AttachDataResourceDependsOn(res, fromModule)
-	}
-
-	return nil
-}
-
-// attachEphemeralResourceDependsOnTransformer records all resources transitively
-// referenced through a configuration depends_on.
-type attachEphemeralResourceDependsOnTransformer struct {
-}
-
-func (t attachEphemeralResourceDependsOnTransformer) Transform(_ context.Context, g *Graph) error {
-	// First we need to make a map of referenceable addresses to their vertices.
-	// This is very similar to what's done in ReferenceTransformer, but we keep
-	// implementation separate as they may need to change independently.
-	vertices := g.Vertices()
-	refMap := NewReferenceMap(vertices)
-
-	for _, v := range vertices {
-		depender, ok := v.(graphNodeAttachDataResourceDependsOn)
-		if !ok {
-			continue
-		}
-
-		// Only data need to attach depends_on, so they can determine if they
-		// are eligible to be read during plan.
-		if depender.ResourceAddr().Resource.Mode != addrs.EphemeralResourceMode {
-			continue
-		}
-
-		// depMap will only add resource references then dedupe
-		deps := make(depMap)
-		dependsOnDeps, fromModule := refMap.dependsOn(addrs.EphemeralResourceMode, g, depender)
-		for _, dep := range dependsOnDeps {
-			// any the dependency
-			deps.add(dep)
-		}
-
-		res := make([]addrs.ConfigResource, 0, len(deps))
-		for _, d := range deps {
-			res = append(res, d)
-		}
-
-		log.Printf("[TRACE] attachDataDependenciesTransformer: %s depends on %s", depender.ResourceAddr(), res)
-		depender.AttachDataResourceDependsOn(res, fromModule)
+		log.Printf("[TRACE] attachResourceDepenndsOnTransformer: %s depends on %s", depender.ResourceAddr(), res)
+		depender.AttachResourceDependsOn(res, fromModule)
 	}
 
 	return nil
@@ -413,7 +371,7 @@ func (m ReferenceMap) dependsOn(source addrs.ResourceMode, g *Graph, depender gr
 
 	refs := depender.DependsOn()
 
-	// get any implied dependencies for data sources
+	// get any implied dependencies of the depender
 	switch source {
 	case addrs.DataResourceMode:
 		refs = append(refs, m.dataDependsOn(depender)...)
@@ -445,11 +403,11 @@ func (m ReferenceMap) dependsOn(source addrs.ResourceMode, g *Graph, depender gr
 
 			// Check any ancestors for transitive dependencies when we're
 			// not pointed directly at a resource. We can't be much more
-			// precise here, since in order to maintain our guarantee that data
-			// sources will wait for explicit dependencies, if those dependencies
-			// happen to be a module, output, or variable, we have to find some
-			// upstream managed resource in order to check for a planned
-			// change.
+			// precise here, since in order to maintain our guarantee that
+			// the depender (data or ephemeral) will wait for explicit dependencies,
+			// if those dependencies happen to be a module, output, or variable,
+			// we have to find some upstream managed resource in order to check for
+			// a planned change.
 			if _, ok := rv.(GraphNodeConfigResource); !ok {
 				ans, _ := g.Ancestors(rv)
 				for _, v := range ans {
@@ -475,7 +433,7 @@ func (m ReferenceMap) dependsOn(source addrs.ResourceMode, g *Graph, depender gr
 func (m ReferenceMap) dataDependsOn(depender graphNodeDependsOn) []*addrs.Reference {
 	var refs []*addrs.Reference
 	if n, ok := depender.(GraphNodeConfigResource); ok &&
-		n.ResourceAddr().Resource.Mode == addrs.DataResourceMode { // TODO ephemeral - implement a similar method for ephemeral
+		n.ResourceAddr().Resource.Mode == addrs.DataResourceMode {
 		for _, r := range depender.References() {
 
 			var resAddr addrs.Resource
@@ -489,7 +447,7 @@ func (m ReferenceMap) dataDependsOn(depender graphNodeDependsOn) []*addrs.Refere
 				continue
 			}
 
-			if resAddr.Mode != addrs.ManagedResourceMode { // TODO andrei not sure that this is correct
+			if resAddr.Mode != addrs.ManagedResourceMode {
 				// We only want to wait on directly referenced managed resources.
 				// Data sources have no external side effects, so normal
 				// references to them in the config will suffice for proper
@@ -503,10 +461,15 @@ func (m ReferenceMap) dataDependsOn(depender graphNodeDependsOn) []*addrs.Refere
 	return refs
 }
 
+// ephemeralDependsOn returns extra depends_on references if this is an ephemeral resource.
+// For ephemeral resources we implicitly treat references to managed resources as
+// depends_on entries. If an ephemeral resource references a managed resource, even if
+// that reference is resolvable, it stands to reason that the user intends for
+// the ephemeral resource to require that resource in some way.
 func (m ReferenceMap) ephemeralDependsOn(depender graphNodeDependsOn) []*addrs.Reference {
 	var refs []*addrs.Reference
 	if n, ok := depender.(GraphNodeConfigResource); ok &&
-		n.ResourceAddr().Resource.Mode == addrs.EphemeralResourceMode { // TODO ephemeral - implement a similar method for ephemeral
+		n.ResourceAddr().Resource.Mode == addrs.EphemeralResourceMode {
 		for _, r := range depender.References() {
 
 			var resAddr addrs.Resource
@@ -520,9 +483,9 @@ func (m ReferenceMap) ephemeralDependsOn(depender graphNodeDependsOn) []*addrs.R
 				continue
 			}
 
-			if resAddr.Mode != addrs.ManagedResourceMode { // TODO andrei here not sure that it's correct
+			if resAddr.Mode != addrs.ManagedResourceMode {
 				// We only want to wait on directly referenced managed resources.
-				// Data sources have no external side effects, so normal
+				// Ephemeral resources have no external side effects, so normal
 				// references to them in the config will suffice for proper
 				// ordering.
 				continue
