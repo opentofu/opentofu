@@ -17,7 +17,7 @@ Depending on the maintainers's review, a feature request can have the following 
 3. **More information is needed.** The maintainers will either add questions in comments, or when there is a deep technical issue to be resolved, call for an [RFC](./rfc/README.md) to detail a possible implementation.
 4. **More community input is needed.** When an issue is, on its surface, valuable, but there is no track record of a large portion of the community needing it, the maintainers adds the `needs community input` label. If you are interested in the feature and would like to use it, please add a reaction to the issue and add a description on specifically what problem it would solve for you in a comment.
 5. **The feature is rejected.** If based on the criteria above it is not feasible to implement the feature, the maintainers closes the issue with an explanation why it is being closed.
-6. **The feature is referred to the Technical Steering Committee**. If the feature requires the commitment of a larger amount of core developer time, has legal implications, or otherwise requires leadership attention, the maintainers adds the feature to the agenda of the Technical Leadership Committee. Once decided, the TSC records the decision in the [TSC notes](TSC).
+6. **The feature is referred to the Technical Steering Committee**. If the feature requires the commitment of a larger amount of core developer time, has legal implications, or otherwise requires leadership attention, the maintainers adds the feature to the agenda of the Technical Leadership Committee. Once decided, the TSC records the decision in the [TSC notes](https://github.com/opentofu/org/tree/main/TSC).
 
 ---
 
