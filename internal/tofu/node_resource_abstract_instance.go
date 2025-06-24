@@ -1930,7 +1930,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	// The renewer is taking care of calling provider.Renew if resp.RenewAt != nil.
 	// But if resp.RenewAt == nil, renewer holds only the resp.Private that will be used later
 	// when calling provider.CloseEphemeralResource.
-	go n.startEphemeralRenew(ctx, evalCtx, resp.RenewAt, resp.Private)
+	go n.startEphemeralRenew(ctx, evalCtx, provider, resp.RenewAt, resp.Private)
 	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
 		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
 	}))
@@ -3159,27 +3159,21 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 	return plannedChange, plannedNewState, keyData, diags
 }
 
-func (n *NodeAbstractResourceInstance) startEphemeralRenew(ctx context.Context, evalContext EvalContext, renewAt *time.Time, privateData []byte) {
+func (n *NodeAbstractResourceInstance) startEphemeralRenew(ctx context.Context, evalContext EvalContext, provider providers.Interface, renewAt *time.Time, privateData []byte) {
 	if n.Addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
 		return
 	}
 	n.renewStarted.Store(true)
-	privateData, diags := n.renewEphemeral(ctx, evalContext, renewAt, privateData)
+	privateData, diags := n.renewEphemeral(ctx, evalContext, provider, renewAt, privateData)
 	// wait for the close signal. This is like this because the renewEphemeral can return right away if the renewAt is nil.
 	// But the close of the ephemeral should happen only when the graph walk is reaching the execution of the closing
 	// ephemeral resource node.
 	<-n.closeCh
-	diags = diags.Append(n.closeEphemeralResource(ctx, evalContext, privateData))
+	diags = diags.Append(n.closeEphemeralResource(ctx, evalContext, provider, privateData))
 	n.ephemeralDiags <- diags
 }
 
-func (n *NodeAbstractResourceInstance) closeEphemeralResource(ctx context.Context, evalContext EvalContext, privateData []byte) (diags tfdiags.Diagnostics) {
-	provider, _, err := getProvider(ctx, evalContext, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-	if err != nil {
-		diags = diags.Append(err)
-		n.ephemeralDiags <- diags
-		return
-	}
+func (n *NodeAbstractResourceInstance) closeEphemeralResource(ctx context.Context, evalContext EvalContext, provider providers.Interface, privateData []byte) (diags tfdiags.Diagnostics) {
 	req := providers.CloseEphemeralResourceRequest{
 		TypeName: n.Addr.Resource.Resource.Type,
 		Private:  privateData,
@@ -3202,7 +3196,7 @@ func (n *NodeAbstractResourceInstance) closeEphemeralResource(ctx context.Contex
 
 // renewEphemeral is meant to be called into a goroutine. This method listens on ctx.Done and n.closeCh for ending the job and
 // to return the data.
-func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalContext EvalContext, renewAt *time.Time, privateData []byte) ([]byte, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalContext EvalContext, provider providers.Interface, renewAt *time.Time, privateData []byte) ([]byte, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	for {
 		if renewAt == nil {
@@ -3220,14 +3214,6 @@ func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalC
 			// in ephemeral resources context, especially in the context of the renew operation.
 			return h.PreApply(n.Addr, states.CurrentGen, plans.Renew, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
 		}))
-		provider, _, err := getProvider(ctx, evalContext, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
-		if err != nil {
-			diags = diags.Append(err)
-			// in case we cannot get the provider, let's retry. We could also add some kind of maxRetries
-			retry := time.Now().Add(4 * time.Second) // TODO andrei should we parametrize this somehow?
-			renewAt = &retry
-			continue
-		}
 		req := providers.RenewEphemeralResourceRequest{
 			TypeName: n.Addr.Resource.Resource.Type,
 			Private:  privateData,
