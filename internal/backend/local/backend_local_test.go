@@ -240,6 +240,8 @@ type stateStorageThatFailsRefresh struct {
 	locked bool
 }
 
+var _ statemgr.Full = (*stateStorageThatFailsRefresh)(nil)
+
 func (s *stateStorageThatFailsRefresh) Lock(info *statemgr.LockInfo) (string, error) {
 	if s.locked {
 		return "", fmt.Errorf("already locked")

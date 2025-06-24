@@ -92,6 +92,7 @@ remote state version.
 
 var _ statemgr.Full = (*State)(nil)
 var _ statemgr.Migrator = (*State)(nil)
+var _ statemgr.PersistentMeta = (*State)(nil)
 var _ local.IntermediateStateConditionalPersister = (*State)(nil)
 
 // statemgr.Reader impl.
