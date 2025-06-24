@@ -93,7 +93,7 @@ func (b *Backend) client(name string) (*remoteClient, error) {
 
 // StateMgr reads and returns the named state from GCS. If the named state does
 // not yet exist, a new state file is created.
-func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	c, err := b.client(name)
 	if err != nil {
 		return nil, err
@@ -102,7 +102,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 	st := remote.NewState(c, b.encryption)
 
 	// Grab the value
-	if err := st.RefreshState(); err != nil {
+	if err := st.RefreshState(ctx); err != nil {
 		return nil, err
 	}
 
@@ -111,14 +111,14 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := st.Lock(lockInfo)
+		lockID, err := st.Lock(ctx, lockInfo)
 		if err != nil {
 			return nil, err
 		}
 
 		// Local helper function so we can call it multiple places
 		unlock := func(baseErr error) error {
-			if err := st.Unlock(lockID); err != nil {
+			if err := st.Unlock(ctx, lockID); err != nil {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state file on Google Cloud Storage failed:
 
@@ -138,7 +138,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 		if err := st.WriteState(states.NewState()); err != nil {
 			return nil, unlock(err)
 		}
-		if err := st.PersistState(nil); err != nil {
+		if err := st.PersistState(ctx, nil); err != nil {
 			return nil, unlock(err)
 		}
 

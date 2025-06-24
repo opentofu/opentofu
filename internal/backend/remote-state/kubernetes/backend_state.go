@@ -78,7 +78,7 @@ func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error 
 	return client.Delete()
 }
 
-func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	c, err := b.remoteClient(name)
 	if err != nil {
 		return nil, err
@@ -87,7 +87,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 	stateMgr := remote.NewState(c, b.encryption)
 
 	// Grab the value
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(ctx); err != nil {
 		return nil, err
 	}
 
@@ -96,7 +96,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := stateMgr.Lock(lockInfo)
+		lockID, err := stateMgr.Lock(ctx, lockInfo)
 		if err != nil {
 			return nil, err
 		}
@@ -108,7 +108,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 
 		// Local helper function so we can call it multiple places
 		unlock := func(baseErr error) error {
-			if err := stateMgr.Unlock(lockID); err != nil {
+			if err := stateMgr.Unlock(ctx, lockID); err != nil {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state in Kubernetes failed:
 
@@ -128,7 +128,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 		if err := stateMgr.WriteState(states.NewState()); err != nil {
 			return nil, unlock(err)
 		}
-		if err := stateMgr.PersistState(nil); err != nil {
+		if err := stateMgr.PersistState(context.WithoutCancel(ctx), nil); err != nil {
 			return nil, unlock(err)
 		}
 

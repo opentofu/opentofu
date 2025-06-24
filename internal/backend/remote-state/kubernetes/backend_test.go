@@ -111,7 +111,7 @@ func TestBackendLocksSoak(t *testing.T) {
 			li.Who = fmt.Sprintf("client-%v", n)
 
 			for i := 0; i < lockAttempts; i++ {
-				id, err := locker.Lock(li)
+				id, err := locker.Lock(t.Context(), li)
 				if err != nil {
 					continue
 				}
@@ -119,7 +119,7 @@ func TestBackendLocksSoak(t *testing.T) {
 				// hold onto the lock for a little bit
 				time.Sleep(time.Duration(rand.Intn(10)) * time.Microsecond)
 
-				err = locker.Unlock(id)
+				err = locker.Unlock(t.Context(), id)
 				if err != nil {
 					t.Errorf("failed to unlock: %v", err)
 				}

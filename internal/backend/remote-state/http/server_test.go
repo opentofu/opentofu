@@ -289,7 +289,7 @@ func TestMTLSServer_NoCertFails(t *testing.T) {
 	}
 
 	opErr := new(net.OpError)
-	err = sm.RefreshState()
+	err = sm.RefreshState(t.Context())
 	if err == nil {
 		t.Fatal("expected error when refreshing state without a client cert")
 	}
@@ -358,7 +358,7 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error fetching StateMgr with %s: %v", backend.DefaultStateName, err)
 	}
-	if err = sm.RefreshState(); err != nil {
+	if err = sm.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error calling RefreshState: %v", err)
 	}
 	state := sm.State()
@@ -399,10 +399,10 @@ func TestMTLSServer_WithCertPasses(t *testing.T) {
 	if err = sm.WriteState(state); err != nil {
 		t.Errorf("error writing state: %v", err)
 	}
-	if err = sm.PersistState(nil); err != nil {
+	if err = sm.PersistState(t.Context(), nil); err != nil {
 		t.Errorf("error persisting state: %v", err)
 	}
-	if err = sm.RefreshState(); err != nil {
+	if err = sm.RefreshState(t.Context()); err != nil {
 		t.Errorf("error refreshing state: %v", err)
 	}
 

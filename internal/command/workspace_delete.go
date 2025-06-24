@@ -134,7 +134,7 @@ func (c *WorkspaceDeleteCommand) Run(args []string) int {
 		stateLocker = clistate.NewNoopLocker()
 	}
 
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(ctx); err != nil {
 		// We need to release the lock before exit
 		stateLocker.Unlock()
 		c.Ui.Error(err.Error())

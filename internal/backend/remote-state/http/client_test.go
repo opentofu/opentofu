@@ -370,7 +370,7 @@ func TestHttpClient_Unlock(t *testing.T) {
 				jsonLockInfo: tt.jsonLockInfo,
 			}
 
-			err = client.Unlock(tt.lockID)
+			err = client.Unlock(t.Context(), tt.lockID)
 			if tt.expectedErrorMsg != nil && err == nil {
 				// no expected error
 				t.Errorf("UnLock() no expected error = %v", tt.expectedErrorMsg)
@@ -474,7 +474,7 @@ func TestHttpClient_lock(t *testing.T) {
 				Client:     retryablehttp.NewClient(),
 			}
 
-			lockID, err := client.Lock(tt.lockInfo)
+			lockID, err := client.Lock(t.Context(), tt.lockInfo)
 			if tt.expectedErrorMsg != nil && err == nil {
 				// no expected error
 				t.Errorf("Lock() no expected error = %v", tt.expectedErrorMsg)

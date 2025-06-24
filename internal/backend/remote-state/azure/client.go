@@ -102,7 +102,7 @@ func (c *RemoteClient) Delete() error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	stateName := fmt.Sprintf("%s/%s", c.containerName, c.keyName)
 	info.Path = stateName
 
@@ -131,7 +131,6 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 		ProposedLeaseID: &info.ID,
 		LeaseDuration:   -1,
 	}
-	ctx := context.TODO()
 
 	// obtain properties to see if the blob lease is already in use. If the blob doesn't exist, create it
 	properties, err := c.getBlobProperties()
@@ -221,7 +220,7 @@ func (c *RemoteClient) writeLockInfo(info *statemgr.LockInfo) error {
 	return err
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 	lockErr := &statemgr.LockError{}
 
 	lockInfo, err := c.getLockInfo()
@@ -242,7 +241,7 @@ func (c *RemoteClient) Unlock(id string) error {
 		return lockErr
 	}
 
-	ctx := context.TODO()
+	ctx = context.WithoutCancel(ctx) // try to release even if we're cancelled
 	_, err = c.giovanniBlobClient.ReleaseLease(ctx, c.accountName, c.containerName, c.keyName, id)
 	if err != nil {
 		lockErr.Err = err

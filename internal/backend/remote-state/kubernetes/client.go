@@ -151,8 +151,7 @@ func (c *RemoteClient) Delete() error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
-	ctx := context.Background()
+func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	leaseName, err := c.createLeaseName()
 	if err != nil {
 		return "", err
@@ -213,7 +212,9 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	return info.ID, err
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
+	ctx = context.WithoutCancel(ctx)
+
 	leaseName, err := c.createLeaseName()
 	if err != nil {
 		return err
@@ -242,7 +243,7 @@ func (c *RemoteClient) Unlock(id string) error {
 	lease.Spec.HolderIdentity = nil
 	removeLockInfo(lease)
 
-	_, err = c.kubernetesLeaseClient.Update(context.Background(), lease, metav1.UpdateOptions{})
+	_, err = c.kubernetesLeaseClient.Update(ctx, lease, metav1.UpdateOptions{})
 	if err != nil {
 		lockErr.Err = err
 		return lockErr

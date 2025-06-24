@@ -7,6 +7,7 @@ package oss
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -149,7 +150,7 @@ func (c *RemoteClient) Delete() error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	if c.otsTable == "" {
 		return "", nil
 	}
@@ -360,7 +361,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	}
 	return lockInfo, nil
 }
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(_ context.Context, id string) error {
 	if c.otsTable == "" {
 		return nil
 	}

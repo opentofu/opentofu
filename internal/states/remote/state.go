@@ -7,6 +7,7 @@ package remote
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"sync"
@@ -77,8 +78,8 @@ func (s *State) State() *states.State {
 	return s.state.DeepCopy()
 }
 
-func (s *State) GetRootOutputValues() (map[string]*states.OutputValue, error) {
-	if err := s.RefreshState(); err != nil {
+func (s *State) GetRootOutputValues(ctx context.Context) (map[string]*states.OutputValue, error) {
+	if err := s.RefreshState(ctx); err != nil {
 		return nil, fmt.Errorf("Failed to load state: %w", err)
 	}
 
@@ -142,7 +143,7 @@ func (s *State) WriteStateForMigration(f *statefile.File, force bool) error {
 }
 
 // statemgr.Refresher impl.
-func (s *State) RefreshState() error {
+func (s *State) RefreshState(_ context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.refreshState()
@@ -184,7 +185,7 @@ func (s *State) refreshState() error {
 }
 
 // statemgr.Persister impl.
-func (s *State) PersistState(schemas *tofu.Schemas) error {
+func (s *State) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -255,7 +256,7 @@ func (s *State) ShouldPersistIntermediateState(info *local.IntermediateStatePers
 }
 
 // Lock calls the Client's Lock method if it's implemented.
-func (s *State) Lock(info *statemgr.LockInfo) (string, error) {
+func (s *State) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -264,13 +265,13 @@ func (s *State) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 
 	if c, ok := s.Client.(ClientLocker); ok {
-		return c.Lock(info)
+		return c.Lock(ctx, info)
 	}
 	return "", nil
 }
 
 // Unlock calls the Client's Unlock method if it's implemented.
-func (s *State) Unlock(id string) error {
+func (s *State) Unlock(ctx context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -279,7 +280,7 @@ func (s *State) Unlock(id string) error {
 	}
 
 	if c, ok := s.Client.(ClientLocker); ok {
-		return c.Unlock(id)
+		return c.Unlock(ctx, id)
 	}
 	return nil
 }

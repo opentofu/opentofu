@@ -361,7 +361,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	return li, nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -385,12 +385,12 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 		}
 	}
 
-	return c.lock()
+	return c.lock(ctx)
 }
 
 // the lock implementation.
 // Only to be called while holding Client.mu
-func (c *RemoteClient) lock() (string, error) {
+func (c *RemoteClient) lock(ctx context.Context) (string, error) {
 	// We create a new session here, so it can be canceled when the lock is
 	// lost or unlocked.
 	lockSession, err := c.createSession()
@@ -457,7 +457,7 @@ func (c *RemoteClient) lock() (string, error) {
 
 	err = c.putLockInfo(c.info)
 	if err != nil {
-		if unlockErr := c.unlock(c.info.ID); unlockErr != nil {
+		if unlockErr := c.unlock(ctx, c.info.ID); unlockErr != nil {
 			err = multierror.Append(err, unlockErr)
 		}
 
@@ -468,7 +468,7 @@ func (c *RemoteClient) lock() (string, error) {
 	// If we lose the lock to due communication issues with the consul agent,
 	// attempt to immediately reacquire the lock. Put will verify the integrity
 	// of the state by using a CAS operation.
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	c.monitorCancel = cancel
 	c.monitorWG.Add(1)
 	go func() {
@@ -485,7 +485,7 @@ func (c *RemoteClient) lock() (string, error) {
 				c.sessionCancel()
 
 				c.consulLock = nil
-				_, err := c.lock()
+				_, err := c.lock(ctx)
 				c.mu.Unlock()
 
 				if err != nil {
@@ -551,7 +551,7 @@ func (c *RemoteClient) createSession() (string, error) {
 	return id, nil
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -559,12 +559,12 @@ func (c *RemoteClient) Unlock(id string) error {
 		return nil
 	}
 
-	return c.unlock(id)
+	return c.unlock(ctx, id)
 }
 
 // the unlock implementation.
 // Only to be called while holding Client.mu
-func (c *RemoteClient) unlock(id string) error {
+func (c *RemoteClient) unlock(_ context.Context, id string) error {
 	// This method can be called in two circumstances:
 	// - when the plan apply or destroy operation finishes and the lock needs to be released,
 	// the watchdog stopped and the session closed

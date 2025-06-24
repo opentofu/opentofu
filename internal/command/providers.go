@@ -117,7 +117,7 @@ func (c *ProvidersCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(ctx); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to load state: %s", err))
 		return 1
 	}

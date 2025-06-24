@@ -7,6 +7,7 @@ package clistate
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,6 +48,13 @@ type LocalState struct {
 	readState *tofu.State
 	written   bool
 }
+
+// LocalState is not really a "state manager" -- this is a holdover from long
+// ago where .terraform/terraform.tfstate was actually a state snapshot rather
+// than just some metadata about the initialized backend configuration -- but
+// various bits of supporting code assume that it implements the same
+// locking API that real state managers do.
+var _ statemgr.Locker = (*LocalState)(nil)
 
 // SetState will force a specific state in-memory for this local state.
 func (s *LocalState) SetState(state *tofu.State) {
@@ -187,7 +195,7 @@ func (s *LocalState) RefreshState() error {
 }
 
 // Lock implements a local filesystem state.Locker.
-func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
+func (s *LocalState) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -219,7 +227,7 @@ func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
 	return s.lockID, s.writeLockInfo(info)
 }
 
-func (s *LocalState) Unlock(id string) error {
+func (s *LocalState) Unlock(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

@@ -120,7 +120,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		}()
 	}
 
-	if err := stateFromMgr.RefreshState(); err != nil {
+	if err := stateFromMgr.RefreshState(ctx); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to refresh source state: %s", err))
 		return 1
 	}
@@ -158,7 +158,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			}()
 		}
 
-		if err := stateToMgr.RefreshState(); err != nil {
+		if err := stateToMgr.RefreshState(ctx); err != nil {
 			c.Ui.Error(fmt.Sprintf("Failed to refresh destination state: %s", err))
 			return 1
 		}
@@ -420,7 +420,7 @@ func (c *StateMvCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}
-	if err := stateToMgr.PersistState(schemas); err != nil {
+	if err := stateToMgr.PersistState(ctx, schemas); err != nil {
 		c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 		return 1
 	}
@@ -431,7 +431,7 @@ func (c *StateMvCommand) Run(args []string) int {
 			c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 			return 1
 		}
-		if err := stateFromMgr.PersistState(schemas); err != nil {
+		if err := stateFromMgr.PersistState(ctx, schemas); err != nil {
 			c.Ui.Error(fmt.Sprintf(errStateRmPersist, err))
 			return 1
 		}

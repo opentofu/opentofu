@@ -7,6 +7,7 @@ package statemgr
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -158,7 +159,7 @@ func (s *Filesystem) writeState(state *states.State, meta *SnapshotMeta) error {
 }
 
 // PersistState writes state to a tfstate file.
-func (s *Filesystem) PersistState(schemas *tofu.Schemas) error {
+func (s *Filesystem) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	defer s.mutex()()
 
 	return s.persistState(schemas)
@@ -249,13 +250,13 @@ func (s *Filesystem) persistState(schemas *tofu.Schemas) error {
 }
 
 // RefreshState is an implementation of Refresher.
-func (s *Filesystem) RefreshState() error {
+func (s *Filesystem) RefreshState(_ context.Context) error {
 	defer s.mutex()()
 	return s.refreshState()
 }
 
-func (s *Filesystem) GetRootOutputValues() (map[string]*states.OutputValue, error) {
-	err := s.RefreshState()
+func (s *Filesystem) GetRootOutputValues(ctx context.Context) (map[string]*states.OutputValue, error) {
+	err := s.RefreshState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -331,7 +332,7 @@ func (s *Filesystem) refreshState() error {
 }
 
 // Lock implements Locker using filesystem discretionary locks.
-func (s *Filesystem) Lock(info *LockInfo) (string, error) {
+func (s *Filesystem) Lock(_ context.Context, info *LockInfo) (string, error) {
 	defer s.mutex()()
 
 	if s.stateFileOut == nil {
@@ -364,7 +365,7 @@ func (s *Filesystem) Lock(info *LockInfo) (string, error) {
 }
 
 // Unlock is the companion to Lock, completing the implementation of Locker.
-func (s *Filesystem) Unlock(id string) error {
+func (s *Filesystem) Unlock(_ context.Context, id string) error {
 	defer s.mutex()()
 
 	if s.lockID == "" {

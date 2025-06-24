@@ -6,6 +6,8 @@
 package statemgr
 
 import (
+	"context"
+
 	version "github.com/hashicorp/go-version"
 
 	"github.com/opentofu/opentofu/internal/states"
@@ -33,7 +35,7 @@ type Persistent interface {
 // to differentiate reading the state and reading the outputs within the state.
 type OutputReader interface {
 	// GetRootOutputValues fetches the root module output values from state or another source
-	GetRootOutputValues() (map[string]*states.OutputValue, error)
+	GetRootOutputValues(context.Context) (map[string]*states.OutputValue, error)
 }
 
 // Refresher is the interface for managers that can read snapshots from
@@ -63,7 +65,7 @@ type Refresher interface {
 	// return only a subset of what was written. Callers must assume that
 	// ephemeral portions of the state may be unpopulated after calling
 	// RefreshState.
-	RefreshState() error
+	RefreshState(context.Context) error
 }
 
 // Persister is the interface for managers that can write snapshots to
@@ -72,6 +74,13 @@ type Refresher interface {
 // Persister is usually implemented in conjunction with Writer, with
 // PersistState copying the latest transient snapshot to be the new latest
 // persistent snapshot.
+//
+// Persisting can potentially be called with the given context already
+// cancelled. It's the implementer's responsibility to use
+// [context.WithoutCancel] to create a child context that is not sensitive
+// to that cancellation when making outgoing requests related to persisting.
+// Some callers remove cancellation from the context they pass for their own
+// reasons, but implementers are not allowed to rely on that.
 //
 // A Persister implementation must detect updates made by other processes
 // that may be running concurrently and avoid destroying those changes. This
@@ -83,7 +92,7 @@ type Refresher interface {
 // state. For example, when representing state in an external JSON
 // representation.
 type Persister interface {
-	PersistState(*tofu.Schemas) error
+	PersistState(context.Context, *tofu.Schemas) error
 }
 
 // PersistentMeta is an optional extension to Persistent that allows inspecting

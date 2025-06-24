@@ -141,21 +141,21 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// take a lock on this state while we write it
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockId, err := client.Lock(lockInfo)
+		lockId, err := client.Lock(ctx, lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock OSS state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(e error) error {
-			if err := stateMgr.Unlock(lockId); err != nil {
+			if err := stateMgr.Unlock(ctx, lockId); err != nil {
 				return fmt.Errorf(strings.TrimSpace(stateUnlockError), lockId, err)
 			}
 			return e
 		}
 
 		// Grab the value
-		if err := stateMgr.RefreshState(); err != nil {
+		if err := stateMgr.RefreshState(ctx); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}
@@ -166,7 +166,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := stateMgr.PersistState(nil); err != nil {
+			if err := stateMgr.PersistState(context.WithoutCancel(ctx), nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}

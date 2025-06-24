@@ -6,6 +6,7 @@
 package inmem
 
 import (
+	"context"
 	"crypto/md5"
 
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -44,9 +45,9 @@ func (c *RemoteClient) Delete() error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	return locks.lock(c.Name, info)
 }
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(_ context.Context, id string) error {
 	return locks.unlock(c.Name, id)
 }

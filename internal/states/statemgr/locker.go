@@ -55,15 +55,20 @@ type Locker interface {
 	// an instance of LockError immediately if the lock is already held,
 	// and the helper function LockWithContext uses this to automatically
 	// retry lock acquisition periodically until a timeout is reached.
-	Lock(info *LockInfo) (string, error)
+	Lock(ctx context.Context, info *LockInfo) (string, error)
 
 	// Unlock releases a lock previously acquired by Lock.
+	//
+	// Unlocking can potentially be called with the given context already
+	// cancelled. It's the implementer's responsibility to use
+	// [context.WithoutCancel] to create a child context that is not sensitive
+	// to that cancellation when making outgoing requests related to unlocking.
 	//
 	// If the lock cannot be released -- for example, if it was stolen by
 	// another user with some sort of administrative override privilege --
 	// then an error is returned explaining the situation in a way that
 	// is suitable for returning to an end-user.
-	Unlock(id string) error
+	Unlock(ctx context.Context, id string) error
 }
 
 // OptionalLocker extends Locker interface to allow callers
@@ -88,7 +93,7 @@ func LockWithContext(ctx context.Context, s Locker, info *LockInfo) (string, err
 	delay := time.Second
 	maxDelay := 16 * time.Second
 	for {
-		id, err := s.Lock(info)
+		id, err := s.Lock(ctx, info)
 		if err == nil {
 			return id, nil
 		}

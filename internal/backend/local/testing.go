@@ -184,7 +184,7 @@ func (b *TestLocalNoDefaultState) StateMgr(ctx context.Context, name string) (st
 func testStateFile(t *testing.T, path string, s *states.State) {
 	t.Helper()
 
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -211,7 +211,7 @@ func mustResourceInstanceAddr(s string) addrs.AbsResourceInstance {
 func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 	t.Helper()
 	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Errorf("state is already locked: %s", err.Error())
 		// lock was obtained
 		return false
@@ -226,7 +226,7 @@ func assertBackendStateUnlocked(t *testing.T, b *Local) bool {
 func assertBackendStateLocked(t *testing.T, b *Local) bool {
 	t.Helper()
 	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		// lock was not obtained
 		return true
 	}

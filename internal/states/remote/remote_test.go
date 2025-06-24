@@ -15,7 +15,7 @@ func TestRemoteClient_noPayload(t *testing.T) {
 	s := &State{
 		Client: nilClient{},
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatal("error refreshing empty remote state")
 	}
 }

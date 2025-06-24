@@ -365,7 +365,11 @@ func (b *Local) opWait(
 
 		// try to force a PersistState just in case the process is terminated
 		// before we can complete.
-		if err := opStateMgr.PersistState(nil); err != nil {
+		// FIXME: This should use a context.WithoutCancel context derived from
+		// the active request context, once we have that plumbed in here.
+		// However, we want to tidy up our big multi-context mess in here
+		// before adding yet another context into the mix.
+		if err := opStateMgr.PersistState(context.TODO(), nil); err != nil {
 			// We can't error out from here, but warn the user if there was an error.
 			// If this isn't transient, we will catch it again below, and
 			// attempt to save the state another way.
