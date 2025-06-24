@@ -363,6 +363,19 @@ func (h *UiHook) PostApplyImport(addr addrs.AbsResourceInstance, importing plans
 	return tofu.HookActionContinue, nil
 }
 
+func (h *UiHook) Deferred(addr addrs.AbsResourceInstance, reason string) (tofu.HookAction, error) {
+	id := addr.String()
+	msg := fmt.Sprintf("Deferred due to %s", reason)
+
+	colorized := fmt.Sprintf(
+		h.view.colorize.Color("[reset][bold]%s: %s"),
+		id, msg)
+
+	h.println(colorized)
+
+	return tofu.HookActionContinue, nil
+}
+
 // Wrap calls to the view so that concurrent calls do not interleave println.
 func (h *UiHook) println(s string) {
 	h.viewLock.Lock()
