@@ -57,8 +57,8 @@ The S3 backend now supports native state locking without requiring DynamoDB, sim
 ```hcl
 terraform {
   backend "s3" {
-    bucket       = "my-terraform-state"
-    key          = "prod/terraform.tfstate"
+    bucket       = "my-opentofu-state"
+    key          = "prod/opentofu.tfstate"
     region       = "us-east-1"
     use_lockfile = true  # Enable native S3 locking
   }
