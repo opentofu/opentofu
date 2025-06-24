@@ -55,6 +55,7 @@ type State struct {
 
 var _ statemgr.Full = (*State)(nil)
 var _ statemgr.Migrator = (*State)(nil)
+var _ statemgr.PersistentMeta = (*State)(nil)
 var _ local.IntermediateStateConditionalPersister = (*State)(nil)
 
 func NewState(client Client, enc encryption.StateEncryption) *State {

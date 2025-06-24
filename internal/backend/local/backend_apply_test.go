@@ -349,6 +349,8 @@ type failingState struct {
 	*statemgr.Filesystem
 }
 
+var _ statemgr.Full = (*failingState)(nil)
+
 func (s failingState) WriteState(state *states.State) error {
 	return errors.New("fake failure")
 }
