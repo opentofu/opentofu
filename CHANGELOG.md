@@ -1,4 +1,6 @@
-## 1.10.0 (Unreleased)
+## 1.10.1 (Unreleased)
+
+## 1.10.0
 
 This release has some changes that might require special attention when upgrading from an earlier release. Refer to "UPGRADE NOTES" below for more information.
 
