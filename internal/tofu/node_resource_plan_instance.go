@@ -214,10 +214,7 @@ func (n *NodePlannableResourceInstance) ephemeralResourceExecute(ctx context.Con
 	}
 
 	// write ephemeral resource only in the working state to make it accessible to the evaluator.
-	// This is later filtered out when it comes to the state writing
-	// TODO andrei - we are writing changes strictly for allowing other resources that are referencing this ephemeral
-	// to be able to resolve the unknown values during planning. Comment this out and check the errors on `tofu plan`
-	// Ask to see how we could do this better
+	// This is later filtered out when it comes to the state or plan writing.
 	diags = diags.Append(n.writeChange(ctx, evalCtx, change, states.NotDeposed))
 	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, state, workingState))
 	if diags.HasErrors() {

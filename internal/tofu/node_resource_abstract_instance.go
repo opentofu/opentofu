@@ -1821,7 +1821,7 @@ func (n *NodeAbstractResourceInstance) providerMetas(ctx context.Context, evalCt
 	return metaConfigVal, diags
 }
 
-func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, []byte, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var newVal cty.Value
 
@@ -1830,13 +1830,13 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
-		return newVal, nil, diags
+		return newVal, diags
 	}
 	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
 	if schema == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
 		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", n.ResolvedProvider.ProviderConfig, n.Addr.ContainingResource().Resource.Type))
-		return newVal, nil, diags
+		return newVal, diags
 	}
 
 	// Unmark before sending to provider, will re-mark before returning
@@ -1853,7 +1853,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	)
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, nil, diags
+		return newVal, diags
 	}
 
 	// If we get down here then our configuration is complete and we're ready
@@ -1864,7 +1864,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return h.PreApply(n.Addr, states.CurrentGen, plans.Open, cty.NullVal(configVal.Type()), configVal)
 	}))
 	if diags.HasErrors() {
-		return newVal, nil, diags
+		return newVal, diags
 	}
 
 	req := providers.OpenEphemeralResourceRequest{
@@ -1874,9 +1874,9 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	resp := provider.OpenEphemeralResource(ctx, req)
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, nil, diags
+		return newVal, diags
 	}
-	newVal = resp.Result // TODO andrei handle the renew/private/defer. For defer, check upstream, there is another place where I've seen something about this (look for trace logs)
+	newVal = resp.Result
 	if newVal == cty.NilVal {
 		// This can happen with incompletely-configured mocks. We'll allow it
 		// and treat it as an alias for a properly-typed null value.
@@ -1894,7 +1894,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		))
 	}
 	if diags.HasErrors() {
-		return newVal, nil, diags
+		return newVal, diags
 	}
 
 	if newVal.IsNull() {
@@ -1935,7 +1935,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
 	}))
 
-	return newVal, resp.Private, diags
+	return newVal, diags
 }
 
 // planDataSource deals with the main part of the data resource lifecycle:
@@ -2170,6 +2170,8 @@ func (n *NodeAbstractResourceInstance) nestedInCheckBlock() (*configs.Check, boo
 // receiver depends on has a change pending in the plan, in which case we'd
 // need to override the usual behavior of immediately reading from the data
 // source where possible, and instead defer the read until the apply step.
+// The deferral applies to the opening of the ephemeral resources, too, when
+// the dependent managed resource is having pending changes.
 func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx EvalContext) bool {
 	nModInst := n.Addr.Module
 	nMod := nModInst.Module()
@@ -2181,10 +2183,10 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx Ev
 
 	depsToUse := n.dependsOn
 
-	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode || n.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode { // TODO andrei
+	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode || n.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
 		if n.Config.HasCustomConditions() {
-			// For a data resource with custom conditions we need to look at
-			// the full set of resource dependencies -- both direct and
+			// For a data resource or an ephemeral resource with custom conditions
+			// we need to look at the full set of resource dependencies -- both direct and
 			// indirect -- because an upstream update might be what's needed
 			// in order to make a condition pass.
 			depsToUse = n.Dependencies
@@ -2200,12 +2202,15 @@ func (n *NodeAbstractResourceInstance) dependenciesHavePendingChanges(evalCtx Ev
 			continue
 		}
 		if n.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode && d.Resource.Mode == addrs.EphemeralResourceMode {
+			// Ephemeral resources have no external side effects, so they pose a need
+			// to delay this opening. If they do have a change planned, it must be
+			// because of a dependency on a managed resource, in which case
+			// we'll also encounter it in this list of dependencies.
 			continue
 		}
-		// TODO ephemeral - since a data source cannot have write-only attributes, a data source that is referencing
-		// an ephemeral resource needs to show an error. We need to check where that evaluation needs to be done. Once
-		// it is done, this comment can be removed and best case scenario, we can add a check in here for the sake of safety,
-		// to ensure that an ephemeral cannot ever be referenced by a data source.
+		// NOTE: a data source **can** have a depends_on entry that points to an ephemeral resource, but it cannot
+		// reference directly any attributes of an ephemeral resource. Therefore, we can encounter here an ephemeral resource
+		// being verified for changes.
 
 		for _, change := range changes.GetChangesForConfigResource(d) {
 			changeModInst := change.Addr.Module
@@ -3075,10 +3080,10 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 	}
 
 	configKnown := configVal.IsWhollyKnown()
-	depsPending := n.dependenciesHavePendingChanges(evalCtx) // TODO andrei - check this on how to do this for ephemeral resources. This method call here is strictly for data sources
+	depsPending := n.dependenciesHavePendingChanges(evalCtx)
 	// If our configuration contains any unknown values, or we depend on any
-	// unknown values then we must defer the read to the apply phase by
-	// producing a "Read" change for this resource, and a placeholder value for
+	// unknown values then we must defer the opening to the apply phase by
+	// producing an "Open" change for this resource, and a placeholder value for
 	// it in the state.
 	if depsPending || !configKnown {
 		// We can't plan any changes if we're only refreshing, so the only
@@ -3092,25 +3097,19 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 			return nil, plannedNewState, keyData, diags
 		}
 
-		var reason plans.ResourceInstanceChangeActionReason
-		switch {
-		case !configKnown:
+		reason := "unknown reason"
+		if !configKnown {
 			log.Printf("[TRACE] planEphemeralResource: %s configuration not fully known yet, so deferring to apply phase", n.Addr)
-			reason = plans.ResourceInstanceReadBecauseConfigUnknown
-		case depsPending:
-			// NOTE: depsPending can be true at the same time as configKnown
-			// is false; configKnown takes precedence because it's more
-			// specific.
+			reason = "unknown configuration"
+		} else if depsPending {
 			log.Printf("[TRACE] planEphemeralResource: %s configuration is fully known, at least one dependency has changes pending", n.Addr)
-			reason = plans.ResourceInstanceReadBecauseDependencyPending
+			reason = "pending dependencies"
 		}
 
 		unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
-		proposedNewVal := objchange.PlannedDataResourceObject(schema, unmarkedConfigVal) // TODO andrei instead of doing this planned object we might need to show the deferred message
+		proposedNewVal := objchange.PlannedDataResourceObject(schema, unmarkedConfigVal)
 		proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
 
-		// Apply detects that the data source will need to be read by the After
-		// value containing unknowns from PlanDataResourceObject.
 		plannedChange := &plans.ResourceInstanceChange{
 			Addr:         n.Addr,
 			PrevRunAddr:  n.prevRunAddr(evalCtx),
@@ -3120,7 +3119,8 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 				Before: priorVal,
 				After:  proposedNewVal,
 			},
-			ActionReason: reason,
+			// Skipped ActionReason on purpose since ephemeral resources changes are not meant
+			// to be shown in the UI.
 		}
 
 		plannedNewState := &states.ResourceInstanceObject{
@@ -3129,15 +3129,15 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 		}
 
 		diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
-			return h.PostDiff(n.Addr, states.CurrentGen, plans.Open, priorVal, proposedNewVal)
+			return h.Deferred(n.Addr, reason)
 		}))
 
 		return plannedChange, plannedNewState, keyData, diags
 	}
 
 	// We have a complete configuration with no dependencies to wait on, so we
-	// can read the data source into the state.
-	newVal, privateData, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
+	// can open the ephemeral resource and store its value in the state.
+	newVal, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
 
 	// Now we've loaded the data, and diags tells us whether we were successful
 	// or not, we are going to create our plannedChange and our
@@ -3149,9 +3149,10 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 	if !diags.HasErrors() {
 		// Finally, let's make our new state.
 		plannedNewState = &states.ResourceInstanceObject{
-			Value:   newVal,
-			Status:  states.ObjectReady,
-			Private: privateData, // TODO andrei - decide if we are working with this private data or we are going to work only with the one from the renewer
+			Value:  newVal,
+			Status: states.ObjectReady,
+			// Private field ignored intentionally since this is handled internally by
+			// the goroutine that is handling the renewal of the ephemeral resource.
 		}
 	}
 
@@ -3184,8 +3185,11 @@ func (n *NodeAbstractResourceInstance) closeEphemeralResource(ctx context.Contex
 		Private:  privateData,
 	}
 
+	// We are using cty.EmptyObject for the PreApply and PostApply because the prior state
+	// and the new planned state does not matter in ephemeral resources context, especially
+	// in the context of the close operation.
 	diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-		return h.PreApply(n.Addr, states.CurrentGen, plans.Close, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject)) // TODO andrei check this empty object
+		return h.PreApply(n.Addr, states.CurrentGen, plans.Close, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
 	}))
 	resp := provider.CloseEphemeralResource(ctx, req)
 	diags = diags.Append(resp.Diagnostics)
@@ -3212,7 +3216,9 @@ func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalC
 			return privateData, diags
 		}
 		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-			return h.PreApply(n.Addr, states.CurrentGen, plans.Renew, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject)) // TODO andrei check this empty object
+			// We are using cty.EmptyObject here because the prior state and the new planned state does not matter
+			// in ephemeral resources context, especially in the context of the renew operation.
+			return h.PreApply(n.Addr, states.CurrentGen, plans.Renew, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
 		}))
 		provider, _, err := getProvider(ctx, evalContext, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
 		if err != nil {
@@ -3235,7 +3241,9 @@ func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalC
 	}
 }
 
-// TODO andrei add more comments
+// Close is meant to be called against nodes representing ephemeral resources.
+// When this is called, it will wait for the diagnostic responses that could have been
+// returned during the Renew calls and return those back to the caller.
 func (n *NodeAbstractResourceInstance) Close() tfdiags.Diagnostics {
 	if !n.renewStarted.Load() {
 		// If the ephemeral resource has been deferred, this method needs to return immediately.
