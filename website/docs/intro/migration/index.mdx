@@ -5,38 +5,18 @@ description: |-
   Learn how to migrate to OpenTofu from Terraform.
 ---
 
-import DocCardList from "@theme/DocCardList";
+# Migrating to OpenTofu from Terraform
+## Before you begin
 
-# Migrating to OpenTofu 1.7.x from Terraform
+OpenTofu aims to maintain compatibility with Terraform configurations. While most Terraform code will work without modification, we recommend following our [migration guide](migration-guide) to ensure a smooth transition.
 
-Please select the Terraform version you are migrating from:
+## Migration process overview
 
-<DocCardList
-    items={[
-        {
-            type: "link",
-            href: "terraform-1.9/",
-            label: "Terraform 1.9",
-        },
-        {
-            type: "link",
-            href: "terraform-1.8/",
-            label: "Terraform 1.8",
-        },
-        {
-            type: "link",
-            href: "terraform-1.7/",
-            label: "Terraform 1.7",
-        },
-        {
-            type: "link",
-            href: "terraform-1.6/",
-            label: "Terraform 1.6",
-        },
-        {
-            type: "link",
-            href: "terraform-1.5-or-lower/",
-            label: "Terraform 1.5 or lower",
-        },
-    ]}
-/>
+The migration process is designed to be safe and reversible:
+
+1. **Back up your infrastructure state and code**
+2. **Install OpenTofu**
+3. **Initialize and verify your configuration**
+4. **Test with a small change**
+
+[→ Read the complete migration guide](migration-guide)

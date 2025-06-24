@@ -1,0 +1,122 @@
+---
+description: OpenTofu uses OpenTelemetry tracing to provide visibility into operations. All tracing is local-only and opt-in.
+---
+
+# OpenTelemetry Tracing
+
+:::warning Experimental Feature
+OpenTelemetry tracing support is experimental and may change in future releases.
+:::
+
+OpenTofu 1.10.0 introduces support for [OpenTelemetry](https://opentelemetry.io/) (OTel) tracing, providing visibility into OpenTofu's internal operations. This feature helps you debug performance issues, understand operation flows, and optimize your infrastructure workflows.
+
+## Privacy and Security
+
+OpenTofu's tracing implementation is designed with privacy as the top priority:
+
+- **Opt-in only**: Tracing is completely disabled by default
+- **Local-only**: No telemetry data is sent to OpenTofu or any external service unless you explicitly configure it
+- **Your infrastructure**: You control where traces are sent using standard OpenTelemetry configuration
+- **Zero overhead**: When disabled, tracing has no performance impact
+
+As the OpenTofu team emphasizes: "Although this builds on a project named Open*Telemetry*, we are adding this support explicitly for you to trace *your application* using *your tooling* on *your infrastructure*." This feature is not intended to collect any data about OpenTofu usage patterns or user behavior for the OpenTofu project itself.
+
+## Quick Start
+
+### 1. Set up a tracing backend
+
+The easiest way to get started is with [Jaeger](https://www.jaegertracing.io/), an open-source distributed tracing platform:
+
+```bash
+docker run -d --rm --name jaeger \
+  -p 16686:16686 \
+  -p 4317:4317 \
+  -p 4318:4318 \
+  jaegertracing/jaeger:latest
+```
+
+### 2. Configure OpenTofu
+
+Enable tracing by setting these environment variables:
+
+```bash
+# Enable OTLP trace exporter
+export OTEL_TRACES_EXPORTER=otlp
+
+# Point to your Jaeger instance
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+
+# Required for local development (skip TLS verification)
+export OTEL_EXPORTER_OTLP_INSECURE=true
+```
+
+### 3. Run OpenTofu commands
+
+Now any OpenTofu command will generate traces:
+
+```bash
+tofu init    # Traces provider downloads
+tofu plan    # Traces planning operations
+tofu apply   # Traces apply workflow
+```
+
+### 4. View traces
+
+Open your browser and navigate to http://localhost:16686 to access the Jaeger UI. You'll see your OpenTofu operations broken down into detailed traces.
+
+## Configuration Options
+
+OpenTofu supports standard OpenTelemetry environment variables for configuration:
+
+### Basic Configuration
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `OTEL_TRACES_EXPORTER` | Must be set to `otlp` to enable tracing | `otlp` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint URL | `http://localhost:4317` |
+| `OTEL_EXPORTER_OTLP_INSECURE` | Skip TLS verification | `true` for local dev |
+
+Additional OTLP configuration options are supported. See the [OpenTelemetry documentation](https://opentelemetry.io/docs/specs/otel/protocol/exporter/#configuration-options) for details.
+
+:::note
+In this experimental implementation, OpenTofu always samples 100% of traces when tracing is enabled. Sampling configuration is not currently supported.
+:::
+
+## Integration with Observability Platforms
+
+While Jaeger is great for getting started, OpenTofu's OpenTelemetry support works with any OTLP-compatible backend such as Grafana Tempo, AWS X-Ray, or Datadog.
+
+## Use Cases
+
+### Debugging Slow Operations
+
+Tracing helps identify bottlenecks in your OpenTofu workflows:
+- Which provider downloads are slowest?
+- How long does each resource take to plan/apply?
+- Where is time being spent during initialization?
+
+### CI/CD Pipeline Optimization
+
+In continuous integration environments, tracing can reveal:
+- Parallel operation conflicts
+- Cache effectiveness
+- Network latency issues
+- Lock contention problems
+
+### Multi-Environment Deployments
+
+For complex deployments across regions or environments:
+- Compare performance across different backends
+- Identify region-specific delays
+- Track provider version update impacts
+
+## Future Development
+
+This experimental feature is actively being developed. The OpenTofu team is particularly interested in feedback about:
+
+- Which additional operations should be traced
+- Performance impact in real-world scenarios
+- Integration experiences with different backends
+- Specific use cases that benefit from tracing
+
+Please share your feedback through [GitHub issues](https://github.com/opentofu/opentofu/issues) or the [OpenTofu Slack community](https://opentofu.org/slack).
