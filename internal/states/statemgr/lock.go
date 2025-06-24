@@ -19,6 +19,8 @@ type LockDisabled struct {
 	Inner Full
 }
 
+var _ Full = (*LockDisabled)(nil)
+
 func (s *LockDisabled) State() *states.State {
 	return s.Inner.State()
 }
