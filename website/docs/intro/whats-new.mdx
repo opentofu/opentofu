@@ -81,6 +81,8 @@ export OTEL_EXPORTER_OTLP_INSECURE=true
 
 OpenTofu will then send traces to your configured collector (such as Jaeger or Grafana Tempo), helping you identify performance bottlenecks and debug complex operations. Learn more in the [tracing documentation](../internals/tracing.mdx).
 
+Please note that no telemetry data is sent to OpenTofu or any external service unless you explicitly configure it.
+
 ## Target and Exclude Files
 
 New `-target-file` and `-exclude-file` options allow you to manage resource targeting through version-controlled files:
@@ -114,6 +116,8 @@ export TF_PLUGIN_CACHE_DIR=/path/to/shared/cache
 ```
 
 The filesystem-level locking ensures only one process can modify a provider at a time, while others wait gracefully. This makes the provider cache ready for large-scale parallel operations.
+
+You can find more information about using the global provider cache in the [provider cache documentation](../cli/config/config-file.mdx). 
 
 ## Deprecation Support (Experimental)
 
@@ -166,7 +170,7 @@ State encryption now fully supports external key providers, allowing integration
 terraform {
   encryption {
     key_provider "external" "password_manager" {
-      command = ["op", "read", "op://vault/terraform/key"]
+      command = ["op", "read", "op://opentofu/stateencryption"]
     }
     
     method "aes_gcm" "state" {
