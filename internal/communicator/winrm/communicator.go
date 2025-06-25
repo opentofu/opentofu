@@ -62,14 +62,14 @@ func (c *Communicator) Connect(o provisioners.UIOutput) error {
 	// Set the client to nil since we'll (re)create it
 	c.client = nil
 
-	params := winrm.DefaultParameters
+	params := *winrm.DefaultParameters
 	params.Timeout = formatDuration(c.Timeout())
 	if c.connInfo.NTLM {
 		params.TransportDecorator = func() winrm.Transporter { return &winrm.ClientNTLM{} }
 	}
 
 	client, err := winrm.NewClientWithParameters(
-		c.endpoint, c.connInfo.User, c.connInfo.Password, params)
+		c.endpoint, c.connInfo.User, c.connInfo.Password, &params)
 	if err != nil {
 		return err
 	}
