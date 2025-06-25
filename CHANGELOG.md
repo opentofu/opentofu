@@ -2,13 +2,18 @@
 
 ENHANCEMENTS:
 
-* OpenTofu will now suggest using `-exclude` if a provider reports that it cannot create a plan for a particular resource instance due to values that won't be known until the apply phase. ([#2643](https://github.com/opentofu/opentofu/pull/2643))
-* `tofu validate` now supports running in a module that contains provider configuration_aliases. ([#2905](https://github.com/opentofu/opentofu/pull/2905))
-* `tofu show` now supports a `-config` option, to be used in conjunction with `-json` to produce a machine-readable summary of the configuration without first creating a plan. ([#2820](https://github.com/opentofu/opentofu/pull/2820))
+- OpenTofu will now suggest using `-exclude` if a provider reports that it cannot create a plan for a particular resource instance due to values that won't be known until the apply phase.
+  ([#2643](https://github.com/opentofu/opentofu/pull/2643))
+- `tofu validate` now supports running in a module that contains provider configuration_aliases.
+  ([#2905](https://github.com/opentofu/opentofu/pull/2905))
+- `tofu show` now supports a `-config` option, to be used in conjunction with `-json` to produce a machine-readable summary of the configuration without first creating a plan.
+  ([#2820](https://github.com/opentofu/opentofu/pull/2820))
+- S3 lockfile is now tagged with `tflock=true` for s3 lifecycle rule targeting.
+  ([#2961](https://github.com/opentofu/opentofu/pull/2961)
 
 BUG FIXES:
 
-* The `tofu.rc` configuration file now properly takes precedence over `terraform.rc` on Windows ([#2891](https://github.com/opentofu/opentofu/pull/2891))
+- The `tofu.rc` configuration file now properly takes precedence over `terraform.rc` on Windows ([#2891](https://github.com/opentofu/opentofu/pull/2891))
 
 ## Previous Releases
 
