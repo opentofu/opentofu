@@ -745,9 +745,11 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 		Insecure:             boolAttr(obj, "insecure"),
 		UseDualStackEndpoint: boolAttr(obj, "use_dualstack_endpoint"),
 		UseFIPSEndpoint:      boolAttr(obj, "use_fips_endpoint"),
-		UserAgent: awsbase.UserAgentProducts{
-			{Name: "APN", Version: "1.0"},
-			{Name: httpclient.DefaultApplicationName, Version: version.String()},
+		APNInfo: &awsbase.APNInfo{
+			PartnerName: "OpenTofu-S3-Backend",
+			Products: []awsbase.UserAgentProduct{
+				{Name: httpclient.DefaultApplicationName, Version: version.String()},
+			},
 		},
 		CustomCABundle:                 stringAttrDefaultEnvVar(obj, "custom_ca_bundle", "AWS_CA_BUNDLE"),
 		EC2MetadataServiceEndpoint:     stringAttrDefaultEnvVar(obj, "ec2_metadata_service_endpoint", "AWS_EC2_METADATA_SERVICE_ENDPOINT"),
