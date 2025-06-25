@@ -26,7 +26,7 @@ Check out our [Contributing FAQ](contributing/FAQ.md) and [Development Guide](co
 
 # Getting Involved
 
-OpenTofu has a variety of roles that need dedicated and skilled people to fill. How we operate is defined in our [Charter](CHARTER.md) and implemented by the TSC in our [Governance](GOVERNANCE.md).
+OpenTofu has a variety of roles that need dedicated and skilled people to fill. How we operate is defined in our [Charter](https://github.com/opentofu/org/blob/main/CHARTER.md) and implemented by the TSC in our [Governance](https://github.com/opentofu/org/blob/main/GOVERNANCE.md).
 
 ## Contributors
 
@@ -48,5 +48,5 @@ The current TSC members are:
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople)) - Harness Inc.
 - Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) - Gruntwork, Inc.
 
-Agendas and meeting notes can be found in the [TSC](TSC) folder. Anyone may open a PR to add a new
-agenda item for the next TSC meeting.  More information on the TSC structure can be found in our [Governance](GOVERNANCE.md)
+Agendas and meeting notes can be found in the [opentofu/org/TSC](https://github.com/opentofu/org/tree/main/TSC) folder. Anyone may open a PR to add a new
+agenda item for the next TSC meeting.  More information on the TSC structure can be found in our [Governance](https://github.com/opentofu/org/blob/main/GOVERNANCE.md)
