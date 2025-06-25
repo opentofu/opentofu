@@ -860,6 +860,7 @@ func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.Op
 		Config: &proto.DynamicValue{
 			Msgpack: config,
 		},
+		ClientCapabilities: clientCapabilities,
 	}
 
 	protoResp, err := p.client.OpenEphemeralResource(ctx, protoReq)
@@ -880,11 +881,8 @@ func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.Op
 		renewAt := protoResp.RenewAt.AsTime()
 		resp.RenewAt = &renewAt
 	}
-
 	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
-		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
-		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
-		return resp
+		resp.Deferred = &providers.EphemeralResourceDeferred{DeferralReason: convert.DeferralReasonFromProto(protoDeferred.Reason)}
 	}
 
 	return resp

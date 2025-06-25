@@ -213,9 +213,12 @@ func (n *NodePlannableResourceInstance) ephemeralResourceExecute(ctx context.Con
 		return diags
 	}
 
+	// We are writing the changes of the ephemeral resource to make it visible
+	// to any other ephemeral resource that might depend on this one.
+	// This is needed to determine if an ephemeral resource should be deferred or not.
+	diags = diags.Append(n.writeChange(ctx, evalCtx, change, states.NotDeposed))
 	// write ephemeral resource only in the working state to make it accessible to the evaluator.
 	// This is later filtered out when it comes to the state or plan writing.
-	diags = diags.Append(n.writeChange(ctx, evalCtx, change, states.NotDeposed))
 	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, state, workingState))
 	if diags.HasErrors() {
 		return diags
