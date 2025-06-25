@@ -1,4 +1,9 @@
+## 1.10.2 (Unreleased)
+
 ## 1.10.1 (Unreleased)
+
+BUG FIXES:
+* Fix `TF_APPEND_USER_AGENT` handling in the S3 remote state backend. ((#2955)[https://github.com/opentofu/opentofu/pull/2955])
 
 ## 1.10.0
 
