@@ -1821,7 +1821,7 @@ func (n *NodeAbstractResourceInstance) providerMetas(ctx context.Context, evalCt
 	return metaConfigVal, diags
 }
 
-func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context, evalCtx EvalContext, configVal cty.Value) (cty.Value, providers.DeferralReason, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var newVal cty.Value
 
@@ -1830,13 +1830,13 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	provider, providerSchema, err := n.getProvider(ctx, evalCtx)
 	diags = diags.Append(err)
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, providers.DeferredReasonUnknown, diags
 	}
 	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
 	if schema == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
 		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", n.ResolvedProvider.ProviderConfig, n.Addr.ContainingResource().Resource.Type))
-		return newVal, diags
+		return newVal, providers.DeferredReasonUnknown, diags
 	}
 
 	// Unmark before sending to provider, will re-mark before returning
@@ -1853,7 +1853,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	)
 	diags = diags.Append(validateResp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, providers.DeferredReasonUnknown, diags
 	}
 
 	// If we get down here then our configuration is complete and we're ready
@@ -1864,7 +1864,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return h.PreApply(n.Addr, states.CurrentGen, plans.Open, cty.NullVal(configVal.Type()), configVal)
 	}))
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, providers.DeferredReasonUnknown, diags
 	}
 
 	req := providers.OpenEphemeralResourceRequest{
@@ -1874,7 +1874,11 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	resp := provider.OpenEphemeralResource(ctx, req)
 	diags = diags.Append(resp.Diagnostics.InConfigBody(config.Config, n.Addr.String()))
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, providers.DeferredReasonUnknown, diags
+	}
+
+	if resp.Deferred != nil {
+		return newVal, resp.Deferred.DeferralReason, diags
 	}
 	newVal = resp.Result
 	if newVal == cty.NilVal {
@@ -1894,7 +1898,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		))
 	}
 	if diags.HasErrors() {
-		return newVal, diags
+		return newVal, providers.DeferredReasonUnknown, diags
 	}
 
 	if newVal.IsNull() {
@@ -1935,7 +1939,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
 	}))
 
-	return newVal, diags
+	return newVal, providers.DeferredReasonUnknown, diags
 }
 
 // planDataSource deals with the main part of the data resource lifecycle:
@@ -3057,7 +3061,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 	objTy := schema.ImpliedType()
 	priorVal := cty.NullVal(objTy)
 
-	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr) // TODO ephemeral - test for each
+	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr)
 	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
 
 	checkDiags := evalCheckRules(
@@ -3106,38 +3110,21 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 			reason = "pending dependencies"
 		}
 
-		unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
-		proposedNewVal := objchange.PlannedDataResourceObject(schema, unmarkedConfigVal)
-		proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
-
-		plannedChange := &plans.ResourceInstanceChange{
-			Addr:         n.Addr,
-			PrevRunAddr:  n.prevRunAddr(evalCtx),
-			ProviderAddr: n.ResolvedProvider.ProviderConfig,
-			Change: plans.Change{
-				Action: plans.Open,
-				Before: priorVal,
-				After:  proposedNewVal,
-			},
-			// Skipped ActionReason on purpose since ephemeral resources changes are not meant
-			// to be shown in the UI.
-		}
-
-		plannedNewState := &states.ResourceInstanceObject{
-			Value:  proposedNewVal,
-			Status: states.ObjectPlanned,
-		}
-
-		diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
-			return h.Deferred(n.Addr, reason)
-		}))
-
+		plannedChange, plannedNewState, deferDiags := n.deferEphemeralResource(evalCtx, schema, priorVal, configVal, reason)
+		diags = diags.Append(deferDiags)
 		return plannedChange, plannedNewState, keyData, diags
 	}
 
 	// We have a complete configuration with no dependencies to wait on, so we
 	// can open the ephemeral resource and store its value in the state.
-	newVal, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
+	newVal, deferralReason, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
+	if deferralReason != providers.DeferredReasonUnknown {
+		reason := providers.DeferralReasonSummary(deferralReason)
+
+		plannedChange, plannedNewState, deferDiags := n.deferEphemeralResource(evalCtx, schema, priorVal, configVal, reason)
+		diags = diags.Append(deferDiags)
+		return plannedChange, plannedNewState, keyData, diags
+	}
 
 	// Now we've loaded the data, and diags tells us whether we were successful
 	// or not, we are going to create our plannedChange and our
@@ -3225,6 +3212,43 @@ func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalC
 		renewAt = resp.RenewAt
 		privateData = resp.Private
 	}
+}
+
+// deferEphemeralResource is a helper function that builds a change and a state object by using a
+// partial value and is announcing the deferral of the ephemeral resource.
+func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContext, schema *configschema.Block, priorVal cty.Value, configVal cty.Value, reason string) (
+	plannedChange *plans.ResourceInstanceChange,
+	plannedNewState *states.ResourceInstanceObject,
+	diags tfdiags.Diagnostics,
+) {
+
+	unmarkedConfigVal, configMarkPaths := configVal.UnmarkDeepWithPaths()
+	proposedNewVal := objchange.PlannedEphemeralResourceObject(schema, unmarkedConfigVal)
+	proposedNewVal = proposedNewVal.MarkWithPaths(configMarkPaths)
+
+	plannedChange = &plans.ResourceInstanceChange{
+		Addr:         n.Addr,
+		PrevRunAddr:  n.prevRunAddr(evalCtx),
+		ProviderAddr: n.ResolvedProvider.ProviderConfig,
+		Change: plans.Change{
+			Action: plans.Open,
+			Before: priorVal,
+			After:  proposedNewVal,
+		},
+		// Skipped ActionReason on purpose since ephemeral resources changes are not meant
+		// to be shown in the UI.
+	}
+
+	plannedNewState = &states.ResourceInstanceObject{
+		Value:  proposedNewVal,
+		Status: states.ObjectPlanned,
+	}
+
+	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+		return h.Deferred(n.Addr, reason)
+	}))
+
+	return
 }
 
 // Close is meant to be called against nodes representing ephemeral resources.
