@@ -15,6 +15,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/lang/globalref"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statestore"
 )
 
 // Plan is the top-level type representing a planned set of changes.
@@ -91,6 +92,16 @@ type Plan struct {
 	// order to report to the user any out-of-band changes we've detected.
 	PrevRunState *states.State
 	PriorState   *states.State
+
+	// StateLocksShared and StateLocksExclusive together represent all of the
+	// state entries that must remain unchanged for this plan to remain valid.
+	//
+	// StateLocksExclusive further represents the state entries that are
+	// expected to change if this plan is applied, and so the apply phase must
+	// hold exclusive locks on those during the apply process.
+	//
+	// No key should appear in both collections.
+	StateLocksShared, StateLocksExclusive statestore.ValueHashes
 
 	// PlannedState is the temporary planned state that was created during the
 	// graph walk that generated this plan.
