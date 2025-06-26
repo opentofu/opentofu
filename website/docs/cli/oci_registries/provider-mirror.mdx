@@ -188,7 +188,6 @@ Use `oras push` for each package in turn to copy the `.zip` archive into your lo
 ```shellsession
 $ oras push \
     --artifact-type application/vnd.opentofu.provider-target \
-    --artifact-platform linux/amd64 \
     --oci-layout tmp-layout:linux_amd64 \
     terraform-provider-tls_4.0.6_linux_amd64.zip:archive/zip
 
