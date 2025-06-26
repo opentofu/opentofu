@@ -171,7 +171,7 @@ func TestUndefinedVariableAsImportIDShouldFail(t *testing.T) {
 	if code != 1 {
 		t.Fatalf("Should have failed: %d\n\n%s", code, output.Stderr())
 	}
-	wantError := `Error: Undefined variable`
+	wantError := `Error: Reference to undeclared input variable`
 	if !strings.Contains(output.Stderr(), wantError) {
 		t.Fatalf("Missing error string %q\n\n'%s'", wantError, output.Stderr())
 	}

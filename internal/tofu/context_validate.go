@@ -67,6 +67,13 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		}
 	}
 
+	importTargets := c.findImportTargets(config)
+	importTargetDiags := c.validateImportTargets(config, importTargets, "")
+	diags = diags.Append(importTargetDiags)
+	if importTargetDiags.HasErrors() {
+		return diags
+	}
+
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
 	graph, moreDiags := (&PlanGraphBuilder{
@@ -76,6 +83,7 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		RootVariableValues:      varValues,
 		Operation:               walkValidate,
 		ProviderFunctionTracker: providerFunctionTracker,
+		ImportTargets:           importTargets,
 	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
