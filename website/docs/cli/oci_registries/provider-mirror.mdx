@@ -112,21 +112,12 @@ by subsequent workflow commands like [`tofu apply`](../commands/apply.mdx).
 
 ## Assembling and Pushing Provider Manifests
 
-:::note
-This section currently describes a very manual process for constructing the
-required manifest structure as described in the previous section.
-
-The OpenTofu project is currently collaborating with the ORAS project to
-design and implement a more complete solution, which will be documented here
-once it's included in a generally-available ORAS release.
-:::
-
 ### Install and Configure ORAS
 
 We recommend assembling and pushing the manifests and blobs for a provider
 using the CLI tool offered by [the ORAS project](https://oras.land/).
-At the time of writing, multi-platform index support is not yet finalized
-in ORAS and so unfortunately the index manifest must be constructed manually.
+The following instructions rely on features that were first released in
+ORAS v1.3.0.
 
 If you are installing and using ORAS for the first time, and you intend to
 push to an OCI registry that requires authentication, you will need to first
@@ -152,7 +143,7 @@ as you use a consistent pathname across all of the commands.
 
 The top-level index manifest will eventually refer to the manifests for
 each of the platform-specific artifacts, and so the platform-specific
-artifacts must be pushed first in order to construct their manifests
+artifacts must be created first in order to construct their manifests
 and determine the digests used to refer to them.
 
 First you must obtain the official `.zip` distribution packages for
@@ -183,11 +174,15 @@ terraform-provider-tls_4.0.6_windows_arm.zip
 terraform-provider-tls_4.0.6_windows_arm64.zip
 ```
 
-Use `oras push` for each package in turn to copy the `.zip` archive into your local OCI Image Layout and generate its manifest:
+Use `oras push` for each package in turn to copy the `.zip` archive into your
+local OCI Image Layout and generate its manifest, providing the appropriate
+`--artifact-platform` option based on the final two segments of the package
+filename:
 
 ```shellsession
 $ oras push \
     --artifact-type application/vnd.opentofu.provider-target \
+    --artifact-platform linux/amd64 \
     --oci-layout tmp-layout:linux_amd64 \
     terraform-provider-tls_4.0.6_linux_amd64.zip:archive/zip
 
@@ -226,63 +221,34 @@ windows_arm64
 
 ### Multi-platform Index Manifest
 
-The current stable release of ORAS cannot construct and push an index manifest
-directly, but the "OCI Image Layout" that you constructed in the previous step
-includes its own index manifest that can be adapted to make it suitable for
-pushing to a remote repository.
+The platform-specific artifacts created in the previous section must be listed
+together in a single _index manifest_, which is the top-level manifest that will
+eventually be associated with a tag in the remote repository.
 
-First, copy the Image Layout's index file to another file so that you can edit
-it without damaging the Image Layout directory:
-
-```shellsession
-$ cp tmp-layout/index.json terraform-provider-tls_4.0.6.json
-```
-
-Open the new `terraform-provider-tls_4.0.6.json` file in your favorite text
-editor. The JSON document is likely to be "minified", so you may wish to ask
-your text editor to reformat it for readability before continuing.
-
-The file should include a JSON property `"mediaType" : "application/vnd.oci.image.index.v1+json"`
-representing that this is an OCI Index Manifest. After that property, add a new
-JSON property `"artifactType":"application/vnd.opentofu.provider"` to represent
-that this is an index for an OpenTofu provider artifact.
-
-The file also includes a `"manifests"` property that describes each of the
-platform-specific manifests previously created. Each of these descriptor
-objects must contain a `"platform"` property specifying the platform that
-the manifest is for. For example:
-
-```json
-{
-  "artifactType": "application/vnd.opentofu.provider-target",
-  "mediaType": "application/vnd.oci.image.manifest.v1+json",
-  "digest": "sha256:01d3ccf9747dd604ebaa314efbacf12e18a248f8bf1c783f5cbb220754954e67",
-  "size": 606,
-  "platform": {
-    "os": "linux",
-    "architecture": "amd64"
-  }
-}
-```
-
-Make sure that each of the manifest descriptors includes a `"platform"` property
-specifying the correct operating system and CPU architecture for the associated
-manifest.
-
-You can then push this new index manifest into the OCI layout, along with all
-of the single-platform artifacts pushed in the previous section:
+Use `oras manifest index create` to build an index manifest referring to all of
+the artifacts tagged in the previous section:
 
 ```shellsession
-$ oras manifest push --oci-layout tmp-layout:4.0.6 terraform-provider-tls_4.0.6.json 
-Uploading da13ebaa32ba application/vnd.oci.image.index.v1+json
-Uploaded  da13ebaa32ba application/vnd.oci.image.index.v1+json
-Pushed: [oci-layout] tmp-layout:4.0.6
-Digest: sha256:da13ebaa32ba856d75da18e38daabc7a65ac8853230dfcc817f8ccbac15b639a
+$ oras manifest index create \
+    --artifact-type="application/vnd.opentofu.provider" \
+    --oci-layout tmp-layout:4.0.6 \
+    darwin_amd64 \
+    linux_386 \
+    linux_amd64 \
+    linux_arm \
+    linux_arm64 \
+    windows_386 \
+    windows_amd64 \
+    windows_arm \
+    windows_arm64
 ```
 
-Notice that the provider version 4.0.6 appears twice in this command line. The
-first is the name of the tag to create in the OCI layout, while the second is
-part of the filename of the index manifest saved in the previous step.
+The `tmp-layout:4.0.6` argument specifies that this manifest should initially
+be created in the same local image layout directory, and that it should be
+tagged as `4.0.6` to match the version number of the provider release.
+
+The list of "os_arch" arguments matches the tags created in the previous section
+and specifies which artifacts are to be included in the manifest.
 
 The OCI Image Layout now contains individual tags for the platform-specific
 arfacts and also a version number tag representing the index manifest:
