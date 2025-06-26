@@ -182,7 +182,7 @@ type MockHook struct {
 	StoppingCalled bool
 
 	PostStateUpdateCalled bool
-	PostStateUpdateState  *states.State
+	PostStateUpdateFn     func(*states.SyncState)
 	PostStateUpdateReturn HookAction
 	PostStateUpdateError  error
 }
@@ -464,11 +464,11 @@ func (h *MockHook) Stopping() {
 	h.StoppingCalled = true
 }
 
-func (h *MockHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (h *MockHook) PostStateUpdate(fn func(*states.SyncState)) (HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
 	h.PostStateUpdateCalled = true
-	h.PostStateUpdateState = new
+	h.PostStateUpdateFn = fn
 	return h.PostStateUpdateReturn, h.PostStateUpdateError
 }

@@ -108,6 +108,12 @@ func (b *Local) opApply(
 		op.ReportResult(runningOp, diags)
 		return
 	}
+	// Setup the state hook with the current input state that will be modified throughout the run
+	if lr.InputState == nil {
+		stateHook.workingCopy = states.NewState().SyncWrapper()
+	} else {
+		stateHook.workingCopy = lr.InputState.DeepCopy().SyncWrapper()
+	}
 	// stateHook uses schemas for when it periodically persists state to the
 	// persistent storage backend.
 	stateHook.Schemas = schemas

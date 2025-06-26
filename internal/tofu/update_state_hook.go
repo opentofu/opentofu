@@ -5,20 +5,17 @@
 
 package tofu
 
-// updateStateHook calls the PostStateUpdate hook with the current state.
-func updateStateHook(ctx EvalContext) error {
-	// In principle we could grab the lock here just long enough to take a
-	// deep copy and then pass that to our hooks below, but we'll instead
-	// hold the hook for the duration to avoid the potential confusing
-	// situation of us racing to call PostStateUpdate concurrently with
-	// different state snapshots.
-	stateSync := ctx.State()
-	state := stateSync.Lock().DeepCopy()
-	defer stateSync.Unlock()
+import (
+	"github.com/opentofu/opentofu/internal/states"
+)
+
+// updateState calls the PostStateUpdate hook with the state modification function and applies the change to the "live" state object
+func updateState(ctx EvalContext, fn func(*states.SyncState)) error {
+	// Modify the state
+	fn(ctx.State())
 
 	// Call the hook
-	err := ctx.Hook(func(h Hook) (HookAction, error) {
-		return h.PostStateUpdate(state)
+	return ctx.Hook(func(h Hook) (HookAction, error) {
+		return h.PostStateUpdate(fn)
 	})
-	return err
 }

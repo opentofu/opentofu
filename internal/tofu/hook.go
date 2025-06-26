@@ -128,10 +128,9 @@ type Hook interface {
 	// function is called.
 	Stopping()
 
-	// PostStateUpdate is called each time the state is updated. It receives
-	// a deep copy of the state, which it may therefore access freely without
-	// any need for locks to protect from concurrent writes from the caller.
-	PostStateUpdate(new *states.State) (HookAction, error)
+	// PostStateUpdate is called each time a portion of the state is updated. It receives
+	// a function that mutates the syncronized state object.
+	PostStateUpdate(func(*states.SyncState)) (HookAction, error)
 }
 
 // NilHook is a Hook implementation that does nothing. It exists only to
@@ -248,6 +247,6 @@ func (*NilHook) Stopping() {
 	// Does nothing at all by default
 }
 
-func (*NilHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (*NilHook) PostStateUpdate(func(*states.SyncState)) (HookAction, error) {
 	return HookActionContinue, nil
 }

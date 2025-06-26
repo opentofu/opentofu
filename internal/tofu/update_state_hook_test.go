@@ -18,21 +18,22 @@ import (
 func TestUpdateStateHook(t *testing.T) {
 	mockHook := new(MockHook)
 
-	state := states.NewState()
-	state.Module(addrs.RootModuleInstance).SetLocalValue("foo", cty.StringVal("hello"))
-
 	ctx := new(MockEvalContext)
 	ctx.HookHook = mockHook
-	ctx.StateState = state.SyncWrapper()
+	ctx.StateState = states.NewState().SyncWrapper()
 
-	if err := updateStateHook(ctx); err != nil {
+	localAddr := addrs.LocalValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)
+
+	if err := updateState(ctx, func(state *states.SyncState) {
+		state.SetLocalValue(localAddr, cty.StringVal("hello"))
+	}); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
 	if !mockHook.PostStateUpdateCalled {
 		t.Fatal("should call PostStateUpdate")
 	}
-	if mockHook.PostStateUpdateState.LocalValue(addrs.LocalValue{Name: "foo"}.Absolute(addrs.RootModuleInstance)) != cty.StringVal("hello") {
-		t.Fatalf("wrong state passed to hook: %s", spew.Sdump(mockHook.PostStateUpdateState))
+	if ctx.StateState.LocalValue(localAddr) != cty.StringVal("hello") {
+		t.Fatalf("wrong state passed to hook: %s", spew.Sdump(ctx.StateState))
 	}
 }
