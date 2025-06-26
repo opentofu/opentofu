@@ -1881,11 +1881,6 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 		return newVal, resp.Deferred.DeferralReason, diags
 	}
 	newVal = resp.Result
-	if newVal == cty.NilVal {
-		// This can happen with incompletely-configured mocks. We'll allow it
-		// and treat it as an alias for a properly-typed null value.
-		newVal = cty.NullVal(schema.ImpliedType())
-	}
 
 	for _, err := range newVal.Type().TestConformance(schema.ImpliedType()) {
 		diags = diags.Append(tfdiags.Sourceless(
@@ -1910,6 +1905,7 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
 			),
 		))
+		return newVal, providers.DeferredReasonUnknown, diags
 	}
 
 	if !newVal.IsNull() && !newVal.IsWhollyKnown() {
@@ -1921,11 +1917,15 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 				n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr,
 			),
 		))
+		return newVal, providers.DeferredReasonUnknown, diags
 	}
 
 	if len(pvm) > 0 {
 		newVal = newVal.MarkWithPaths(pvm)
 	}
+	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
+		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
+	}))
 
 	// Initialize the closing channel and the channel that sends diagnostics back to the
 	// NodeAbstractResourceInstance.Close caller.
@@ -1935,9 +1935,6 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	// But if resp.RenewAt == nil, renewer holds only the resp.Private that will be used later
 	// when calling provider.CloseEphemeralResource.
 	go n.startEphemeralRenew(ctx, evalCtx, provider, resp.RenewAt, resp.Private)
-	diags = diags.Append(evalCtx.Hook(func(h Hook) (HookAction, error) {
-		return h.PostApply(n.Addr, states.CurrentGen, newVal, diags.Err())
-	}))
 
 	return newVal, providers.DeferredReasonUnknown, diags
 }
@@ -3209,6 +3206,7 @@ func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalC
 		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
 			return h.PostApply(n.Addr, states.CurrentGen, cty.NullVal(cty.EmptyObject), resp.Diagnostics.Err())
 		}))
+		diags = diags.Append(resp.Diagnostics)
 		renewAt = resp.RenewAt
 		privateData = resp.Private
 	}

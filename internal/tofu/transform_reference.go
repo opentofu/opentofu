@@ -220,7 +220,7 @@ func (t attachResourceDependsOnTransformer) Transform(_ context.Context, g *Grap
 			res = append(res, d)
 		}
 
-		log.Printf("[TRACE] attachResourceDepenndsOnTransformer: %s depends on %s", depender.ResourceAddr(), res)
+		log.Printf("[TRACE] attachResourceDependsOnTransformer: %s depends on %s", depender.ResourceAddr(), res)
 		depender.AttachResourceDependsOn(res, fromModule)
 	}
 
@@ -372,12 +372,7 @@ func (m ReferenceMap) dependsOn(source addrs.ResourceMode, g *Graph, depender gr
 	refs := depender.DependsOn()
 
 	// get any implied dependencies of the depender
-	switch source {
-	case addrs.DataResourceMode:
-		refs = append(refs, m.dataDependsOn(depender)...)
-	case addrs.EphemeralResourceMode:
-		refs = append(refs, m.ephemeralDependsOn(depender)...)
-	}
+	refs = append(refs, m.nodeDependsOn(source, depender)...)
 
 	// This is where we record that a module has depends_on configured.
 	if _, ok := depender.(*nodeExpandModule); ok && len(refs) > 0 {
@@ -430,10 +425,19 @@ func (m ReferenceMap) dependsOn(source addrs.ResourceMode, g *Graph, depender gr
 // depends_on entries. If a data source references a managed resource, even if
 // that reference is resolvable, it stands to reason that the user intends for
 // the data source to require that resource in some way.
-func (m ReferenceMap) dataDependsOn(depender graphNodeDependsOn) []*addrs.Reference {
+func (m ReferenceMap) nodeDependsOn(sourceType addrs.ResourceMode, depender graphNodeDependsOn) []*addrs.Reference {
 	var refs []*addrs.Reference
-	if n, ok := depender.(GraphNodeConfigResource); ok &&
-		n.ResourceAddr().Resource.Mode == addrs.DataResourceMode {
+	if n, ok := depender.(GraphNodeConfigResource); ok {
+		switch sourceType {
+		case addrs.DataResourceMode:
+			if n.ResourceAddr().Resource.Mode != addrs.DataResourceMode {
+				return refs
+			}
+		case addrs.EphemeralResourceMode:
+			if n.ResourceAddr().Resource.Mode != addrs.EphemeralResourceMode {
+				return refs
+			}
+		}
 		for _, r := range depender.References() {
 
 			var resAddr addrs.Resource
@@ -450,42 +454,6 @@ func (m ReferenceMap) dataDependsOn(depender graphNodeDependsOn) []*addrs.Refere
 			if resAddr.Mode != addrs.ManagedResourceMode {
 				// We only want to wait on directly referenced managed resources.
 				// Data sources have no external side effects, so normal
-				// references to them in the config will suffice for proper
-				// ordering.
-				continue
-			}
-
-			refs = append(refs, r)
-		}
-	}
-	return refs
-}
-
-// ephemeralDependsOn returns extra depends_on references if this is an ephemeral resource.
-// For ephemeral resources we implicitly treat references to managed resources as
-// depends_on entries. If an ephemeral resource references a managed resource, even if
-// that reference is resolvable, it stands to reason that the user intends for
-// the ephemeral resource to require that resource in some way.
-func (m ReferenceMap) ephemeralDependsOn(depender graphNodeDependsOn) []*addrs.Reference {
-	var refs []*addrs.Reference
-	if n, ok := depender.(GraphNodeConfigResource); ok &&
-		n.ResourceAddr().Resource.Mode == addrs.EphemeralResourceMode {
-		for _, r := range depender.References() {
-
-			var resAddr addrs.Resource
-			switch s := r.Subject.(type) {
-			case addrs.Resource:
-				resAddr = s
-			case addrs.ResourceInstance:
-				resAddr = s.Resource
-				r.Subject = resAddr
-			case addrs.ProviderFunction:
-				continue
-			}
-
-			if resAddr.Mode != addrs.ManagedResourceMode {
-				// We only want to wait on directly referenced managed resources.
-				// Ephemeral resources have no external side effects, so normal
 				// references to them in the config will suffice for proper
 				// ordering.
 				continue
