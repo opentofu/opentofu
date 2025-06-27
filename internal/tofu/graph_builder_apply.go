@@ -199,6 +199,9 @@ func (b *ApplyGraphBuilder) Steps() []GraphTransformer {
 		// Target
 		&TargetingTransformer{Targets: b.Targets, Excludes: b.Excludes},
 
+		// Detect the ephemeral expandable resources and create nodes to close them
+		&CloseableResourceTransformer{},
+
 		// Close opened plugin connections
 		&CloseProviderTransformer{},
 
