@@ -91,6 +91,10 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 		diags = diags.Append(
 			n.dataResourceExecute(ctx, evalCtx),
 		)
+	case addrs.EphemeralResourceMode:
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
@@ -99,8 +103,16 @@ func (n *NodePlannableResourceInstanceOrphan) Execute(ctx context.Context, evalC
 }
 
 func (n *NodePlannableResourceInstanceOrphan) ProvidedBy() RequestedProvider {
-	if n.Addr.Resource.Resource.Mode == addrs.DataResourceMode {
-		// indicate that this node does not require a configured provider
+	switch n.Addr.Resource.Resource.Mode {
+	case addrs.DataResourceMode:
+		return RequestedProvider{}
+	case addrs.EphemeralResourceMode:
+		// Since ephemeral resources are not stored into the state or plan files, such resources cannot be marked as orphan.
+		// In other words, this code path should never be reached since an orphan node for an ephemeral resource should not be
+		// possible to be created.
+		// Even though this is not possible, let's ensure that we are handling this accordingly, to not create unwanted behavior.
+		// If an ephemeral resource will ever have an orphan node that will be executed, an error will be raised
+		// from NodePlannableResourceInstanceOrphan#Execute().
 		return RequestedProvider{}
 	}
 	return n.NodeAbstractResourceInstance.ProvidedBy()
@@ -352,4 +364,13 @@ func (n *NodePlannableResourceInstanceOrphan) deleteActionReason(evalCtx EvalCon
 	// as a fallback, which means the UI should just state it'll be deleted
 	// without any explicit reasoning.
 	return plans.ResourceInstanceChangeNoReason
+}
+
+func (n *NodePlannableResourceInstanceOrphan) ephemeralResourceExecute(_ context.Context, _ EvalContext) (diags tfdiags.Diagnostics) {
+	log.Printf("[TRACE] NodePlannableResourceInstanceOrphan: called for ephemeral resource %s", n.Addr)
+	return diags.Append(tfdiags.Sourceless(
+		tfdiags.Error,
+		"An ephemeral resource registered as orphan",
+		fmt.Sprintf("Ephemeral resource %q registered as orphan. This is an OpenTofu error. Please report this.", n.Addr),
+	))
 }

@@ -23,6 +23,15 @@ data "test_resource" "explicit" {
   provider = foo-test
 }
 
+ephemeral "test_ephemeral" "explicit" {
+  provider = foo-test
+}
+
+ephemeral "test_ephemeral" "implicit" {
+  // since the provider type name "test" does not match an entry in
+  // required_providers, the default provider "test" should be used
+}
+
 resource "test_instance" "implicit" {
   // since the provider type name "test" does not match an entry in
   // required_providers, the default provider "test" should be used
