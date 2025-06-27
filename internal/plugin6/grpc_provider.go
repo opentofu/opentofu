@@ -40,7 +40,8 @@ var clientCapabilities = &proto6.ClientCapabilities{
 	// satisfy the request. Setting this means that we need to be prepared
 	// for there to be a "deferred" object in the response from various
 	// other provider RPC functions.
-	DeferralAllowed: true,
+	DeferralAllowed:            true,
+	WriteOnlyAttributesAllowed: true,
 }
 
 func (p *GRPCProviderPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
@@ -251,8 +252,9 @@ func (p *GRPCProvider) ValidateResourceConfig(ctx context.Context, r providers.V
 	}
 
 	protoReq := &proto6.ValidateResourceConfig_Request{
-		TypeName: r.TypeName,
-		Config:   &proto6.DynamicValue{Msgpack: mp},
+		TypeName:           r.TypeName,
+		Config:             &proto6.DynamicValue{Msgpack: mp},
+		ClientCapabilities: clientCapabilities,
 	}
 
 	protoResp, err := p.client.ValidateResourceConfig(ctx, protoReq)
@@ -869,7 +871,7 @@ func (p *GRPCProvider) OpenEphemeralResource(ctx context.Context, r providers.Op
 		renewAt := protoResp.RenewAt.AsTime()
 		resp.RenewAt = &renewAt
 	}
-	
+
 	if protoDeferred := protoResp.Deferred; protoDeferred != nil {
 		reason := convert.DeferralReasonFromProto(protoDeferred.Reason)
 		resp.Diagnostics = resp.Diagnostics.Append(providers.NewDeferralDiagnostic(reason))
