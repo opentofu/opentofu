@@ -3145,7 +3145,7 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 
 func (n *NodeAbstractResourceInstance) startEphemeralRenew(ctx context.Context, evalContext EvalContext, provider providers.Interface, renewAt *time.Time, privateData []byte) {
 	if n.Addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
-		return
+		panic("renewal process cannot be started for resources other than ephemeral ones. This is an OpenTofu issue, please report it")
 	}
 	n.renewStarted.Store(true)
 	privateData, diags := n.renewEphemeral(ctx, evalContext, provider, renewAt, privateData)
