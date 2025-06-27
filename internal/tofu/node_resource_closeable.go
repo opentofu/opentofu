@@ -32,7 +32,7 @@ func (n *nodeCloseableResource) Name() string {
 	return n.Addr.String() + " (close)"
 }
 
-func (n *nodeCloseableResource) Execute(_ context.Context, _ EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
+func (n *nodeCloseableResource) Execute(_ context.Context, _ EvalContext, _ walkOperation) tfdiags.Diagnostics {
 	return n.cb()
 }
 
