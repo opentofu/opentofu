@@ -175,11 +175,64 @@ func (n *NodeApplyableResourceInstance) Execute(ctx context.Context, evalCtx Eva
 			n.dataResourceExecute(ctx, evalCtx),
 		)
 	case addrs.EphemeralResourceMode:
-		// TODO ephemeral - here comes the integration with the actual implementation for ephemeral resources
+		diags = diags.Append(
+			n.ephemeralResourceExecute(ctx, evalCtx),
+		)
 	default:
 		panic(fmt.Errorf("unsupported resource mode %s", n.Config.Mode))
 	}
 	tracing.SetSpanError(span, diags)
+	return diags
+}
+
+func (n *NodeApplyableResourceInstance) ephemeralResourceExecute(ctx context.Context, evalCtx EvalContext) (diags tfdiags.Diagnostics) {
+	//_, providerSchema, err := getProvider(ctx, evalCtx, n.ResolvedProvider.ProviderConfig, n.ResolvedProviderKey)
+	//diags = diags.Append(err)
+	//if diags.HasErrors() {
+	//	return diags
+	//}
+	//
+	//change, err := n.readDiff(evalCtx, providerSchema)
+	//diags = diags.Append(err)
+	//if diags.HasErrors() {
+	//	return diags
+	//}
+	//// Stop early if we don't actually have a diff
+	//if change == nil {
+	//	return diags
+	//}
+	//if change.Action != plans.Open && change.Action != plans.NoOp {
+	//	diags = diags.Append(fmt.Errorf("nonsensical planned action %#v for %s; this is a bug in OpenTofu", change.Action, n.Addr))
+	//}
+
+	// For ephemeral resources we don't need the change or the state of it, that being used only
+	// for dependencies resolution and respectively, for expression evaluation.
+	state, repeatData, applyDiags := n.applyEphemeralResource(ctx, evalCtx)
+	diags = diags.Append(applyDiags)
+	if diags.HasErrors() {
+		return diags
+	}
+
+	diags = diags.Append(n.writeResourceInstanceState(ctx, evalCtx, state, workingState))
+	// TODO andrei check if this is needed. Check the nodes that are created
+	//diags = diags.Append(n.writeChange(ctx, evalCtx, nil, ""))
+
+	diags = diags.Append(updateStateHook(evalCtx))
+
+	// Post-conditions might block further progress. We intentionally do this
+	// _after_ writing the state/diff because we want to check against
+	// the result of the operation, and to fail on future operations
+	// until the user makes the condition succeed.
+	checkDiags := evalCheckRules(
+		ctx,
+		addrs.ResourcePostcondition,
+		n.Config.Postconditions,
+		evalCtx, n.ResourceInstanceAddr(),
+		repeatData,
+		tfdiags.Error,
+	)
+	diags = diags.Append(checkDiags)
+
 	return diags
 }
 
@@ -522,4 +575,12 @@ func maybeTainted(addr addrs.AbsResourceInstance, state *states.ResourceInstance
 		return state.AsTainted()
 	}
 	return state
+}
+
+// Close implements closableResource
+func (n *NodeApplyableResourceInstance) Close() (diags tfdiags.Diagnostics) {
+	if n.Addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
+		return diags
+	}
+	return n.NodeAbstractResourceInstance.Close()
 }

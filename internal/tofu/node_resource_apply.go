@@ -18,6 +18,12 @@ import (
 // NodeApplyableResource nodes into their respective modules.
 type nodeExpandApplyableResource struct {
 	*NodeAbstractResource
+
+	// This slice is meant to keep references to the resourceCloser's of the expanded instances.
+	// Later, this will be called from nodeCloseableResource.
+	// At the time of introducing this, it was strictly meant for ephemeral resources, but if there
+	// will be other closeable resources, this could be used for those too.
+	closers []resourceCloser
 }
 
 var (
@@ -28,6 +34,7 @@ var (
 	_ GraphNodeAttachResourceConfig = (*nodeExpandApplyableResource)(nil)
 	_ graphNodeExpandsInstances     = (*nodeExpandApplyableResource)(nil)
 	_ GraphNodeTargetable           = (*nodeExpandApplyableResource)(nil)
+	_ closableResource              = (*nodeExpandApplyableResource)(nil)
 )
 
 func (n *nodeExpandApplyableResource) expandsInstances() {
@@ -60,5 +67,17 @@ func (n *nodeExpandApplyableResource) Execute(ctx context.Context, evalCtx EvalC
 		diags = diags.Append(n.writeResourceState(ctx, evalCtx, n.Addr.Resource.Absolute(module)))
 	}
 
+	return diags
+}
+
+// Close implements closableResource
+func (n *nodeExpandApplyableResource) Close() (diags tfdiags.Diagnostics) {
+	if n.Addr.Resource.Mode != addrs.EphemeralResourceMode {
+		return diags
+	}
+
+	for _, c := range n.closers {
+		diags = diags.Append(c())
+	}
 	return diags
 }
