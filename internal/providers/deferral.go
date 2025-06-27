@@ -42,13 +42,13 @@ const (
 // for how to skip the affected request so that other unaffected requests can
 // still be completed.
 func NewDeferralDiagnostic(reason DeferralReason) tfdiags.Diagnostic {
-	var summary, detail string
+	summary := DeferralReasonSummary(reason)
+
+	var detail string
 	switch reason {
 	case DeferredBecauseResourceConfigUnknown:
-		summary = "Resource configuration is incomplete"
 		detail = "The provider was unable to act on this resource configuration because it makes use of values from other resources that will not be known until after apply."
 	case DeferredBecauseProviderConfigUnknown:
-		summary = "Provider configuration is incomplete"
 		detail = "The provider was unable to work with this resource because the associated provider configuration makes use of values from other resources that will not be known until after apply."
 	default:
 		// This is the most general (and therefore least helpful) message, which
@@ -61,7 +61,6 @@ func NewDeferralDiagnostic(reason DeferralReason) tfdiags.Diagnostic {
 		// practice. If it becomes used in more providers in future then we can
 		// hopefully devise a better message that describes what those providers
 		// use it to mean.)
-		summary = "Operation cannot be completed yet"
 		detail = "The provider reported that it is not able to perform the requested operation until more information is available."
 	}
 
@@ -77,6 +76,20 @@ func NewDeferralDiagnostic(reason DeferralReason) tfdiags.Diagnostic {
 	return tfdiags.Override(contextual, tfdiags.Error, func() tfdiags.DiagnosticExtraWrapper {
 		return &deferralDiagnosticExtraImpl{reason: reason}
 	})
+}
+
+// DeferralReasonSummary returns a more informative string representation of the given DeferralReason to be used
+// it other places too.
+// For more details, check the comments from NewDeferralDiagnostic.
+func DeferralReasonSummary(reason DeferralReason) string {
+	switch reason {
+	case DeferredBecauseResourceConfigUnknown:
+		return "Resource configuration is incomplete"
+	case DeferredBecauseProviderConfigUnknown:
+		return "Provider configuration is incomplete"
+	default:
+		return "Operation cannot be completed yet"
+	}
 }
 
 // IsDeferralDiagnostic returns true if the given diagnostic was constructed

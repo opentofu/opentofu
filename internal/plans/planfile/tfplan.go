@@ -591,6 +591,10 @@ func writeTfplan(plan *plans.Plan, w io.Writer) error {
 	}
 
 	for _, rc := range plan.Changes.Resources {
+		if rc.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			// Do not write ephemeral resources to plan
+			continue
+		}
 		rawRC, err := resourceChangeToTfplan(rc)
 		if err != nil {
 			return err

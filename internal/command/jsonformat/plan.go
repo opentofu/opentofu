@@ -569,6 +569,8 @@ func actionDescription(action plans.Action) string {
 		return " [cyan]<=[reset] read (data resources)"
 	case plans.Forget:
 		return "  [red].[reset] forget"
+	case plans.Open | plans.Renew | plans.Close:
+		panic("ephemeral changes are not meant to be printed")
 
 	default:
 		panic(fmt.Sprintf("unrecognized change type: %s", action.String()))
