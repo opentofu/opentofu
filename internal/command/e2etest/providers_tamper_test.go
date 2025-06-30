@@ -6,6 +6,7 @@
 package e2etest
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -361,6 +362,158 @@ func TestProviderLocksFromPredecessorProject(t *testing.T) {
 		t.Errorf("missing entry for registry.opentofu.org/hashicorp/null after init")
 	}
 
+}
+
+// TestProviderLocksFromPredecessorProjectWithAbsoluteSourceAddr is a variant
+// of TestProviderLocksFromPredecessorProject for the not-typically-recommended
+// situation where the configuration contains a source address that explicitly
+// specifies our predecessor project's registry hostname.
+//
+// Using OpenTofu with such a configuration is problematic by default because
+// that registry's terms of service prohibit using it with OpenTofu, but it
+// can potentially be okay (with some caveats, and THIS IS NOT LEGAL ADVICE)
+// if using a non-default installation method configuration that arranges for
+// that hostname to be handled by a mirror source rather than by direct
+// communication with the origin registry.
+//
+// This test ensures that our lock file migration behavior handles this unusual
+// situation in a reasonable way, using a local filesystem mirror to avoid
+// directly accessing the predecessor's registry.
+func TestProviderLocksFromPredecessorProjectWithAbsoluteSourceAddr(t *testing.T) {
+	t.Parallel()
+
+	// We'll use an overridden CLI configuration file to force installing
+	// from a filesystem mirror, since we're not allowed to access
+	// registry.terraform.io directly from this test.
+	tempDir := t.TempDir()
+	cliConfigFile := filepath.Join(tempDir, "cliconfig.tfrc")
+	err := os.WriteFile(
+		cliConfigFile,
+		fmt.Appendf(nil, `
+			provider_installation {
+				filesystem_mirror {
+					path = %q
+				}
+			}
+
+			# The following is just some additional insurance against
+			# making real requests to registry.terraform.io.
+			host "registry.terraform.io" {
+				# Prevents service discovery, and instead behaves as if the
+				# discovery document declares nothing at all.
+				services = {}
+			}
+		`, tempDir),
+		os.ModePerm,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	platform := getproviders.CurrentPlatform
+	providerPkgDir := filepath.Join(tempDir, "registry.terraform.io", "hashicorp", "null", "3.2.0", platform.OS+"_"+platform.Arch)
+	err = os.MkdirAll(providerPkgDir, os.ModePerm)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = os.WriteFile(
+		filepath.Join(providerPkgDir, "terraform-provider-null"),
+		[]byte(`this is not a real provider plugin; it's just a placeholder`),
+		os.ModePerm,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// We should now be able to use the temporary directory created above to
+	// install our fake mirror of the provider.
+	fixturePath := filepath.Join("testdata", "predecessor-dependency-lock-file-abs")
+	tf := e2e.NewBinary(t, tofuBin, fixturePath)
+	tf.AddEnv("TF_CLI_CONFIG_FILE=" + cliConfigFile)
+
+	stdout, stderr, err := tf.Run("init")
+	if err != nil {
+		t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+	}
+	// Note that this explicitly mentions registry.terraform.io. because that
+	// hostname was chosen explicitly in the configuration.
+	if !strings.Contains(stdout, "Installing registry.terraform.io/hashicorp/null v3.2.0") {
+		t.Errorf("null provider download message is missing from init output:\n%s", stdout)
+		t.Logf("(if the output specifies a version other than v3.2.0 then the fixup behavior did not work correctly)")
+	}
+	// We always produce the warning about amending the lock file, even in this
+	// case where it doesn't technically apply, because we don't recommend
+	// using registry.terraform.io directly and only make a best effort to keep
+	// it working, so we don't want to over-complicate the migration logic for
+	// a situation that should be very rare.
+	if !strings.Contains(stdout, "- registry.terraform.io/hashicorp/null => registry.opentofu.org/hashicorp/null") {
+		t.Errorf("null provider dependency lock fixup message is missing from init output:\n%s", stdout)
+	}
+
+	// The lock file should still contain the entry for
+	// registry.terraform.io/hashicorp/null, and the synthetic extra entry
+	// for registry.opentofu.org/hashicorp/null should have been pruned before
+	// writing the file in this case because there's no mention of that provider
+	// in the configuration.
+	newLocks, err := tf.ReadFile(".terraform.lock.hcl")
+	if err != nil {
+		t.Fatalf("failed to load dependency lock file after init: %s", err)
+	}
+	locks, diags := depsfile.LoadLocksFromBytes(newLocks, ".terraform.lock.hcl")
+	if diags.HasErrors() {
+		t.Fatalf("failed to load dependency lock file after init: %s", diags.Err())
+	}
+
+	if lock := locks.Provider(addrs.MustParseProviderSourceString("registry.opentofu.org/hashicorp/null")); lock != nil {
+		t.Errorf("unexpected entry for %s v%s after init", lock.Provider(), lock.Version())
+	}
+	if lock := locks.Provider(addrs.MustParseProviderSourceString("registry.terraform.io/hashicorp/null")); lock != nil {
+		if got, want := lock.Version(), getproviders.MustParseVersion("3.2.0"); got != want {
+			t.Errorf("wrong version of %s was selected\ngot:  %s\nwant: %s", lock.Provider(), got, want)
+		}
+		gotHashes := lock.AllHashes()
+		wantHashes := []getproviders.Hash{
+			// This is the hash of our placeholder provider package containing
+			// a not-actually-executable plugin stub. We don't vary this by
+			// platform so this hash should match regardless of where this
+			// test is running.
+			getproviders.HashScheme1.New("DvLRiv4Pbjq3Rh0yNWtq+9dwVXqHF+bQspfhckLyFWU="),
+		}
+		if diff := cmp.Diff(wantHashes, gotHashes); diff != "" {
+			t.Error("wrong hashes in lock file after init\n" + diff)
+		}
+		for _, hash := range gotHashes {
+			if hash.HasScheme(getproviders.HashSchemeZip) {
+				// We should not get in here. If we do then we've likely just
+				// installed the _real_ hashicorp/null, and so we need to fix
+				// this test soon so that we're not depending on an external
+				// network service for this supposedly-local-only test.
+				t.Errorf("NOTE: unexpected hash %q suggests that this was installed from the origin registry, rather than the mirror!", hash)
+			}
+		}
+	} else {
+		t.Errorf("missing entry for registry.terraform.io/hashicorp/null after init")
+		return
+	}
+
+	// The above work should've left us in a valid situation where we can now
+	// run other workflow commands using the selected plugins. Since we've
+	// "installed" a fake thing that can't actually be executed the following
+	// will fail, but it should fail trying to install the fake executable
+	// rather than failing in command.Meta.providerFactories due to there
+	// being a plugin that isn't present at all.
+	// (Historically we had a bug where other commands would re-shim the
+	// dependency locks to refer to registry.opentofu.org/hashicorp/null and
+	// would thus make this fail because no such plugin is available in the
+	// cache directory: https://github.com/opentofu/opentofu/issues/2977 )
+	_, stderr, err = tf.Run("validate")
+	if err == nil {
+		t.Fatalf("unexpected success from tofu validate; want plugin execution error")
+	}
+	gotErr := stderr
+	wantErr := `failed to instantiate provider "registry.terraform.io/hashicorp/null" to obtain schema`
+	if !strings.Contains(gotErr, wantErr) {
+		t.Fatalf("unexpected validate error\ngot:\n%s\nwant substring: %s", gotErr, wantErr)
+	}
 }
 
 const localBackendConfig = `

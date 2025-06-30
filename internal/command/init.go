@@ -614,7 +614,7 @@ func (c *InitCommand) getProviders(ctx context.Context, config *configs.Config, 
 		}
 	}
 
-	previousLocks, moreDiags := c.lockedDependencies()
+	previousLocks, moreDiags := c.lockedDependenciesWithPredecessorRegistryShimmed()
 	diags = diags.Append(moreDiags)
 
 	if diags.HasErrors() {
