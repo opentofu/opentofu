@@ -155,7 +155,7 @@ provider "aws" {
   alias    = "by_region"
   for_each = var.aws_regions
 
-  region   = each.key
+  region = each.key
 }
 
 module "per_region" {
@@ -185,10 +185,6 @@ instance of `aws.by_region`.
 All instances of the module must refer to instances of the same provider
 configuration: only the expression in brackets (`each.key` in the above example)
 can vary between the instances of the module.
-
-If a region needs to be removed, the provider instance key would need to be set as `null` on `aws_regions`,
-and after a round of `tofu plan` and `tofu apply`, it could be removed from
-the `aws_regions` map.
 
 :::warning
 **The `for_each` expression for a module must *be different from* the
