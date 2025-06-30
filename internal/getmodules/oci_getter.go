@@ -13,6 +13,7 @@ import (
 	"maps"
 	"net/url"
 	"os"
+	"slices"
 	"strings"
 
 	getter "github.com/hashicorp/go-getter"
@@ -430,7 +431,7 @@ func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 	}
 	if len(foundBlobs) == 0 {
 		if len(foundWrongMediaTypeBlobs) > 0 {
-			return ociv1.Descriptor{}, fmt.Errorf("image manifest contains no layers of types supported as module packages by OpenTofu, but has other unsupported formats (%v); this OCI artifact might be intended for a different version of OpenTofu", maps.Keys(foundWrongMediaTypeBlobs))
+			return ociv1.Descriptor{}, fmt.Errorf("image manifest contains no layers of types supported as module packages by OpenTofu, but has other unsupported formats (%+q); this OCI artifact might be intended for a different version of OpenTofu", slices.Sorted(maps.Keys(foundWrongMediaTypeBlobs)))
 		}
 		return ociv1.Descriptor{}, fmt.Errorf("image manifest contains no layers of types supported as module packages by OpenTofu")
 	}
