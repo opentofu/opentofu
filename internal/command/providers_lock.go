@@ -193,7 +193,7 @@ func (c *ProvidersLockCommand) Run(args []string) int {
 	// We'll start our work with whatever locks we already have, so that
 	// we'll honor any existing version selections and just add additional
 	// hashes for them.
-	oldLocks, moreDiags := c.lockedDependencies()
+	oldLocks, moreDiags := c.lockedDependenciesWithPredecessorRegistryShimmed()
 	diags = diags.Append(moreDiags)
 
 	// If we have any error diagnostics already then we won't proceed further.

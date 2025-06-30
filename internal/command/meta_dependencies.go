@@ -64,6 +64,27 @@ func (m *Meta) lockedDependencies() (*depsfile.Locks, tfdiags.Diagnostics) {
 	}
 
 	ret, diags := depsfile.LoadLocksFromFile(dependencyLockFilename)
+	return m.annotateDependencyLocksWithOverrides(ret), diags
+}
+
+// lockedDependenciesWithPredecessorRegistryShimmed is a wrapper around
+// [Meta.lockedDependencies] that adds some extra synthetic entries for any
+// existing lock entry that matches "registry.terraform.io/hashicorp/*", to
+// encourage the provider installer to select the same version of the
+// corresponding provider in OpenTofu's registry, to keep dependency selections
+// consistent as folks migrate over from our predecessor.
+//
+// This variant should be used only by commands that will perform provider
+// installation based on the result, such as the implementation "tofu init".
+// This is not appropriate to use when the result will be used to call
+// [Meta.providerFactories]; that function needs to be given exactly the
+// dependencies from the lock file, because it expects to find every listed
+// provider in the cache directory and will fail if not.
+func (m *Meta) lockedDependenciesWithPredecessorRegistryShimmed() (*depsfile.Locks, tfdiags.Diagnostics) {
+	ret, diags := m.lockedDependencies()
+	if ret == nil {
+		return nil, diags
+	}
 
 	// If this is the first run after switching from OpenTofu's predecessor,
 	// the lock file might contain some entries from the predecessor's registry
@@ -95,9 +116,13 @@ func (m *Meta) lockedDependencies() (*depsfile.Locks, tfdiags.Diagnostics) {
 			"Dependency lock file entries automatically updated",
 			buf.String(),
 		))
+
+		// The newly-added entries might also be subject to one of the various
+		// kinds of "overrides" we support.
+		ret = m.annotateDependencyLocksWithOverrides(ret)
 	}
 
-	return m.annotateDependencyLocksWithOverrides(ret), diags
+	return ret, diags
 }
 
 // replaceLockedDependencies creates or overwrites the lock file in the
