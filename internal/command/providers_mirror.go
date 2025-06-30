@@ -87,7 +87,7 @@ func (c *ProvidersMirrorCommand) Run(args []string) int {
 	diags = diags.Append(moreDiags)
 
 	// Read lock file
-	lockedDeps, lockedDepsDiags := c.Meta.lockedDependencies()
+	lockedDeps, lockedDepsDiags := c.Meta.lockedDependenciesWithPredecessorRegistryShimmed()
 	diags = diags.Append(lockedDepsDiags)
 
 	// If we have any error diagnostics already then we won't proceed further.
