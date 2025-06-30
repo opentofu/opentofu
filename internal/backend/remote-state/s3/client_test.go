@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
@@ -305,7 +306,6 @@ func TestForceUnlockS3Only(t *testing.T) {
 	testACC(t)
 	bucketName := fmt.Sprintf("%s-force-s3-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
-
 	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
 		"bucket":       bucketName,
 		"key":          keyName,
@@ -322,6 +322,9 @@ func TestForceUnlockS3Only(t *testing.T) {
 
 	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
 	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+	if err := putS3Policy(t.Context(), b1.s3Client, bucketName, fmt.Sprintf(encryptionPolicy, bucketName)); err != nil {
+		t.Fatalf("failed to add bucket encryption policy: %s", err)
+	}
 
 	// first test with default
 	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
@@ -388,6 +391,15 @@ func TestForceUnlockS3Only(t *testing.T) {
 	if !strings.HasPrefix(err.Error(), expectedErrorMsg.Error()) {
 		t.Errorf("Unlock()\nactual = %v\nexpected = %v", err, expectedErrorMsg)
 	}
+}
+
+func putS3Policy(ctx context.Context, client *s3.Client, name string, policy string) error {
+	req := &s3.PutBucketPolicyInput{
+		Bucket: aws.String(name),
+		Policy: aws.String(policy),
+	}
+	_, err := client.PutBucketPolicy(ctx, req)
+	return err
 }
 
 // verify that we can unlock a state with an existing lock
@@ -964,3 +976,22 @@ func (m *mockHttpClient) Do(r *http.Request) (*http.Response, error) {
 	m.receivedReq = r
 	return m.resp, nil
 }
+
+// Policy to force server side encryption. This can be used, together with putS3Policy to test things like
+// server side encryption.
+// NOTE: This is a template, you should format it with the bucket name that it's going to be attached to.
+const encryptionPolicy = `{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DenyUnencryptedObjectUploads",
+      "Effect": "Deny",
+      "Principal": "*",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::%s/*",
+      "Condition": {
+        "Null": { "s3:x-amz-server-side-encryption": "true" }
+      }
+    }
+  ]
+}`
