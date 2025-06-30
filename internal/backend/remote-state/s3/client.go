@@ -205,45 +205,17 @@ func (c *RemoteClient) Put(data []byte) error {
 		Key:           &c.path,
 	}
 
-	if !c.skipS3Checksum {
-		i.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
-
-		// There is a conflict in the aws-go-sdk-v2 that prevents it from working with many s3 compatible services
-		// Since we can pre-compute the hash here, we can work around it.
-		// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
-		algo := sha256.New()
-		algo.Write(data)
-		sum64str := base64.StdEncoding.EncodeToString(algo.Sum(nil))
-		i.ChecksumSHA256 = &sum64str
-	}
-
-	if c.serverSideEncryption {
-		if c.kmsKeyID != "" {
-			i.SSEKMSKeyId = &c.kmsKeyID
-			i.ServerSideEncryption = types.ServerSideEncryptionAwsKms
-		} else if c.customerEncryptionKey != nil {
-			i.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
-			i.SSECustomerAlgorithm = aws.String(string(s3EncryptionAlgorithm))
-			i.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
-		} else {
-			i.ServerSideEncryption = s3EncryptionAlgorithm
-		}
-	}
-
-	if c.acl != "" {
-		i.ACL = types.ObjectCannedACL(c.acl)
-	}
-
-	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
-
+	c.configurePutObjectChecksum(data, i)
+	c.configurePutObjectEncryption(i)
+	c.configurePutObjectACL(i)
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
 
+	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
 	_, err := c.s3Client.PutObject(ctx, i, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		return fmt.Errorf("failed to upload state: %w", err)
 	}
-
 	sum := md5.Sum(data)
 	if err := c.putMD5(ctx, sum[:]); err != nil {
 		// if this errors out, we unfortunately have to error out altogether,
@@ -350,38 +322,13 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 		Body:          bytes.NewReader(lInfo),
 		IfNoneMatch:   aws.String("*"),
 	}
-
-	if !c.skipS3Checksum {
-		putParams.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
-
-		// There is a conflict in the aws-go-sdk-v2 that prevents it from working with many s3 compatible services
-		// Since we can pre-compute the hash here, we can work around it.
-		// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
-		algo := sha256.New()
-		algo.Write(lInfo)
-		sum64str := base64.StdEncoding.EncodeToString(algo.Sum(nil))
-		putParams.ChecksumSHA256 = &sum64str
-	}
-	if c.serverSideEncryption {
-		if c.kmsKeyID != "" {
-			putParams.SSEKMSKeyId = &c.kmsKeyID
-			putParams.ServerSideEncryption = types.ServerSideEncryptionAwsKms
-		} else if c.customerEncryptionKey != nil {
-			putParams.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
-			putParams.SSECustomerAlgorithm = aws.String(s3EncryptionAlgorithm)
-			putParams.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
-		} else {
-			putParams.ServerSideEncryption = s3EncryptionAlgorithm
-		}
-	}
-
-	if c.acl != "" {
-		putParams.ACL = types.ObjectCannedACL(c.acl)
-	}
-
-	log.Printf("[DEBUG] Uploading s3 locking object: %#v", putParams)
+	c.configurePutObjectChecksum(lInfo, putParams)
+	c.configurePutObjectEncryption(putParams)
+	c.configurePutObjectACL(putParams)
 	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
+
+	log.Printf("[DEBUG] Uploading s3 locking object: %#v", putParams)
 	_, err := c.s3Client.PutObject(ctx, putParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfoFromS3(ctx)
@@ -517,6 +464,11 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 		Key:    aws.String(c.lockFilePath()),
 	}
 
+	if c.serverSideEncryption && c.customerEncryptionKey != nil {
+		getParams.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
+		getParams.SSECustomerAlgorithm = aws.String(s3EncryptionAlgorithm)
+		getParams.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
+	}
 	resp, err := c.s3Client.GetObject(ctx, getParams, s3optDisableDefaultChecksum(c.skipS3Checksum))
 	if err != nil {
 		var nb *types.NoSuchBucket
@@ -525,11 +477,6 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 		}
 
 		return nil, err
-	}
-	if c.serverSideEncryption && c.customerEncryptionKey != nil {
-		getParams.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
-		getParams.SSECustomerAlgorithm = aws.String(s3EncryptionAlgorithm)
-		getParams.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
 	}
 
 	lockInfo := &statemgr.LockInfo{}
@@ -666,6 +613,44 @@ func s3optDisableDefaultChecksum(skipS3Checksum bool) func(*s3.Options) {
 		}
 	}
 	return func(o *s3.Options) {}
+}
+
+func (c *RemoteClient) configurePutObjectChecksum(data []byte, i *s3.PutObjectInput) {
+	if c.skipS3Checksum {
+		return
+	}
+	i.ChecksumAlgorithm = types.ChecksumAlgorithmSha256
+
+	// There is a conflict in the aws-go-sdk-v2 that prevents it from working with many s3 compatible services
+	// Since we can pre-compute the hash here, we can work around it.
+	// ref: https://github.com/aws/aws-sdk-go-v2/issues/1689
+	algo := sha256.New()
+	algo.Write(data)
+	sum64str := base64.StdEncoding.EncodeToString(algo.Sum(nil))
+	i.ChecksumSHA256 = &sum64str
+}
+
+func (c *RemoteClient) configurePutObjectEncryption(i *s3.PutObjectInput) {
+	if !c.serverSideEncryption {
+		return
+	}
+	if c.kmsKeyID != "" {
+		i.SSEKMSKeyId = &c.kmsKeyID
+		i.ServerSideEncryption = types.ServerSideEncryptionAwsKms
+	} else if c.customerEncryptionKey != nil {
+		i.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
+		i.SSECustomerAlgorithm = aws.String(string(s3EncryptionAlgorithm))
+		i.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
+	} else {
+		i.ServerSideEncryption = s3EncryptionAlgorithm
+	}
+}
+
+func (c *RemoteClient) configurePutObjectACL(i *s3.PutObjectInput) {
+	if c.acl == "" {
+		return
+	}
+	i.ACL = types.ObjectCannedACL(c.acl)
 }
 
 const errBadChecksumFmt = `state data in S3 does not have the expected content.
