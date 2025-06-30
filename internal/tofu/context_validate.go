@@ -68,11 +68,6 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 	}
 
 	importTargets := c.findImportTargets(config)
-	importTargetDiags := c.validateImportTargets(config, importTargets, "")
-	diags = diags.Append(importTargetDiags)
-	if importTargetDiags.HasErrors() {
-		return diags
-	}
 
 	providerFunctionTracker := make(ProviderFunctionMapping)
 
@@ -84,6 +79,9 @@ func (c *Context) Validate(ctx context.Context, config *configs.Config) tfdiags.
 		Operation:               walkValidate,
 		ProviderFunctionTracker: providerFunctionTracker,
 		ImportTargets:           importTargets,
+		// Setting GenerateConfigPath is required to correctly validate cases where the users would use '-generate-config-out' during the plan phase
+		// and generate config on the fly. Otherwise, we hit false positive at https://github.com/opentofu/opentofu/blob/f8900fdc757fee3eace8c57013d411a0398369b1/internal/tofu/transform_config.go#L178
+		GenerateConfigPath: ".validate_config_path",
 	}).Build(ctx, addrs.RootModuleInstance)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {

@@ -184,6 +184,14 @@ func TestUndefinedResourceAsImportTargetShouldSucceed(t *testing.T) {
 		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
 	}
 }
+
+func TestDefinedVarAsImportIDShouldSucceed(t *testing.T) {
+	output, code := setupTest(t, "validate-valid/import_id_defined_var")
+	if code != 0 {
+		t.Fatalf("Should have succeeded: %d\n\n%s", code, output.Stderr())
+	}
+}
+
 func TestOutputWithoutValueShouldFail(t *testing.T) {
 	output, code := setupTest(t, "validate-invalid/outputs")
 	if code != 1 {

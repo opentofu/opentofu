@@ -92,7 +92,7 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 			}
 		}
 	}
-	importDiags := n.validateImportTargets(ctx, evalCtx)
+	importDiags := n.validateImportIDs(ctx, evalCtx)
 	diags = diags.Append(importDiags)
 
 	return diags
@@ -489,13 +489,11 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 	return diags
 }
 
-func (n *NodeValidatableResource) validateImportTargets(_ context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
-	// Resolve addresses and IDs of all import targets that originate from import blocks
-	// We do it here before expanding the resources in the modules, to avoid running this resolution multiple times
+func (n *NodeValidatableResource) validateImportIDs(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
 	importResolver := evalCtx.ImportResolver()
 	var diags tfdiags.Diagnostics
 	for _, importTarget := range n.importTargets {
-		err := importResolver.ExpandAndResolveImport(context.TODO(), importTarget, evalCtx)
+		err := importResolver.ValidateImportIDs(ctx, importTarget, evalCtx)
 		if err != nil {
 			diags = diags.Append(err)
 		}
