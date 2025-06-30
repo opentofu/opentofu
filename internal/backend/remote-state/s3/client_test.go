@@ -97,18 +97,21 @@ func TestRemoteS3ClientLocks(t *testing.T) {
 	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
 	keyName := "testState"
 
+	ssmc := "myX4h8dotng+6B65SUhiVKPkwuJVyZ94v7dk+oJCvYg="
 	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
-		"bucket":       bucketName,
-		"key":          keyName,
-		"encrypt":      true,
-		"use_lockfile": true,
+		"bucket":           bucketName,
+		"key":              keyName,
+		"encrypt":          true,
+		"use_lockfile":     true,
+		"sse_customer_key": ssmc,
 	})).(*Backend)
 
 	b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
-		"bucket":       bucketName,
-		"key":          keyName,
-		"encrypt":      true,
-		"use_lockfile": true,
+		"bucket":           bucketName,
+		"key":              keyName,
+		"encrypt":          true,
+		"use_lockfile":     true,
+		"sse_customer_key": ssmc,
 	})).(*Backend)
 
 	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
