@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"strings"
@@ -409,7 +410,7 @@ func fetchOCIManifestBlob(ctx context.Context, desc ociv1.Descriptor, store OCIR
 
 func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 	foundBlobs := make(map[string]ociv1.Descriptor, len(goGetterDecompressorMediaTypes))
-	foundWrongMediaTypeBlobs := 0
+	foundWrongMediaTypeBlobs := make(map[string]ociv1.Descriptor)
 	for _, desc := range descs {
 		if _, ok := goGetterDecompressorMediaTypes[desc.MediaType]; ok {
 			if _, exists := foundBlobs[desc.MediaType]; exists {
@@ -424,12 +425,12 @@ func selectOCILayerBlob(descs []ociv1.Descriptor) (ociv1.Descriptor, error) {
 			// can potentially support additional archive formats,
 			// but we do still count them so that we can hint about
 			// potential problems in an error message below.
-			foundWrongMediaTypeBlobs++
+			foundWrongMediaTypeBlobs[desc.MediaType] = desc
 		}
 	}
 	if len(foundBlobs) == 0 {
-		if foundWrongMediaTypeBlobs > 0 {
-			return ociv1.Descriptor{}, fmt.Errorf("image manifest contains no layers of types supported as module packages by OpenTofu, but has other unsupported formats; this OCI artifact might be intended for a different version of OpenTofu")
+		if len(foundWrongMediaTypeBlobs) > 0 {
+			return ociv1.Descriptor{}, fmt.Errorf("image manifest contains no layers of types supported as module packages by OpenTofu, but has other unsupported formats (%v); this OCI artifact might be intended for a different version of OpenTofu", maps.Keys(foundWrongMediaTypeBlobs))
 		}
 		return ociv1.Descriptor{}, fmt.Errorf("image manifest contains no layers of types supported as module packages by OpenTofu")
 	}
