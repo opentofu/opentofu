@@ -362,6 +362,18 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 		sum64str := base64.StdEncoding.EncodeToString(algo.Sum(nil))
 		putParams.ChecksumSHA256 = &sum64str
 	}
+	if c.serverSideEncryption {
+		if c.kmsKeyID != "" {
+			putParams.SSEKMSKeyId = &c.kmsKeyID
+			putParams.ServerSideEncryption = types.ServerSideEncryptionAwsKms
+		} else if c.customerEncryptionKey != nil {
+			putParams.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
+			putParams.SSECustomerAlgorithm = aws.String(s3EncryptionAlgorithm)
+			putParams.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
+		} else {
+			putParams.ServerSideEncryption = s3EncryptionAlgorithm
+		}
+	}
 
 	if c.acl != "" {
 		putParams.ACL = types.ObjectCannedACL(c.acl)
@@ -513,6 +525,11 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 		}
 
 		return nil, err
+	}
+	if c.serverSideEncryption && c.customerEncryptionKey != nil {
+		getParams.SSECustomerKey = aws.String(base64.StdEncoding.EncodeToString(c.customerEncryptionKey))
+		getParams.SSECustomerAlgorithm = aws.String(s3EncryptionAlgorithm)
+		getParams.SSECustomerKeyMD5 = aws.String(c.getSSECustomerKeyMD5())
 	}
 
 	lockInfo := &statemgr.LockInfo{}
