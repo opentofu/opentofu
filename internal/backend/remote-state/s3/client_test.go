@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	awsbase "github.com/hashicorp/aws-sdk-go-base/v2"
+	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/states/remote"
@@ -94,38 +95,53 @@ func TestRemoteClientLocks(t *testing.T) {
 
 func TestRemoteS3ClientLocks(t *testing.T) {
 	testACC(t)
-	bucketName := fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
-	keyName := "testState"
-
-	b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
-		"bucket":       bucketName,
-		"key":          keyName,
-		"encrypt":      true,
-		"use_lockfile": true,
-	})).(*Backend)
-
-	b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), backend.TestWrapConfig(map[string]interface{}{
-		"bucket":       bucketName,
-		"key":          keyName,
-		"encrypt":      true,
-		"use_lockfile": true,
-	})).(*Backend)
-
-	createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
-	defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
-
-	s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
-	if err != nil {
-		t.Fatal(err)
+	var (
+		bucketName = fmt.Sprintf("%s-%x", testBucketPrefix, time.Now().Unix())
+		keyName    = "testState"
+		ssmc       = "myX4h8dotng+6B65SUhiVKPkwuJVyZ94v7dk+oJCvYg="
+	)
+	cases := map[string]struct {
+		backendCfg hcl.Body
+	}{
+		"with sse customer key": {
+			backendCfg: backend.TestWrapConfig(map[string]interface{}{
+				"bucket":           bucketName,
+				"key":              keyName,
+				"encrypt":          true,
+				"use_lockfile":     true,
+				"sse_customer_key": ssmc,
+			}),
+		},
+		"without sse": {
+			backendCfg: backend.TestWrapConfig(map[string]interface{}{
+				"bucket":       bucketName,
+				"key":          keyName,
+				"use_lockfile": true,
+			}),
+		},
 	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			b1, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), tt.backendCfg).(*Backend)
+			b2, _ := backend.TestBackendConfig(t, New(encryption.StateEncryptionDisabled()), tt.backendCfg).(*Backend)
 
-	s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
-	if err != nil {
-		t.Fatal(err)
+			createS3Bucket(t.Context(), t, b1.s3Client, bucketName, b1.awsConfig.Region)
+			defer deleteS3Bucket(t.Context(), t, b1.s3Client, bucketName)
+
+			s1, err := b1.StateMgr(t.Context(), backend.DefaultStateName)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			s2, err := b2.StateMgr(t.Context(), backend.DefaultStateName)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			//nolint:errcheck // don't need to check the error from type assertion
+			remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
+		})
 	}
-
-	//nolint:errcheck // don't need to check the error from type assertion
-	remote.TestRemoteLocks(t, s1.(*remote.State).Client, s2.(*remote.State).Client)
 }
 
 func TestRemoteS3AndDynamoDBClientLocks(t *testing.T) {
