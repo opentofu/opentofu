@@ -9,7 +9,7 @@ ENHANCEMENTS:
 BUG FIXES:
 
 * The `tofu.rc` configuration file now properly takes precedence over `terraform.rc` on Windows ([#2891](https://github.com/opentofu/opentofu/pull/2891))
-* S3 backend now configures correctly the object encryption for the lock file ([#2870](https://github.com/opentofu/opentofu/issues/2970))
+* S3 backend now correctly sends the `x-amz-server-side-encryption` header for the lockfile ([#2870](https://github.com/opentofu/opentofu/issues/2970))
 
 ## Previous Releases
 
