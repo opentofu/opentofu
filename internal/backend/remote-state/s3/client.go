@@ -321,6 +321,7 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 		Key:           aws.String(c.lockFilePath()),
 		Body:          bytes.NewReader(lInfo),
 		IfNoneMatch:   aws.String("*"),
+		Tagging:       aws.String("tflock=true"),
 	}
 	c.configurePutObjectChecksum(lInfo, putParams)
 	c.configurePutObjectEncryption(putParams)
