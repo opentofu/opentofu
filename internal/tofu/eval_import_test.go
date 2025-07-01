@@ -44,7 +44,7 @@ func TestEvaluateImportIdExpression_SensitiveValue(t *testing.T) {
 		{
 			name:    "evaluates_to_unknown",
 			expr:    hcltest.MockExprLiteral(cty.UnknownVal(cty.String)),
-			wantErr: "Invalid import id argument: The import block \"id\" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.", // Adapted the message from your original code
+			wantErr: "Invalid import id argument: The import block \"id\" argument includes an undefined variable or depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.", // Adapted the message from your original code
 		},
 		{
 			name:    "valid_value",

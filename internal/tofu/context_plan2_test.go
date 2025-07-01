@@ -5917,7 +5917,7 @@ import {
 		},
 		{
 			Description:   "for_each value is unknown",
-			expectedError: `Invalid import id argument: The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`,
+			expectedError: `Invalid import id argument: The import block "id" argument includes an undefined variable or depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`,
 			inlineConfiguration: map[string]string{
 				"main.tf": `
 resource "test_object" "reference" {
@@ -6645,7 +6645,7 @@ func TestContext2Plan_importIdInvalidUnknown(t *testing.T) {
 	if !diags.HasErrors() {
 		t.Fatal("succeeded; want errors")
 	}
-	if got, want := diags.Err().Error(), `The import block "id" argument depends on resource attributes that cannot be determined until apply`; !strings.Contains(got, want) {
+	if got, want := diags.Err().Error(), `The import block "id" argument includes an undefined variable or depends on resource attributes that cannot be determined until apply`; !strings.Contains(got, want) {
 		t.Fatalf("wrong error:\ngot:  %s\nwant: message containing %q", got, want)
 	}
 }
