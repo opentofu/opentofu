@@ -1,9 +1,12 @@
 ## 1.10.2 (Unreleased)
 
-## 1.10.1 (Unreleased)
+- S3 backend now correctly sends the `x-amz-server-side-encryption` header for the lockfile. ([#2870](https://github.com/opentofu/opentofu/issues/2970))
+- A provider source address explicitly using the hostname `registry.terraform.io` will no longer cause errors related to a corresponding provider on `registry.opentofu.org` when executing workflow commands like plan and apply. ([#2979](https://github.com/opentofu/opentofu/issues/2979))
+
+## 1.10.1
 
 BUG FIXES:
-* Fix `TF_APPEND_USER_AGENT` handling in the S3 remote state backend. ((#2955)[https://github.com/opentofu/opentofu/pull/2955])
+- Fix `TF_APPEND_USER_AGENT` handling in the S3 remote state backend. ([#2955](https://github.com/opentofu/opentofu/pull/2955))
 
 ## 1.10.0
 
@@ -77,7 +80,6 @@ BUG FIXES:
 - `tofu init` now detects and reports errors when creating the file used to track backend initialization, instead of silently failing to save that information. ([#2798](https://github.com/opentofu/opentofu/pull/2798))
 - An invalid provider name in a `provider_meta` block no longer causes OpenTofu to crash. ([#2347](https://github.com/opentofu/opentofu/pull/2347))
 - OpenTofu no longer indirectly uses software that was affected by [CVE-2024-45336](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45336) and [CVE-2024-45341](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-45341). These advisories did not significantly affect OpenTofu, and so this upgrade is purely to reduce false positives in naive security scanners. ([#2438](https://github.com/opentofu/opentofu/pull/2438))
-- S3 backend now correctly sends the `x-amz-server-side-encryption` header for the lockfile ([#2870](https://github.com/opentofu/opentofu/issues/2970))
 
 ## Previous Releases
 
