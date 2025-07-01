@@ -84,6 +84,17 @@ func getOCIRepositoryStore(ctx context.Context, registryDomain, repositoryName s
 	)
 	defer span.End()
 
+	// Since there are lots of different ways to provide OCI credentials to
+	// OpenTofu, and several are implicit based on files and/or environment
+	// variables we found on the system, we'll generate some debug logs
+	// listing the locations where we're searching so we'll have some good
+	// context for a bug report about OpenTofu selecting different credentials
+	// than the operator expected. There should not typically be more than a
+	// few of these on a reasonably-configured system.
+	for _, cfg := range credsPolicy.AllConfigs() {
+		log.Printf("[DEBUG] OCI registry client will consider credentials from %s", cfg.CredentialsConfigLocationForUI())
+	}
+
 	client, err := getOCIRepositoryORASClient(ctx, registryDomain, repositoryName, credsPolicy)
 	if err != nil {
 		tracing.SetSpanError(span, err)
