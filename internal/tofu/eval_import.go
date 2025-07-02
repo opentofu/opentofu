@@ -35,6 +35,10 @@ func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyDat
 	importIdVal, evalDiags := evaluateExprWithRepetitionData(context.TODO(), evalCtx, expr, cty.String, keyData)
 	diags = diags.Append(evalDiags)
 
+	if diags.HasErrors() {
+		return "", diags
+	}
+
 	if importIdVal.IsNull() {
 		return "", diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
@@ -48,7 +52,7 @@ func evaluateImportIdExpression(expr hcl.Expression, evalCtx EvalContext, keyDat
 		return "", diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Invalid import id argument",
-			Detail:   `The import block "id" argument includes an undefined variable or depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
+			Detail:   `The import block "id" argument depends on resource attributes that cannot be determined until apply, so OpenTofu cannot plan to import this resource.`, // FIXME and what should I do about that?
 			Subject:  expr.Range().Ptr(),
 			//	Expression:
 			//	EvalContext:
