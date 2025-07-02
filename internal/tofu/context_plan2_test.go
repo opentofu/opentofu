@@ -8692,6 +8692,56 @@ func TestContext2Plan_insufficient_block(t *testing.T) {
 	}
 }
 
+// Ensure that running plan on a configuration with ephemeral resources,
+// the generated plan contains the expected changes
+func TestContext2Plan_ephemeralResourceChangesGenerated(t *testing.T) {
+	m := testModuleInline(t, map[string]string{
+		"main.tf": `
+ephemeral "test_ephemeral_resource" "a" {
+}
+`,
+	})
+	testProvider := testProvider("test")
+	testProvider.OpenEphemeralResourceResponse = &providers.OpenEphemeralResourceResponse{
+		Result: cty.ObjectVal(map[string]cty.Value{
+			"id":     cty.StringVal("id val"),
+			"secret": cty.StringVal("val"),
+		}),
+	}
+
+	state := states.NewState()
+
+	ctx := testContext2(t, &ContextOpts{
+		Providers: map[addrs.Provider]providers.Factory{
+			addrs.NewDefaultProvider("test"): testProviderFuncFixed(testProvider),
+		},
+	})
+
+	plan, diags := ctx.Plan(context.Background(), m, state, DefaultPlanOpts)
+	if diags.HasErrors() {
+		t.Fatalf("unexpected plan error: %s", diags)
+	}
+	if plan.Changes == nil {
+		t.Fatalf("expected to have some changes but got none")
+	}
+	if got, want := len(plan.Changes.Resources), 1; got != want {
+		t.Fatalf("expected to have %d changes but got %d", want, got)
+	}
+	got := plan.Changes.Resources[0]
+	addr := mustResourceInstanceAddr("ephemeral.test_ephemeral_resource.a")
+	want := &plans.ResourceInstanceChangeSrc{
+		Addr:         addr,
+		PrevRunAddr:  addr,
+		ProviderAddr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
+		ChangeSrc: plans.ChangeSrc{
+			Action: plans.Open,
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatalf("unexpected diff in the ephemeral resource recorded change:\n%s", diff)
+	}
+}
+
 func mockProviderWithFeaturesBlock() *MockProvider {
 	return &MockProvider{
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{

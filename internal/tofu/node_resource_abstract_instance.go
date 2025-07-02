@@ -3215,6 +3215,21 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 			// Private field ignored intentionally since this is handled internally by
 			// the goroutine that is handling the renewal of the ephemeral resource.
 		}
+		plannedChange = &plans.ResourceInstanceChange{
+			Addr:         n.Addr,
+			PrevRunAddr:  n.Addr,
+			DeposedKey:   states.NotDeposed,
+			ProviderAddr: n.ResolvedProvider.ProviderConfig,
+			Change: plans.Change{
+				Action: plans.Open,
+				// Before and After values specifically set to indicate that the changes
+				// for ephemeral resources should contain no values.
+				// Only the state is necessary to hold the result of be resource, to be
+				// available for evaluation later.
+				Before: cty.NilVal,
+				After:  cty.NilVal,
+			},
+		}
 	}
 
 	return plannedChange, plannedNewState, keyData, diags
@@ -3307,8 +3322,12 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
 		Change: plans.Change{
 			Action: plans.Open,
-			Before: priorVal,
-			After:  proposedNewVal,
+			// Before and After values specifically set to indicate that the changes
+			// for ephemeral resources should contain no values.
+			// Only the state is necessary to hold the result of be resource, to be
+			// available for evaluation later.
+			Before: cty.NilVal,
+			After:  cty.NilVal,
 		},
 		// Skipped ActionReason on purpose since ephemeral resources changes are not meant
 		// to be shown in the UI.
