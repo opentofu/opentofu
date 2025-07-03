@@ -37,6 +37,7 @@ func ConfigSchemaToProto(b *configschema.Block) *proto.Schema_Block {
 			Required:        a.Required,
 			Sensitive:       a.Sensitive,
 			Deprecated:      a.Deprecated,
+			WriteOnly:       a.WriteOnly,
 		}
 
 		if a.Type != cty.NilType {
@@ -125,6 +126,7 @@ func ProtoToConfigSchema(b *proto.Schema_Block) *configschema.Block {
 			Computed:        a.Computed,
 			Sensitive:       a.Sensitive,
 			Deprecated:      a.Deprecated,
+			WriteOnly:       a.WriteOnly,
 		}
 
 		if a.Type != nil {
@@ -215,6 +217,7 @@ func protoObjectToConfigSchema(b *proto.Schema_Object) *configschema.Object {
 			Computed:        a.Computed,
 			Sensitive:       a.Sensitive,
 			Deprecated:      a.Deprecated,
+			WriteOnly:       a.WriteOnly,
 		}
 
 		if a.Type != nil {
