@@ -171,6 +171,13 @@ func (h *testHook) PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, 
 	return HookActionContinue, nil
 }
 
+func (h *testHook) Deferred(addr addrs.AbsResourceInstance, reason string) (HookAction, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Calls = append(h.Calls, &testHookCall{"Deferred", addr.String()})
+	return HookActionContinue, nil
+}
+
 func (h *testHook) Stopping() {
 	h.mu.Lock()
 	defer h.mu.Unlock()

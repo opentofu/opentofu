@@ -141,6 +141,10 @@ type MockHook struct {
 	PostApplyForgetReturn HookAction
 	PostApplyForgetError  error
 
+	DeferredCalled bool
+	DeferredReturn HookAction
+	DeferredError  error
+
 	StoppingCalled bool
 
 	PostStateUpdateCalled bool
@@ -349,6 +353,14 @@ func (h *MockHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, err
 
 	h.PostApplyForgetCalled = true
 	return h.PostApplyForgetReturn, h.PostApplyForgetError
+}
+
+func (h *MockHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.DeferredCalled = true
+	return h.DeferredReturn, h.DeferredError
 }
 
 func (h *MockHook) Stopping() {

@@ -48,6 +48,12 @@ type nodeExpandPlannableResource struct {
 	// structure in the future, as we need to compare for equality and take the
 	// union of multiple groups of dependencies.
 	dependencies []addrs.ConfigResource
+
+	// This slice is meant to keep references to the resourceCloser's of the expanded instances.
+	// Later, this will be called from nodeCloseableResource.
+	// At the time of introducing this, it was strictly meant for ephemeral resources, but if there
+	// will be other closeable resources, this could be used for those too.
+	closers []resourceCloser
 }
 
 var (
@@ -60,6 +66,7 @@ var (
 	_ GraphNodeAttachDependencies   = (*nodeExpandPlannableResource)(nil)
 	_ GraphNodeTargetable           = (*nodeExpandPlannableResource)(nil)
 	_ graphNodeExpandsInstances     = (*nodeExpandPlannableResource)(nil)
+	_ closableResource              = (*nodeExpandPlannableResource)(nil)
 )
 
 func (n *nodeExpandPlannableResource) Name() string {
@@ -378,6 +385,11 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Conte
 		if resolvedImportTarget != nil {
 			m.importTarget = *resolvedImportTarget
 		}
+		// When creating concrete instance nodes for the ephemeral resources we want to collect all the
+		// resourceCloser callbacks from the nodes to be able to close the resources at the end of the graph walk.
+		if a.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			n.closers = append(n.closers, m.Close)
+		}
 
 		return m
 	}
@@ -437,4 +449,16 @@ func (n *nodeExpandPlannableResource) resourceInstanceSubgraph(ctx context.Conte
 	}
 	graph, graphDiags := b.Build(ctx, addr.Module)
 	return graph, diags.Append(graphDiags).ErrWithWarnings()
+}
+
+// Close implements closableResource
+func (n *nodeExpandPlannableResource) Close() (diags tfdiags.Diagnostics) {
+	if n.Addr.Resource.Mode != addrs.EphemeralResourceMode {
+		return diags
+	}
+
+	for _, c := range n.closers {
+		diags = diags.Append(c())
+	}
+	return diags
 }
