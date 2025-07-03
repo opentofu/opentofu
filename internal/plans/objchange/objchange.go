@@ -73,6 +73,16 @@ func PlannedDataResourceObject(schema *configschema.Block, config cty.Value) cty
 	return proposedNew(schema, prior, config)
 }
 
+// PlannedEphemeralResourceObject is exactly as PlannedDataResourceObject, but we
+// want to have a different copy of it to emphasize the special handling of
+// this type of resource.
+// Ephemeral resources are not stored into the state, so every newly planned value
+// is based only on the configuration and its schema.
+func PlannedEphemeralResourceObject(schema *configschema.Block, config cty.Value) cty.Value {
+	prior := cty.UnknownVal(schema.ImpliedType())
+	return proposedNew(schema, prior, config)
+}
+
 func proposedNew(schema *configschema.Block, prior, config cty.Value) cty.Value {
 	if config.IsNull() || !config.IsKnown() {
 		// A block config should never be null at this point. The only nullable
