@@ -1931,6 +1931,12 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	// NodeAbstractResourceInstance.Close caller.
 	n.closeCh = make(chan struct{}, 1)
 	n.ephemeralDiags = make(chan tfdiags.Diagnostics, 1)
+	// Due to the go scheduler inner works, the goroutine spawned below can be actually scheduled
+	// later than the execution of the nodeCloseableResource graph node.
+	// Therefore, we want to mark the renewal process as started before the goroutine spawning to be sure
+	// that the execution of nodeCloseableResource will block on the diagnostics reported by the
+	// goroutine below.
+	n.renewStarted.Store(true)
 	// The renewer is taking care of calling provider.Renew if resp.RenewAt != nil.
 	// But if resp.RenewAt == nil, renewer holds only the resp.Private that will be used later
 	// when calling provider.CloseEphemeralResource.
@@ -3239,7 +3245,6 @@ func (n *NodeAbstractResourceInstance) startEphemeralRenew(ctx context.Context, 
 	if n.Addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
 		panic("renewal process cannot be started for resources other than ephemeral ones. This is an OpenTofu issue, please report it")
 	}
-	n.renewStarted.Store(true)
 	privateData, diags := n.renewEphemeral(ctx, evalContext, provider, renewAt, privateData)
 	// wait for the close signal. This is like this because the renewEphemeral can return right away if the renewAt is nil.
 	// But the close of the ephemeral should happen only when the graph walk is reaching the execution of the closing
