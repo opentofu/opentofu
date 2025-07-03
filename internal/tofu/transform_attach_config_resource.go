@@ -58,6 +58,8 @@ func (t *AttachResourceConfigTransformer) Transform(_ context.Context, g *Graph)
 			m = config.Module.ManagedResources
 		case addrs.DataResourceMode:
 			m = config.Module.DataResources
+		case addrs.EphemeralResourceMode:
+			m = config.Module.EphemeralResources
 		default:
 			panic("unknown resource mode: " + addr.Resource.Mode.String())
 		}

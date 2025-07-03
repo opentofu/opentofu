@@ -1685,6 +1685,26 @@ func TestResourceChange_JSON(t *testing.T) {
         )
     }`,
 		},
+		"ephemeral resource creation": {
+			Action: plans.Create,
+			Mode:   addrs.EphemeralResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id":         cty.StringVal("ad4d04ed-ac40-43fc-ad4f-d2fc89b80793"),
+				"json_field": cty.StringVal(`{"secret_value": "8f6fb348-949d-4fa3-98a4-da9e66088257"}`),
+			}),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"id":         cty.StringVal("ad4d04ed-ac40-43fc-ad4f-d2fc89b80793"),
+				"json_field": cty.StringVal(`{"secret_value": "f8b90277-7b0b-4f15-9c31-aed5a642b274"}`),
+			}),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id":         {Type: cty.String, Optional: true, Computed: true},
+					"json_field": {Type: cty.String, Optional: true},
+				},
+			},
+			RequiredReplace: cty.NewPathSet(),
+			ExpectedOutput:  ``,
+		},
 	}
 	runTestCases(t, testCases)
 }
@@ -7209,13 +7229,17 @@ func runTestCases(t *testing.T, testCases map[string]testCase) {
 			}
 
 			jsonschemas := jsonprovider.MarshalForRenderer(tfschemas)
-			change := structured.FromJsonChange(jsonchanges[0].Change, attribute_path.AlwaysMatcher())
-			renderer := Renderer{Colorize: color}
-			diff := diff{
-				change: jsonchanges[0],
-				diff:   differ.ComputeDiffForBlock(change, jsonschemas[jsonchanges[0].ProviderName].ResourceSchemas[jsonchanges[0].Type].Block),
+
+			var output string
+			if len(jsonchanges) > 0 {
+				change := structured.FromJsonChange(jsonchanges[0].Change, attribute_path.AlwaysMatcher())
+				renderer := Renderer{Colorize: color}
+				diff := diff{
+					change: jsonchanges[0],
+					diff:   differ.ComputeDiffForBlock(change, jsonschemas[jsonchanges[0].ProviderName].ResourceSchemas[jsonchanges[0].Type].Block),
+				}
+				output, _ = renderHumanDiff(renderer, diff, proposedChange)
 			}
-			output, _ := renderHumanDiff(renderer, diff, proposedChange)
 			if diff := cmp.Diff(output, tc.ExpectedOutput); diff != "" {
 				t.Errorf("wrong output\nexpected:\n%s\nactual:\n%s\ndiff:\n%s\n", tc.ExpectedOutput, output, diff)
 			}
