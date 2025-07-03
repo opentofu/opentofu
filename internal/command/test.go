@@ -1188,11 +1188,13 @@ func getEvalContextForTest(states map[string]*TestFileState, config *configs.Con
 		varCtx[name] = val.Value
 	}
 
+	scope := &lang.Scope{}
 	ctx := &hcl.EvalContext{
 		Variables: map[string]cty.Value{
 			"run": cty.ObjectVal(runCtx),
 			"var": cty.ObjectVal(varCtx),
 		},
+		Functions: scope.Functions(),
 	}
 	return ctx, diags
 }
@@ -1205,7 +1207,17 @@ type testVariableValueExpression struct {
 
 func (v testVariableValueExpression) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-	val, hclDiags := v.expr.Value(v.ctx)
+
+	evalCtx := v.ctx
+	if evalCtx.Functions == nil {
+		scope := &lang.Scope{}
+		evalCtx = &hcl.EvalContext{
+			Variables: v.ctx.Variables,
+			Functions: scope.Functions(),
+		}
+	}
+
+	val, hclDiags := v.expr.Value(evalCtx)
 	diags = diags.Append(hclDiags)
 
 	rng := tfdiags.SourceRangeFromHCL(v.expr.Range())

@@ -30,6 +30,10 @@ func TestTest(t *testing.T) {
 		code     int
 		skip     bool
 	}{
+		"function_call_in_variables": {
+			expected: "1 passed, 0 failed.",
+			code:     0,
+		},
 		"simple_pass": {
 			expected: "1 passed, 0 failed.",
 			code:     0,
