@@ -146,9 +146,10 @@ func (p *MockProvider) getProviderSchema() providers.GetProviderSchemaResponse {
 	}
 
 	return providers.GetProviderSchemaResponse{
-		Provider:      providers.Schema{},
-		DataSources:   map[string]providers.Schema{},
-		ResourceTypes: map[string]providers.Schema{},
+		Provider:           providers.Schema{},
+		DataSources:        map[string]providers.Schema{},
+		ResourceTypes:      map[string]providers.Schema{},
+		EphemeralResources: map[string]providers.Schema{},
 	}
 }
 
@@ -652,7 +653,6 @@ func (p *MockProvider) ReadDataSource(ctx context.Context, r providers.ReadDataS
 }
 
 func (p *MockProvider) OpenEphemeralResource(ctx context.Context, r providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
-	// TODO ephemeral - add tests for this part when nodes implementation is done
 	tracing.ContextProbeReport(ctx, 0)
 	p.Lock()
 	defer p.Unlock()
