@@ -94,6 +94,8 @@ type Attribute struct {
 	Sensitive bool
 
 	Deprecated bool
+
+	WriteOnly bool
 }
 
 // Object represents the embedding of a structural object inside an Attribute.
