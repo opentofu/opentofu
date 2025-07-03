@@ -1044,12 +1044,7 @@ func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
 			}),
 		})
 
-		if len(resp.Diagnostics) != 1 {
-			t.Fatalf("expected to have one diagnostic but got %d", len(resp.Diagnostics))
-		}
-		if got, want := resp.Diagnostics[0].Description().Summary, "Resource configuration is incomplete"; got != want {
-			t.Fatalf("wanted diagnostic summary %q but got %q", want, got)
-		}
+		checkDiags(t, resp.Diagnostics)
 
 		expected := cty.ObjectVal(map[string]cty.Value{
 			"attr": cty.StringVal("bar"),
@@ -1062,6 +1057,14 @@ func TestGRPCProvider_OpenEphemeralResource(t *testing.T) {
 		}
 		if got, want := resp.Private, []byte("private data"); !slices.Equal(got, want) {
 			t.Fatalf("unexpected private data. got: %q, want %q", got, want)
+		}
+		{
+			if resp.Deferred == nil {
+				t.Fatal("expected to have a deferred object but got none")
+			}
+			if got, want := resp.Deferred.DeferralReason, providers.DeferredBecauseResourceConfigUnknown; got != want {
+				t.Fatalf("unexpected deferred reason. got: %d, want %d", got, want)
+			}
 		}
 	})
 	t.Run("requested type is not in schema", func(t *testing.T) {
