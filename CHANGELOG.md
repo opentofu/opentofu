@@ -1,4 +1,9 @@
+## 1.10.3 (Unreleased)
+
+
 ## 1.10.2
+
+BUG FIXES:
 
 - S3 backend now correctly sends the `x-amz-server-side-encryption` header for the lockfile. ([#2870](https://github.com/opentofu/opentofu/issues/2970))
 - A provider source address explicitly using the hostname `registry.terraform.io` will no longer cause errors related to a corresponding provider on `registry.opentofu.org` when executing workflow commands like plan and apply. ([#2979](https://github.com/opentofu/opentofu/issues/2979))
