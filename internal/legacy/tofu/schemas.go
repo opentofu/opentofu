@@ -167,6 +167,7 @@ func loadProviderSchemas(schemas map[addrs.Provider]*ProviderSchema, config *con
 				)
 			}
 		}
+		// NOTE: No ephemeral resources schema for the legacy code
 
 		schemas[fqn] = s
 
