@@ -100,6 +100,10 @@ func (h *stopHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, err
 	return h.hook()
 }
 
+func (h *stopHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, error) {
+	return h.hook()
+}
+
 func (h *stopHook) Stopping() {}
 
 func (h *stopHook) PostStateUpdate(new *states.State) (HookAction, error) {

@@ -73,10 +73,13 @@ func simpleMockProvider() *MockProvider {
 		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{Block: simpleTestSchema()},
 			ResourceTypes: map[string]providers.Schema{
-				"test_object": providers.Schema{Block: simpleTestSchema()},
+				"test_object": {Block: simpleTestSchema()},
 			},
 			DataSources: map[string]providers.Schema{
-				"test_object": providers.Schema{Block: simpleTestSchema()},
+				"test_object": {Block: simpleTestSchema()},
+			},
+			EphemeralResources: map[string]providers.Schema{
+				"test_object": {Block: simpleTestSchema()},
 			},
 		},
 	}

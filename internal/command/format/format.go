@@ -36,6 +36,7 @@ func DiffActionSymbol(action plans.Action) string {
 		return "   "
 	case plans.Forget:
 		return "  [red].[reset]"
+		// ephemeral actions like open/renew/close are not meant to be shown so let the default logic to run in case it ever happens
 	default:
 		return "  ?"
 	}
