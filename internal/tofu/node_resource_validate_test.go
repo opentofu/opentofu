@@ -274,6 +274,84 @@ func TestNodeValidatableResource_ValidateResource_managedResourceCount(t *testin
 	}
 }
 
+func TestNodeValidatableResource_ValidateResource_ephemeralResource(t *testing.T) {
+	mp := simpleMockProvider()
+
+	p := providers.Interface(mp)
+	rc := &configs.Resource{
+		Mode: addrs.EphemeralResourceMode,
+		Type: "test_object",
+		Name: "foo",
+		Config: configs.SynthBody("", map[string]cty.Value{
+			"test_string": cty.StringVal("bar"),
+			"test_number": cty.NumberIntVal(2).Mark(marks.Sensitive),
+		}),
+	}
+
+	node := NodeValidatableResource{
+		NodeAbstractResource: &NodeAbstractResource{
+			Addr:             mustConfigResourceAddr("ephemeral.test_foo.bar"),
+			Config:           rc,
+			ResolvedProvider: ResolvedProvider{ProviderConfig: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/aws"]`)},
+		},
+	}
+
+	ctx := &MockEvalContext{}
+	ctx.installSimpleEval()
+	ctx.ProviderSchemaSchema = mp.GetProviderSchema(t.Context())
+	ctx.ProviderProvider = p
+
+	t.Run("no errors", func(t *testing.T) {
+		mp.ValidateEphemeralConfigCalled = false
+		mp.ValidateEphemeralConfigFn = func(req providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+			if got, want := req.TypeName, "test_object"; got != want {
+				t.Fatalf("wrong resource type\ngot:  %#v\nwant: %#v", got, want)
+			}
+			if got, want := req.Config.GetAttr("test_string"), cty.StringVal("bar"); !got.RawEquals(want) {
+				t.Fatalf("wrong value for test_string\ngot:  %#v\nwant: %#v", got, want)
+			}
+			if got, want := req.Config.GetAttr("test_number"), cty.NumberIntVal(2); !got.RawEquals(want) {
+				t.Fatalf("wrong value for test_number\ngot:  %#v\nwant: %#v", got, want)
+			}
+			return providers.ValidateEphemeralConfigResponse{}
+		}
+		diags := node.validateResource(t.Context(), ctx)
+		if diags.HasErrors() {
+			t.Fatalf("err: %s", diags.Err())
+		}
+
+		if !mp.ValidateEphemeralConfigCalled {
+			t.Fatal("Expected ValidateEphemeralResourceConfig to be called, but it was not!")
+		}
+	})
+	t.Run("validation diagnostics returned", func(t *testing.T) {
+		mp.ValidateEphemeralConfigCalled = false
+		mp.ValidateEphemeralConfigFn = func(req providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+			return providers.ValidateEphemeralConfigResponse{
+				Diagnostics: tfdiags.Diagnostics{}.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "validation summary",
+					Detail:   "validation detail",
+				}),
+			}
+		}
+
+		diags := node.validateResource(t.Context(), ctx)
+		if !mp.ValidateEphemeralConfigCalled {
+			t.Fatal("Expected ValidateEphemeralResourceConfig to be called, but it was not!")
+		}
+		if !diags.HasErrors() {
+			t.Fatalf("expected err. Got nothing")
+		}
+		if got, want := diags[0].Description().Summary, "validation summary"; got != want {
+			t.Fatalf("expected diagnostic summary %q but got %q", want, got)
+		}
+		if got, want := diags[0].Description().Detail, "validation detail"; got != want {
+			t.Fatalf("expected diagnostic detail %q but got %q", want, got)
+		}
+	})
+}
+
 func TestNodeValidatableResource_ValidateResource_dataSource(t *testing.T) {
 	mp := simpleMockProvider()
 	mp.ValidateDataResourceConfigFn = func(req providers.ValidateDataResourceConfigRequest) providers.ValidateDataResourceConfigResponse {
