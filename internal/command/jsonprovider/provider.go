@@ -24,10 +24,11 @@ type Providers struct {
 }
 
 type Provider struct {
-	Provider          *Schema              `json:"provider,omitempty"`
-	ResourceSchemas   map[string]*Schema   `json:"resource_schemas,omitempty"`
-	DataSourceSchemas map[string]*Schema   `json:"data_source_schemas,omitempty"`
-	Functions         map[string]*Function `json:"functions,omitempty"`
+	Provider                 *Schema              `json:"provider,omitempty"`
+	ResourceSchemas          map[string]*Schema   `json:"resource_schemas,omitempty"`
+	DataSourceSchemas        map[string]*Schema   `json:"data_source_schemas,omitempty"`
+	EphemeralResourceSchemas map[string]*Schema   `json:"ephemeral_resource_schemas,omitempty"`
+	Functions                map[string]*Function `json:"functions,omitempty"`
 }
 
 func newProviders() *Providers {
@@ -59,9 +60,10 @@ func Marshal(s *tofu.Schemas) ([]byte, error) {
 
 func marshalProvider(tps providers.ProviderSchema) *Provider {
 	return &Provider{
-		Provider:          marshalSchema(tps.Provider),
-		ResourceSchemas:   marshalSchemas(tps.ResourceTypes),
-		DataSourceSchemas: marshalSchemas(tps.DataSources),
-		Functions:         marshalFunctions(tps.Functions),
+		Provider:                 marshalSchema(tps.Provider),
+		ResourceSchemas:          marshalSchemas(tps.ResourceTypes),
+		DataSourceSchemas:        marshalSchemas(tps.DataSources),
+		EphemeralResourceSchemas: marshalSchemas(tps.EphemeralResources),
+		Functions:                marshalFunctions(tps.Functions),
 	}
 }
