@@ -3053,7 +3053,6 @@ func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Contex
 		return nil, keyData, diags.Append(err)
 	}
 
-	config := *n.Config
 	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
 	if schema == nil {
 		// Should be caught during validation, so we don't bother with a pretty error here
@@ -3061,11 +3060,10 @@ func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Contex
 		return nil, keyData, diags
 	}
 
-	forEach, _ := evaluateForEachExpression(ctx, config.ForEach, evalCtx, n.Addr)
-	keyData = EvalDataForInstanceKey(n.ResourceInstanceAddr().Resource.Key, forEach)
+	keyData = evalCtx.InstanceExpander().GetResourceInstanceRepetitionData(n.ResourceInstanceAddr())
 
 	var configDiags tfdiags.Diagnostics
-	configVal, _, configDiags = evalCtx.EvaluateBlock(ctx, config.Config, schema, nil, keyData)
+	configVal, _, configDiags = evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
 	diags = diags.Append(configDiags)
 	if configDiags.HasErrors() {
 		return nil, keyData, diags
@@ -3080,7 +3078,7 @@ func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Contex
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity: hcl.DiagError,
 			Summary:  "Incomplete configuration for ephemeral resource",
-			Detail:   fmt.Sprintf("Ephemeral resource %q is having incomplete configuration.", n.Addr.String()),
+			Detail:   fmt.Sprintf("Ephemeral resource %q has incomplete configuration.", n.Addr.String()),
 			Subject:  n.Config.TypeRange.Ptr(),
 			Context:  n.Config.DeclRange.Ptr(),
 		})
@@ -3100,21 +3098,17 @@ func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Contex
 		})
 		return nil, instances.RepetitionData{}, diags
 	}
-
-	// Now we've loaded the data, and diags tells us whether we were successful
-	// or not, we are going to create our plannedChange and our
-	// proposedNewState.
-	var plannedNewState *states.ResourceInstanceObject
-
 	diags = diags.Append(readDiags)
-	if !diags.HasErrors() {
-		// Finally, let's make our new state.
-		plannedNewState = &states.ResourceInstanceObject{
-			Value:  newVal,
-			Status: states.ObjectReady,
-			// Private field ignored intentionally since this is handled internally by
-			// the goroutine that is handling the renewal of the ephemeral resource.
-		}
+	if diags.HasErrors() {
+		return nil, keyData, diags
+	}
+	// Now that we've loaded the data, and diags contain no error,
+	// we are going to create our proposedNewState.
+	plannedNewState := &states.ResourceInstanceObject{
+		Value:  newVal,
+		Status: states.ObjectReady,
+		// Private field ignored intentionally since this is handled internally by
+		// the goroutine that is handling the renewal of the ephemeral resource.
 	}
 
 	return plannedNewState, keyData, diags
