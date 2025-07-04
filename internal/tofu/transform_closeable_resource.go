@@ -13,8 +13,8 @@ import (
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
-// resourceCloser is the definition of the function that needs to exist on the node that wants to release resources related to the
-// resource type.
+// resourceCloser is the definition of the function that needs to exist on the node that wants to release external
+// resources before exit of the OpenTofu process.
 type resourceCloser func() tfdiags.Diagnostics
 
 // closableResource needs to be implemented by whatever resource wants to be closed before closing the associated
@@ -36,59 +36,82 @@ func (t *CloseableResourceTransformer) Transform(_ context.Context, g *Graph) er
 	if t.skip {
 		return nil
 	}
-	pm := closeableResourcesVertexMap(g)
-	cpm := make(map[string]*nodeCloseableResource)
+	closeableVertices := closeableResourcesVertexMap(g)
+	cpm := make(map[string]struct{})
 
-	for _, rn := range pm {
-		key := rn.ResourceAddr().String()
-
+	for key, instances := range closeableVertices {
 		// check if we already generated a closing node for that particular resource
-		ncr := cpm[key]
+		_, exists := cpm[key]
+		if exists {
+			continue
+		}
 
-		if ncr == nil {
-			// if we don't have yet a node for closing the resource, create one and link the closing function
-			// into the callback of the node.
-			ncr = &nodeCloseableResource{
-				Addr: rn.ResourceAddr(),
-				cb:   rn.Close,
+		// gather the references for the closing function from all existing instances of the resource
+		var callbacks []resourceCloser
+		var addr addrs.ConfigResource
+		var allDeps []dag.Vertex
+		for _, inst := range instances {
+			deps, err := t.collectInstanceDependencies(g, inst)
+			if err != nil {
+				return err
 			}
-			g.Add(ncr)
-			cpm[key] = ncr
+			// collect all vertices inst is linked to
+			allDeps = append(allDeps, deps...)
+			// and collect inst as a dependency too, later it will be linked to the node responsible with closing it
+			allDeps = append(allDeps, inst)
+			callbacks = append(callbacks, inst.Close)
+			// Should be the same for all the instances since closeableResourcesVertexMap is generating the key
+			// based on each vertex addr. Therefore, no issue here on overwriting it on each iteration.
+			addr = inst.ResourceAddr()
 		}
-
-		// Close node depends on the resource itself
-		g.Connect(dag.BasicEdge(ncr, rn))
-
-		// We need to create a dependency between the closing node and the provider of the resource that we are closing.
-		// This is needed to ensure that the closing node will be added as a dependency later to the closing
-		// node of the provider.
-		for _, dn := range g.DownEdges(rn) {
-			switch dn.(type) {
-			case GraphNodeProvider:
-				g.Connect(dag.BasicEdge(ncr, dn))
-			}
-
+		// we postponed creation of the node and its addition to the graph, just to ensure that we are having all the
+		// required information prepared without errors before adding this node into the graph.
+		ncr := &nodeCloseableResource{
+			Addr: addr,
+			cbs:  callbacks,
 		}
-
-		// connect all the resource's dependencies to the close node to ensure that we are not executing the closing of the
-		// resource before having all the other references satisfied
-		desc, err := g.Descendents(rn)
-		if err != nil {
-			return err
+		g.Add(ncr)
+		for _, dep := range allDeps {
+			g.Connect(dag.BasicEdge(ncr, dep))
 		}
-		for _, s := range desc {
-			switch s.(type) {
-			case GraphNodeReferencer:
-				g.Connect(dag.BasicEdge(ncr, s))
-			}
-		}
+		cpm[key] = struct{}{}
 	}
 	return nil
 }
 
+func (t *CloseableResourceTransformer) collectInstanceDependencies(g *Graph, inst closableResource) ([]dag.Vertex, error) {
+	var deps []dag.Vertex
+	// We need to create a dependency between the closing node and the provider of the resource that we are closing.
+	// This is needed to ensure that the closing node will be added as a dependency later to the closing
+	// node of the provider.
+	for _, dn := range g.DownEdges(inst) {
+		switch dn.(type) {
+		case GraphNodeProvider:
+			deps = append(deps, dn)
+			//g.Connect(dag.BasicEdge(ncr, dn))
+		}
+
+	}
+
+	// connect all the resource's dependencies to the close node to ensure that we are not executing the closing of the
+	// resource before having all the other references satisfied
+	desc, err := g.Descendents(inst)
+	if err != nil {
+		return nil, err
+	}
+	for _, s := range desc {
+		switch s.(type) {
+		case GraphNodeReferencer:
+			deps = append(deps, s)
+			//g.Connect(dag.BasicEdge(ncr, s))
+		}
+	}
+	return deps, nil
+}
+
 // closeableResourcesVertexMap collects the vertices that are closableResource and represent an addrs.EphemeralResourceMode.
-func closeableResourcesVertexMap(g *Graph) map[string]closableResource {
-	m := make(map[string]closableResource)
+func closeableResourcesVertexMap(g *Graph) map[string][]closableResource {
+	m := make(map[string][]closableResource)
 	for _, v := range g.Vertices() {
 		if n, ok := v.(closableResource); ok {
 			addr := n.ResourceAddr()
@@ -96,7 +119,8 @@ func closeableResourcesVertexMap(g *Graph) map[string]closableResource {
 			if addr.Resource.Mode != addrs.EphemeralResourceMode {
 				continue
 			}
-			m[addr.String()] = n
+			l := m[addr.String()]
+			m[addr.String()] = append(l, n)
 		}
 	}
 	return m

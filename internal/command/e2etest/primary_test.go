@@ -259,7 +259,45 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 
 	skipIfCannotAccessNetwork(t)
 	pluginVersionRunner := func(t *testing.T, testdataPath string, providerBuilderFunc func(*testing.T, string)) {
-		assertOutputContent := func(stdout, stderr string, expectedChangesOutput string, expectedResourcesUpdates map[string]bool) {
+		tf := e2e.NewBinary(t, tofuBin, testdataPath)
+		providerBuilderFunc(t, tf.WorkDir())
+
+		{ //// INIT
+			_, stderr, err := tf.Run("init", "-plugin-dir=cache")
+			if err != nil {
+				t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
+			}
+		}
+
+		{ //// PLAN
+			stdout, stderr, err := tf.Run("plan", "-out=tfplan")
+			if err != nil {
+				t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
+			}
+			expectedChangesOutput := `OpenTofu used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+OpenTofu will perform the following actions:
+
+  # simple_resource.test_res will be created
+  + resource "simple_resource" "test_res" {
+      + value = "initial data value-with-renew"
+    }
+
+Plan: 1 to add, 0 to change, 0 to destroy.
+`
+			// [0-2]+ allows max 2 seconds for slower runs inside CI pipelines
+			expectedResourcesUpdates := map[string]bool{
+				"data.simple_resource.test_data1: Reading...":                                                               true,
+				"data.simple_resource.test_data1: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Opening...":                                               true,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
+				"data.simple_resource.test_data2: Reading...":                                                               true,
+				"data.simple_resource.test_data2: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Closing...":                                               true,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Close complete after [0-2]+s":                             true,
+			}
 			out := stripAnsi(stdout)
 
 			if !strings.Contains(out, expectedChangesOutput) {
@@ -278,48 +316,7 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 					}
 				}
 			}
-		}
 
-		tf := e2e.NewBinary(t, tofuBin, testdataPath)
-		providerBuilderFunc(t, tf.WorkDir())
-
-		{ //// INIT
-			_, stderr, err := tf.Run("init", "-plugin-dir=cache")
-			if err != nil {
-				t.Fatalf("unexpected init error: %s\nstderr:\n%s", err, stderr)
-			}
-		}
-
-		{ //// PLAN
-			stdout, stderr, err := tf.Run("plan", "-out=tfplan")
-			if err != nil {
-				t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
-			}
-			expectedChangesOut := `OpenTofu used the selected providers to generate the following execution
-plan. Resource actions are indicated with the following symbols:
-  + create
-
-OpenTofu will perform the following actions:
-
-  # simple_resource.test_res will be created
-  + resource "simple_resource" "test_res" {
-      + value = "initial data value-with-renew"
-    }
-
-Plan: 1 to add, 0 to change, 0 to destroy.
-`
-			// [0-2]+ allows max 2 seconds for slower runs inside CI pipelines
-			expectedResUpdates := map[string]bool{
-				"data.simple_resource.test_data1: Reading...":                                                        true,
-				"data.simple_resource.test_data1: Read complete after [0-2]+s \\[id=static_id\\]":                    true,
-				"ephemeral.simple_resource.test_ephemeral: Opening...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
-				"data.simple_resource.test_data2: Reading...":                                                        true,
-				"data.simple_resource.test_data2: Read complete after [0-2]+s \\[id=static_id\\]":                    true,
-				"ephemeral.simple_resource.test_ephemeral: Closing...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral: Close complete after [0-2]+s":                             true,
-			}
-			assertOutputContent(stdout, stderr, expectedChangesOut, expectedResUpdates)
 			// assert plan file content
 			plan, err := tf.Plan("tfplan")
 			if err != nil {
@@ -365,21 +362,44 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 				}
 			}
 
-			expectedChangesOut := `Apply complete! Resources: 1 added, 0 changed, 0 destroyed.`
+			expectedChangesOutput := `Apply complete! Resources: 1 added, 0 changed, 0 destroyed.`
 			// NOTE: [0-2]+ allows max 2 seconds for slower runs inside CI pipelines
 			// NOTE: the non-required ones are dependent on performance of the platform that this test is running on.
 			// In CI, if we would make this required, this test might be flaky.
-			expectedResUpdates := map[string]bool{
-				"ephemeral.simple_resource.test_ephemeral: Opening...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
-				"simple_resource.test_res: Creating...":                                                              true,
-				"ephemeral.simple_resource.test_ephemeral: Renewing...":                                              false,
-				"ephemeral.simple_resource.test_ephemeral: Renew complete after [0-2]+s":                             false,
-				"simple_resource.test_res: Creation complete after [0-3]+s":                                          true,
-				"ephemeral.simple_resource.test_ephemeral: Closing...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral: Close complete after [0-2]+s":                             true,
+			expectedResourcesUpdates := map[string]bool{
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Opening...":                                               true,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Opening...":                                               true,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
+				"simple_resource.test_res: Creating...":                                                                     true,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renewing...":                                              false,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renew complete after [0-2]+s":                             false,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renewing...":                                              false,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renew complete after [0-2]+s":                             false,
+				"simple_resource.test_res: Creation complete after [0-3]+s":                                                 true,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Closing...":                                               true,
+				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Close complete after [0-2]+s":                             true,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Closing...":                                               true,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Close complete after [0-2]+s":                             true,
 			}
-			assertOutputContent(stdout, stderr, expectedChangesOut, expectedResUpdates)
+			out := stripAnsi(stdout)
+
+			if !strings.Contains(out, expectedChangesOutput) {
+				t.Errorf("wrong output:\nstdout:%s\nstderr%s", stdout, stderr)
+			}
+
+			for reg, required := range expectedResourcesUpdates {
+				r := regexp.MustCompile(reg)
+				if !r.Match([]byte(out)) {
+					if required {
+						t.Errorf("output does not contain required content %q\nout:%s", reg, out)
+					} else {
+						// We don't want to fail the test for outputs that are performance and time dependent
+						// as the renew status updates
+						t.Logf("output does not contain %q\nout:%s", reg, out)
+					}
+				}
+			}
 		}
 		{ //// DESTROY
 			stdout, stderr, err := tf.Run("destroy", "-auto-approve")

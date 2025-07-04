@@ -20,7 +20,7 @@ type GraphNodeCloseableResource interface {
 // This is done this way strictly because all the information that it's needed to successfully handle ephemeral
 // resources closing is in the node type that also opens it.
 type nodeCloseableResource struct {
-	cb   resourceCloser
+	cbs  []resourceCloser
 	Addr addrs.ConfigResource
 }
 
@@ -32,8 +32,11 @@ func (n *nodeCloseableResource) Name() string {
 	return n.Addr.String() + " (close)"
 }
 
-func (n *nodeCloseableResource) Execute(_ context.Context, _ EvalContext, _ walkOperation) tfdiags.Diagnostics {
-	return n.cb()
+func (n *nodeCloseableResource) Execute(_ context.Context, _ EvalContext, _ walkOperation) (diags tfdiags.Diagnostics) {
+	for _, cb := range n.cbs {
+		diags = diags.Append(cb())
+	}
+	return diags
 }
 
 func (n *nodeCloseableResource) closeableSigil() {
