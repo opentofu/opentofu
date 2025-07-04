@@ -14,6 +14,7 @@ data "simple_resource" "test_data1" {
 }
 
 ephemeral "simple_resource" "test_ephemeral" {
+  count = 2
   provider = simple5
   value = "${data.simple_resource.test_data1.value}-with-renew"
 }
@@ -23,13 +24,13 @@ resource "simple_resource" "test_res" {
   // NOTE this is wrongly configured on purpose to force a revisit of the test once ephemeral marks are implemented.
   // Once write only arguments are also implemented, adjust the implementation of the provider to support that too
   // and use that new field instead.
-  value = ephemeral.simple_resource.test_ephemeral.value
+  value = ephemeral.simple_resource.test_ephemeral[0].value
 }
 
 data "simple_resource" "test_data2" {
   provider = simple5
   // NOTE this is wrongly configured on purpose to force a revisit of the test once ephemeral marks are implemented
-  value = ephemeral.simple_resource.test_ephemeral.value
+  value = ephemeral.simple_resource.test_ephemeral[0].value
 }
 
 locals{
