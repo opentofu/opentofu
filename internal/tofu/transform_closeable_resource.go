@@ -79,22 +79,24 @@ func (t *CloseableResourceTransformer) Transform(_ context.Context, g *Graph) er
 	return nil
 }
 
+// collectInstanceDependencies gathers all dependencies of the given node for being linked to the closing node of inst.
+//
+// To do so, we need to gather two types of dependencies:
+//   - we need to gather all the provider node of inst. This is needed to ensure that the resource closing
+//     node will be added as a dependency later to the closing node of the provider, to force the right
+//     order of nodes execution.
+//   - gather all the nodes dependent on inst to ensure that we are not executing the closing of the
+//     resource before having all the other references satisfied.
 func (t *CloseableResourceTransformer) collectInstanceDependencies(g *Graph, inst closableResource) ([]dag.Vertex, error) {
 	var deps []dag.Vertex
-	// We need to create a dependency between the closing node and the provider of the resource that we are closing.
-	// This is needed to ensure that the closing node will be added as a dependency later to the closing
-	// node of the provider.
+
 	for _, dn := range g.DownEdges(inst) {
 		switch dn.(type) {
 		case GraphNodeProvider:
 			deps = append(deps, dn)
-			//g.Connect(dag.BasicEdge(ncr, dn))
 		}
-
 	}
 
-	// connect all the resource's dependencies to the close node to ensure that we are not executing the closing of the
-	// resource before having all the other references satisfied
 	desc, err := g.Descendents(inst)
 	if err != nil {
 		return nil, err
@@ -103,9 +105,9 @@ func (t *CloseableResourceTransformer) collectInstanceDependencies(g *Graph, ins
 		switch s.(type) {
 		case GraphNodeReferencer:
 			deps = append(deps, s)
-			//g.Connect(dag.BasicEdge(ncr, s))
 		}
 	}
+
 	return deps, nil
 }
 
