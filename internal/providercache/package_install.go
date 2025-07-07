@@ -103,8 +103,8 @@ func installFromHTTPURL(ctx context.Context, meta getproviders.PackageMeta, targ
 	if err != nil {
 		return nil, fmt.Errorf("failed to open temporary file to download from %s: %w", url, err)
 	}
-	defer f.Close()
 	defer os.Remove(f.Name())
+	defer f.Close()
 
 	// We'll borrow go-getter's "cancelable copy" implementation here so that
 	// the download can potentially be interrupted partway through.
