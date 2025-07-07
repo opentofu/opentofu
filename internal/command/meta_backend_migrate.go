@@ -270,7 +270,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateSingleLoadDefault), opts.SourceType, err)
 	}
-	if err := sourceState.RefreshState(); err != nil {
+	if err := sourceState.RefreshState(context.TODO()); err != nil {
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateSingleLoadDefault), opts.SourceType, err)
 	}
@@ -318,7 +318,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateSingleLoadDefault), opts.DestinationType, err)
 	}
-	if err := destinationState.RefreshState(); err != nil {
+	if err := destinationState.RefreshState(context.TODO()); err != nil {
 		return fmt.Errorf(strings.TrimSpace(
 			errMigrateSingleLoadDefault), opts.DestinationType, err)
 	}
@@ -371,12 +371,12 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 		// We now own a lock, so double check that we have the version
 		// corresponding to the lock.
 		log.Print("[TRACE] backendMigrateState: refreshing source workspace state")
-		if err := sourceState.RefreshState(); err != nil {
+		if err := sourceState.RefreshState(context.TODO()); err != nil {
 			return fmt.Errorf(strings.TrimSpace(
 				errMigrateSingleLoadDefault), opts.SourceType, err)
 		}
 		log.Print("[TRACE] backendMigrateState: refreshing destination workspace state")
-		if err := destinationState.RefreshState(); err != nil {
+		if err := destinationState.RefreshState(context.TODO()); err != nil {
 			return fmt.Errorf(strings.TrimSpace(
 				errMigrateSingleLoadDefault), opts.SourceType, err)
 		}
@@ -455,7 +455,7 @@ func (m *Meta) backendMigrateState_s_s(ctx context.Context, opts *backendMigrate
 	// so requiring schemas here could lead to a catch-22 where it requires some manual
 	// intervention to proceed far enough for provider installation. To avoid this,
 	// when migrating to TFC backend, the initial JSON variant of state won't be generated and stored.
-	if err := destinationState.PersistState(nil); err != nil {
+	if err := destinationState.PersistState(context.TODO(), nil); err != nil {
 		return fmt.Errorf(strings.TrimSpace(errBackendStateCopy),
 			opts.SourceType, opts.DestinationType, err)
 	}
@@ -500,7 +500,7 @@ func (m *Meta) backendMigrateNonEmptyConfirm(
 
 	// Helper to write the state
 	saveHelper := func(n, path string, s *states.State) error {
-		return statemgr.WriteAndPersist(statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil)
+		return statemgr.WriteAndPersist(context.TODO(), statemgr.NewFilesystem(path, encryption.StateEncryptionDisabled()), s, nil)
 	}
 
 	// Write the states
@@ -602,7 +602,7 @@ func (m *Meta) backendMigrateTFC(ctx context.Context, opts *backendMigrateOpts) 
 		if err != nil {
 			return err
 		}
-		if err := sourceState.RefreshState(); err != nil {
+		if err := sourceState.RefreshState(context.TODO()); err != nil {
 			return err
 		}
 		if sourceState.State().Empty() {
@@ -690,7 +690,7 @@ func (m *Meta) backendMigrateState_S_TFC(ctx context.Context, opts *backendMigra
 					errMigrateSingleLoadDefault), opts.SourceType, err)
 			}
 			// RefreshState is what actually pulls the state to be evaluated.
-			if err := sourceState.RefreshState(); err != nil {
+			if err := sourceState.RefreshState(context.TODO()); err != nil {
 				return fmt.Errorf(strings.TrimSpace(
 					errMigrateSingleLoadDefault), opts.SourceType, err)
 			}

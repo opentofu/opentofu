@@ -112,7 +112,7 @@ func TestRemote_applyBasic(t *testing.T) {
 
 	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
 	}
 }
@@ -140,7 +140,7 @@ func TestRemote_applyCanceled(t *testing.T) {
 	}
 
 	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after cancelling apply: %s", err.Error())
 	}
 }
@@ -488,7 +488,7 @@ func TestRemote_applyWithExclude(t *testing.T) {
 
 	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
 	}
 }
@@ -654,7 +654,7 @@ func TestRemote_applyNoConfig(t *testing.T) {
 
 	stateMgr, _ := b.StateMgr(t.Context(), backend.DefaultStateName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after failed apply: %s", err.Error())
 	}
 }

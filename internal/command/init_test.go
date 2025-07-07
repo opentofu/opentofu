@@ -1257,7 +1257,7 @@ func TestInit_inputFalse(t *testing.T) {
 			"",
 		)
 	})
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("foo", encryption.StateEncryptionDisabled()), fooState, nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem("foo", encryption.StateEncryptionDisabled()), fooState, nil); err != nil {
 		t.Fatal(err)
 	}
 	barState := states.BuildState(func(s *states.SyncState) {
@@ -1268,7 +1268,7 @@ func TestInit_inputFalse(t *testing.T) {
 			"",
 		)
 	})
-	if err := statemgr.WriteAndPersist(statemgr.NewFilesystem("bar", encryption.StateEncryptionDisabled()), barState, nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem("bar", encryption.StateEncryptionDisabled()), barState, nil); err != nil {
 		t.Fatal(err)
 	}
 

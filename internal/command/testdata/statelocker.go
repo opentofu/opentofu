@@ -4,6 +4,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"log"
 	"os"
@@ -28,7 +29,7 @@ func main() {
 	info.Operation = "test"
 	info.Info = "state locker"
 
-	lockID, err := s.Lock(info)
+	lockID, err := s.Lock(context.Background(), info)
 	if err != nil {
 		io.WriteString(os.Stderr, err.Error())
 		return
@@ -38,7 +39,7 @@ func main() {
 	io.WriteString(os.Stdout, "LOCKID "+lockID)
 
 	defer func() {
-		if err := s.Unlock(lockID); err != nil {
+		if err := s.Unlock(context.Background(), lockID); err != nil {
 			io.WriteString(os.Stderr, err.Error())
 		}
 	}()

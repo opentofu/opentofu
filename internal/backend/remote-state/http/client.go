@@ -7,6 +7,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/json"
@@ -43,7 +44,7 @@ type httpClient struct {
 	jsonLockInfo []byte
 }
 
-func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what string) (*http.Response, error) {
+func (c *httpClient) httpRequest(ctx context.Context, method string, url *url.URL, data []byte, what string) (*http.Response, error) {
 	var body interface{}
 	if len(data) > 0 {
 		body = data
@@ -52,7 +53,7 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what 
 	log.Printf("[DEBUG] Executing HTTP remote state request for: %q", what)
 
 	// Create the request
-	req, err := retryablehttp.NewRequest(method, url.String(), body)
+	req, err := retryablehttp.NewRequestWithContext(ctx, method, url.String(), body)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to make %s HTTP request: %w", what, err)
 	}
@@ -89,14 +90,14 @@ func (c *httpClient) httpRequest(method string, url *url.URL, data []byte, what 
 	return resp, nil
 }
 
-func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *httpClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	if c.LockURL == nil {
 		return "", nil
 	}
 	c.lockID = ""
 
 	jsonLockInfo := info.Marshal()
-	resp, err := c.httpRequest(c.LockMethod, c.LockURL, jsonLockInfo, "lock")
+	resp, err := c.httpRequest(ctx, c.LockMethod, c.LockURL, jsonLockInfo, "lock")
 	if err != nil {
 		return "", err
 	}
@@ -139,7 +140,7 @@ func (c *httpClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 }
 
-func (c *httpClient) Unlock(id string) error {
+func (c *httpClient) Unlock(ctx context.Context, id string) error {
 	if c.UnlockURL == nil {
 		return nil
 	}
@@ -162,7 +163,7 @@ func (c *httpClient) Unlock(id string) error {
 
 	lockInfo.ID = id
 
-	resp, err := c.httpRequest(c.UnlockMethod, c.UnlockURL, lockInfo.Marshal(), "unlock")
+	resp, err := c.httpRequest(ctx, c.UnlockMethod, c.UnlockURL, lockInfo.Marshal(), "unlock")
 	if err != nil {
 		return err
 	}
@@ -177,8 +178,8 @@ func (c *httpClient) Unlock(id string) error {
 	}
 }
 
-func (c *httpClient) Get() (*remote.Payload, error) {
-	resp, err := c.httpRequest(http.MethodGet, c.URL, nil, "get state")
+func (c *httpClient) Get(ctx context.Context) (*remote.Payload, error) {
+	resp, err := c.httpRequest(ctx, http.MethodGet, c.URL, nil, "get state")
 	if err != nil {
 		return nil, err
 	}
@@ -240,7 +241,7 @@ func (c *httpClient) Get() (*remote.Payload, error) {
 	return payload, nil
 }
 
-func (c *httpClient) Put(data []byte) error {
+func (c *httpClient) Put(ctx context.Context, data []byte) error {
 	// Copy the target URL
 	base := *c.URL
 
@@ -263,7 +264,7 @@ func (c *httpClient) Put(data []byte) error {
 	if c.UpdateMethod != "" {
 		method = c.UpdateMethod
 	}
-	resp, err := c.httpRequest(method, &base, data, "upload state")
+	resp, err := c.httpRequest(ctx, method, &base, data, "upload state")
 	if err != nil {
 		return err
 	}
@@ -279,9 +280,9 @@ func (c *httpClient) Put(data []byte) error {
 	}
 }
 
-func (c *httpClient) Delete() error {
+func (c *httpClient) Delete(ctx context.Context) error {
 	// Make the request
-	resp, err := c.httpRequest(http.MethodDelete, c.URL, nil, "delete state")
+	resp, err := c.httpRequest(ctx, http.MethodDelete, c.URL, nil, "delete state")
 	if err != nil {
 		return err
 	}

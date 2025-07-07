@@ -47,7 +47,7 @@ func TestNewLockInfo(t *testing.T) {
 func TestLockWithContext(t *testing.T) {
 	s := NewFullFake(nil, TestFullInitialState())
 
-	id, err := s.Lock(NewLockInfo())
+	id, err := s.Lock(t.Context(), NewLockInfo())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,7 +76,7 @@ func TestLockWithContext(t *testing.T) {
 	go func() {
 		defer close(unlocked)
 		<-attempted
-		unlockErr = s.Unlock(id)
+		unlockErr = s.Unlock(t.Context(), id)
 	}()
 
 	ctx, cancel = context.WithTimeout(context.Background(), 2*time.Second)

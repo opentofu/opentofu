@@ -28,11 +28,11 @@ const (
 
 // Workspaces returns a list of names for the workspaces found on GCS. The default
 // state is always returned as the first element in the slice.
-func (b *Backend) Workspaces(context.Context) ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	states := []string{backend.DefaultStateName}
 
 	bucket := b.storageClient.Bucket(b.bucketName)
-	objs := bucket.Objects(b.storageContext, &storage.Query{
+	objs := bucket.Objects(ctx, &storage.Query{
 		Delimiter: "/",
 		Prefix:    b.prefix,
 	})
@@ -61,7 +61,7 @@ func (b *Backend) Workspaces(context.Context) ([]string, error) {
 }
 
 // DeleteWorkspace deletes the named workspaces. The "default" state cannot be deleted.
-func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName {
 		return fmt.Errorf("cowardly refusing to delete the %q state", name)
 	}
@@ -71,7 +71,7 @@ func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error 
 		return err
 	}
 
-	return c.Delete()
+	return c.Delete(ctx)
 }
 
 // client returns a remoteClient for the named state.
@@ -81,19 +81,18 @@ func (b *Backend) client(name string) (*remoteClient, error) {
 	}
 
 	return &remoteClient{
-		storageContext: b.storageContext,
-		storageClient:  b.storageClient,
-		bucketName:     b.bucketName,
-		stateFilePath:  b.stateFile(name),
-		lockFilePath:   b.lockFile(name),
-		encryptionKey:  b.encryptionKey,
-		kmsKeyName:     b.kmsKeyName,
+		storageClient: b.storageClient,
+		bucketName:    b.bucketName,
+		stateFilePath: b.stateFile(name),
+		lockFilePath:  b.lockFile(name),
+		encryptionKey: b.encryptionKey,
+		kmsKeyName:    b.kmsKeyName,
 	}, nil
 }
 
 // StateMgr reads and returns the named state from GCS. If the named state does
 // not yet exist, a new state file is created.
-func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error) {
+func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, error) {
 	c, err := b.client(name)
 	if err != nil {
 		return nil, err
@@ -102,7 +101,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 	st := remote.NewState(c, b.encryption)
 
 	// Grab the value
-	if err := st.RefreshState(); err != nil {
+	if err := st.RefreshState(ctx); err != nil {
 		return nil, err
 	}
 
@@ -111,14 +110,14 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := st.Lock(lockInfo)
+		lockID, err := st.Lock(ctx, lockInfo)
 		if err != nil {
 			return nil, err
 		}
 
 		// Local helper function so we can call it multiple places
 		unlock := func(baseErr error) error {
-			if err := st.Unlock(lockID); err != nil {
+			if err := st.Unlock(ctx, lockID); err != nil {
 				const unlockErrMsg = `%v
 				Additionally, unlocking the state file on Google Cloud Storage failed:
 
@@ -138,7 +137,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 		if err := st.WriteState(states.NewState()); err != nil {
 			return nil, unlock(err)
 		}
-		if err := st.PersistState(nil); err != nil {
+		if err := st.PersistState(ctx, nil); err != nil {
 			return nil, unlock(err)
 		}
 

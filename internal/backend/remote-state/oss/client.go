@@ -7,6 +7,7 @@ package oss
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -55,7 +56,7 @@ type RemoteClient struct {
 	otsTable             string
 }
 
-func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
+func (c *RemoteClient) Get(_ context.Context) (payload *remote.Payload, err error) {
 	deadline := time.Now().Add(consistencyRetryTimeout)
 
 	// If we have a checksum, and the returned payload doesn't match, we retry
@@ -98,7 +99,7 @@ func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
 	return payload, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	bucket, err := c.ossClient.Bucket(c.bucketName)
 	if err != nil {
 		return fmt.Errorf("error getting bucket: %w", err)
@@ -131,7 +132,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *RemoteClient) Delete() error {
+func (c *RemoteClient) Delete(_ context.Context) error {
 	bucket, err := c.ossClient.Bucket(c.bucketName)
 	if err != nil {
 		return fmt.Errorf("error getting bucket %s: %w", c.bucketName, err)
@@ -149,7 +150,7 @@ func (c *RemoteClient) Delete() error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	if c.otsTable == "" {
 		return "", nil
 	}
@@ -360,7 +361,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	}
 	return lockInfo, nil
 }
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(_ context.Context, id string) error {
 	if c.otsTable == "" {
 		return nil
 	}

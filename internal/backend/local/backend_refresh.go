@@ -119,7 +119,7 @@ func (b *Local) opRefresh(
 		return
 	}
 
-	err := statemgr.WriteAndPersist(opState, newState, schemas)
+	err := statemgr.WriteAndPersist(context.TODO(), opState, newState, schemas)
 	if err != nil {
 		diags = diags.Append(fmt.Errorf("failed to write state: %w", err))
 		op.ReportResult(runningOp, diags)

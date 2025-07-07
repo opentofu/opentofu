@@ -45,7 +45,7 @@ func TestState_GetRootOutputValues(t *testing.T) {
 	state := &State{tfeClient: b.client, organization: b.organization, workspace: &tfe.Workspace{
 		ID: "ws-abcd",
 	}, encryption: encryption.StateEncryptionDisabled()}
-	outputs, err := state.GetRootOutputValues()
+	outputs, err := state.GetRootOutputValues(t.Context())
 
 	if err != nil {
 		t.Fatalf("error returned from GetRootOutputValues: %s", err)
@@ -119,7 +119,7 @@ func TestState(t *testing.T) {
 	}
 }`)
 
-	if err := state.uploadState(state.lineage, state.serial, state.forcePush, data, jsonState, jsonStateOutputs); err != nil {
+	if err := state.uploadState(t.Context(), state.lineage, state.serial, state.forcePush, data, jsonState, jsonStateOutputs); err != nil {
 		t.Fatalf("put: %s", err)
 	}
 
@@ -175,25 +175,25 @@ func TestCloudLocks(t *testing.T) {
 	infoB.Operation = "test"
 	infoB.Who = "clientB"
 
-	lockIDA, err := lockerA.Lock(infoA)
+	lockIDA, err := lockerA.Lock(t.Context(), infoA)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
-	_, err = lockerB.Lock(infoB)
+	_, err = lockerB.Lock(t.Context(), infoB)
 	if err == nil {
-		_ = lockerA.Unlock(lockIDA) // test already failed, no need to check err further
+		_ = lockerA.Unlock(t.Context(), lockIDA) // test already failed, no need to check err further
 		t.Fatal("client B obtained lock while held by client A")
 	}
 	if _, ok := err.(*statemgr.LockError); !ok {
 		t.Errorf("expected a LockError, but was %t: %s", err, err)
 	}
 
-	if err := lockerA.Unlock(lockIDA); err != nil {
+	if err := lockerA.Unlock(t.Context(), lockIDA); err != nil {
 		t.Fatal("error unlocking client A", err)
 	}
 
-	lockIDB, err := lockerB.Lock(infoB)
+	lockIDB, err := lockerB.Lock(t.Context(), infoB)
 	if err != nil {
 		t.Fatal("unable to obtain lock from client B")
 	}
@@ -202,7 +202,7 @@ func TestCloudLocks(t *testing.T) {
 		t.Fatalf("duplicate lock IDs: %q", lockIDB)
 	}
 
-	if err = lockerB.Unlock(lockIDB); err != nil {
+	if err = lockerB.Unlock(t.Context(), lockIDB); err != nil {
 		t.Fatal("error unlocking client B:", err)
 	}
 }
@@ -271,7 +271,7 @@ func TestState_PersistState(t *testing.T) {
 			t.Fatal("expected nil initial readState")
 		}
 
-		err := cloudState.PersistState(nil)
+		err := cloudState.PersistState(t.Context(), nil)
 		if err != nil {
 			t.Fatalf("expected no error, got %q", err)
 		}
@@ -331,7 +331,7 @@ func TestState_PersistState(t *testing.T) {
 			}
 			cloudState.tfeClient = client
 
-			err = cloudState.RefreshState()
+			err = cloudState.RefreshState(t.Context())
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -345,7 +345,7 @@ func TestState_PersistState(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			err = cloudState.PersistState(nil)
+			err = cloudState.PersistState(t.Context(), nil)
 			if err != nil {
 				t.Fatal(err)
 			}

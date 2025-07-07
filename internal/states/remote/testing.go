@@ -25,11 +25,11 @@ func TestClient(t *testing.T, c Client) {
 	}
 	data := buf.Bytes()
 
-	if err := c.Put(data); err != nil {
+	if err := c.Put(t.Context(), data); err != nil {
 		t.Fatalf("put: %s", err)
 	}
 
-	p, err := c.Get()
+	p, err := c.Get(t.Context())
 	if err != nil {
 		t.Fatalf("get: %s", err)
 	}
@@ -37,11 +37,11 @@ func TestClient(t *testing.T, c Client) {
 		t.Fatalf("expected full state %q\n\ngot: %q", string(p.Data), string(data))
 	}
 
-	if err := c.Delete(); err != nil {
+	if err := c.Delete(t.Context()); err != nil {
 		t.Fatalf("delete: %s", err)
 	}
 
-	p, err = c.Get()
+	p, err = c.Get(t.Context())
 	if err != nil {
 		t.Fatalf("get: %s", err)
 	}
@@ -73,14 +73,14 @@ func TestRemoteLocks(t *testing.T, a, b Client) {
 	infoB.Operation = "test"
 	infoB.Who = "clientB"
 
-	lockIDA, err := lockerA.Lock(infoA)
+	lockIDA, err := lockerA.Lock(t.Context(), infoA)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
 
-	_, err = lockerB.Lock(infoB)
+	_, err = lockerB.Lock(t.Context(), infoB)
 	if err == nil {
-		if err := lockerA.Unlock(lockIDA); err != nil {
+		if err := lockerA.Unlock(t.Context(), lockIDA); err != nil {
 			t.Error(err)
 		}
 		t.Fatal("client B obtained lock while held by client A")
@@ -89,11 +89,11 @@ func TestRemoteLocks(t *testing.T, a, b Client) {
 		t.Errorf("expected a LockError, but was %t: %s", err, err)
 	}
 
-	if err := lockerA.Unlock(lockIDA); err != nil {
+	if err := lockerA.Unlock(t.Context(), lockIDA); err != nil {
 		t.Fatal("error unlocking client A", err)
 	}
 
-	lockIDB, err := lockerB.Lock(infoB)
+	lockIDB, err := lockerB.Lock(t.Context(), infoB)
 	if err != nil {
 		t.Fatal("unable to obtain lock from client B")
 	}
@@ -102,7 +102,7 @@ func TestRemoteLocks(t *testing.T, a, b Client) {
 		t.Fatalf("duplicate lock IDs: %q", lockIDB)
 	}
 
-	if err = lockerB.Unlock(lockIDB); err != nil {
+	if err = lockerB.Unlock(t.Context(), lockIDB); err != nil {
 		t.Fatal("error unlocking client B:", err)
 	}
 

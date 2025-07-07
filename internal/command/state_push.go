@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -128,7 +129,7 @@ func (c *StatePushCommand) Run(args []string) int {
 		}()
 	}
 
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to refresh destination state: %s", err))
 		return 1
 	}
@@ -155,7 +156,7 @@ func (c *StatePushCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf("Failed to write state: %s", err))
 		return 1
 	}
-	if err := stateMgr.PersistState(schemas); err != nil {
+	if err := stateMgr.PersistState(context.TODO(), schemas); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to persist state: %s", err))
 		return 1
 	}

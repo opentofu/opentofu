@@ -103,7 +103,7 @@ func (c *OutputCommand) Outputs(ctx context.Context, statePath string, enc encry
 		return nil, diags
 	}
 
-	output, err := stateStore.GetRootOutputValues()
+	output, err := stateStore.GetRootOutputValues(context.TODO())
 	if err != nil {
 		return nil, diags.Append(err)
 	}

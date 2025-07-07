@@ -101,14 +101,14 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 	// so States() knows it exists.
 	lockInfo := statemgr.NewLockInfo()
 	lockInfo.Operation = "init"
-	lockId, err := stateMgr.Lock(lockInfo)
+	lockId, err := stateMgr.Lock(context.TODO(), lockInfo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to lock state in Consul: %w", err)
 	}
 
 	// Local helper function so we can call it multiple places
 	lockUnlock := func(parent error) error {
-		if err := stateMgr.Unlock(lockId); err != nil {
+		if err := stateMgr.Unlock(context.TODO(), lockId); err != nil {
 			return fmt.Errorf(strings.TrimSpace(errStateUnlock), lockId, err)
 		}
 
@@ -116,7 +116,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 	}
 
 	// Grab the value
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		err = lockUnlock(err)
 		return nil, err
 	}
@@ -127,7 +127,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 			err = lockUnlock(err)
 			return nil, err
 		}
-		if err := stateMgr.PersistState(nil); err != nil {
+		if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}

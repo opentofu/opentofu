@@ -56,7 +56,7 @@ func TestMetaBackend_emptyDir(t *testing.T) {
 	if err := s.WriteState(testState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -123,7 +123,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if actual := s.State().String(); actual != testState().String() {
@@ -146,7 +146,7 @@ func TestMetaBackend_emptyWithDefaultState(t *testing.T) {
 	if err := s.WriteState(next); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -194,7 +194,7 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 	if actual := s.State().String(); actual != testState().String() {
@@ -217,7 +217,7 @@ func TestMetaBackend_emptyWithExplicitState(t *testing.T) {
 	if err := s.WriteState(next); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -264,7 +264,7 @@ func TestMetaBackend_configureNew(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -279,7 +279,7 @@ func TestMetaBackend_configureNew(t *testing.T) {
 	if err := s.WriteState(state); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -337,7 +337,7 @@ func TestMetaBackend_configureNewWithState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	state, err := statemgr.RefreshAndRead(s)
+	state, err := statemgr.RefreshAndRead(t.Context(), s)
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
@@ -353,7 +353,7 @@ func TestMetaBackend_configureNewWithState(t *testing.T) {
 	state = states.NewState()
 	mark := markStateForMatching(state, "changing")
 
-	if err := statemgr.WriteAndPersist(s, state, nil); err != nil {
+	if err := statemgr.WriteAndPersist(t.Context(), s, state, nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -460,7 +460,7 @@ func TestMetaBackend_configureNewWithStateNoMigrate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	if state := s.State(); state != nil {
@@ -503,7 +503,7 @@ func TestMetaBackend_configureNewWithStateExisting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -521,7 +521,7 @@ func TestMetaBackend_configureNewWithStateExisting(t *testing.T) {
 	if err := s.WriteState(state); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -577,7 +577,7 @@ func TestMetaBackend_configureNewWithStateExistingNoMigrate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -594,7 +594,7 @@ func TestMetaBackend_configureNewWithStateExistingNoMigrate(t *testing.T) {
 	if err := s.WriteState(state); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -644,7 +644,7 @@ func TestMetaBackend_configuredUnchanged(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -788,7 +788,7 @@ func TestMetaBackend_configuredUnchangedWithStaticEvalVars(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -834,7 +834,7 @@ func TestMetaBackend_configuredChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -859,7 +859,7 @@ func TestMetaBackend_configuredChange(t *testing.T) {
 	if err := s.WriteState(state); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -922,7 +922,7 @@ func TestMetaBackend_reconfigureChange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	newState := s.State()
@@ -932,7 +932,7 @@ func TestMetaBackend_reconfigureChange(t *testing.T) {
 
 	// verify that the old state is still there
 	s = statemgr.NewFilesystem("local-state.tfstate", encryption.StateEncryptionDisabled())
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 	oldState := s.State()
@@ -1062,7 +1062,7 @@ func TestMetaBackend_configuredChangeCopy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1115,7 +1115,7 @@ func TestMetaBackend_configuredChangeCopy_singleState(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1169,7 +1169,7 @@ func TestMetaBackend_configuredChangeCopy_multiToSingleDefault(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1223,7 +1223,7 @@ func TestMetaBackend_configuredChangeCopy_multiToSingle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1297,7 +1297,7 @@ func TestMetaBackend_configuredChangeCopy_multiToSingleCurrentEnv(t *testing.T) 
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1365,7 +1365,7 @@ func TestMetaBackend_configuredChangeCopy_multiToMulti(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := s.RefreshState(); err != nil {
+		if err := s.RefreshState(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		state := s.State()
@@ -1383,7 +1383,7 @@ func TestMetaBackend_configuredChangeCopy_multiToMulti(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := s.RefreshState(); err != nil {
+		if err := s.RefreshState(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		state := s.State()
@@ -1463,7 +1463,7 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithDefault(t *testing
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := s.RefreshState(); err != nil {
+		if err := s.RefreshState(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		state := s.State()
@@ -1537,7 +1537,7 @@ func TestMetaBackend_configuredChangeCopy_multiToNoDefaultWithoutDefault(t *test
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		if err := s.RefreshState(); err != nil {
+		if err := s.RefreshState(t.Context()); err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		state := s.State()
@@ -1590,7 +1590,7 @@ func TestMetaBackend_configuredUnset(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1614,7 +1614,7 @@ func TestMetaBackend_configuredUnset(t *testing.T) {
 	if err := s.WriteState(testState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -1654,7 +1654,7 @@ func TestMetaBackend_configuredUnsetCopy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1674,7 +1674,7 @@ func TestMetaBackend_configuredUnsetCopy(t *testing.T) {
 	if err := s.WriteState(testState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -1724,7 +1724,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1755,7 +1755,7 @@ func TestMetaBackend_planLocal(t *testing.T) {
 	if err := s.WriteState(state); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -1807,7 +1807,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	statePath := "foo.tfstate"
 
 	// put an initial state there that needs to be backed up
-	err = statemgr.WriteAndPersist(statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled()), original, nil)
+	err = statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem(statePath, encryption.StateEncryptionDisabled()), original, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1827,7 +1827,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1858,7 +1858,7 @@ func TestMetaBackend_planLocalStatePath(t *testing.T) {
 	if err := s.WriteState(state); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 
@@ -1918,7 +1918,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 	state := s.State()
@@ -1947,7 +1947,7 @@ func TestMetaBackend_planLocalMatch(t *testing.T) {
 	if err := s.WriteState(state); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
 

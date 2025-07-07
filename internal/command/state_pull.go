@@ -7,6 +7,7 @@ package command
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 
@@ -65,7 +66,7 @@ func (c *StatePullCommand) Run(args []string) int {
 		c.Ui.Error(fmt.Sprintf(errStateLoadingState, err))
 		return 1
 	}
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to refresh state: %s", err))
 		return 1
 	}
