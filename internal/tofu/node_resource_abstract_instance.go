@@ -3199,37 +3199,35 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 		diags = diags.Append(deferDiags)
 		return plannedChange, plannedNewState, keyData, diags
 	}
+	diags = diags.Append(readDiags)
+	if diags.HasErrors() {
+		return nil, nil, instances.RepetitionData{}, diags
+	}
 
 	// Now we've loaded the data, and diags tells us whether we were successful
 	// or not, we are going to create our plannedChange and our
 	// proposedNewState.
-	var plannedChange *plans.ResourceInstanceChange
-	var plannedNewState *states.ResourceInstanceObject
-
-	diags = diags.Append(readDiags)
-	if !diags.HasErrors() {
-		// Finally, let's make our new state.
-		plannedNewState = &states.ResourceInstanceObject{
-			Value:  newVal,
-			Status: states.ObjectReady,
-			// Private field ignored intentionally since this is handled internally by
-			// the goroutine that is handling the renewal of the ephemeral resource.
-		}
-		plannedChange = &plans.ResourceInstanceChange{
-			Addr:         n.Addr,
-			PrevRunAddr:  n.Addr,
-			DeposedKey:   states.NotDeposed,
-			ProviderAddr: n.ResolvedProvider.ProviderConfig,
-			Change: plans.Change{
-				Action: plans.Open,
-				// Before and After values specifically set to indicate that the changes
-				// for ephemeral resources should contain no values.
-				// Only the state is necessary to hold the result of be resource, to be
-				// available for evaluation later.
-				Before: cty.NilVal,
-				After:  cty.NilVal,
-			},
-		}
+	plannedNewState := &states.ResourceInstanceObject{
+		Value:  newVal,
+		Status: states.ObjectReady,
+		// Private field ignored intentionally since this is handled internally by
+		// the goroutine that is handling the renewal of the ephemeral resource.
+	}
+	plannedChange := &plans.ResourceInstanceChange{
+		Addr:         n.Addr,
+		PrevRunAddr:  n.Addr,
+		DeposedKey:   states.NotDeposed,
+		ProviderAddr: n.ResolvedProvider.ProviderConfig,
+		Change: plans.Change{
+			Action: plans.Open,
+			// In order to have proper evaluation of the references to ephemeral resources, we need the change to contain
+			// a proper after value that will be used later in evaluationStateData.GetResource to generate
+			// evaluation data of this resource.
+			// These values must not end up in the plan file.
+			// The nullification of these is handled at the plan file writing layer.
+			Before: priorVal,
+			After:  newVal,
+		},
 	}
 
 	return plannedChange, plannedNewState, keyData, diags
@@ -3321,12 +3319,12 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
 		Change: plans.Change{
 			Action: plans.Open,
-			// Before and After values specifically set to indicate that the changes
-			// for ephemeral resources should contain no values.
-			// Only the state is necessary to hold the result of be resource, to be
-			// available for evaluation later.
-			Before: cty.NilVal,
-			After:  cty.NilVal,
+			// In order to have proper evaluation of the references to ephemeral resources, we need the change to contain
+			// a proper after value, even if it's just a null value of the schema type.
+			// These values must not end up in the plan file.
+			// The nullification of these is handled at the plan file writing layer.
+			Before: priorVal,
+			After:  proposedNewVal,
 		},
 		// Skipped ActionReason on purpose since ephemeral resources changes are not meant
 		// to be shown in the UI.

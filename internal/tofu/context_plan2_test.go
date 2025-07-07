@@ -8729,12 +8729,28 @@ ephemeral "test_ephemeral_resource" "a" {
 	}
 	got := plan.Changes.Resources[0]
 	addr := mustResourceInstanceAddr("ephemeral.test_ephemeral_resource.a")
+	schema := testProvider.ProviderSchema().EphemeralTypes[addr.Resource.Resource.Type]
+	objTy := schema.ImpliedType()
+	priorVal := cty.NullVal(objTy)
+	beforeVal, err := plans.NewDynamicValue(priorVal, objTy)
+	if err != nil {
+		t.Fatalf("unexpected error creating before val: %s", err)
+	}
+	afterVal, err := plans.NewDynamicValue(cty.ObjectVal(map[string]cty.Value{
+		"id":     cty.StringVal("id val"),
+		"secret": cty.StringVal("val"),
+	}), objTy)
+	if err != nil {
+		t.Fatalf("unexpected error creating after val: %s", err)
+	}
 	want := &plans.ResourceInstanceChangeSrc{
 		Addr:         addr,
 		PrevRunAddr:  addr,
 		ProviderAddr: mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		ChangeSrc: plans.ChangeSrc{
 			Action: plans.Open,
+			Before: beforeVal,
+			After:  afterVal,
 		},
 	}
 	if diff := cmp.Diff(want, got); diff != "" {
