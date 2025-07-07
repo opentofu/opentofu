@@ -146,7 +146,7 @@ func dataSourceRemoteStateRead(ctx context.Context, d cty.Value, enc encryption.
 		return cty.NilVal, diags
 	}
 
-	if err := state.RefreshState(); err != nil {
+	if err := state.RefreshState(ctx); err != nil {
 		diags = diags.Append(err)
 		return cty.NilVal, diags
 	}

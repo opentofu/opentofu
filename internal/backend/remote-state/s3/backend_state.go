@@ -113,7 +113,7 @@ func (b *Backend) keyEnv(key string) string {
 	return parts[0]
 }
 
-func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	if name == backend.DefaultStateName || name == "" {
 		return fmt.Errorf("can't delete default state")
 	}
@@ -123,7 +123,7 @@ func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error 
 		return err
 	}
 
-	return client.Delete()
+	return client.Delete(ctx)
 }
 
 // get a remote client configured for this state
@@ -182,14 +182,14 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// take a lock on this state while we write it
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockId, err := client.Lock(lockInfo)
+		lockId, err := client.Lock(context.TODO(), lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock s3 state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(parent error) error {
-			if err := stateMgr.Unlock(lockId); err != nil {
+			if err := stateMgr.Unlock(context.TODO(), lockId); err != nil {
 				return fmt.Errorf(strings.TrimSpace(errStateUnlock), lockId, err)
 			}
 			return parent
@@ -198,7 +198,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// Grab the value
 		// This is to ensure that no one beat us to writing a state between
 		// the `exists` check and taking the lock.
-		if err := stateMgr.RefreshState(); err != nil {
+		if err := stateMgr.RefreshState(context.TODO()); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}
@@ -209,7 +209,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := stateMgr.PersistState(nil); err != nil {
+			if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}

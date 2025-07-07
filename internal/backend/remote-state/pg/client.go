@@ -6,6 +6,7 @@
 package pg
 
 import (
+	"context"
 	"crypto/md5"
 	"database/sql"
 	"fmt"
@@ -29,7 +30,7 @@ type RemoteClient struct {
 	info *statemgr.LockInfo
 }
 
-func (c *RemoteClient) Get() (*remote.Payload, error) {
+func (c *RemoteClient) Get(_ context.Context) (*remote.Payload, error) {
 	query := fmt.Sprintf(`SELECT data FROM %s.%s WHERE name = $1`, pq.QuoteIdentifier(c.SchemaName), pq.QuoteIdentifier(c.TableName))
 	row := c.Client.QueryRow(query, c.Name)
 	var data []byte
@@ -49,7 +50,7 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	}
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	query := fmt.Sprintf(`INSERT INTO %s.%s (name, data) VALUES ($1, $2)
 		ON CONFLICT (name) DO UPDATE
 		SET data = $2 WHERE %s.name = $1`, pq.QuoteIdentifier(c.SchemaName), pq.QuoteIdentifier(c.TableName), pq.QuoteIdentifier(c.TableName))
@@ -60,7 +61,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *RemoteClient) Delete() error {
+func (c *RemoteClient) Delete(_ context.Context) error {
 	query := fmt.Sprintf(`DELETE FROM %s.%s WHERE name = $1`, pq.QuoteIdentifier(c.SchemaName), pq.QuoteIdentifier(c.TableName))
 	_, err := c.Client.Exec(query, c.Name)
 	if err != nil {
@@ -69,7 +70,7 @@ func (c *RemoteClient) Delete() error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	var err error
 	var lockID string
 
@@ -137,7 +138,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	return info.ID, nil
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(_ context.Context, id string) error {
 	if c.info != nil && c.info.Path != "" {
 		query := `SELECT pg_advisory_unlock($1)`
 		row := c.Client.QueryRow(query, c.info.Path)

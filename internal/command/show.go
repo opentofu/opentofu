@@ -521,7 +521,7 @@ func getStateFromBackend(ctx context.Context, b backend.Backend, workspace strin
 	}
 
 	// Refresh the state store with the latest state snapshot from persistent storage
-	if err := stateStore.RefreshState(); err != nil {
+	if err := stateStore.RefreshState(context.TODO()); err != nil {
 		tracing.SetSpanError(span, err)
 		return nil, fmt.Errorf("failed to load state: %w", err)
 	}

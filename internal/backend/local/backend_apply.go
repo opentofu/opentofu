@@ -288,7 +288,7 @@ func (b *Local) opApply(
 
 	// Store the final state
 	runningOp.State = applyState
-	err := statemgr.WriteAndPersist(opState, applyState, schemas)
+	err := statemgr.WriteAndPersist(context.TODO(), opState, applyState, schemas)
 	if err != nil {
 		// Export the state file from the state manager and assign the new
 		// state. This is needed to preserve the existing serial and lineage.

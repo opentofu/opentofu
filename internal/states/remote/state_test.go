@@ -6,6 +6,7 @@
 package remote
 
 import (
+	"context"
 	"log"
 	"sync"
 	"testing"
@@ -46,10 +47,10 @@ func TestStateRace(t *testing.T) {
 			if err := s.WriteState(current); err != nil {
 				panic(err)
 			}
-			if err := s.PersistState(nil); err != nil {
+			if err := s.PersistState(t.Context(), nil); err != nil {
 				panic(err)
 			}
-			if err := s.RefreshState(); err != nil {
+			if err := s.RefreshState(t.Context()); err != nil {
 				panic(err)
 			}
 		}()
@@ -342,7 +343,7 @@ func TestStatePersist(t *testing.T) {
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(t.Context()); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -363,7 +364,7 @@ func TestStatePersist(t *testing.T) {
 			if err := mgr.WriteState(s); err != nil {
 				t.Fatalf("failed to WriteState for %q: %s", tc.name, err)
 			}
-			if err := mgr.PersistState(nil); err != nil {
+			if err := mgr.PersistState(t.Context(), nil); err != nil {
 				t.Fatalf("failed to PersistState for %q: %s", tc.name, err)
 			}
 
@@ -412,7 +413,7 @@ func TestState_GetRootOutputValues(t *testing.T) {
 		encryption.StateEncryptionDisabled(),
 	)
 
-	outputs, err := mgr.GetRootOutputValues()
+	outputs, err := mgr.GetRootOutputValues(t.Context())
 	if err != nil {
 		t.Errorf("Expected GetRootOutputValues to not return an error, but it returned %v", err)
 	}
@@ -528,7 +529,7 @@ func TestWriteStateForMigration(t *testing.T) {
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(t.Context()); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -570,7 +571,7 @@ func TestWriteStateForMigration(t *testing.T) {
 			if err := mgr.WriteState(mgr.State()); err != nil {
 				t.Fatal(err)
 			}
-			if err := mgr.PersistState(nil); err != nil {
+			if err := mgr.PersistState(t.Context(), nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -689,7 +690,7 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 	// before any writes would happen, so we'll mimic that here for realism.
 	// NB This causes a GET to be logged so the first item in the test cases
 	// must account for this
-	if err := mgr.RefreshState(); err != nil {
+	if err := mgr.RefreshState(t.Context()); err != nil {
 		t.Fatalf("failed to RefreshState: %s", err)
 	}
 
@@ -741,7 +742,7 @@ func TestWriteStateForMigrationWithForcePushClient(t *testing.T) {
 			if err := mgr.WriteState(mgr.State()); err != nil {
 				t.Fatal(err)
 			}
-			if err := mgr.PersistState(nil); err != nil {
+			if err := mgr.PersistState(t.Context(), nil); err != nil {
 				t.Fatal(err)
 			}
 
@@ -773,12 +774,12 @@ type mockClientLocker struct {
 }
 
 // Implement the mock Lock method for mockOptionalClientLocker
-func (c *mockOptionalClientLocker) Lock(_ *statemgr.LockInfo) (string, error) {
+func (c *mockOptionalClientLocker) Lock(_ context.Context, _ *statemgr.LockInfo) (string, error) {
 	return "", nil
 }
 
 // Implement the mock Unlock method for mockOptionalClientLocker
-func (c *mockOptionalClientLocker) Unlock(_ string) error {
+func (c *mockOptionalClientLocker) Unlock(_ context.Context, _ string) error {
 	// Provide a simple implementation
 	return nil
 }
@@ -789,12 +790,12 @@ func (c *mockOptionalClientLocker) IsLockingEnabled() bool {
 }
 
 // Implement the mock Lock method for mockClientLocker
-func (c *mockClientLocker) Lock(_ *statemgr.LockInfo) (string, error) {
+func (c *mockClientLocker) Lock(_ context.Context, _ *statemgr.LockInfo) (string, error) {
 	return "", nil
 }
 
 // Implement the mock Unlock method for mockClientLocker
-func (c *mockClientLocker) Unlock(_ string) error {
+func (c *mockClientLocker) Unlock(_ context.Context, _ string) error {
 	return nil
 }
 

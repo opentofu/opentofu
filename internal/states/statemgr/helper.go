@@ -9,6 +9,8 @@ package statemgr
 // operations done against full state managers.
 
 import (
+	"context"
+
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tofu"
@@ -30,8 +32,8 @@ func NewStateFile() *statefile.File {
 //
 // This is a wrapper around calling RefreshState and then State on the given
 // manager.
-func RefreshAndRead(mgr Storage) (*states.State, error) {
-	err := mgr.RefreshState()
+func RefreshAndRead(ctx context.Context, mgr Storage) (*states.State, error) {
+	err := mgr.RefreshState(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -50,10 +52,10 @@ func RefreshAndRead(mgr Storage) (*states.State, error) {
 // out quickly with a user-facing error. In situations where more control
 // is required, call WriteState and PersistState on the state manager directly
 // and handle their errors.
-func WriteAndPersist(mgr Storage, state *states.State, schemas *tofu.Schemas) error {
+func WriteAndPersist(ctx context.Context, mgr Storage, state *states.State, schemas *tofu.Schemas) error {
 	err := mgr.WriteState(state)
 	if err != nil {
 		return err
 	}
-	return mgr.PersistState(schemas)
+	return mgr.PersistState(ctx, schemas)
 }

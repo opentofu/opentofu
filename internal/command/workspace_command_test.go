@@ -252,7 +252,7 @@ func TestWorkspace_createWithState(t *testing.T) {
 		)
 	})
 
-	err := statemgr.WriteAndPersist(statemgr.NewFilesystem("test.tfstate", encryption.StateEncryptionDisabled()), originalState, nil)
+	err := statemgr.WriteAndPersist(t.Context(), statemgr.NewFilesystem("test.tfstate", encryption.StateEncryptionDisabled()), originalState, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +270,7 @@ func TestWorkspace_createWithState(t *testing.T) {
 
 	newPath := filepath.Join(local.DefaultWorkspaceDir, "test", DefaultStateFilename)
 	envState := statemgr.NewFilesystem(newPath, encryption.StateEncryptionDisabled())
-	err = envState.RefreshState()
+	err = envState.RefreshState(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}

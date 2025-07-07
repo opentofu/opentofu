@@ -557,7 +557,7 @@ func (b *Remote) DeleteWorkspace(_ context.Context, name string, _ bool) error {
 		encryption: b.encryption,
 	}
 
-	return client.Delete()
+	return client.Delete(context.TODO())
 }
 
 // StateMgr implements backend.Enhanced.

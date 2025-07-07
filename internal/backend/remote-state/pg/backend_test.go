@@ -630,48 +630,48 @@ func TestBackendConcurrentLock(t *testing.T) {
 
 	// First we need to create the workspace as the lock for creating them is
 	// global
-	lockID1, err := s1.Lock(i1)
+	lockID1, err := s1.Lock(t.Context(), i1)
 	if err != nil {
 		t.Fatalf("failed to lock first state: %v", err)
 	}
 
-	if err = s1.PersistState(nil); err != nil {
+	if err = s1.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
-	if err = s1.Unlock(lockID1); err != nil {
+	if err = s1.Unlock(t.Context(), lockID1); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
-	lockID2, err := s2.Lock(i2)
+	lockID2, err := s2.Lock(t.Context(), i2)
 	if err != nil {
 		t.Fatalf("failed to lock second state: %v", err)
 	}
 
-	if err = s2.PersistState(nil); err != nil {
+	if err = s2.PersistState(t.Context(), nil); err != nil {
 		t.Fatalf("failed to persist state: %v", err)
 	}
 
-	if err = s2.Unlock(lockID2); err != nil {
+	if err = s2.Unlock(t.Context(), lockID2); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
 	// Now we can test concurrent lock
-	lockID1, err = s1.Lock(i1)
+	lockID1, err = s1.Lock(t.Context(), i1)
 	if err != nil {
 		t.Fatalf("failed to lock first state: %v", err)
 	}
 
-	lockID2, err = s2.Lock(i2)
+	lockID2, err = s2.Lock(t.Context(), i2)
 	if err != nil {
 		t.Fatalf("failed to lock second state: %v", err)
 	}
 
-	if err = s1.Unlock(lockID1); err != nil {
+	if err = s1.Unlock(t.Context(), lockID1); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 
-	if err = s2.Unlock(lockID2); err != nil {
+	if err = s2.Unlock(t.Context(), lockID2); err != nil {
 		t.Fatalf("failed to unlock first state: %v", err)
 	}
 }

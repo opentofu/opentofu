@@ -26,13 +26,13 @@ const (
 )
 
 // Workspaces returns a list of names for the workspaces
-func (b *Backend) Workspaces(context.Context) ([]string, error) {
+func (b *Backend) Workspaces(ctx context.Context) ([]string, error) {
 	c, err := b.client("tencentcloud")
 	if err != nil {
 		return nil, err
 	}
 
-	obs, err := c.getBucket(b.prefix)
+	obs, err := c.getBucket(ctx, b.prefix)
 	log.Printf("[DEBUG] list all workspaces, objects: %v, error: %v", obs, err)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func (b *Backend) Workspaces(context.Context) ([]string, error) {
 }
 
 // DeleteWorkspace deletes the named workspaces. The "default" state cannot be deleted.
-func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error {
+func (b *Backend) DeleteWorkspace(ctx context.Context, name string, _ bool) error {
 	log.Printf("[DEBUG] delete workspace, workspace: %v", name)
 
 	if name == backend.DefaultStateName || name == "" {
@@ -75,7 +75,7 @@ func (b *Backend) DeleteWorkspace(_ context.Context, name string, _ bool) error 
 		return err
 	}
 
-	return c.Delete()
+	return c.Delete(ctx)
 }
 
 // StateMgr manage the state, if the named state not exists, a new file will created
@@ -107,21 +107,21 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 		// take a lock on this state while we write it
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockId, err := c.Lock(lockInfo)
+		lockId, err := c.Lock(context.TODO(), lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to lock cos state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(e error) error {
-			if err := stateMgr.Unlock(lockId); err != nil {
+			if err := stateMgr.Unlock(context.TODO(), lockId); err != nil {
 				return fmt.Errorf(unlockErrMsg, err, lockId)
 			}
 			return e
 		}
 
 		// Grab the value
-		if err := stateMgr.RefreshState(); err != nil {
+		if err := stateMgr.RefreshState(context.TODO()); err != nil {
 			err = lockUnlock(err)
 			return nil, err
 		}
@@ -132,7 +132,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := stateMgr.PersistState(nil); err != nil {
+			if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}
@@ -154,14 +154,13 @@ func (b *Backend) client(name string) (*remoteClient, error) {
 	}
 
 	return &remoteClient{
-		cosContext: b.cosContext,
-		cosClient:  b.cosClient,
-		tagClient:  b.tagClient,
-		bucket:     b.bucket,
-		stateFile:  b.stateFile(name),
-		lockFile:   b.lockFile(name),
-		encrypt:    b.encrypt,
-		acl:        b.acl,
+		cosClient: b.cosClient,
+		tagClient: b.tagClient,
+		bucket:    b.bucket,
+		stateFile: b.stateFile(name),
+		lockFile:  b.lockFile(name),
+		encrypt:   b.encrypt,
+		acl:       b.acl,
 	}, nil
 }
 

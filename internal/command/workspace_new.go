@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -173,7 +174,7 @@ func (c *WorkspaceNewCommand) Run(args []string) int {
 		c.Ui.Error(err.Error())
 		return 1
 	}
-	err = stateMgr.PersistState(nil)
+	err = stateMgr.PersistState(context.TODO(), nil)
 	if err != nil {
 		c.Ui.Error(err.Error())
 		return 1

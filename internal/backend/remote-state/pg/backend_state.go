@@ -92,14 +92,14 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 	if !exists {
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockId, err := stateMgr.Lock(lockInfo)
+		lockId, err := stateMgr.Lock(context.TODO(), lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock state in Postgres: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(parent error) error {
-			if err := stateMgr.Unlock(lockId); err != nil {
+			if err := stateMgr.Unlock(context.TODO(), lockId); err != nil {
 				return fmt.Errorf("error unlocking Postgres state: %w", err)
 			}
 			return parent
@@ -110,7 +110,7 @@ func (b *Backend) StateMgr(ctx context.Context, name string) (statemgr.Full, err
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := stateMgr.PersistState(nil); err != nil {
+			if err := stateMgr.PersistState(context.TODO(), nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}

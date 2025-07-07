@@ -88,11 +88,11 @@ func TestRemoteState(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := s.PersistState(nil); err != nil {
+	if err := s.PersistState(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }

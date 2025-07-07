@@ -59,7 +59,7 @@ func TestFilesystemLocks(t *testing.T) {
 	// lock first
 	info := NewLockInfo()
 	info.Operation = "test"
-	lockID, err := s.Lock(info)
+	lockID, err := s.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,22 +84,22 @@ func TestFilesystemLocks(t *testing.T) {
 	}
 
 	// a noop, since we unlock on exit
-	if err := s.Unlock(lockID); err != nil {
+	if err := s.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal(err)
 	}
 
 	// local locks can re-lock
-	lockID, err = s.Lock(info)
+	lockID, err = s.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := s.Unlock(lockID); err != nil {
+	if err := s.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal(err)
 	}
 
 	// we should not be able to unlock the same lock twice
-	if err := s.Unlock(lockID); err == nil {
+	if err := s.Unlock(t.Context(), lockID); err == nil {
 		t.Fatal("unlocking an unlocked state should fail")
 	}
 
@@ -120,12 +120,12 @@ func TestFilesystem_writeWhileLocked(t *testing.T) {
 	// lock first
 	info := NewLockInfo()
 	info.Operation = "test"
-	lockID, err := s.Lock(info)
+	lockID, err := s.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := s.Unlock(lockID); err != nil {
+		if err := s.Unlock(t.Context(), lockID); err != nil {
 			t.Fatal(err)
 		}
 	}()
@@ -256,17 +256,17 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 			"",
 		)
 	})
-	err = WriteAndPersist(ls, newState, nil)
+	err = WriteAndPersist(t.Context(), ls, newState, nil)
 	if err != nil {
 		t.Fatalf("failed to write new state: %s", err)
 	}
 
-	lockID, err := ls.Lock(info)
+	lockID, err := ls.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ls.Unlock(lockID); err != nil {
+	if err := ls.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -308,7 +308,7 @@ func TestFilesystem_backupAndReadPath(t *testing.T) {
 func TestFilesystem_nonExist(t *testing.T) {
 	defer testOverrideVersion(t, "1.2.3")()
 	ls := NewFilesystem("ishouldntexist", encryption.StateEncryptionDisabled())
-	if err := ls.RefreshState(); err != nil {
+	if err := ls.RefreshState(t.Context()); err != nil {
 		t.Fatalf("err: %s", err)
 	}
 
@@ -327,7 +327,7 @@ func TestFilesystem_lockUnlockWithoutWrite(t *testing.T) {
 	os.Remove(ls.path)
 
 	// Lock the state, and in doing so recreate the tempfile
-	lockID, err := ls.Lock(info)
+	lockID, err := ls.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -336,7 +336,7 @@ func TestFilesystem_lockUnlockWithoutWrite(t *testing.T) {
 		t.Fatal("should have marked state as created")
 	}
 
-	if err := ls.Unlock(lockID); err != nil {
+	if err := ls.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal(err)
 	}
 
@@ -381,7 +381,7 @@ func testFilesystem(t *testing.T) *Filesystem {
 	f.Close()
 
 	ls := NewFilesystem(f.Name(), encryption.StateEncryptionDisabled())
-	if err := ls.RefreshState(); err != nil {
+	if err := ls.RefreshState(t.Context()); err != nil {
 		t.Fatalf("initial refresh failed: %s", err)
 	}
 
@@ -413,17 +413,17 @@ func TestFilesystem_refreshWhileLocked(t *testing.T) {
 	// lock first
 	info := NewLockInfo()
 	info.Operation = "test"
-	lockID, err := s.Lock(info)
+	lockID, err := s.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		if err := s.Unlock(lockID); err != nil {
+		if err := s.Unlock(t.Context(), lockID); err != nil {
 			t.Fatal(err)
 		}
 	}()
 
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -436,7 +436,7 @@ func TestFilesystem_refreshWhileLocked(t *testing.T) {
 func TestFilesystem_GetRootOutputValues(t *testing.T) {
 	fs := testFilesystem(t)
 
-	outputs, err := fs.GetRootOutputValues()
+	outputs, err := fs.GetRootOutputValues(t.Context())
 	if err != nil {
 		t.Errorf("Expected GetRootOutputValues to not return an error, but it returned %v", err)
 	}
