@@ -43,7 +43,7 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 
 	impliedTypes := schema.ImpliedType().AttributeTypes()
 
-	mockAttrs, moreDiags := mvc.composeMockValueForAttributes(schema, configMap, defaults)
+	mockAttrs, moreDiags := mvc.composeMockValueForAttributes(schema.Attributes, configMap, defaults)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return cty.NilVal, diags
@@ -73,73 +73,99 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 	return cty.ObjectVal(mockValues), diags
 }
 
-func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
+func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*configschema.Attribute, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	mockAttrs := make(map[string]cty.Value)
 
-	impliedTypes := schema.ImpliedType().AttributeTypes()
-
 	// Stable order is important here so random values match its fields between function calls.
-	for _, kv := range mapToSortedSlice(schema.Attributes) {
+	for _, kv := range mapToSortedSlice(attrs) {
 		k, attr := kv.k, kv.v
 
-		// If the value present in configuration - just use it.
-		if cv, ok := configMap[k]; ok && !cv.IsNull() {
-			if _, ok := defaults[k]; ok {
+		if attr.NestedType != nil && attr.NestedType.Nesting == configschema.NestingGroup {
+			// This should not be possible to hit.  Neither tofu or the provider framework will allow
+			// NestingGroup in here.  However, this could change at some point and we want to be prepared for it.
+			diags = diags.Append(tfdiags.WholeContainingBody(
+				tfdiags.Error,
+				fmt.Sprintf("Unsupported field `%v` in attribute mocking", k),
+				"Overriding non-computed fields is not allowed, so this field cannot be processed.",
+			))
+		}
+
+		ov, ovOk := defaults[k]
+		cv, cvOk := configMap[k]
+		// I'm not sure if this is correct
+		cvOk = cvOk && !cv.IsNull()
+
+		var ovConvert cty.Value
+
+		// Validation of overridden values
+		if ovOk {
+			if cvOk {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Invalid mock/override field `%v`", k),
 					"The field is ignored since overriding configuration values is not allowed.",
 				))
-				continue
 			}
-			mockAttrs[k] = cv
-			continue
-		}
-
-		// Non-computed attributes can't be generated
-		// so we set them from configuration only.
-		if !attr.Computed {
-			if attr.NestedType != nil && attr.NestedType.Nesting == configschema.NestingGroup {
-				// This should not be possible to hit.  Neither tofu or the provider framework will allow
-				// NestingGroup in here.  However, this could change at some point and we want to be prepared for it.
-				diags = diags.Append(tfdiags.WholeContainingBody(
-					tfdiags.Error,
-					fmt.Sprintf("Unsupported field `%v` in attribute mocking", k),
-					"Overriding non-computed fields is not allowed, so this field cannot be processed.",
-				))
-				continue
-			}
-			mockAttrs[k] = cty.NullVal(attr.ImpliedType())
-			if _, ok := defaults[k]; ok {
+			if !attr.Computed {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Non-computed field `%v` is not allowed to be overridden", k),
 					"Overriding non-computed fields is not allowed, so this field cannot be processed.",
 				))
 			}
-			continue
-		}
 
-		// If the attribute is computed and not configured,
-		// we use provided value from defaults.
-		if ov, ok := defaults[k]; ok {
-			converted, err := convert.Convert(ov, attr.ImpliedType())
+			var err error
+			ovConvert, err = convert.Convert(ov, attr.ImpliedType())
 			if err != nil {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Invalid mock/override field `%v`", k),
 					fmt.Sprintf("Values provided for override / mock must match resource fields types: %v.", tfdiags.FormatError(err)),
 				))
-				continue
 			}
-
-			mockAttrs[k] = converted
-			continue
 		}
 
-		mockAttrs[k] = mvc.getMockValueByType(impliedTypes[k])
+		// Determine the value
+		if attr.Required {
+			// Value from configuration only
+			if !cvOk {
+				diags = diags.Append(tfdiags.WholeContainingBody(
+					tfdiags.Error,
+					fmt.Sprintf("Invalid mock/override field `%v`", k),
+					fmt.Sprintf("Required field in configuration not provided"),
+				))
+			}
+
+			mockAttrs[k] = cv
+		} else if attr.Optional {
+			if cvOk {
+				// Value from configuration
+				mockAttrs[k] = cv
+			} else if attr.Computed {
+				// Value from provider if not set
+				if ovOk {
+					mockAttrs[k] = ovConvert
+				} else {
+					mockAttrs[k] = mvc.getMockValueByType(attr.ImpliedType())
+				}
+			} else {
+				// Null value
+				// NOTE: this does not handle configschema.NestedGroup correctly, but
+				// at this time there is no possible way for providers to specify NestedGroup.
+				mockAttrs[k] = cty.NullVal(attr.ImpliedType())
+			}
+		} else if attr.Computed {
+			// Value from provider only
+			if ovOk {
+				mockAttrs[k] = ovConvert
+			} else {
+				mockAttrs[k] = mvc.getMockValueByType(attr.ImpliedType())
+			}
+		} else {
+			panic("invalid schema: none of configschema.Attribute.Required/Computed/Optional set on " + k)
+		}
 	}
 
 	return mockAttrs, diags
