@@ -10,6 +10,7 @@ BUG FIXES:
 
 * The `tofu.rc` configuration file now properly takes precedence over `terraform.rc` on Windows ([#2891](https://github.com/opentofu/opentofu/pull/2891))
 * S3 backend now correctly sends the `x-amz-server-side-encryption` header for the lockfile ([#2870](https://github.com/opentofu/opentofu/issues/2970))
+* Allow function calls in test variable blocks ([#2947](https://github.com/opentofu/opentofu/pull/2947))
 
 ## Previous Releases
 
