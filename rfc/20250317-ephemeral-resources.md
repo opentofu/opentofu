@@ -220,7 +220,8 @@ Locals marked as ephemeral are available during plan and apply phase and can be 
 * `connection` and `provisioner` blocks
 
 #### Ephemeral resource
-In contrast with the write-only arguments where only specifically tagged attributes are not stored in the state/plan file, `ephemeral` resources must not be stored in the state file and only partially stored in the plan one.
+In contrast with the write-only arguments where only specifically tagged attributes are not stored in the state/plan file, `ephemeral` resources must not be stored in the state file and have only a reference stored in the plan file.
+
 The ephemeral blocks are behaving similar to `data`, where it reads the indicated resource and once it's done with it, is going to close it.
 
 Ephemeral resources can be referenced only in specific contexts:
