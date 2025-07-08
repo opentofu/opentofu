@@ -39,8 +39,13 @@ type Show interface {
 	// preferring planJSON if it is not nil and using plan otherwise.
 	DisplayPlan(ctx context.Context, plan *plans.Plan, planJSON *cloudplan.RemotePlanJSON, config *configs.Config, priorStateFile *statefile.File, schemas *tofu.Schemas) int
 
-	// DisplayConfig renders the given configuration in JSON format, returning a status code for "tofu show" to return.
+	// DisplayConfig renders the given configuration, returning a status code for "tofu show" to return.
 	DisplayConfig(config *configs.Config, schemas *tofu.Schemas) int
+
+	// DisplaySingleModule renders just one module, in a format that's a subset
+	// of that used by [Show.DisplayConfig] which we can produce without
+	// schema or child module information.
+	DisplaySingleModule(module *configs.Module) int
 
 	// Diagnostics renders early diagnostics, resulting from argument parsing.
 	Diagnostics(diags tfdiags.Diagnostics)
@@ -158,6 +163,13 @@ func (v *ShowHuman) DisplayConfig(config *configs.Config, schemas *tofu.Schemas)
 	return 1
 }
 
+func (v *ShowHuman) DisplaySingleModule(_ *configs.Module) int {
+	// The human view should never be called for module display
+	// since we require -json for -module=DIR.
+	v.view.streams.Eprintf("Internal error: human view should not be used for module display")
+	return 1
+}
+
 func (v *ShowHuman) Diagnostics(diags tfdiags.Diagnostics) {
 	v.view.Diagnostics(diags)
 }
@@ -211,6 +223,16 @@ func (v *ShowJSON) DisplayConfig(config *configs.Config, schemas *tofu.Schemas) 
 		return 1
 	}
 	v.view.streams.Println(string(configJSON))
+	return 0
+}
+
+func (v *ShowJSON) DisplaySingleModule(module *configs.Module) int {
+	moduleJSON, err := jsonconfig.MarshalSingleModule(module)
+	if err != nil {
+		v.view.streams.Eprintf("Failed to marshal module contents to JSON: %s", err)
+		return 1
+	}
+	v.view.streams.Println(string(moduleJSON))
 	return 0
 }
 

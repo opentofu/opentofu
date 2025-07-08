@@ -1576,3 +1576,113 @@ func TestShow_config_conflictingOptions(t *testing.T) {
 		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
 	}
 }
+
+func TestShow_module(t *testing.T) {
+	// We intentionally don't cause the effect of a "tofu init" for this one,
+	// because the single-module mode is required to work without any
+	// dependencies installed and without a backend initialized so it can
+	// be used by the OpenTofu module registry indexing process.
+
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			View: view,
+		},
+	}
+
+	args := []string{
+		"-module=testdata/show-config-single-module",
+		"-json",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 0 {
+		t.Fatalf("wrong exit status %d; want 0\ngot: %s", code, output.Stderr())
+	}
+
+	var got map[string]any
+	if err := json.Unmarshal([]byte(output.Stdout()), &got); err != nil {
+		t.Fatalf("invalid JSON output: %s\n%s", err, output.Stdout())
+	}
+	want := map[string]any{
+		"provider_config": map[string]any{
+			"test": map[string]any{
+				"full_name":          "example.com/bar/test",
+				"name":               "test",
+				"version_constraint": "~> 2.0.0",
+				// "expressions" intentionally omitted in single-module mode
+			},
+		},
+		"root_module": map[string]any{
+			"module_calls": map[string]any{
+				"child": map[string]any{
+					"source":             "example.com/not/actually/used",
+					"version_constraint": "~> 1.0.0",
+					// "module" intentionally omitted in single-module mode
+					// "expressions" intentionally omitted in single-module mode
+				},
+			},
+			"outputs": map[string]any{
+				"foo": map[string]any{
+					// "expression" intentionally omitted in single-module mode
+					"sensitive": true,
+				},
+			},
+			"resources": []any{
+				map[string]any{
+					"address":             "test_instance.foo",
+					"mode":                "managed",
+					"type":                "test_instance",
+					"name":                "foo",
+					"provider_config_key": "test",
+					// "expressions" intentionally omitted in single-module mode
+					// "schema_version" intentionally omitted in single-module mode (because we're not including anything that's schema-sensitive)
+					// "for_each_expression" intentionally omitted in single-module mode
+
+					"provisioners": []any{
+						map[string]any{
+							"type": "local-exec",
+							// "expressions" intentionally omitted in single-module mode
+						},
+					},
+				},
+			},
+			"variables": map[string]any{
+				"foo": map[string]any{
+					"sensitive": true,
+				},
+			},
+		},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Error("wrong result\n" + diff)
+	}
+}
+
+func TestShow_module_noJson(t *testing.T) {
+	view, done := testView(t)
+	c := &ShowCommand{
+		Meta: Meta{
+			View: view,
+		},
+	}
+
+	args := []string{
+		"-module=testdata/show-config-module",
+		"-no-color",
+	}
+	code := c.Run(args)
+	output := done(t)
+
+	if code != 1 {
+		t.Fatalf("unexpected exit status %d; want 1\ngot: %s", code, output.Stdout())
+	}
+
+	got := output.Stderr()
+	want := "JSON output required for module"
+	if !strings.Contains(got, want) {
+		t.Errorf("unexpected output\ngot: %s\nwant:\n%s", got, want)
+	}
+}
