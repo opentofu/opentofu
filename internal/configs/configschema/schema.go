@@ -57,18 +57,32 @@ type Attribute struct {
 	Description     string
 	DescriptionKind StringKind
 
-	// Required, if set to true, specifies that an omitted or null value is
-	// not permitted.
-	Required bool
-
-	// Optional, if set to true, specifies that an omitted or null value is
-	// permitted. This field conflicts with Required.
-	Optional bool
-
-	// Computed, if set to true, specifies that the value comes from the
-	// provider rather than from configuration. If combined with Optional,
-	// then the config may optionally provide an overridden value.
-	Computed bool
+	// Required, Optional, and Computed together represent how this attribute
+	// may be set in the configuration and in responses from a provider.
+	//
+	// Only the following combinations of true values are valid:
+	// - Required: must be set to a non-null value in the configuration.
+	// - Optional: may be set to either a null or non-null value in the
+	//   configuration. If not set, the value defaults to null.
+	// - Computed: may NOT be set in the configuration; the value is decided
+	//   only by the provider, typically based on something returned from
+	//   the underlying remote API.
+	// - Optional+Computed: As with optional, except that if and only if the
+	//   configuration causes it to be set to null (either explicitly or by
+	//   omission) then the provider decides the final value, such as by
+	//   providing a default.
+	//
+	// All other combinations of these flags are invalid and so have no meaning.
+	//
+	// The "Computed" flag only applies to schemas used in contexts where a
+	// provider returns a value derived from the given configuration. For
+	// example, it's used in the schema for a resource type because the
+	// provider returns a new result representing a combination of
+	// configuration, prior state, and remote API data, but it is not used in
+	// the schema for a provider's own configuration because that is used only
+	// as an input to the provider and so there is no means for a provider to
+	// return a derived object.
+	Required, Optional, Computed bool
 
 	// Sensitive, if set to true, indicates that an attribute may contain
 	// sensitive information.
