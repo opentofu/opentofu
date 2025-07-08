@@ -12,11 +12,12 @@ func _() {
 	_ = x[ShowState-1]
 	_ = x[ShowPlan-2]
 	_ = x[ShowConfig-3]
+	_ = x[ShowModule-4]
 }
 
-const _ShowTargetType_name = "ShowUnknownTypeShowStateShowPlanShowConfig"
+const _ShowTargetType_name = "ShowUnknownTypeShowStateShowPlanShowConfigShowModule"
 
-var _ShowTargetType_index = [...]uint8{0, 15, 24, 32, 42}
+var _ShowTargetType_index = [...]uint8{0, 15, 24, 32, 42, 52}
 
 func (i ShowTargetType) String() string {
 	if i < 0 || i >= ShowTargetType(len(_ShowTargetType_index)-1) {

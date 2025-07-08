@@ -94,7 +94,18 @@ func (e *expression) Empty() bool {
 // expression as value.
 type expressions map[string]interface{}
 
+// marshalExpressions returns a representation of the expressions in the given
+// body after analyzing based on the given schema.
+//
+// If [inSingleModuleMode] returns true when given schema, the result is always
+// nil to represent that expression information is not available in
+// single-module mode.
 func marshalExpressions(body hcl.Body, schema *configschema.Block) expressions {
+	if inSingleModuleMode(schema) {
+		// We never generate any expressions in single-module mode.
+		return nil
+	}
+
 	// Since we want the raw, un-evaluated expressions we need to use the
 	// low-level HCL API here, rather than the hcldec decoder API. That means we
 	// need the low-level schema.

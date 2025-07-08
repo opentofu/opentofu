@@ -192,6 +192,8 @@ func (c *ShowCommand) show(ctx context.Context, targetType arguments.ShowTargetT
 		return c.showFromSavedPlanFile(ctx, targetArg, enc)
 	case arguments.ShowConfig:
 		return c.showConfiguration(ctx)
+	case arguments.ShowModule:
+		return c.showModule(ctx, targetArg)
 	case arguments.ShowUnknownType:
 		// This is a legacy case where we just have a filename and need to
 		// try treating it as either a saved plan file or a local state
@@ -581,5 +583,34 @@ func (c *ShowCommand) showConfiguration(ctx context.Context) (showRenderFunc, tf
 	return func(view views.Show) int {
 		// Display the configuration using the view
 		return view.DisplayConfig(config, schemas)
+	}, diags
+}
+
+// showModule returns a function that will display metadata about the module
+// in the given directory, in JSON format.
+//
+// The module representation is a subset of the configuration representation
+// produced by [ShowCommand.showConfiguration], including only what can be
+// generated without access to dependencies of the module. In particular, it
+// does not include information about resource configuration arguments (which
+// would require access to provider schemas) or child modules.
+//
+// This target type requires requires -json to be specified; it has no
+// human-oriented rendering.
+func (c *ShowCommand) showModule(ctx context.Context, dir string) (showRenderFunc, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+
+	ctx, span := tracing.Tracer().Start(ctx, "Show Module")
+	defer span.End()
+
+	mod, moreDiags := c.loadSingleModule(ctx, dir, configs.SelectiveLoadAll)
+	diags = diags.Append(moreDiags)
+	if diags.HasErrors() {
+		return nil, diags
+	}
+
+	return func(view views.Show) int {
+		// Display the configuration using the view
+		return view.DisplaySingleModule(mod)
 	}, diags
 }
