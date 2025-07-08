@@ -1207,17 +1207,7 @@ type testVariableValueExpression struct {
 
 func (v testVariableValueExpression) ParseVariableValue(mode configs.VariableParsingMode) (*tofu.InputValue, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
-
-	evalCtx := v.ctx
-	if evalCtx.Functions == nil {
-		scope := &lang.Scope{}
-		evalCtx = &hcl.EvalContext{
-			Variables: v.ctx.Variables,
-			Functions: scope.Functions(),
-		}
-	}
-
-	val, hclDiags := v.expr.Value(evalCtx)
+	val, hclDiags := v.expr.Value(v.ctx)
 	diags = diags.Append(hclDiags)
 
 	rng := tfdiags.SourceRangeFromHCL(v.expr.Range())
