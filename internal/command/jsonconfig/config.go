@@ -31,12 +31,12 @@ type config struct {
 // provider configurations are the one concept in OpenTofu that can span across
 // module boundaries.
 type providerConfig struct {
-	Name              string                 `json:"name,omitempty"`
-	FullName          string                 `json:"full_name,omitempty"`
-	Alias             string                 `json:"alias,omitempty"`
-	VersionConstraint string                 `json:"version_constraint,omitempty"`
-	ModuleAddress     string                 `json:"module_address,omitempty"`
-	Expressions       map[string]interface{} `json:"expressions,omitempty"`
+	Name              string         `json:"name,omitempty"`
+	FullName          string         `json:"full_name,omitempty"`
+	Alias             string         `json:"alias,omitempty"`
+	VersionConstraint string         `json:"version_constraint,omitempty"`
+	ModuleAddress     string         `json:"module_address,omitempty"`
+	Expressions       map[string]any `json:"expressions,omitempty"`
 	parentKey         string
 }
 
@@ -50,13 +50,13 @@ type module struct {
 }
 
 type moduleCall struct {
-	Source            string                 `json:"source,omitempty"`
-	Expressions       map[string]interface{} `json:"expressions,omitempty"`
-	CountExpression   *expression            `json:"count_expression,omitempty"`
-	ForEachExpression *expression            `json:"for_each_expression,omitempty"`
-	Module            *module                `json:"module,omitempty"`
-	VersionConstraint string                 `json:"version_constraint,omitempty"`
-	DependsOn         []string               `json:"depends_on,omitempty"`
+	Source            string         `json:"source,omitempty"`
+	Expressions       map[string]any `json:"expressions,omitempty"`
+	CountExpression   *expression    `json:"count_expression,omitempty"`
+	ForEachExpression *expression    `json:"for_each_expression,omitempty"`
+	Module            *module        `json:"module,omitempty"`
+	VersionConstraint string         `json:"version_constraint,omitempty"`
+	DependsOn         []string       `json:"depends_on,omitempty"`
 }
 
 // variables is the JSON representation of the variables provided to the current
@@ -95,7 +95,7 @@ type resource struct {
 
 	// Expressions" describes the resource-type-specific  content of the
 	// configuration block.
-	Expressions map[string]interface{} `json:"expressions,omitempty"`
+	Expressions map[string]any `json:"expressions,omitempty"`
 
 	// SchemaVersion indicates which version of the resource type schema the
 	// "values" property conforms to.
@@ -119,8 +119,8 @@ type output struct {
 }
 
 type provisioner struct {
-	Type        string                 `json:"type,omitempty"`
-	Expressions map[string]interface{} `json:"expressions,omitempty"`
+	Type        string         `json:"type,omitempty"`
+	Expressions map[string]any `json:"expressions,omitempty"`
 }
 
 // Marshal returns the json encoding of tofu configuration.
