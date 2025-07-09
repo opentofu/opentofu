@@ -54,6 +54,25 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 		}
 	}
 
+	if raw.Value.HasMark(marks.Ephemeral) && !cfg.Ephemeral {
+		log.Printf("[TRACE] prepareFinalInputVariableValue: %s references an ephemeral value but not configured accordingly", addr)
+		// For child modules variables, this logic is unnecessary since those variables
+		// do always have a SourceRange defined.
+		// We generate subj this way because of the root module variables. In many cases,
+		// the SourceRange can be missing for root module variables.
+		subj := cfg.DeclRange
+		if raw.HasSourceRange() {
+			subj = raw.SourceRange.ToHCL()
+		}
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Variable does not allow ephemeral value`,
+			Detail:   "The value used for the variable is ephemeral, but it is not configured to allow one.",
+			Subject:  subj.Ptr(),
+		})
+		return cty.UnknownVal(cfg.Type), diags
+	}
+
 	var sourceRange tfdiags.SourceRange
 	var nonFileSource string
 	if raw.HasSourceRange() {
@@ -191,6 +210,11 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 			// produce redundant downstream errors.
 			val = cty.UnknownVal(cfg.Type)
 		}
+	}
+
+	// Any ephemeral configured variable needs to have its value marked accordingly.
+	if cfg.Ephemeral {
+		val = val.Mark(marks.Ephemeral)
 	}
 
 	return val, diags
