@@ -17,7 +17,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"

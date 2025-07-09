@@ -10,7 +10,7 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 )
 
 // ResourceInstanceObjectSrc is a not-fully-decoded version of
@@ -86,6 +86,14 @@ func (os *ResourceInstanceObjectSrc) Decode(ty cty.Type) (*ResourceInstanceObjec
 	var err error
 	if os.AttrsFlat != nil {
 		// Legacy mode. We'll do our best to unpick this from the flatmap.
+		//
+		// Note that we can only get here in unusual cases like when running
+		// "tofu show" or "tofu console" against a very old state snapshot
+		// created with Terraform v0.11 or earlier; in the normal plan/apply
+		// path we use the provider function "UpgradeResourceState" to ask
+		// the _provider_ to translate from flatmap to JSON, which can therefore
+		// give better results because the provider can have awareness of its
+		// own legacy encoding quirks.
 		val, err = hcl2shim.HCL2ValueFromFlatmap(os.AttrsFlat, ty)
 		if err != nil {
 			return nil, err

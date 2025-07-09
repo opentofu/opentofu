@@ -17,7 +17,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
