@@ -410,14 +410,6 @@ func (m *Module) appendFile(file *File) hcl.Diagnostics {
 				Subject:  &o.DeclRange,
 			})
 		}
-		if o.Ephemeral && m.SourceDir == "." {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  "Invalid output configuration",
-				Detail:   "Root modules are not allowed to have outputs defined as ephemeral",
-				Subject:  &o.DeclRange,
-			})
-		}
 		m.Outputs[o.Name] = o
 	}
 
