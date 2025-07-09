@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
@@ -338,6 +339,10 @@ func newDiagnosticSnippet(snippetRange, highlightRange *tfdiags.SourceRange, sou
 	return ret
 }
 
+// func newDiagnosticExpressionValuesFromComparison(expr *hclsyntax.BinaryOpExpr) []DiagnosticExpressionValue {
+
+// }
+
 func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressionValue {
 	fromExpr := diag.FromExpr()
 	if fromExpr == nil {
@@ -359,6 +364,27 @@ func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressi
 	seen := make(map[string]struct{}, len(vars))
 	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
 	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
+
+	binExpr, ok := expr.(*hclsyntax.BinaryOpExpr)
+	if ok {
+		lhs, _ := binExpr.LHS.Value(ctx)
+		rhs, _ := binExpr.RHS.Value(ctx)
+		// var lhsVal any
+
+		lhsVal := hcl2shim.ConfigValueFromHCL2(lhs)
+		rhsVal := hcl2shim.ConfigValueFromHCL2(rhs)
+
+		// diff := fmt.Sprintf("- %v\n+ %v", lhsVal, rhsVal)
+		diff := jsondiff.Transform(lhsVal, rhsVal)
+
+		return []DiagnosticExpressionValue{
+			{
+				Traversal: "Diff: \n--- actual\n+++ expected\n",
+				Statement: diff,
+			},
+		}
+	}
+
 Traversals:
 	for _, traversal := range vars {
 		// We want to describe as specific a value as possible but since
