@@ -29,7 +29,7 @@ import (
 
 	"github.com/go-viper/mapstructure/v2"
 	"github.com/mitchellh/copystructure"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/legacy/tofu"
 )
 

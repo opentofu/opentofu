@@ -21,7 +21,7 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/command/cliconfig/svcauthconfig"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	pluginDiscovery "github.com/opentofu/opentofu/internal/plugin/discovery"
 	"github.com/opentofu/opentofu/internal/replacefile"
 )
