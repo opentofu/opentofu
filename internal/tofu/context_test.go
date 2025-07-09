@@ -754,6 +754,21 @@ func testProviderSchema(name string) *providers.GetProviderSchemaResponse {
 				},
 			},
 		},
+		EphemeralTypes: map[string]*configschema.Block{
+			name + "_ephemeral_resource": {
+				Attributes: map[string]*configschema.Attribute{
+					"id": {
+						Type:     cty.String,
+						Computed: true,
+					},
+					"secret": {
+						Type:     cty.String,
+						Optional: true,
+						Computed: true,
+					},
+				},
+			},
+		},
 	})
 }
 

@@ -25,10 +25,11 @@ func TestMarshalProvider(t *testing.T) {
 		{
 			providers.ProviderSchema{},
 			&Provider{
-				Provider:          &Schema{},
-				ResourceSchemas:   map[string]*Schema{},
-				DataSourceSchemas: map[string]*Schema{},
-				Functions:         map[string]*Function{},
+				Provider:                 &Schema{},
+				ResourceSchemas:          map[string]*Schema{},
+				DataSourceSchemas:        map[string]*Schema{},
+				EphemeralResourceSchemas: map[string]*Schema{},
+				Functions:                map[string]*Function{},
 			},
 		},
 		{
@@ -147,6 +148,47 @@ func TestMarshalProvider(t *testing.T) {
 						},
 					},
 				},
+				EphemeralResourceSchemas: map[string]*Schema{
+					"test_ephemeral_resource": {
+						Version: 4,
+						Block: &Block{
+							Attributes: map[string]*Attribute{
+								"id": {
+									AttributeType:   json.RawMessage(`"string"`),
+									Optional:        true,
+									Computed:        true,
+									DescriptionKind: "plain",
+								},
+								"secret": {
+									AttributeType:   json.RawMessage(`"string"`),
+									Optional:        true,
+									DescriptionKind: "plain",
+								},
+							},
+							BlockTypes: map[string]*BlockType{
+								"notes": {
+									Block: &Block{
+										Attributes: map[string]*Attribute{
+											"secret1": {
+												AttributeType:   json.RawMessage(`"string"`),
+												Optional:        true,
+												DescriptionKind: "plain",
+											},
+											"secret2": {
+												AttributeType:   json.RawMessage(`"string"`),
+												Optional:        true,
+												DescriptionKind: "plain",
+											},
+										},
+										DescriptionKind: "plain",
+									},
+									NestingMode: "list",
+								},
+							},
+							DescriptionKind: "plain",
+						},
+					},
+				},
 				Functions: map[string]*Function{},
 			},
 		},
@@ -218,6 +260,28 @@ func testProvider() providers.ProviderSchema {
 								Attributes: map[string]*configschema.Attribute{
 									"device_index": {Type: cty.String, Optional: true},
 									"description":  {Type: cty.String, Optional: true},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+		EphemeralResources: map[string]providers.Schema{
+			"test_ephemeral_resource": {
+				Version: 4,
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"id":     {Type: cty.String, Optional: true, Computed: true},
+						"secret": {Type: cty.String, Optional: true},
+					},
+					BlockTypes: map[string]*configschema.NestedBlock{
+						"notes": {
+							Nesting: configschema.NestingList,
+							Block: configschema.Block{
+								Attributes: map[string]*configschema.Attribute{
+									"secret1": {Type: cty.String, Optional: true},
+									"secret2": {Type: cty.String, Optional: true},
 								},
 							},
 						},

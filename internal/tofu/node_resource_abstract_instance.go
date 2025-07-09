@@ -1931,6 +1931,12 @@ func (n *NodeAbstractResourceInstance) openEphemeralResource(ctx context.Context
 	// NodeAbstractResourceInstance.Close caller.
 	n.closeCh = make(chan struct{}, 1)
 	n.ephemeralDiags = make(chan tfdiags.Diagnostics, 1)
+	// Due to the go scheduler inner works, the goroutine spawned below can be actually scheduled
+	// later than the execution of the nodeCloseableResource graph node.
+	// Therefore, we want to mark the renewal process as started before the goroutine spawning to be sure
+	// that the execution of nodeCloseableResource will block on the diagnostics reported by the
+	// goroutine below.
+	n.renewStarted.Store(true)
 	// The renewer is taking care of calling provider.Renew if resp.RenewAt != nil.
 	// But if resp.RenewAt == nil, renewer holds only the resp.Private that will be used later
 	// when calling provider.CloseEphemeralResource.
@@ -3037,6 +3043,77 @@ func maybeImproveResourceInstanceDiagnostics(diags tfdiags.Diagnostics, excludeA
 	return ret
 }
 
+func (n *NodeAbstractResourceInstance) applyEphemeralResource(ctx context.Context, evalCtx EvalContext) (*states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
+	var diags tfdiags.Diagnostics
+	var keyData instances.RepetitionData
+	var configVal cty.Value
+
+	_, providerSchema, err := n.getProvider(ctx, evalCtx)
+	if err != nil {
+		return nil, keyData, diags.Append(err)
+	}
+
+	schema, _ := providerSchema.SchemaForResourceAddr(n.Addr.ContainingResource().Resource)
+	if schema == nil {
+		// Should be caught during validation, so we don't bother with a pretty error here
+		diags = diags.Append(fmt.Errorf("provider %q does not support ephemeral resource %q", n.ResolvedProvider.ProviderConfig.InstanceString(n.ResolvedProviderKey), n.Addr.ContainingResource().Resource.Type))
+		return nil, keyData, diags
+	}
+
+	keyData = evalCtx.InstanceExpander().GetResourceInstanceRepetitionData(n.ResourceInstanceAddr())
+
+	var configDiags tfdiags.Diagnostics
+	configVal, _, configDiags = evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
+	diags = diags.Append(configDiags)
+	if configDiags.HasErrors() {
+		return nil, keyData, diags
+	}
+
+	configKnown := configVal.IsWhollyKnown()
+	// If our configuration contains any unknown values, or we depend on any
+	// unknown values then we must defer the opening to the apply phase by
+	// producing an "Open" change for this resource, and a placeholder value for
+	// it in the state.
+	if !configKnown {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Incomplete configuration for ephemeral resource",
+			Detail:   fmt.Sprintf("Ephemeral resource %q has incomplete configuration.", n.Addr.String()),
+			Subject:  n.Config.TypeRange.Ptr(),
+			Context:  n.Config.DeclRange.Ptr(),
+		})
+		return nil, instances.RepetitionData{}, diags
+	}
+
+	// We have a complete configuration with no dependencies to wait on, so we
+	// can open the ephemeral resource and store its value in the state.
+	newVal, deferralReason, readDiags := n.openEphemeralResource(ctx, evalCtx, configVal)
+	if deferralReason != providers.DeferredReasonUnknown {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Ephemeral resource deferred during apply",
+			Detail:   fmt.Sprintf("Ephemeral resource %q asked for being deferred. This is a provider error.", n.Addr.String()),
+			Subject:  n.Config.TypeRange.Ptr(),
+			Context:  n.Config.DeclRange.Ptr(),
+		})
+		return nil, instances.RepetitionData{}, diags
+	}
+	diags = diags.Append(readDiags)
+	if diags.HasErrors() {
+		return nil, keyData, diags
+	}
+	// Now that we've loaded the data, and diags contain no error,
+	// we are going to create our proposedNewState.
+	plannedNewState := &states.ResourceInstanceObject{
+		Value:  newVal,
+		Status: states.ObjectReady,
+		// Private field ignored intentionally since this is handled internally by
+		// the goroutine that is handling the renewal of the ephemeral resource.
+	}
+
+	return plannedNewState, keyData, diags
+}
+
 func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context, evalCtx EvalContext, checkRuleSeverity tfdiags.Severity, skipPlanChanges bool) (*plans.ResourceInstanceChange, *states.ResourceInstanceObject, instances.RepetitionData, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	var keyData instances.RepetitionData
@@ -3122,22 +3199,35 @@ func (n *NodeAbstractResourceInstance) planEphemeralResource(ctx context.Context
 		diags = diags.Append(deferDiags)
 		return plannedChange, plannedNewState, keyData, diags
 	}
+	diags = diags.Append(readDiags)
+	if diags.HasErrors() {
+		return nil, nil, instances.RepetitionData{}, diags
+	}
 
 	// Now we've loaded the data, and diags tells us whether we were successful
 	// or not, we are going to create our plannedChange and our
 	// proposedNewState.
-	var plannedChange *plans.ResourceInstanceChange
-	var plannedNewState *states.ResourceInstanceObject
-
-	diags = diags.Append(readDiags)
-	if !diags.HasErrors() {
-		// Finally, let's make our new state.
-		plannedNewState = &states.ResourceInstanceObject{
-			Value:  newVal,
-			Status: states.ObjectReady,
-			// Private field ignored intentionally since this is handled internally by
-			// the goroutine that is handling the renewal of the ephemeral resource.
-		}
+	plannedNewState := &states.ResourceInstanceObject{
+		Value:  newVal,
+		Status: states.ObjectReady,
+		// Private field ignored intentionally since this is handled internally by
+		// the goroutine that is handling the renewal of the ephemeral resource.
+	}
+	plannedChange := &plans.ResourceInstanceChange{
+		Addr:         n.Addr,
+		PrevRunAddr:  n.Addr,
+		DeposedKey:   states.NotDeposed,
+		ProviderAddr: n.ResolvedProvider.ProviderConfig,
+		Change: plans.Change{
+			Action: plans.Open,
+			// In order to have proper evaluation of the references to ephemeral resources, we need the change to contain
+			// a proper after value that will be used later in evaluationStateData.GetResource to generate
+			// evaluation data of this resource.
+			// These values must not end up in the plan file.
+			// The nullification of these is handled at the plan file writing layer.
+			Before: priorVal,
+			After:  newVal,
+		},
 	}
 
 	return plannedChange, plannedNewState, keyData, diags
@@ -3147,7 +3237,6 @@ func (n *NodeAbstractResourceInstance) startEphemeralRenew(ctx context.Context, 
 	if n.Addr.Resource.Resource.Mode != addrs.EphemeralResourceMode {
 		panic("renewal process cannot be started for resources other than ephemeral ones. This is an OpenTofu issue, please report it")
 	}
-	n.renewStarted.Store(true)
 	privateData, diags := n.renewEphemeral(ctx, evalContext, provider, renewAt, privateData)
 	// wait for the close signal. This is like this because the renewEphemeral can return right away if the renewAt is nil.
 	// But the close of the ephemeral should happen only when the graph walk is reaching the execution of the closing
@@ -3230,6 +3319,10 @@ func (n *NodeAbstractResourceInstance) deferEphemeralResource(evalCtx EvalContex
 		ProviderAddr: n.ResolvedProvider.ProviderConfig,
 		Change: plans.Change{
 			Action: plans.Open,
+			// In order to have proper evaluation of the references to ephemeral resources, we need the change to contain
+			// a proper after value, even if it's just a null value of the schema type.
+			// These values must not end up in the plan file.
+			// The nullification of these is handled at the plan file writing layer.
 			Before: priorVal,
 			After:  proposedNewVal,
 		},
