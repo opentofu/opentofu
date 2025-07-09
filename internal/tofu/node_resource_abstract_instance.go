@@ -2543,6 +2543,17 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 				})
 			}
 		}
+		// In case the configuration of a provisioner is referencing an
+		// ephemeral value, supress the whole output of the provisioner.
+		if _, hasEphemeral := configMarks[marks.Ephemeral]; hasEphemeral {
+			outputFn = func(msg string) {
+				// Given that we return nil below, this will never error
+				_ = evalCtx.Hook(func(h Hook) (HookAction, error) {
+					h.ProvisionOutput(n.Addr, prov.Type, "(output suppressed due to ephemeral value in config)")
+					return HookActionContinue, nil
+				})
+			}
+		}
 
 		output := CallbackUIOutput{OutputFn: outputFn}
 		resp := provisioner.ProvisionResource(provisioners.ProvisionResourceRequest{
