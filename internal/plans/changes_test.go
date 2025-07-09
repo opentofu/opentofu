@@ -41,6 +41,22 @@ func TestChangesEmpty(t *testing.T) {
 							Action: Update,
 						},
 					},
+					// but an ephemeral resources will not impact the "emptiness" of the plan
+					{
+						Addr: addrs.Resource{
+							Mode: addrs.EphemeralResourceMode,
+							Type: "test_thing",
+							Name: "woot",
+						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						PrevRunAddr: addrs.Resource{
+							Mode: addrs.EphemeralResourceMode,
+							Type: "test_thing",
+							Name: "woot",
+						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						ChangeSrc: ChangeSrc{
+							Action: Open,
+						},
+					},
 				},
 			},
 			false,
@@ -113,6 +129,28 @@ func TestChangesEmpty(t *testing.T) {
 						}.Absolute(addrs.RootModuleInstance),
 						ChangeSrc: ChangeSrc{
 							Action: NoOp,
+						},
+					},
+				},
+			},
+			true,
+		},
+		"ephemeral resource change": {
+			&Changes{
+				Resources: []*ResourceInstanceChangeSrc{
+					{
+						Addr: addrs.Resource{
+							Mode: addrs.EphemeralResourceMode,
+							Type: "test_thing",
+							Name: "woot",
+						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						PrevRunAddr: addrs.Resource{
+							Mode: addrs.EphemeralResourceMode,
+							Type: "test_thing",
+							Name: "woot",
+						}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+						ChangeSrc: ChangeSrc{
+							Action: Open,
 						},
 					},
 				},

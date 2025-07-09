@@ -34,8 +34,9 @@ type provider struct {
 
 func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema_Request) (*tfplugin5.GetProviderSchema_Response, error) {
 	resp := &tfplugin5.GetProviderSchema_Response{
-		ResourceSchemas:   make(map[string]*tfplugin5.Schema),
-		DataSourceSchemas: make(map[string]*tfplugin5.Schema),
+		ResourceSchemas:          make(map[string]*tfplugin5.Schema),
+		DataSourceSchemas:        make(map[string]*tfplugin5.Schema),
+		EphemeralResourceSchemas: make(map[string]*tfplugin5.Schema),
 	}
 
 	resp.Provider = &tfplugin5.Schema{
@@ -60,6 +61,12 @@ func (p *provider) GetSchema(_ context.Context, req *tfplugin5.GetProviderSchema
 	}
 	for typ, dat := range p.schema.DataSources {
 		resp.DataSourceSchemas[typ] = &tfplugin5.Schema{
+			Version: dat.Version,
+			Block:   convert.ConfigSchemaToProto(dat.Block),
+		}
+	}
+	for typ, dat := range p.schema.EphemeralResources {
+		resp.EphemeralResourceSchemas[typ] = &tfplugin5.Schema{
 			Version: dat.Version,
 			Block:   convert.ConfigSchemaToProto(dat.Block),
 		}
@@ -416,7 +423,7 @@ func (p *provider) ReadDataSource(ctx context.Context, req *tfplugin5.ReadDataSo
 // OpenEphemeralResource implements tfplugin5.ProviderServer.
 func (p *provider) OpenEphemeralResource(ctx context.Context, req *tfplugin5.OpenEphemeralResource_Request) (*tfplugin5.OpenEphemeralResource_Response, error) {
 	resp := &tfplugin5.OpenEphemeralResource_Response{}
-	ty := p.schema.DataSources[req.TypeName].Block.ImpliedType()
+	ty := p.schema.EphemeralResources[req.TypeName].Block.ImpliedType()
 
 	configVal, err := decodeDynamicValue(req.Config, ty)
 	if err != nil {
