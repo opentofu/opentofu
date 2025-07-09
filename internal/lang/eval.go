@@ -8,6 +8,7 @@ package lang
 import (
 	"context"
 	"fmt"
+	"log"
 	"maps"
 	"reflect"
 	"strings"
@@ -79,6 +80,8 @@ func (s *Scope) EvalBlock(ctx context.Context, body hcl.Body, schema *configsche
 
 	val, evalDiags := hcldec.Decode(body, spec, hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
+
+	diags = diags.Append(validEphemeralReferences(schema, val))
 
 	val, depDiags := marks.ExtractDeprecationDiagnosticsWithBody(val, body)
 	diags = diags.Append(depDiags)
@@ -623,4 +626,49 @@ func normalizeRefValue(val cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfd
 		return cty.UnknownVal(val.Type()), diags
 	}
 	return val, diags
+}
+
+// validEphemeralReferences is checking if val is containing ephemeral marks.
+// The schema argument is used to figure out if the value is for an ephemeral
+// context. If it is, then we don't even validate ephemeral marks.
+// If val contains any ephemeral mark, we check if the attribute containing
+// an ephemeral value is a write-only one. If not, we generate a diagnostic.
+// The diagnostics returned by this method need to go through InConfigBody
+// by the caller of the evaluator to append additional context to the diagnostic
+// for an enhanced feedback to the user.
+func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags tfdiags.Diagnostics) {
+	// Ephemeral resources can reference values with any mark, so ignore this validation for ephemeral blocks
+	if schema == nil || schema.Ephemeral {
+		return diags
+	}
+	// TODO ephemeral - do we want additional validations here?
+	_, valueMarks := val.UnmarkDeepWithPaths()
+	for _, pathMark := range valueMarks {
+		_, ok := pathMark.Marks[marks.Ephemeral]
+		if !ok {
+			continue
+		}
+
+		// If the block is not ephemeral, then only its write-only attributes can reference ephemeral values.
+		attr := schema.AttributeByPath(pathMark.Path)
+		if attr == nil {
+			// TODO ephemeral - find a better way to handle this case. Panicking feels overzealous and this feels a little bit too little.
+			// Not sure that returning a diagnostic is the way since this is more of an internal error than something that user did wrong
+			// or that it can fix.
+			log.Printf("[ERROR] validEphemeralReferences: no attribute found in schema for path %s", pathMark.Path)
+			continue
+		}
+		if attr.WriteOnly {
+			continue
+		}
+
+		diags = diags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Ephemeral value used in non-ephemeral context",
+			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by a write-only ones.", configschema.PathName(pathMark.Path)),
+			pathMark.Path,
+		))
+	}
+
+	return diags
 }

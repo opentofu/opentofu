@@ -743,6 +743,14 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			// We should only end up here during the validate walk,
 			// since later walks should have at least partial states populated
 			// for all resources in the configuration.
+			if schema.Ephemeral {
+				// If the block that it's evaluated is an ephemeral one, we want to mark
+				// the cty.DynamicVal as ephemeral to ensure that the ephemeral references
+				// check is working properly during walkValidate.
+				// TODO ephemeral - for the reviewers: do you see any unwanted consequences in
+				// marking this value?
+				return cty.DynamicVal.MarkWithPaths([]cty.PathValueMarks{{Path: make(cty.Path, 0), Marks: cty.NewValueMarks(marks.Ephemeral)}}), diags
+			}
 			return cty.DynamicVal, diags
 		}
 	}
@@ -816,6 +824,11 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				schemaMarks := schema.ValueMarks(val, nil)
 				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
+			if schema.Ephemeral {
+				// When the evaluated block is ephemeral, we want to mark its value
+				// as ephemeral too to be able to validate later where it's referenced
+				afterMarks = combinePathValueMarks(afterMarks, []cty.PathValueMarks{{Path: make(cty.Path, 0), Marks: cty.NewValueMarks(marks.Ephemeral)}})
+			}
 
 			instances[key] = val.MarkWithPaths(afterMarks)
 
@@ -845,6 +858,15 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			schemaMarks := schema.ValueMarks(val, nil)
 
 			combined := combinePathValueMarks(marks, schemaMarks)
+			val = val.MarkWithPaths(combined)
+		}
+		if schema.Ephemeral {
+			// When the evaluated block is ephemeral, we want to mark its value
+			// as ephemeral too to be able to validate later where it's referenced
+			var existingMarks []cty.PathValueMarks
+			val, existingMarks = val.UnmarkDeepWithPaths()
+
+			combined := combinePathValueMarks(existingMarks, []cty.PathValueMarks{{Path: make(cty.Path, 0), Marks: cty.NewValueMarks(marks.Ephemeral)}})
 			val = val.MarkWithPaths(combined)
 		}
 		instances[key] = val

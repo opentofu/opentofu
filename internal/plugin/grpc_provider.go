@@ -167,7 +167,9 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 	}
 
 	for name, data := range protoResp.EphemeralResourceSchemas {
-		resp.EphemeralResources[name] = convert.ProtoToProviderSchema(data)
+		resSchema := convert.ProtoToProviderSchema(data)
+		resSchema.Block.Ephemeral = true
+		resp.EphemeralResources[name] = resSchema
 	}
 
 	for name, fn := range protoResp.Functions {
