@@ -58,3 +58,19 @@ func (o *Object) AttributeByPath(path cty.Path) *Attribute {
 	}
 	return nil
 }
+
+// PathName is trying to get the name of the attribute from cty.Path.
+// Due to the implementation difference between cty.IndexStep and cty.GetAttrStep,
+// this method is working only with a path where the last element is a cty.GetAttrStep.
+// TODO ephemeral - is there a better way to do this?
+func PathName(path cty.Path) string {
+	r := "<unknown>"
+	for i := len(path) - 1; i >= 0; i-- {
+		step := path[i]
+		switch st := step.(type) {
+		case cty.GetAttrStep:
+			r = st.Name
+		}
+	}
+	return r
+}
