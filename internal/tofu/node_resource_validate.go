@@ -381,7 +381,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		}
 
 		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
-		diags = diags.Append(valDiags)
+		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
 			return diags
 		}
@@ -443,7 +443,7 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 		}
 
 		configVal, _, valDiags := evalCtx.EvaluateBlock(ctx, n.Config.Config, schema, nil, keyData)
-		diags = diags.Append(valDiags)
+		diags = diags.Append(valDiags.InConfigBody(n.Config.Config, n.Addr.String()))
 		if valDiags.HasErrors() {
 			return diags
 		}
