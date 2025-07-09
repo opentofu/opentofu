@@ -39,6 +39,13 @@ func NewChanges() *Changes {
 
 func (c *Changes) Empty() bool {
 	for _, res := range c.Resources {
+		// We ignore Open actions which are specific to ephemeral resources.
+		// A configuration containing ephemeral resources will always have changes planned,
+		// but if there is no other change recorded, there is no need for a prompt
+		// on the user.
+		if res.Action == Open {
+			continue
+		}
 		if res.Action != NoOp || res.Moved() {
 			return false
 		}
