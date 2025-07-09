@@ -325,10 +325,12 @@ func TestTFPlanRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	{
-		// remove ephemeral from the plan since that should have been skipped from been written
-		plan.Changes.Resources = slices.DeleteFunc(plan.Changes.Resources, func(src *plans.ResourceInstanceChangeSrc) bool {
+		// nullify the ephemeral values from the initial plan since those must be nil in the plan file
+		i := slices.IndexFunc(plan.Changes.Resources, func(src *plans.ResourceInstanceChangeSrc) bool {
 			return src.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode
 		})
+		plan.Changes.Resources[i].After = nil
+		plan.Changes.Resources[i].Before = nil
 	}
 
 	newPlan, err := readTfplan(&buf)

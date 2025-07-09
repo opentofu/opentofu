@@ -428,9 +428,12 @@ func writeStateV4(file *File, w io.Writer, enc encryption.StateEncryption) tfdia
 				mode = "managed"
 			case addrs.DataResourceMode:
 				mode = "data"
+			case addrs.EphemeralResourceMode:
+				// Ephemeral resources are the resources that are meant not to be written to the state file.
+				// Therefore, even though we can find those in the state (for evaluation reasons), we want to
+				// skip these from the state file.
+				continue
 			default:
-				// This covers also addrs.EphemeralResourceMode. Should never happen, so this comment is just an indication
-				// that this part was checked during ephemeral resources implementation.
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Failed to serialize resource in state",
