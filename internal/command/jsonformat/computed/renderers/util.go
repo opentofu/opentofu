@@ -9,10 +9,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/command/format"
-
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
+	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 	"github.com/opentofu/opentofu/internal/plans"
 )
@@ -91,5 +90,6 @@ func writeDiffActionSymbol(action plans.Action, opts computed.RenderHumanOpts) s
 	if opts.HideDiffActionSymbols {
 		return ""
 	}
+
 	return fmt.Sprintf("%s ", opts.Colorize.Color(format.DiffActionSymbol(action)))
 }

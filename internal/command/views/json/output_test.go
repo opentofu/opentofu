@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
@@ -54,7 +55,7 @@ func TestOutputsFromMap(t *testing.T) {
 		t.Fatal(diags.Err())
 	}
 
-	want := Outputs{
+	want := jsonentities.Outputs{
 		"boop": {
 			Sensitive: false,
 			Type:      json.RawMessage(`"number"`),
@@ -150,7 +151,7 @@ func TestOutputsFromChanges(t *testing.T) {
 		},
 	})
 
-	want := Outputs{
+	want := jsonentities.Outputs{
 		"boop": {
 			Action:    "noop",
 			Sensitive: false,
@@ -179,7 +180,7 @@ func TestOutputsFromChanges(t *testing.T) {
 }
 
 func TestOutputs_String(t *testing.T) {
-	outputs := Outputs{
+	outputs := jsonentities.Outputs{
 		"boop": {
 			Sensitive: false,
 			Type:      json.RawMessage(`"number"`),

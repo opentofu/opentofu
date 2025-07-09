@@ -17,7 +17,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -865,20 +865,20 @@ eventually make it onto multiple lines. THE END
 // in future from other sources.
 func TestDiagnosticFromJSON_invalid(t *testing.T) {
 	tests := map[string]struct {
-		Diag *viewsjson.Diagnostic
+		Diag *jsonentities.Diagnostic
 		Want string
 	}{
 		"zero-value end range and highlight end byte": {
-			&viewsjson.Diagnostic{
-				Severity: viewsjson.DiagnosticSeverityError,
+			&jsonentities.Diagnostic{
+				Severity: jsonentities.DiagnosticSeverityError,
 				Summary:  "Bad end",
 				Detail:   "It all went wrong.",
-				Range: &viewsjson.DiagnosticRange{
+				Range: &jsonentities.DiagnosticRange{
 					Filename: "ohno.tf",
-					Start:    viewsjson.Pos{Line: 1, Column: 23, Byte: 22},
-					End:      viewsjson.Pos{Line: 0, Column: 0, Byte: 0},
+					Start:    jsonentities.Pos{Line: 1, Column: 23, Byte: 22},
+					End:      jsonentities.Pos{Line: 0, Column: 0, Byte: 0},
 				},
-				Snippet: &viewsjson.DiagnosticSnippet{
+				Snippet: &jsonentities.DiagnosticSnippet{
 					Code:                 `resource "foo_bar "baz" {`,
 					StartLine:            1,
 					HighlightStartOffset: 22,
