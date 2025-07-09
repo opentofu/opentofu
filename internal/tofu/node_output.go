@@ -387,6 +387,14 @@ If you do intend to export this data, annotate the output value as sensitive by 
 					Subject: n.Config.DeclRange.Ptr(),
 				})
 			}
+			if n.Config.Ephemeral {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid output configuration",
+					Detail:   "Root modules are not allowed to have outputs defined as ephemeral",
+					Subject:  n.Config.DeclRange.Ptr(),
+				})
+			}
 		}
 	}
 
