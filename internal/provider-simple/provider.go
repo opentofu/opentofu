@@ -37,6 +37,17 @@ func Provider() providers.Interface {
 			},
 		},
 	}
+	// Only managed resource should have write-only arguments.
+	withWriteOnlyAttribute := func(s providers.Schema) providers.Schema {
+		b := *s.Block
+
+		b.Attributes["value_wo"] = &configschema.Attribute{
+			Optional:  true,
+			Type:      cty.String,
+			WriteOnly: true,
+		}
+		return providers.Schema{Block: &b}
+	}
 
 	return simple{
 		schema: providers.GetProviderSchemaResponse{
@@ -58,7 +69,7 @@ func Provider() providers.Interface {
 				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"simple_resource": simpleResource,
+				"simple_resource": withWriteOnlyAttribute(simpleResource),
 			},
 			DataSources: map[string]providers.Schema{
 				"simple_resource": simpleResource,
@@ -160,7 +171,7 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 	// This is a special case that can be used together with ephemeral resources to be able to test the renewal process.
 	// When the "value" attribute of the resource is containing "with-renew" it will return later to allow
 	// the ephemeral resource to call renew at least once. Check also OpenEphemeralResource.
-	if v, ok := m["value"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
+	if v, ok := m["value_wo"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
 		<-time.After(time.Second)
 	}
 

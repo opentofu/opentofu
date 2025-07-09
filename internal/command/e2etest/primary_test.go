@@ -277,12 +277,20 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 			expectedChangesOutput := `OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
   + create
+ <= read (data resources)
 
 OpenTofu will perform the following actions:
 
+  # data.simple_resource.test_data2 will be read during apply
+  # (depends on a resource or a module with changes pending)
+ <= data "simple_resource" "test_data2" {
+      + id    = (known after apply)
+      + value = "test"
+    }
+
   # simple_resource.test_res will be created
   + resource "simple_resource" "test_res" {
-      + value = "initial data value-with-renew"
+      + value_wo = "initial data value-with-renew"
     }
 
   # simple_resource.test_res_second_provider will be created
@@ -302,8 +310,6 @@ Changes to Outputs:
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Opening...":                                               true,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
-				"data.simple_resource.test_data2: Reading...":                                                               true,
-				"data.simple_resource.test_data2: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Closing...":                                               true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Close complete after [0-2]+s":                             true,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Closing...":                                               true,
@@ -312,18 +318,18 @@ Changes to Outputs:
 			out := stripAnsi(stdout)
 
 			if !strings.Contains(out, expectedChangesOutput) {
-				t.Errorf("wrong output:\nstdout:%s\nstderr%s", stdout, stderr)
+				t.Errorf("wrong plan output:\nstdout:%s\nstderr:%s", stdout, stderr)
 			}
 
 			for reg, required := range expectedResourcesUpdates {
 				r := regexp.MustCompile(reg)
 				if !r.Match([]byte(out)) {
 					if required {
-						t.Errorf("output does not contain required content %q\nout:%s", reg, out)
+						t.Errorf("plan output does not contain required content %q\nout:%s", reg, out)
 					} else {
 						// We don't want to fail the test for outputs that are performance and time dependent
 						// as the renew status updates
-						t.Logf("output does not contain %q\nout:%s", reg, out)
+						t.Logf("plan output does not contain %q\nout:%s", reg, out)
 					}
 				}
 			}
@@ -384,6 +390,8 @@ Changes to Outputs:
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
 				"simple_resource.test_res: Creating...":                                                                     true,
 				"simple_resource.test_res_second_provider: Creating...":                                                     true,
+				"data.simple_resource.test_data2: Reading...":                                                               true,
+				"data.simple_resource.test_data2: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renewing...":                                              false,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renew complete after [0-2]+s":                             false,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renewing...":                                              false,
@@ -398,18 +406,18 @@ Changes to Outputs:
 			out := stripAnsi(stdout)
 
 			if !strings.Contains(out, expectedChangesOutput) {
-				t.Errorf("wrong output:\nstdout:%s\nstderr%s", stdout, stderr)
+				t.Errorf("wrong apply output:\nstdout:%s\nstderr%s", stdout, stderr)
 			}
 
 			for reg, required := range expectedResourcesUpdates {
 				r := regexp.MustCompile(reg)
 				if !r.Match([]byte(out)) {
 					if required {
-						t.Errorf("output does not contain required content %q\nout:%s", reg, out)
+						t.Errorf("apply output does not contain required content %q\nout:%s", reg, out)
 					} else {
 						// We don't want to fail the test for outputs that are performance and time dependent
 						// as the renew status updates
-						t.Logf("output does not contain %q\nout:%s", reg, out)
+						t.Logf("apply output does not contain %q\nout:%s", reg, out)
 					}
 				}
 			}
