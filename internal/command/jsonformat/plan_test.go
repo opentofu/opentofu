@@ -15,9 +15,9 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/differ"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/structured"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/configs/configschema"

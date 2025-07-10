@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/format"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/computed"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/computed/renderers"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"

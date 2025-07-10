@@ -17,10 +17,17 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/computed"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/structured"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/structured/attribute_path"
+	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
+
+type RemoveMe struct {
+	computed.Diff
+}
 
 // These severities map to the tfdiags.Severity values, plus an explicit
 // unknown in case that enum grows without us noticing here.
@@ -34,6 +41,7 @@ const (
 // just a severity, single line summary, and optional detail. If there is more
 // information about the source of the diagnostic, this is represented in the
 // range field.
+
 type Diagnostic struct {
 	Severity string             `json:"severity"`
 	Summary  string             `json:"summary"`
@@ -339,9 +347,37 @@ func newDiagnosticSnippet(snippetRange, highlightRange *tfdiags.SourceRange, sou
 	return ret
 }
 
-// func newDiagnosticExpressionValuesFromComparison(expr *hclsyntax.BinaryOpExpr) []DiagnosticExpressionValue {
+func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.Expression) ([]DiagnosticExpressionValue, bool) {
+	binExpr, ok := expr.(*hclsyntax.BinaryOpExpr)
+	if !ok {
+		return nil, false
+	}
 
-// }
+	lhs, _ := binExpr.LHS.Value(ctx)
+	rhs, _ := binExpr.RHS.Value(ctx)
+	// // var lhsVal any
+	change, err := jsonplan.GenerateChange(lhs, rhs)
+	if err != nil {
+		return nil, false
+	}
+	diff := structured.FromJsonChange(*change, attribute_path.AlwaysMatcher())
+	fmt.Println(diff)
+
+	// lhsVal := hcl2shim.ConfigValueFromHCL2(lhs)
+	// rhsVal := hcl2shim.ConfigValueFromHCL2(rhs)
+
+	// differ.ComputeDiffForType(lhsVal, rhsVal)
+
+	// diff := fmt.Sprintf("- %v\n+ %v", lhsVal, rhsVal)
+	// diff := jsondiff.Transform(lhsVal, rhsVal)
+
+	return []DiagnosticExpressionValue{
+		{
+			Traversal: "Diff: \n--- actual\n+++ expected\n",
+			Statement: "diff",
+		},
+	}, true
+}
 
 func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressionValue {
 	fromExpr := diag.FromExpr()
@@ -359,31 +395,16 @@ func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressi
 	// "count" and "for_each", or within "for" expressions.
 	expr := fromExpr.Expression
 	ctx := fromExpr.EvalContext
+	valuesFromComparison, ok := newDiagnosticExpressionValuesFromComparison(ctx, expr)
+	if ok {
+		return valuesFromComparison
+	}
+
 	vars := expr.Variables()
+	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
 	values := make([]DiagnosticExpressionValue, 0, len(vars))
 	seen := make(map[string]struct{}, len(vars))
 	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
-	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
-
-	binExpr, ok := expr.(*hclsyntax.BinaryOpExpr)
-	if ok {
-		lhs, _ := binExpr.LHS.Value(ctx)
-		rhs, _ := binExpr.RHS.Value(ctx)
-		// var lhsVal any
-
-		lhsVal := hcl2shim.ConfigValueFromHCL2(lhs)
-		rhsVal := hcl2shim.ConfigValueFromHCL2(rhs)
-
-		// diff := fmt.Sprintf("- %v\n+ %v", lhsVal, rhsVal)
-		diff := jsondiff.Transform(lhsVal, rhsVal)
-
-		return []DiagnosticExpressionValue{
-			{
-				Traversal: "Diff: \n--- actual\n+++ expected\n",
-				Statement: diff,
-			},
-		}
-	}
 
 Traversals:
 	for _, traversal := range vars {

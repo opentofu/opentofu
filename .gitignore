@@ -39,3 +39,9 @@ dist/
 
 # Development temp folder
 tmp
+
+# asdf manager
+.tool-versions
+
+# VSCode settings
+.vscode

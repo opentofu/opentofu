@@ -13,9 +13,8 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/command/format"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/computed"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/differ"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
@@ -138,7 +137,7 @@ func (renderer Renderer) RenderLog(log *JSONLog) error {
 		if len(log.Outputs) > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color("[bold][green]Outputs:[reset]"))
 			for name, output := range log.Outputs {
-				change := structured.FromJsonViewsOutput(output)
+				change := viewsjson.FromJsonViewsOutput(output)
 				ctype, err := ctyjson.UnmarshalType(output.Type)
 				if err != nil {
 					return err
