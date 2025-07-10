@@ -42,6 +42,7 @@ func simpleMockPluginLibrary() *contextPlugins {
 				return provisioner, nil
 			},
 		},
+		providerSchemas: map[addrs.Provider]*lockableProviderSchema{},
 	}
 	return ret
 }

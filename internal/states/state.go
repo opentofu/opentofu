@@ -368,6 +368,20 @@ func (s *State) ProviderRequirements() getproviders.Requirements {
 	return ret
 }
 
+func (s *State) ProviderSchemaRequirements() addrs.ProviderSchemaRequirements {
+	if s == nil {
+		return nil
+	}
+
+	m := make(addrs.ProviderSchemaRequirements)
+	for _, ms := range s.Modules {
+		for _, rc := range ms.Resources {
+			m.AddResource(rc.ProviderConfig.Provider, addrs.ManagedResourceMode, rc.Addr.Resource.Type)
+		}
+	}
+	return m
+}
+
 // PruneResourceHusks is a specialized method that will remove any Resource
 // objects that do not contain any instances, even if they have an EachMode.
 //

@@ -233,7 +233,7 @@ func (m *Meta) providerDevOverrideRuntimeWarnings() tfdiags.Diagnostics {
 // package have been modified outside of the installer. If it returns an error,
 // the returned map may be incomplete or invalid, but will be as complete
 // as possible given the cause of the error.
-func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error) {
+func (m *Meta) providerFactories(reqs addrs.ProviderSchemaRequirements) (map[addrs.Provider]providers.Factory, error) {
 	locks, diags := m.lockedDependencies()
 	if diags.HasErrors() {
 		return nil, fmt.Errorf("failed to read dependency lock file: %w", diags.Err())
@@ -275,6 +275,20 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 	// providers are typically scoped to a single unattended command.
 	devOverrideProviders := m.ProviderDevOverrides
 	unmanagedProviders := m.UnmanagedProviders
+
+	providerReqs := func(provider addrs.Provider) addrs.ProviderResourceRequirments {
+		// Legacy path that does not support filtering
+		if reqs == nil {
+			// Unfiltered
+			return nil
+		}
+		if req, ok := reqs[provider]; ok {
+			return req
+		}
+
+		// Filtered (empty)
+		return addrs.ProviderResourceRequirments{}
+	}
 
 	factories := make(map[addrs.Provider]providers.Factory, len(providerLocks)+len(internalFactories)+len(unmanagedProviders))
 	for name, factory := range internalFactories {
@@ -324,13 +338,13 @@ func (m *Meta) providerFactories() (map[addrs.Provider]providers.Factory, error)
 				continue
 			}
 		}
-		factories[provider] = providerFactory(cached)
+		factories[provider] = providerFactory(cached, providerReqs(provider))
 	}
 	for provider, localDir := range devOverrideProviders {
-		factories[provider] = devOverrideProviderFactory(provider, localDir)
+		factories[provider] = devOverrideProviderFactory(provider, localDir, providerReqs(provider))
 	}
 	for provider, reattach := range unmanagedProviders {
-		factories[provider] = unmanagedProviderFactory(provider, reattach)
+		factories[provider] = unmanagedProviderFactory(provider, reattach, providerReqs(provider))
 	}
 
 	var err error
@@ -351,7 +365,11 @@ func (m *Meta) internalProviders() map[string]providers.Factory {
 // providerFactory produces a provider factory that runs up the executable
 // file in the given cache package and uses go-plugin to implement
 // providers.Interface against it.
-func providerFactory(meta *providercache.CachedProvider) providers.Factory {
+func providerFactory(meta *providercache.CachedProvider, reqs addrs.ProviderResourceRequirments) providers.Factory {
+	// Same schema for each instance
+	schema := &providers.CachedSchema{
+		Filter: reqs,
+	}
 	return func() (providers.Interface, error) {
 		execFile, err := meta.ExecutableFile()
 		if err != nil {
@@ -382,7 +400,7 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 		}
 
 		protoVer := client.NegotiatedVersion()
-		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider)
+		p, err := initializeProviderInstance(raw, protoVer, client, meta.Provider, schema)
 		if errors.Is(err, errUnsupportedProtocolVersion) {
 			panic(err)
 		}
@@ -393,25 +411,27 @@ func providerFactory(meta *providercache.CachedProvider) providers.Factory {
 
 // initializeProviderInstance uses the plugin dispensed by the RPC client, and initializes a plugin instance
 // per the protocol version
-func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider) (providers.Interface, error) {
+func initializeProviderInstance(plugin interface{}, protoVer int, pluginClient *plugin.Client, pluginAddr addrs.Provider, schema *providers.CachedSchema) (providers.Interface, error) {
 	// store the client so that the plugin can kill the child process
 	switch protoVer {
 	case 5:
 		p := plugin.(*tfplugin.GRPCProvider)
 		p.PluginClient = pluginClient
 		p.Addr = pluginAddr
+		p.Schema = schema
 		return p, nil
 	case 6:
 		p := plugin.(*tfplugin6.GRPCProvider)
 		p.PluginClient = pluginClient
 		p.Addr = pluginAddr
+		p.Schema = schema
 		return p, nil
 	default:
 		return nil, errUnsupportedProtocolVersion
 	}
 }
 
-func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.PackageLocalDir) providers.Factory {
+func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.PackageLocalDir, reqs addrs.ProviderResourceRequirments) providers.Factory {
 	// A dev override is essentially a synthetic cache entry for our purposes
 	// here, so that's how we'll construct it. The providerFactory function
 	// doesn't actually care about the version, so we can leave it
@@ -421,13 +441,17 @@ func devOverrideProviderFactory(provider addrs.Provider, localDir getproviders.P
 		Provider:   provider,
 		Version:    getproviders.UnspecifiedVersion,
 		PackageDir: string(localDir),
-	})
+	}, reqs)
 }
 
 // unmanagedProviderFactory produces a provider factory that uses the passed
 // reattach information to connect to go-plugin processes that are already
 // running, and implements providers.Interface against it.
-func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.ReattachConfig) providers.Factory {
+func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.ReattachConfig, reqs addrs.ProviderResourceRequirments) providers.Factory {
+	// Same schema for each instance
+	schema := &providers.CachedSchema{
+		Filter: reqs,
+	}
 	return func() (providers.Interface, error) {
 		config := &plugin.ClientConfig{
 			HandshakeConfig:  tfplugin.Handshake,
@@ -477,7 +501,7 @@ func unmanagedProviderFactory(provider addrs.Provider, reattach *plugin.Reattach
 			protoVer = 5
 		}
 
-		return initializeProviderInstance(raw, protoVer, client, provider)
+		return initializeProviderInstance(raw, protoVer, client, provider, schema)
 	}
 }
 

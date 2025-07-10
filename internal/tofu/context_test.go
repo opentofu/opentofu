@@ -105,7 +105,7 @@ func TestNewContextRequiredVersion(t *testing.T) {
 					Required: constraint,
 				})
 			}
-			c, diags := NewContext(&ContextOpts{})
+			c, diags := NewContext(&ContextOpts{}, nil)
 			if diags.HasErrors() {
 				t.Fatalf("unexpected NewContext errors: %s", diags.Err())
 			}
@@ -164,7 +164,7 @@ terraform {}
 					Required: constraint,
 				})
 			}
-			c, diags := NewContext(&ContextOpts{})
+			c, diags := NewContext(&ContextOpts{}, nil)
 			if diags.HasErrors() {
 				t.Fatalf("unexpected NewContext errors: %s", diags.Err())
 			}
@@ -178,7 +178,7 @@ terraform {}
 }
 
 func TestContext_missingPlugins(t *testing.T) {
-	ctx, diags := NewContext(&ContextOpts{})
+	ctx, diags := NewContext(&ContextOpts{}, nil)
 	assertNoDiagnostics(t, diags)
 
 	configSrc := `
@@ -325,7 +325,7 @@ func TestContext_contextValuesPropagation(t *testing.T) {
 func testContext2(t testing.TB, opts *ContextOpts) *Context {
 	t.Helper()
 
-	ctx, diags := NewContext(opts)
+	ctx, diags := NewContext(opts, nil)
 	if diags.HasErrors() {
 		t.Fatalf("failed to create test context\n\n%s\n", diags.Err())
 	}
