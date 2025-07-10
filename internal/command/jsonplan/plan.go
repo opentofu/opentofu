@@ -564,10 +564,19 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 
 func GenerateChange(beforeVal, afterVal cty.Value) (*Change, error) {
 	var err error
-	// We drop the marks from the change, as decoding is only an
-	// intermediate step to re-encode the values as json
-	beforeVal, _ = beforeVal.UnmarkDeep()
-	afterVal, _ = afterVal.UnmarkDeep()
+	beforeVal, marks := beforeVal.UnmarkDeepWithPaths()
+	bs := jsonstate.SensitiveAsBoolWithPathValueMarks(beforeVal, marks)
+	beforeSensitive, err := ctyjson.Marshal(bs, bs.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	afterVal, marks = afterVal.UnmarkDeepWithPaths()
+	as := jsonstate.SensitiveAsBoolWithPathValueMarks(afterVal, marks)
+	afterSensitive, err := ctyjson.Marshal(as, as.Type())
+	if err != nil {
+		return nil, err
+	}
 
 	var before, after []byte
 	var afterUnknown cty.Value
@@ -606,6 +615,8 @@ func GenerateChange(beforeVal, afterVal cty.Value) (*Change, error) {
 		After:        json.RawMessage(after),
 		AfterUnknown: a,
 
+		BeforeSensitive: json.RawMessage(beforeSensitive),
+		AfterSensitive:  json.RawMessage(afterSensitive),
 		// Just to be explicit, outputs cannot be imported so this is always
 		// nil.
 		Importing: nil,

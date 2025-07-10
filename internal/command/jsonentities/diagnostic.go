@@ -15,8 +15,14 @@ import (
 	"github.com/hashicorp/hcl/v2/hcled"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mitchellh/colorstring"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
+	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -340,6 +346,49 @@ func newDiagnosticSnippet(snippetRange, highlightRange *tfdiags.SourceRange, sou
 	return ret
 }
 
+func prepareDiffForOutput(color *colorstring.Colorize, out string) string {
+	lines := strings.Split(out, "\n")
+
+	buf := strings.Builder{}
+	// This first line is used with one less space to make the output symmetrical
+	buf.WriteString(color.Color("   [dark_gray]│[reset] "))
+	for line := range lines {
+		buf.WriteString(color.Color("\n    [dark_gray]│[reset] "))
+		buf.WriteString(lines[line])
+	}
+	return buf.String()
+}
+
+func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.Expression) ([]DiagnosticExpressionValue, bool) {
+	binExpr, ok := expr.(*hclsyntax.BinaryOpExpr)
+	if !ok {
+		return nil, false
+	}
+
+	lhs, _ := binExpr.LHS.Value(ctx)
+	rhs, _ := binExpr.RHS.Value(ctx)
+	planChange, err := jsonplan.GenerateChange(lhs, rhs)
+	if err != nil {
+		return nil, false
+	}
+	change := structured.FromJsonChange(*planChange, attribute_path.AlwaysMatcher())
+
+	differed := differ.ComputeDiffForOutput(change)
+
+	color := &colorstring.Colorize{
+		Colors:  colorstring.DefaultColors,
+		Disable: false,
+	}
+	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: color})
+
+	return []DiagnosticExpressionValue{
+		{
+			Traversal: "Diff:\n",
+			Statement: prepareDiffForOutput(color, out),
+		},
+	}, true
+}
+
 func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressionValue {
 	fromExpr := diag.FromExpr()
 	if fromExpr == nil {
@@ -361,6 +410,11 @@ func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressi
 	seen := make(map[string]struct{}, len(vars))
 	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
 	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
+
+	valuesFromComparison, ok := newDiagnosticExpressionValuesFromComparison(ctx, expr)
+	if ok {
+		return valuesFromComparison
+	}
 
 Traversals:
 	for _, traversal := range vars {
