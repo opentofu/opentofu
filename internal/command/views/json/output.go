@@ -12,8 +12,8 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/command/jsondiagnostic"
-	"github.com/opentofu/opentofu/internal/command/jsondiffer/structured"
-	"github.com/opentofu/opentofu/internal/command/jsondiffer/structured/attribute_path"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/tfdiags"

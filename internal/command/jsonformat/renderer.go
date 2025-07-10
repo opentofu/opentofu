@@ -14,8 +14,8 @@ import (
 
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/command/jsondiagnostic"
-	"github.com/opentofu/opentofu/internal/command/jsondiffer/computed"
-	"github.com/opentofu/opentofu/internal/command/jsondiffer/differ"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
