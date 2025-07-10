@@ -369,18 +369,11 @@ func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.
 		Colors:  colorstring.DefaultColors,
 		Disable: false,
 	}})
-	// lhsVal := hcl2shim.ConfigValueFromHCL2(lhs)
-	// rhsVal := hcl2shim.ConfigValueFromHCL2(rhs)
-
-	// differ.ComputeDiffForType(lhsVal, rhsVal)
-
-	// diff := fmt.Sprintf("- %v\n+ %v", lhsVal, rhsVal)
-	// diff := jsondiff.Transform(lhsVal, rhsVal)
 
 	return []DiagnosticExpressionValue{
 		{
 			Traversal: "Diff:\n",
-			Statement: out,
+			Statement: fmt.Sprintf("   | %s\n", out),
 		},
 	}, true
 }
