@@ -349,6 +349,19 @@ func newDiagnosticSnippet(snippetRange, highlightRange *tfdiags.SourceRange, sou
 	return ret
 }
 
+func prepareDiffForOutput(color *colorstring.Colorize, out string) string {
+	lines := strings.Split(out, "\n")
+
+	buf := strings.Builder{}
+	// This first line is used with one less space to make the output symmetrical
+	buf.WriteString(color.Color("   [dark_gray]│[reset] "))
+	for line := range lines {
+		buf.WriteString(color.Color("\n    [dark_gray]│[reset] "))
+		buf.WriteString(lines[line])
+	}
+	return buf.String()
+}
+
 func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.Expression) ([]DiagnosticExpressionValue, bool) {
 	binExpr, ok := expr.(*hclsyntax.BinaryOpExpr)
 	if !ok {
@@ -365,15 +378,16 @@ func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.
 
 	differed := differ.ComputeDiffForOutput(change)
 
-	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: &colorstring.Colorize{
+	color := &colorstring.Colorize{
 		Colors:  colorstring.DefaultColors,
 		Disable: false,
-	}})
+	}
+	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: color})
 
 	return []DiagnosticExpressionValue{
 		{
 			Traversal: "Diff:\n",
-			Statement: fmt.Sprintf("   | %s\n", out),
+			Statement: prepareDiffForOutput(color, out),
 		},
 	}, true
 }
