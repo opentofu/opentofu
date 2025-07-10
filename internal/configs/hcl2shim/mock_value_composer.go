@@ -101,6 +101,16 @@ func (mvc MockValueComposer) composeMockValueForAttributes(schema *configschema.
 		// Non-computed attributes can't be generated
 		// so we set them from configuration only.
 		if !attr.Computed {
+			if attr.NestedType != nil && attr.NestedType.Nesting == configschema.NestingGroup {
+				// This should not be possible to hit.  Neither tofu or the provider framework will allow
+				// NestingGroup in here.  However, this could change at some point and we want to be prepared for it.
+				diags = diags.Append(tfdiags.WholeContainingBody(
+					tfdiags.Error,
+					fmt.Sprintf("Unsupported field `%v` in attribute mocking", k),
+					"Overriding non-computed fields is not allowed, so this field cannot be processed.",
+				))
+				continue
+			}
 			mockAttrs[k] = cty.NullVal(attr.ImpliedType())
 			if _, ok := defaults[k]; ok {
 				diags = diags.Append(tfdiags.WholeContainingBody(
