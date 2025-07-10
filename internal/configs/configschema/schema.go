@@ -41,7 +41,7 @@ type Block struct {
 
 	// Ephemeral is a flag indicating that this is an ephemeral block marking it as an "ephemeral context".
 	// There are multiple places where this is set to "true". Generally speaking,
-	// any Block that is meant to accept ephemeral values, should have this set as "true".
+	// any Block that is meant to accept ephemeral values should have this set as "true".
 	Ephemeral bool
 }
 

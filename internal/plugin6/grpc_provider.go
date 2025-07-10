@@ -152,7 +152,9 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 		return resp
 	}
 
-	resp.Provider = convert.ProtoToProviderSchema(protoResp.Provider)
+	// We want to allow "provider" blocks to work with ephemeral variables, so we
+	// just mark its schema as able to get such values.
+	resp.Provider = convert.ProtoToEphemeralProviderSchema(protoResp.Provider)
 	if protoResp.ProviderMeta == nil {
 		logger.Debug("No provider meta schema returned")
 	} else {
@@ -172,9 +174,8 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 	}
 
 	for name, res := range protoResp.EphemeralResourceSchemas {
-		resSchema := convert.ProtoToProviderSchema(res)
-		resSchema.Block.Ephemeral = true
-		resp.EphemeralResources[name] = resSchema
+		// Ephemeral resources should be able to work with ephemeral values by design.
+		resp.EphemeralResources[name] = convert.ProtoToEphemeralProviderSchema(res)
 	}
 
 	if protoResp.ServerCapabilities != nil {
