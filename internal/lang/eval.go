@@ -17,16 +17,15 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
-	"github.com/zclconf/go-cty/cty/function"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 // ExpandBlock expands any "dynamic" blocks present in the given body. The
@@ -650,23 +649,30 @@ func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags 
 		}
 
 		// If the block is not ephemeral, then only its write-only attributes can reference ephemeral values.
-		attr := schema.AttributeByPath(pathMark.Path)
-		if attr == nil {
-			// TODO ephemeral - find a better way to handle this case. Panicking feels overzealous and this feels a little bit too little.
-			// Not sure that returning a diagnostic is the way since this is more of an internal error than something that user did wrong
-			// or that it can fix.
-			log.Printf("[ERROR] validEphemeralReferences: no attribute found in schema for path %s", pathMark.Path)
-			continue
+		// To figure it out, we need to find the attribute of the by the path in the mark.
+		// In cases of DynamicPseudoType attribute in the schema, the attribute that is actually
+		// referencing an ephemeral value will be missing from the schema.
+		// Therefore, we want to get to the attribute that is of type DynamicPseudoType.
+		attrPath := pathMark.Path
+		attr := schema.AttributeByPath(attrPath)
+		for attr == nil {
+			if len(attrPath) == 0 {
+				// TODO ephemeral - for reviewers: isn't this risky since the evaluation could generate tons of logs?
+				log.Printf("[WARN] no valid path found in schema for path \"%#v\"", pathMark.Path)
+				break
+			}
+			attrPath = attrPath[:len(attrPath)-1]
+			attr = schema.AttributeByPath(attrPath)
 		}
-		if attr.WriteOnly {
+		if attr != nil && attr.WriteOnly {
 			continue
 		}
 
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Ephemeral value used in non-ephemeral context",
-			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by a write-only ones.", configschema.PathName(pathMark.Path)),
-			pathMark.Path,
+			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", configschema.PathName(attrPath)),
+			attrPath,
 		))
 	}
 
