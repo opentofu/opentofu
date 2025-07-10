@@ -5064,6 +5064,7 @@ output "test-child" {
 	}{
 		"simpleModCall": {
 			expectedWarn: tfdiags.Description{
+				Address: "test_object.test",
 				Summary: "Value derived from a deprecated source",
 				Detail:  "This value is derived from module.mod.test-child, which is deprecated with the following message:\n\nDon't use me",
 			},
@@ -5104,6 +5105,7 @@ output "test-child" {
 		},
 		"modForEach": {
 			expectedWarn: tfdiags.Description{
+				Address: "test_object.test",
 				Summary: "Value derived from a deprecated source",
 				Detail:  "This value is derived from module.mod[\"a\"].test-child, which is deprecated with the following message:\n\nDon't use me",
 			},
@@ -5288,8 +5290,8 @@ module "modfe" {
 				t.Fatalf("Expected a warning, got: %v", diags.ErrWithWarnings())
 			}
 
-			if !diags[0].Description().Equal(test.expectedWarn) {
-				t.Fatalf("Unexpected warning: %v", diags.ErrWithWarnings())
+			if got, want := diags[0].Description(), test.expectedWarn; !got.Equal(want) {
+				t.Fatalf("Unexpected warning. Want:\n%v\nGot:\n%v\n", want, got)
 			}
 		})
 	}
