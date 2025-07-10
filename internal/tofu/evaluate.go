@@ -266,11 +266,15 @@ func (d *evaluationStateData) GetInputVariable(_ context.Context, addr addrs.Inp
 	// being liberal in what it accepts because the subsequent plan walk has
 	// more information available and so can be more conservative.
 	if d.Operation == walkValidate {
-		// Ensure variable sensitivity is captured in the validate walk
+		// Ensure variable marks are captured in the validate walk
+		v := cty.UnknownVal(config.Type)
 		if config.Sensitive {
-			return cty.UnknownVal(config.Type).Mark(marks.Sensitive), diags
+			v = v.Mark(marks.Sensitive)
 		}
-		return cty.UnknownVal(config.Type), diags
+		if config.Ephemeral {
+			v = v.Mark(marks.Ephemeral)
+		}
+		return v, diags
 	}
 
 	moduleAddrStr := d.ModulePath.String()
@@ -304,9 +308,12 @@ func (d *evaluationStateData) GetInputVariable(_ context.Context, addr addrs.Inp
 		val = cty.UnknownVal(config.Type)
 	}
 
-	// Mark if sensitive
+	// Mark the variable's value based on the configuration it's having
 	if config.Sensitive {
 		val = val.Mark(marks.Sensitive)
+	}
+	if config.Ephemeral {
+		val = val.Mark(marks.Ephemeral)
 	}
 
 	return val, diags
