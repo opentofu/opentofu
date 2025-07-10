@@ -539,6 +539,17 @@ func (o *Output) Addr() addrs.OutputValue {
 	return addrs.OutputValue{Name: o.Name}
 }
 
+// UsageRange returns the location where the output value is configured, but if the expression is not configured
+// then it returns the output definition location.
+// Useful for generating diagnostics.
+func (o *Output) UsageRange() hcl.Range {
+	subj := o.DeclRange
+	if o.Expr != nil {
+		subj = o.Expr.Range()
+	}
+	return subj
+}
+
 // Local represents a single entry from a "locals" block in a module or file.
 // The "locals" block itself is not represented, because it serves only to
 // provide context for us to interpret its contents.
