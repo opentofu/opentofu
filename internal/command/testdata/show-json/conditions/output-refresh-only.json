@@ -130,9 +130,11 @@
       ],
       "variables": {
         "ami": {
+          "type": "string",
           "default": "ami-test"
         },
         "id_minimum_length": {
+          "type": "number",
           "default": 10
         }
       }

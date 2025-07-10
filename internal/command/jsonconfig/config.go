@@ -64,8 +64,10 @@ type moduleCall struct {
 type variables map[string]*variable
 
 type variable struct {
+	Type        json.RawMessage `json:"type,omitempty"`
 	Default     json.RawMessage `json:"default,omitempty"`
 	Description string          `json:"description,omitempty"`
+	Required    bool            `json:"required,omitempty"`
 	Sensitive   bool            `json:"sensitive,omitempty"`
 	Deprecated  string          `json:"deprecated,omitempty"`
 }
@@ -379,17 +381,47 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 	if len(c.Module.Variables) > 0 {
 		vars := make(variables, len(c.Module.Variables))
 		for k, v := range c.Module.Variables {
+			typeConstraint := cty.DynamicPseudoType
+			if v.ConstraintType != cty.NilType {
+				typeConstraint = v.ConstraintType
+			}
+
+			var typeJSON []byte
+			// We leave the "type" property unset in output when it
+			// would be DynamicPseudoType, because the most typical way to
+			// represent this situation in our source language is to
+			// omit the type argument from the declaration -- it essentially
+			// represents "no type constrant at all" -- and because this
+			// avoids exposing a potentially-confusing detail that cty
+			// describes DynamicPseudoType as "dynamic" in JSON, while HCL
+			// prefers to call it "any".
+			if !typeConstraint.Equals(cty.DynamicPseudoType) {
+				typeJSON, err = typeConstraint.MarshalJSON()
+				if err != nil {
+					// Should not get here, because v.ConstraintType should always
+					// be a valid cty type when it isn't NilType, so this uses
+					// the internal type stringification to get the most detailed
+					// error message in a potential bug report.
+					return module, fmt.Errorf("failed to marshal %#v as JSON: %w", typeConstraint, err)
+				}
+			}
+
 			var defaultValJSON []byte
+			var required bool
 			if v.Default == cty.NilVal {
 				defaultValJSON = nil
+				required = true
 			} else {
 				defaultValJSON, err = ctyjson.Marshal(v.Default, v.Default.Type())
+				required = false
 				if err != nil {
 					return module, err
 				}
 			}
 			vars[k] = &variable{
+				Type:        typeJSON,
 				Default:     defaultValJSON,
+				Required:    required,
 				Description: v.Description,
 				Sensitive:   v.Sensitive,
 				Deprecated:  v.Deprecated,
