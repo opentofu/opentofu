@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package json
+package jsondiagnostic
 
 import (
 	"bufio"
@@ -15,9 +15,11 @@ import (
 	"github.com/hashicorp/hcl/v2/hcled"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/mitchellh/colorstring"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/command/jsondiffer/computed"
+	"github.com/opentofu/opentofu/internal/command/jsondiffer/differ"
 	"github.com/opentofu/opentofu/internal/command/jsondiffer/structured"
 	"github.com/opentofu/opentofu/internal/command/jsondiffer/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
@@ -355,14 +357,18 @@ func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.
 
 	lhs, _ := binExpr.LHS.Value(ctx)
 	rhs, _ := binExpr.RHS.Value(ctx)
-	// // var lhsVal any
-	change, err := jsonplan.GenerateChange(lhs, rhs)
+	planChange, err := jsonplan.GenerateChange(lhs, rhs)
 	if err != nil {
 		return nil, false
 	}
-	diff := structured.FromJsonChange(*change, attribute_path.AlwaysMatcher())
-	fmt.Println(diff)
+	change := structured.FromJsonChange(*planChange, attribute_path.AlwaysMatcher())
 
+	differed := differ.ComputeDiffForOutput(change)
+
+	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: &colorstring.Colorize{
+		Colors:  colorstring.DefaultColors,
+		Disable: false,
+	}})
 	// lhsVal := hcl2shim.ConfigValueFromHCL2(lhs)
 	// rhsVal := hcl2shim.ConfigValueFromHCL2(rhs)
 
@@ -373,8 +379,8 @@ func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.
 
 	return []DiagnosticExpressionValue{
 		{
-			Traversal: "Diff: \n--- actual\n+++ expected\n",
-			Statement: "diff",
+			Traversal: "Diff:\n",
+			Statement: out,
 		},
 	}, true
 }

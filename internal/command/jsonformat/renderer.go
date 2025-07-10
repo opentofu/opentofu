@@ -13,6 +13,7 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/command/format"
+	"github.com/opentofu/opentofu/internal/command/jsondiagnostic"
 	"github.com/opentofu/opentofu/internal/command/jsondiffer/computed"
 	"github.com/opentofu/opentofu/internal/command/jsondiffer/differ"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
@@ -26,11 +27,11 @@ import (
 type JSONLogType string
 
 type JSONLog struct {
-	Message    string                 `json:"@message"`
-	Type       JSONLogType            `json:"type"`
-	Diagnostic *viewsjson.Diagnostic  `json:"diagnostic"`
-	Outputs    viewsjson.Outputs      `json:"outputs"`
-	Hook       map[string]interface{} `json:"hook"`
+	Message    string                     `json:"@message"`
+	Type       JSONLogType                `json:"type"`
+	Diagnostic *jsondiagnostic.Diagnostic `json:"diagnostic"`
+	Outputs    jsondiagnostic.Outputs     `json:"outputs"`
+	Hook       map[string]interface{}     `json:"hook"`
 }
 
 const (

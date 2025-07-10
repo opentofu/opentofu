@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package json
+package jsondiagnostic
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ import (
 
 func NewResourceInstanceChange(change *plans.ResourceInstanceChangeSrc) *ResourceInstanceChange {
 	c := &ResourceInstanceChange{
-		Resource:        newResourceAddr(change.Addr),
+		Resource:        NewResourceAddr(change.Addr),
 		Action:          changeAction(change.Action),
 		Reason:          changeReason(change.ActionReason),
 		GeneratedConfig: change.GeneratedConfig,
@@ -35,7 +35,7 @@ func NewResourceInstanceChange(change *plans.ResourceInstanceChangeSrc) *Resourc
 		if c.Action == ActionNoOp {
 			c.Action = ActionMove
 		}
-		pr := newResourceAddr(change.PrevRunAddr)
+		pr := NewResourceAddr(change.PrevRunAddr)
 		c.PreviousResource = &pr
 	}
 	if change.Importing != nil {
