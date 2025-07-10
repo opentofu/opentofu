@@ -660,8 +660,8 @@ func TestShow_json_output(t *testing.T) {
 			// Disregard format version to reduce needless test fixture churn
 			want.FormatVersion = got.FormatVersion
 
-			if !cmp.Equal(got, want) {
-				t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Fatal("wrong result:\n" + diff)
 			}
 		})
 	}
@@ -857,8 +857,8 @@ func TestShow_json_output_conditions_refresh_only(t *testing.T) {
 	// Disregard format version to reduce needless test fixture churn
 	want.FormatVersion = got.FormatVersion
 
-	if !cmp.Equal(got, want) {
-		t.Fatalf("wrong result:\n %v\n", cmp.Diff(got, want))
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Fatal("wrong result:\n" + diff)
 	}
 }
 
@@ -1651,6 +1651,8 @@ func TestShow_module(t *testing.T) {
 			},
 			"variables": map[string]any{
 				"foo": map[string]any{
+					"type":      "string",
+					"required":  true,
 					"sensitive": true,
 				},
 			},
