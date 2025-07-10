@@ -83,7 +83,7 @@ func OutputsFromChanges(changes []*plans.OutputChangeSrc) jsondiagnostic.Outputs
 	for _, change := range changes {
 		outputs[change.Addr.OutputValue.Name] = jsondiagnostic.Output{
 			Sensitive: change.Sensitive,
-			Action:    jsondiagnostic.ChangeAction(change.Action),
+			Action:    jsondiagnostic.ParseChangeAction(change.Action),
 		}
 	}
 

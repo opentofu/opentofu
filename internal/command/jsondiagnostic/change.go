@@ -14,7 +14,7 @@ import (
 func NewResourceInstanceChange(change *plans.ResourceInstanceChangeSrc) *ResourceInstanceChange {
 	c := &ResourceInstanceChange{
 		Resource:        NewResourceAddr(change.Addr),
-		Action:          changeAction(change.Action),
+		Action:          ParseChangeAction(change.Action),
 		Reason:          changeReason(change.ActionReason),
 		GeneratedConfig: change.GeneratedConfig,
 	}
@@ -75,7 +75,7 @@ const (
 	ActionForget  ChangeAction = "remove"
 )
 
-func changeAction(action plans.Action) ChangeAction {
+func ParseChangeAction(action plans.Action) ChangeAction {
 	switch action {
 	case plans.NoOp:
 		return ActionNoOp

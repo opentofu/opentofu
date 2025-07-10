@@ -45,7 +45,7 @@ func (h *applyStart) String() string {
 func NewApplyStart(addr addrs.AbsResourceInstance, action plans.Action, idKey string, idValue string) Hook {
 	hook := &applyStart{
 		Resource:   jsondiagnostic.NewResourceAddr(addr),
-		Action:     jsondiagnostic.ChangeAction(action),
+		Action:     jsondiagnostic.ParseChangeAction(action),
 		IDKey:      idKey,
 		IDValue:    idValue,
 		actionVerb: startActionVerb(action),
@@ -77,7 +77,7 @@ func (h *applyProgress) String() string {
 func NewApplyProgress(addr addrs.AbsResourceInstance, action plans.Action, elapsed time.Duration) Hook {
 	return &applyProgress{
 		Resource:   jsondiagnostic.NewResourceAddr(addr),
-		Action:     jsondiagnostic.ChangeAction(action),
+		Action:     jsondiagnostic.ParseChangeAction(action),
 		Elapsed:    elapsed.Seconds(),
 		actionVerb: progressActionVerb(action),
 		elapsed:    elapsed,
@@ -112,7 +112,7 @@ func (h *applyComplete) String() string {
 func NewApplyComplete(addr addrs.AbsResourceInstance, action plans.Action, idKey, idValue string, elapsed time.Duration) Hook {
 	return &applyComplete{
 		Resource:   jsondiagnostic.NewResourceAddr(addr),
-		Action:     jsondiagnostic.ChangeAction(action),
+		Action:     jsondiagnostic.ParseChangeAction(action),
 		IDKey:      idKey,
 		IDValue:    idValue,
 		Elapsed:    elapsed.Seconds(),
@@ -144,7 +144,7 @@ func (h *applyErrored) String() string {
 func NewApplyErrored(addr addrs.AbsResourceInstance, action plans.Action, elapsed time.Duration) Hook {
 	return &applyErrored{
 		Resource:   jsondiagnostic.NewResourceAddr(addr),
-		Action:     jsondiagnostic.ChangeAction(action),
+		Action:     jsondiagnostic.ParseChangeAction(action),
 		Elapsed:    elapsed.Seconds(),
 		actionNoun: actionNoun(action),
 		elapsed:    elapsed,
