@@ -16,6 +16,7 @@ import (
 	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -143,7 +144,7 @@ func (n *NodeValidatableResource) validateProvisioner(ctx context.Context, evalC
 		// configuration keys that are not valid for *any* communicator, catching
 		// typos early rather than waiting until we actually try to run one of
 		// the resource's provisioners.
-		_, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, connectionBlockSupersetSchema)
+		_, _, connDiags := n.evaluateBlock(ctx, evalCtx, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
 		diags = diags.Append(connDiags)
 	}
 	return diags
@@ -153,142 +154,6 @@ func (n *NodeValidatableResource) evaluateBlock(ctx context.Context, evalCtx Eva
 	keyData, selfAddr := n.stubRepetitionData(n.Config.Count != nil, n.Config.ForEach != nil)
 
 	return evalCtx.EvaluateBlock(ctx, body, schema, selfAddr, keyData)
-}
-
-// connectionBlockSupersetSchema is a schema representing the superset of all
-// possible arguments for "connection" blocks across all supported connection
-// types.
-//
-// This currently lives here because we've not yet updated our communicator
-// subsystem to be aware of schema itself. Once that is done, we can remove
-// this and use a type-specific schema from the communicator to validate
-// exactly what is expected for a given connection type.
-var connectionBlockSupersetSchema = &configschema.Block{
-	Attributes: map[string]*configschema.Attribute{
-		// NOTE: "type" is not included here because it's treated special
-		// by the config loader and stored away in a separate field.
-
-		// Common attributes for both connection types
-		"host": {
-			Type:     cty.String,
-			Required: true,
-		},
-		"type": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"user": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"password": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"port": {
-			Type:     cty.Number,
-			Optional: true,
-		},
-		"timeout": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"script_path": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		// For type=ssh only (enforced in ssh communicator)
-		"target_platform": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"private_key": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"certificate": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"host_key": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"agent": {
-			Type:     cty.Bool,
-			Optional: true,
-		},
-		"agent_identity": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"proxy_scheme": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"proxy_host": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"proxy_port": {
-			Type:     cty.Number,
-			Optional: true,
-		},
-		"proxy_user_name": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"proxy_user_password": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_host": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_host_key": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_port": {
-			Type:     cty.Number,
-			Optional: true,
-		},
-		"bastion_user": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_password": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_private_key": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"bastion_certificate": {
-			Type:     cty.String,
-			Optional: true,
-		},
-
-		// For type=winrm only (enforced in winrm communicator)
-		"https": {
-			Type:     cty.Bool,
-			Optional: true,
-		},
-		"insecure": {
-			Type:     cty.Bool,
-			Optional: true,
-		},
-		"cacert": {
-			Type:     cty.String,
-			Optional: true,
-		},
-		"use_ntlm": {
-			Type:     cty.Bool,
-			Optional: true,
-		},
-	},
 }
 
 func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
