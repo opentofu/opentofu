@@ -53,6 +53,7 @@ func (p *provisioner) GetSchema() (resp provisioners.GetSchemaResponse) {
 				Required: true,
 			},
 		},
+		Ephemeral: true,
 	}
 	resp.Provisioner = schema
 	return resp
