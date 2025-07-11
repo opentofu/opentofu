@@ -13,9 +13,9 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/command/format"
+	"github.com/opentofu/opentofu/internal/command/jsondiagnostic"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
@@ -27,11 +27,11 @@ import (
 type JSONLogType string
 
 type JSONLog struct {
-	Message    string                 `json:"@message"`
-	Type       JSONLogType            `json:"type"`
-	Diagnostic *viewsjson.Diagnostic  `json:"diagnostic"`
-	Outputs    viewsjson.Outputs      `json:"outputs"`
-	Hook       map[string]interface{} `json:"hook"`
+	Message    string                     `json:"@message"`
+	Type       JSONLogType                `json:"type"`
+	Diagnostic *jsondiagnostic.Diagnostic `json:"diagnostic"`
+	Outputs    jsondiagnostic.Outputs     `json:"outputs"`
+	Hook       map[string]interface{}     `json:"hook"`
 }
 
 const (
@@ -138,7 +138,7 @@ func (renderer Renderer) RenderLog(log *JSONLog) error {
 		if len(log.Outputs) > 0 {
 			renderer.Streams.Println(renderer.Colorize.Color("[bold][green]Outputs:[reset]"))
 			for name, output := range log.Outputs {
-				change := structured.FromJsonViewsOutput(output)
+				change := viewsjson.FromJsonViewsOutput(output)
 				ctype, err := ctyjson.UnmarshalType(output.Type)
 				if err != nil {
 					return err
