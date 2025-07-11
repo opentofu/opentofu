@@ -6,6 +6,9 @@
 package states
 
 import (
+	"bytes"
+	"reflect"
+
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
@@ -69,6 +72,87 @@ type ResourceInstanceObjectSrc struct {
 	Status              ObjectStatus
 	Dependencies        []addrs.ConfigResource
 	CreateBeforeDestroy bool
+}
+
+func equalSlicesIgnoreOrder[S ~[]E, E any](a, b S, fn func(E, E) bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Not sure if this is the most efficient approach, but it works
+	for _, v := range a {
+		found := false
+		for _, o := range b {
+			if fn(v, o) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	for _, v := range b {
+		found := false
+		for _, o := range a {
+			if fn(v, o) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) bool {
+	if os == other {
+		return true
+	}
+	if os == nil || other == nil {
+		return false
+	}
+
+	if os.SchemaVersion != other.SchemaVersion {
+		return false
+	}
+
+	if !bytes.Equal(os.AttrsJSON, other.AttrsJSON) {
+		return false
+	}
+
+	if !reflect.DeepEqual(os.AttrsFlat, other.AttrsFlat) {
+		return false
+	}
+
+	if !equalSlicesIgnoreOrder(os.AttrSensitivePaths, other.AttrSensitivePaths, cty.PathValueMarks.Equal) {
+		return false
+	}
+	if !equalSlicesIgnoreOrder(os.TransientPathValueMarks, other.TransientPathValueMarks, cty.PathValueMarks.Equal) {
+		return false
+	}
+
+	if !bytes.Equal(os.Private, other.Private) {
+		return false
+	}
+
+	if os.Status != other.Status {
+		return false
+	}
+
+	if !equalSlicesIgnoreOrder(os.Dependencies, other.Dependencies, addrs.ConfigResource.Equal) {
+		return false
+	}
+
+	if os.CreateBeforeDestroy != other.CreateBeforeDestroy {
+		return false
+	}
+
+	return true
 }
 
 // Decode unmarshals the raw representation of the object attributes. Pass the
