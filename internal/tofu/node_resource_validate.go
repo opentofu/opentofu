@@ -289,6 +289,7 @@ var connectionBlockSupersetSchema = &configschema.Block{
 			Optional: true,
 		},
 	},
+	Ephemeral: true,
 }
 
 func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
