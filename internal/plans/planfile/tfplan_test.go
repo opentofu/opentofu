@@ -7,6 +7,7 @@ package planfile
 
 import (
 	"bytes"
+	"slices"
 	"testing"
 
 	"github.com/go-test/deep"
@@ -173,6 +174,32 @@ func TestTFPlanRoundTrip(t *testing.T) {
 						GeneratedConfig: "resource \\\"test_thing\\\" \\\"importing\\\" {}",
 					},
 				},
+				{
+					Addr: addrs.Resource{
+						Mode: addrs.EphemeralResourceMode,
+						Type: "test_thing",
+						Name: "testeph",
+					}.Instance(addrs.IntKey(1)).Absolute(addrs.RootModuleInstance),
+					PrevRunAddr: addrs.Resource{
+						Mode: addrs.ManagedResourceMode,
+						Type: "test_thing",
+						Name: "testeph",
+					}.Instance(addrs.IntKey(1)).Absolute(addrs.RootModuleInstance),
+					ProviderAddr: addrs.AbsProviderConfig{
+						Provider: addrs.NewDefaultProvider("test"),
+						Module:   addrs.RootModule,
+					},
+					ChangeSrc: plans.ChangeSrc{
+						Action: plans.Open,
+						Before: mustNewDynamicValue(cty.ObjectVal(map[string]cty.Value{
+							"id": cty.StringVal("testing"),
+						}), objTy),
+						After: mustNewDynamicValue(cty.ObjectVal(map[string]cty.Value{
+							"id": cty.StringVal("testing"),
+						}), objTy),
+						GeneratedConfig: "ephemeral \\\"test_thing\\\" \\\"testeph\\\" {}",
+					},
+				},
 			},
 		},
 		DriftedResources: []*plans.ResourceInstanceChangeSrc{
@@ -296,6 +323,14 @@ func TestTFPlanRoundTrip(t *testing.T) {
 	err := writeTfplan(plan, &buf)
 	if err != nil {
 		t.Fatal(err)
+	}
+	{
+		// nullify the ephemeral values from the initial plan since those must be nil in the plan file
+		i := slices.IndexFunc(plan.Changes.Resources, func(src *plans.ResourceInstanceChangeSrc) bool {
+			return src.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode
+		})
+		plan.Changes.Resources[i].After = nil
+		plan.Changes.Resources[i].Before = nil
 	}
 
 	newPlan, err := readTfplan(&buf)

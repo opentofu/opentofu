@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -49,6 +50,9 @@ func Provider() providers.Interface {
 			DataSources: map[string]providers.Schema{
 				"simple_resource": simpleResource,
 			},
+			EphemeralResources: map[string]providers.Schema{
+				"simple_resource": simpleResource,
+			},
 			ServerCapabilities: providers.ServerCapabilities{
 				PlanDestroy: true,
 			},
@@ -69,6 +73,10 @@ func (s simple) ValidateResourceConfig(_ context.Context, req providers.Validate
 }
 
 func (s simple) ValidateDataResourceConfig(_ context.Context, req providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
+	return resp
+}
+
+func (s simple) ValidateEphemeralConfig(context.Context, providers.ValidateEphemeralConfigRequest) (resp providers.ValidateEphemeralConfigResponse) {
 	return resp
 }
 
@@ -144,6 +152,12 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 		m["id"] = cty.StringVal(time.Now().String())
 	}
 	resp.NewState = cty.ObjectVal(m)
+	// This is a special case that can be used together with ephemeral resources to be able to test the renewal process.
+	// When the "value" attribute of the resource is containing "with-renew" it will return later to allow
+	// the ephemeral resource to call renew at least once. Check also OpenEphemeralResource.
+	if v, ok := m["value"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
+		<-time.After(time.Second)
+	}
 
 	return resp
 }
@@ -157,6 +171,29 @@ func (s simple) ReadDataSource(_ context.Context, req providers.ReadDataSourceRe
 	m := req.Config.AsValueMap()
 	m["id"] = cty.StringVal("static_id")
 	resp.State = cty.ObjectVal(m)
+	return resp
+}
+
+func (s simple) OpenEphemeralResource(_ context.Context, req providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	m := req.Config.AsValueMap()
+	m["id"] = cty.StringVal("static-ephemeral-id")
+	if v, ok := m["value"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
+		t := time.Now().Add(200 * time.Millisecond)
+		resp.RenewAt = &t
+	}
+	resp.Result = cty.ObjectVal(m)
+	resp.Private = []byte("static private data")
+	return resp
+}
+
+func (s simple) RenewEphemeralResource(_ context.Context, req providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	resp.Private = []byte(fmt.Sprintf("%s - renew", req.Private))
+	t := time.Now().Add(200 * time.Millisecond)
+	resp.RenewAt = &t
+	return resp
+}
+
+func (s simple) CloseEphemeralResource(context.Context, providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
 	return resp
 }
 
