@@ -387,6 +387,14 @@ If you do intend to export this data, annotate the output value as sensitive by 
 					Subject: n.Config.DeclRange.Ptr(),
 				})
 			}
+			if n.Config.Ephemeral {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid output configuration",
+					Detail:   "Root modules are not allowed to have outputs defined as ephemeral",
+					Subject:  n.Config.DeclRange.Ptr(),
+				})
+			}
 		}
 	}
 
@@ -417,6 +425,29 @@ If you do intend to export this data, annotate the output value as sensitive by 
 		}
 		return diags
 	}
+
+	ephemeralMarked := marks.Contains(val, marks.Ephemeral)
+	// We don't allow ephemeral values in outputs that are not marked as such.
+	if !n.Config.Ephemeral && ephemeralMarked {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Output does not allow ephemeral value",
+			Detail:   "The value that was generated for the output is ephemeral, but it is not configured to allow one.",
+			Subject:  n.Config.UsageRange().Ptr(),
+		})
+		return diags
+	}
+	// And an output marked as ephemeral can return only an ephemeral value.
+	if n.Config.Ephemeral && !ephemeralMarked {
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Output configured as ephemeral but got a non-ephemeral value",
+			Detail:   "An output that is configured as ephemeral can be set only to an ephemeral value.",
+			Subject:  n.Config.UsageRange().Ptr(),
+		})
+		return diags
+	}
+
 	n.setValue(state, changes, val)
 
 	// If we were able to evaluate a new value, we can update that in the
