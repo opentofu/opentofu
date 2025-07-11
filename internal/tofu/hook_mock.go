@@ -143,10 +143,12 @@ type MockHook struct {
 
 	StoppingCalled bool
 
-	PostStateUpdateCalled bool
-	PostStateUpdateState  *states.State
-	PostStateUpdateReturn HookAction
-	PostStateUpdateError  error
+	PostStateUpdateCalled   bool
+	PostStateUpdateAddr     addrs.AbsResourceInstance
+	PostStateUpdateState    *states.ResourceInstance
+	PostStateUpdateProvider addrs.AbsProviderConfig
+	PostStateUpdateReturn   HookAction
+	PostStateUpdateError    error
 }
 
 var _ Hook = (*MockHook)(nil)
@@ -358,11 +360,13 @@ func (h *MockHook) Stopping() {
 	h.StoppingCalled = true
 }
 
-func (h *MockHook) PostStateUpdate(new *states.State) (HookAction, error) {
+func (h *MockHook) PostStateUpdate(addr addrs.AbsResourceInstance, resource *states.ResourceInstance, provider addrs.AbsProviderConfig) (HookAction, error) {
 	h.Lock()
 	defer h.Unlock()
 
 	h.PostStateUpdateCalled = true
-	h.PostStateUpdateState = new
+	h.PostStateUpdateAddr = addr
+	h.PostStateUpdateState = resource
+	h.PostStateUpdateProvider = provider
 	return h.PostStateUpdateReturn, h.PostStateUpdateError
 }
