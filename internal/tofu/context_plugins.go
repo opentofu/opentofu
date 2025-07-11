@@ -9,12 +9,18 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/provisioners"
 )
+
+type lockableProviderSchema struct {
+	sync.Mutex
+	schema *providers.ProviderSchema
+}
 
 // contextPlugins represents a library of available plugins (providers and
 // provisioners) which we assume will all be used with the same
@@ -23,12 +29,16 @@ import (
 type contextPlugins struct {
 	providerFactories    map[addrs.Provider]providers.Factory
 	provisionerFactories map[string]provisioners.Factory
+
+	providerSchemasLock sync.Mutex
+	providerSchemas     map[addrs.Provider]*lockableProviderSchema
 }
 
 func newContextPlugins(providerFactories map[addrs.Provider]providers.Factory, provisionerFactories map[string]provisioners.Factory) *contextPlugins {
 	return &contextPlugins{
 		providerFactories:    providerFactories,
 		provisionerFactories: provisionerFactories,
+		providerSchemas:      map[addrs.Provider]*lockableProviderSchema{},
 	}
 }
 
@@ -68,26 +78,32 @@ func (cp *contextPlugins) NewProvisionerInstance(typ string) (provisioners.Inter
 // to repeatedly call this method with the same address if various different
 // parts of OpenTofu all need the same schema information.
 func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provider) (providers.ProviderSchema, error) {
-	// Check the global schema cache first.
-	// This cache is only written by the provider client, and transparently
-	// used by GetProviderSchema, but we check it here because at this point we
-	// may be able to avoid spinning up the provider instance at all.
-	//
-	// It's worth noting that ServerCapabilities.GetProviderSchemaOptional is ignored here.
-	// That is because we're checking *prior* to the provider's instantiation.
-	// GetProviderSchemaOptional only says that *if we instantiate a provider*,
-	// then we need to run the get schema call at least once.
-	// BUG This SHORT CIRCUITS the logic below and is not the only code which inserts provider schemas into the cache!!
-	schemas, ok := providers.SchemaCache.Get(addr)
-	if ok {
-		log.Printf("[TRACE] tofu.contextPlugins: Serving provider %q schema from global schema cache", addr)
-		return schemas, nil
+	// TODO this cache is probably not the same between validate, plan, apply...
+
+	// Hold the coarse lock
+	cp.providerSchemasLock.Lock()
+
+	// Locate the fine lock
+	lockSchema, ok := cp.providerSchemas[addr]
+	if !ok {
+		lockSchema = &lockableProviderSchema{}
+		cp.providerSchemas[addr] = lockSchema
+	}
+	// Release the coarse lock
+	cp.providerSchemasLock.Unlock()
+
+	// Hold the fine lock
+	lockSchema.Lock()
+	defer lockSchema.Unlock()
+
+	if lockSchema.schema != nil {
+		return *lockSchema.schema, nil
 	}
 
 	log.Printf("[TRACE] tofu.contextPlugins: Initializing provider %q to read its schema", addr)
 	provider, err := cp.NewProviderInstance(addr)
 	if err != nil {
-		return schemas, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err)
+		return providers.ProviderSchema{}, fmt.Errorf("failed to instantiate provider %q to obtain schema: %w", addr, err)
 	}
 	defer provider.Close(ctx)
 
@@ -121,6 +137,8 @@ func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provide
 			return resp, fmt.Errorf("provider %s has invalid negative schema version for data resource type %q, which is a bug in the provider", addr, t)
 		}
 	}
+
+	lockSchema.schema = &resp
 
 	return resp, nil
 }

@@ -96,7 +96,7 @@ func TestContext2Validate_badVar(t *testing.T) {
 
 func TestContext2Validate_varNoDefaultExplicitType(t *testing.T) {
 	m := testModule(t, "validate-var-no-default-explicit-type")
-	c, diags := NewContext(&ContextOpts{})
+	c, diags := NewContext(&ContextOpts{}, nil)
 	if diags.HasErrors() {
 		t.Fatalf("unexpected NewContext errors: %s", diags.Err())
 	}
@@ -317,7 +317,7 @@ func TestContext2Validate_countVariableNoDefault(t *testing.T) {
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
-	})
+	}, nil)
 	assertNoDiagnostics(t, diags)
 
 	_, diags = c.Plan(context.Background(), m, nil, &PlanOpts{})
@@ -866,7 +866,7 @@ func TestContext2Validate_requiredVar(t *testing.T) {
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("aws"): testProviderFuncFixed(p),
 		},
-	})
+	}, nil)
 	assertNoDiagnostics(t, diags)
 
 	// NOTE: This test has grown idiosyncratic because originally Terraform
