@@ -676,6 +676,13 @@ func decodeProviderConfigRef(expr hcl.Expression, argName string) (*ProviderConf
 	)
 	var maxTraversalLength = keyIndex + 1
 
+	if ok := hcljson.IsJSONExpression(expr); ok {
+		expr, diags = hcl2shim.ConvertJSONExpressionToHCL(expr)
+		if diags.HasErrors() {
+			return nil, diags
+		}
+	}
+
 	// name.alias[expr_key]
 	if iex, ok := expr.(*hclsyntax.IndexExpr); ok {
 		maxTraversalLength = aliasIndex + 1 // expr key found, no const key allowed
