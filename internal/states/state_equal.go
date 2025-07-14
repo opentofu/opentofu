@@ -62,7 +62,7 @@ func sameManagedResources(s1, s2 *State) bool {
 				continue
 			}
 			otherRS := s2.Resource(addr)
-			if !reflect.DeepEqual(rs, otherRS) {
+			if !rs.Equal(otherRS) {
 				return false
 			}
 		}
