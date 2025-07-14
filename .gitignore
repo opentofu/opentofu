@@ -39,3 +39,6 @@ dist/
 
 # Development temp folder
 tmp
+
+# asdf version manager
+.tool-versions
