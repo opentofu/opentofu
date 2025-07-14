@@ -562,6 +562,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 	return ret, nil
 }
 
+// GenerateChange is used to receive two values and calculate the difference
+// between them in order to return a Change struct
 func GenerateChange(beforeVal, afterVal cty.Value) (*Change, error) {
 	var err error
 	beforeVal, marks := beforeVal.UnmarkDeepWithPaths()

@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hcltest"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -50,6 +51,17 @@ func TestNewDiagnostic(t *testing.T) {
   var.k,
 ]
 `)},
+		"test.tftest.hcl": {Bytes: []byte(`run "fails_without_useful_diff" {
+  command = plan
+  plan_options {
+    refresh = false
+  }
+  assert {
+    condition = 3 == 5
+    error_message = "Error."
+  }
+}
+		`)},
 	}
 	testCases := map[string]struct {
 		diag interface{} // allow various kinds of diags
@@ -802,6 +814,60 @@ func TestNewDiagnostic(t *testing.T) {
 					Values:               []DiagnosticExpressionValue{
 						// The unknown value is filtered out because this is
 						// not an unknown-value-related diagnostic message.
+					},
+				},
+			},
+		},
+		"error with binary comparisons": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Test assertion failed",
+				Subject: &hcl.Range{
+					Filename: "test.tftest.hcl",
+					Start:    hcl.Pos{Line: 7, Column: 17, Byte: 118},
+					End:      hcl.Pos{Line: 7, Column: 23, Byte: 125},
+				},
+				Expression: &hclsyntax.BinaryOpExpr{
+					LHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("3"),
+					},
+					RHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("5"),
+					},
+					Op: hclsyntax.OpEqual,
+				},
+				EvalContext: &hcl.EvalContext{},
+			},
+			&Diagnostic{
+				Severity: "error",
+				Summary:  "Test assertion failed",
+				Range: &DiagnosticRange{
+					Filename: "test.tftest.hcl",
+					Start: Pos{
+						Line:   7,
+						Column: 17,
+						Byte:   118,
+					},
+					End: Pos{
+						Line:   7,
+						Column: 23,
+						Byte:   125,
+					},
+				},
+				Snippet: &DiagnosticSnippet{
+					Context:              strPtr(`run "fails_without_useful_diff"`),
+					Code:                 ("    condition = 3 == 5"),
+					StartLine:            (7),
+					HighlightStartOffset: (15),
+					HighlightEndOffset:   (22),
+					Values: []DiagnosticExpressionValue{
+						{
+							Traversal: "Diff:\n",
+							// Translates to:
+							// | Diff:
+							// | 3 -> 5
+							Statement: "   \x1b[90m│\x1b[0m \n    \x1b[90m│\x1b[0m \"3\" \x1b[33m->\x1b[0m \"5\"",
+						},
 					},
 				},
 			},

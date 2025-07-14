@@ -346,6 +346,8 @@ func newDiagnosticSnippet(snippetRange, highlightRange *tfdiags.SourceRange, sou
 	return ret
 }
 
+// prepareDiffForOutput is used to create colored and aligned lines to be used
+// on the test suite assertions
 func prepareDiffForOutput(color *colorstring.Colorize, out string) string {
 	lines := strings.Split(out, "\n")
 
@@ -359,6 +361,10 @@ func prepareDiffForOutput(color *colorstring.Colorize, out string) string {
 	return buf.String()
 }
 
+// newDiagnosticExpressionValuesFromComparison covers expressions in the binary
+// expression operation format of x == y.
+// It's used to create a pretty and descriptive output for the test suite assertions.
+// For context: https://github.com/opentofu/opentofu/issues/2545
 func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.Expression) ([]DiagnosticExpressionValue, bool) {
 	binExpr, ok := expr.(*hclsyntax.BinaryOpExpr)
 	if !ok {
