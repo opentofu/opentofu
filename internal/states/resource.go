@@ -59,6 +59,33 @@ func (rs *Resource) EnsureInstance(key addrs.InstanceKey) *ResourceInstance {
 	return ret
 }
 
+func (rs *Resource) Equal(other *Resource) bool {
+	if rs == other {
+		// Handles both pointers being nil
+		return true
+	}
+	if rs == nil || other == nil {
+		// Handles one pointer being nil
+		return false
+	}
+
+	if !rs.Addr.Equal(other.Addr) || rs.ProviderConfig.String() != other.ProviderConfig.String() {
+		return false
+	}
+
+	if len(rs.Instances) != len(other.Instances) {
+		return false
+	}
+
+	for key, inst := range rs.Instances {
+		if !inst.Equal(other.Instances[key]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // ResourceInstance represents the state of a particular instance of a resource.
 type ResourceInstance struct {
 	// Current, if non-nil, is the remote object that is currently represented
@@ -103,6 +130,40 @@ func (i *ResourceInstance) HasDeposed(key DeposedKey) bool {
 // deposed objects.
 func (i *ResourceInstance) HasAnyDeposed() bool {
 	return i != nil && len(i.Deposed) > 0
+}
+
+func (i *ResourceInstance) Equal(other *ResourceInstance) bool {
+	if i == other {
+		// Handles both pointers being nil
+		return true
+	}
+	if i == nil || other == nil {
+		// Handles one pointer being nil
+		return false
+	}
+
+	if !i.Current.Equal(other.Current) {
+		return false
+	}
+
+	if (i.ProviderKey == nil) != (other.ProviderKey == nil) {
+		return false
+	}
+	if i.ProviderKey != nil && i.ProviderKey.Value().Equals(other.ProviderKey.Value()).False() {
+		return false
+	}
+
+	if len(i.Deposed) != len(other.Deposed) {
+		return false
+	}
+
+	for key, dep := range i.Deposed {
+		if !dep.Equal(other.Deposed[key]) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // HasObjects returns true if this resource has any objects at all, whether
