@@ -26,14 +26,14 @@ func NewMockValueComposer(seed int64) MockValueComposer {
 }
 
 // ComposeBySchema composes mock value based on schema configuration. It uses
-// configuration value as a baseline and populates null values with provided defaults.
-// If the provided defaults doesn't contain needed fields, ComposeBySchema uses
-// its own defaults. ComposeBySchema fails if schema contains dynamic types.
+// configuration value as a baseline and populates null values with provided overrides.
+// If the provided overrides doesn't contain needed fields, ComposeBySchema uses
+// its own overrides. ComposeBySchema fails if schema contains dynamic types.
 // ComposeBySchema produces the same result with the given input values (seed and func arguments).
 // It does so by traversing schema attributes, blocks and data structure elements / fields
 // in a stable way by sorting keys or elements beforehand. Then, randomized values match
 // between multiple ComposeBySchema calls, because seed and random sequences are the same.
-func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config cty.Value, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config cty.Value, overrides map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var configMap map[string]cty.Value
 	var diags tfdiags.Diagnostics
 
@@ -43,13 +43,13 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 
 	impliedTypes := schema.ImpliedType().AttributeTypes()
 
-	mockAttrs, moreDiags := mvc.composeMockValueForAttributes(schema.Attributes, configMap, defaults)
+	mockAttrs, moreDiags := mvc.composeMockValueForAttributes(schema.Attributes, configMap, overrides)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return cty.NilVal, diags
 	}
 
-	mockBlocks, moreDiags := mvc.composeMockValueForBlocks(schema, configMap, defaults)
+	mockBlocks, moreDiags := mvc.composeMockValueForBlocks(schema, configMap, overrides)
 	diags = diags.Append(moreDiags)
 	if moreDiags.HasErrors() {
 		return cty.NilVal, diags
@@ -60,7 +60,7 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 		mockValues[k] = v
 	}
 
-	for k := range defaults {
+	for k := range overrides {
 		if _, ok := impliedTypes[k]; !ok {
 			diags = diags.Append(tfdiags.WholeContainingBody(
 				tfdiags.Error,
@@ -73,7 +73,7 @@ func (mvc MockValueComposer) ComposeBySchema(schema *configschema.Block, config 
 	return cty.ObjectVal(mockValues), diags
 }
 
-func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*configschema.Attribute, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
+func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*configschema.Attribute, configMap map[string]cty.Value, overrides map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	mockAttrs := make(map[string]cty.Value)
@@ -112,16 +112,16 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 			f         f         t         f           f             GenVal
 		*/
 
-		ov, ovOk := defaults[k]
-		cv, cvOk := configMap[k]
-		// I'm not sure if this is correct
-		cvOk = cvOk && !cv.IsNull()
+		overrideValue, hasOverride := overrides[k]
+		configValue, hasConfig := configMap[k]
+		// If the configured value is null, it is the same as not specified
+		hasConfig = hasConfig && !configValue.IsNull()
 
 		var ovConvert cty.Value
 
 		// Validation of overridden values
-		if ovOk {
-			if cvOk {
+		if hasOverride {
+			if hasConfig {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Invalid mock/override field `%v`", k),
@@ -137,7 +137,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 			}
 
 			var err error
-			ovConvert, err = convert.Convert(ov, attr.ImpliedType())
+			ovConvert, err = convert.Convert(overrideValue, attr.ImpliedType())
 			if err != nil {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
@@ -150,7 +150,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 		// Determine the value
 		if attr.Required {
 			// Value from configuration only
-			if !cvOk {
+			if !hasConfig {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Invalid mock/override field `%v`", k),
@@ -158,12 +158,12 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 				))
 			}
 
-			mockAttrs[k] = cv
+			mockAttrs[k] = configValue
 		} else if attr.Optional {
-			if cvOk {
+			if hasConfig {
 				// Value from configuration
-				mockAttrs[k] = cv
-			} else if ovOk {
+				mockAttrs[k] = configValue
+			} else if hasOverride {
 				mockAttrs[k] = ovConvert
 			} else if attr.Computed {
 				mockAttrs[k] = mvc.getMockValueByType(attr.ImpliedType())
@@ -175,14 +175,14 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 			}
 		} else if attr.Computed {
 			// Value from provider only
-			if cvOk {
+			if hasConfig {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Invalid mock/override field `%v`", k),
 					"Config value can not be specified for computed field",
 				))
 			}
-			if ovOk {
+			if hasOverride {
 				mockAttrs[k] = ovConvert
 			} else {
 				mockAttrs[k] = mvc.getMockValueByType(attr.ImpliedType())
@@ -195,7 +195,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 	return mockAttrs, diags
 }
 
-func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Block, configMap map[string]cty.Value, defaults map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
+func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Block, configMap map[string]cty.Value, overrides map[string]cty.Value) (map[string]cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	mockBlocks := make(map[string]cty.Value)
@@ -209,35 +209,28 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 		// Checking if the config value really present for the block.
 		// It should be non-null and non-empty collection.
 
-		configVal, hasConfigVal := configMap[k]
-		if hasConfigVal && configVal.IsNull() {
-			hasConfigVal = false
-		}
+		configValue, hasConfig := configMap[k]
+		hasConfig = hasConfig && !configValue.IsNull() && configValue.IsKnown()
 
-		if hasConfigVal && !configVal.IsKnown() {
-			hasConfigVal = false
-		}
+		emptyConfig := configValue.Type().IsCollectionType() && configValue.LengthInt() == 0
+		hasConfig = hasConfig && !emptyConfig
 
-		if hasConfigVal && configVal.Type().IsCollectionType() && configVal.LengthInt() == 0 {
-			hasConfigVal = false
-		}
-
-		defaultVal, hasDefaultVal := defaults[k]
-		if hasDefaultVal && !defaultVal.Type().IsObjectType() {
+		overrideValue, hasOverride := overrides[k]
+		if hasOverride && !overrideValue.Type().IsObjectType() {
 			diags = diags.Append(tfdiags.WholeContainingBody(
 				tfdiags.Error,
 				fmt.Sprintf("Invalid override for block field `%v`", k),
-				fmt.Sprintf("Blocks can be overridden only by objects, got `%s`", defaultVal.Type().FriendlyName()),
+				fmt.Sprintf("Blocks can be overridden only by objects, got `%s`", overrideValue.Type().FriendlyName()),
 			))
 			continue
 		}
 
 		// We must keep blocks the same as it defined in configuration,
 		// so provider response validation succeeds later.
-		if !hasConfigVal {
+		if !hasConfig {
 			mockBlocks[k] = block.EmptyValue()
 
-			if hasDefaultVal {
+			if hasOverride {
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Invalid override for block field `%v`", k),
@@ -249,13 +242,13 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 			continue
 		}
 
-		var blockDefaults map[string]cty.Value
+		var blockOverrides map[string]cty.Value
 
-		if hasDefaultVal {
-			blockDefaults = defaultVal.AsValueMap()
+		if hasOverride {
+			blockOverrides = overrideValue.AsValueMap()
 		}
 
-		v, moreDiags := mvc.getMockValueForBlock(impliedTypes[k], configVal, &block.Block, blockDefaults)
+		v, moreDiags := mvc.getMockValueForBlock(impliedTypes[k], configValue, &block.Block, blockOverrides)
 		diags = append(diags, moreDiags...)
 		if moreDiags.HasErrors() {
 			return nil, diags
@@ -267,16 +260,16 @@ func (mvc MockValueComposer) composeMockValueForBlocks(schema *configschema.Bloc
 	return mockBlocks, diags
 }
 
-// getMockValueForBlock uses an object from the defaults (overrides)
+// getMockValueForBlock uses an object from the overrides
 // to compose each value from the block's inner collection. It recursively calls
 // composeMockValueBySchema to proceed with all the inner attributes and blocks
 // the same way so all the nested blocks follow the same logic.
-func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal cty.Value, block *configschema.Block, defaults map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
+func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configValue cty.Value, block *configschema.Block, overrides map[string]cty.Value) (cty.Value, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	switch {
 	case targetType.IsObjectType():
-		mockBlockVal, moreDiags := mvc.ComposeBySchema(block, configVal, defaults)
+		mockBlockVal, moreDiags := mvc.ComposeBySchema(block, configValue, overrides)
 		diags = diags.Append(moreDiags)
 		if moreDiags.HasErrors() {
 			return cty.NilVal, diags
@@ -287,13 +280,13 @@ func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 	case targetType.ListElementType() != nil || targetType.SetElementType() != nil:
 		var mockBlockVals []cty.Value
 
-		var iterator = configVal.ElementIterator()
+		var iterator = configValue.ElementIterator()
 
 		// Stable order is important here so random values match its fields between function calls.
 		for iterator.Next() {
 			_, blockConfigV := iterator.Element()
 
-			mockBlockVal, moreDiags := mvc.ComposeBySchema(block, blockConfigV, defaults)
+			mockBlockVal, moreDiags := mvc.ComposeBySchema(block, blockConfigV, overrides)
 			diags = diags.Append(moreDiags)
 			if moreDiags.HasErrors() {
 				return cty.NilVal, diags
@@ -310,13 +303,13 @@ func (mvc MockValueComposer) getMockValueForBlock(targetType cty.Type, configVal
 	case targetType.MapElementType() != nil:
 		var mockBlockVals = make(map[string]cty.Value)
 
-		var iterator = configVal.ElementIterator()
+		var iterator = configValue.ElementIterator()
 
 		// Stable order is important here so random values match its fields between function calls.
 		for iterator.Next() {
 			blockConfigK, blockConfigV := iterator.Element()
 
-			mockBlockVal, moreDiags := mvc.ComposeBySchema(block, blockConfigV, defaults)
+			mockBlockVal, moreDiags := mvc.ComposeBySchema(block, blockConfigV, overrides)
 			diags = diags.Append(moreDiags)
 			if moreDiags.HasErrors() {
 				return cty.NilVal, diags
