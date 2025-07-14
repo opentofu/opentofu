@@ -92,6 +92,26 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 			))
 		}
 
+		/*
+			Required  Optional  Computed  Has config  Has Override  Result
+			t         f         f         t           t             Error - Not Allowed to override config
+			t         f         f         t           f             Config
+			t         f         f         f           t             Error - Required field in config not provided
+			t         f         f         f           f             Error - Required field in config not provided
+			f         t         f         t           t             Error - Not Allowed to override config
+			f         t         f         t           f             Config
+			f         t         f         f           t             Override Value
+			f         t         f         f           f             NilVal of the attribute type
+			f         t         t         t           t             Error - Not Allowed to override config
+			f         t         t         t           f             Config
+			f         t         t         f           t             Override
+			f         t         t         f           f             GenVal
+			f         f         t         t           t             Error - Not Allowed to override config
+			f         f         t         t           f             Error - Config not allowed here
+			f         f         t         f           t             Override
+			f         f         t         f           f             GenVal
+		*/
+
 		ov, ovOk := defaults[k]
 		cv, cvOk := configMap[k]
 		// I'm not sure if this is correct
@@ -143,13 +163,10 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 			if cvOk {
 				// Value from configuration
 				mockAttrs[k] = cv
+			} else if ovOk {
+				mockAttrs[k] = ovConvert
 			} else if attr.Computed {
-				// Value from provider if not set
-				if ovOk {
-					mockAttrs[k] = ovConvert
-				} else {
-					mockAttrs[k] = mvc.getMockValueByType(attr.ImpliedType())
-				}
+				mockAttrs[k] = mvc.getMockValueByType(attr.ImpliedType())
 			} else {
 				// Null value
 				// NOTE: this does not handle configschema.NestedGroup correctly, but
@@ -158,6 +175,13 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 			}
 		} else if attr.Computed {
 			// Value from provider only
+			if cvOk {
+				diags = diags.Append(tfdiags.WholeContainingBody(
+					tfdiags.Error,
+					fmt.Sprintf("Invalid mock/override field `%v`", k),
+					"Config value can not be specified for computed field",
+				))
+			}
 			if ovOk {
 				mockAttrs[k] = ovConvert
 			} else {
