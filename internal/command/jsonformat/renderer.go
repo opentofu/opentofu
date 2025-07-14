@@ -13,13 +13,13 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/command/format"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/terminal"
 )
@@ -27,11 +27,11 @@ import (
 type JSONLogType string
 
 type JSONLog struct {
-	Message    string                 `json:"@message"`
-	Type       JSONLogType            `json:"type"`
-	Diagnostic *viewsjson.Diagnostic  `json:"diagnostic"`
-	Outputs    viewsjson.Outputs      `json:"outputs"`
-	Hook       map[string]interface{} `json:"hook"`
+	Message    string                   `json:"@message"`
+	Type       JSONLogType              `json:"type"`
+	Diagnostic *jsonentities.Diagnostic `json:"diagnostic"`
+	Outputs    jsonentities.Outputs     `json:"outputs"`
+	Hook       map[string]interface{}   `json:"hook"`
 }
 
 const (

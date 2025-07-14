@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package json
+package jsonentities
 
 import (
 	"bufio"
@@ -18,6 +18,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/lang/marks"
+
 	"github.com/opentofu/opentofu/internal/tfdiags"
 )
 
@@ -33,6 +34,7 @@ const (
 // just a severity, single line summary, and optional detail. If there is more
 // information about the source of the diagnostic, this is represented in the
 // range field.
+
 type Diagnostic struct {
 	Severity string             `json:"severity"`
 	Summary  string             `json:"summary"`
@@ -359,6 +361,7 @@ func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressi
 	seen := make(map[string]struct{}, len(vars))
 	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
 	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
+
 Traversals:
 	for _, traversal := range vars {
 		// We want to describe as specific a value as possible but since

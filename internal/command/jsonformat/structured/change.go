@@ -10,10 +10,10 @@ import (
 	"encoding/json"
 	"reflect"
 
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/command/jsonstate"
-	viewsjson "github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
@@ -150,7 +150,7 @@ func FromJsonOutput(output jsonstate.Output) Change {
 
 // FromJsonViewsOutput unmarshals the raw values in the viewsjson.Output structs into
 // generic interface{} types that can be reasoned about.
-func FromJsonViewsOutput(output viewsjson.Output) Change {
+func FromJsonViewsOutput(output jsonentities.Output) Change {
 	return Change{
 		// We model resource formatting as NoOps.
 		Before: unmarshalGeneric(output.Value),
