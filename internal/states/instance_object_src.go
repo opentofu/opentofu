@@ -74,12 +74,14 @@ type ResourceInstanceObjectSrc struct {
 	CreateBeforeDestroy bool
 }
 
+// Compare two lists using an given element equal function, ignoring order and duplicates
 func equalSlicesIgnoreOrder[S ~[]E, E any](a, b S, fn func(E, E) bool) bool {
 	if len(a) != len(b) {
 		return false
 	}
 
 	// Not sure if this is the most efficient approach, but it works
+	// First check if all elements in a existing in b
 	for _, v := range a {
 		found := false
 		for _, o := range b {
@@ -93,6 +95,8 @@ func equalSlicesIgnoreOrder[S ~[]E, E any](a, b S, fn func(E, E) bool) bool {
 		}
 	}
 
+	// Now check if all elements in b exist in a
+	// This is necessary just in case there are duplicate entries (there should not be).
 	for _, v := range b {
 		found := false
 		for _, o := range a {
@@ -129,9 +133,13 @@ func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) boo
 		return false
 	}
 
+	// Ignore order/duplicates as that is the assumption in the rest of the codebase.
+	// Given that these are generated from maps, it is known that the order is not consistent.
 	if !equalSlicesIgnoreOrder(os.AttrSensitivePaths, other.AttrSensitivePaths, cty.PathValueMarks.Equal) {
 		return false
 	}
+	// Ignore order/duplicates as that is the assumption in the rest of the codebase.
+	// Given that these are generated from maps, it is known that the order is not consistent.
 	if !equalSlicesIgnoreOrder(os.TransientPathValueMarks, other.TransientPathValueMarks, cty.PathValueMarks.Equal) {
 		return false
 	}
@@ -144,6 +152,7 @@ func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) boo
 		return false
 	}
 
+	// This represents a set of dependencies.  They must all be resolved before executing and therefore the order does not matter.
 	if !equalSlicesIgnoreOrder(os.Dependencies, other.Dependencies, addrs.ConfigResource.Equal) {
 		return false
 	}
