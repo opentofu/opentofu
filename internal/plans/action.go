@@ -16,6 +16,9 @@ const (
 	CreateThenDelete Action = '±'
 	Delete           Action = '-'
 	Forget           Action = '.'
+	Open             Action = '⁐'
+	Renew            Action = '◌'
+	Close            Action = '○'
 )
 
 //go:generate go run golang.org/x/tools/cmd/stringer -type Action

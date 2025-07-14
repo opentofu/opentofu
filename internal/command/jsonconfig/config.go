@@ -341,8 +341,13 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 	if err != nil {
 		return module, err
 	}
+	ephemeralResources, err := marshalResources(c.Module.EphemeralResources, schemas, addr)
+	if err != nil {
+		return module, err
+	}
 
 	rs = append(managedResources, dataResources...)
+	rs = append(rs, ephemeralResources...)
 	module.Resources = rs
 
 	outputs := make(map[string]output)
@@ -520,6 +525,8 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 			r.Mode = "managed"
 		case addrs.DataResourceMode:
 			r.Mode = "data"
+		case addrs.EphemeralResourceMode:
+			r.Mode = "ephemeral"
 		default:
 			return rs, fmt.Errorf("resource %s has an unsupported mode %s", r.Address, v.Mode.String())
 		}
