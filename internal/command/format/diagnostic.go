@@ -14,6 +14,8 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/command/jsonentities"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/mitchellh/colorstring"
@@ -82,6 +84,8 @@ func DiagnosticFromJSON(diag *jsonentities.Diagnostic, color *colorstring.Colori
 
 	appendSourceSnippets(&buf, diag, color)
 
+	appendDifferenceOutput(&buf, color, diag)
+
 	if diag.Detail != "" {
 		paraWidth := width - leftRuleWidth - 1 // leave room for the left rule
 		if paraWidth > 0 {
@@ -121,6 +125,26 @@ func DiagnosticFromJSON(diag *jsonentities.Diagnostic, color *colorstring.Colori
 	ruleBuf.WriteByte('\n')
 
 	return ruleBuf.String()
+}
+
+// appendDifferenceOutput is used to create colored and aligned lines to be used
+// on the test suite assertions
+func appendDifferenceOutput(buf *bytes.Buffer, color *colorstring.Colorize, diag *jsonentities.Diagnostic) {
+	if diag.Difference == nil {
+		return
+	}
+
+	differed := differ.ComputeDiffForOutput(*diag.Difference)
+	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: color})
+
+	fmt.Fprint(buf, color.Color("    [dark_gray]├────────────────[reset]\n"))
+	fmt.Fprint(buf, color.Color("    [dark_gray]│[reset] [bold]Diff: [reset]"))
+	lines := strings.Split(out, "\n")
+	for line := range lines {
+		buf.WriteString(color.Color("\n    [dark_gray]│[reset] "))
+		buf.WriteString(lines[line])
+	}
+	buf.WriteByte('\n')
 }
 
 // DiagnosticPlain is an alternative to Diagnostic which minimises the use of

@@ -113,11 +113,11 @@ type PathMatcher struct {
 	// is no (easy) way to reproduce the original cty.Paths object. Instead,
 	// we simply rely on the external callers to know the type information and
 	// call the correct GetChild function.
-	Paths [][]interface{}
+	Paths [][]interface{} `json:"paths,omitempty"`
 
 	// Propagate tells the matcher that it should propagate any matches it finds
 	// onto the children of that match.
-	Propagate bool
+	Propagate bool `json:"propagate,omitempty"`
 }
 
 func (p *PathMatcher) Matches() bool {

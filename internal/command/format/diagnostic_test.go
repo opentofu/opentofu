@@ -18,6 +18,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/command/jsonentities"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -895,6 +896,40 @@ func TestDiagnosticFromJSON_invalid(t *testing.T) {
 [red]╵[reset]
 `,
 		},
+		"test assertion difference": {
+			&jsonentities.Diagnostic{
+				Severity: jsonentities.DiagnosticSeverityError,
+				Summary:  "Bad testing",
+				Detail:   "It all went wrong.",
+				Range: &jsonentities.DiagnosticRange{
+					Filename: "ohno.tf",
+					Start:    jsonentities.Pos{Line: 1, Column: 23, Byte: 22},
+					End:      jsonentities.Pos{Line: 0, Column: 0, Byte: 0},
+				},
+				Snippet: &jsonentities.DiagnosticSnippet{
+					Code:                 `condition = 3 == 5`,
+					StartLine:            1,
+					HighlightStartOffset: 22,
+					HighlightEndOffset:   0,
+				},
+				Difference: &structured.Change{
+					Before: cty.StringVal("3").AsString(),
+					After:  cty.StringVal("5").AsString(),
+				},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
+[red]│[reset]
+[red]│[reset]   on ohno.tf line 1:
+[red]│[reset]    1: condition = 3 == 5[underline][reset]
+[red]│[reset]
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
+[red]│[reset]     [dark_gray]│[reset] "3" [yellow]->[reset] "5"
+[red]│[reset] It all went wrong.
+[red]╵[reset]
+`,
+		},
 	}
 
 	// This empty Colorize just passes through all of the formatting codes
@@ -905,8 +940,8 @@ func TestDiagnosticFromJSON_invalid(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			got := strings.TrimSpace(DiagnosticFromJSON(test.Diag, colorize, 40))
 			want := strings.TrimSpace(test.Want)
-			if got != want {
-				t.Errorf("wrong result\ngot:\n%s\n\nwant:\n%s\n\n", got, want)
+			if diff := cmp.Diff(got, want); diff != "" {
+				t.Errorf("wrong result\n%s", diff)
 			}
 		})
 	}

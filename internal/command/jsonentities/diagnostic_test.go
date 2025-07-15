@@ -18,6 +18,8 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hcltest"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -860,15 +862,16 @@ func TestNewDiagnostic(t *testing.T) {
 					StartLine:            (7),
 					HighlightStartOffset: (15),
 					HighlightEndOffset:   (22),
-					Values: []DiagnosticExpressionValue{
-						{
-							Traversal: "Diff:\n",
-							// Translates to:
-							// | Diff:
-							// | 3 -> 5
-							Statement: "   \x1b[90m│\x1b[0m \n    \x1b[90m│\x1b[0m \"3\" \x1b[33m->\x1b[0m \"5\"",
-						},
-					},
+					Values:               []DiagnosticExpressionValue{},
+				},
+				Difference: &structured.Change{
+					Before:             cty.StringVal("3").AsString(),
+					After:              cty.StringVal("5").AsString(),
+					Unknown:            false,
+					AfterSensitive:     false,
+					BeforeSensitive:    false,
+					ReplacePaths:       &attribute_path.PathMatcher{},
+					RelevantAttributes: attribute_path.AlwaysMatcher(),
 				},
 			},
 		},

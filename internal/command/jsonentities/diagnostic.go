@@ -15,11 +15,8 @@ import (
 	"github.com/hashicorp/hcl/v2/hcled"
 	"github.com/hashicorp/hcl/v2/hclparse"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/mitchellh/colorstring"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
@@ -42,12 +39,13 @@ const (
 // range field.
 
 type Diagnostic struct {
-	Severity string             `json:"severity"`
-	Summary  string             `json:"summary"`
-	Detail   string             `json:"detail"`
-	Address  string             `json:"address,omitempty"`
-	Range    *DiagnosticRange   `json:"range,omitempty"`
-	Snippet  *DiagnosticSnippet `json:"snippet,omitempty"`
+	Severity   string             `json:"severity"`
+	Summary    string             `json:"summary"`
+	Detail     string             `json:"detail"`
+	Address    string             `json:"address,omitempty"`
+	Range      *DiagnosticRange   `json:"range,omitempty"`
+	Snippet    *DiagnosticSnippet `json:"snippet,omitempty"`
+	Difference *structured.Change `json:"difference,omitempty"`
 }
 
 // Pos represents a position in the source code.
@@ -168,14 +166,17 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string]*hcl.File) *Diagn
 		snippet.FunctionCall = newDiagnosticSnippetFunctionCall(diag)
 	}
 
+	difference := newDiagnosticDifference(diag)
+
 	desc := diag.Description()
 	return &Diagnostic{
-		Severity: sev,
-		Summary:  desc.Summary,
-		Detail:   desc.Detail,
-		Address:  desc.Address,
-		Range:    newDiagnosticRange(highlightRange),
-		Snippet:  snippet,
+		Severity:   sev,
+		Summary:    desc.Summary,
+		Detail:     desc.Detail,
+		Address:    desc.Address,
+		Range:      newDiagnosticRange(highlightRange),
+		Snippet:    snippet,
+		Difference: difference,
 	}
 }
 
@@ -346,53 +347,34 @@ func newDiagnosticSnippet(snippetRange, highlightRange *tfdiags.SourceRange, sou
 	return ret
 }
 
-// prepareDiffForOutput is used to create colored and aligned lines to be used
-// on the test suite assertions
-func prepareDiffForOutput(color *colorstring.Colorize, out string) string {
-	lines := strings.Split(out, "\n")
-
-	buf := strings.Builder{}
-	// This first line is used with one less space to make the output symmetrical
-	buf.WriteString(color.Color("   [dark_gray]│[reset] "))
-	for line := range lines {
-		buf.WriteString(color.Color("\n    [dark_gray]│[reset] "))
-		buf.WriteString(lines[line])
-	}
-	return buf.String()
-}
-
-// newDiagnosticExpressionValuesFromComparison covers expressions in the binary
+// newDiagnosticDifference covers expressions in the binary
 // expression operation format of x == y.
 // It's used to create a pretty and descriptive output for the test suite assertions.
 // For context: https://github.com/opentofu/opentofu/issues/2545
-func newDiagnosticExpressionValuesFromComparison(ctx *hcl.EvalContext, expr hcl.Expression) ([]DiagnosticExpressionValue, bool) {
+func newDiagnosticDifference(diag tfdiags.Diagnostic) *structured.Change {
+	fromExpr := diag.FromExpr()
+	if fromExpr == nil {
+		return nil
+	}
+
+	expr := fromExpr.Expression
+	ctx := fromExpr.EvalContext
 	binExpr, ok := expr.(*hclsyntax.BinaryOpExpr)
-	if !ok {
-		return nil, false
+	if !ok || binExpr.Op != hclsyntax.OpEqual {
+		// We're not dealing with a binary op expr, return it early
+		return nil
 	}
 
 	lhs, _ := binExpr.LHS.Value(ctx)
 	rhs, _ := binExpr.RHS.Value(ctx)
 	planChange, err := jsonplan.GenerateChange(lhs, rhs)
 	if err != nil {
-		return nil, false
+		return nil
 	}
+
 	change := structured.FromJsonChange(*planChange, attribute_path.AlwaysMatcher())
+	return &change
 
-	differed := differ.ComputeDiffForOutput(change)
-
-	color := &colorstring.Colorize{
-		Colors:  colorstring.DefaultColors,
-		Disable: false,
-	}
-	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: color})
-
-	return []DiagnosticExpressionValue{
-		{
-			Traversal: "Diff:\n",
-			Statement: prepareDiffForOutput(color, out),
-		},
-	}, true
 }
 
 func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressionValue {
@@ -416,11 +398,6 @@ func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressi
 	seen := make(map[string]struct{}, len(vars))
 	includeUnknown := tfdiags.DiagnosticCausedByUnknown(diag)
 	includeSensitive := tfdiags.DiagnosticCausedBySensitive(diag)
-
-	valuesFromComparison, ok := newDiagnosticExpressionValuesFromComparison(ctx, expr)
-	if ok {
-		return valuesFromComparison
-	}
 
 Traversals:
 	for _, traversal := range vars {
