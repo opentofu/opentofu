@@ -141,13 +141,6 @@ func (i *ResourceInstance) Equal(other *ResourceInstance) bool {
 		return false
 	}
 
-	if (i.ProviderKey == nil) != (other.ProviderKey == nil) {
-		return false
-	}
-	if i.ProviderKey != nil && i.ProviderKey.Value().Equals(other.ProviderKey.Value()).False() {
-		return false
-	}
-
 	if len(i.Deposed) != len(other.Deposed) {
 		return false
 	}
