@@ -367,33 +367,54 @@ resource "aws_cloudwatch_log_group" "lambda_cloudfront" {
 This configuration will produce the following warning:
 
 ```
-This provider configuration uses the same for_each expression as a resource, which means that subsequent removal of elements from this collection would cause a planning error.
+╷
+│ Warning: Provider configuration for_each matches resource
 │
-│ OpenTofu relies on a provider instance to destroy resource instances that are associated with it, and so the provider
-│ instance must outlive all of its resource instances by at least one plan/apply round. For removal of instances to succeed
-│ in future you must structure the configuration so that the provider block's for_each expression can produce a superset of
-│ the instances of the resources associated with the provider configuration. Refer to the OpenTofu documentation for
-│ specific suggestions.
+│   on main.tf line 24, in resource "aws_cloudwatch_log_group" "lambda_cloudfront":
+│   24:   for_each = var.aws_regions
 │
-│ To destroy this object before removing the provider configuration, consider first performing a targeted destroy:
+│ This provider configuration uses the same for_each expression as a
+│ resource, which means that subsequent removal of elements from this
+│ collection would cause a planning error.
+│
+│ OpenTofu relies on a provider instance to destroy resource instances
+│ that are associated with it, and so the provider instance must
+│ outlive all of its resource instances by at least one plan/apply
+│ round. For removal of instances to succeed in future you must
+│ structure the configuration so that the provider block's for_each
+│ expression can produce a superset of the instances of the resources
+│ associated with the provider configuration. Refer to the OpenTofu
+│ documentation for specific suggestions.
+│
+│ To destroy this object before removing the provider configuration,
+│ consider first performing a targeted destroy:
 │     tofu apply -destroy -target=aws_cloudwatch_log_group.lambda_cloudfront
+╵
 ```
 
 This approach is error-prone because you must run `apply -destroy -target` for all resources associated with the provider instance before you can remove the provider instance itself. If you try to remove the provider instance by deleting the key from `aws_active_regions` before destroying the resources, OpenTofu will prevent you:
 
 ```
-Error: Provider instance not present
+╷
+│ Error: Provider instance not present
 │
-│ To work with aws_cloudwatch_log_group.lambda_cloudfront["sa-east-1"] its original provider instance at
-│ provider["registry.opentofu.org/hashicorp/aws"].by_region["sa-east-1"] is required, but it has been removed. This occurs
-│ when an element is removed from the provider configuration's for_each collection while objects created by that the
-│ associated provider instance still exist in the state. Re-add the for_each element to destroy
-│ aws_cloudwatch_log_group.lambda_cloudfront["sa-east-1"], after which you can remove the provider configuration again.
+│ To work with aws_cloudwatch_log_group.lambda_cloudfront["sa-east-1"]
+│ its original provider instance at
+│ provider["registry.opentofu.org/hashicorp/aws"].by_region["sa-east-1"]
+│ is required, but it has been removed. This occurs when an element is
+│ removed from the provider configuration's for_each collection while
+│ objects created by that the associated provider instance still exist
+│ in the state. Re-add the for_each element to destroy
+│ aws_cloudwatch_log_group.lambda_cloudfront["sa-east-1"], after which
+│ you can remove the provider configuration again.
 │
-│ This is commonly caused by using the same for_each collection both for a resource (or its containing module) and its
-│ associated provider configuration. To successfully remove an instance of a resource it must be possible to remove the
-│ corresponding element from the resource's for_each collection while retaining the corresponding element in the provider's
-│ for_each collection.
+│ This is commonly caused by using the same for_each collection both
+│ for a resource (or its containing module) and its associated provider
+│ configuration. To successfully remove an instance of a resource it
+│ must be possible to remove the corresponding element from the
+│ resource's for_each collection while retaining the corresponding
+│ element in the provider's for_each collection.
+╵
 ```
 
 A more robust approach is to use a different subset for the resource's `for_each` expression:
