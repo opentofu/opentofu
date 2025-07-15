@@ -8,7 +8,7 @@ Today, a rich ecosystem of third-party tools has emerged around Terraform and Op
 - **Complex workflows**: Users must orchestrate multiple tools and handle failures across disconnected systems
 - **No feedback loop**: External tools cannot influence OpenTofu's behavior or provide metadata back to the state
 
-This RFC proposes bringing this extensibility directly into OpenTofu through a middleware system that allows users to intercept and augment operations at key points during execution. By providing official hook points and a well-defined protocol, we can enable the same policy enforcement, cost estimation, and compliance validation use cases while offering several advantages:
+This RFC proposes bringing this extensibility directly into OpenTofu through a middleware system that allows users to intercept operations at key points during execution. By providing official hook points and a read-only, well-defined protocol, we can enable the same policy enforcement, cost estimation, and compliance validation use cases while offering several advantages:
 
 - **Real-time validation**: Catch issues during planning, not after
 - **Rich context**: Access to full resource state, provider details, and operation context
@@ -21,7 +21,9 @@ By offering this extensibility through a well-defined protocol, we aim to enable
 The architecture of this middleware system is inspired by the recent Model Context Protocol (MCP) approach, which has proven successful for extending AI assistants through local server processes communicating via JSON-RPC over stdio (along with other transports). This design pattern offers simplicity, language independence, and process isolation - qualities that align perfectly with OpenTofu's needs for a stable, extensible middleware system without the overhead of producing a full SDK or requiring middleware authors to be locked into a specific languge/ecosystem. You can find more information about this specification [at modelcontextprotocol.io/docs](https://modelcontextprotocol.io/docs/concepts/architecture).
 
 ## Approach
-To provide users with a flexible and powerful way to extend OpenTofu's functionality, I propose implementing a middleware system that communicates with external processes via JSON-RPC 2.0 over STDIO. The middleware will be invoked at specific hook points during OpenTofu operations, allowing users to inspect, validate, and augment the behavior of resource operations without requiring changes to OpenTofu's core.
+To provide users with a flexible and powerful way to extend OpenTofu's functionality, I propose implementing a middleware system that communicates with external processes via JSON-RPC 2.0 over STDIO. The middleware will be invoked at specific hook points during OpenTofu operations, allowing users to inspect, validate, and augment the behavior of resource operations without requiring changes to OpenTofu's core. 
+
+When it comes to augmentation of the resource operations, I propose that initially the middleware cannot alter the state or inputs to a resource/datasource etc. I believe that providing a read only system that can return failures and metadata is the safest way to go and then there is less risk for the end users too. Less "magic" altering things means that the config is the source of truth.
 
 ### Hook Points for Operations
 The middleware system will provide hook points at two levels:
