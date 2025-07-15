@@ -6,7 +6,6 @@
 package format
 
 import (
-	"encoding/json"
 	"strings"
 	"testing"
 
@@ -19,7 +18,6 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/command/jsonentities"
-	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -269,10 +267,107 @@ func TestDiagnostic(t *testing.T) {
 [red]╵[reset]
 `,
 		},
+		"test number assertion difference": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad testing",
+				Detail:   "Number testing went wrong.",
+				Expression: &hclsyntax.BinaryOpExpr{
+					LHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("3"),
+					},
+					RHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.StringVal("5"),
+					},
+					Op: hclsyntax.OpEqual,
+				},
+				Subject: &hcl.Range{
+					Filename: "test.tf",
+					Start:    hcl.Pos{Line: 1, Column: 6, Byte: 5},
+					End:      hcl.Pos{Line: 1, Column: 12, Byte: 11},
+				},
+				EvalContext: &hcl.EvalContext{},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
+[red]│[reset]
+[red]│[reset]   on test.tf line 1:
+[red]│[reset]    1: test [underline]source[reset] code
+[red]│[reset]
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
+[red]│[reset]     [dark_gray]│[reset]     "3" [yellow]->[reset] "5"
+[red]│[reset]
+[red]│[reset] Number testing went wrong.
+[red]╵[reset]
+`,
+		},
+		"test object assertion difference": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "Bad testing",
+				Detail:   "Test object assertion!",
+				Expression: &hclsyntax.BinaryOpExpr{
+					LHS: &hclsyntax.ScopeTraversalExpr{
+						Traversal: hcl.Traversal{
+							hcl.TraverseRoot{Name: "var"},
+							hcl.TraverseAttr{Name: "json_headers"},
+						},
+					},
+					RHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.ObjectVal(map[string]cty.Value{
+							"Test-Header-1": cty.StringVal("foo"),
+							"Test-Header-2": cty.StringVal("bar"),
+						}),
+					},
+					Op: hclsyntax.OpEqual,
+				},
+				Subject: &hcl.Range{
+					Filename: "json_encode.tf",
+					Start:    hcl.Pos{Line: 1, Column: 12, Byte: 12},
+					End:      hcl.Pos{Line: 4, Column: 20, Byte: 150},
+				},
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"var": cty.ObjectVal(map[string]cty.Value{
+							"json_headers": cty.ObjectVal(map[string]cty.Value{
+								"Test-Header-1": cty.StringVal("foo"),
+								"Test-Header-2": cty.StringVal("foo"),
+							}),
+						}),
+					},
+				},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
+[red]│[reset]
+[red]│[reset]   on json_encode.tf line 1:
+[red]│[reset]    1: condition = [underline]jsonencode(var.json_headers) == jsonencode([
+[red]│[reset]    2: 			"Test-Header-1: foo",
+[red]│[reset]    3: 			"Test-Header-2: bar"
+[red]│[reset]    4: 		])[reset]
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]var.json_headers[reset] is object with 2 attributes
+[red]│[reset]
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
+[red]│[reset]     [dark_gray]│[reset]     {
+[red]│[reset]     [dark_gray]│[reset]       [yellow]~[reset] Test-Header-2 = "foo" [yellow]->[reset] "bar"
+[red]│[reset]     [dark_gray]│[reset]         [dark_gray]# (1 unchanged attribute hidden)[reset]
+[red]│[reset]     [dark_gray]│[reset]     }
+[red]│[reset]
+[red]│[reset] Test object assertion!
+[red]╵[reset]
+`,
+		},
 	}
 
 	sources := map[string]*hcl.File{
 		"test.tf": {Bytes: []byte(`test source code`)},
+		"json_encode.tf": {Bytes: []byte(`condition = jsonencode(var.json_headers) == jsonencode([
+			"Test-Header-1: foo",
+			"Test-Header-2: bar"
+		])`)},
 	}
 
 	// This empty Colorize just passes through all of the formatting codes
@@ -286,8 +381,8 @@ func TestDiagnostic(t *testing.T) {
 			diag := diags[0]
 			got := strings.TrimSpace(Diagnostic(diag, sources, colorize, 40))
 			want := strings.TrimSpace(test.Want)
-			if got != want {
-				t.Errorf("wrong result\ngot:\n%s\n\nwant:\n%s\n\n", got, want)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("diff:\n%s", diff)
 			}
 		})
 	}
@@ -590,8 +685,8 @@ Whatever shall we do?
 			diag := diags[0]
 			got := strings.TrimSpace(DiagnosticPlain(diag, sources, 40))
 			want := strings.TrimSpace(test.Want)
-			if got != want {
-				t.Errorf("wrong result\ngot:\n%s\n\nwant:\n%s\n\n", got, want)
+			if diff := cmp.Diff(want, got); diff != "" {
+				t.Errorf("diff:\n%s", diff)
 			}
 		})
 	}
@@ -704,8 +799,8 @@ func TestDiagnostic_nonOverlappingHighlightContext(t *testing.T) {
 `
 	output := Diagnostic(diags[0], sources, color, 80)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -752,8 +847,8 @@ func TestDiagnostic_emptyOverlapHighlightContext(t *testing.T) {
 `
 	output := Diagnostic(diags[0], sources, color, 80)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -795,8 +890,8 @@ Error: Some error
 `
 	output := DiagnosticPlain(diags[0], sources, 80)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -828,8 +923,8 @@ func TestDiagnostic_wrapDetailIncludingCommand(t *testing.T) {
 `
 	output := Diagnostic(diags[0], nil, color, 76)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -856,8 +951,8 @@ eventually make it onto multiple lines. THE END
 `
 	output := DiagnosticPlain(diags[0], nil, 76)
 
-	if output != expected {
-		t.Fatalf("unexpected output: got:\n%s\nwant\n%s\n", output, expected)
+	if diff := cmp.Diff(output, expected); diff != "" {
+		t.Errorf("diff:\n%s", diff)
 	}
 }
 
@@ -893,89 +988,6 @@ func TestDiagnosticFromJSON_invalid(t *testing.T) {
 [red]│[reset]   on ohno.tf line 1:
 [red]│[reset]    1: resource "foo_bar "baz[underline]"[reset] {
 [red]│[reset]
-[red]│[reset] It all went wrong.
-[red]╵[reset]
-`,
-		},
-		"test number assertion difference": {
-			&jsonentities.Diagnostic{
-				Severity: jsonentities.DiagnosticSeverityError,
-				Summary:  "Bad testing",
-				Detail:   "It all went wrong.",
-				Range: &jsonentities.DiagnosticRange{
-					Filename: "ohno.tf",
-					Start:    jsonentities.Pos{Line: 1, Column: 23, Byte: 22},
-					End:      jsonentities.Pos{Line: 0, Column: 0, Byte: 0},
-				},
-				Snippet: &jsonentities.DiagnosticSnippet{
-					Code:                 `condition = 3 == 5`,
-					StartLine:            1,
-					HighlightStartOffset: 22,
-					HighlightEndOffset:   0,
-				},
-				Difference: &jsonplan.Change{
-					Before:          json.RawMessage(`"3"`),
-					After:           json.RawMessage(`"5"`),
-					AfterUnknown:    json.RawMessage(`false`),
-					AfterSensitive:  json.RawMessage(`false`),
-					BeforeSensitive: json.RawMessage(`false`),
-				},
-			},
-			`[red]╷[reset]
-[red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
-[red]│[reset]
-[red]│[reset]   on ohno.tf line 1:
-[red]│[reset]    1: condition = 3 == 5[underline][reset]
-[red]│[reset]
-[red]│[reset]     [dark_gray]├────────────────[reset]
-[red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
-[red]│[reset]     [dark_gray]│[reset] "3" [yellow]->[reset] "5"
-[red]│[reset] It all went wrong.
-[red]╵[reset]
-`,
-		},
-		"test object assertion difference": {
-			&jsonentities.Diagnostic{
-				Severity: jsonentities.DiagnosticSeverityError,
-				Summary:  "Bad testing",
-				Detail:   "It all went wrong.",
-				Range: &jsonentities.DiagnosticRange{
-					Filename: "ohno.tf",
-					Start:    jsonentities.Pos{Line: 1, Column: 23, Byte: 22},
-					End:      jsonentities.Pos{Line: 0, Column: 0, Byte: 0},
-				},
-				Snippet: &jsonentities.DiagnosticSnippet{
-					Code: `condition = jsonencode(var.json_headers) == jsonencode([
-      "Test-Header-1: foo",
-      "Test-Header-2: bar",
-    ])`,
-					StartLine:            1,
-					HighlightStartOffset: 22,
-					HighlightEndOffset:   0,
-				},
-				Difference: &jsonplan.Change{
-					Before:          json.RawMessage(`{"Test-Header-1":"foo","Test-Header-2":"foo"}`),
-					After:           json.RawMessage(`{"Test-Header-1":"foo","Test-Header-2":"bar"}`),
-					AfterUnknown:    json.RawMessage(`false`),
-					AfterSensitive:  json.RawMessage(`false`),
-					BeforeSensitive: json.RawMessage(`false`),
-				},
-			},
-			`[red]╷[reset]
-[red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
-[red]│[reset]
-[red]│[reset]   on ohno.tf line 1:
-[red]│[reset]    1: condition = jsonencode[underline]([reset]var.json_headers) == jsonencode([
-[red]│[reset]    2:       "Test-Header-1: foo",
-[red]│[reset]    3:       "Test-Header-2: bar",
-[red]│[reset]    4:     ])
-[red]│[reset]
-[red]│[reset]     [dark_gray]├────────────────[reset]
-[red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
-[red]│[reset]     [dark_gray]│[reset] {
-[red]│[reset]     [dark_gray]│[reset]       [yellow]~[reset] Test-Header-2 = "foo" [yellow]->[reset] "bar"
-[red]│[reset]     [dark_gray]│[reset]         [dark_gray]# (1 unchanged attribute hidden)[reset]
-[red]│[reset]     [dark_gray]│[reset]     }
 [red]│[reset] It all went wrong.
 [red]╵[reset]
 `,

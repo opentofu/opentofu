@@ -139,6 +139,10 @@ func appendDifferenceOutput(buf *bytes.Buffer, color *colorstring.Colorize, diag
 	change := structured.FromJsonChange(*diag.Difference, attribute_path.AlwaysMatcher())
 	differed := differ.ComputeDiffForOutput(change)
 	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: color})
+	// The next line is needed in order to make the output aligned, since the first line
+	// rendered by RenderHuman is on column 0, but all the subsequent lines are having 4 spaces before
+	// the actual content.
+	out = fmt.Sprintf("    %s", out)
 
 	fmt.Fprint(buf, color.Color("    [dark_gray]├────────────────[reset]\n"))
 	fmt.Fprint(buf, color.Color("    [dark_gray]│[reset] [bold]Diff: [reset]"))
@@ -147,7 +151,7 @@ func appendDifferenceOutput(buf *bytes.Buffer, color *colorstring.Colorize, diag
 		buf.WriteString(color.Color("\n    [dark_gray]│[reset] "))
 		buf.WriteString(lines[line])
 	}
-	buf.WriteByte('\n')
+	buf.WriteString("\n\n")
 }
 
 // DiagnosticPlain is an alternative to Diagnostic which minimises the use of
@@ -347,6 +351,5 @@ func appendSourceSnippets(buf *bytes.Buffer, diag *jsonentities.Diagnostic, colo
 			}
 		}
 	}
-
 	buf.WriteByte('\n')
 }
