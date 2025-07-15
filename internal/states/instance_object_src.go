@@ -133,11 +133,6 @@ func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) boo
 	if !equalSlicesIgnoreOrder(os.AttrSensitivePaths, other.AttrSensitivePaths, cty.PathValueMarks.Equal) {
 		return false
 	}
-	// Ignore order/duplicates as that is the assumption in the rest of the codebase.
-	// Given that these are generated from maps, it is known that the order is not consistent.
-	if !equalSlicesIgnoreOrder(os.TransientPathValueMarks, other.TransientPathValueMarks, cty.PathValueMarks.Equal) {
-		return false
-	}
 
 	if !bytes.Equal(os.Private, other.Private) {
 		return false
