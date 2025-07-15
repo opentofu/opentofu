@@ -417,7 +417,7 @@ This approach is error-prone because you must run `apply -destroy -target` for a
 ╵
 ```
 
-A more robust approach is to use a different subset for the resource's `for_each` expression:
+An alternative approach is to use a different subset for the resource's `for_each` expression:
 
 ```hcl
 variable "aws_active_regions" {
