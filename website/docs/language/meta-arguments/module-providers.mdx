@@ -187,11 +187,11 @@ configuration: only the expression in brackets (`each.key` in the above example)
 can vary between the instances of the module.
 
 :::warning
-**The `for_each` expression for a resource must not exactly match the
+**The `for_each` expression for a module must *be different from* the
 `for_each` expression for its associated provider configuration.**
 
 OpenTofu uses a provider instance to plan and apply _all_ actions related
-to a resource instance, including destroying a resource instance that
+to a module instance, including destroying a module instance that
 has been removed from the configuration.
 
 Therefore a provider instance passed into a child module that will declare

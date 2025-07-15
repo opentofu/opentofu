@@ -316,7 +316,7 @@ same provider configuration block, but can they each be bound to a different
 instance.
 
 :::warning
-**The `for_each` expression for a resource must not exactly match the
+**The `for_each` expression for a resource must *be different* from the
 `for_each` expression for its associated provider configuration.**
 
 OpenTofu uses a provider instance to plan and apply _all_ actions related
@@ -338,6 +338,124 @@ region while retaining the provider instance needed to plan and apply that
 action. You can then remove the element altogether on the next round, once
 all of the associated resource instances have been destroyed.
 :::
+
+### Deleting a provider instance
+
+One main limitation of the provider instances feature is that removing a provider instance requires extra rounds of planning and applying. The following example illustrates this issue and how to avoid it.
+
+As explained above, a resource should always use a `for_each` expression that is a subset of the provider configuration's `for_each`. In the following configuration, both the provider and the resource use the same `for_each` value:
+
+```
+variable "aws_active_regions" {
+  type    = set(string)
+  default = ["us-east-1", "sa-east-1"]
+}
+
+provider "aws" {
+  alias    = "by_region"
+  for_each = var.aws_active_regions
+  region   = each.key
+}
+
+resource "aws_cloudwatch_log_group" "lambda_cloudfront" {
+  name     = "/aws/lambda/${each.key}.lambda"
+  provider = aws.by_region[each.key]
+  for_each = var.aws_active_regions
+}
+```
+
+This configuration will produce the following warning:
+
+```
+╷
+│ Warning: Provider configuration for_each matches resource
+│
+│   on main.tf line 24, in resource "aws_cloudwatch_log_group" "lambda_cloudfront":
+│   24:   for_each = var.aws_regions
+│
+│ This provider configuration uses the same for_each expression as a
+│ resource, which means that subsequent removal of elements from this
+│ collection would cause a planning error.
+│
+│ OpenTofu relies on a provider instance to destroy resource instances
+│ that are associated with it, and so the provider instance must
+│ outlive all of its resource instances by at least one plan/apply
+│ round. For removal of instances to succeed in future you must
+│ structure the configuration so that the provider block's for_each
+│ expression can produce a superset of the instances of the resources
+│ associated with the provider configuration. Refer to the OpenTofu
+│ documentation for specific suggestions.
+│
+│ To destroy this object before removing the provider configuration,
+│ consider first performing a targeted destroy:
+│     tofu apply -destroy -target=aws_cloudwatch_log_group.lambda_cloudfront
+╵
+```
+
+This approach is error-prone because you must run `apply -destroy -target` for all resources associated with the provider instance before you can remove the provider instance itself. If you try to remove the provider instance by deleting the key from `aws_active_regions` before destroying the resources, OpenTofu will prevent you:
+
+```
+╷
+│ Error: Provider instance not present
+│
+│ To work with aws_cloudwatch_log_group.lambda_cloudfront["sa-east-1"]
+│ its original provider instance at
+│ provider["registry.opentofu.org/hashicorp/aws"].by_region["sa-east-1"]
+│ is required, but it has been removed. This occurs when an element is
+│ removed from the provider configuration's for_each collection while
+│ objects created by that the associated provider instance still exist
+│ in the state. Re-add the for_each element to destroy
+│ aws_cloudwatch_log_group.lambda_cloudfront["sa-east-1"], after which
+│ you can remove the provider configuration again.
+│
+│ This is commonly caused by using the same for_each collection both
+│ for a resource (or its containing module) and its associated provider
+│ configuration. To successfully remove an instance of a resource it
+│ must be possible to remove the corresponding element from the
+│ resource's for_each collection while retaining the corresponding
+│ element in the provider's for_each collection.
+╵
+```
+
+An alternative approach is to use a different subset for the resource's `for_each` expression:
+
+```hcl
+variable "aws_active_regions" {
+  type = set(string)
+  default = ["us-east-1", "sa-east-1"]
+}
+
+variable "aws_disabled_regions" {
+  description = "A list of regions that should be disabled and all resources removed."
+  type        = set(string)
+  default     = []
+}
+
+// Superset of the provider configuration
+provider "aws" {
+  alias    = "by_region"
+  for_each = var.aws_active_regions
+  region   = each.key
+}
+
+// Resource using a subset of the provider's configuration
+resource "aws_cloudwatch_log_group" "lambda_cloudfront" {
+  name     = "/aws/lambda/${each.key}.lambda"
+  provider = aws.by_region[each.key]
+  for_each = setsubtract(var.aws_active_regions, var.aws_disabled_regions)
+}
+```
+
+If you need to remove a provider instance (for example, for a specific AWS region), add that region to `aws_disabled_regions`:
+```
+variable "aws_disabled_regions" {
+  description = "A list of regions that should be disabled and all resources removed."
+  type        = set(string)
+  default     = ["us-east-1"]
+}
+```
+
+With this approach, running `tofu plan` and `tofu apply` is sufficient to disable the provider instance and remove all associated resources.
 
 ### Passing provider configurations between modules
 
