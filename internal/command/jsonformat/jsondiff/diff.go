@@ -7,6 +7,7 @@ package jsondiff
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/zclconf/go-cty/cty"
 
@@ -117,11 +118,14 @@ func (opts JsonOpts) processArray(change structured.ChangeSlice) computed.Diff {
 		return opts.Transform(change.GetChild(beforeIx, afterIx))
 	}
 
-	isObjType := func(value interface{}) bool {
-		return GetType(value) == Object
+	// This callback is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
+	shouldDiffElement := func(value interface{}) bool {
+		t := GetType(value)
+		isMultilineString := t == String && strings.Contains(value.(string), "\n")
+		return t == Object || isMultilineString
 	}
 
-	return opts.Array(collections.TransformSlice(change.Before, change.After, processIndices, isObjType))
+	return opts.Array(collections.TransformSlice(change.Before, change.After, processIndices, shouldDiffElement))
 }
 
 func (opts JsonOpts) processObject(change structured.ChangeMap) computed.Diff {

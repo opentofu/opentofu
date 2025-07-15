@@ -7,6 +7,7 @@ package differ
 
 import (
 	"github.com/zclconf/go-cty/cty"
+	"strings"
 
 	"github.com/opentofu/opentofu/internal/command/jsonformat/collections"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
@@ -46,11 +47,16 @@ func computeAttributeDiffAsList(change structured.Change, elementType cty.Type) 
 		return ComputeDiffForType(value, elementType)
 	}
 
-	isObjType := func(_ interface{}) bool {
-		return elementType.IsObjectType()
+	// This callback is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
+	shouldDiffElement := func(value interface{}) bool {
+		isMultilineString := false
+		if str, ok := value.(string); ok {
+			// If the value is a string, we check if it contains newlines to determine if it should be treated as an object.
+			isMultilineString = strings.Contains(str, "\n")
+		}
+		return elementType.IsObjectType() || isMultilineString
 	}
-
-	elements, current := collections.TransformSlice(sliceValue.Before, sliceValue.After, processIndices, isObjType)
+	elements, current := collections.TransformSlice(sliceValue.Before, sliceValue.After, processIndices, shouldDiffElement)
 	return computed.NewDiff(renderers.List(elements), current, change.ReplacePaths.Matches())
 }
 
