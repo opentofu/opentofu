@@ -54,10 +54,12 @@ Users will configure middleware through HCL blocks in their OpenTofu configurati
 ```hcl
 
 middleware "naming_convention_checker" {
+  metadata_key = "naming"
   command = "lint-opentofu-names"
 }
 
 middleware "cost_estimator" {
+  metadata_key = "cost"
   command = "python3"
   args    = ["cost_estimator.py"]
   env = {
@@ -89,7 +91,7 @@ provider "aws" {
   middleware = [
     middleware.security_scanner,    # Runs first - can fail fast on violations
     middleware.compliance_checker,  # Runs second - sees security metadata
-    middleware.cost_estimator      # Runs last - only if security/compliance pass
+    middleware.cost_estimator       # Runs last - only if security/compliance pass
   ]
 }
 ```
@@ -114,6 +116,7 @@ If the same middleware is attached at both levels, it will execute **twice** for
 
 ```hcl
 middleware "cost_estimator" {
+  middleware_key = "cost"
   command = "cost-estimate"
 }
 
@@ -243,6 +246,8 @@ This enables middleware to enforce hard policies and provide clear, actionable e
 
 ### Metadata Storage and Persistence
 Middleware-returned metadata should be attached to the target in OpenTofu's state and plan files. This means that other processes or middleware should be able to examine the output of other middleware. Making them chainable.
+
+Each middleware requires a "metadata_key" field to be populated in the middleware block. This key allows the properties deterministic and allows for control over how chainable middleware can handle referencing other's metadata output.
 
 ```json
 {
