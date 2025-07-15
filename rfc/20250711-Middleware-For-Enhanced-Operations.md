@@ -138,6 +138,13 @@ In this case:
 
 Users should generally avoid this pattern unless the middleware is designed to handle multiple executions.
 
+### Redistributing Middleware
+We may decide to make it possible to allow for the creation and distribution of middleware configuration via modules.
+
+There are situations today where company's may want to create redistributable packs of pre-defined middleware configuration to enforce policies company-wide. To combat this I propose that we make it possible in the future to define middleware blocks inside modules, and also allow for module calls to take middleware as input and provide middleware as outputs.
+
+For more information around this, you can see an example I put together [here](https://gist.github.com/Yantrio/a9bb20fcfeb15f610e11ea6b71c2112d). This example acts as an extreme case of how you can compose middleware inside modules to be used elsewhere in your projects.
+
 ### Communication
 As mentioned above, I propose that to keep it as open as possible we should use JSON-RPC 2.0 over stdio for communication with the possibility to open up to other transports in the future.
 
