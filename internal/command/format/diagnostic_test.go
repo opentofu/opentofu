@@ -897,7 +897,7 @@ func TestDiagnosticFromJSON_invalid(t *testing.T) {
 [red]╵[reset]
 `,
 		},
-		"test assertion difference": {
+		"test number assertion difference": {
 			&jsonentities.Diagnostic{
 				Severity: jsonentities.DiagnosticSeverityError,
 				Summary:  "Bad testing",
@@ -930,6 +930,52 @@ func TestDiagnosticFromJSON_invalid(t *testing.T) {
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
 [red]│[reset]     [dark_gray]│[reset] "3" [yellow]->[reset] "5"
+[red]│[reset] It all went wrong.
+[red]╵[reset]
+`,
+		},
+		"test object assertion difference": {
+			&jsonentities.Diagnostic{
+				Severity: jsonentities.DiagnosticSeverityError,
+				Summary:  "Bad testing",
+				Detail:   "It all went wrong.",
+				Range: &jsonentities.DiagnosticRange{
+					Filename: "ohno.tf",
+					Start:    jsonentities.Pos{Line: 1, Column: 23, Byte: 22},
+					End:      jsonentities.Pos{Line: 0, Column: 0, Byte: 0},
+				},
+				Snippet: &jsonentities.DiagnosticSnippet{
+					Code: `condition = jsonencode(var.json_headers) == jsonencode([
+      "Test-Header-1: foo",
+      "Test-Header-2: bar",
+    ])`,
+					StartLine:            1,
+					HighlightStartOffset: 22,
+					HighlightEndOffset:   0,
+				},
+				Difference: &jsonplan.Change{
+					Before:          json.RawMessage(`{"Test-Header-1":"foo","Test-Header-2":"foo"}`),
+					After:           json.RawMessage(`{"Test-Header-1":"foo","Test-Header-2":"bar"}`),
+					AfterUnknown:    json.RawMessage(`false`),
+					AfterSensitive:  json.RawMessage(`false`),
+					BeforeSensitive: json.RawMessage(`false`),
+				},
+			},
+			`[red]╷[reset]
+[red]│[reset] [bold][red]Error: [reset][bold]Bad testing[reset]
+[red]│[reset]
+[red]│[reset]   on ohno.tf line 1:
+[red]│[reset]    1: condition = jsonencode[underline]([reset]var.json_headers) == jsonencode([
+[red]│[reset]    2:       "Test-Header-1: foo",
+[red]│[reset]    3:       "Test-Header-2: bar",
+[red]│[reset]    4:     ])
+[red]│[reset]
+[red]│[reset]     [dark_gray]├────────────────[reset]
+[red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
+[red]│[reset]     [dark_gray]│[reset] {
+[red]│[reset]     [dark_gray]│[reset]       [yellow]~[reset] Test-Header-2 = "foo" [yellow]->[reset] "bar"
+[red]│[reset]     [dark_gray]│[reset]         [dark_gray]# (1 unchanged attribute hidden)[reset]
+[red]│[reset]     [dark_gray]│[reset]     }
 [red]│[reset] It all went wrong.
 [red]╵[reset]
 `,

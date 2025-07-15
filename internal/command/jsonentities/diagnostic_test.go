@@ -61,6 +61,14 @@ func TestNewDiagnostic(t *testing.T) {
     condition = 3 == 5
     error_message = "Error."
   }
+
+  assert {
+    condition = jsonencode(var.json_headers) == jsonencode([
+      "Test-Header-1: foo",
+      "Test-Header-2: bar",
+    ])
+    error_message = "Error."
+  }
 }
 		`)},
 	}
@@ -819,7 +827,7 @@ func TestNewDiagnostic(t *testing.T) {
 				},
 			},
 		},
-		"error with binary comparisons": {
+		"error with integer binary comparisons": {
 			&hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  "Test assertion failed",
@@ -869,6 +877,82 @@ func TestNewDiagnostic(t *testing.T) {
 					AfterUnknown:    json.RawMessage(`false`),
 					AfterSensitive:  json.RawMessage(`false`),
 					BeforeSensitive: json.RawMessage(`false`),
+					ReplacePaths:    nil,
+				},
+			},
+		},
+		"error with object binary comparisons": {
+			&hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "object assertion failed",
+				Subject: &hcl.Range{
+					Filename: "test.tftest.hcl",
+					Start:    hcl.Pos{Line: 12, Column: 17, Byte: 171},
+					End:      hcl.Pos{Line: 20, Column: 6, Byte: 288},
+				},
+				Expression: &hclsyntax.BinaryOpExpr{
+					LHS: &hclsyntax.ScopeTraversalExpr{
+						Traversal: hcl.Traversal{
+							hcl.TraverseRoot{Name: "var"},
+							hcl.TraverseAttr{Name: "json_headers"},
+						},
+					},
+					RHS: &hclsyntax.LiteralValueExpr{
+						Val: cty.ObjectVal(map[string]cty.Value{
+							"Test-Header-1": cty.StringVal("foo"),
+							"Test-Header-2": cty.StringVal("bar"),
+						}),
+					},
+					Op: hclsyntax.OpEqual,
+				},
+				EvalContext: &hcl.EvalContext{
+					Variables: map[string]cty.Value{
+						"var": cty.ObjectVal(map[string]cty.Value{
+							"json_headers": cty.ObjectVal(map[string]cty.Value{
+								"Test-Header-1": cty.StringVal("foo"),
+								"Test-Header-2": cty.StringVal("foo"),
+							}),
+						}),
+					},
+				},
+			},
+			&Diagnostic{
+				Severity: "error",
+				Summary:  "object assertion failed",
+				Range: &DiagnosticRange{
+					Filename: "test.tftest.hcl",
+					Start: Pos{
+						Line:   12,
+						Column: 17,
+						Byte:   171,
+					},
+					End: Pos{
+						Line:   20,
+						Column: 6,
+						Byte:   288,
+					},
+				},
+				Snippet: &DiagnosticSnippet{
+					Context: strPtr(`run "fails_without_useful_diff"`),
+					Code: (`    condition = jsonencode(var.json_headers) == jsonencode([
+      "Test-Header-1: foo",
+      "Test-Header-2: bar",
+    ])`),
+					StartLine:            (12),
+					HighlightStartOffset: (0),
+					HighlightEndOffset:   (117),
+					Values: []DiagnosticExpressionValue{
+						{
+							Traversal: "var.json_headers", Statement: "is object with 2 attributes",
+						},
+					},
+				},
+				Difference: &jsonplan.Change{
+					Before:          json.RawMessage(`{"Test-Header-1":"foo","Test-Header-2":"foo"}`),
+					After:           json.RawMessage(`{"Test-Header-1":"foo","Test-Header-2":"bar"}`),
+					AfterUnknown:    json.RawMessage(`false`),
+					AfterSensitive:  json.RawMessage(`{}`),
+					BeforeSensitive: json.RawMessage(`{}`),
 					ReplacePaths:    nil,
 				},
 			},
