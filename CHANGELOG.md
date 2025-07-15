@@ -1,4 +1,6 @@
-## 1.9.2 (Unreleased)
+## 1.9.3 (Unreleased)
+
+## 1.9.2
 
 BUG FIXES:
 - OpenTofu will no longer crash in a rare case where a dynamically-invalid expression has its error suppressed by `try` or `can` and then that expression becomes relevant for deciding whether to report a "change outside of OpenTofu" in the human-oriented plan diff. ([#2988](https://github.com/opentofu/opentofu/pull/2988))
