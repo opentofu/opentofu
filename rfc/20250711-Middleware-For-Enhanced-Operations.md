@@ -274,6 +274,22 @@ Each middleware requires a "metadata_key" field to be populated in the middlewar
 }
 ```
 
+### Sensitive values and security
+There may be a situation where the end user does not wish to disclose sensitive values to the middleware. In this case we can either add an opt-in or opt-out parameter to the middleware block to allow the sending of sensitive properties. If this is not allowed, sensitive values should be sanitized somehow.
+
+For example:
+```hcl
+middleware "third_party_service" {
+  metadata_key = "security"
+  command = "npx"
+  args = ["-y", "@third-party/security-scanner-middleware"]
+
+  send_sensitive = false
+}
+```
+
+Note for implementation: During plans, this should be extra careful and cautious when sanitizing values to ensure that if a property's sensitivity is changing from non-sensitive to sensitive that we correctly sanitize this value. We should not solely rely on the before or after states to determine sensitivity, but instead a combination of the two.
+
 ## Implementation Details and Architecture
 
 ### Core Components
@@ -352,7 +368,6 @@ SDKs would handle protocol communication, type safety, and error handling, letti
 - How do we handle middleware that needs to see all resources before making decisions?
 
 ### Security Considerations
-- Should we sanitize the input to the middleware to hide sensitive fields?
 - Should there be restrictions on what middleware can access?
 
 ### Protocol Evolution
