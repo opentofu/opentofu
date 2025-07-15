@@ -17,8 +17,6 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 
@@ -45,7 +43,7 @@ type Diagnostic struct {
 	Address    string             `json:"address,omitempty"`
 	Range      *DiagnosticRange   `json:"range,omitempty"`
 	Snippet    *DiagnosticSnippet `json:"snippet,omitempty"`
-	Difference *structured.Change `json:"difference,omitempty"`
+	Difference *jsonplan.Change   `json:"difference,omitempty"`
 }
 
 // Pos represents a position in the source code.
@@ -351,7 +349,7 @@ func newDiagnosticSnippet(snippetRange, highlightRange *tfdiags.SourceRange, sou
 // expression operation format of x == y.
 // It's used to create a pretty and descriptive output for the test suite assertions.
 // For context: https://github.com/opentofu/opentofu/issues/2545
-func newDiagnosticDifference(diag tfdiags.Diagnostic) *structured.Change {
+func newDiagnosticDifference(diag tfdiags.Diagnostic) *jsonplan.Change {
 	fromExpr := diag.FromExpr()
 	if fromExpr == nil {
 		return nil
@@ -367,13 +365,12 @@ func newDiagnosticDifference(diag tfdiags.Diagnostic) *structured.Change {
 
 	lhs, _ := binExpr.LHS.Value(ctx)
 	rhs, _ := binExpr.RHS.Value(ctx)
-	planChange, err := jsonplan.GenerateChange(lhs, rhs)
+	change, err := jsonplan.GenerateChange(lhs, rhs)
 	if err != nil {
 		return nil
 	}
 
-	change := structured.FromJsonChange(*planChange, attribute_path.AlwaysMatcher())
-	return &change
+	return change
 
 }
 

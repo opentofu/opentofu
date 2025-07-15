@@ -16,6 +16,8 @@ import (
 	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/mitchellh/colorstring"
@@ -134,7 +136,8 @@ func appendDifferenceOutput(buf *bytes.Buffer, color *colorstring.Colorize, diag
 		return
 	}
 
-	differed := differ.ComputeDiffForOutput(*diag.Difference)
+	change := structured.FromJsonChange(*diag.Difference, attribute_path.AlwaysMatcher())
+	differed := differ.ComputeDiffForOutput(change)
 	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: color})
 
 	fmt.Fprint(buf, color.Color("    [dark_gray]├────────────────[reset]\n"))

@@ -38,7 +38,7 @@ import (
 type Change struct {
 
 	// BeforeExplicit matches AfterExplicit except references the Before value.
-	BeforeExplicit bool `json:"before_explicit,omitempty"`
+	BeforeExplicit bool
 
 	// AfterExplicit refers to whether the After value is explicit or
 	// implicit. It is explicit if it has been specified by the user, and
@@ -50,19 +50,19 @@ type Change struct {
 	// and AfterExplicit being false. Without the explicit information our
 	// functions would not be able to tell the difference between these two
 	// cases.
-	AfterExplicit bool `json:"after_explicit,omitempty"`
+	AfterExplicit bool
 
 	// Before contains the value before the proposed change.
 	//
 	// The type of the value should be informed by the schema and cast
 	// appropriately when needed.
-	Before interface{} `json:"before,omitempty"`
+	Before interface{}
 
 	// After contains the value after the proposed change.
 	//
 	// The type of the value should be informed by the schema and cast
 	// appropriately when needed.
-	After interface{} `json:"after,omitempty"`
+	After interface{}
 
 	// Unknown describes whether the After value is known or unknown at the time
 	// of the plan. In practice, this means the after value should be rendered
@@ -72,25 +72,25 @@ type Change struct {
 	// the After value is unknown, or it could be a list or a map depending on
 	// the schema describing whether specific elements or attributes within the
 	// value are unknown.
-	Unknown interface{} `json:"unknown,omitempty"`
+	Unknown interface{}
 
 	// BeforeSensitive matches Unknown, but references whether the Before value
 	// is sensitive.
-	BeforeSensitive interface{} `json:"before_sensitive,omitempty"`
+	BeforeSensitive interface{}
 
 	// AfterSensitive matches Unknown, but references whether the After value is
 	// sensitive.
-	AfterSensitive interface{} `json:"after_sensitive,omitempty"`
+	AfterSensitive interface{}
 
 	// ReplacePaths contains a set of paths that point to attributes/elements
 	// that are causing the overall resource to be replaced rather than simply
 	// updated.
-	ReplacePaths attribute_path.Matcher `json:"replace_paths,omitempty"`
+	ReplacePaths attribute_path.Matcher
 
 	// RelevantAttributes contains a set of paths that point attributes/elements
 	// that we should display. Any element/attribute not matched by this Matcher
 	// should be skipped.
-	RelevantAttributes attribute_path.Matcher `json:"relevant_attributes,omitempty"`
+	RelevantAttributes attribute_path.Matcher
 }
 
 // FromJsonChange unmarshals the raw []byte values in the jsonplan.Change

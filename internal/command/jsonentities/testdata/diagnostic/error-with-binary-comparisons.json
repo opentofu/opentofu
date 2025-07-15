@@ -26,10 +26,8 @@
   "difference": {
     "before": "3",
     "after": "5",
-    "unknown": false,
+    "after_unknown": false,
     "before_sensitive": false,
-    "after_sensitive": false,
-    "replace_paths": {},
-    "relevant_attributes": {}
+    "after_sensitive": false
   }
 }

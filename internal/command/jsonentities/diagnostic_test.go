@@ -18,8 +18,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/hashicorp/hcl/v2/hcltest"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
+	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
@@ -864,14 +863,13 @@ func TestNewDiagnostic(t *testing.T) {
 					HighlightEndOffset:   (22),
 					Values:               []DiagnosticExpressionValue{},
 				},
-				Difference: &structured.Change{
-					Before:             cty.StringVal("3").AsString(),
-					After:              cty.StringVal("5").AsString(),
-					Unknown:            false,
-					AfterSensitive:     false,
-					BeforeSensitive:    false,
-					ReplacePaths:       &attribute_path.PathMatcher{},
-					RelevantAttributes: attribute_path.AlwaysMatcher(),
+				Difference: &jsonplan.Change{
+					Before:          json.RawMessage(`"3"`),
+					After:           json.RawMessage(`"5"`),
+					AfterUnknown:    json.RawMessage(`false`),
+					AfterSensitive:  json.RawMessage(`false`),
+					BeforeSensitive: json.RawMessage(`false`),
+					ReplacePaths:    nil,
 				},
 			},
 		},

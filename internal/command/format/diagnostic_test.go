@@ -6,6 +6,7 @@
 package format
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -18,7 +19,7 @@ import (
 	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/command/jsonentities"
-	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -912,9 +913,12 @@ func TestDiagnosticFromJSON_invalid(t *testing.T) {
 					HighlightStartOffset: 22,
 					HighlightEndOffset:   0,
 				},
-				Difference: &structured.Change{
-					Before: cty.StringVal("3").AsString(),
-					After:  cty.StringVal("5").AsString(),
+				Difference: &jsonplan.Change{
+					Before:          json.RawMessage(`"3"`),
+					After:           json.RawMessage(`"5"`),
+					AfterUnknown:    json.RawMessage(`false`),
+					AfterSensitive:  json.RawMessage(`false`),
+					BeforeSensitive: json.RawMessage(`false`),
 				},
 			},
 			`[red]╷[reset]
