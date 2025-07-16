@@ -86,8 +86,6 @@ func DiagnosticFromJSON(diag *jsonentities.Diagnostic, color *colorstring.Colori
 
 	appendSourceSnippets(&buf, diag, color)
 
-	appendDifferenceOutput(&buf, color, diag)
-
 	if diag.Detail != "" {
 		paraWidth := width - leftRuleWidth - 1 // leave room for the left rule
 		if paraWidth > 0 {
@@ -131,7 +129,7 @@ func DiagnosticFromJSON(diag *jsonentities.Diagnostic, color *colorstring.Colori
 
 // appendDifferenceOutput is used to create colored and aligned lines to be used
 // on the test suite assertions
-func appendDifferenceOutput(buf *bytes.Buffer, color *colorstring.Colorize, diag *jsonentities.Diagnostic) {
+func appendDifferenceOutput(buf *bytes.Buffer, diag *jsonentities.Diagnostic, color *colorstring.Colorize) {
 	if diag.Difference == nil {
 		return
 	}
@@ -151,7 +149,7 @@ func appendDifferenceOutput(buf *bytes.Buffer, color *colorstring.Colorize, diag
 		buf.WriteString(color.Color("\n    [dark_gray]│[reset] "))
 		buf.WriteString(lines[line])
 	}
-	buf.WriteString("\n\n")
+	buf.WriteByte('\n')
 }
 
 // DiagnosticPlain is an alternative to Diagnostic which minimises the use of
@@ -350,6 +348,7 @@ func appendSourceSnippets(buf *bytes.Buffer, diag *jsonentities.Diagnostic, colo
 				fmt.Fprintf(buf, color.Color("    [dark_gray]│[reset] [bold]%s[reset] %s\n"), value.Traversal, value.Statement)
 			}
 		}
+		appendDifferenceOutput(buf, diag, color)
 	}
 	buf.WriteByte('\n')
 }
