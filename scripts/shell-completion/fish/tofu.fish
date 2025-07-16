@@ -18,16 +18,6 @@ function __tofu_using_command
   return 1
 end
 
-function __tofu_using_subcommand
-  set -l cmd (commandline -opc)
-  if test (count $cmd) -gt 2
-    if test $argv[1] = $cmd[2] -a $argv[2] = $cmd[3]
-      return 0
-    end
-  end
-  return 1
-end
-
 # Top-level commands
 complete -f -c tofu -n '__tofu_needs_command' -a 'apply' -d 'Build or change infrastructure'
 complete -f -c tofu -n '__tofu_needs_command' -a 'console' -d 'Interactive console for OpenTofu interpolations'
