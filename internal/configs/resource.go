@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/hashicorp/hcl/v2/json"
 	hcljson "github.com/hashicorp/hcl/v2/json"
 	"github.com/zclconf/go-cty/cty"
 
@@ -70,8 +71,9 @@ type ManagedResource struct {
 
 	CreateBeforeDestroy bool
 	PreventDestroy      bool
-	IgnoreChanges       []hcl.Traversal
-	IgnoreAllChanges    bool
+
+	IgnoreChanges    []IgnoreChangesPattern
+	IgnoreAllChanges bool
 
 	CreateBeforeDestroySet bool
 	PreventDestroySet      bool
@@ -218,7 +220,6 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 			}
 
 			if attr, exists := lcContent.Attributes["ignore_changes"]; exists {
-
 				// ignore_changes can either be a list of relative traversals
 				// or it can be just the keyword "all" to ignore changes to this
 				// resource entirely.
@@ -228,6 +229,11 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 				// versions:
 				//   ignore_changes = ["ami", "instance_type"]
 				//   ignore_changes = ["*"]
+				//
+				// As a special case we also recognize sequences containing the
+				// "splat" operator [*], even though that isn't actually properly
+				// supported as a hcl.Traversal usually, to represent matching
+				// across all elements of a collection.
 
 				kw := hcl.ExprAsKeyword(attr.Expr)
 
@@ -238,44 +244,42 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 					exprs, listDiags := hcl.ExprList(attr.Expr)
 					diags = append(diags, listDiags...)
 
-					var ignoreAllRange hcl.Range
-
-					for _, expr := range exprs {
+					// We accept some legacy forms that were valid in v0.11
+					// and earlier. Here we'll replace any elements that
+					// use the legacy forms with their modern equivalents
+					// before we decode, and also catch the special legacy
+					// case of ["*"] which always returns an error prompting
+					// to switch to the "all" keyword instead.
+					for i, expr := range exprs {
 
 						// our expr might be the literal string "*", which
 						// we accept as a deprecated way of saying "all".
 						if shimIsIgnoreChangesStar(expr) {
 							r.Managed.IgnoreAllChanges = true
-							ignoreAllRange = expr.Range()
 							diags = append(diags, &hcl.Diagnostic{
 								Severity: hcl.DiagError,
 								Summary:  "Invalid ignore_changes wildcard",
 								Detail:   "The [\"*\"] form of ignore_changes wildcard is was deprecated and is now invalid. Use \"ignore_changes = all\" to ignore changes to all attributes.",
 								Subject:  attr.Expr.Range().Ptr(),
 							})
+
+							// The decodeIgnoreChangesPatterns function has no way
+							// to deal with this invalid case, so we'll null it out
+							// just to give that function the signal to ignore it.
+							// (There's no way for a nil expression to appear
+							// in a valid ignore_changes expression list.)
+							exprs[i] = nil
 							continue
 						}
 
 						expr, shimDiags := shimTraversalInString(expr, false)
 						diags = append(diags, shimDiags...)
-
-						traversal, travDiags := hcl.RelTraversalForExpr(expr)
-						diags = append(diags, travDiags...)
-						if len(traversal) != 0 {
-							r.Managed.IgnoreChanges = append(r.Managed.IgnoreChanges, traversal)
-						}
+						exprs[i] = expr
 					}
 
-					if r.Managed.IgnoreAllChanges && len(r.Managed.IgnoreChanges) != 0 {
-						diags = append(diags, &hcl.Diagnostic{
-							Severity: hcl.DiagError,
-							Summary:  "Invalid ignore_changes ruleset",
-							Detail:   "Cannot mix wildcard string \"*\" with non-wildcard references.",
-							Subject:  &ignoreAllRange,
-							Context:  attr.Expr.Range().Ptr(),
-						})
-					}
-
+					patterns, hclDiags := decodeIgnoreChangesPatterns(exprs)
+					diags = diags.Extend(hclDiags)
+					r.Managed.IgnoreChanges = patterns
 				}
 			}
 
@@ -545,6 +549,234 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 	}
 
 	return r, diags
+}
+
+type IgnoreChangesPattern struct {
+	// traversal is a slightly-unusual hcl.Traversal that is allowed to
+	// include the vestigial [hcl.TraverseSplat] type even though HCL
+	// doesn't actually really support that. (their presence in
+	// the API is vestigial from when HCL was forked from ZCL, which
+	// had originally modelled "splat" a little differently.)
+	//
+	// Therefore it isn't valid to use the hcl.Traversal API directly
+	// with the value in this field, and instead callers must use the
+	// custom methods of this type that are built to deal with the
+	// splat case along with the normal cases. This is unexported to
+	// encourage using only the IgnoreChangesPattern methods.
+	traversal hcl.Traversal
+}
+
+func (p IgnoreChangesPattern) MatchesPath(path cty.Path) bool {
+	if len(p.traversal) > len(path) {
+		// A pattern can only match a path that's of equal or
+		// greater length than the pattern.
+		return false
+	}
+
+	for i, patternStep := range p.traversal {
+		pathStep := path[i]
+
+		switch patternStep := patternStep.(type) {
+		case hcl.TraverseAttr:
+			if pathStep, ok := pathStep.(cty.GetAttrStep); ok {
+				if pathStep.Name != patternStep.Name {
+					return false
+				}
+			} else {
+				// Only a GetAttrStep can match a TraverseAttr step
+				return false
+			}
+		case hcl.TraverseIndex:
+			if pathStep, ok := pathStep.(cty.IndexStep); ok {
+				eq := pathStep.Key.Equals(patternStep.Key)
+				if !eq.IsKnown() {
+					// Should not get here, because the indices should always be
+					// known when we're resolving ignore_changes.
+					panic("unknown value in path or pattern when resolving ignore_changes")
+				}
+				if !eq.True() {
+					return false
+				}
+			} else {
+				// Only an IndexStep can match a TraverseIndex step
+				return false
+			}
+		case hcl.TraverseSplat:
+			// We use TraverseSplat as a tricky way to represent "any element in a collection",
+			// so in this case we'll accept any IndexStep regardless of key.
+			// We intentionally ignore the "Each" field of TraverseSplat because we're
+			// using this type in a different way than HCL might've used it (though
+			// HCL doesn't actually use it at all; it's vestigial from HCL's ancestor, ZCL).
+			if _, ok := pathStep.(cty.IndexStep); !ok {
+				// Only an IndexStep can match a TraverseSplat step
+				return false
+			}
+		default:
+			// No other traverser types should be able to appear
+			// in an IgnoreChangesPattern, due to how it's constructed.
+			panic(fmt.Sprintf("parsed ignore_changes pattern contains unsupported step type %T", patternStep))
+		}
+	}
+
+	// If we manage to get here without early return then pattern seems
+	// to match at least a prefix of the path, which is enough for the
+	// ignore_changes feature to be active.
+	return true
+}
+
+// decodeIgnoreChangesPatterns decodes and does static validation of an
+// ignore_changes argument in a managed resource lifecycle block.
+// This function is only for the case where the argument is a static
+// list; the special "all" keyword is handled separately by the
+// caller of this function.
+//
+// This function ignores any nil hcl.Expression values included in
+// the given slice, since the caller uses that to "hide" legacy
+// pattern forms that it has already handled some other way and
+// thus avoid them causing duplicate error messages.
+//
+// The [hcl.Traversal] values returned by this function can
+// potentially include [hcl.TraverseSplat] values even though
+// HCL doesn't really properly support those (their presence in
+// the API is largely vestigial from when HCL was forked from
+// ZCL, which had originally modelled "splat" a little differently.)
+//
+// In particular that means that it is not supported to call
+// [hcl.Traversal.TraverseAbs] or [hcl.Traversal.TraverseRel]
+// on the result. The result is useful only for matching against
+// [cty.Path] values to decide if a particular attribute in a
+// resource instance object matches any of the traversals.
+func decodeIgnoreChangesPatterns(exprs []hcl.Expression) (patterns []IgnoreChangesPattern, diags hcl.Diagnostics) {
+	for _, expr := range exprs {
+		if expr == nil {
+			// Presumably our caller already dealt with some legacy oddity
+			// that was at this position in the list, so we can ignore it.
+			continue
+		}
+
+		// Upstream HCL does not allow analyzing an expression containing
+		// the splat operator as a hcl.Traversal, so we perform our own
+		// static analysis directly here. The following only supports
+		// the HCL native and JSON syntaxes, so this might need to be extended
+		// if we choose to support other HCL syntaxes in future.
+
+		// If we have a JSON expression then we need to translate it into
+		// the equivalent hclsyntax.Expression first, and then we can share
+		// the main static analysis logic.
+		if json.IsJSONExpression(expr) {
+			// HCL's JSON syntax implementation treats all expressions as
+			// plain literals when the EvalContext is nil, so the following
+			// allows us to obtain the raw source code of the given string,
+			// or determine that it isn't a string at all (which is invalid).
+			litVal, moreDiags := expr.Value(nil)
+			diags = diags.Extend(moreDiags)
+			if moreDiags.HasErrors() {
+				continue
+			}
+
+			if litVal.IsNull() || !litVal.IsKnown() || !litVal.Type().Equals(cty.String) {
+				diags = diags.Append(&hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Invalid ignore_changes expression",
+					Detail:   "When using the JSON syntax, ignore_changes elements must be JSON strings containing attribute paths.",
+					Subject:  expr.Range().Ptr(),
+				})
+				continue
+			}
+
+			// We'll now parse the given expression using the native syntax parser.
+			// This trick of passing the filename and start range of the original
+			// expression gives _approximately_ the right answer for source ranges,
+			// but will be inaccurate if the JSON string contained escape sequences.
+			// That same caveat applies to similar treatment implemented within
+			// HCL's json package, so the results aren't any worse than that.
+			exprSrc := litVal.AsString()
+			realExpr, moreDiags := hclsyntax.ParseExpression([]byte(exprSrc), expr.Range().Filename, expr.Range().Start)
+			diags = diags.Extend(moreDiags)
+			if moreDiags.HasErrors() {
+				continue
+			}
+			expr = realExpr
+		}
+
+		// By this point we should definitely be holding a hclsyntax.Expression,
+		// as opposed to any other variant of hcl.Expression.
+		traversal, moreDiags := ignoreChangesTraversalForExpr(expr.(hclsyntax.Expression))
+		diags = diags.Extend(moreDiags)
+		if len(traversal) != 0 {
+			patterns = append(patterns, IgnoreChangesPattern{traversal: traversal})
+		}
+	}
+
+	return patterns, diags
+}
+
+func ignoreChangesTraversalForExpr(expr hclsyntax.Expression) (hcl.Traversal, hcl.Diagnostics) {
+	// Some hclsyntax expression types already know how to interpret themselves
+	// as relative traversals, so we'll try that first to make sure our behavior
+	// is a superset of HCL's normal "expression as relative traversal" behavior.
+	ret, relTravDiags := hcl.RelTraversalForExpr(expr)
+	if !relTravDiags.HasErrors() {
+		return ret, nil
+	}
+
+	// If the built-in behavior didn't work then we'll check for other types that
+	// we support only for ignore_changes.
+	var diags hcl.Diagnostics
+	switch expr := expr.(type) {
+	case *hclsyntax.SplatExpr:
+		// In this case we exploit the fact that HCL has a vestigial extra hcl.Traverser
+		// implemention called hcl.TraverseSplat, which doesn't actually work for
+		// traversing but is suitable enough for representing a pattern that contains
+		// a splat operator so we can later match it to a cty.Path.
+		//
+		// Splat expressions are pretty "tricky": "Each" is an expression to be evaluated
+		// for each element of "Source", but somewhere inside it there will be a special
+		// hclsyntax.AnonSymbolExpr that represents where the current value should be
+		// substituted. We're not actually substituting values here, so we just arrange
+		// for *AnonSymbolExpr to get translated into a hcl.TraverseSplat in the other
+		// case below, and then "eachPattern" will end up with a TraverseSplat at the
+		// start of it.
+		sourcePattern, moreDiags := ignoreChangesTraversalForExpr(expr.Source)
+		diags = diags.Extend(moreDiags)
+		eachPattern, moreDiags := ignoreChangesTraversalForExpr(expr.Each)
+		diags = diags.Extend(moreDiags)
+		ret = append(sourcePattern, eachPattern...)
+		return ret, diags
+	case *hclsyntax.RelativeTraversalExpr:
+		// hcl.RelTraversalForExpr can handle this type only when its Source
+		// is also compatible with hcl.RelTraversalForExpr, so here we'll also
+		// allow it for any Source that _this_ function knows how to handle.
+		sourcePattern, moreDiags := ignoreChangesTraversalForExpr(expr.Source)
+		diags = diags.Extend(moreDiags)
+		ret = append(sourcePattern, expr.Traversal...)
+		return ret, diags
+	case *hclsyntax.AnonSymbolExpr:
+		return hcl.Traversal{
+			hcl.TraverseSplat{
+				// NOTE: HCL includes a vestigial "Each" in this type that was
+				// presumably originally intended to absorb all of the subsequent
+				// steps after the splat, but to keep the result flat and easier
+				// to match we'll just leave that field nil and represent the
+				// subsequent steps at the top-level.
+
+				// The following is not actually the right SrcRange to use,
+				// because it covers both the splat's source expression and the
+				// [*] symbol. We'd rather cover only the [*] symbol but accepting
+				// this inaccuracy for now for simplicity's sake, since it's
+				// close enough for downstream error reporting.
+				SrcRange: expr.SrcRange,
+			},
+		}, nil
+	default:
+		diags = diags.Append(&hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  "Invalid ignore_changes pattern",
+			Detail:   "An ignore changes pattern must begin with an attribute name, followed by zero or more nested attributes, index operations, or splat operations.",
+			Subject:  expr.Range().Ptr(),
+		})
+		return nil, diags
+	}
 }
 
 // decodeReplaceTriggeredBy decodes and does basic validation of the
