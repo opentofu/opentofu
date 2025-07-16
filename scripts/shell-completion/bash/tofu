@@ -1,0 +1,108 @@
+#\!/usr/bin/env bash
+
+_tofu_completion() {
+  local cur prev words cword
+  _get_comp_words_by_ref -n : cur prev words cword
+  
+  # List of top-level commands
+  local commands="apply console destroy fmt get graph import init login logout metadata output plan providers refresh show taint test validate version untaint workspace force-unlock state"
+  
+  # List of subcommands for specific top-level commands
+  local workspace_commands="list select show new delete"
+  local state_commands="list ls rm remove mv move pull push show replace-provider"
+  local providers_commands="lock mirror schema"
+  local metadata_commands="functions"
+  
+  # Handle special case for workspace and state subcommands
+  if [[ ${#words[@]} -gt 2 ]]; then
+    local cmd="${words[1]}"
+    
+    case "$cmd" in
+      workspace)
+        if [[ ${#words[@]} -eq 3 ]]; then
+          COMPREPLY=($(compgen -W "$workspace_commands" -- "$cur"))
+          return 0
+        fi
+        ;;
+      state)
+        if [[ ${#words[@]} -eq 3 ]]; then
+          COMPREPLY=($(compgen -W "$state_commands" -- "$cur"))
+          return 0
+        fi
+        ;;
+      providers)
+        if [[ ${#words[@]} -eq 3 ]]; then
+          COMPREPLY=($(compgen -W "$providers_commands" -- "$cur"))
+          return 0
+        fi
+        ;;
+      metadata)
+        if [[ ${#words[@]} -eq 3 ]]; then
+          COMPREPLY=($(compgen -W "$metadata_commands" -- "$cur"))
+          return 0
+        fi
+        ;;
+    esac
+  fi
+  
+  # Handle initial command completion
+  if [[ ${#words[@]} -eq 2 ]]; then
+    COMPREPLY=($(compgen -W "$commands" -- "$cur"))
+    return 0
+  fi
+  
+  # Handle flag completion for common commands
+  case "$prev" in
+    apply|plan|init|destroy|refresh)
+      local flags="-input -lock -lock-timeout -no-color -auto-approve -var -var-file"
+      COMPREPLY=($(compgen -W "$flags" -- "$cur"))
+      ;;
+    import)
+      local flags="-input -lock -lock-timeout -no-color -var -var-file -config"
+      COMPREPLY=($(compgen -W "$flags" -- "$cur"))
+      ;;
+    output)
+      local flags="-json -no-color -state"
+      COMPREPLY=($(compgen -W "$flags" -- "$cur"))
+      ;;
+    state)
+      local flags="-state -backup -backup-path -lock -lock-timeout -state-out"
+      COMPREPLY=($(compgen -W "$flags" -- "$cur"))
+      ;;
+    fmt)
+      local flags="-list -write -diff -check -no-color -recursive"
+      COMPREPLY=($(compgen -W "$flags" -- "$cur"))
+      ;;
+    validate)
+      local flags="-json -no-color"
+      COMPREPLY=($(compgen -W "$flags" -- "$cur"))
+      ;;
+    workspace)
+      local flags="-no-color"
+      COMPREPLY=($(compgen -W "$flags" -- "$cur"))
+      ;;
+    *)
+      COMPREPLY=()
+      ;;
+  esac
+  
+  # If we're completing for a flag that requires a value, complete with appropriate values
+  case "$prev" in
+    -var-file)
+      COMPREPLY=($(compgen -f -X '\!*.tfvars' -- "$cur"))
+      ;;
+    -chdir)
+      COMPREPLY=($(compgen -d -- "$cur"))
+      ;;
+  esac
+  
+  # Support completing -var
+  if [[ "$cur" == -* ]]; then
+    local common_flags="-help -version -chdir"
+    COMPREPLY=($(compgen -W "$common_flags" -- "$cur"))
+  fi
+  
+  return 0
+}
+
+complete -F _tofu_completion tofu

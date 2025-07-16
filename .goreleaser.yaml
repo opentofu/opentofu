@@ -300,6 +300,18 @@ nfpms:
         dst: /usr/share/doc/opentofu/copyright
         file_info:
           mode: 0444
+      - src: ./scripts/shell-completion/bash/tofu
+        dst: /usr/share/bash-completion/completions/tofu
+        file_info:
+          mode: 0644
+      - src: ./scripts/shell-completion/zsh/_tofu
+        dst: /usr/share/zsh/vendor-completions/_tofu
+        file_info:
+          mode: 0644
+      - src: ./scripts/shell-completion/fish/tofu.fish
+        dst: /usr/share/fish/vendor_completions.d/tofu.fish
+        file_info:
+          mode: 0644
     rpm:
       signature:
         key_file: "{{ if index .Env \"GPG_KEY_FILE\"  }}{{.Env.GPG_KEY_FILE}}{{ end }}"
@@ -355,3 +367,19 @@ changelog:
 release:
   prerelease: auto
   draft: true
+
+brews:
+  - name: opentofu
+    repository:
+      owner: opentofu
+      name: homebrew-tap
+    homepage: https://opentofu.org
+    description: OpenTofu lets you declaratively manage your cloud infrastructure.
+    license: MPL-2.0
+    test: |
+      system "#{bin}/tofu version"
+    install: |
+      bin.install "tofu"
+      bash_completion.install "scripts/shell-completion/bash/tofu" => "tofu"
+      zsh_completion.install "scripts/shell-completion/zsh/_tofu" => "_tofu"
+      fish_completion.install "scripts/shell-completion/fish/tofu.fish"
