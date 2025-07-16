@@ -41,7 +41,16 @@ func Provider() providers.Interface {
 	return simple{
 		schema: providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{
-				Block: nil,
+				// schema of the provider to be able to pass an optional
+				// argument in the ConfigProvider
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"cfg": {
+							Type:     cty.String,
+							Optional: true,
+						},
+					},
+				},
 			},
 			ResourceTypes: map[string]providers.Schema{
 				"simple_resource": simpleResource,
