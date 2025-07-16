@@ -6,10 +6,8 @@
 package jsondiff
 
 import (
-	"reflect"
-	"strings"
-
 	"github.com/zclconf/go-cty/cty"
+	"reflect"
 
 	"github.com/opentofu/opentofu/internal/command/jsonformat/collections"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
@@ -120,26 +118,7 @@ func (opts JsonOpts) processArray(change structured.ChangeSlice) computed.Diff {
 
 	// This callback is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
 	shouldDiffElement := func(a, b interface{}) bool {
-		isMultilineString := false
-		tA, tB := GetType(a), GetType(b)
-		// If the values are both string, we check if one of them contains newlines to determine if we should diff them,
-		if tA == String && tB == String {
-			isMultilineString = strings.Contains(a.(string), "\n") || strings.Contains(b.(string), "\n")
-		}
-		// Only in case the strings have a common line we should diff them,
-		if isMultilineString {
-			linesA := strings.Split(a.(string), "\n")
-			linesB := strings.Split(b.(string), "\n")
-			for _, line := range linesA {
-				for _, lineB := range linesB {
-					if line == lineB {
-						return true
-					}
-				}
-			}
-		}
-		// If we haven't retuned at this point, we don't diff the strings and only care if both values are objects.
-		return tA == Object && tB == Object
+		return (GetType(a) == Object && GetType(b) == Object) || ShouldDiffMultilineStrings(a, b)
 	}
 
 	return opts.Array(collections.TransformSlice(change.Before, change.After, processIndices, shouldDiffElement))

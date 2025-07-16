@@ -6,16 +6,15 @@
 package differ
 
 import (
-	"github.com/zclconf/go-cty/cty"
-	"strings"
-
 	"github.com/opentofu/opentofu/internal/command/jsonformat/collections"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed/renderers"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/jsondiff"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
 	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/command/jsonprovider"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/zclconf/go-cty/cty"
 )
 
 func computeAttributeDiffAsList(change structured.Change, elementType cty.Type) computed.Diff {
@@ -49,27 +48,7 @@ func computeAttributeDiffAsList(change structured.Change, elementType cty.Type) 
 
 	// This callback is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
 	shouldDiffElement := func(a, b interface{}) bool {
-		isMultilineString := false
-		sA, okA := a.(string)
-		sB, okB := b.(string)
-		// If the values are both string, we check if one of them contains newlines to determine if we should diff them,
-		if okA && okB {
-			isMultilineString = strings.Contains(sA, "\n") || strings.Contains(sB, "\n")
-		}
-		// Only in case the strings have a common line, we should diff them,
-		if isMultilineString {
-			linesA := strings.Split(sA, "\n")
-			linesB := strings.Split(sB, "\n")
-			for _, line := range linesA {
-				for _, lineB := range linesB {
-					if line == lineB {
-						return true
-					}
-				}
-			}
-		}
-		// If we haven't retuned at this point, we don't diff the strings and only care if both values are objects.
-		return elementType.IsObjectType()
+		return elementType.IsObjectType() || jsondiff.ShouldDiffMultilineStrings(a, b)
 	}
 	elements, current := collections.TransformSlice(sliceValue.Before, sliceValue.After, processIndices, shouldDiffElement)
 	return computed.NewDiff(renderers.List(elements), current, change.ReplacePaths.Matches())

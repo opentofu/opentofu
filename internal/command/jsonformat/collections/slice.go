@@ -16,13 +16,13 @@ import (
 
 type TransformIndices func(before, after int) computed.Diff
 type ProcessIndices func(before, after int)
-type shouldDiffElement[Input any] func(inputA, inputB Input) bool
+type ShouldDiffElement[Input any] func(inputA, inputB Input) bool
 
 // TransformSlice compares two slices and returns a slice of computed.Diff and the action that was taken for the entire slice.
 // This function calls ProcessSlice to process the elements in the slices, which in turn uses the TransformIndices function to create the computed.Diff for each element based on their type.
-// shouldDiffElement argument is used to determine if before and after elements should be 'diffed' with each other instead of marking the old element as deleted and the new element as created.
-// shouldDiffElement argument is primarily useful to provide detailed differences for Object types and strings with multiple lines. It is called for each element in the both slices.
-func TransformSlice[Input any](before, after []Input, process TransformIndices, shouldDiffElement shouldDiffElement[Input]) ([]computed.Diff, plans.Action) {
+// ShouldDiffElement argument is used to determine if before and after elements should be 'diffed' with each other instead of marking the old element as deleted and the new element as created.
+// ShouldDiffElement argument is primarily useful to provide detailed differences for Object types and strings with multiple lines. It is called for each element in the both slices.
+func TransformSlice[Input any](before, after []Input, process TransformIndices, shouldDiffElement ShouldDiffElement[Input]) ([]computed.Diff, plans.Action) {
 	current := plans.NoOp
 	if before != nil && after == nil {
 		current = plans.Delete
@@ -42,9 +42,9 @@ func TransformSlice[Input any](before, after []Input, process TransformIndices, 
 
 // ProcessSlice compares two slices and returns a slice of computed.Diff, this function handles everything TransformSlice does, other than determining the operation.
 // Uses TransformIndices function to create the computed.Diff for each element based on their type.
-// shouldDiffElement argument is used to determine if before and after elements should be 'diffed' with each other instead of marking the old element as deleted and the new element as created.
-// shouldDiffElement argument is primarily useful to provide detailed differences for Object types and strings with multiple lines.
-func ProcessSlice[Input any](before, after []Input, process ProcessIndices, shouldDiffElement shouldDiffElement[Input]) {
+// ShouldDiffElement argument is used to determine if before and after elements should be 'diffed' with each other instead of marking the old element as deleted and the new element as created.
+// ShouldDiffElement argument is primarily useful to provide detailed differences for Object types and strings with multiple lines.
+func ProcessSlice[Input any](before, after []Input, process ProcessIndices, shouldDiffElement ShouldDiffElement[Input]) {
 	lcs := objchange.LongestCommonSubsequence(before, after, func(before, after Input) bool {
 		return reflect.DeepEqual(before, after)
 	})
