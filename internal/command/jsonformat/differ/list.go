@@ -48,13 +48,28 @@ func computeAttributeDiffAsList(change structured.Change, elementType cty.Type) 
 	}
 
 	// This callback is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
-	shouldDiffElement := func(value interface{}) bool {
+	shouldDiffElement := func(a, b interface{}) bool {
 		isMultilineString := false
-		if str, ok := value.(string); ok {
-			// If the value is a string, we check if it contains newlines to determine if it should be treated as an object.
-			isMultilineString = strings.Contains(str, "\n")
+		sA, okA := a.(string)
+		sB, okB := b.(string)
+		// If the values are both string, we check if one of them contains newlines to determine if we should diff them,
+		if okA && okB {
+			isMultilineString = strings.Contains(sA, "\n") || strings.Contains(sB, "\n")
 		}
-		return elementType.IsObjectType() || isMultilineString
+		// Only in case the strings have a common line, we should diff them,
+		if isMultilineString {
+			linesA := strings.Split(sA, "\n")
+			linesB := strings.Split(sB, "\n")
+			for _, line := range linesA {
+				for _, lineB := range linesB {
+					if line == lineB {
+						return true
+					}
+				}
+			}
+		}
+		// If we haven't retuned at this point, we don't diff the strings and only care if both values are objects.
+		return elementType.IsObjectType()
 	}
 	elements, current := collections.TransformSlice(sliceValue.Before, sliceValue.After, processIndices, shouldDiffElement)
 	return computed.NewDiff(renderers.List(elements), current, change.ReplacePaths.Matches())

@@ -2263,6 +2263,63 @@ jsonencode(
 )
 `,
 		},
+		"slice_update_multiline_string": {
+			diff: computed.Diff{
+				Renderer: List([]computed.Diff{
+					{
+						Renderer: Primitive("hello\nworld", "hello\nuniverse", cty.String),
+						Action:   plans.Update,
+					},
+					{
+						Renderer: Primitive("foo\nbar", "foo\nbaz", cty.String),
+						Action:   plans.Update,
+					},
+				}),
+				Action: plans.Update,
+			},
+			expected: `
+[
+      ~ <<-EOT
+            hello
+          - world
+          + universe
+        EOT,
+      ~ <<-EOT
+            foo
+          - bar
+          + baz
+        EOT,
+    ]
+`,
+		},
+		"slice_update_multiline_with_regular_string": {
+			diff: computed.Diff{
+				Renderer: List([]computed.Diff{
+					{
+						Renderer: Primitive("line1\nline2", "line1\nline3", cty.String),
+						Action:   plans.Update,
+					},
+					{
+						Renderer: Primitive("line1\nlinex", "line1", cty.String),
+						Action:   plans.Update,
+					},
+				}),
+				Action: plans.Update,
+			},
+			expected: `
+[
+      ~ <<-EOT
+            line1
+          - line2
+          + line3
+        EOT,
+      ~ <<-EOT
+            line1
+          - linex
+        EOT,
+    ]
+`,
+		},
 	}
 	for name, tc := range tcs {
 		t.Run(name, func(t *testing.T) {
