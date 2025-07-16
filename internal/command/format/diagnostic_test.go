@@ -293,7 +293,6 @@ func TestDiagnostic(t *testing.T) {
 [red]│[reset]
 [red]│[reset]   on test.tf line 1:
 [red]│[reset]    1: test [underline]source[reset] code
-[red]│[reset]
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
 [red]│[reset]     [dark_gray]│[reset]     "3" [yellow]->[reset] "5"
@@ -348,7 +347,6 @@ func TestDiagnostic(t *testing.T) {
 [red]│[reset]    4: 		])[reset]
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]var.json_headers[reset] is object with 2 attributes
-[red]│[reset]
 [red]│[reset]     [dark_gray]├────────────────[reset]
 [red]│[reset]     [dark_gray]│[reset] [bold]Diff: [reset]
 [red]│[reset]     [dark_gray]│[reset]     {
