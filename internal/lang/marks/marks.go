@@ -59,6 +59,7 @@ var (
 
 type DeprecationCause struct {
 	By      addrs.Referenceable
+	Key     string
 	Message string
 
 	// IsFromRemoteModule indicates if the cause of deprecation is coming from a remotely
@@ -110,6 +111,7 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFrom
 	return Deprecated(v, DeprecationCause{
 		IsFromRemoteModule: isFromRemoteModule,
 		By:                 callOutAddr,
+		Key:                addr.OutputValue.Name,
 		Message:            msg,
 	})
 }
