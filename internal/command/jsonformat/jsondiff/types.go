@@ -44,7 +44,7 @@ func GetType(val interface{}) Type {
 }
 
 // ShouldDiffMultilineStrings Checks if two values should be diffed as multiline strings.
-// It checks if both values are strings and if they have a common line.
+// It checks if both values are strings, and if they have a common line, without checking for a common line, we might end up mistaking a deletion as an update.
 // This function is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
 // Primarily used for collections.ShouldDiffElement callback.
 func ShouldDiffMultilineStrings(a, b any) bool {
