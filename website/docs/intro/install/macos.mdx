@@ -1,0 +1,38 @@
+---
+sidebar_position: 8
+sidebar_label: MacOS
+description: |-
+  Install OpenTofu on MacOS.
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import BrewScript from '!!raw-loader!./examples/brew-install.sh'
+import PortScript from '!!raw-loader!./examples/install-macports.sh'
+import TabItem from '@theme/TabItem';
+import Tabs from '@theme/Tabs';
+import ValidateInstall from '!!raw-loader!./examples/verify-installation.sh'
+
+# Installing OpenTofu on MacOS
+
+You can use OpenTofu as a [standalone binary](standalone.mdx) or you can install it using [Homebrew](https://formulae.brew.sh/formula/opentofu) or [MacPorts](https://ports.macports.org/port/opentofu-1.9).
+
+<Tabs>
+    <TabItem value="homebrew" label="Homebrew">
+        OpenTofu is available in the Homebrew Core repository, so you can install it by running:
+
+        <CodeBlock language={"bash"}>{BrewScript}</CodeBlock>
+
+        Validate the installation by running:
+
+        <CodeBlock language={"bash"}>{ValidateInstall}</CodeBlock>
+    </TabItem>
+    <TabItem value="macports" label="MacPorts">
+        OpenTofu is available in the MacPorts ports tree, so you can install it by running:
+
+        <CodeBlock language={"bash"}>{PortScript}</CodeBlock>
+
+        Validate the installation by running:
+
+        <CodeBlock language={"bash"}>{ValidateInstall}</CodeBlock>
+    </TabItem>
+</Tabs>
