@@ -1629,7 +1629,8 @@ func TestValue_MultilineStringsInList(t *testing.T) {
 				},
 			},
 			validateDiff: renderers.ValidateList([]renderers.ValidateDiffFunction{
-				renderers.ValidatePrimitive("deleted line", "", plans.Delete, false),
+				renderers.ValidatePrimitive("unchanged line", "unchanged line", plans.NoOp, false),
+				renderers.ValidatePrimitive("deleted line", nil, plans.Delete, false),
 				renderers.ValidatePrimitive("line1\nline2", "line1\nline2+", plans.Update, false),
 				renderers.ValidatePrimitive("line1", "line1\nline2", plans.Update, false),
 			}, plans.Update, false),
