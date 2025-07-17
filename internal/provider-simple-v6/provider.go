@@ -110,7 +110,6 @@ func (s simple) UpgradeResourceState(_ context.Context, req providers.UpgradeRes
 }
 
 func (s simple) ConfigureProvider(context.Context, providers.ConfigureProviderRequest) (resp providers.ConfigureProviderResponse) {
-	fmt.Println("CONFIGURE SIMPLE6 PROVIDER")
 	return resp
 }
 
