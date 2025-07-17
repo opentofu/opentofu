@@ -17,6 +17,8 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -49,6 +51,8 @@ type RemoteClient struct {
 	serverSideEncryption  bool
 	customerEncryptionKey []byte
 	acl                   string
+	tags                  map[string]string
+	metadata              map[string]string
 	kmsKeyID              string
 	ddbTable              string
 
@@ -207,6 +211,8 @@ func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	c.configurePutObjectChecksum(data, i)
 	c.configurePutObjectEncryption(i)
 	c.configurePutObjectACL(i)
+	c.configurePutObjectTags(i)
+	c.configurePutObjectMetadata(i)
 
 	ctx, _ = attachLoggerToContext(ctx)
 
@@ -646,6 +652,27 @@ func (c *RemoteClient) configurePutObjectACL(i *s3.PutObjectInput) {
 		return
 	}
 	i.ACL = types.ObjectCannedACL(c.acl)
+}
+
+func (c *RemoteClient) configurePutObjectTags(i *s3.PutObjectInput) {
+	if len(c.tags) == 0 {
+		return
+	}
+	tagPairsSlice := make([]string, len(c.tags))
+	index := 0
+	for k, v := range c.tags {
+		tagPairsSlice[index] = fmt.Sprintf("%s=%s", url.QueryEscape(k), url.QueryEscape(v))
+		index++
+	}
+	tagPairs := strings.Join(tagPairsSlice, "&")
+	i.Tagging = aws.String(tagPairs)
+}
+
+func (c *RemoteClient) configurePutObjectMetadata(i *s3.PutObjectInput) {
+	if len(c.metadata) == 0 {
+		return
+	}
+	i.Metadata = c.metadata
 }
 
 const errBadChecksumFmt = `state data in S3 does not have the expected content.
