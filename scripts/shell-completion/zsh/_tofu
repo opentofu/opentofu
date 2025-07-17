@@ -1,0 +1,280 @@
+#compdef tofu
+
+_tofu() {
+  local -a commands
+  local -a common_flags
+
+  commands=(
+    'apply:Build or change infrastructure'
+    'console:Interactive console for OpenTofu interpolations'
+    'destroy:Destroy OpenTofu-managed infrastructure'
+    'fmt:Reformat your configuration in the standard style'
+    'force-unlock:Release a stuck lock on the current workspace'
+    'get:Install or upgrade OpenTofu modules'
+    'graph:Create a visual graph of OpenTofu resources'
+    'import:Import existing infrastructure into OpenTofu'
+    'init:Initialize a new or existing OpenTofu working directory'
+    'login:Obtain and save credentials for a remote host'
+    'logout:Remove locally-stored credentials for a remote host'
+    'metadata:Metadata related commands'
+    'output:Show output values from your root module'
+    'plan:Show changes required by the current configuration'
+    'providers:Show the providers required for this configuration'
+    'refresh:Update local state file against real resources'
+    'show:Show the current state or a saved plan'
+    'state:Advanced state management'
+    'taint:Mark a resource instance as not fully functional'
+    'test:Execute integration tests for OpenTofu modules'
+    'untaint:Remove the tainted status from a resource instance'
+    'validate:Check whether the configuration is valid'
+    'version:Show the current OpenTofu version'
+    'workspace:Workspace management'
+  )
+
+  common_flags=(
+    '--help[Show help output]'
+    '--version[Show version]'
+    '-chdir=[Change the working directory before executing the command]:directory:_files -/'
+  )
+
+  _arguments -C \
+    $common_flags \
+    ': :->command' \
+    '*:: :->args' \
+    && ret=0
+
+  case $state in
+    command)
+      _describe -t commands 'OpenTofu command' commands && ret=0
+      ;;
+    args)
+      case $words[1] in
+        apply)
+          _arguments \
+            '-auto-approve[Skip interactive approval of plan]' \
+            '-backup=[Path to backup the existing state file]:backup path:_files' \
+            '-compact-warnings[Show compact warning messages]' \
+            '-lock=[Lock the state file]:lock:(true false)' \
+            '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+            '-input=[Ask for input for variables]:input:(true false)' \
+            '-no-color[If specified, output will not contain color]' \
+            '-parallelism=[Number of parallel resource operations]:parallism' \
+            '-state=[Path to read and save state]:state path:_files' \
+            '-state-out=[Path to write updated state file]:state out path:_files' \
+            '-var[Input variables]:variable' \
+            '-var-file=[Variable file]:var file:_files -g "*.tfvars"' \
+            && ret=0
+          ;;
+        console)
+          _arguments \
+            '-state=[Path to read state]:state path:_files' \
+            '-var[Input variables]:variable' \
+            '-var-file=[Variable file]:var file:_files -g "*.tfvars"' \
+            && ret=0
+          ;;
+        destroy)
+          _arguments \
+            '-auto-approve[Skip interactive approval]' \
+            '-backup=[Path to backup the existing state file]:backup path:_files' \
+            '-compact-warnings[Show compact warning messages]' \
+            '-lock=[Lock the state file]:lock:(true false)' \
+            '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+            '-input=[Ask for input for variables]:input:(true false)' \
+            '-no-color[If specified, output will not contain color]' \
+            '-parallelism=[Number of parallel resource operations]:parallism' \
+            '-state=[Path to read and save state]:state path:_files' \
+            '-state-out=[Path to write updated state file]:state out path:_files' \
+            '-var[Input variables]:variable' \
+            '-var-file=[Variable file]:var file:_files -g "*.tfvars"' \
+            && ret=0
+          ;;
+        fmt)
+          _arguments \
+            '-list=[List files whose formatting differs (always false with -write)]:list:(true false)' \
+            '-write=[Write result to source files]:write:(true false)' \
+            '-diff[Display diffs of formatting changes]' \
+            '-check[Check if the input is formatted]' \
+            '-no-color[If specified, output will not contain color]' \
+            '-recursive[Also process files in subdirectories]' \
+            && ret=0
+          ;;
+        get)
+          _arguments \
+            '-update[Check already-downloaded modules for updates]' \
+            '-no-color[If specified, output will not contain color]' \
+            && ret=0
+          ;;
+        graph)
+          _arguments \
+            '-draw-cycles[Highlight any cycles in the graph]' \
+            '-type=[Type of graph to output]:type:(plan plan-destroy plan-refresh apply validate input)' \
+            '-module-depth=[Max depth to show for modules]:depth' \
+            && ret=0
+          ;;
+        import)
+          _arguments \
+            '-config=[Path to a directory containing Terraform configuration files]:directory:_files -/' \
+            '-input=[Ask for input for variables]:input:(true false)' \
+            '-lock=[Lock the state file]:lock:(true false)' \
+            '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+            '-no-color[If specified, output will not contain color]' \
+            '-state=[Path to read and save state]:state path:_files' \
+            '-state-out=[Path to write updated state file]:state out path:_files' \
+            '-var[Input variables]:variable' \
+            '-var-file=[Variable file]:var file:_files -g "*.tfvars"' \
+            && ret=0
+          ;;
+        init)
+          _arguments \
+            '-backend=[Configure the backend for this configuration]:backend:(true false)' \
+            '-backend-config=[Backend configuration]:config' \
+            '-force-copy[Suppress prompts about copying state data]' \
+            '-from-module=[Copy the contents of the given module into the target directory]:source' \
+            '-get=[Download any modules for this configuration]:get:(true false)' \
+            '-input=[Ask for input for variables]:input:(true false)' \
+            '-lock=[Lock the state file]:lock:(true false)' \
+            '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+            '-no-color[If specified, output will not contain color]' \
+            '-upgrade[Install the latest version allowed within version constraints]' \
+            && ret=0
+          ;;
+        output)
+          _arguments \
+            '-state=[Path to read state]:state path:_files' \
+            '-no-color[If specified, output will not contain color]' \
+            '-json[Print output in JSON format]' \
+            && ret=0
+          ;;
+        plan)
+          _arguments \
+            '-compact-warnings[Show compact warning messages]' \
+            '-destroy[Select the "destroy" planning mode]' \
+            '-detailed-exitcode[Return detailed exit codes]' \
+            '-input=[Ask for input for variables]:input:(true false)' \
+            '-lock=[Lock the state file]:lock:(true false)' \
+            '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+            '-no-color[If specified, output will not contain color]' \
+            '-out=[Write a plan file to the given path]:path:_files' \
+            '-parallelism=[Number of parallel resource operations]:parallism' \
+            '-state=[Path to read and save state]:state path:_files' \
+            '-var[Input variables]:variable' \
+            '-var-file=[Variable file]:var file:_files -g "*.tfvars"' \
+            && ret=0
+          ;;
+        providers)
+          local -a providers_cmds
+          providers_cmds=(
+            'lock:Write provider dependency locks to file'
+            'mirror:Save local copies of all required provider plugins'
+            'schema:Show schemas for the providers used in the configuration'
+          )
+          if (( CURRENT == 2 )); then
+            _describe -t providers-commands "OpenTofu providers command" providers_cmds && ret=0
+          fi
+          ;;
+        refresh)
+          _arguments \
+            '-compact-warnings[Show compact warning messages]' \
+            '-input=[Ask for input for variables]:input:(true false)' \
+            '-lock=[Lock the state file]:lock:(true false)' \
+            '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+            '-no-color[If specified, output will not contain color]' \
+            '-parallelism=[Number of parallel resource operations]:parallism' \
+            '-state=[Path to read and save state]:state path:_files' \
+            '-state-out=[Path to write updated state file]:state out path:_files' \
+            '-var[Input variables]:variable' \
+            '-var-file=[Variable file]:var file:_files -g "*.tfvars"' \
+            && ret=0
+          ;;
+        show)
+          _arguments \
+            '-no-color[If specified, output will not contain color]' \
+            '-json[Print output in JSON format]' \
+            && ret=0
+          ;;
+        state)
+          local -a state_cmds
+          state_cmds=(
+            'list:List resources in the state'
+            'mv:Move an item in the state'
+            'pull:Pull current state and output to stdout'
+            'push:Update remote state from a local state file'
+            'replace-provider:Replace provider in the state'
+            'rm:Remove instances from the state'
+            'show:Show a resource in the state'
+          )
+          if (( CURRENT == 2 )); then
+            _describe -t state-commands "OpenTofu state command" state_cmds && ret=0
+          fi
+          ;;
+        taint)
+          _arguments \
+            '-allow-missing[Succeed even if the resource is missing]' \
+            '-lock=[Lock the state file]:lock:(true false)' \
+            '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+            '-state=[Path to read and save state]:state path:_files' \
+            '-state-out=[Path to write updated state file]:state out path:_files' \
+            '-module=[The module path where the resource lives]:module' \
+            && ret=0
+          ;;
+        untaint)
+          _arguments \
+            '-allow-missing[Succeed even if the resource is missing]' \
+            '-lock=[Lock the state file]:lock:(true false)' \
+            '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+            '-module=[The module path where the resource lives]:module' \
+            '-state=[Path to read and save state]:state path:_files' \
+            '-state-out=[Path to write updated state file]:state out path:_files' \
+            && ret=0
+          ;;
+        validate)
+          _arguments \
+            '-json[Produce output in JSON format]' \
+            '-no-color[If specified, output will not contain color]' \
+            && ret=0
+          ;;
+        workspace)
+          local -a workspace_cmds
+          workspace_cmds=(
+            'list:List workspaces'
+            'select:Select a workspace'
+            'new:Create a new workspace'
+            'delete:Delete a workspace'
+            'show:Show the name of the current workspace'
+          )
+          if (( CURRENT == 2 )); then
+            _describe -t workspace-commands "OpenTofu workspace command" workspace_cmds && ret=0
+          else
+            case $words[2] in
+              new)
+                _arguments \
+                  '-state=[Copy an existing state file into the new workspace]:state path:_files' \
+                  '-lock=[Lock the state file]:lock:(true false)' \
+                  '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+                  && ret=0
+                ;;
+              select)
+                _arguments \
+                  '-no-color[If specified, output will not contain color]' \
+                  && ret=0
+                ;;
+              delete)
+                _arguments \
+                  '-force[Remove a non-empty workspace]' \
+                  '-lock=[Lock the state file]:lock:(true false)' \
+                  '-lock-timeout=[Duration to wait for a state lock]:timeout' \
+                  && ret=0
+                ;;
+            esac
+          fi
+          ;;
+        *)
+          _default && ret=0
+          ;;
+      esac
+      ;;
+  esac
+  return ret
+}
+
+_tofu
