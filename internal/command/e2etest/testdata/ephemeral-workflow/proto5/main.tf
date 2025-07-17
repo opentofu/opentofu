@@ -47,6 +47,12 @@ provider "simple" {
   // This is needed in two cases: during plan/apply and also during destroy.
   // This test has been updated when DestroyEdgeTransformer was updated to
   // not create dependencies between ephemeral resources and the destroy nodes.
+  // The "cfg" field is just a simple configuration attribute of the provider
+  // to allow creation of dependencies between a resources from a previously
+  // initialized provider and the provider that is configured here.
+  // The "cfg" field is having no functionality behind, in the provider context,
+  // but it's just a way for the "provider" block to create depedencies
+  // to other blocks.
   cfg = local.simple_provider_cfg
 }
 

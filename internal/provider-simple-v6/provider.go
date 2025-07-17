@@ -42,8 +42,12 @@ func Provider() providers.Interface {
 	return simple{
 		schema: providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{
-				// schema of the provider to be able to pass an optional
-				// argument in the ConfigProvider
+				// The "cfg" field is just a simple configuration attribute of the provider
+				// to allow creation of dependencies between a resources from a previously
+				// initialized provider and this provider.
+				// The "cfg" field is having no functionality behind, in the provider context,
+				// but it's just a way for the "provider" block to create depedencies
+				// to other blocks.
 				Block: &configschema.Block{
 					Attributes: map[string]*configschema.Attribute{
 						"cfg": {
