@@ -1274,6 +1274,8 @@ func TestBackendExtraPaths(t *testing.T) {
 		path:                 b.path("s1"),
 		serverSideEncryption: b.serverSideEncryption,
 		acl:                  b.acl,
+		stateTags:            b.stateTags,
+		lockTags:             b.lockTags,
 		kmsKeyID:             b.kmsKeyID,
 		ddbTable:             b.ddbTable,
 	}

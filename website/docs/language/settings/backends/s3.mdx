@@ -51,6 +51,11 @@ the target backend bucket:
 * `s3:PutObject` on `arn:aws:s3:::mybucket/path/to/my/key`
 * `s3:DeleteObject` on `arn:aws:s3:::mybucket/path/to/my/key`
 
+OpenTofu may also need the following AWS IAM permissions on
+the target backend bucket:
+
+* `s3:PutObjectTagging` on `arn:aws:s3:::mybucket/path/to/my/key`
+
 This is seen in the following AWS IAM Statement:
 
 ```json
@@ -342,6 +347,8 @@ The following configuration is required:
 The following configuration is optional:
 
 * `acl` - (Optional) [Canned ACL](https://docs.aws.amazon.com/AmazonS3/latest/userguide/acl-overview.html#canned-acl) to be applied to the state file.
+* `state_tags` - (Optional) [Tags](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html) to be applied to the state object.
+* `lock_tags` - (Optional) [Tags](https://docs.aws.amazon.com/AmazonS3/latest/userguide/object-tagging.html) to be applied to the lock object.
 * `encrypt` - (Optional) Enable [server side encryption](https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingServerSideEncryption.html) of the state file.
 * `endpoint` - (Optional) **Deprecated** Custom endpoint for the AWS S3 API. This can also be sourced from the `AWS_S3_ENDPOINT` environment variable.
 * `force_path_style` - (Optional) **Deprecated** Enable path-style S3 URLs (`https://<HOST>/<BUCKET>` instead of `https://<BUCKET>.<HOST>`). Use `use_path_style` instead.
