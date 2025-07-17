@@ -562,6 +562,69 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 	return ret, nil
 }
 
+// GenerateChange is used to receive two values and calculate the difference
+// between them in order to return a Change struct
+func GenerateChange(beforeVal, afterVal cty.Value) (*Change, error) {
+	var err error
+	beforeVal, marks := beforeVal.UnmarkDeepWithPaths()
+	bs := jsonstate.SensitiveAsBoolWithPathValueMarks(beforeVal, marks)
+	beforeSensitive, err := ctyjson.Marshal(bs, bs.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	afterVal, marks = afterVal.UnmarkDeepWithPaths()
+	as := jsonstate.SensitiveAsBoolWithPathValueMarks(afterVal, marks)
+	afterSensitive, err := ctyjson.Marshal(as, as.Type())
+	if err != nil {
+		return nil, err
+	}
+
+	var before, after []byte
+	var afterUnknown cty.Value
+
+	if beforeVal != cty.NilVal {
+		before, err = ctyjson.Marshal(beforeVal, beforeVal.Type())
+		if err != nil {
+			return nil, err
+		}
+	}
+	if afterVal != cty.NilVal {
+		if afterVal.IsWhollyKnown() {
+			after, err = ctyjson.Marshal(afterVal, afterVal.Type())
+			if err != nil {
+				return nil, err
+			}
+			afterUnknown = cty.False
+		} else {
+			filteredAfter := omitUnknowns(afterVal)
+			if filteredAfter.IsNull() {
+				after = nil
+			} else {
+				after, err = ctyjson.Marshal(filteredAfter, filteredAfter.Type())
+				if err != nil {
+					return nil, err
+				}
+			}
+			afterUnknown = unknownAsBool(afterVal)
+		}
+	}
+
+	a, _ := ctyjson.Marshal(afterUnknown, afterUnknown.Type())
+
+	return &Change{
+		Before:       json.RawMessage(before),
+		After:        json.RawMessage(after),
+		AfterUnknown: a,
+
+		BeforeSensitive: json.RawMessage(beforeSensitive),
+		AfterSensitive:  json.RawMessage(afterSensitive),
+		// Just to be explicit, outputs cannot be imported so this is always
+		// nil.
+		Importing: nil,
+	}, nil
+}
+
 // MarshalOutputChanges converts the provided internal representation of
 // Changes objects into the structured JSON representation.
 //
@@ -589,40 +652,6 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 		if err != nil {
 			return nil, err
 		}
-		// We drop the marks from the change, as decoding is only an
-		// intermediate step to re-encode the values as json
-		changeV.Before, _ = changeV.Before.UnmarkDeep()
-		changeV.After, _ = changeV.After.UnmarkDeep()
-
-		var before, after []byte
-		var afterUnknown cty.Value
-
-		if changeV.Before != cty.NilVal {
-			before, err = ctyjson.Marshal(changeV.Before, changeV.Before.Type())
-			if err != nil {
-				return nil, err
-			}
-		}
-		if changeV.After != cty.NilVal {
-			if changeV.After.IsWhollyKnown() {
-				after, err = ctyjson.Marshal(changeV.After, changeV.After.Type())
-				if err != nil {
-					return nil, err
-				}
-				afterUnknown = cty.False
-			} else {
-				filteredAfter := omitUnknowns(changeV.After)
-				if filteredAfter.IsNull() {
-					after = nil
-				} else {
-					after, err = ctyjson.Marshal(filteredAfter, filteredAfter.Type())
-					if err != nil {
-						return nil, err
-					}
-				}
-				afterUnknown = unknownAsBool(changeV.After)
-			}
-		}
 
 		// The only information we have in the plan about output sensitivity is
 		// a boolean which is true if the output was or is marked sensitive. As
@@ -637,22 +666,16 @@ func MarshalOutputChanges(changes *plans.Changes) (map[string]Change, error) {
 			return nil, err
 		}
 
-		a, _ := ctyjson.Marshal(afterUnknown, afterUnknown.Type())
-
-		c := Change{
-			Actions:         actionString(oc.Action.String()),
-			Before:          json.RawMessage(before),
-			After:           json.RawMessage(after),
-			AfterUnknown:    a,
-			BeforeSensitive: json.RawMessage(sensitive),
-			AfterSensitive:  json.RawMessage(sensitive),
-
-			// Just to be explicit, outputs cannot be imported so this is always
-			// nil.
-			Importing: nil,
+		change, err := GenerateChange(changeV.Before, changeV.After)
+		if err != nil {
+			return nil, err
 		}
 
-		outputChanges[oc.Addr.OutputValue.Name] = c
+		change.Actions = actionString(oc.Action.String())
+		change.BeforeSensitive = json.RawMessage(sensitive)
+		change.AfterSensitive = json.RawMessage(sensitive)
+
+		outputChanges[oc.Addr.OutputValue.Name] = *change
 	}
 
 	return outputChanges, nil
