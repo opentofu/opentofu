@@ -17,6 +17,7 @@ BUG FIXES:
 
 * The `tofu.rc` configuration file now properly takes precedence over `terraform.rc` on Windows ([#2891](https://github.com/opentofu/opentofu/pull/2891))
 * S3 backend now correctly sends the `x-amz-server-side-encryption` header for the lockfile ([#2870](https://github.com/opentofu/opentofu/issues/2970))
+* The `import` block now correctly validates the `id` property. ([#2416](https://github.com/opentofu/opentofu/issues/2416)
 * Allow function calls in test variable blocks ([#2947](https://github.com/opentofu/opentofu/pull/2947))
 * The `issensitive` function now returns an unknown result when its argument is unknown, since a sensitive unknown value can potentially become non-sensitive once more information is available. ([#3008](https://github.com/opentofu/opentofu/pull/3008))
 * Provider references like "null.some_alias[each.key]" in .tf.json files are now correctly parsed ([#2915](https://github.com/opentofu/opentofu/issues/2915))
