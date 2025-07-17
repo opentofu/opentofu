@@ -517,7 +517,11 @@ func evalVariableDeprecation(
 		Summary:  `Variable marked as deprecated by the module author`,
 		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
 		Subject:  expr.Range().Ptr(),
-		Extra:    VariableDeprecationCause{IsFromRemoteModule: variableFromRemoteModule},
+		Extra: VariableDeprecationCause{
+			// Used to identify the input on the consolidation warnings and make sure they are showed separately, even with the same summary
+			Key:                config.Name,
+			IsFromRemoteModule: variableFromRemoteModule,
+		},
 	})
 }
 
@@ -543,6 +547,11 @@ func DiagnosticVariableDeprecationCause(diag tfdiags.Diagnostic) (VariableDeprec
 // has provided in the CLI args.
 type VariableDeprecationCause struct {
 	IsFromRemoteModule bool
+	Key                string
+}
+
+func (c VariableDeprecationCause) ExtraInfoKey() string {
+	return c.Key
 }
 
 // VariableDeprecationCause implements diagnosticExtraVariableDeprecationCause

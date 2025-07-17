@@ -58,7 +58,6 @@ var (
 )
 
 type DeprecationCause struct {
-	tfdiags.Keyable
 	By      addrs.Referenceable
 	Key     string
 	Message string
@@ -116,8 +115,9 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFrom
 	return Deprecated(v, DeprecationCause{
 		IsFromRemoteModule: isFromRemoteModule,
 		By:                 callOutAddr,
-		Key:                addr.OutputValue.Name,
-		Message:            msg,
+		// Used to identify the input on the consolidation warnings and make sure they are showed separately, even with the same summary
+		Key:     addr.OutputValue.Name,
+		Message: msg,
 	})
 }
 

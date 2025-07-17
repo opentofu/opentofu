@@ -53,7 +53,7 @@ found no differences, so no changes are needed.
 │ Warning: Variable marked as deprecated by the module author
 │ 
 │   on main.tf line 4, in module "call":
-│    3:   input2  = "test2"
+│    4:   input2 = "test2"
 │ 
 │ Variable "input2" is marked as deprecated with the following message:
 │ this is local deprecated2
@@ -61,28 +61,28 @@ found no differences, so no changes are needed.
 ╷
 │ Warning: Value derived from a deprecated source
 │ 
-│   on main.tf line 14, in locals:
-│   14:   i1 = module.call.modout1
+│   on main.tf line 8, in locals:
+│    8:   i1 = module.call.modout1
 │ 
 │ This value is derived from module.call.modout1, which is deprecated with
 │ the following message:
 │ 
 │ output deprecated
 │ 
-│ (and 1 more similar warnings elsewhere)
+│ (and one more similar warning elsewhere)
 ╵
 ╷
 │ Warning: Value derived from a deprecated source
 │ 
-│   on main.tf line 14, in locals:
-│   14:   i2 = module.call.modout2
+│   on main.tf line 9, in locals:
+│    9:   i2 = module.call.modout2
 │ 
 │ This value is derived from module.call.modout2, which is deprecated with
 │ the following message:
 │ 
 │ output deprecated
 │ 
-│ (and 1 more similar warnings elsewhere)
+│ (and one more similar warning elsewhere)
 ╵`
 		if diff := cmp.Diff(strings.TrimSpace(stripAnsi(planStdout)), strings.TrimSpace(stripAnsi(expectedOutput))); diff != "" {
 			t.Errorf("wrong output.\n%s", diff)
