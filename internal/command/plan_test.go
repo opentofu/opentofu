@@ -26,8 +26,10 @@ import (
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
 	"github.com/opentofu/opentofu/internal/plans"
+	"github.com/opentofu/opentofu/internal/plans/planfile"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statefile"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/opentofu/opentofu/internal/tofu"
 )
@@ -988,6 +990,214 @@ func TestPlan_resource_variable_inputs(t *testing.T) {
 	output := done(t)
 	if code != 0 {
 		t.Fatalf("bad: %d\n\n%s", code, output.Stderr())
+	}
+}
+
+// This test deals with a particularly-narrow bad interaction between different
+// components in OpenTofu:
+//
+//   - The main language runtime uses static references in the configuration as
+//     part of a heuristic to produce a set of "relevant attributes", whose
+//     changes outside of OpenTofu (if any) might be interesting to call out
+//     in the plan diff UI.
+//   - The "try" and "can" functions allow there to be references to resources
+//     with attribute paths that aren't actually correct for the resource
+//     instance's value, which the "relevant attributes" analysis does not check
+//     because it's analyzing based only on static traversal syntax.
+//   - The human-oriented plan renderer tries to correlate changes described in
+//     the "resource drift" part of the plan with paths appearing in
+//     "relevant attributes" to limit the rendering of "Changes outside of
+//     OpenTofu" only to changes that seem like they might have contributed to
+//     the set of planned changes. Because of the previous two points, the
+//     "relevant attributes" attribute path data cannot be trusted to
+//     definitely conform to the schema of the indicated resource type and so
+//     the renderer must tolerate inconsistencies without crashing or returning
+//     an error.
+//
+// Because this potential problem is in the collaboration between three separate
+// subsystems, we test it here so we can exercise all three in a relatively
+// realistic way. This is therefore an integration test of these three
+// components working together, rather than a test of of the plan command
+// specifically.
+func TestPlan_withInvalidReferencesInTry(t *testing.T) {
+	td := t.TempDir()
+	testCopyDir(t, testFixturePath("plan-invalid-reference-try"), td)
+	t.Chdir(td)
+
+	provider := &tofu.MockProvider{
+		GetProviderSchemaResponse: &providers.GetProviderSchemaResponse{
+			Provider: providers.Schema{
+				Block: &configschema.Block{},
+			},
+			ResourceTypes: map[string]providers.Schema{
+				"test": {
+					Block: &configschema.Block{
+						Attributes: map[string]*configschema.Attribute{
+							"values": {
+								// Accepting any type here is important because
+								// it forces references to nested values to
+								// be type-checked only at runtime.
+								// This is similar to how providers handle
+								// situations where the schema is decided
+								// dynamically by the remote server, as with
+								// "kubernetes_manifest" and "helm_release"
+								// in those respective providers.
+								Type:     cty.DynamicPseudoType,
+								Required: true,
+							},
+						},
+					},
+				},
+			},
+		},
+		ReadResourceFn: func(req providers.ReadResourceRequest) providers.ReadResourceResponse {
+			// The following intentionally changes the "phase" attribute of
+			// the values map, if present, to create a situation that the
+			// language runtime would recognize as "changes outside of OpenTofu",
+			// reported as "resource_drift" in the plan JSON.
+			//
+			// Because test.b.values is derived from test.a.values, that "drift"
+			// is considered to be a relevant change for the plan UI to render.
+			given := req.PriorState.GetAttr("values")
+			updated := req.PriorState
+			if given.HasIndex(cty.StringVal("phase")).True() {
+				values := given.AsValueMap()
+				values["phase"] = cty.StringVal("drifted")
+				updated = cty.ObjectVal(map[string]cty.Value{
+					"values": cty.MapVal(values),
+				})
+			}
+			return providers.ReadResourceResponse{
+				NewState: updated,
+			}
+		},
+	}
+
+	rsrcA := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test",
+		Name: "a",
+	}.Absolute(addrs.RootModuleInstance)
+	instA := rsrcA.Instance(addrs.NoKey)
+	rsrcB := addrs.Resource{
+		Mode: addrs.ManagedResourceMode,
+		Type: "test",
+		Name: "b",
+	}.Absolute(addrs.RootModuleInstance)
+	instB := rsrcB.Instance(addrs.NoKey)
+	providerConfig := addrs.AbsProviderConfig{
+		Module:   addrs.RootModule,
+		Provider: addrs.NewDefaultProvider("test"),
+	}
+
+	// We need a prior state where both resource instances already exist
+	// so that we can detect the "drift" and try to report it.
+	priorState := states.BuildState(func(ss *states.SyncState) {
+		ss.SetResourceProvider(rsrcA, providerConfig)
+		ss.SetResourceInstanceCurrent(
+			instA,
+			&states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(`{"values":{"type":["map","string"],"value":{"phase":"initial"}}}`),
+			},
+			providerConfig, addrs.NoKey,
+		)
+		ss.SetResourceProvider(rsrcB, providerConfig)
+		ss.SetResourceInstanceCurrent(
+			instB,
+			&states.ResourceInstanceObjectSrc{
+				Status:    states.ObjectReady,
+				AttrsJSON: []byte(`{"values":{"type":["map","string"],"value":{"a_phase":"initial"}}}`),
+			},
+			providerConfig, addrs.NoKey,
+		)
+	})
+	f, err := os.Create(DefaultStateFilename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = statefile.Write(
+		&statefile.File{
+			Serial:  1,
+			Lineage: "...",
+			State:   priorState,
+		},
+		f,
+		encryption.StateEncryptionDisabled(),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	view, done := testView(t)
+	c := &PlanCommand{
+		Meta: Meta{
+			testingOverrides: metaOverridesForProvider(provider),
+			View:             view,
+		},
+	}
+
+	code := c.Run([]string{"-out=tfplan"})
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("unexpected error: %d\n\n%s", code, output.Stderr())
+	}
+
+	// If we get here without the plan phase failing then we've passed the
+	// test, but we'll also inspect the saved plan file to make sure that
+	// this plan meets the conditions we were intending to test, since
+	// the exact heuristic used to decide which attributes are "relevant"
+	// may change over time in a way that requires this test to be set up
+	// a little differently.
+	planReader, err := planfile.Open("tfplan", encryption.PlanEncryptionDisabled())
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan, err := planReader.ReadPlan()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// We need to have detected that test.a changed during refresh.
+	foundDrifted := false
+	for _, change := range plan.DriftedResources {
+		if change.Addr.Equal(instA) {
+			foundDrifted = true
+		}
+	}
+	if !foundDrifted {
+		t.Errorf("plan does not report %s under DriftedResources", instA)
+	}
+
+	// We need to have detected both of the references in test.b as
+	// "relevant", so that the plan renderer would've tried to correlate
+	// them both with the before and after values in the DriftedResources
+	// entry for test.a.
+	foundRefWithIndex := false
+	foundRefWithoutIndex := false
+	for _, attrRef := range plan.RelevantAttributes {
+		if !attrRef.Resource.Equal(instA) {
+			continue // we only care about references to test.a
+		}
+		// For ease of comparison we'll use the diagnostic string representation
+		// of the path. If the details of this string rendering intentionally
+		// change in future then it's okay to update the following to match
+		// those changes as long as it still describes the same cty.Path content.
+		gotPath := tfdiags.FormatCtyPath(attrRef.Attr)
+		if gotPath == `.values[0].phase` {
+			// (this is the one that doesn't match the value and so could
+			// cause problems if the plan renderer does not handle that.)
+			foundRefWithIndex = true
+		}
+		if gotPath == `.values.phase` {
+			foundRefWithoutIndex = true
+		}
+	}
+	if !foundRefWithIndex {
+		t.Errorf("plan does not report test.a.values[0].phase as a relevant attribute")
+	}
+	if !foundRefWithoutIndex {
+		t.Errorf("plan does not report test.a.values.phase as a relevant attribute")
 	}
 }
 

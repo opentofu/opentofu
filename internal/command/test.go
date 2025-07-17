@@ -1188,11 +1188,13 @@ func getEvalContextForTest(states map[string]*TestFileState, config *configs.Con
 		varCtx[name] = val.Value
 	}
 
+	scope := &lang.Scope{}
 	ctx := &hcl.EvalContext{
 		Variables: map[string]cty.Value{
 			"run": cty.ObjectVal(runCtx),
 			"var": cty.ObjectVal(varCtx),
 		},
+		Functions: scope.Functions(),
 	}
 	return ctx, diags
 }

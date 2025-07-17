@@ -422,6 +422,54 @@ Because the configuration models are produced at a stage prior to expression eva
   // as the root of a tree of similar objects describing descendent modules.
   "root_module": {
 
+    // "variables" describes the input variable configurations in the module.
+    "variables": {
+
+      // Property names here are the input variable names
+      "example": {
+        // "type" describes the type constraint of the input variable, if any.
+        // This property is omitted for an unconstrained input variable.
+        //
+        // When present, its value is either a single string representing a
+        // primitive type, or an array with two or three elements describing a
+        // complex type:
+        // - "string", "number", or "bool" for the primitive types.
+        // - ["list", <type>] for a list type, where the second array element
+        //   is the list element type described in the same notation. The
+        //   collection type kinds are "list", "map", and "set".
+        // - ["object", <attributes>] for an object type, where the second
+        //   array element is a JSON object describing the object attributes
+        //   and their associated types. For an object type with optional
+        //   attributes, the array has a third element that is a JSON array
+        //   listing the attributes that are optional.
+        // - ["tuple", <elements>] for a tuple type, where the second array
+        //   element is a JSON array describing the tuple element types.
+        "type": "string",
+
+        // "default" is the default value of the input variable, serialized
+        // as JSON using the same mappings as OpenTofu's built-in "jsonencode"
+        // function.
+        "default": "Example",
+
+        // "required" is included and set to true if callers are required to
+        // provide a value for this variable, or omitted if it is optional.
+        "required": true,
+
+        // "description" is the author-provided description associated with
+        // this input variable, if any.
+        "description": "Example",
+
+        // "sensitive" is included and set to true if the input variable is
+        // declared as being "sensitive", or omitted if not.
+        "sensitive": true,
+
+        // "deprecated" is included and set to a deprecation message for
+        // any input variable that is declared as deprecated, or omitted for
+        // non-deprecated input variables.
+        "deprecated": "Example",
+      }
+    },
+
     // "outputs" describes the output value configurations in the module.
     "outputs": {
 

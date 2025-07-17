@@ -125,7 +125,7 @@ If OpenTofu finds an ephemeral value given to a non-ephemeral variable in a modu
 
 OpenTofu should not store ephemeral variable(s) in plan files.
 If a plan is generated from a configuration that is having at least one ephemeral variable,
-when the planfile will be applied, the value(s) for the ephemeral variable(s) needs to be provided again.
+when the plan file will be applied, the value(s) for the ephemeral variable(s) needs to be provided again.
 
 #### Outputs
 Most `output` blocks can be configured as ephemeral.
@@ -220,7 +220,8 @@ Locals marked as ephemeral are available during plan and apply phase and can be 
 * `connection` and `provisioner` blocks
 
 #### Ephemeral resource
-In contrast with the write-only arguments where only specifically tagged attributes are not stored in the state/plan file, `ephemeral` resources are not stored entirely.
+In contrast with the write-only arguments where only specifically tagged attributes are not stored in the state/plan file, `ephemeral` resources must not be stored in the state file and have only a reference stored in the plan file.
+
 The ephemeral blocks are behaving similar to `data`, where it reads the indicated resource and once it's done with it, is going to close it.
 
 Ephemeral resources can be referenced only in specific contexts:
@@ -262,6 +263,7 @@ The only `lifecycle` content that ephemerals should support are `precondition` a
 ```
 
 The meta-arguments `provisioner` and `connection` should not be supported.
+
 #### Providers
 `provider` block is ephemeral by nature, meaning that the configuration of this is never stored into state/plan file.
 
@@ -698,7 +700,7 @@ locals {
 Once a local is marked as ephemeral, this can be used only in other ephemeral contexts. Check the `Proposed Solution` section for more details on the allowed contexts.
 
 ### Ephemeral resources
-Due to the fact ephemeral resources are not stored in the state/plan file, this block is not creating a diff in the OpenTofu's UI.
+Due to the fact ephemeral resources are not stored in the state, this block is not creating a diff in the OpenTofu's UI.
 Instead, OpenTofu should notify the user of opening/renewing/closing an ephemeral resource with messages similar to the following:
 ```bash
 ephemeral.playground_random.password: Opening...
@@ -807,6 +809,21 @@ in the state file we should see the following:
 }
 ```
 
+#### Plan file
+During the implementation of the ephemeral resources execution, we had to make a decision on how we can include ephemeral resources
+in the execution graph for the `apply` phase, especially when `tofu` is executed with a plan file.
+There were two immediate options available:
+* Add a new graph transformer (or enhance the expansion one from the apply graph steps) to create a subgraph responsible with the creation of concrete nodes for the ephemeral resources in the configuration.
+* Use the already planned ephemeral resources and store only a stub in the changes to enable the already existing `DiffTransformer` to create concrete graph nodes based on the changelist.
+
+We went with the second to ensure that the flow is consistent between `tofu apply -auto-aprove` and `tofu plan -out planfile && tofu apply planfile`.
+
+The information from the ephemeral resources that is stored in the plan file is limited to only the address of the resource and the action (ie: OPEN).
+Anything else related to this type of changes, are trimmed out and must never be stored in the plan file.
+
+> [!NOTE] 
+> 
+> For more details please refer to [#2985](https://github.com/opentofu/opentofu/pull/2985).
 ### Testing support
 Due to the scope size this RFC is covering, the testing support will be documented later into a different RFC, or as amendment to this one.
 

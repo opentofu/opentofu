@@ -227,7 +227,7 @@ func TestRemoteContextWithVars(t *testing.T) {
 				// When Context() returns an error, it should unlock the state,
 				// so re-locking it is expected to succeed.
 				stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
-				if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+				if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 					t.Fatalf("unexpected error locking state: %s", err.Error())
 				}
 			} else {
@@ -236,7 +236,7 @@ func TestRemoteContextWithVars(t *testing.T) {
 				}
 				// When Context() succeeds, this should fail w/ "workspace already locked"
 				stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
-				if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err == nil {
+				if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err == nil {
 					t.Fatal("unexpected success locking state after Context")
 				}
 			}
@@ -444,7 +444,7 @@ func TestRemoteVariablesDoNotOverride(t *testing.T) {
 			}
 			// When Context() succeeds, this should fail w/ "workspace already locked"
 			stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
-			if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err == nil {
+			if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err == nil {
 				t.Fatal("unexpected success locking state after Context")
 			}
 

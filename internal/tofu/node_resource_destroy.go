@@ -14,6 +14,7 @@ import (
 	otelTrace "go.opentelemetry.io/otel/trace"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/plans"
@@ -128,7 +129,7 @@ func (n *NodeDestroyResourceInstance) References() []*addrs.Reference {
 
 			if p.When == configs.ProvisionerWhenDestroy {
 				if p.Connection != nil {
-					result = append(result, ReferencesFromConfig(p.Connection.Config, connectionBlockSupersetSchema)...)
+					result = append(result, ReferencesFromConfig(p.Connection.Config, shared.ConnectionBlockSupersetSchema)...)
 				}
 				result = append(result, ReferencesFromConfig(p.Config, schema)...)
 			}

@@ -79,7 +79,10 @@
               }
             ],
             "variables": {
-              "contents": {}
+              "contents": {
+                "required": true,
+                "type": "string"
+              }
             }
           },
           "source": "./create"

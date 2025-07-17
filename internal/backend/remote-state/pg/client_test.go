@@ -175,10 +175,10 @@ func TestConcurrentCreationLocksInDifferentSchemas(t *testing.T) {
 	// Those calls with empty database must think they are locking
 	// for workspace creation, both of them must succeed since they
 	// are operating on different schemas.
-	if _, err = firstClient.Lock(lock); err != nil {
+	if _, err = firstClient.Lock(t.Context(), lock); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = secondClient.Lock(lock); err != nil {
+	if _, err = secondClient.Lock(t.Context(), lock); err != nil {
 		t.Fatal(err)
 	}
 
@@ -186,7 +186,7 @@ func TestConcurrentCreationLocksInDifferentSchemas(t *testing.T) {
 	// lock as the first client. We need to make this call from a
 	// separate session, since advisory locks are okay to be re-acquired
 	// during the same session.
-	if _, err = thirdClient.Lock(lock); err == nil {
+	if _, err = thirdClient.Lock(t.Context(), lock); err == nil {
 		t.Fatal("Expected an error to be thrown on a second lock attempt")
 	} else if lockErr := err.(*statemgr.LockError); lockErr.Info != lock && //nolint:errcheck,errorlint // this is a test, I am fine with panic here
 		lockErr.Err.Error() != "Already locked for workspace creation: default" {
@@ -277,10 +277,10 @@ func TestConcurrentCreationLocksInDifferentTables(t *testing.T) {
 	// Those calls with empty database must think they are locking
 	// for workspace creation, both of them must succeed since they
 	// are operating on different schemas.
-	if _, err = firstClient.Lock(lock); err != nil {
+	if _, err = firstClient.Lock(t.Context(), lock); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = secondClient.Lock(lock); err != nil {
+	if _, err = secondClient.Lock(t.Context(), lock); err != nil {
 		t.Fatal(err)
 	}
 
@@ -288,7 +288,7 @@ func TestConcurrentCreationLocksInDifferentTables(t *testing.T) {
 	// lock as the first client. We need to make this call from a
 	// separate session, since advisory locks are okay to be re-acquired
 	// during the same session.
-	if _, err = thirdClient.Lock(lock); err == nil {
+	if _, err = thirdClient.Lock(t.Context(), lock); err == nil {
 		t.Fatal("Expected an error to be thrown on a second lock attempt")
 	} else if lockErr := err.(*statemgr.LockError); lockErr.Info != lock && //nolint:errcheck // this is a test, I am fine with panic here
 		lockErr.Err.Error() != "Already locked for workspace creation: default" {

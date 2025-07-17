@@ -28,7 +28,8 @@ to inspect:
 
 - `-state`: Inspect the latest state snapshot, if any.
 - `-plan=FILENAME`: Inspect the plan stored in the given saved plan file.
-- `-config`: Inspect the current configuration (requires `-json`).
+- `-config`: Inspect the current full configuration (requires `-json`).
+- `-module=DIR`: Inspect the configuration of just a single module in the given directory, without requiring any dependencies to be installed (requires `-json`).
 
 The `-state` option is the default if none of these options are used. The
 target-selection options are mutually-exclusive.
@@ -43,11 +44,11 @@ This command also accepts the following additional options:
   used in module source addresses or backend settings in the
   current configuration.
 
-This command relies on schema information from provider plugins to fully
-understand the provider-specific data structures in state, plan, and
-configuration artifacts. If you are currently using different provider
-versions than were used when creating the selected artifact then
-you may need to use `tofu apply` (or similar) to allow OpenTofu to
+Unless using the `-module=DIR` option, this command relies on schema information
+from provider plugins to fully understand the provider-specific data structures
+in state, plan, and configuration artifacts. If you are currently using
+different provider versions than were used when creating the selected artifact
+then you may need to use `tofu apply` (or similar) to allow OpenTofu to
 upgrade the stored data to match the latest provider schemas.
 
 ## JSON Output
@@ -62,6 +63,14 @@ depends on the selected artifact type:
 - `-config` returns [the JSON configuration representation](../../internals/json-format.mdx#configuration-representation),
   providing exactly the same configuration-related information that the plan representation would include,
   but without requiring a plan to be created first.
+- `-module=DIR` returns a subset of [the JSON configuration representation](../../internals/json-format.mdx#configuration-representation), where:
+    - The `"module"` property of each module call is omitted.
+    - The `"schema_version"` property of each resource is omitted.
+    - All expression-related properties are omitted.
+
+    These omissions together allow this particular mode to work without first
+    executing `tofu init`, and thus without first installing the module's
+    dependencies.
 
 ## Legacy Usage
 

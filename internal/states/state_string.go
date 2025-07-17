@@ -11,7 +11,7 @@ import (
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
 	"github.com/opentofu/opentofu/internal/addrs"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 )
 
 // String returns a rather-odd string representation of the entire state.
@@ -215,6 +215,10 @@ func (ms *Module) testString() string {
 
 		for _, k := range ks {
 			v := ms.OutputValues[k]
+			// This uses the legacy configuration mapping because the string
+			// representation of state is primarily used by very old tests
+			// that were originally written in the era where this was the
+			// main config representation.
 			lv := hcl2shim.ConfigValueFromHCL2(v.Value)
 			switch vTyped := lv.(type) {
 			case string:

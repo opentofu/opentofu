@@ -17,7 +17,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/statemgr"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -165,7 +165,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := foo.RefreshState(); err != nil {
+	if err := foo.RefreshState(t.Context()); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 	if v := foo.State(); v.HasManagedResourceInstanceObjects() {
@@ -176,7 +176,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := bar.RefreshState(); err != nil {
+	if err := bar.RefreshState(t.Context()); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 	if v := bar.State(); v.HasManagedResourceInstanceObjects() {
@@ -194,7 +194,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		if err := foo.WriteState(fooState); err != nil {
 			t.Fatal("error writing foo state:", err)
 		}
-		if err := foo.PersistState(nil); err != nil {
+		if err := foo.PersistState(t.Context(), nil); err != nil {
 			t.Fatal("error persisting foo state:", err)
 		}
 
@@ -223,12 +223,12 @@ func TestBackendStates(t *testing.T, b Backend) {
 		if err := bar.WriteState(barState); err != nil {
 			t.Fatalf("bad: %s", err)
 		}
-		if err := bar.PersistState(nil); err != nil {
+		if err := bar.PersistState(t.Context(), nil); err != nil {
 			t.Fatalf("bad: %s", err)
 		}
 
 		// verify that foo is unchanged with the existing state manager
-		if err := foo.RefreshState(); err != nil {
+		if err := foo.RefreshState(t.Context()); err != nil {
 			t.Fatal("error refreshing foo:", err)
 		}
 		fooState = foo.State()
@@ -241,7 +241,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		if err != nil {
 			t.Fatal("error re-fetching state:", err)
 		}
-		if err := foo.RefreshState(); err != nil {
+		if err := foo.RefreshState(t.Context()); err != nil {
 			t.Fatal("error refreshing foo:", err)
 		}
 		fooState = foo.State()
@@ -254,7 +254,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 		if err != nil {
 			t.Fatal("error re-fetching state:", err)
 		}
-		if err := bar.RefreshState(); err != nil {
+		if err := bar.RefreshState(t.Context()); err != nil {
 			t.Fatal("error refreshing bar:", err)
 		}
 		barState = bar.State()
@@ -298,7 +298,7 @@ func TestBackendStates(t *testing.T, b Backend) {
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := foo.RefreshState(); err != nil {
+	if err := foo.RefreshState(t.Context()); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 	if v := foo.State(); v.HasManagedResourceInstanceObjects() {
@@ -371,7 +371,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := b1StateMgr.RefreshState(); err != nil {
+	if err := b1StateMgr.RefreshState(t.Context()); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 
@@ -387,7 +387,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	if err != nil {
 		t.Fatalf("error: %s", err)
 	}
-	if err := b2StateMgr.RefreshState(); err != nil {
+	if err := b2StateMgr.RefreshState(t.Context()); err != nil {
 		t.Fatalf("bad: %s", err)
 	}
 
@@ -403,7 +403,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	infoB.Operation = "test"
 	infoB.Who = "clientB"
 
-	lockIDA, err := lockerA.Lock(infoA)
+	lockIDA, err := lockerA.Lock(t.Context(), infoA)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -422,17 +422,17 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 		return
 	}
 
-	_, err = lockerB.Lock(infoB)
+	_, err = lockerB.Lock(t.Context(), infoB)
 	if err == nil {
-		_ = lockerA.Unlock(lockIDA) // test already failed, no need to check err further
+		_ = lockerA.Unlock(t.Context(), lockIDA) // test already failed, no need to check err further
 		t.Fatal("client B obtained lock while held by client A")
 	}
 
-	if err := lockerA.Unlock(lockIDA); err != nil {
+	if err := lockerA.Unlock(t.Context(), lockIDA); err != nil {
 		t.Fatal("error unlocking client A", err)
 	}
 
-	lockIDB, err := lockerB.Lock(infoB)
+	lockIDB, err := lockerB.Lock(t.Context(), infoB)
 	if err != nil {
 		t.Fatal("unable to obtain lock from client B")
 	}
@@ -441,7 +441,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 		t.Errorf("duplicate lock IDs: %q", lockIDB)
 	}
 
-	if err = lockerB.Unlock(lockIDB); err != nil {
+	if err = lockerB.Unlock(t.Context(), lockIDB); err != nil {
 		t.Fatal("error unlocking client B:", err)
 	}
 
@@ -457,18 +457,18 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 		panic(err)
 	}
 
-	lockIDA, err = lockerA.Lock(infoA)
+	lockIDA, err = lockerA.Lock(t.Context(), infoA)
 	if err != nil {
 		t.Fatal("unable to get re lock A:", err)
 	}
 	unlock := func() {
-		err := lockerA.Unlock(lockIDA)
+		err := lockerA.Unlock(t.Context(), lockIDA)
 		if err != nil {
 			t.Fatal(err)
 		}
 	}
 
-	_, err = lockerB.Lock(infoB)
+	_, err = lockerB.Lock(t.Context(), infoB)
 	if err == nil {
 		unlock()
 		t.Fatal("client B obtained lock while held by client A")
@@ -481,7 +481,7 @@ func testLocksInWorkspace(t *testing.T, b1, b2 Backend, testForceUnlock bool, wo
 	}
 
 	// try to unlock with the second unlocker, using the ID from the error
-	if err := lockerB.Unlock(infoErr.Info.ID); err != nil {
+	if err := lockerB.Unlock(t.Context(), infoErr.Info.ID); err != nil {
 		unlock()
 		t.Fatalf("could not unlock with the reported ID %q: %s", infoErr.Info.ID, err)
 	}

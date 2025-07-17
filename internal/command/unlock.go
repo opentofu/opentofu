@@ -132,7 +132,7 @@ func (c *UnlockCommand) Run(args []string) int {
 		}
 	}
 
-	if err := stateMgr.Unlock(lockID); err != nil {
+	if err := stateMgr.Unlock(context.TODO(), lockID); err != nil {
 		c.Ui.Error(fmt.Sprintf("Failed to unlock state: %s", err))
 		return 1
 	}

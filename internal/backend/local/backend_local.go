@@ -68,7 +68,7 @@ func (b *Local) localRun(ctx context.Context, op *backend.Operation) (*backend.L
 	}()
 
 	log.Printf("[TRACE] backend/local: reading remote state for workspace %q", op.Workspace)
-	if err := s.RefreshState(); err != nil {
+	if err := s.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("error loading state: %w", err))
 		return nil, nil, nil, diags
 	}

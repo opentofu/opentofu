@@ -90,6 +90,14 @@ func TestParseShow_valid(t *testing.T) {
 				ViewType:   ViewJSON,
 			},
 		},
+		"module with json": {
+			[]string{"-module=foo", "-json"},
+			&Show{
+				TargetType: ShowModule,
+				TargetArg:  "foo",
+				ViewType:   ViewJSON,
+			},
+		},
 	}
 
 	for name, tc := range testCases {
@@ -163,7 +171,7 @@ func TestParseShow_invalid(t *testing.T) {
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Conflicting object types to show",
-					"The -state, -plan=FILENAME, and -config options are mutually-exclusive, to specify which kind of object to show.",
+					"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
 				),
 			},
 		},
@@ -217,7 +225,7 @@ func TestParseShow_invalid(t *testing.T) {
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Conflicting object types to show",
-					"The -state, -plan=FILENAME, and -config options are mutually-exclusive, to specify which kind of object to show.",
+					"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
 				),
 			},
 		},
@@ -232,7 +240,65 @@ func TestParseShow_invalid(t *testing.T) {
 				tfdiags.Sourceless(
 					tfdiags.Error,
 					"Conflicting object types to show",
-					"The -state, -plan=FILENAME, and -config options are mutually-exclusive, to specify which kind of object to show.",
+					"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
+				),
+			},
+		},
+		"module without json": {
+			[]string{"-module=foo"},
+			&Show{
+				ViewType: ViewNone,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"JSON output required for module",
+					"The -module=DIR option requires -json to be specified.",
+				),
+			},
+		},
+		"module with state": {
+			[]string{"-module=foo", "-state", "-json"},
+			&Show{
+				TargetType: ShowModule,
+				TargetArg:  "foo",
+				ViewType:   ViewJSON,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Conflicting object types to show",
+					"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
+				),
+			},
+		},
+		"module with plan": {
+			[]string{"-module=foo", "-plan=tfplan", "-json"},
+			&Show{
+				TargetType: ShowModule,
+				TargetArg:  "foo",
+				ViewType:   ViewJSON,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Conflicting object types to show",
+					"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
+				),
+			},
+		},
+		"module with config": {
+			[]string{"-module=foo", "-config", "-json"},
+			&Show{
+				TargetType: ShowModule,
+				TargetArg:  "foo",
+				ViewType:   ViewJSON,
+			},
+			tfdiags.Diagnostics{
+				tfdiags.Sourceless(
+					tfdiags.Error,
+					"Conflicting object types to show",
+					"The -state, -plan=FILENAME, -config, and -module=DIR options are mutually-exclusive, to specify which kind of object to show.",
 				),
 			},
 		},

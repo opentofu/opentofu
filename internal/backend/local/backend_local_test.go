@@ -142,7 +142,7 @@ func TestLocalRun_stalePlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %s", err)
 	}
-	if err := sm.RefreshState(); err != nil {
+	if err := sm.RefreshState(t.Context()); err != nil {
 		t.Fatalf("unexpected error refreshing state: %s", err)
 	}
 
@@ -240,7 +240,9 @@ type stateStorageThatFailsRefresh struct {
 	locked bool
 }
 
-func (s *stateStorageThatFailsRefresh) Lock(info *statemgr.LockInfo) (string, error) {
+var _ statemgr.Full = (*stateStorageThatFailsRefresh)(nil)
+
+func (s *stateStorageThatFailsRefresh) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	if s.locked {
 		return "", fmt.Errorf("already locked")
 	}
@@ -248,7 +250,7 @@ func (s *stateStorageThatFailsRefresh) Lock(info *statemgr.LockInfo) (string, er
 	return "locked", nil
 }
 
-func (s *stateStorageThatFailsRefresh) Unlock(id string) error {
+func (s *stateStorageThatFailsRefresh) Unlock(_ context.Context, id string) error {
 	if !s.locked {
 		return fmt.Errorf("not locked")
 	}
@@ -260,7 +262,7 @@ func (s *stateStorageThatFailsRefresh) State() *states.State {
 	return nil
 }
 
-func (s *stateStorageThatFailsRefresh) GetRootOutputValues() (map[string]*states.OutputValue, error) {
+func (s *stateStorageThatFailsRefresh) GetRootOutputValues(_ context.Context) (map[string]*states.OutputValue, error) {
 	return nil, fmt.Errorf("unimplemented")
 }
 
@@ -268,10 +270,10 @@ func (s *stateStorageThatFailsRefresh) WriteState(*states.State) error {
 	return fmt.Errorf("unimplemented")
 }
 
-func (s *stateStorageThatFailsRefresh) RefreshState() error {
+func (s *stateStorageThatFailsRefresh) RefreshState(_ context.Context) error {
 	return fmt.Errorf("intentionally failing for testing purposes")
 }
 
-func (s *stateStorageThatFailsRefresh) PersistState(schemas *tofu.Schemas) error {
+func (s *stateStorageThatFailsRefresh) PersistState(_ context.Context, schemas *tofu.Schemas) error {
 	return fmt.Errorf("unimplemented")
 }

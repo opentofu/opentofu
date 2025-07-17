@@ -69,8 +69,7 @@ var (
 // test hook called when checksums don't match
 var testChecksumHook func()
 
-func (c *RemoteClient) Get() (payload *remote.Payload, err error) {
-	ctx := context.TODO()
+func (c *RemoteClient) Get(ctx context.Context) (payload *remote.Payload, err error) {
 	deadline := time.Now().Add(consistencyRetryTimeout)
 
 	// If we have a checksum, and the returned payload doesn't match, we retry
@@ -194,7 +193,7 @@ func (c *RemoteClient) get(ctx context.Context) (*remote.Payload, error) {
 	return payload, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(ctx context.Context, data []byte) error {
 	contentLength := int64(len(data))
 
 	i := &s3.PutObjectInput{
@@ -208,7 +207,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	c.configurePutObjectChecksum(data, i)
 	c.configurePutObjectEncryption(i)
 	c.configurePutObjectACL(i)
-	ctx := context.TODO()
+
 	ctx, _ = attachLoggerToContext(ctx)
 
 	log.Printf("[DEBUG] Uploading remote state to S3: %#v", i)
@@ -227,8 +226,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return nil
 }
 
-func (c *RemoteClient) Delete() error {
-	ctx := context.TODO()
+func (c *RemoteClient) Delete(ctx context.Context) error {
 	ctx, _ = attachLoggerToContext(ctx)
 
 	_, err := c.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
@@ -247,7 +245,7 @@ func (c *RemoteClient) Delete() error {
 	return nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	if !c.IsLockingEnabled() {
 		return "", nil
 	}
@@ -261,12 +259,12 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 	}
 	info.Path = c.lockPath()
 
-	if err := c.s3Lock(info); err != nil {
+	if err := c.s3Lock(ctx, info); err != nil {
 		return "", err
 	}
-	if err := c.dynamoDBLock(info); err != nil {
+	if err := c.dynamoDBLock(ctx, info); err != nil {
 		// when the second lock fails from getting acquired, release the initially acquired one
-		if uErr := c.s3Unlock(info.ID); uErr != nil {
+		if uErr := c.s3Unlock(ctx, info.ID); uErr != nil {
 			log.Printf("[WARN] failed to release the S3 lock after failed to acquire the dynamoDD lock: %v", uErr)
 		}
 		return "", err
@@ -275,7 +273,7 @@ func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
 }
 
 // dynamoDBLock expects the statemgr.LockInfo#ID to be filled already
-func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) error {
+func (c *RemoteClient) dynamoDBLock(ctx context.Context, info *statemgr.LockInfo) error {
 	if c.ddbTable == "" {
 		return nil
 	}
@@ -289,7 +287,6 @@ func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) error {
 		ConditionExpression: aws.String("attribute_not_exists(LockID)"),
 	}
 
-	ctx := context.TODO()
 	_, err := c.dynClient.PutItem(ctx, putParams)
 	if err != nil {
 		lockInfo, infoErr := c.getLockInfoFromDynamoDB(ctx)
@@ -308,7 +305,7 @@ func (c *RemoteClient) dynamoDBLock(info *statemgr.LockInfo) error {
 }
 
 // s3Lock expects the statemgr.LockInfo#ID to be filled already
-func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
+func (c *RemoteClient) s3Lock(ctx context.Context, info *statemgr.LockInfo) error {
 	if !c.useLockfile {
 		return nil
 	}
@@ -325,7 +322,7 @@ func (c *RemoteClient) s3Lock(info *statemgr.LockInfo) error {
 	c.configurePutObjectChecksum(lInfo, putParams)
 	c.configurePutObjectEncryption(putParams)
 	c.configurePutObjectACL(putParams)
-	ctx := context.TODO()
+
 	ctx, _ = attachLoggerToContext(ctx)
 
 	log.Printf("[DEBUG] Uploading s3 locking object: %#v", putParams)
@@ -488,11 +485,11 @@ func (c *RemoteClient) getLockInfoFromS3(ctx context.Context) (*statemgr.LockInf
 	return lockInfo, nil
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(ctx context.Context, id string) error {
 	// Attempt to release the lock from both sources.
 	// We want to do so to be sure that we are leaving no locks unhandled
-	s3Err := c.s3Unlock(id)
-	dynamoDBErr := c.dynamoDBUnlock(id)
+	s3Err := c.s3Unlock(ctx, id)
+	dynamoDBErr := c.dynamoDBUnlock(ctx, id)
 	switch {
 	case s3Err != nil && dynamoDBErr != nil:
 		s3Err.Err = multierror.Append(s3Err.Err, dynamoDBErr.Err)
@@ -511,12 +508,11 @@ func (c *RemoteClient) Unlock(id string) error {
 	return nil
 }
 
-func (c *RemoteClient) s3Unlock(id string) *statemgr.LockError {
+func (c *RemoteClient) s3Unlock(ctx context.Context, id string) *statemgr.LockError {
 	if !c.useLockfile {
 		return nil
 	}
 	lockErr := &statemgr.LockError{}
-	ctx := context.TODO()
 	ctx, _ = attachLoggerToContext(ctx)
 
 	lockInfo, err := c.getLockInfoFromS3(ctx)
@@ -544,13 +540,12 @@ func (c *RemoteClient) s3Unlock(id string) *statemgr.LockError {
 	return nil
 }
 
-func (c *RemoteClient) dynamoDBUnlock(id string) *statemgr.LockError {
+func (c *RemoteClient) dynamoDBUnlock(ctx context.Context, id string) *statemgr.LockError {
 	if c.ddbTable == "" {
 		return nil
 	}
 
 	lockErr := &statemgr.LockError{}
-	ctx := context.TODO()
 
 	lockInfo, err := c.getLockInfoFromDynamoDB(ctx)
 	if err != nil {

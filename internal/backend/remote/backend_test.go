@@ -382,13 +382,13 @@ func TestRemote_Unlock_ignoreVersion(t *testing.T) {
 		t.Fatalf("error: %v", err)
 	}
 
-	lockID, err := state.Lock(statemgr.NewLockInfo())
+	lockID, err := state.Lock(t.Context(), statemgr.NewLockInfo())
 	if err != nil {
 		t.Fatalf("error: %v", err)
 	}
 
 	// this should succeed since the version conflict is ignored
-	if err = state.Unlock(lockID); err != nil {
+	if err = state.Unlock(t.Context(), lockID); err != nil {
 		t.Fatalf("error: %v", err)
 	}
 }

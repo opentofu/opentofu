@@ -16,6 +16,7 @@ import (
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/checks"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/encryption"
@@ -2331,11 +2332,11 @@ func (n *NodeAbstractResourceInstance) applyProvisioners(ctx context.Context, ev
 		}
 
 		// start with an empty connInfo
-		connInfo := cty.NullVal(connectionBlockSupersetSchema.ImpliedType())
+		connInfo := cty.NullVal(shared.ConnectionBlockSupersetSchema.ImpliedType())
 
 		if connBody != nil {
 			var connInfoDiags tfdiags.Diagnostics
-			connInfo, connInfoDiags = evalScope(ctx, evalCtx, connBody, self, connectionBlockSupersetSchema)
+			connInfo, connInfoDiags = evalScope(ctx, evalCtx, connBody, self, shared.ConnectionBlockSupersetSchema)
 			diags = diags.Append(connInfoDiags)
 			if diags.HasErrors() {
 				return diags

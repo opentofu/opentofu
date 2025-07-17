@@ -123,7 +123,7 @@ func TestRemoteClientLocks_multipleStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s1.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := s1.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatal("failed to get lock for s1:", err)
 	}
 
@@ -132,7 +132,7 @@ func TestRemoteClientLocks_multipleStates(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s2.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := s2.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatal("failed to get lock for s2:", err)
 	}
 }
@@ -175,7 +175,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -186,7 +186,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err := s2.Unlock(lockID); err != nil {
+	if err := s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
@@ -201,7 +201,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -212,7 +212,7 @@ func TestRemoteForceUnlock(t *testing.T) {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 }
@@ -318,22 +318,22 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	client2 := s2.(*remote.State).Client
 
 	// write the new state through client2 so that there is no checksum yet
-	if err := client2.Put(newState.Bytes()); err != nil {
+	if err := client2.Put(t.Context(), newState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// verify that we can pull a state without a checksum
-	if _, err := client1.Get(); err != nil {
+	if _, err := client1.Get(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
 	// write the new state back with its checksum
-	if err := client1.Put(newState.Bytes()); err != nil {
+	if err := client1.Put(t.Context(), newState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// put an empty state in place to check for panics during get
-	if err := client2.Put([]byte{}); err != nil {
+	if err := client2.Put(t.Context(), []byte{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -349,24 +349,24 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 
 	// fetching an empty state through client1 should now error out due to a
 	// mismatched checksum.
-	if _, err := client1.Get(); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
+	if _, err := client1.Get(t.Context()); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
 		t.Fatalf("expected state checksum error: got %s", err)
 	}
 
 	// put the old state in place of the new, without updating the checksum
-	if err := client2.Put(oldState.Bytes()); err != nil {
+	if err := client2.Put(t.Context(), oldState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// fetching the wrong state through client1 should now error out due to a
 	// mismatched checksum.
-	if _, err := client1.Get(); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
+	if _, err := client1.Get(t.Context()); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
 		t.Fatalf("expected state checksum error: got %s", err)
 	}
 
 	// update the state with the correct one after we Get again
 	testChecksumHook = func() {
-		if err := client2.Put(newState.Bytes()); err != nil {
+		if err := client2.Put(t.Context(), newState.Bytes()); err != nil {
 			t.Fatal(err)
 		}
 		testChecksumHook = nil
@@ -377,7 +377,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	// this final Get will fail to fail the checksum verification, the above
 	// callback will update the state with the correct version, and Get should
 	// retry automatically.
-	if _, err := client1.Get(); err != nil {
+	if _, err := client1.Get(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }

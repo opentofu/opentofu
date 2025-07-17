@@ -11,6 +11,7 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/command/views/json"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 	tfversion "github.com/opentofu/opentofu/version"
@@ -76,7 +77,7 @@ func (v *JSONView) StateDump(state string) {
 func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{}) {
 	sources := v.view.configSources()
 	for _, diag := range diags {
-		diagnostic := json.NewDiagnostic(diag, sources)
+		diagnostic := jsonentities.NewDiagnostic(diag, sources)
 
 		args := []interface{}{"type", json.MessageDiagnostic, "diagnostic", diagnostic}
 		args = append(args, metadata...)
@@ -90,7 +91,7 @@ func (v *JSONView) Diagnostics(diags tfdiags.Diagnostics, metadata ...interface{
 	}
 }
 
-func (v *JSONView) PlannedChange(c *json.ResourceInstanceChange) {
+func (v *JSONView) PlannedChange(c *jsonentities.ResourceInstanceChange) {
 	v.log.Info(
 		c.String(),
 		"type", json.MessagePlannedChange,
@@ -98,7 +99,7 @@ func (v *JSONView) PlannedChange(c *json.ResourceInstanceChange) {
 	)
 }
 
-func (v *JSONView) ResourceDrift(c *json.ResourceInstanceChange) {
+func (v *JSONView) ResourceDrift(c *jsonentities.ResourceInstanceChange) {
 	v.log.Info(
 		fmt.Sprintf("%s: Drift detected (%s)", c.Resource.Addr, c.Action),
 		"type", json.MessageResourceDrift,
@@ -122,7 +123,7 @@ func (v *JSONView) Hook(h json.Hook) {
 	)
 }
 
-func (v *JSONView) Outputs(outputs json.Outputs) {
+func (v *JSONView) Outputs(outputs jsonentities.Outputs) {
 	v.log.Info(
 		outputs.String(),
 		"type", json.MessageOutputs,

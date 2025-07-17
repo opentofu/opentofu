@@ -3,8 +3,10 @@ package hcl2shim
 import (
 	"testing"
 
-	"github.com/opentofu/opentofu/internal/configs/configschema"
+	"github.com/zclconf/go-cty-debug/ctydebug"
 	"github.com/zclconf/go-cty/cty"
+
+	"github.com/opentofu/opentofu/internal/configs/configschema"
 )
 
 // TestComposeMockValueBySchema ensures different configschema.Block values
@@ -175,6 +177,127 @@ func TestComposeMockValueBySchema(t *testing.T) {
 					"sensitive-required": cty.NullVal(cty.String),
 					"sensitive-computed": cty.StringVal("ionwj3qrsh4xyC9"),
 				}),
+			}),
+		},
+		"structural-attr-single": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"nested": {
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingSingle,
+							Attributes: map[string]*configschema.Attribute{
+								"attr": {
+									Type:     cty.Number,
+									Computed: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			config: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.DynamicPseudoType),
+			}),
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.Object(map[string]cty.Type{
+					"attr": cty.Number,
+				})),
+			}),
+		},
+		"structural-attr-group": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"nested": {
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingGroup,
+							Attributes: map[string]*configschema.Attribute{
+								"attr": {
+									Type:     cty.Number,
+									Computed: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			config: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.DynamicPseudoType),
+			}),
+			wantError: true, // This should not be hit in today's tofu/providers.  If that assumption ever changes, we want to handle it gracefully.
+		},
+		"structural-attr-list": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"nested": {
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingList,
+							Attributes: map[string]*configschema.Attribute{
+								"attr": {
+									Type:     cty.Number,
+									Computed: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			config: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.DynamicPseudoType),
+			}),
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.List(cty.Object(map[string]cty.Type{
+					"attr": cty.Number,
+				}))),
+			}),
+		},
+		"structural-attr-map": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"nested": {
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingMap,
+							Attributes: map[string]*configschema.Attribute{
+								"attr": {
+									Type:     cty.Number,
+									Computed: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			config: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.DynamicPseudoType),
+			}),
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.Map(cty.Object(map[string]cty.Type{
+					"attr": cty.Number,
+				}))),
+			}),
+		},
+		"structural-attr-set": {
+			schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"nested": {
+						NestedType: &configschema.Object{
+							Nesting: configschema.NestingSet,
+							Attributes: map[string]*configschema.Attribute{
+								"attr": {
+									Type:     cty.Number,
+									Computed: true,
+								},
+							},
+						},
+					},
+				},
+			},
+			config: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.DynamicPseudoType),
+			}),
+			wantVal: cty.ObjectVal(map[string]cty.Value{
+				"nested": cty.NullVal(cty.Set(cty.Object(map[string]cty.Type{
+					"attr": cty.Number,
+				}))),
 			}),
 		},
 		"basic-group-block": {
@@ -558,7 +681,7 @@ func TestComposeMockValueBySchema(t *testing.T) {
 				t.Fatalf("Got unexpected error diags: %v", gotDiags.ErrWithWarnings())
 
 			case !test.wantVal.RawEquals(gotVal):
-				t.Fatalf("Got unexpected value: %v", gotVal.GoString())
+				t.Fatalf("Wrong value\ngot: %swant: %sdiff: %s", ctydebug.ValueString(gotVal), ctydebug.ValueString(test.wantVal), ctydebug.DiffValues(test.wantVal, gotVal))
 			}
 		})
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/command/jsonentities"
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
@@ -20,10 +21,10 @@ type Hook interface {
 
 // ApplyStart: triggered by PreApply hook
 type applyStart struct {
-	Resource   ResourceAddr `json:"resource"`
-	Action     ChangeAction `json:"action"`
-	IDKey      string       `json:"id_key,omitempty"`
-	IDValue    string       `json:"id_value,omitempty"`
+	Resource   jsonentities.ResourceAddr `json:"resource"`
+	Action     jsonentities.ChangeAction `json:"action"`
+	IDKey      string                    `json:"id_key,omitempty"`
+	IDValue    string                    `json:"id_value,omitempty"`
 	actionVerb string
 }
 
@@ -43,8 +44,8 @@ func (h *applyStart) String() string {
 
 func NewApplyStart(addr addrs.AbsResourceInstance, action plans.Action, idKey string, idValue string) Hook {
 	hook := &applyStart{
-		Resource:   newResourceAddr(addr),
-		Action:     changeAction(action),
+		Resource:   jsonentities.NewResourceAddr(addr),
+		Action:     jsonentities.ParseChangeAction(action),
 		IDKey:      idKey,
 		IDValue:    idValue,
 		actionVerb: startActionVerb(action),
@@ -56,9 +57,9 @@ func NewApplyStart(addr addrs.AbsResourceInstance, action plans.Action, idKey st
 // ApplyProgress: currently triggered by a timer started on PreApply. In
 // future, this might also be triggered by provider progress reporting.
 type applyProgress struct {
-	Resource   ResourceAddr `json:"resource"`
-	Action     ChangeAction `json:"action"`
-	Elapsed    float64      `json:"elapsed_seconds"`
+	Resource   jsonentities.ResourceAddr `json:"resource"`
+	Action     jsonentities.ChangeAction `json:"action"`
+	Elapsed    float64                   `json:"elapsed_seconds"`
 	actionVerb string
 	elapsed    time.Duration
 }
@@ -75,8 +76,8 @@ func (h *applyProgress) String() string {
 
 func NewApplyProgress(addr addrs.AbsResourceInstance, action plans.Action, elapsed time.Duration) Hook {
 	return &applyProgress{
-		Resource:   newResourceAddr(addr),
-		Action:     changeAction(action),
+		Resource:   jsonentities.NewResourceAddr(addr),
+		Action:     jsonentities.ParseChangeAction(action),
 		Elapsed:    elapsed.Seconds(),
 		actionVerb: progressActionVerb(action),
 		elapsed:    elapsed,
@@ -85,11 +86,11 @@ func NewApplyProgress(addr addrs.AbsResourceInstance, action plans.Action, elaps
 
 // ApplyComplete: triggered by PostApply hook
 type applyComplete struct {
-	Resource   ResourceAddr `json:"resource"`
-	Action     ChangeAction `json:"action"`
-	IDKey      string       `json:"id_key,omitempty"`
-	IDValue    string       `json:"id_value,omitempty"`
-	Elapsed    float64      `json:"elapsed_seconds"`
+	Resource   jsonentities.ResourceAddr `json:"resource"`
+	Action     jsonentities.ChangeAction `json:"action"`
+	IDKey      string                    `json:"id_key,omitempty"`
+	IDValue    string                    `json:"id_value,omitempty"`
+	Elapsed    float64                   `json:"elapsed_seconds"`
 	actionNoun string
 	elapsed    time.Duration
 }
@@ -110,8 +111,8 @@ func (h *applyComplete) String() string {
 
 func NewApplyComplete(addr addrs.AbsResourceInstance, action plans.Action, idKey, idValue string, elapsed time.Duration) Hook {
 	return &applyComplete{
-		Resource:   newResourceAddr(addr),
-		Action:     changeAction(action),
+		Resource:   jsonentities.NewResourceAddr(addr),
+		Action:     jsonentities.ParseChangeAction(action),
 		IDKey:      idKey,
 		IDValue:    idValue,
 		Elapsed:    elapsed.Seconds(),
@@ -123,9 +124,9 @@ func NewApplyComplete(addr addrs.AbsResourceInstance, action plans.Action, idKey
 // ApplyErrored: triggered by PostApply hook on failure. This will be followed
 // by diagnostics when the apply finishes.
 type applyErrored struct {
-	Resource   ResourceAddr `json:"resource"`
-	Action     ChangeAction `json:"action"`
-	Elapsed    float64      `json:"elapsed_seconds"`
+	Resource   jsonentities.ResourceAddr `json:"resource"`
+	Action     jsonentities.ChangeAction `json:"action"`
+	Elapsed    float64                   `json:"elapsed_seconds"`
 	actionNoun string
 	elapsed    time.Duration
 }
@@ -142,8 +143,8 @@ func (h *applyErrored) String() string {
 
 func NewApplyErrored(addr addrs.AbsResourceInstance, action plans.Action, elapsed time.Duration) Hook {
 	return &applyErrored{
-		Resource:   newResourceAddr(addr),
-		Action:     changeAction(action),
+		Resource:   jsonentities.NewResourceAddr(addr),
+		Action:     jsonentities.ParseChangeAction(action),
 		Elapsed:    elapsed.Seconds(),
 		actionNoun: actionNoun(action),
 		elapsed:    elapsed,
@@ -152,8 +153,8 @@ func NewApplyErrored(addr addrs.AbsResourceInstance, action plans.Action, elapse
 
 // ProvisionStart: triggered by PreProvisionInstanceStep hook
 type provisionStart struct {
-	Resource    ResourceAddr `json:"resource"`
-	Provisioner string       `json:"provisioner"`
+	Resource    jsonentities.ResourceAddr `json:"resource"`
+	Provisioner string                    `json:"provisioner"`
 }
 
 var _ Hook = (*provisionStart)(nil)
@@ -168,16 +169,16 @@ func (h *provisionStart) String() string {
 
 func NewProvisionStart(addr addrs.AbsResourceInstance, provisioner string) Hook {
 	return &provisionStart{
-		Resource:    newResourceAddr(addr),
+		Resource:    jsonentities.NewResourceAddr(addr),
 		Provisioner: provisioner,
 	}
 }
 
 // ProvisionProgress: triggered by ProvisionOutput hook
 type provisionProgress struct {
-	Resource    ResourceAddr `json:"resource"`
-	Provisioner string       `json:"provisioner"`
-	Output      string       `json:"output"`
+	Resource    jsonentities.ResourceAddr `json:"resource"`
+	Provisioner string                    `json:"provisioner"`
+	Output      string                    `json:"output"`
 }
 
 var _ Hook = (*provisionProgress)(nil)
@@ -192,7 +193,7 @@ func (h *provisionProgress) String() string {
 
 func NewProvisionProgress(addr addrs.AbsResourceInstance, provisioner string, output string) Hook {
 	return &provisionProgress{
-		Resource:    newResourceAddr(addr),
+		Resource:    jsonentities.NewResourceAddr(addr),
 		Provisioner: provisioner,
 		Output:      output,
 	}
@@ -200,8 +201,8 @@ func NewProvisionProgress(addr addrs.AbsResourceInstance, provisioner string, ou
 
 // ProvisionComplete: triggered by PostProvisionInstanceStep hook
 type provisionComplete struct {
-	Resource    ResourceAddr `json:"resource"`
-	Provisioner string       `json:"provisioner"`
+	Resource    jsonentities.ResourceAddr `json:"resource"`
+	Provisioner string                    `json:"provisioner"`
 }
 
 var _ Hook = (*provisionComplete)(nil)
@@ -216,7 +217,7 @@ func (h *provisionComplete) String() string {
 
 func NewProvisionComplete(addr addrs.AbsResourceInstance, provisioner string) Hook {
 	return &provisionComplete{
-		Resource:    newResourceAddr(addr),
+		Resource:    jsonentities.NewResourceAddr(addr),
 		Provisioner: provisioner,
 	}
 }
@@ -224,8 +225,8 @@ func NewProvisionComplete(addr addrs.AbsResourceInstance, provisioner string) Ho
 // ProvisionErrored: triggered by PostProvisionInstanceStep hook on failure.
 // This will be followed by diagnostics when the apply finishes.
 type provisionErrored struct {
-	Resource    ResourceAddr `json:"resource"`
-	Provisioner string       `json:"provisioner"`
+	Resource    jsonentities.ResourceAddr `json:"resource"`
+	Provisioner string                    `json:"provisioner"`
 }
 
 var _ Hook = (*provisionErrored)(nil)
@@ -240,16 +241,16 @@ func (h *provisionErrored) String() string {
 
 func NewProvisionErrored(addr addrs.AbsResourceInstance, provisioner string) Hook {
 	return &provisionErrored{
-		Resource:    newResourceAddr(addr),
+		Resource:    jsonentities.NewResourceAddr(addr),
 		Provisioner: provisioner,
 	}
 }
 
 // RefreshStart: triggered by PreRefresh hook
 type refreshStart struct {
-	Resource ResourceAddr `json:"resource"`
-	IDKey    string       `json:"id_key,omitempty"`
-	IDValue  string       `json:"id_value,omitempty"`
+	Resource jsonentities.ResourceAddr `json:"resource"`
+	IDKey    string                    `json:"id_key,omitempty"`
+	IDValue  string                    `json:"id_value,omitempty"`
 }
 
 var _ Hook = (*refreshStart)(nil)
@@ -268,7 +269,7 @@ func (h *refreshStart) String() string {
 
 func NewRefreshStart(addr addrs.AbsResourceInstance, idKey, idValue string) Hook {
 	return &refreshStart{
-		Resource: newResourceAddr(addr),
+		Resource: jsonentities.NewResourceAddr(addr),
 		IDKey:    idKey,
 		IDValue:  idValue,
 	}
@@ -276,9 +277,9 @@ func NewRefreshStart(addr addrs.AbsResourceInstance, idKey, idValue string) Hook
 
 // RefreshComplete: triggered by PostRefresh hook
 type refreshComplete struct {
-	Resource ResourceAddr `json:"resource"`
-	IDKey    string       `json:"id_key,omitempty"`
-	IDValue  string       `json:"id_value,omitempty"`
+	Resource jsonentities.ResourceAddr `json:"resource"`
+	IDKey    string                    `json:"id_key,omitempty"`
+	IDValue  string                    `json:"id_value,omitempty"`
 }
 
 var _ Hook = (*refreshComplete)(nil)
@@ -297,7 +298,7 @@ func (h *refreshComplete) String() string {
 
 func NewRefreshComplete(addr addrs.AbsResourceInstance, idKey, idValue string) Hook {
 	return &refreshComplete{
-		Resource: newResourceAddr(addr),
+		Resource: jsonentities.NewResourceAddr(addr),
 		IDKey:    idKey,
 		IDValue:  idValue,
 	}

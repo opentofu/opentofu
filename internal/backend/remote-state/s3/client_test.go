@@ -215,7 +215,7 @@ func TestRemoteS3AndDynamoDBClientLocksWithNoDBInstance(t *testing.T) {
 	infoA.Operation = "test"
 	infoA.Who = "clientA"
 
-	if _, err := s1.Lock(infoA); err == nil {
+	if _, err := s1.Lock(t.Context(), infoA); err == nil {
 		t.Fatal("unexpected successful lock: ", err)
 	}
 
@@ -260,7 +260,7 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -271,7 +271,7 @@ func TestForceUnlock(t *testing.T) {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err := s2.Unlock(lockID); err != nil {
+	if err := s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
@@ -286,7 +286,7 @@ func TestForceUnlock(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -297,7 +297,7 @@ func TestForceUnlock(t *testing.T) {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 
@@ -307,7 +307,7 @@ func TestForceUnlock(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = s2.Unlock(lockID)
+	err = s2.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected an error to occur:", err)
 	}
@@ -352,7 +352,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -363,7 +363,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
@@ -378,7 +378,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -389,7 +389,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 
@@ -399,7 +399,7 @@ func TestForceUnlockS3Only(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = s2.Unlock(lockID)
+	err = s2.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected an error to occur:", err)
 	}
@@ -455,7 +455,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -466,7 +466,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 		t.Fatal("failed to get default state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock default state")
 	}
 
@@ -481,7 +481,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err = s1.Lock(info)
+	lockID, err = s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -492,7 +492,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 		t.Fatal("failed to get named state to force unlock:", err)
 	}
 
-	if err = s2.Unlock(lockID); err != nil {
+	if err = s2.Unlock(t.Context(), lockID); err != nil {
 		t.Fatal("failed to force-unlock named state")
 	}
 
@@ -502,7 +502,7 @@ func TestForceUnlockS3AndDynamo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = s2.Unlock(lockID)
+	err = s2.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected an error to occur:", err)
 	}
@@ -546,7 +546,7 @@ func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
 	info.Operation = "test"
 	info.Who = "clientA"
 
-	lockID, err := s1.Lock(info)
+	lockID, err := s1.Lock(t.Context(), info)
 	if err != nil {
 		t.Fatal("unable to get initial lock:", err)
 	}
@@ -554,7 +554,7 @@ func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
 	// Remove the dynamo lock to simulate that the lock in s3 was acquired, dynamo failed but s3 release failed in the end.
 	// Therefore, the user is left in the situation with s3 lock existing and dynamo missing.
 	deleteDynamoEntry(t.Context(), t, b1.dynClient, bucketName, info.Path)
-	err = s1.Unlock(lockID)
+	err = s1.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected to get an error but got nil")
 	}
@@ -564,7 +564,7 @@ func TestForceUnlockS3WithAndDynamoWithout(t *testing.T) {
 	}
 
 	// Now, unlocking should fail with error on both locks
-	err = s1.Unlock(lockID)
+	err = s1.Unlock(t.Context(), lockID)
 	if err == nil {
 		t.Fatal("expected to get an error but got nil")
 	}
@@ -676,22 +676,22 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	client2 := s2.(*remote.State).Client
 
 	// write the new state through client2 so that there is no checksum yet
-	if err := client2.Put(newState.Bytes()); err != nil {
+	if err := client2.Put(t.Context(), newState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// verify that we can pull a state without a checksum
-	if _, err := client1.Get(); err != nil {
+	if _, err := client1.Get(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
 	// write the new state back with its checksum
-	if err := client1.Put(newState.Bytes()); err != nil {
+	if err := client1.Put(t.Context(), newState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// put an empty state in place to check for panics during get
-	if err := client2.Put([]byte{}); err != nil {
+	if err := client2.Put(t.Context(), []byte{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -707,24 +707,24 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 
 	// fetching an empty state through client1 should now error out due to a
 	// mismatched checksum.
-	if _, err := client1.Get(); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
+	if _, err := client1.Get(t.Context()); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
 		t.Fatalf("expected state checksum error: got %s", err)
 	}
 
 	// put the old state in place of the new, without updating the checksum
-	if err := client2.Put(oldState.Bytes()); err != nil {
+	if err := client2.Put(t.Context(), oldState.Bytes()); err != nil {
 		t.Fatal(err)
 	}
 
 	// fetching the wrong state through client1 should now error out due to a
 	// mismatched checksum.
-	if _, err := client1.Get(); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
+	if _, err := client1.Get(t.Context()); !strings.HasPrefix(err.Error(), errBadChecksumFmt[:80]) {
 		t.Fatalf("expected state checksum error: got %s", err)
 	}
 
 	// update the state with the correct one after we Get again
 	testChecksumHook = func() {
-		if err := client2.Put(newState.Bytes()); err != nil {
+		if err := client2.Put(t.Context(), newState.Bytes()); err != nil {
 			t.Fatal(err)
 		}
 		testChecksumHook = nil
@@ -735,7 +735,7 @@ func TestRemoteClient_stateChecksum(t *testing.T) {
 	// this final Get will fail to fail the checksum verification, the above
 	// callback will update the state with the correct version, and Get should
 	// retry automatically.
-	if _, err := client1.Get(); err != nil {
+	if _, err := client1.Get(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -821,7 +821,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 			name:         "s3.Put with included checksum",
 			skipChecksum: false,
 			action: func(cl *RemoteClient) error {
-				return cl.Put([]byte("test"))
+				return cl.Put(t.Context(), []byte("test"))
 			},
 			wantMissingHeaders: []string{
 				"X-Amz-Checksum-Mode",
@@ -837,7 +837,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 			name:         "s3.Put with skipped checksum",
 			skipChecksum: true,
 			action: func(cl *RemoteClient) error {
-				return cl.Put([]byte("test"))
+				return cl.Put(t.Context(), []byte("test"))
 			},
 			wantMissingHeaders: []string{
 				"X-Amz-Checksum-Mode",
@@ -854,7 +854,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 			name:         "s3.HeadObject and s3.GetObject with included checksum",
 			skipChecksum: false,
 			action: func(cl *RemoteClient) error {
-				_, err := cl.Get()
+				_, err := cl.Get(t.Context())
 				return err
 			},
 			wantMissingHeaders: []string{
@@ -871,7 +871,7 @@ func TestS3ChecksumsHeaders(t *testing.T) {
 			name:         "s3.HeadObject and s3.GetObject with skipped checksum",
 			skipChecksum: true,
 			action: func(cl *RemoteClient) error {
-				_, err := cl.Get()
+				_, err := cl.Get(t.Context())
 				return err
 			},
 			wantMissingHeaders: []string{
@@ -939,7 +939,7 @@ func TestS3LockingWritingHeaders(t *testing.T) {
 	)
 	// get the request from state writing
 	{
-		err := rc.Put([]byte("test"))
+		err := rc.Put(t.Context(), []byte("test"))
 		if err != nil {
 			t.Fatalf("expected to have no error writing the state object but got one: %s", err)
 		}
@@ -950,7 +950,7 @@ func TestS3LockingWritingHeaders(t *testing.T) {
 	}
 	// get the request from lock object writing
 	{
-		err := rc.s3Lock(&statemgr.LockInfo{Info: "test"})
+		err := rc.s3Lock(t.Context(), &statemgr.LockInfo{Info: "test"})
 		if err != nil {
 			t.Fatalf("expected to have no error writing the lock object but got one: %s", err)
 		}

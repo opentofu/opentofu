@@ -71,10 +71,29 @@ var IsSensitiveFunc = function.New(&function.Spec{
 			AllowDynamicType: true,
 		},
 	},
+	RefineResult: refineNotNull,
 	Type: func(args []cty.Value) (cty.Type, error) {
 		return cty.Bool, nil
 	},
 	Impl: func(args []cty.Value, retType cty.Type) (ret cty.Value, err error) {
+		if !args[0].IsKnown() {
+			// When a value is unknown its sensitivity is also not yet
+			// finalized, because authors can write expressions where the
+			// sensitivity of the result is decided based on some other
+			// value that isn't yet known itself. As a simple example:
+			//    var.unknown_bool ? sensitive("a") : "b"
+			//
+			// The above would conservatively return a sensitive unknown
+			// string when var.unknown_bool is not known, but then that
+			// variable could become false once finalized and cause the
+			// sensitivity to change.
+			//
+			// Therefore we must report that we can't predict whether an
+			// unknown value will be sensitive or not. For more information,
+			// refer to:
+			//    https://github.com/opentofu/opentofu/issues/2415
+			return cty.UnknownVal(cty.Bool), nil
+		}
 		return cty.BoolVal(args[0].HasMark(marks.Sensitive)), nil
 	},
 })

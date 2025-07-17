@@ -73,7 +73,7 @@ type RemoteClient struct {
 	sessionCancel context.CancelFunc
 }
 
-func (c *RemoteClient) Get() (*remote.Payload, error) {
+func (c *RemoteClient) Get(_ context.Context) (*remote.Payload, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -125,7 +125,7 @@ func (c *RemoteClient) Get() (*remote.Payload, error) {
 	}, nil
 }
 
-func (c *RemoteClient) Put(data []byte) error {
+func (c *RemoteClient) Put(_ context.Context, data []byte) error {
 	// The state can be stored in 4 different ways, based on the payload size
 	// and whether the user enabled gzip:
 	//  - single entry mode with plain JSON: a single JSON is stored at
@@ -295,7 +295,7 @@ func (c *RemoteClient) Put(data []byte) error {
 	return store(payload)
 }
 
-func (c *RemoteClient) Delete() error {
+func (c *RemoteClient) Delete(_ context.Context) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -361,7 +361,7 @@ func (c *RemoteClient) getLockInfo() (*statemgr.LockInfo, error) {
 	return li, nil
 }
 
-func (c *RemoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *RemoteClient) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -551,7 +551,7 @@ func (c *RemoteClient) createSession() (string, error) {
 	return id, nil
 }
 
-func (c *RemoteClient) Unlock(id string) error {
+func (c *RemoteClient) Unlock(_ context.Context, id string) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

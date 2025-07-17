@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/opentofu/opentofu/internal/command/format"
-
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 
 	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
@@ -81,6 +79,33 @@ func hclEscapeString(str string) string {
 	return fmt.Sprintf("%q", str)
 }
 
+// DiffActionSymbol returns a string that, once passed through a
+// colorstring.Colorize, will produce a result that can be written
+// to a terminal to produce a symbol made of three printable
+// characters, possibly interspersed with VT100 color codes.
+func DiffActionSymbol(action plans.Action) string {
+	switch action {
+	case plans.DeleteThenCreate:
+		return "[red]-[reset]/[green]+[reset]"
+	case plans.CreateThenDelete:
+		return "[green]+[reset]/[red]-[reset]"
+	case plans.Create:
+		return "  [green]+[reset]"
+	case plans.Delete:
+		return "  [red]-[reset]"
+	case plans.Read:
+		return " [cyan]<=[reset]"
+	case plans.Update:
+		return "  [yellow]~[reset]"
+	case plans.NoOp:
+		return "   "
+	case plans.Forget:
+		return "  [red].[reset]"
+	default:
+		return "  ?"
+	}
+}
+
 // writeDiffActionSymbol writes out the symbols for the associated action, and
 // handles localized colorization of the symbol as well as indenting the symbol
 // to be 4 spaces wide.
@@ -91,5 +116,6 @@ func writeDiffActionSymbol(action plans.Action, opts computed.RenderHumanOpts) s
 	if opts.HideDiffActionSymbols {
 		return ""
 	}
-	return fmt.Sprintf("%s ", opts.Colorize.Color(format.DiffActionSymbol(action)))
+
+	return fmt.Sprintf("%s ", opts.Colorize.Color(DiffActionSymbol(action)))
 }

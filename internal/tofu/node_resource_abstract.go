@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/communicator/shared"
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/dag"
@@ -204,7 +205,7 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 
 		if c.Managed != nil {
 			if c.Managed.Connection != nil {
-				refs, _ = lang.ReferencesInBlock(addrs.ParseRef, c.Managed.Connection.Config, connectionBlockSupersetSchema)
+				refs, _ = lang.ReferencesInBlock(addrs.ParseRef, c.Managed.Connection.Config, shared.ConnectionBlockSupersetSchema)
 				result = append(result, refs...)
 			}
 
@@ -213,7 +214,7 @@ func (n *NodeAbstractResource) References() []*addrs.Reference {
 					continue
 				}
 				if p.Connection != nil {
-					refs, _ = lang.ReferencesInBlock(addrs.ParseRef, p.Connection.Config, connectionBlockSupersetSchema)
+					refs, _ = lang.ReferencesInBlock(addrs.ParseRef, p.Connection.Config, shared.ConnectionBlockSupersetSchema)
 					result = append(result, refs...)
 				}
 

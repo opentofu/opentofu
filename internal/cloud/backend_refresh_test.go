@@ -78,7 +78,7 @@ func TestCloud_refreshBasicActuallyRunsApplyRefresh(t *testing.T) {
 
 	stateMgr, _ := b.StateMgr(t.Context(), testBackendSingleWorkspaceName)
 	// An error suggests that the state was not unlocked after apply
-	if _, err := stateMgr.Lock(statemgr.NewLockInfo()); err != nil {
+	if _, err := stateMgr.Lock(t.Context(), statemgr.NewLockInfo()); err != nil {
 		t.Fatalf("unexpected error locking state after apply: %s", err.Error())
 	}
 }

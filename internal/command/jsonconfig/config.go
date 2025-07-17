@@ -31,12 +31,12 @@ type config struct {
 // provider configurations are the one concept in OpenTofu that can span across
 // module boundaries.
 type providerConfig struct {
-	Name              string                 `json:"name,omitempty"`
-	FullName          string                 `json:"full_name,omitempty"`
-	Alias             string                 `json:"alias,omitempty"`
-	VersionConstraint string                 `json:"version_constraint,omitempty"`
-	ModuleAddress     string                 `json:"module_address,omitempty"`
-	Expressions       map[string]interface{} `json:"expressions,omitempty"`
+	Name              string         `json:"name,omitempty"`
+	FullName          string         `json:"full_name,omitempty"`
+	Alias             string         `json:"alias,omitempty"`
+	VersionConstraint string         `json:"version_constraint,omitempty"`
+	ModuleAddress     string         `json:"module_address,omitempty"`
+	Expressions       map[string]any `json:"expressions,omitempty"`
 	parentKey         string
 }
 
@@ -50,13 +50,13 @@ type module struct {
 }
 
 type moduleCall struct {
-	Source            string                 `json:"source,omitempty"`
-	Expressions       map[string]interface{} `json:"expressions,omitempty"`
-	CountExpression   *expression            `json:"count_expression,omitempty"`
-	ForEachExpression *expression            `json:"for_each_expression,omitempty"`
-	Module            module                 `json:"module,omitempty"`
-	VersionConstraint string                 `json:"version_constraint,omitempty"`
-	DependsOn         []string               `json:"depends_on,omitempty"`
+	Source            string         `json:"source,omitempty"`
+	Expressions       map[string]any `json:"expressions,omitempty"`
+	CountExpression   *expression    `json:"count_expression,omitempty"`
+	ForEachExpression *expression    `json:"for_each_expression,omitempty"`
+	Module            *module        `json:"module,omitempty"`
+	VersionConstraint string         `json:"version_constraint,omitempty"`
+	DependsOn         []string       `json:"depends_on,omitempty"`
 }
 
 // variables is the JSON representation of the variables provided to the current
@@ -64,8 +64,10 @@ type moduleCall struct {
 type variables map[string]*variable
 
 type variable struct {
+	Type        json.RawMessage `json:"type,omitempty"`
 	Default     json.RawMessage `json:"default,omitempty"`
 	Description string          `json:"description,omitempty"`
+	Required    bool            `json:"required,omitempty"`
 	Sensitive   bool            `json:"sensitive,omitempty"`
 	Deprecated  string          `json:"deprecated,omitempty"`
 }
@@ -95,11 +97,11 @@ type resource struct {
 
 	// Expressions" describes the resource-type-specific  content of the
 	// configuration block.
-	Expressions map[string]interface{} `json:"expressions,omitempty"`
+	Expressions map[string]any `json:"expressions,omitempty"`
 
 	// SchemaVersion indicates which version of the resource type schema the
 	// "values" property conforms to.
-	SchemaVersion uint64 `json:"schema_version"`
+	SchemaVersion *uint64 `json:"schema_version,omitempty"`
 
 	// CountExpression and ForEachExpression describe the expressions given for
 	// the corresponding meta-arguments in the resource configuration block.
@@ -111,20 +113,33 @@ type resource struct {
 }
 
 type output struct {
-	Sensitive   bool       `json:"sensitive,omitempty"`
-	Deprecated  string     `json:"deprecated,omitempty"`
-	Expression  expression `json:"expression,omitempty"`
-	DependsOn   []string   `json:"depends_on,omitempty"`
-	Description string     `json:"description,omitempty"`
+	Sensitive   bool        `json:"sensitive,omitempty"`
+	Deprecated  string      `json:"deprecated,omitempty"`
+	Expression  *expression `json:"expression,omitempty"`
+	DependsOn   []string    `json:"depends_on,omitempty"`
+	Description string      `json:"description,omitempty"`
 }
 
 type provisioner struct {
-	Type        string                 `json:"type,omitempty"`
-	Expressions map[string]interface{} `json:"expressions,omitempty"`
+	Type        string         `json:"type,omitempty"`
+	Expressions map[string]any `json:"expressions,omitempty"`
 }
 
 // Marshal returns the json encoding of tofu configuration.
 func Marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
+	return marshal(c, schemas)
+}
+
+// marshal is the shared implementation of both [Marshal] and
+// [MarshalSingleModule].
+//
+// [MarshalSingleModule] calls this with a synthetic [configs.Config] that
+// has only a root module, and with schemas set to nil. Downstream codepaths
+// should test for single module mode only by passing the schemas value to
+// [inSingleModuleMode], and not by directly testing if schemas are nil,
+// so that it's easier for future maintainers to learn about this special
+// treatment through the centralized doc comment.
+func marshal(c *configs.Config, schemas *tofu.Schemas) ([]byte, error) {
 	var output config
 
 	pcs := make(map[string]providerConfig)
@@ -167,7 +182,9 @@ func marshalProviderConfigs(
 	// Add an entry for each provider configuration block in the module.
 	for k, pc := range c.Module.ProviderConfigs {
 		providerFqn := c.ProviderForConfigAddr(addrs.LocalProviderConfig{LocalName: pc.Name})
-		schema := schemas.ProviderConfig(providerFqn)
+		schema := mapSchema(schemas, func(schemas *tofu.Schemas) *configschema.Block {
+			return schemas.ProviderConfig(providerFqn)
+		})
 
 		p := providerConfig{
 			Name:          pc.Name,
@@ -304,7 +321,11 @@ func marshalProviderConfigs(
 		// Finally, marshal any other provider configs within the called module.
 		// It is safe to do this last because it is invalid to configure a
 		// provider which has passed provider configs in the module call.
-		marshalProviderConfigs(cc, schemas, m)
+		// We don't recurse in single-module mode, because cc will be nil in
+		// that case.
+		if !inSingleModuleMode(schemas) {
+			marshalProviderConfigs(cc, schemas, m)
+		}
 	}
 }
 
@@ -329,7 +350,10 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 		o := output{
 			Sensitive:  v.Sensitive,
 			Deprecated: v.Deprecated,
-			Expression: marshalExpression(v.Expr),
+		}
+		if !inSingleModuleMode(schemas) {
+			expr := marshalExpression(v.Expr)
+			o.Expression = &expr
 		}
 		if v.Description != "" {
 			o.Description = v.Description
@@ -357,17 +381,47 @@ func marshalModule(c *configs.Config, schemas *tofu.Schemas, addr string) (modul
 	if len(c.Module.Variables) > 0 {
 		vars := make(variables, len(c.Module.Variables))
 		for k, v := range c.Module.Variables {
+			typeConstraint := cty.DynamicPseudoType
+			if v.ConstraintType != cty.NilType {
+				typeConstraint = v.ConstraintType
+			}
+
+			var typeJSON []byte
+			// We leave the "type" property unset in output when it
+			// would be DynamicPseudoType, because the most typical way to
+			// represent this situation in our source language is to
+			// omit the type argument from the declaration -- it essentially
+			// represents "no type constrant at all" -- and because this
+			// avoids exposing a potentially-confusing detail that cty
+			// describes DynamicPseudoType as "dynamic" in JSON, while HCL
+			// prefers to call it "any".
+			if !typeConstraint.Equals(cty.DynamicPseudoType) {
+				typeJSON, err = typeConstraint.MarshalJSON()
+				if err != nil {
+					// Should not get here, because v.ConstraintType should always
+					// be a valid cty type when it isn't NilType, so this uses
+					// the internal type stringification to get the most detailed
+					// error message in a potential bug report.
+					return module, fmt.Errorf("failed to marshal %#v as JSON: %w", typeConstraint, err)
+				}
+			}
+
 			var defaultValJSON []byte
+			var required bool
 			if v.Default == cty.NilVal {
 				defaultValJSON = nil
+				required = true
 			} else {
 				defaultValJSON, err = ctyjson.Marshal(v.Default, v.Default.Type())
+				required = false
 				if err != nil {
 					return module, err
 				}
 			}
 			vars[k] = &variable{
+				Type:        typeJSON,
 				Default:     defaultValJSON,
+				Required:    required,
 				Description: v.Description,
 				Sensitive:   v.Sensitive,
 				Deprecated:  v.Deprecated,
@@ -391,10 +445,9 @@ func marshalModuleCalls(c *configs.Config, schemas *tofu.Schemas) map[string]mod
 }
 
 func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.Schemas) moduleCall {
-	// It is possible to have a module call with a nil config.
-	if c == nil {
-		return moduleCall{}
-	}
+	// Note that "c" is always nil when in single module mode!
+	// Refer to the docs on [inSingleModuleMode] to learn about how that
+	// special situation works.
 
 	ret := moduleCall{
 		// We're intentionally echoing back exactly what the user entered
@@ -406,29 +459,33 @@ func marshalModuleCall(c *configs.Config, mc *configs.ModuleCall, schemas *tofu.
 		Source:            mc.SourceAddrRaw,
 		VersionConstraint: mc.Version.Required.String(),
 	}
-	cExp := marshalExpression(mc.Count)
-	if !cExp.Empty() {
-		ret.CountExpression = &cExp
-	} else {
-		fExp := marshalExpression(mc.ForEach)
-		if !fExp.Empty() {
-			ret.ForEachExpression = &fExp
+
+	if !inSingleModuleMode(schemas) {
+		// The expression-related properties are not available in single-module
+		// mode.
+		cExp := marshalExpression(mc.Count)
+		if !cExp.Empty() {
+			ret.CountExpression = &cExp
+		} else {
+			fExp := marshalExpression(mc.ForEach)
+			if !fExp.Empty() {
+				ret.ForEachExpression = &fExp
+			}
 		}
-	}
-
-	schema := &configschema.Block{}
-	schema.Attributes = make(map[string]*configschema.Attribute)
-	for _, variable := range c.Module.Variables {
-		schema.Attributes[variable.Name] = &configschema.Attribute{
-			Required: variable.Default == cty.NilVal,
+		schema := &configschema.Block{}
+		schema.Attributes = make(map[string]*configschema.Attribute)
+		for _, variable := range c.Module.Variables {
+			schema.Attributes[variable.Name] = &configschema.Attribute{
+				Required: variable.Default == cty.NilVal,
+			}
 		}
+		ret.Expressions = marshalExpressions(mc.Config, schema)
+
+		// The "module" property, describing the content of the child module,
+		// is not available in single-module mode.
+		module, _ := marshalModule(c, schemas, c.Path.String())
+		ret.Module = &module
 	}
-
-	ret.Expressions = marshalExpressions(mc.Config, schema)
-
-	module, _ := marshalModule(c, schemas, c.Path.String())
-
-	ret.Module = module
 
 	if len(mc.DependsOn) > 0 {
 		dependencies := make([]string, len(mc.DependsOn))
@@ -467,33 +524,38 @@ func marshalResources(resources map[string]*configs.Resource, schemas *tofu.Sche
 			return rs, fmt.Errorf("resource %s has an unsupported mode %s", r.Address, v.Mode.String())
 		}
 
-		cExp := marshalExpression(v.Count)
-		if !cExp.Empty() {
-			r.CountExpression = &cExp
-		} else {
-			fExp := marshalExpression(v.ForEach)
-			if !fExp.Empty() {
-				r.ForEachExpression = &fExp
+		if !inSingleModuleMode(schemas) {
+			// We don't populate the expression and schema-related properties
+			// when we are in single-module mode.
+			cExp := marshalExpression(v.Count)
+			if !cExp.Empty() {
+				r.CountExpression = &cExp
+			} else {
+				fExp := marshalExpression(v.ForEach)
+				if !fExp.Empty() {
+					r.ForEachExpression = &fExp
+				}
 			}
-		}
 
-		schema, schemaVer := schemas.ResourceTypeConfig(
-			v.Provider,
-			v.Mode,
-			v.Type,
-		)
-		if schema == nil {
-			return nil, fmt.Errorf("no schema found for %s (in provider %s)", v.Addr().String(), v.Provider)
+			schema, schemaVer := schemas.ResourceTypeConfig(
+				v.Provider,
+				v.Mode,
+				v.Type,
+			)
+			if schema == nil {
+				return nil, fmt.Errorf("no schema found for %s (in provider %s)", v.Addr().String(), v.Provider)
+			}
+			r.SchemaVersion = &schemaVer
+			r.Expressions = marshalExpressions(v.Config, schema)
 		}
-		r.SchemaVersion = schemaVer
-
-		r.Expressions = marshalExpressions(v.Config, schema)
 
 		// Managed is populated only for Mode = addrs.ManagedResourceMode
 		if v.Managed != nil && len(v.Managed.Provisioners) > 0 {
 			var provisioners []provisioner
 			for _, p := range v.Managed.Provisioners {
-				schema := schemas.ProvisionerConfig(p.Type)
+				schema := mapSchema(schemas, func(schema *tofu.Schemas) *configschema.Block {
+					return schemas.ProvisionerConfig(p.Type)
+				})
 				prov := provisioner{
 					Type:        p.Type,
 					Expressions: marshalExpressions(p.Config, schema),
@@ -538,7 +600,13 @@ func normalizeModuleProviderKeys(m *module, pcs map[string]providerConfig) {
 	}
 
 	for _, mc := range m.ModuleCalls {
-		normalizeModuleProviderKeys(&mc.Module, pcs)
+		if mc.Module == nil {
+			// This field is not populated in single-module mode, but
+			// that's okay because it means we have no need to recurse
+			// into it for nested fixups.
+			continue
+		}
+		normalizeModuleProviderKeys(mc.Module, pcs)
 	}
 }
 

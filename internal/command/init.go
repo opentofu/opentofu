@@ -262,7 +262,7 @@ func (c *InitCommand) Run(args []string) int {
 			return 1
 		}
 
-		if err := sMgr.RefreshState(); err != nil {
+		if err := sMgr.RefreshState(context.TODO()); err != nil {
 			c.Ui.Error(fmt.Sprintf("Error refreshing state: %s", err))
 			return 1
 		}

@@ -7,6 +7,7 @@ package clistate
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -123,12 +124,12 @@ func (s *LocalState) writeState(state *tofu.State) error {
 // PersistState for LocalState is a no-op since WriteState always persists.
 //
 // StatePersister impl.
-func (s *LocalState) PersistState() error {
+func (s *LocalState) PersistState(_ context.Context) error {
 	return nil
 }
 
 // StateRefresher impl.
-func (s *LocalState) RefreshState() error {
+func (s *LocalState) RefreshState(_ context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -187,7 +188,7 @@ func (s *LocalState) RefreshState() error {
 }
 
 // Lock implements a local filesystem state.Locker.
-func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
+func (s *LocalState) Lock(_ context.Context, info *statemgr.LockInfo) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -219,7 +220,7 @@ func (s *LocalState) Lock(info *statemgr.LockInfo) (string, error) {
 	return s.lockID, s.writeLockInfo(info)
 }
 
-func (s *LocalState) Unlock(id string) error {
+func (s *LocalState) Unlock(_ context.Context, id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

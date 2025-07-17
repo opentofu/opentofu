@@ -6,6 +6,7 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -138,7 +139,7 @@ func (c *StateShowCommand) Run(args []string) int {
 		c.Streams.Eprintln(fmt.Sprintf(errStateLoadingState, err))
 		return 1
 	}
-	if err := stateMgr.RefreshState(); err != nil {
+	if err := stateMgr.RefreshState(context.TODO()); err != nil {
 		c.Streams.Eprintf("Failed to refresh state: %s\n", err)
 		return 1
 	}

@@ -30,8 +30,8 @@ import (
 
 	"github.com/opentofu/opentofu/internal/backend"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
-	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/encryption"
+	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/states"
 	"github.com/opentofu/opentofu/internal/states/remote"
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -1283,7 +1283,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(s1); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(nil); err != nil {
+	if err := stateMgr.PersistState(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1295,7 +1295,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr2.WriteState(s2); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr2.PersistState(nil); err != nil {
+	if err := stateMgr2.PersistState(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1310,7 +1310,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(nil); err != nil {
+	if err := stateMgr.PersistState(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := checkStateList(t.Context(), b, []string{"default", "s1", "s2"}); err != nil {
@@ -1322,7 +1322,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(nil); err != nil {
+	if err := stateMgr.PersistState(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 	if err := checkStateList(t.Context(), b, []string{"default", "s1", "s2"}); err != nil {
@@ -1330,7 +1330,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	}
 
 	// remove the state with extra subkey
-	if err := client.Delete(); err != nil {
+	if err := client.Delete(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1348,7 +1348,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s2Mgr.RefreshState(); err != nil {
+	if err := s2Mgr.RefreshState(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1363,7 +1363,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err := stateMgr.WriteState(states.NewState()); err != nil {
 		t.Fatal(err)
 	}
-	if err := stateMgr.PersistState(nil); err != nil {
+	if err := stateMgr.PersistState(t.Context(), nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1372,7 +1372,7 @@ func TestBackendExtraPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := s2Mgr.RefreshState(); err != nil {
+	if err := s2Mgr.RefreshState(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1405,7 +1405,7 @@ func TestBackendPrefixInWorkspace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := sMgr.RefreshState(); err != nil {
+	if err := sMgr.RefreshState(t.Context()); err != nil {
 		t.Fatal(err)
 	}
 

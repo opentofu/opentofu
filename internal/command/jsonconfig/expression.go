@@ -92,9 +92,20 @@ func (e *expression) Empty() bool {
 // expressions is used to represent the entire content of a block. Attribute
 // arguments are mapped directly with the attribute name as key and an
 // expression as value.
-type expressions map[string]interface{}
+type expressions map[string]any
 
+// marshalExpressions returns a representation of the expressions in the given
+// body after analyzing based on the given schema.
+//
+// If [inSingleModuleMode] returns true when given schema, the result is always
+// nil to represent that expression information is not available in
+// single-module mode.
 func marshalExpressions(body hcl.Body, schema *configschema.Block) expressions {
+	if inSingleModuleMode(schema) {
+		// We never generate any expressions in single-module mode.
+		return nil
+	}
+
 	// Since we want the raw, un-evaluated expressions we need to use the
 	// low-level HCL API here, rather than the hcldec decoder API. That means we
 	// need the low-level schema.
@@ -140,16 +151,16 @@ func marshalExpressions(body hcl.Body, schema *configschema.Block) expressions {
 			ret[typeName] = marshalExpressions(block.Body, &blockS.Block)
 		case configschema.NestingList, configschema.NestingSet:
 			if _, exists := ret[typeName]; !exists {
-				ret[typeName] = make([]map[string]interface{}, 0, 1)
+				ret[typeName] = make([]map[string]any, 0, 1)
 			}
-			ret[typeName] = append(ret[typeName].([]map[string]interface{}), marshalExpressions(block.Body, &blockS.Block))
+			ret[typeName] = append(ret[typeName].([]map[string]any), marshalExpressions(block.Body, &blockS.Block))
 		case configschema.NestingMap:
 			if _, exists := ret[typeName]; !exists {
-				ret[typeName] = make(map[string]map[string]interface{})
+				ret[typeName] = make(map[string]map[string]any)
 			}
 			// NestingMap blocks always have the key in the first (and only) label
 			key := block.Labels[0]
-			retMap := ret[typeName].(map[string]map[string]interface{})
+			retMap := ret[typeName].(map[string]map[string]any)
 			retMap[key] = marshalExpressions(block.Body, &blockS.Block)
 		}
 	}

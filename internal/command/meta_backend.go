@@ -565,7 +565,7 @@ func (m *Meta) backendFromConfig(ctx context.Context, opts *BackendOpts, enc enc
 	// we haven't used a non-local backend before. That is okay.
 	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
-	if err := sMgr.RefreshState(); err != nil {
+	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags
 	}
@@ -793,7 +793,7 @@ func (m *Meta) backendFromState(ctx context.Context, enc encryption.StateEncrypt
 	// we haven't used a non-local backend before. That is okay.
 	statePath := filepath.Join(m.DataDir(), DefaultStateFilename)
 	sMgr := &clistate.LocalState{Path: statePath}
-	if err := sMgr.RefreshState(); err != nil {
+	if err := sMgr.RefreshState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf("Failed to load state: %w", err))
 		return nil, diags
 	}
@@ -943,7 +943,7 @@ func (m *Meta) backend_c_r_S(
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendClearSaved), err))
 		return nil, diags
 	}
-	if err := sMgr.PersistState(); err != nil {
+	if err := sMgr.PersistState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf(strings.TrimSpace(errBackendClearSaved), err))
 		return nil, diags
 	}
@@ -989,7 +989,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 			diags = diags.Append(fmt.Errorf(errBackendLocalRead, err))
 			return nil, diags
 		}
-		if err := localState.RefreshState(); err != nil {
+		if err := localState.RefreshState(context.TODO()); err != nil {
 			diags = diags.Append(fmt.Errorf(errBackendLocalRead, err))
 			return nil, diags
 		}
@@ -1052,7 +1052,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 					diags = diags.Append(fmt.Errorf(errBackendMigrateLocalDelete, err))
 					return nil, diags
 				}
-				if err := localState.PersistState(nil); err != nil {
+				if err := localState.PersistState(context.TODO(), nil); err != nil {
 					diags = diags.Append(fmt.Errorf(errBackendMigrateLocalDelete, err))
 					return nil, diags
 				}
@@ -1112,7 +1112,7 @@ func (m *Meta) backend_C_r_s(ctx context.Context, c *configs.Backend, cHash int,
 		diags = diags.Append(fmt.Errorf(errBackendWriteSaved, err))
 		return nil, diags
 	}
-	if err := sMgr.PersistState(); err != nil {
+	if err := sMgr.PersistState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf(errBackendWriteSaved, err))
 		return nil, diags
 	}
@@ -1244,7 +1244,7 @@ func (m *Meta) backend_C_r_S_changed(ctx context.Context, c *configs.Backend, cH
 		diags = diags.Append(fmt.Errorf(errBackendWriteSaved, err))
 		return nil, diags
 	}
-	if err := sMgr.PersistState(); err != nil {
+	if err := sMgr.PersistState(context.TODO()); err != nil {
 		diags = diags.Append(fmt.Errorf(errBackendWriteSaved, err))
 		return nil, diags
 	}

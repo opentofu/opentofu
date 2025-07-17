@@ -31,9 +31,8 @@ const (
 
 // RemoteClient implements the client of remote state
 type remoteClient struct {
-	cosContext context.Context
-	cosClient  *cos.Client
-	tagClient  *tag.Client
+	cosClient *cos.Client
+	tagClient *tag.Client
 
 	bucket    string
 	stateFile string
@@ -43,10 +42,10 @@ type remoteClient struct {
 }
 
 // Get returns remote state file
-func (c *remoteClient) Get() (*remote.Payload, error) {
+func (c *remoteClient) Get(ctx context.Context) (*remote.Payload, error) {
 	log.Printf("[DEBUG] get remote state file %s", c.stateFile)
 
-	exists, data, checksum, err := c.getObject(c.stateFile)
+	exists, data, checksum, err := c.getObject(ctx, c.stateFile)
 	if err != nil {
 		return nil, err
 	}
@@ -64,97 +63,97 @@ func (c *remoteClient) Get() (*remote.Payload, error) {
 }
 
 // Put put state file to remote
-func (c *remoteClient) Put(data []byte) error {
+func (c *remoteClient) Put(ctx context.Context, data []byte) error {
 	log.Printf("[DEBUG] put remote state file %s", c.stateFile)
 
-	return c.putObject(c.stateFile, data)
+	return c.putObject(ctx, c.stateFile, data)
 }
 
 // Delete delete remote state file
-func (c *remoteClient) Delete() error {
+func (c *remoteClient) Delete(ctx context.Context) error {
 	log.Printf("[DEBUG] delete remote state file %s", c.stateFile)
 
-	return c.deleteObject(c.stateFile)
+	return c.deleteObject(ctx, c.stateFile)
 }
 
 // Lock lock remote state file for writing
-func (c *remoteClient) Lock(info *statemgr.LockInfo) (string, error) {
+func (c *remoteClient) Lock(ctx context.Context, info *statemgr.LockInfo) (string, error) {
 	log.Printf("[DEBUG] lock remote state file %s", c.lockFile)
 
 	err := c.cosLock(c.bucket, c.lockFile)
 	if err != nil {
-		return "", c.lockError(err)
+		return "", c.lockError(ctx, err)
 	}
 	// Local helper function so we can call it multiple places
 	lockUnlock := func(parent error) error {
 		if err := c.cosUnlock(c.bucket, c.lockFile); err != nil {
 			return errors.Join(
-				fmt.Errorf("error unlocking cos state: %w", c.lockError(err)),
+				fmt.Errorf("error unlocking cos state: %w", c.lockError(ctx, err)),
 				parent,
 			)
 		}
 		return parent
 	}
 
-	exists, _, _, err := c.getObject(c.lockFile)
+	exists, _, _, err := c.getObject(ctx, c.lockFile)
 	if err != nil {
-		return "", lockUnlock(c.lockError(err))
+		return "", lockUnlock(c.lockError(ctx, err))
 	}
 
 	if exists {
-		return "", lockUnlock(c.lockError(fmt.Errorf("lock file %s exists", c.lockFile)))
+		return "", lockUnlock(c.lockError(ctx, fmt.Errorf("lock file %s exists", c.lockFile)))
 	}
 
 	info.Path = c.lockFile
 	data, err := json.Marshal(info)
 	if err != nil {
-		return "", lockUnlock(c.lockError(err))
+		return "", lockUnlock(c.lockError(ctx, err))
 	}
 
 	check := fmt.Sprintf("%x", md5.Sum(data))
-	err = c.putObject(c.lockFile, data)
+	err = c.putObject(ctx, c.lockFile, data)
 	if err != nil {
-		return "", lockUnlock(c.lockError(err))
+		return "", lockUnlock(c.lockError(ctx, err))
 	}
 
 	return check, lockUnlock(nil)
 }
 
 // Unlock unlock remote state file
-func (c *remoteClient) Unlock(check string) error {
+func (c *remoteClient) Unlock(ctx context.Context, check string) error {
 	log.Printf("[DEBUG] unlock remote state file %s", c.lockFile)
 
-	info, err := c.lockInfo()
+	info, err := c.lockInfo(ctx)
 	if err != nil {
-		return c.lockError(err)
+		return c.lockError(ctx, err)
 	}
 
 	if info.ID != check {
-		return c.lockError(fmt.Errorf("lock id mismatch, %v != %v", info.ID, check))
+		return c.lockError(ctx, fmt.Errorf("lock id mismatch, %v != %v", info.ID, check))
 	}
 
-	err = c.deleteObject(c.lockFile)
+	err = c.deleteObject(ctx, c.lockFile)
 	if err != nil {
-		return c.lockError(err)
+		return c.lockError(ctx, err)
 	}
 
 	err = c.cosUnlock(c.bucket, c.lockFile)
 	if err != nil {
-		return c.lockError(err)
+		return c.lockError(ctx, err)
 	}
 
 	return nil
 }
 
 // lockError returns statemgr.LockError
-func (c *remoteClient) lockError(err error) *statemgr.LockError {
+func (c *remoteClient) lockError(ctx context.Context, err error) *statemgr.LockError {
 	log.Printf("[DEBUG] failed to lock or unlock %s: %v", c.lockFile, err)
 
 	lockErr := &statemgr.LockError{
 		Err: err,
 	}
 
-	info, infoErr := c.lockInfo()
+	info, infoErr := c.lockInfo(ctx)
 	if infoErr != nil {
 		lockErr.Err = multierror.Append(lockErr.Err, infoErr)
 	} else {
@@ -165,8 +164,8 @@ func (c *remoteClient) lockError(err error) *statemgr.LockError {
 }
 
 // lockInfo returns LockInfo from lock file
-func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
-	exists, data, checksum, err := c.getObject(c.lockFile)
+func (c *remoteClient) lockInfo(ctx context.Context) (*statemgr.LockInfo, error) {
+	exists, data, checksum, err := c.getObject(ctx, c.lockFile)
 	if err != nil {
 		return nil, err
 	}
@@ -186,8 +185,8 @@ func (c *remoteClient) lockInfo() (*statemgr.LockInfo, error) {
 }
 
 // getObject get remote object
-func (c *remoteClient) getObject(cosFile string) (exists bool, data []byte, checksum string, err error) {
-	rsp, err := c.cosClient.Object.Get(c.cosContext, cosFile, nil)
+func (c *remoteClient) getObject(ctx context.Context, cosFile string) (exists bool, data []byte, checksum string, err error) {
+	rsp, err := c.cosClient.Object.Get(ctx, cosFile, nil)
 	if rsp == nil {
 		log.Printf("[DEBUG] getObject %s: error: %v", cosFile, err)
 		err = fmt.Errorf("failed to open file at %v: %w", cosFile, err)
@@ -231,7 +230,7 @@ func (c *remoteClient) getObject(cosFile string) (exists bool, data []byte, chec
 }
 
 // putObject put object to remote
-func (c *remoteClient) putObject(cosFile string, data []byte) error {
+func (c *remoteClient) putObject(ctx context.Context, cosFile string, data []byte) error {
 	opt := &cos.ObjectPutOptions{
 		ObjectPutHeaderOptions: &cos.ObjectPutHeaderOptions{
 			XCosMetaXXX: &http.Header{
@@ -248,7 +247,7 @@ func (c *remoteClient) putObject(cosFile string, data []byte) error {
 	}
 
 	r := bytes.NewReader(data)
-	rsp, err := c.cosClient.Object.Put(c.cosContext, cosFile, r, opt)
+	rsp, err := c.cosClient.Object.Put(ctx, cosFile, r, opt)
 	if rsp == nil {
 		log.Printf("[DEBUG] putObject %s: error: %v", cosFile, err)
 		return fmt.Errorf("failed to save file to %v: %w", cosFile, err)
@@ -264,8 +263,8 @@ func (c *remoteClient) putObject(cosFile string, data []byte) error {
 }
 
 // deleteObject delete remote object
-func (c *remoteClient) deleteObject(cosFile string) error {
-	rsp, err := c.cosClient.Object.Delete(c.cosContext, cosFile)
+func (c *remoteClient) deleteObject(ctx context.Context, cosFile string) error {
+	rsp, err := c.cosClient.Object.Delete(ctx, cosFile)
 	if rsp == nil {
 		log.Printf("[DEBUG] deleteObject %s: error: %v", cosFile, err)
 		return fmt.Errorf("failed to delete file %v: %w", cosFile, err)
@@ -285,8 +284,8 @@ func (c *remoteClient) deleteObject(cosFile string) error {
 }
 
 // getBucket list bucket by prefix
-func (c *remoteClient) getBucket(prefix string) (obs []cos.Object, err error) {
-	fs, rsp, err := c.cosClient.Bucket.Get(c.cosContext, &cos.BucketGetOptions{Prefix: prefix})
+func (c *remoteClient) getBucket(ctx context.Context, prefix string) (obs []cos.Object, err error) {
+	fs, rsp, err := c.cosClient.Bucket.Get(ctx, &cos.BucketGetOptions{Prefix: prefix})
 	if rsp == nil {
 		log.Printf("[DEBUG] getBucket %s/%s: error: %v", c.bucket, prefix, err)
 		err = fmt.Errorf("bucket %s not exists", c.bucket)
@@ -308,8 +307,8 @@ func (c *remoteClient) getBucket(prefix string) (obs []cos.Object, err error) {
 }
 
 // putBucket create cos bucket
-func (c *remoteClient) putBucket() error {
-	rsp, err := c.cosClient.Bucket.Put(c.cosContext, nil)
+func (c *remoteClient) putBucket(ctx context.Context) error {
+	rsp, err := c.cosClient.Bucket.Put(ctx, nil)
 	if rsp == nil {
 		log.Printf("[DEBUG] putBucket %s: error: %v", c.bucket, err)
 		return fmt.Errorf("failed to create bucket %v: %w", c.bucket, err)
@@ -329,9 +328,9 @@ func (c *remoteClient) putBucket() error {
 }
 
 // deleteBucket delete cos bucket
-func (c *remoteClient) deleteBucket(recursive bool) error {
+func (c *remoteClient) deleteBucket(ctx context.Context, recursive bool) error {
 	if recursive {
-		obs, err := c.getBucket("")
+		obs, err := c.getBucket(ctx, "")
 		if err != nil {
 			if strings.Contains(err.Error(), "not exists") {
 				return nil
@@ -340,14 +339,14 @@ func (c *remoteClient) deleteBucket(recursive bool) error {
 			return fmt.Errorf("failed to empty bucket %v: %w", c.bucket, err)
 		}
 		for _, v := range obs {
-			err := c.deleteObject(v.Key)
+			err := c.deleteObject(ctx, v.Key)
 			if err != nil {
 				return fmt.Errorf("failed to delete object with key %s: %w", v.Key, err)
 			}
 		}
 	}
 
-	rsp, err := c.cosClient.Bucket.Delete(c.cosContext)
+	rsp, err := c.cosClient.Bucket.Delete(ctx)
 	if rsp == nil {
 		log.Printf("[DEBUG] deleteBucket %s: error: %v", c.bucket, err)
 		return fmt.Errorf("failed to delete bucket %v: %w", c.bucket, err)

@@ -139,14 +139,14 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 		// take a lock and create a new state if it doesn't exist.
 		lockInfo := statemgr.NewLockInfo()
 		lockInfo.Operation = "init"
-		lockID, err := s.Lock(lockInfo)
+		lockID, err := s.Lock(context.TODO(), lockInfo)
 		if err != nil {
 			return nil, fmt.Errorf("failed to lock inmem state: %w", err)
 		}
 
 		// Local helper function so we can call it multiple places
 		lockUnlock := func(parent error) error {
-			if err := s.Unlock(lockID); err != nil {
+			if err := s.Unlock(context.TODO(), lockID); err != nil {
 				return errors.Join(
 					fmt.Errorf("error unlocking inmem state: %w", err),
 					parent,
@@ -161,7 +161,7 @@ func (b *Backend) StateMgr(_ context.Context, name string) (statemgr.Full, error
 				err = lockUnlock(err)
 				return nil, err
 			}
-			if err := s.PersistState(nil); err != nil {
+			if err := s.PersistState(context.TODO(), nil); err != nil {
 				err = lockUnlock(err)
 				return nil, err
 			}
