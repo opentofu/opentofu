@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package json
+package jsonentities
 
 // Importing contains metadata about a resource change that includes an import
 // action.

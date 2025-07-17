@@ -296,7 +296,7 @@ func renderHumanDiffOutputs(renderer Renderer, outputs map[string]computed.Diff)
 	for _, key := range keys {
 		output := outputs[key]
 		if output.Action != plans.NoOp {
-			rendered = append(rendered, fmt.Sprintf("%s %-*s = %s", renderer.Colorize.Color(format.DiffActionSymbol(output.Action)), escapedKeyMaxLen, escapedKeys[key], output.RenderHuman(0, computed.NewRenderHumanOpts(renderer.Colorize, renderer.ShowSensitive))))
+			rendered = append(rendered, fmt.Sprintf("%s %-*s = %s", renderer.Colorize.Color(renderers.DiffActionSymbol(output.Action)), escapedKeyMaxLen, escapedKeys[key], output.RenderHuman(0, computed.NewRenderHumanOpts(renderer.Colorize, renderer.ShowSensitive))))
 		}
 	}
 	return strings.Join(rendered, "\n")
@@ -386,7 +386,7 @@ func renderHumanDiff(renderer Renderer, diff diff, cause string) (string, bool) 
 	}
 	opts.ShowUnchangedChildren = diff.Importing()
 
-	buf.WriteString(fmt.Sprintf("%s %s %s", renderer.Colorize.Color(format.DiffActionSymbol(action)), resourceChangeHeader(diff.change), diff.diff.RenderHuman(0, opts)))
+	buf.WriteString(fmt.Sprintf("%s %s %s", renderer.Colorize.Color(renderers.DiffActionSymbol(action)), resourceChangeHeader(diff.change), diff.diff.RenderHuman(0, opts)))
 	return buf.String(), true
 }
 

@@ -3,7 +3,7 @@
 // Copyright (c) 2023 HashiCorp, Inc.
 // SPDX-License-Identifier: MPL-2.0
 
-package json
+package jsonentities
 
 import (
 	"github.com/zclconf/go-cty/cty"
@@ -22,7 +22,7 @@ type ResourceAddr struct {
 	ResourceKey     ctyjson.SimpleJSONValue `json:"resource_key"`
 }
 
-func newResourceAddr(addr addrs.AbsResourceInstance) ResourceAddr {
+func NewResourceAddr(addr addrs.AbsResourceInstance) ResourceAddr {
 	resourceKey := ctyjson.SimpleJSONValue{Value: cty.NilVal}
 	if addr.Resource.Key != nil {
 		resourceKey.Value = addr.Resource.Key.Value()

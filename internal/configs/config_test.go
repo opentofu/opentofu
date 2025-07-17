@@ -332,6 +332,23 @@ func TestConfigProviderForEach(t *testing.T) {
 	}
 }
 
+func TestConfigProviderFromJSON(t *testing.T) {
+	cfg, diags := testNestedModuleConfigFromDir(t, "testdata/provider_from_json")
+	assertNoDiagnostics(t, diags)
+
+	got, diags := cfg.ProviderRequirementsShallow()
+	assertNoDiagnostics(t, diags)
+
+	nullProvider := addrs.NewDefaultProvider("null")
+	want := getproviders.Requirements{
+		nullProvider: nil,
+	}
+
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("wrong result\n%s", diff)
+	}
+}
+
 func TestConfigProviderRequirementsShallow(t *testing.T) {
 	cfg, diags := testNestedModuleConfigFromDir(t, "testdata/provider-reqs")
 	// TODO: Version Constraint Deprecation.

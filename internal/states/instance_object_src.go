@@ -6,6 +6,9 @@
 package states
 
 import (
+	"bytes"
+	"reflect"
+
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 
@@ -69,6 +72,96 @@ type ResourceInstanceObjectSrc struct {
 	Status              ObjectStatus
 	Dependencies        []addrs.ConfigResource
 	CreateBeforeDestroy bool
+}
+
+// Compare two lists using an given element equal function, ignoring order and duplicates
+func equalSlicesIgnoreOrder[S ~[]E, E any](a, b S, fn func(E, E) bool) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	// Not sure if this is the most efficient approach, but it works
+	// First check if all elements in a existing in b
+	for _, v := range a {
+		found := false
+		for _, o := range b {
+			if fn(v, o) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	// Now check if all elements in b exist in a
+	// This is necessary just in case there are duplicate entries (there should not be).
+	for _, v := range b {
+		found := false
+		for _, o := range a {
+			if fn(v, o) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (os *ResourceInstanceObjectSrc) Equal(other *ResourceInstanceObjectSrc) bool {
+	if os == other {
+		return true
+	}
+	if os == nil || other == nil {
+		return false
+	}
+
+	if os.SchemaVersion != other.SchemaVersion {
+		return false
+	}
+
+	if !bytes.Equal(os.AttrsJSON, other.AttrsJSON) {
+		return false
+	}
+
+	if !reflect.DeepEqual(os.AttrsFlat, other.AttrsFlat) {
+		return false
+	}
+
+	// Ignore order/duplicates as that is the assumption in the rest of the codebase.
+	// Given that these are generated from maps, it is known that the order is not consistent.
+	if !equalSlicesIgnoreOrder(os.AttrSensitivePaths, other.AttrSensitivePaths, cty.PathValueMarks.Equal) {
+		return false
+	}
+	// Ignore order/duplicates as that is the assumption in the rest of the codebase.
+	// Given that these are generated from maps, it is known that the order is not consistent.
+	if !equalSlicesIgnoreOrder(os.TransientPathValueMarks, other.TransientPathValueMarks, cty.PathValueMarks.Equal) {
+		return false
+	}
+
+	if !bytes.Equal(os.Private, other.Private) {
+		return false
+	}
+
+	if os.Status != other.Status {
+		return false
+	}
+
+	// This represents a set of dependencies.  They must all be resolved before executing and therefore the order does not matter.
+	if !equalSlicesIgnoreOrder(os.Dependencies, other.Dependencies, addrs.ConfigResource.Equal) {
+		return false
+	}
+
+	if os.CreateBeforeDestroy != other.CreateBeforeDestroy {
+		return false
+	}
+
+	return true
 }
 
 // Decode unmarshals the raw representation of the object attributes. Pass the
