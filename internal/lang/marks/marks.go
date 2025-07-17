@@ -58,6 +58,7 @@ var (
 )
 
 type DeprecationCause struct {
+	tfdiags.Keyable
 	By      addrs.Referenceable
 	Key     string
 	Message string
@@ -66,6 +67,10 @@ type DeprecationCause struct {
 	// imported module relative to the root module.
 	// This is useful when the user wants to control the type of deprecation warnings OpenTofu will show.
 	IsFromRemoteModule bool
+}
+
+func (dc DeprecationCause) ExtraInfoKey() string {
+	return dc.Key
 }
 
 type deprecationMark struct {

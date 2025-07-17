@@ -22,6 +22,11 @@ import "fmt"
 //
 // The definition of "unreasonable" is given as the threshold argument. At most
 // that many diagnostics with the same summary will be shown.
+
+type Keyable interface {
+	ExtraInfoKey() string
+}
+
 func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics {
 	if len(diags) == 0 {
 		return nil
@@ -56,21 +61,30 @@ func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics 
 
 		desc := diag.Description()
 		summary := desc.Summary
-		if g, ok := diagnosticGroups[summary]; ok {
+		var consolidationKey string
+		// If the diagnostic has a keyable extra info, use it as the consolidation key,
+		// otherwise use the summary.
+		if key, keyOk := interface{}(diag.ExtraInfo()).(Keyable); keyOk {
+			consolidationKey = key.ExtraInfoKey()
+		} else {
+			consolidationKey = summary
+		}
+
+		if g, ok := diagnosticGroups[consolidationKey]; ok {
 			// We're already grouping this one, so we'll just continue it.
 			g.Append(diag)
 			continue
 		}
 
-		diagnosticStats[summary]++
-		if diagnosticStats[summary] == threshold {
+		diagnosticStats[consolidationKey]++
+		if diagnosticStats[consolidationKey] == threshold {
 			// Initially creating the group doesn't really change anything
 			// visibly in the result, since a group with only one diagnostic
 			// is just a passthrough anyway, but once we do this any additional
-			// diagnostics with the same summary will get appended to this group.
+			// diagnostics with the same consolidationKey will get appended to this group.
 			g := &consolidatedGroup{}
 			newDiags = newDiags.Append(g)
-			diagnosticGroups[summary] = g
+			diagnosticGroups[consolidationKey] = g
 			g.Append(diag)
 			continue
 		}
