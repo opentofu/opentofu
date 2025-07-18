@@ -69,6 +69,7 @@ type ManagedResource struct {
 	Provisioners []*Provisioner
 
 	CreateBeforeDestroy bool
+	Enabled             *hcl.Expression
 	PreventDestroy      bool
 	IgnoreChanges       []hcl.Traversal
 	IgnoreAllChanges    bool
@@ -208,6 +209,11 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.PreventDestroy)
 				diags = append(diags, valDiags...)
 				r.Managed.PreventDestroySet = true
+			}
+
+			if attr, exists := lcContent.Attributes["enabled"]; exists {
+				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.Enabled)
+				diags = append(diags, valDiags...)
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
@@ -502,6 +508,11 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			// managed resources only, so we can emit a common error message
 			// for any given attributes that HCL accepted.
 			for name, attr := range lcContent.Attributes {
+				// Enabled is a special case, it is allowed for data resources
+				if name == "enabled" {
+					r.Enabled = attr.Expr
+					continue
+				}
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid data resource lifecycle argument",
@@ -1077,6 +1088,9 @@ var resourceLifecycleBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "replace_triggered_by",
+		},
+		{
+			Name: "enabled",
 		},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
