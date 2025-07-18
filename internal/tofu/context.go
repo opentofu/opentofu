@@ -44,6 +44,7 @@ type ContextOpts struct {
 	Hooks        []Hook
 	Parallelism  int
 	Providers    map[addrs.Provider]providers.Factory
+	ProvidersFn  func(addrs.ProviderSchemaRequirements) (map[addrs.Provider]providers.Factory, error)
 	Provisioners map[string]provisioners.Factory
 	Encryption   encryption.Encryption
 
@@ -105,7 +106,7 @@ type Context struct {
 //
 // If the returned diagnostics contains errors then the resulting context is
 // invalid and must not be used.
-func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
+func NewContext(opts *ContextOpts, reqs addrs.ProviderSchemaRequirements) (*Context, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	log.Printf("[TRACE] tofu.NewContext: starting")
@@ -133,6 +134,12 @@ func NewContext(opts *ContextOpts) (*Context, tfdiags.Diagnostics) {
 
 	if par == 0 {
 		par = 10
+	}
+
+	if opts.ProvidersFn != nil && opts.Providers == nil {
+		var err error
+		opts.Providers, err = opts.ProvidersFn(reqs)
+		diags = diags.Append(err)
 	}
 
 	plugins := newContextPlugins(opts.Providers, opts.Provisioners)

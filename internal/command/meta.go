@@ -586,9 +586,7 @@ func (m *Meta) contextOpts(ctx context.Context) (*tofu.ContextOpts, error) {
 		opts.Providers = m.testingOverrides.Providers
 		opts.Provisioners = m.testingOverrides.Provisioners
 	} else {
-		var providerFactories map[addrs.Provider]providers.Factory
-		providerFactories, err = m.providerFactories()
-		opts.Providers = providerFactories
+		opts.ProvidersFn = m.providerFactories
 		opts.Provisioners = m.provisionerFactories()
 	}
 
@@ -949,7 +947,7 @@ func (c *Meta) MaybeGetSchemas(ctx context.Context, state *states.State, config 
 			diags = diags.Append(err)
 			return nil, diags
 		}
-		tfCtx, ctxDiags := tofu.NewContext(opts)
+		tfCtx, ctxDiags := tofu.NewContext(opts, nil)
 		diags = diags.Append(ctxDiags)
 		if ctxDiags.HasErrors() {
 			return nil, diags
