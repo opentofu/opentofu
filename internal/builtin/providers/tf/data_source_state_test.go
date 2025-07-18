@@ -306,6 +306,7 @@ func TestState_basic(t *testing.T) {
 								Name: "test",
 							},
 						},
+						Key:     "foo",
 						Message: "I am deprecated",
 					}),
 				}),
