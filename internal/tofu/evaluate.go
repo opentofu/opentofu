@@ -266,11 +266,15 @@ func (d *evaluationStateData) GetInputVariable(_ context.Context, addr addrs.Inp
 	// being liberal in what it accepts because the subsequent plan walk has
 	// more information available and so can be more conservative.
 	if d.Operation == walkValidate {
-		// Ensure variable sensitivity is captured in the validate walk
+		// Ensure variable marks are captured in the validate walk
+		v := cty.UnknownVal(config.Type)
 		if config.Sensitive {
-			return cty.UnknownVal(config.Type).Mark(marks.Sensitive), diags
+			v = v.Mark(marks.Sensitive)
 		}
-		return cty.UnknownVal(config.Type), diags
+		if config.Ephemeral {
+			v = v.Mark(marks.Ephemeral)
+		}
+		return v, diags
 	}
 
 	moduleAddrStr := d.ModulePath.String()
@@ -304,9 +308,12 @@ func (d *evaluationStateData) GetInputVariable(_ context.Context, addr addrs.Inp
 		val = cty.UnknownVal(config.Type)
 	}
 
-	// Mark if sensitive
+	// Mark the variable's value based on the configuration it's having
 	if config.Sensitive {
 		val = val.Mark(marks.Sensitive)
+	}
+	if config.Ephemeral {
+		val = val.Mark(marks.Ephemeral)
 	}
 
 	return val, diags
@@ -743,6 +750,18 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			// We should only end up here during the validate walk,
 			// since later walks should have at least partial states populated
 			// for all resources in the configuration.
+			if schema.Ephemeral {
+				// If the block that it's evaluated is an ephemeral one, we want to mark
+				// the cty.DynamicVal as ephemeral to ensure that the ephemeral references
+				// check is working properly during walkValidate.
+				// TODO ephemeral - for the reviewers: do you see any unwanted consequences in
+				// marking this value?
+				ephemeralMark := cty.PathValueMarks{
+					Path:  make(cty.Path, 0),
+					Marks: cty.NewValueMarks(marks.Ephemeral),
+				}
+				return cty.DynamicVal.MarkWithPaths([]cty.PathValueMarks{ephemeralMark}), diags
+			}
 			return cty.DynamicVal, diags
 		}
 	}
@@ -816,6 +835,15 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				schemaMarks := schema.ValueMarks(val, nil)
 				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
+			// For ephemeral marks, we don't need to check recursively since this type of mark can be used
+			// only in other ephemeral blocks/contexts.
+			// Therefore, it cannot be used only in specific attributes of a non-ephemeral block, but only directly
+			// inn blocks that are marked as ephemeral.
+			if schema.Ephemeral {
+				// When the evaluated block is ephemeral, we want to mark its value
+				// as ephemeral too, to be able to validate later where it's referenced.
+				afterMarks = combinePathValueMarks(afterMarks, []cty.PathValueMarks{{Path: make(cty.Path, 0), Marks: cty.NewValueMarks(marks.Ephemeral)}})
+			}
 
 			instances[key] = val.MarkWithPaths(afterMarks)
 
@@ -845,6 +873,15 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 			schemaMarks := schema.ValueMarks(val, nil)
 
 			combined := combinePathValueMarks(marks, schemaMarks)
+			val = val.MarkWithPaths(combined)
+		}
+		if schema.Ephemeral {
+			// When the evaluated block is ephemeral, we want to mark its value
+			// as ephemeral too to be able to validate later where it's referenced
+			var existingMarks []cty.PathValueMarks
+			val, existingMarks = val.UnmarkDeepWithPaths()
+
+			combined := combinePathValueMarks(existingMarks, []cty.PathValueMarks{{Path: make(cty.Path, 0), Marks: cty.NewValueMarks(marks.Ephemeral)}})
 			val = val.MarkWithPaths(combined)
 		}
 		instances[key] = val
@@ -1015,6 +1052,7 @@ func (d *evaluationStateData) GetOutput(_ context.Context, addr addrs.OutputValu
 		if output.Sensitive {
 			val = val.Mark(marks.Sensitive)
 		}
+		// TODO andrei this might need to get the ephemeral mark
 
 		if config.Deprecated != "" {
 			isRemote := false
