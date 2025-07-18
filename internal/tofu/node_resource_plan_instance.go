@@ -365,18 +365,12 @@ func (n *NodePlannableResourceInstance) managedResourceExecute(ctx context.Conte
 	}
 
 	// Plan the instance, unless we're in the refresh-only mode
+	expander := evalCtx.InstanceExpander()
 	if !n.skipPlanChanges {
 
 		// add this instance to n.forceReplace if replacement is triggered by
 		// another change
-		repData := instances.RepetitionData{}
-		switch k := addr.Resource.Key.(type) {
-		case addrs.IntKey:
-			repData.CountIndex = k.Value()
-		case addrs.StringKey:
-			repData.EachKey = k.Value()
-			repData.EachValue = cty.DynamicVal
-		}
+		repData := expander.GetResourceInstanceRepetitionData(n.Addr)
 
 		diags = diags.Append(n.replaceTriggered(ctx, evalCtx, repData))
 		if diags.HasErrors() {
