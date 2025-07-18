@@ -22,11 +22,6 @@ import "fmt"
 //
 // The definition of "unreasonable" is given as the threshold argument. At most
 // that many diagnostics with the same summary will be shown.
-
-type Keyable interface {
-	ExtraInfoKey() string
-}
-
 func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics {
 	if len(diags) == 0 {
 		return nil
@@ -62,13 +57,14 @@ func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics 
 		desc := diag.Description()
 		summary := desc.Summary
 		var consolidationKey string
-		// If the diagnostic has a keyable extra info, use it as the consolidation key,
-		// otherwise use the summary.
-		if key, keyOk := interface{}(diag.ExtraInfo()).(Keyable); keyOk {
+		// If the diagnostic has a keyable extra info and it's not empty,
+		// use it as the consolidation key, along with the summary.
+		// Otherwise use the summary only.
+		if key, keyOk := diag.ExtraInfo().(Keyable); keyOk {
 			consolidationKey = key.ExtraInfoKey()
-		} else {
-			consolidationKey = summary
 		}
+
+		consolidationKey += summary
 
 		if g, ok := diagnosticGroups[consolidationKey]; ok {
 			// We're already grouping this one, so we'll just continue it.
@@ -95,6 +91,13 @@ func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics 
 	}
 
 	return newDiags
+}
+
+// Keyable is an interface that can be implemented by ExtraInfo to provide a key for consolidation.
+// This is used to group diagnostics with the same summary and an extra info key.
+// The key is used to determine if two diagnostics should be consolidated.
+type Keyable interface {
+	ExtraInfoKey() string
 }
 
 // A consolidatedGroup is one or more diagnostics grouped together for

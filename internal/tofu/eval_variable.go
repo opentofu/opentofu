@@ -518,7 +518,7 @@ func evalVariableDeprecation(
 		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
 		Subject:  expr.Range().Ptr(),
 		Extra: VariableDeprecationCause{
-			// Used to identify the input on the consolidation warnings and make sure they are showed separately, even with the same summary
+			// Used to identify the input on the consolidation diagnostics and make sure they are showed separately, even with the same summary
 			Key:                config.Name,
 			IsFromRemoteModule: variableFromRemoteModule,
 		},
@@ -550,6 +550,7 @@ type VariableDeprecationCause struct {
 	Key                string
 }
 
+// ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
 func (c VariableDeprecationCause) ExtraInfoKey() string {
 	return c.Key
 }

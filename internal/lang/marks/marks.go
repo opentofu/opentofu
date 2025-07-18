@@ -68,6 +68,7 @@ type DeprecationCause struct {
 	IsFromRemoteModule bool
 }
 
+// ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
 func (dc DeprecationCause) ExtraInfoKey() string {
 	return dc.Key
 }
@@ -115,7 +116,7 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFrom
 	return Deprecated(v, DeprecationCause{
 		IsFromRemoteModule: isFromRemoteModule,
 		By:                 callOutAddr,
-		// Used to identify the input on the consolidation warnings and make sure they are showed separately, even with the same summary
+		// Used to identify the input on the consolidation diagnostics and make sure they are showed separately, even with the same summary
 		Key:     addr.OutputValue.Name,
 		Message: msg,
 	})

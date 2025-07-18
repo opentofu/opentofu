@@ -10,3 +10,9 @@ locals {
   i3 = module.call.modout1
   i4 = module.call.modout2
 }
+
+module "second_call" {
+  source = "./mod1"
+  input  = "test"
+  input2 = "test2"
+}
