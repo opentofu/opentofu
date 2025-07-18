@@ -1590,6 +1590,68 @@ func TestValue_Outputs(t *testing.T) {
 	}
 }
 
+func TestValue_MultilineStringsInList(t *testing.T) {
+	// This function tests that multiline strings in lists are handled correctly
+	// by the diff renderer.
+
+	tcs := map[string]struct {
+		input        structured.Change
+		validateDiff renderers.ValidateDiffFunction
+	}{
+		"multiline_string_list_update": {
+			input: structured.Change{
+				Before: []interface{}{
+					"line1\nline2",
+					"line1",
+				},
+				After: []interface{}{
+					"line1\nline2+",
+					"line1\nline2",
+				},
+			},
+			validateDiff: renderers.ValidateList([]renderers.ValidateDiffFunction{
+				renderers.ValidatePrimitive("line1\nline2", "line1\nline2+", plans.Update, false),
+				renderers.ValidatePrimitive("line1", "line1\nline2", plans.Update, false),
+			}, plans.Update, false),
+		},
+		"multiline_string_list_update_2": {
+			input: structured.Change{
+				Before: []interface{}{
+					"unchanged line",
+					"deleted line",
+					"line1\nline2",
+					"line1",
+				},
+				After: []interface{}{
+					"unchanged line",
+					"line1\nline2+",
+					"line1\nline2",
+				},
+			},
+			validateDiff: renderers.ValidateList([]renderers.ValidateDiffFunction{
+				renderers.ValidatePrimitive("unchanged line", "unchanged line", plans.NoOp, false),
+				renderers.ValidatePrimitive("deleted line", nil, plans.Delete, false),
+				renderers.ValidatePrimitive("line1\nline2", "line1\nline2+", plans.Update, false),
+				renderers.ValidatePrimitive("line1", "line1\nline2", plans.Update, false),
+			}, plans.Update, false),
+		},
+	}
+
+	for name, tc := range tcs {
+		// Let's set some default values on the input.
+		if tc.input.RelevantAttributes == nil {
+			tc.input.RelevantAttributes = attribute_path.AlwaysMatcher()
+		}
+		if tc.input.ReplacePaths == nil {
+			tc.input.ReplacePaths = &attribute_path.PathMatcher{}
+		}
+
+		t.Run(name, func(t *testing.T) {
+			tc.validateDiff(t, ComputeDiffForOutput(tc.input))
+		})
+	}
+}
+
 func TestValue_PrimitiveAttributes(t *testing.T) {
 	// This function tests manipulating primitives: creating, deleting and
 	// updating. It also automatically tests these operations within the
