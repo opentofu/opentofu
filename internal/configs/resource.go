@@ -69,6 +69,7 @@ type ManagedResource struct {
 	Provisioners []*Provisioner
 
 	CreateBeforeDestroy bool
+	Enabled             *hcl.Expression
 	PreventDestroy      bool
 	IgnoreChanges       []hcl.Traversal
 	IgnoreAllChanges    bool
@@ -208,6 +209,11 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.PreventDestroy)
 				diags = append(diags, valDiags...)
 				r.Managed.PreventDestroySet = true
+			}
+
+			if attr, exists := lcContent.Attributes["enabled"]; exists {
+				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.Enabled)
+				diags = append(diags, valDiags...)
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
@@ -907,6 +913,9 @@ var resourceLifecycleBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "replace_triggered_by",
+		},
+		{
+			Name: "enabled",
 		},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
