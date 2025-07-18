@@ -131,8 +131,19 @@ func (b *PlanGraphBuilder) Steps() []GraphTransformer {
 			Concrete: b.ConcreteResource,
 			Config:   b.Config,
 
-			// Resources are not added from the config on destroy.
-			skip: b.Operation == walkPlanDestroy,
+			// Instead of just skipping the ConfigTransformer altogether during walkPlanDestroy,
+			// we want to add only the ephemeral resources.
+			// This is needed to be able later to use the changes generated to create
+			// actual applyable instance nodes to have the ephemeral information fetched
+			// for the nodes that depend on it (ie: configuring a "provider" block with ephemeral values)
+			ModeFilter: func(mode addrs.ResourceMode) bool {
+				if b.Operation != walkPlanDestroy {
+					// Allow all the resource types on the operations that are not walkPlanDestroy
+					return false
+				}
+				// For the walkPlanDestroy, allow only ephemeral resources
+				return mode != addrs.EphemeralResourceMode
+			},
 
 			importTargets: b.ImportTargets,
 
