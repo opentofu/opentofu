@@ -56,15 +56,13 @@ func (diags Diagnostics) Consolidate(threshold int, level Severity) Diagnostics 
 
 		desc := diag.Description()
 		summary := desc.Summary
-		var consolidationKey string
+	        consolidationKey := summary
 		// If the diagnostic has a keyable extra info and it's not empty,
 		// use it as the consolidation key, along with the summary.
 		// Otherwise use the summary only.
 		if key, keyOk := diag.ExtraInfo().(Keyable); keyOk {
-			consolidationKey = key.ExtraInfoKey()
+			consolidationKey += key.ExtraInfoKey()
 		}
-
-		consolidationKey += summary
 
 		if g, ok := diagnosticGroups[consolidationKey]; ok {
 			// We're already grouping this one, so we'll just continue it.
