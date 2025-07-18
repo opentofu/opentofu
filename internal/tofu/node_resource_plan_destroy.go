@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/opentofu/opentofu/internal/dag"
 	otelAttr "go.opentelemetry.io/otel/attribute"
 	otelTrace "go.opentelemetry.io/otel/trace"
 
@@ -41,7 +42,13 @@ var (
 	_ GraphNodeAttachResourceState  = (*NodePlanDestroyableResourceInstance)(nil)
 	_ GraphNodeExecutable           = (*NodePlanDestroyableResourceInstance)(nil)
 	_ GraphNodeProviderConsumer     = (*NodePlanDestroyableResourceInstance)(nil)
+	_ dag.NamedVertex               = (*NodePlanDestroyableResourceInstance)(nil)
 )
+
+// dag.NamedVertex
+func (n *NodePlanDestroyableResourceInstance) Name() string {
+	return n.NodeAbstractResourceInstance.Name() + " (destroy)"
+}
 
 // GraphNodeDestroyer
 func (n *NodePlanDestroyableResourceInstance) DestroyAddr() *addrs.AbsResourceInstance {

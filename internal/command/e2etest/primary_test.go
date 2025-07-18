@@ -285,18 +285,29 @@ OpenTofu will perform the following actions:
       + value = "initial data value-with-renew"
     }
 
-Plan: 1 to add, 0 to change, 0 to destroy.
-`
+  # simple_resource.test_res_second_provider will be created
+  + resource "simple_resource" "test_res_second_provider" {
+      + value = "just a simple resource to ensure that the second provider it's working fine"
+    }
+
+Plan: 2 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + final_output = "just a simple resource to ensure that the second provider it's working fine"`
 			// [0-2]+ allows max 2 seconds for slower runs inside CI pipelines
 			expectedResourcesUpdates := map[string]bool{
 				"data.simple_resource.test_data1: Reading...":                                                               true,
 				"data.simple_resource.test_data1: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Opening...":                                               true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Opening...":                                               true,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
 				"data.simple_resource.test_data2: Reading...":                                                               true,
 				"data.simple_resource.test_data2: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Closing...":                                               true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Close complete after [0-2]+s":                             true,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Closing...":                                               true,
+				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Close complete after [0-2]+s":                             true,
 			}
 			out := stripAnsi(stdout)
 
@@ -362,7 +373,7 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 				}
 			}
 
-			expectedChangesOutput := `Apply complete! Resources: 1 added, 0 changed, 0 destroyed.`
+			expectedChangesOutput := `Apply complete! Resources: 2 added, 0 changed, 0 destroyed.`
 			// NOTE: [0-2]+ allows max 2 seconds for slower runs inside CI pipelines
 			// NOTE: the non-required ones are dependent on performance of the platform that this test is running on.
 			// In CI, if we would make this required, this test might be flaky.
@@ -372,11 +383,13 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Opening...":                                               true,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
 				"simple_resource.test_res: Creating...":                                                                     true,
+				"simple_resource.test_res_second_provider: Creating...":                                                     true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renewing...":                                              false,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renew complete after [0-2]+s":                             false,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renewing...":                                              false,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renew complete after [0-2]+s":                             false,
 				"simple_resource.test_res: Creation complete after [0-3]+s":                                                 true,
+				"simple_resource.test_res_second_provider: Creation complete after [0-1]+s":                                 true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Closing...":                                               true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Close complete after [0-2]+s":                             true,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Closing...":                                               true,
@@ -407,8 +420,8 @@ Plan: 1 to add, 0 to change, 0 to destroy.
 				t.Fatalf("unexpected destroy error: %s\nstderr:\n%s", err, stderr)
 			}
 
-			if !strings.Contains(stdout, "Resources: 1 destroyed") {
-				t.Errorf("incorrect destroy tally; want 1 destroyed:\n%s", stdout)
+			if !strings.Contains(stdout, "Resources: 2 destroyed") {
+				t.Errorf("incorrect destroy tally; want 2 destroyed:\n%s", stdout)
 			}
 
 			state, err := tf.LocalState()
