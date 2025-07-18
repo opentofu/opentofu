@@ -25,8 +25,15 @@ ephemeral "simple_resource" "test_ephemeral" {
 
 resource "simple_resource" "test_res" {
   provider = simple.s1
+  value = "test value"
   // NOTE write-only arguments can reference ephemeral values.
   value_wo = ephemeral.simple_resource.test_ephemeral[0].value
+  provisioner "local-exec" {
+    command = "echo \"visible ${self.value}\""
+  }
+  provisioner "local-exec" {
+    command = "echo \"not visible ${self.value_wo}\""
+  }
 }
 
 data "simple_resource" "test_data2" {

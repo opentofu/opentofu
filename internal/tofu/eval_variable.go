@@ -149,12 +149,18 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 			// themselves. They are for example stored in encrypted files that will be used by the CI toolset
 			// and not by the operator directly. In such a case, the failing secret value should not be
 			// displayed to the operator
-			if cfg.Sensitive {
+			subject = cfg.DeclRange.Ptr()
+			switch {
+			case cfg.Ephemeral:
+				detail = fmt.Sprintf(
+					"The given value is not suitable for %s, which is ephemeral: %s. Invalid value defined at %s.",
+					addr, err, sourceRange.ToHCL(),
+				)
+			case cfg.Sensitive:
 				detail = fmt.Sprintf(
 					"The given value is not suitable for %s, which is sensitive: %s. Invalid value defined at %s.",
 					addr, err, sourceRange.ToHCL(),
 				)
-				subject = cfg.DeclRange.Ptr()
 			}
 		}
 
@@ -210,11 +216,6 @@ func prepareFinalInputVariableValue(addr addrs.AbsInputVariableInstance, raw *In
 			// produce redundant downstream errors.
 			val = cty.UnknownVal(cfg.Type)
 		}
-	}
-
-	// Any ephemeral configured variable needs to have its value marked accordingly.
-	if cfg.Ephemeral {
-		val = val.Mark(marks.Ephemeral)
 	}
 
 	return val, diags

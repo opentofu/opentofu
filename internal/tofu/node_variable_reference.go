@@ -69,6 +69,7 @@ func (n *nodeVariableReference) DynamicExpand(ctx EvalContext) (*Graph, error) {
 			checkableAddrs.Add(addr)
 		}
 
+		// TODO andrei check where this is used and how ephemeral should be added in evalVariableValidations func
 		o := &nodeVariableReferenceInstance{
 			Addr:   addr,
 			Config: n.Config,

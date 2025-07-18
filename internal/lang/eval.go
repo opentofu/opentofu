@@ -640,7 +640,7 @@ func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags 
 	if schema == nil || schema.Ephemeral {
 		return diags
 	}
-	// TODO ephemeral - do we want additional validations here?
+
 	_, valueMarks := val.UnmarkDeepWithPaths()
 	for _, pathMark := range valueMarks {
 		_, ok := pathMark.Marks[marks.Ephemeral]
@@ -649,15 +649,14 @@ func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags 
 		}
 
 		// If the block is not ephemeral, then only its write-only attributes can reference ephemeral values.
-		// To figure it out, we need to find the attribute of the by the path in the mark.
+		// To figure it out, we need to find the attribute by the mark path.
 		// In cases of DynamicPseudoType attribute in the schema, the attribute that is actually
 		// referencing an ephemeral value will be missing from the schema.
-		// Therefore, we want to get to the attribute that is of type DynamicPseudoType.
+		// Therefore, we search for the first ancestor that exists in the schema.
 		attrPath := pathMark.Path
 		attr := schema.AttributeByPath(attrPath)
 		for attr == nil {
 			if len(attrPath) == 0 {
-				// TODO ephemeral - for reviewers: isn't this risky since the evaluation could generate tons of logs?
 				log.Printf("[WARN] no valid path found in schema for path \"%#v\"", pathMark.Path)
 				break
 			}

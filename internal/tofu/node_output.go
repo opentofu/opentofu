@@ -345,6 +345,7 @@ func (n *NodeApplyableOutput) Execute(ctx context.Context, evalCtx EvalContext, 
 
 	// If there was no change recorded, or the recorded change was not wholly
 	// known, then we need to re-evaluate the output
+
 	if !changeRecorded || !val.IsWhollyKnown() {
 		switch {
 		// If the module is not being overridden, we proceed normally
