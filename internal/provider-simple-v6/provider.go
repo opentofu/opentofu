@@ -42,17 +42,18 @@ func Provider() providers.Interface {
 	return simple{
 		schema: providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{
-				// The "cfg" field is just a simple configuration attribute of the provider
+				// The "i_depend_on" field is just a simple configuration attribute of the provider
 				// to allow creation of dependencies between a resources from a previously
 				// initialized provider and this provider.
-				// The "cfg" field is having no functionality behind, in the provider context,
+				// The "i_depend_on" field is having no functionality behind, in the provider context,
 				// but it's just a way for the "provider" block to create depedencies
 				// to other blocks.
 				Block: &configschema.Block{
 					Attributes: map[string]*configschema.Attribute{
-						"cfg": {
-							Type:     cty.String,
-							Optional: true,
+						"i_depend_on": {
+							Type:        cty.String,
+							Description: "Non-functional configuration attribute of the provider. This is meant to be used only to create depedencies of other resources to the provider block",
+							Optional:    true,
 						},
 					},
 				},
