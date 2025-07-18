@@ -84,8 +84,8 @@ require (
 	github.com/posener/complete v1.2.3
 	github.com/spf13/afero v1.9.3
 	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common v1.0.588
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sts v1.0.588
-	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tag v1.0.233
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/sts v1.0.587-0.20230206000712-97469a3dcd4e
+	github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/tag v1.0.233-0.20210823002710-8078545fa058
 	github.com/tencentyun/cos-go-sdk-v5 v0.7.29
 	github.com/tombuildsstuff/giovanni v0.15.1
 	github.com/xanzy/ssh-agent v0.3.1
