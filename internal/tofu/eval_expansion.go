@@ -38,6 +38,10 @@ func evaluateForEachExpression(ctx context.Context, expr hcl.Expression, evalCtx
 	return evalchecks.EvaluateForEachExpression(expr, evalContextScope(ctx, evalCtx), excludeableAddr)
 }
 
+func evaluateEnabledExpression(ctx context.Context, expr hcl.Expression, evalCtx EvalContext) (bool, tfdiags.Diagnostics) {
+	return evalchecks.EvaluateEnabledExpression(expr, evalContextScope(ctx, evalCtx))
+}
+
 func evaluateForEachExpressionValue(ctx context.Context, expr hcl.Expression, evalCtx EvalContext, allowUnknown bool, allowTuple bool, excludeableAddr addrs.Targetable) (cty.Value, tfdiags.Diagnostics) {
 	return evalchecks.EvaluateForEachExpressionValue(expr, evalContextScope(ctx, evalCtx), allowUnknown, allowTuple, excludeableAddr)
 }

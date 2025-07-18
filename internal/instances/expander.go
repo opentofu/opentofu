@@ -87,6 +87,12 @@ func (e *Expander) SetResourceCount(moduleAddr addrs.ModuleInstance, resourceAdd
 	e.setResourceExpansion(moduleAddr, resourceAddr, expansionCount(count))
 }
 
+// SetResourceEnabled records that the given resource inside the given module
+// uses the "enabled" repetition argument, with the given value.
+func (e *Expander) SetResourceEnabled(moduleAddr addrs.ModuleInstance, resourceAddr addrs.Resource, enabled bool) {
+	e.setResourceExpansion(moduleAddr, resourceAddr, expansionEnabled(enabled))
+}
+
 // SetResourceForEach records that the given resource inside the given module
 // uses the "for_each" repetition argument, with the given map value.
 //
