@@ -274,6 +274,7 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 			}
+			// TODO ephemeral - this "value_wo" should not be shown in the outputs like that, but its value should miss entirely and instead should be shown something like (write-only attribute). This will be handled during the work on the write-only attributes.
 			expectedChangesOutput := `OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
   + create
@@ -370,12 +371,13 @@ Changes to Outputs:
 				"data.simple_resource.test_data1":          true,
 				"data.simple_resource.test_data2":          true,
 				"simple_resource.test_res":                 true,
+				"simple_resource.test_res_second_provider": true,
 				"ephemeral.simple_resource.test_ephemeral": false,
 			}
 			for res, exists := range expectedResources {
 				_, ok := state.RootModule().Resources[res]
 				if ok != exists {
-					t.Errorf("expected resource %q existend to be %t but got %t", res, exists, ok)
+					t.Errorf("expected resource %q existence to be %t but got %t", res, exists, ok)
 				}
 			}
 
@@ -388,16 +390,16 @@ Changes to Outputs:
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Opening...":                                               true,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
-				"simple_resource.test_res: Creating...":                                                                     true,
-				"simple_resource.test_res_second_provider: Creating...":                                                     true,
 				"data.simple_resource.test_data2: Reading...":                                                               true,
 				"data.simple_resource.test_data2: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
+				"simple_resource.test_res: Creating...":                                                                     true,
+				"simple_resource.test_res_second_provider: Creating...":                                                     true,
+				"simple_resource.test_res_second_provider: Creation complete after [0-1]+s":                                 true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renewing...":                                              false,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renew complete after [0-2]+s":                             false,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renewing...":                                              false,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renew complete after [0-2]+s":                             false,
 				"simple_resource.test_res: Creation complete after [0-3]+s":                                                 true,
-				"simple_resource.test_res_second_provider: Creation complete after [0-1]+s":                                 true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Closing...":                                               true,
 				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Close complete after [0-2]+s":                             true,
 				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Closing...":                                               true,
