@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/states"
+	"github.com/opentofu/opentofu/internal/states/statekeys"
 )
 
 // MockHook is an implementation of Hook that can be used for tests.
@@ -150,6 +151,12 @@ type MockHook struct {
 }
 
 var _ Hook = (*MockHook)(nil)
+
+// StateValueChanged implements Hook.
+func (h *MockHook) StateValueChanged(key statekeys.Key, state *states.State) error {
+	// TODO: Mock this properly
+	return nil
+}
 
 func (h *MockHook) PreApply(addr addrs.AbsResourceInstance, gen states.Generation, action plans.Action, priorState, plannedNewState cty.Value) (HookAction, error) {
 	h.Lock()
