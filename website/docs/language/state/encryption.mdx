@@ -15,6 +15,11 @@ import AESGCM from '!!raw-loader!./examples/encryption/aes_gcm.tf'
 import PBKDF2 from '!!raw-loader!./examples/encryption/pbkdf2.tf'
 import AWSKMS from '!!raw-loader!./examples/encryption/aws_kms.tf'
 import GCPKMS from '!!raw-loader!./examples/encryption/gcp_kms.tf'
+import AZVAULTASYM from '!!raw-loader!./examples/encryption/azure_vault_asymmetric.tf'
+import AZVAULTSYM from '!!raw-loader!./examples/encryption/azure_vault_symmetric.tf'
+import AZVAULTEX1 from '!!raw-loader!./examples/encryption/azure_vault_ex1.tf'
+import AZVAULTEX2 from '!!raw-loader!./examples/encryption/azure_vault_ex2.tf'
+import AZVAULTEX3 from '!!raw-loader!./examples/encryption/azure_vault_ex3.tf'
 import OpenBao from '!!raw-loader!./examples/encryption/openbao.tf'
 import External from '!!raw-loader!./examples/encryption/keyprovider-external.tofu'
 import ExternalHeader from '!!raw-loader!./examples/encryption/keyprovider-external-header.json'
@@ -210,6 +215,54 @@ This key provider uses the [Google Cloud Key Management Service](https://cloud.g
 The following example illustrates a minimal configuration:
 
 <CodeBlock language="hcl">{GCPKMS}</CodeBlock>
+
+### Azure Vault
+
+This key provider uses the [Azure Key Vault](https://learn.microsoft.com/en-us/azure/key-vault/general/overview) to generate keys. The authentication options are mostly identical to the [Azure backend](../../language/settings/backends/azurerm.mdx) excluding any deprecated options and storage-specific options. Note that, unlike the state backend, this key provider will always use Entra ID. The following options are available:
+
+| Option                          | Description                                                                          | Min. | Default                            |
+|---------------------------------|--------------------------------------------------------------------------------------|------|------------------------------------|
+| vault_uri *(required)*          | Vault URI in Azure. Format: `https://{vault-name}.vault.azure.net`                   | N/A  | -                                  |
+| vault_key_name *(required)*           | The name of the key in the specified Azure Vault.                                    | N/A  | -                                  |
+| key_length *(required)*         | Number of bytes to generate as a key. Must be at least `1`.                          | 1    | -                                  |
+| symmetric                       | Optional boolean signifier that the provided key is symmetric (HSM only)             | N/A  | false                              |
+| symmetric_key_size              | The size of the symmetric key (128, 192, or 256). Required when `symmetric` is true. | N/A  | -                                  |
+
+The following example illustrates a minimal configuration with an asymmetric key in Azure Key Vault:
+
+<CodeBlock language="hcl">{AZVAULTASYM}</CodeBlock>
+
+The following example illustrates a minimal configuration with a symmetric key in Azure Key Vault Managed HSM:
+
+<CodeBlock language="hcl">{AZVAULTSYM}</CodeBlock>
+
+:::note
+
+Be sure to specify whether the key is symmetric or asymmetric, as that will change the encryption algorithm used.
+
+If an asymmetric RSA key is used (which is usually the case), the [RSAES using Optimal Asymmetric Encryption Padding (RSA-OAEP-256)](https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys-details#wrapkeyunwrapkey-encryptdecrypt) algorithm will be used.
+
+If a symmetric AES key is used, the [AES encryption in Galois Counter Mode (AES-GCM)](https://learn.microsoft.com/en-us/azure/key-vault/keys/about-keys-details#symmetric-key-algorithms-managed-hsm-only) algorithm will be used. Internally, this is dependent on the size of the key, which is why it needs to be specified in the case of a symmetric AES key.
+
+:::
+
+:::warning
+
+Because the algorithms are internally different, if you need to change from asymmetric and symmetric type (or symmetric key size) between versions of your key, you should keep the same key provider and change it in place. For example, if you are changing from a symmetric `AES` key with a key size of `192` to either an RSA or EC asymmetric key, you should change from this:
+
+<CodeBlock language="hcl">{AZVAULTEX1}</CodeBlock>
+
+To this:
+
+<CodeBlock language="hcl">{AZVAULTEX2}</CodeBlock>
+
+OpenTofu remembers the algorithm used for the decryption key, keeping that in state. It will still remember how to decrypt the way the key provider was previously configured, and it will encrypt with your new configuration. Do not do this, it will not work:
+
+<CodeBlock language="hcl">{AZVAULTEX3}</CodeBlock>
+
+OpenTofu will attempt to both encrypt and decrypt with the fallback; unlike other providers where a fallback is recommended, this will fail if the key version changed, because the fallback cannot encrypt with the now-current key version.
+
+:::
 
 ### OpenBao
 
