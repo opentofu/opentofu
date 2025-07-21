@@ -367,19 +367,3 @@ changelog:
 release:
   prerelease: auto
   draft: true
-
-brews:
-  - name: opentofu
-    repository:
-      owner: opentofu
-      name: homebrew-tap
-    homepage: https://opentofu.org
-    description: OpenTofu lets you declaratively manage your cloud infrastructure.
-    license: MPL-2.0
-    test: |
-      system "#{bin}/tofu version"
-    install: |
-      bin.install "tofu"
-      bash_completion.install "scripts/shell-completion/bash/tofu" => "tofu"
-      zsh_completion.install "scripts/shell-completion/zsh/_tofu" => "_tofu"
-      fish_completion.install "scripts/shell-completion/fish/tofu.fish"
