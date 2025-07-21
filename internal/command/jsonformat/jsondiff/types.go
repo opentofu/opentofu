@@ -8,6 +8,7 @@ package jsondiff
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 )
 
 type Type string
@@ -40,4 +41,30 @@ func GetType(val interface{}) Type {
 	default:
 		panic(fmt.Sprintf("unrecognized json type %T", val))
 	}
+}
+
+// ShouldDiffMultilineStrings Checks if two values should be diffed as multiline strings.
+// It checks if both values are strings, and if they have a common line, without checking for a common line, we might end up mistaking a deletion as an update.
+// This function is used to determine if we should diff the elements in the slices instead of marking them as deleted and created.
+// Primarily used for collections.ShouldDiffElement callback.
+func ShouldDiffMultilineStrings(a, b any) bool {
+	isMultilineString := false
+	tA, tB := GetType(a), GetType(b)
+	// If the values are both string, we check if one of them contains newlines to determine if we should diff them,
+	if tA == String && tB == String {
+		isMultilineString = strings.Contains(a.(string), "\n") || strings.Contains(b.(string), "\n")
+	}
+	// Only in case the strings have a common line we should diff them,
+	if isMultilineString {
+		linesA := strings.Split(a.(string), "\n")
+		linesB := strings.Split(b.(string), "\n")
+		for _, line := range linesA {
+			for _, lineB := range linesB {
+				if line == lineB {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

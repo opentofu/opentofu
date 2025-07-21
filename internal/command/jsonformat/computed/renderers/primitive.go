@@ -171,7 +171,7 @@ func (renderer primitiveRenderer) renderStringDiff(diff computed.Diff, indent in
 
 			lines = append(lines, fmt.Sprintf("%s%s%s", formatIndent(indent+1), writeDiffActionSymbol(plans.NoOp, opts), beforeLines[beforeIx]))
 		}
-		isObjType := func(_ string) bool {
+		isObjType := func(_, _ string) bool {
 			return false
 		}
 

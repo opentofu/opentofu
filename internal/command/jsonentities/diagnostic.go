@@ -17,6 +17,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
 
+	"github.com/opentofu/opentofu/internal/command/jsonplan"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 
 	"github.com/opentofu/opentofu/internal/tfdiags"
@@ -36,12 +37,13 @@ const (
 // range field.
 
 type Diagnostic struct {
-	Severity string             `json:"severity"`
-	Summary  string             `json:"summary"`
-	Detail   string             `json:"detail"`
-	Address  string             `json:"address,omitempty"`
-	Range    *DiagnosticRange   `json:"range,omitempty"`
-	Snippet  *DiagnosticSnippet `json:"snippet,omitempty"`
+	Severity   string             `json:"severity"`
+	Summary    string             `json:"summary"`
+	Detail     string             `json:"detail"`
+	Address    string             `json:"address,omitempty"`
+	Range      *DiagnosticRange   `json:"range,omitempty"`
+	Snippet    *DiagnosticSnippet `json:"snippet,omitempty"`
+	Difference *jsonplan.Change   `json:"difference,omitempty"`
 }
 
 // Pos represents a position in the source code.
@@ -162,14 +164,17 @@ func NewDiagnostic(diag tfdiags.Diagnostic, sources map[string]*hcl.File) *Diagn
 		snippet.FunctionCall = newDiagnosticSnippetFunctionCall(diag)
 	}
 
+	difference := newDiagnosticDifference(diag)
+
 	desc := diag.Description()
 	return &Diagnostic{
-		Severity: sev,
-		Summary:  desc.Summary,
-		Detail:   desc.Detail,
-		Address:  desc.Address,
-		Range:    newDiagnosticRange(highlightRange),
-		Snippet:  snippet,
+		Severity:   sev,
+		Summary:    desc.Summary,
+		Detail:     desc.Detail,
+		Address:    desc.Address,
+		Range:      newDiagnosticRange(highlightRange),
+		Snippet:    snippet,
+		Difference: difference,
 	}
 }
 
@@ -338,6 +343,35 @@ func newDiagnosticSnippet(snippetRange, highlightRange *tfdiags.SourceRange, sou
 	ret.HighlightEndOffset = end
 
 	return ret
+}
+
+// newDiagnosticDifference covers expressions in the binary
+// expression operation format of x == y.
+// It's used to create a pretty and descriptive output for the test suite assertions.
+// For context: https://github.com/opentofu/opentofu/issues/2545
+func newDiagnosticDifference(diag tfdiags.Diagnostic) *jsonplan.Change {
+	fromExpr := diag.FromExpr()
+	if fromExpr == nil {
+		return nil
+	}
+
+	expr := fromExpr.Expression
+	ctx := fromExpr.EvalContext
+	binExpr, ok := expr.(*hclsyntax.BinaryOpExpr)
+	if !ok || binExpr.Op != hclsyntax.OpEqual {
+		// We're not dealing with a binary op expr, return it early
+		return nil
+	}
+
+	lhs, _ := binExpr.LHS.Value(ctx)
+	rhs, _ := binExpr.RHS.Value(ctx)
+	change, err := jsonplan.GenerateChange(lhs, rhs)
+	if err != nil {
+		return nil
+	}
+
+	return change
+
 }
 
 func newDiagnosticExpressionValues(diag tfdiags.Diagnostic) []DiagnosticExpressionValue {

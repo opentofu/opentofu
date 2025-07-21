@@ -14,6 +14,10 @@ import (
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/opentofu/opentofu/internal/command/jsonentities"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/computed"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/differ"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured"
+	"github.com/opentofu/opentofu/internal/command/jsonformat/structured/attribute_path"
 	"github.com/opentofu/opentofu/internal/tfdiags"
 
 	"github.com/mitchellh/colorstring"
@@ -121,6 +125,31 @@ func DiagnosticFromJSON(diag *jsonentities.Diagnostic, color *colorstring.Colori
 	ruleBuf.WriteByte('\n')
 
 	return ruleBuf.String()
+}
+
+// appendDifferenceOutput is used to create colored and aligned lines to be used
+// on the test suite assertions
+func appendDifferenceOutput(buf *bytes.Buffer, diag *jsonentities.Diagnostic, color *colorstring.Colorize) {
+	if diag.Difference == nil {
+		return
+	}
+
+	change := structured.FromJsonChange(*diag.Difference, attribute_path.AlwaysMatcher())
+	differed := differ.ComputeDiffForOutput(change)
+	out := differed.RenderHuman(0, computed.RenderHumanOpts{Colorize: color})
+	// The next line is needed in order to make the output aligned, since the first line
+	// rendered by RenderHuman is on column 0, but all the subsequent lines are having 4 spaces before
+	// the actual content.
+	out = fmt.Sprintf("    %s", out)
+
+	fmt.Fprint(buf, color.Color("    [dark_gray]├────────────────[reset]\n"))
+	fmt.Fprint(buf, color.Color("    [dark_gray]│[reset] [bold]Diff: [reset]"))
+	lines := strings.Split(out, "\n")
+	for line := range lines {
+		buf.WriteString(color.Color("\n    [dark_gray]│[reset] "))
+		buf.WriteString(lines[line])
+	}
+	buf.WriteByte('\n')
 }
 
 // DiagnosticPlain is an alternative to Diagnostic which minimises the use of
@@ -319,7 +348,7 @@ func appendSourceSnippets(buf *bytes.Buffer, diag *jsonentities.Diagnostic, colo
 				fmt.Fprintf(buf, color.Color("    [dark_gray]│[reset] [bold]%s[reset] %s\n"), value.Traversal, value.Statement)
 			}
 		}
+		appendDifferenceOutput(buf, diag, color)
 	}
-
 	buf.WriteByte('\n')
 }

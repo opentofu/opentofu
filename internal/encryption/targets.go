@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/hcl/v2"
+
 	"github.com/opentofu/opentofu/internal/encryption/config"
 	"github.com/opentofu/opentofu/internal/encryption/method/unencrypted"
 )
@@ -20,6 +21,7 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 	for target != nil {
 		traversal, travDiags := hcl.AbsTraversalForExpr(target.Method)
 		diags = diags.Extend(travDiags)
+
 		if !travDiags.HasErrors() {
 			if len(traversal) != 3 {
 				diags = diags.Append(&hcl.Diagnostic{
@@ -28,7 +30,7 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 					Detail:   "Expected method of form method.<type>.<name>",
 					Subject:  target.Method.Range().Ptr(),
 				})
-				continue
+				break
 			}
 			mType, okType := traversal[1].(hcl.TraverseAttr)
 			mName, okName := traversal[2].(hcl.TraverseAttr)
@@ -40,6 +42,7 @@ func methodConfigsFromTarget(cfg *config.EncryptionConfig, target *config.Target
 					Detail:   "Expected method of form method.<type>.<name>",
 					Subject:  target.Method.Range().Ptr(),
 				})
+				break
 			}
 
 			foundMethod := false

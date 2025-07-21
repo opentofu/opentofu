@@ -16,6 +16,7 @@ import (
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
+	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/plans"
 )
 
@@ -512,5 +513,52 @@ func BenchmarkUnknownAsBool_9(b *testing.B) {
 	value := deepObjectValue(9)
 	for n := 0; n < b.N; n++ {
 		unknownAsBool(value)
+	}
+}
+
+// TestGenerateChange covers sensitivity tests for GenerateChange.
+// TestOutputs test cases covered by outputs, but since is invalid to
+// have outputs with sensitivity on the root module, we're creating this test
+// to cover the remaining edge cases.
+func TestGenerateChange(t *testing.T) {
+	tests := map[string]struct {
+		val1     cty.Value
+		val2     cty.Value
+		expected *Change
+	}{
+		"basic change": {
+			val1: cty.StringVal("test0"),
+			val2: cty.StringVal("test1"),
+			expected: &Change{
+				Before:          json.RawMessage("\"test0\""),
+				After:           json.RawMessage("\"test1\""),
+				AfterUnknown:    json.RawMessage("false"),
+				BeforeSensitive: json.RawMessage("false"),
+				AfterSensitive:  json.RawMessage("false"),
+			},
+		},
+		"handles sensitivity": {
+			val1: cty.NumberIntVal(3).Mark(marks.Sensitive),
+			val2: cty.NumberIntVal(5).Mark(marks.Sensitive),
+			expected: &Change{
+				Before:          json.RawMessage("3"),
+				After:           json.RawMessage("5"),
+				AfterUnknown:    json.RawMessage("false"),
+				BeforeSensitive: json.RawMessage("true"),
+				AfterSensitive:  json.RawMessage("true"),
+			},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			change, err := GenerateChange(test.val1, test.val2)
+			if err != nil {
+				t.Fatalf("unexpected err: %s", err)
+			}
+
+			if !cmp.Equal(change, test.expected) {
+				t.Errorf("wrong result:\n %v\n", cmp.Diff(change, test.expected))
+			}
+		})
 	}
 }

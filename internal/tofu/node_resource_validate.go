@@ -93,6 +93,9 @@ func (n *NodeValidatableResource) Execute(ctx context.Context, evalCtx EvalConte
 			}
 		}
 	}
+	importDiags := n.validateImportIDs(ctx, evalCtx)
+	diags = diags.Append(importDiags)
+
 	return diags
 }
 
@@ -349,6 +352,19 @@ func (n *NodeValidatableResource) validateResource(ctx context.Context, evalCtx 
 	}
 
 	return diags
+}
+
+func (n *NodeValidatableResource) validateImportIDs(ctx context.Context, evalCtx EvalContext) tfdiags.Diagnostics {
+	importResolver := evalCtx.ImportResolver()
+	var diags tfdiags.Diagnostics
+	for _, importTarget := range n.importTargets {
+		err := importResolver.ValidateImportIDs(ctx, importTarget, evalCtx)
+		if err != nil {
+			diags = diags.Append(err)
+		}
+	}
+	return diags
+
 }
 
 func (n *NodeValidatableResource) evaluateExpr(ctx context.Context, evalCtx EvalContext, expr hcl.Expression, wantTy cty.Type, self addrs.Referenceable, keyData instances.RepetitionData) (cty.Value, tfdiags.Diagnostics) {

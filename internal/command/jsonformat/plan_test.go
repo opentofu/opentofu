@@ -2150,6 +2150,60 @@ func TestResourceChange_primitiveList(t *testing.T) {
         # (1 unchanged attribute hidden)
     }`,
 		},
+		//	In place update for multiline strings in lists to be diffed line by line
+		"in-place update - multiline string in list": {
+			Action: plans.Update,
+			Mode:   addrs.ManagedResourceMode,
+			Before: cty.ObjectVal(map[string]cty.Value{
+				"id":  cty.StringVal("i-02ae66f368e8518a9"),
+				"ami": cty.StringVal("ami-STATIC"),
+				"list_field": cty.ListVal([]cty.Value{
+					cty.StringVal("aaaa"),
+					cty.StringVal("bbbb"),
+					cty.StringVal("cccc"),
+					cty.StringVal("line1\nline2\nline3"),
+					cty.StringVal("dddd"),
+					cty.StringVal("ffff"),
+				}),
+			}),
+			After: cty.ObjectVal(map[string]cty.Value{
+				"id":  cty.UnknownVal(cty.String),
+				"ami": cty.StringVal("ami-STATIC"),
+				"list_field": cty.ListVal([]cty.Value{
+					cty.StringVal("aaaa"),
+					cty.StringVal("line1\nline2+\nline3"),
+					cty.StringVal("ffff\nline2"),
+				}),
+			}),
+			Schema: &configschema.Block{
+				Attributes: map[string]*configschema.Attribute{
+					"id":         {Type: cty.String, Optional: true, Computed: true},
+					"ami":        {Type: cty.String, Optional: true},
+					"list_field": {Type: cty.List(cty.String), Optional: true},
+				},
+			},
+			ExpectedOutput: `  # test_instance.example will be updated in-place
+  ~ resource "test_instance" "example" {
+      ~ id         = "i-02ae66f368e8518a9" -> (known after apply)
+      ~ list_field = [
+            "aaaa",
+          - "bbbb",
+          - "cccc",
+          ~ <<-EOT
+                line1
+              - line2
+              + line2+
+                line3
+            EOT,
+          - "dddd",
+          ~ <<-EOT
+                ffff
+              + line2
+            EOT,
+        ]
+        # (1 unchanged attribute hidden)
+    }`,
+		},
 	}
 	runTestCases(t, testCases)
 }
