@@ -41,6 +41,7 @@ const (
 	ResourceInstanceDeleteBecauseNoResourceConfig = "delete_because_no_resource_config"
 	ResourceInstanceDeleteBecauseWrongRepetition  = "delete_because_wrong_repetition"
 	ResourceInstanceDeleteBecauseCountIndex       = "delete_because_count_index"
+	ResourceInstanceDeleteBecauseEnabledFalse     = "delete_because_enabled_false"
 	ResourceInstanceDeleteBecauseEachKey          = "delete_because_each_key"
 	ResourceInstanceDeleteBecauseNoModule         = "delete_because_no_module"
 	ResourceInstanceDeleteBecauseNoMoveTarget     = "delete_because_no_move_target"
@@ -560,6 +561,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			r.ActionReason = ResourceInstanceDeleteBecauseCountIndex
 		case plans.ResourceInstanceDeleteBecauseEachKey:
 			r.ActionReason = ResourceInstanceDeleteBecauseEachKey
+		case plans.ResourceInstanceDeleteBecauseEnabledFalse:
+			r.ActionReason = ResourceInstanceDeleteBecauseEnabledFalse
 		case plans.ResourceInstanceDeleteBecauseNoModule:
 			r.ActionReason = ResourceInstanceDeleteBecauseNoModule
 		case plans.ResourceInstanceDeleteBecauseNoMoveTarget:

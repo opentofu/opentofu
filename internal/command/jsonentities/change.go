@@ -113,6 +113,7 @@ const (
 	ReasonDeleteBecauseNoResourceConfig ChangeReason = "delete_because_no_resource_config"
 	ReasonDeleteBecauseWrongRepetition  ChangeReason = "delete_because_wrong_repetition"
 	ReasonDeleteBecauseCountIndex       ChangeReason = "delete_because_count_index"
+	ReasonDeleteBecauseEnabledFalse     ChangeReason = "delete_because_enabled_false"
 	ReasonDeleteBecauseEachKey          ChangeReason = "delete_because_each_key"
 	ReasonDeleteBecauseNoModule         ChangeReason = "delete_because_no_module"
 	ReasonDeleteBecauseNoMoveTarget     ChangeReason = "delete_because_no_move_target"
@@ -139,6 +140,8 @@ func changeReason(reason plans.ResourceInstanceChangeActionReason) ChangeReason 
 		return ReasonDeleteBecauseWrongRepetition
 	case plans.ResourceInstanceDeleteBecauseCountIndex:
 		return ReasonDeleteBecauseCountIndex
+	case plans.ResourceInstanceDeleteBecauseEnabledFalse:
+		return ReasonDeleteBecauseEnabledFalse
 	case plans.ResourceInstanceDeleteBecauseEachKey:
 		return ReasonDeleteBecauseEachKey
 	case plans.ResourceInstanceDeleteBecauseNoModule:

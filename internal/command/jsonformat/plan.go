@@ -489,6 +489,8 @@ func resourceChangeComment(resource jsonplan.ResourceChange, action plans.Action
 			}
 		case jsonplan.ResourceInstanceDeleteBecauseCountIndex:
 			buf.WriteString(fmt.Sprintf("\n  # (because index [%s] is out of range for count)", resource.Index))
+		case jsonplan.ResourceInstanceDeleteBecauseEnabledFalse:
+			buf.WriteString("\n  # (because enabled is false)")
 		case jsonplan.ResourceInstanceDeleteBecauseEachKey:
 			buf.WriteString(fmt.Sprintf("\n  # (because key [%s] is not in for_each map)", resource.Index))
 		}
