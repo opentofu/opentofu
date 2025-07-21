@@ -38,6 +38,7 @@ type ModuleCall struct {
 
 	Count   hcl.Expression
 	ForEach hcl.Expression
+	Enabled hcl.Expression
 
 	Providers []PassedProviderConfig
 
