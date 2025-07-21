@@ -42,6 +42,24 @@ func (e expansionSingle) repetitionData(key addrs.InstanceKey) RepetitionData {
 	return RepetitionData{}
 }
 
+// expansionEnabled is the expansion corresponding to the "enabled" argument,
+// producing either no instances or one instance with no instance key.
+type expansionEnabled bool
+
+func (e expansionEnabled) instanceKeys() []addrs.InstanceKey {
+	if !bool(e) {
+		return nil
+	}
+	return singleKeys
+}
+
+func (e expansionEnabled) repetitionData(key addrs.InstanceKey) RepetitionData {
+	if key != addrs.NoKey {
+		panic("cannot use instance key with non-repeating object")
+	}
+	return RepetitionData{}
+}
+
 // expansionCount is the expansion corresponding to the "count" argument.
 type expansionCount int
 

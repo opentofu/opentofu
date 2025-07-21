@@ -28,6 +28,7 @@ type Resource struct {
 	Config  hcl.Body
 	Count   hcl.Expression
 	ForEach hcl.Expression
+	Enabled hcl.Expression
 
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
