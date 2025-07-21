@@ -17,3 +17,4 @@ output "modout2" {
   value      = var.input2
   deprecated = "output deprecated"
 }
+

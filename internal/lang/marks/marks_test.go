@@ -77,16 +77,36 @@ func TestMarkConsolidateWarnings(t *testing.T) {
 		},
 	})
 
+	// Adding an extra diagnostic with a variable in a module
+	diags = diags.Append(&hcl.Diagnostic{
+		Severity: hcl.DiagWarning,
+		Summary:  "Variable deprecated",
+		Detail:   "This one has a var 1 in a module",
+		Subject: &hcl.Range{
+			Filename: "foo.tf",
+			Start:    hcl.Pos{Line: 1, Column: 1, Byte: 0},
+			End:      hcl.Pos{Line: 1, Column: 1, Byte: 0},
+		},
+		Extra: DeprecationCause{
+			By: addrs.InputVariable{
+				Name: "mod1.variable",
+			},
+			Key:     "mod1.variable1",
+			Message: "variable deprecate",
+		},
+	})
+
 	consolidatedDiags := diags.Consolidate(1, tfdiags.Warning)
 	expectedDescriptions := [][2]string{
 		{"Output deprecated", "This one has an output 0"},
 		{"Variable deprecated", "This one has a var 0"},
 		{"Output deprecated", "This one has an output 1"},
 		{"Variable deprecated", "This one has a var 1\n\n(and one more similar warning elsewhere)"},
+		{"Variable deprecated", "This one has a var 1 in a module"},
 	}
 
 	// We created 5 diagnostics, but the last one is consolidated
-	expectedLen := 4
+	expectedLen := len(expectedDescriptions)
 	if len(consolidatedDiags) != expectedLen {
 		t.Errorf("len %d is expected, got %d", expectedLen, len(consolidatedDiags))
 	}

@@ -518,8 +518,10 @@ func evalVariableDeprecation(
 		Detail:   fmt.Sprintf("Variable %q is marked as deprecated with the following message:\n%s", config.Name, config.Deprecated),
 		Subject:  expr.Range().Ptr(),
 		Extra: VariableDeprecationCause{
-			// Used to identify the input on the consolidation diagnostics and make sure they are showed separately, even with the same summary
-			Key:                config.Name,
+			// Used to identify the input on the consolidation diagnostics and
+			// make sure they are showed separately, by using the address of the
+			// variable
+			Key:                addr.String(),
 			IsFromRemoteModule: variableFromRemoteModule,
 		},
 	})
