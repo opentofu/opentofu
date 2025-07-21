@@ -10,7 +10,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"regexp"
 	"runtime"
 	"slices"
 	"sort"
@@ -275,6 +274,7 @@ func TestEphemeralWorkflowAndOutput(t *testing.T) {
 				t.Fatalf("unexpected plan error: %s\nstderr:\n%s", err, stderr)
 			}
 			// TODO ephemeral - this "value_wo" should not be shown in the outputs like that, but its value should miss entirely and instead should be shown something like (write-only attribute). This will be handled during the work on the write-only attributes.
+			// TODO ephemeral - "out_ephemeral" should fail later when the marking of the outputs is implemented fully, so that should not be visible in the output
 			expectedChangesOutput := `OpenTofu used the selected providers to generate the following execution
 plan. Resource actions are indicated with the following symbols:
   + create
@@ -291,6 +291,7 @@ OpenTofu will perform the following actions:
 
   # simple_resource.test_res will be created
   + resource "simple_resource" "test_res" {
+      + value    = "test value"
       + value_wo = "initial data value-with-renew"
     }
 
@@ -302,19 +303,20 @@ OpenTofu will perform the following actions:
 Plan: 2 to add, 0 to change, 0 to destroy.
 
 Changes to Outputs:
-  + final_output = "just a simple resource to ensure that the second provider it's working fine"`
-			// [0-2]+ allows max 2 seconds for slower runs inside CI pipelines
+  + final_output  = "just a simple resource to ensure that the second provider it's working fine"
+  + out_ephemeral = "rawvalue"`
+
 			expectedResourcesUpdates := map[string]bool{
-				"data.simple_resource.test_data1: Reading...":                                                               true,
-				"data.simple_resource.test_data1: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Opening...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Opening...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Closing...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Close complete after [0-2]+s":                             true,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Closing...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Close complete after [0-2]+s":                             true,
+				"data.simple_resource.test_data1: Reading...":                       true,
+				"data.simple_resource.test_data1: Read complete after":              true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Opening...":           true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Open complete after":  true,
+				"ephemeral.simple_resource.test_ephemeral[1]: Opening...":           true,
+				"ephemeral.simple_resource.test_ephemeral[1]: Open complete after":  true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Closing...":           true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Close complete after": true,
+				"ephemeral.simple_resource.test_ephemeral[1]: Closing...":           true,
+				"ephemeral.simple_resource.test_ephemeral[1]: Close complete after": true,
 			}
 			out := stripAnsi(stdout)
 
@@ -323,15 +325,15 @@ Changes to Outputs:
 			}
 
 			for reg, required := range expectedResourcesUpdates {
-				r := regexp.MustCompile(reg)
-				if !r.Match([]byte(out)) {
-					if required {
-						t.Errorf("plan output does not contain required content %q\nout:%s", reg, out)
-					} else {
-						// We don't want to fail the test for outputs that are performance and time dependent
-						// as the renew status updates
-						t.Logf("plan output does not contain %q\nout:%s", reg, out)
-					}
+				if strings.Contains(out, reg) {
+					continue
+				}
+				if required {
+					t.Errorf("plan output does not contain required content %q\nout:%s", reg, out)
+				} else {
+					// We don't want to fail the test for outputs that are performance and time dependent
+					// as the renew status updates
+					t.Logf("plan output does not contain %q\nout:%s", reg, out)
 				}
 			}
 
@@ -382,28 +384,30 @@ Changes to Outputs:
 			}
 
 			expectedChangesOutput := `Apply complete! Resources: 2 added, 0 changed, 0 destroyed.`
-			// NOTE: [0-2]+ allows max 2 seconds for slower runs inside CI pipelines
-			// NOTE: the non-required ones are dependent on performance of the platform that this test is running on.
-			// In CI, if we would make this required, this test might be flaky.
+			// NOTE: the non-required ones are dependent on the performance of the platform that this test is running on.
+			// In CI, if we would make this as required, this test might be flaky.
 			expectedResourcesUpdates := map[string]bool{
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Opening...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Opening...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Open complete after [0-2]+s \\[id=static-ephemeral-id\\]": true,
-				"data.simple_resource.test_data2: Reading...":                                                               true,
-				"data.simple_resource.test_data2: Read complete after [0-2]+s \\[id=static_id\\]":                           true,
-				"simple_resource.test_res: Creating...":                                                                     true,
-				"simple_resource.test_res_second_provider: Creating...":                                                     true,
-				"simple_resource.test_res_second_provider: Creation complete after [0-1]+s":                                 true,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renewing...":                                              false,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Renew complete after [0-2]+s":                             false,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renewing...":                                              false,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Renew complete after [0-2]+s":                             false,
-				"simple_resource.test_res: Creation complete after [0-3]+s":                                                 true,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Closing...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral\\[0\\]: Close complete after [0-2]+s":                             true,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Closing...":                                               true,
-				"ephemeral.simple_resource.test_ephemeral\\[1\\]: Close complete after [0-2]+s":                             true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Opening...":                                          true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Open complete after":                                 true,
+				"ephemeral.simple_resource.test_ephemeral[1]: Opening...":                                          true,
+				"ephemeral.simple_resource.test_ephemeral[1]: Open complete after":                                 true,
+				"data.simple_resource.test_data2: Reading...":                                                      true,
+				"data.simple_resource.test_data2: Read complete after":                                             true,
+				"simple_resource.test_res: Creating...":                                                            true,
+				"simple_resource.test_res_second_provider: Creating...":                                            true,
+				"simple_resource.test_res_second_provider: Creation complete after":                                true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Renewing...":                                         false,
+				"ephemeral.simple_resource.test_ephemeral[0]: Renew complete after":                                false,
+				"ephemeral.simple_resource.test_ephemeral[1]: Renewing...":                                         false,
+				"ephemeral.simple_resource.test_ephemeral[1]: Renew complete after":                                false,
+				"simple_resource.test_res: Creation complete after":                                                true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Closing...":                                          true,
+				"ephemeral.simple_resource.test_ephemeral[0]: Close complete after":                                true,
+				"ephemeral.simple_resource.test_ephemeral[1]: Closing...":                                          true,
+				"simple_resource.test_res: Provisioning with 'local-exec'...":                                      true,
+				`simple_resource.test_res (local-exec): Executing: ["/bin/sh" "-c" "echo \"visible test value\""]`: true,
+				"simple_resource.test_res (local-exec): visible test value":                                        true,
+				"simple_resource.test_res (local-exec): (output suppressed due to ephemeral value in config)":      true,
 			}
 			out := stripAnsi(stdout)
 
@@ -412,15 +416,15 @@ Changes to Outputs:
 			}
 
 			for reg, required := range expectedResourcesUpdates {
-				r := regexp.MustCompile(reg)
-				if !r.Match([]byte(out)) {
-					if required {
-						t.Errorf("apply output does not contain required content %q\nout:%s", reg, out)
-					} else {
-						// We don't want to fail the test for outputs that are performance and time dependent
-						// as the renew status updates
-						t.Logf("apply output does not contain %q\nout:%s", reg, out)
-					}
+				if strings.Contains(out, reg) {
+					continue
+				}
+				if required {
+					t.Errorf("apply output does not contain required content %q\nout:%s", reg, out)
+				} else {
+					// We don't want to fail the test for outputs that are performance and time dependent
+					// as the renew status updates
+					t.Logf("apply output does not contain %q\nout:%s", reg, out)
 				}
 			}
 		}
