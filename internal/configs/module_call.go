@@ -110,9 +110,28 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		mc.Providers = append(mc.Providers, providers...)
 	}
 
+	var seenLifecycle *hcl.Block
 	var seenEscapeBlock *hcl.Block
 	for _, block := range content.Blocks {
 		switch block.Type {
+		case "lifecycle":
+			if seenLifecycle != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate lifecycle block",
+					Detail:   fmt.Sprintf("This resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
+					Subject:  &block.DefRange,
+				})
+				continue
+			}
+			seenLifecycle = block
+
+			lcContent, lcDiags := block.Body.Content(moduleLifecycleBlockSchema)
+			diags = append(diags, lcDiags...)
+
+			if attr, exists := lcContent.Attributes["enabled"]; exists {
+				mc.Enabled = attr.Expr
+			}
 		case "_":
 			if seenEscapeBlock != nil {
 				diags = append(diags, &hcl.Diagnostic{
@@ -365,6 +384,14 @@ var moduleBlockSchema = &hcl.BodySchema{
 		{Type: "lifecycle"},
 		{Type: "locals"},
 		{Type: "provider", LabelNames: []string{"type"}},
+	},
+}
+
+var moduleLifecycleBlockSchema = &hcl.BodySchema{
+	Attributes: []hcl.AttributeSchema{
+		{
+			Name: "enabled",
+		},
 	},
 }
 
