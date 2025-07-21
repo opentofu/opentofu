@@ -59,18 +59,19 @@ func (o *Object) AttributeByPath(path cty.Path) *Attribute {
 	return nil
 }
 
-// PathName is trying to get the name of the attribute from cty.Path.
+// PathName is trying to get the name of the attribute referenced by the cty.Path.
 // Due to the implementation difference between cty.IndexStep and cty.GetAttrStep,
-// this method is working only with a path where the last element is a cty.GetAttrStep.
+// this method is trying to find the most right-sided cty.GetAttrStep and returns the
+// name of that.
+// If the path contains no cty.GetAttrStep, it returns <unknown>.
 // TODO ephemeral - is there a better way to do this?
 func PathName(path cty.Path) string {
-	r := "<unknown>"
 	for i := len(path) - 1; i >= 0; i-- {
 		step := path[i]
 		switch st := step.(type) {
 		case cty.GetAttrStep:
-			r = st.Name
+			return st.Name
 		}
 	}
-	return r
+	return "<unknown>"
 }
