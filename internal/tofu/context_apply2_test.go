@@ -5662,7 +5662,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		})
 		assertNoDiagnostics(t, diags)
 
-		if instPlan := plan.Changes.ResourceInstance(resourceInstAddr); instPlan != nil {
+		if change := plan.Changes.ResourceInstance(resourceInstAddr); change != nil {
 			t.Fatalf("unexpected plan for %s (should be disabled)", resourceInstAddr)
 		}
 
@@ -5695,11 +5695,11 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		})
 		assertNoDiagnostics(t, diags)
 
-		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
-		if instPlan == nil {
+		change := plan.Changes.ResourceInstance(resourceInstAddr)
+		if change == nil {
 			t.Fatalf("missing plan for %s", resourceInstAddr)
 		}
-		if got, want := instPlan.Action, plans.Create; got != want {
+		if got, want := change.Action, plans.Create; got != want {
 			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
 		}
 
@@ -5733,12 +5733,16 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		})
 		assertNoDiagnostics(t, diags)
 
-		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
-		if instPlan == nil {
+		change := plan.Changes.ResourceInstance(resourceInstAddr)
+		if change == nil {
 			t.Fatalf("missing plan for %s", resourceInstAddr)
 		}
-		if got, want := instPlan.Action, plans.Delete; got != want {
+		if got, want := change.Action, plans.Delete; got != want {
 			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseEnabledFalse; got != want {
+			t.Errorf("wrong action reason for %s %s; want %s", resourceInstAddr, got, want)
 		}
 
 		newState, diags := tfCtx.Apply(context.Background(), plan, m)
@@ -5787,7 +5791,7 @@ func TestContext2Apply_enabledForModule(t *testing.T) {
 		})
 		assertNoDiagnostics(t, diags)
 
-		if instPlan := plan.Changes.ResourceInstance(resourceInstAddr); instPlan != nil {
+		if change := plan.Changes.ResourceInstance(resourceInstAddr); change != nil {
 			t.Fatalf("unexpected plan for %s (should be disabled)", resourceInstAddr)
 		}
 
@@ -5811,11 +5815,11 @@ func TestContext2Apply_enabledForModule(t *testing.T) {
 		})
 		assertNoDiagnostics(t, diags)
 
-		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
-		if instPlan == nil {
+		change := plan.Changes.ResourceInstance(resourceInstAddr)
+		if change == nil {
 			t.Fatalf("missing plan for %s", resourceInstAddr)
 		}
-		if got, want := instPlan.Action, plans.Create; got != want {
+		if got, want := change.Action, plans.Create; got != want {
 			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
 		}
 
@@ -5842,12 +5846,16 @@ func TestContext2Apply_enabledForModule(t *testing.T) {
 		})
 		assertNoDiagnostics(t, diags)
 
-		instPlan := plan.Changes.ResourceInstance(resourceInstAddr)
-		if instPlan == nil {
+		change := plan.Changes.ResourceInstance(resourceInstAddr)
+		if change == nil {
 			t.Fatalf("missing plan for %s", resourceInstAddr)
 		}
-		if got, want := instPlan.Action, plans.Delete; got != want {
+		if got, want := change.Action, plans.Delete; got != want {
 			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
+		}
+
+		if got, want := change.ActionReason, plans.ResourceInstanceDeleteBecauseNoModule; got != want {
+			t.Errorf("wrong action reason for %s %s; want %s", resourceInstAddr, got, want)
 		}
 
 		newState, diags := tfCtx.Apply(context.Background(), plan, m)
