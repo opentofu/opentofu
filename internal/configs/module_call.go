@@ -90,8 +90,8 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		if mc.Count != nil {
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
+				Summary:  `Invalid combination of "count", "lifecycle.enabled" and "for_each"`,
+				Detail:   `The "count", "lifecycle.enabled" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
 				Subject:  &attr.NameRange,
 			})
 		}
@@ -111,9 +111,28 @@ func decodeModuleBlock(block *hcl.Block, override bool) (*ModuleCall, hcl.Diagno
 		mc.Providers = append(mc.Providers, providers...)
 	}
 
+	var seenLifecycle *hcl.Block
 	var seenEscapeBlock *hcl.Block
 	for _, block := range content.Blocks {
 		switch block.Type {
+		case "lifecycle":
+			if seenLifecycle != nil {
+				diags = append(diags, &hcl.Diagnostic{
+					Severity: hcl.DiagError,
+					Summary:  "Duplicate lifecycle block",
+					Detail:   fmt.Sprintf("This resource already has a lifecycle block at %s.", seenLifecycle.DefRange),
+					Subject:  &block.DefRange,
+				})
+				continue
+			}
+			seenLifecycle = block
+
+			lcContent, lcDiags := block.Body.Content(moduleLifecycleBlockSchema)
+			diags = append(diags, lcDiags...)
+
+			if attr, exists := lcContent.Attributes["enabled"]; exists {
+				mc.Enabled = attr.Expr
+			}
 		case "_":
 			if seenEscapeBlock != nil {
 				diags = append(diags, &hcl.Diagnostic{
@@ -366,6 +385,18 @@ var moduleBlockSchema = &hcl.BodySchema{
 		{Type: "lifecycle"},
 		{Type: "locals"},
 		{Type: "provider", LabelNames: []string{"type"}},
+	},
+}
+
+var moduleLifecycleBlockSchema = &hcl.BodySchema{
+	// We tell HCL that these elements are all valid for "module" lifecycle
+	// blocks, but the rules are actually more restrictive than that. We deal
+	// with that after decoding so that we can return more specific error
+	// messages than HCL would typically return itself.
+	Attributes: []hcl.AttributeSchema{
+		{
+			Name: "enabled",
+		},
 	},
 }
 

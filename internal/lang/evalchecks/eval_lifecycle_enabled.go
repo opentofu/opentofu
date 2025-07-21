@@ -62,7 +62,7 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 		})
 	}
 
-	if enabledVal.IsNull() {
+	if rawEnabledVal.IsNull() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid enabled argument",
@@ -72,7 +72,7 @@ func EvaluateEnabledExpression(expr hcl.Expression, hclCtxFunc ContextFunc) (boo
 			EvalContext: hclCtx,
 		})
 	}
-	if !enabledVal.IsKnown() {
+	if !rawEnabledVal.IsKnown() {
 		diags = diags.Append(&hcl.Diagnostic{
 			Severity:    hcl.DiagError,
 			Summary:     "Invalid enabled argument",

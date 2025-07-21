@@ -88,11 +88,11 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			[]WantedError{
 				{
 					"Invalid enabled argument",
-					`The given "enabled" argument value is unsuitable. An integer is required.`,
+					`The given "enabled" argument value is unsuitable: bool required, but have number.`,
 				},
 				{
 					"Invalid enabled argument",
-					`The given "enabled" argument value is unsuitable. An integer is required.`,
+					`The given "enabled" argument value is unsuitable: the given value is null.`,
 				},
 			},
 		},
@@ -101,7 +101,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			[]WantedError{
 				{
 					"Invalid enabled argument",
-					`The given "enabled" argument value is null. An integer is required.`,
+					`The given "enabled" argument value is unsuitable: bool required, but have number.`,
 				},
 			},
 		},
@@ -110,7 +110,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			[]WantedError{
 				{
 					"Invalid enabled argument",
-					`The given "enabled" argument value is unsuitable: must be greater than or equal to zero.`,
+					`The given "enabled" argument value is unsuitable: bool required, but have number.`,
 				},
 			},
 		},
@@ -119,7 +119,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			[]WantedError{
 				{
 					"Invalid enabled argument",
-					"The given \"enabled\" argument value is unsuitable: number value is required.",
+					"The given \"enabled\" argument value is unsuitable: bool required, but have list of string.",
 				},
 			},
 		},
@@ -128,7 +128,7 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			[]WantedError{
 				{
 					"Invalid enabled argument",
-					"The given \"enabled\" argument value is unsuitable: number value is required.",
+					"The given \"enabled\" argument value is unsuitable: bool required, but have tuple.",
 				},
 			},
 		},
@@ -137,7 +137,11 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			[]WantedError{
 				{
 					"Invalid enabled argument",
-					"The \"enabled\" value depends on resource attributes that cannot be determined until apply, so OpenTofu cannot predict how many instances will be created.\n\nTo work around this, use the -target option to first apply only the resources that the enabled depends on, and then apply normally to converge.",
+					"The given \"enabled\" argument value is unsuitable: bool required, but have number.",
+				},
+				{
+					"Invalid enabled argument",
+					`The given "enabled" argument value is derived from a value that won't be known until the apply phase, so OpenTofu cannot determine whether an instance of this object is declared or not.`,
 				},
 			},
 		},
@@ -150,14 +154,15 @@ func TestEvaluateEnabledExpression_errors(t *testing.T) {
 			if len(diags) != len(test.Wanted) {
 				t.Fatalf("wrong diagnostics size: (want %d, got %d):\n", len(test.Wanted), len(diags))
 			}
-			for i, diag := range diags {
 
-				if diff := cmp.Diff(diag.Description().Summary, test.Wanted[i].Summary); diff != "" {
-					t.Errorf("wrong diagnostics (-want +got):\n%s", diff)
+			for i, wanted := range test.Wanted {
+				diag := diags[i]
+				if diff := cmp.Diff(diag.Description().Summary, wanted.Summary); diff != "" {
+					t.Errorf("%d: wrong summary (-want +got):\n%s", i, diff)
 				}
 
-				if diff := cmp.Diff(diag.Description().Detail, test.Wanted[i].DetailSubstring); diff != "" {
-					t.Errorf("wrong diagnostics (-want +got):\n%s", diff)
+				if diff := cmp.Diff(diag.Description().Detail, wanted.DetailSubstring); diff != "" {
+					t.Errorf("%d: wrong description (-want +got):\n%s", i, diff)
 				}
 			}
 
