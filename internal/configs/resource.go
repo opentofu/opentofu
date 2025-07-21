@@ -28,6 +28,7 @@ type Resource struct {
 	Config  hcl.Body
 	Count   hcl.Expression
 	ForEach hcl.Expression
+	Enabled hcl.Expression
 
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
@@ -150,21 +151,18 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 		})
 	}
 
+	repetitionArgs := 0
+	var countRng, forEachRng, enabledRng hcl.Range
 	if attr, exists := content.Attributes["count"]; exists {
 		r.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
 		r.ForEach = attr.Expr
-		// Cannot have count and for_each on the same resource block
-		if r.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
-		}
+		forEachRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["provider"]; exists {
@@ -212,8 +210,9 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 			}
 
 			if attr, exists := lcContent.Attributes["enabled"]; exists {
-				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.Enabled)
-				diags = append(diags, valDiags...)
+				r.Enabled = attr.Expr
+				enabledRng = attr.NameRange
+				repetitionArgs++
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
@@ -361,6 +360,25 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 				Subject:  &block.TypeRange,
 			})
 		}
+	}
+
+	if repetitionArgs > 1 {
+		var complainRng hcl.Range
+		switch {
+		case r.ForEach != nil:
+			complainRng = forEachRng
+		case r.Enabled != nil:
+			complainRng = enabledRng
+		default:
+			complainRng = countRng
+		}
+
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  `Invalid combination of "count" and "for_each"`,
+			Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
+			Subject:  &complainRng,
+		})
 	}
 
 	// Now we can validate the connection block references if there are any destroy provisioners.
