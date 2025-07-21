@@ -220,9 +220,17 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
             )
 			default = {}
         }
-        variable "ephemeral_marked" {
+        variable "simple_ephemeral_marked" {
             type = string
             ephemeral = true
+		}
+
+        variable "complex_type_object_in_object" {
+            type = object({
+			  inner_obj = object({
+			    attr = string
+			  })
+            })
 		}
 	`
 	cfg := testModuleInline(t, map[string]string{
@@ -850,7 +858,17 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 		},
 		// ephemeral
 		{
-			"ephemeral_marked",
+			"complex_type_object_in_object",
+			cty.ObjectVal(map[string]cty.Value{
+				"inner_obj": cty.ObjectVal(map[string]cty.Value{
+					"attr": cty.StringVal("inner attribute").Mark(marks.Ephemeral),
+				}),
+			}),
+			cty.UnknownVal(cty.Object(map[string]cty.Type{"inner_obj": cty.Object(map[string]cty.Type{"attr": cty.String})})),
+			`Variable does not allow ephemeral value: The value used for the variable "complex_type_object_in_object" is ephemeral, but it is not configured to allow one.`,
+		},
+		{
+			"simple_ephemeral_marked",
 			cty.StringVal("raw value"),
 			cty.StringVal("raw value"),
 			``,
@@ -860,7 +878,7 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 			"constrained_string_nullable_required",
 			cty.StringVal("raw value").Mark(marks.Ephemeral),
 			cty.UnknownVal(cty.String),
-			`Variable does not allow ephemeral value: The value used for the variable is ephemeral, but it is not configured to allow one.`,
+			`Variable does not allow ephemeral value: The value used for the variable "constrained_string_nullable_required" is ephemeral, but it is not configured to allow one.`,
 		},
 	}
 
