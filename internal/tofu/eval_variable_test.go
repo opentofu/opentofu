@@ -76,6 +76,11 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 			nullable  = false
 			type      = string
 		}
+		variable "constrained_string_ephemeral_required" {
+			ephemeral = true
+			nullable  = false
+			type      = string
+		}
 		variable "complex_type_with_nested_default_optional" {
 			type = set(object({
 				name      = string
@@ -215,6 +220,10 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
             )
 			default = {}
         }
+        variable "ephemeral_marked" {
+            type = string
+            ephemeral = true
+		}
 	`
 	cfg := testModuleInline(t, map[string]string{
 		"main.tf": cfgSrc,
@@ -839,6 +848,20 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 			cty.UnknownVal(cty.String),
 			``,
 		},
+		// ephemeral
+		{
+			"ephemeral_marked",
+			cty.StringVal("raw value"),
+			cty.StringVal("raw value"),
+			``,
+		},
+		{
+			// ephemeral value given to a non-ephemeral variable
+			"constrained_string_nullable_required",
+			cty.StringVal("raw value").Mark(marks.Ephemeral),
+			cty.UnknownVal(cty.String),
+			`Variable does not allow ephemeral value: The value used for the variable is ephemeral, but it is not configured to allow one.`,
+		},
 	}
 
 	for _, test := range tests {
@@ -1012,18 +1035,21 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 
 	t.Run("SensitiveVariable error message variants, with source variants", func(t *testing.T) {
 		tests := []struct {
+			varName     string
 			SourceType  ValueSourceType
 			SourceRange tfdiags.SourceRange
 			WantTypeErr string
 			HideSubject bool
 		}{
 			{
+				"constrained_string_sensitive_required",
 				ValueFromUnknown,
 				tfdiags.SourceRange{},
 				"Invalid value for input variable: Unsuitable value for var.constrained_string_sensitive_required set from outside of the configuration: string required, but have object.",
 				false,
 			},
 			{
+				"constrained_string_sensitive_required",
 				ValueFromConfig,
 				tfdiags.SourceRange{
 					Filename: "example.tfvars",
@@ -1033,11 +1059,29 @@ func TestPrepareFinalInputVariableValue(t *testing.T) {
 				`Invalid value for input variable: The given value is not suitable for var.constrained_string_sensitive_required, which is sensitive: string required, but have object. Invalid value defined at example.tfvars:1,1-1.`,
 				true,
 			},
+			{
+				"constrained_string_ephemeral_required",
+				ValueFromUnknown,
+				tfdiags.SourceRange{},
+				"Invalid value for input variable: Unsuitable value for var.constrained_string_ephemeral_required set from outside of the configuration: string required, but have object.",
+				false,
+			},
+			{
+				"constrained_string_ephemeral_required",
+				ValueFromConfig,
+				tfdiags.SourceRange{
+					Filename: "example.tfvars",
+					Start:    tfdiags.SourcePos(hcl.InitialPos),
+					End:      tfdiags.SourcePos(hcl.InitialPos),
+				},
+				`Invalid value for input variable: The given value is not suitable for var.constrained_string_ephemeral_required, which is ephemeral: string required, but have object. Invalid value defined at example.tfvars:1,1-1.`,
+				true,
+			},
 		}
 
 		for _, test := range tests {
 			t.Run(fmt.Sprintf("%s %s", test.SourceType, test.SourceRange.StartString()), func(t *testing.T) {
-				varAddr := addrs.InputVariable{Name: "constrained_string_sensitive_required"}.Absolute(addrs.RootModuleInstance)
+				varAddr := addrs.InputVariable{Name: test.varName}.Absolute(addrs.RootModuleInstance)
 				varCfg := variableConfigs[varAddr.Variable.Name]
 				t.Run("type error", func(t *testing.T) {
 					rawVal := &InputValue{
