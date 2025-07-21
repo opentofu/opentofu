@@ -421,7 +421,7 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
+				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
 				Subject:  &attr.NameRange,
 			})
 		}
