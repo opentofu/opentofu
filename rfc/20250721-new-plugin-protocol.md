@@ -35,15 +35,13 @@ While the underlying protocol uses gRPC and protobuf, virtually no one interacts
 
 ### The Cost of Go Lock-in
 
-Consider who we're excluding from the ecosystem:
-- **Security teams** who may work primarily in Python
-- **Cost management teams** using data science stacks (Python/R)
-- **Platform teams** with existing TypeScript/JavaScript tooling
-- **SRE teams** who just need simple Bash script integrations
+By limiting extensions to Go, we're excluding teams that work in Python, TypeScript, Rust, Ruby, Java, and many other languages. 
+
+Each team has their preferred tooling and expertise - and I don't believe that we should force them to learn Go just to extend OpenTofu.
 
 These teams currently resort to:
 - Parsing plan JSON files (missing critical runtime context)
-- Writing wrapper scripts around `tofu` commands
+- Writing wrapper scripts around `tofu` commands and reading either the human-readable or machine-readable output
 - Building complex CI/CD pipelines for what should be simple validations
 - Maintaining separate tools that duplicate OpenTofu's resource understanding
 
