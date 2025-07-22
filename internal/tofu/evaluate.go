@@ -835,14 +835,20 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 				schemaMarks := schema.ValueMarks(val, nil)
 				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
-			// For ephemeral marks, we don't need to check recursively since this type of mark can be used
-			// only in other ephemeral blocks/contexts.
-			// Therefore, it cannot be used only in specific attributes of a non-ephemeral block, but only directly
+			// For ephemeral marks, we don't need to check recursively since this type of mark is meant
+			// to be used only at the root level of a value and not on its attributes.
+			// Therefore, it cannot be used in specific attributes of a non-ephemeral block, but only directly
 			// in blocks that are marked as ephemeral.
 			if schema.Ephemeral {
+				for _, mark := range afterMarks {
+					// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
+					// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
+					delete(mark.Marks, marks.Ephemeral)
+				}
 				// When the evaluated block is ephemeral, we want to mark its value
 				// as ephemeral too, to be able to validate later where it's referenced.
-				afterMarks = combinePathValueMarks(afterMarks, []cty.PathValueMarks{{Path: make(cty.Path, 0), Marks: cty.NewValueMarks(marks.Ephemeral)}})
+				schemaMarks := schema.ValueMarks(val, nil)
+				afterMarks = combinePathValueMarks(afterMarks, schemaMarks)
 			}
 
 			instances[key] = val.MarkWithPaths(afterMarks)
@@ -866,22 +872,28 @@ func (d *evaluationStateData) GetResource(ctx context.Context, addr addrs.Resour
 		val := instanceObjectSrc.Value
 
 		if schema.ContainsSensitive() {
-			var marks []cty.PathValueMarks
+			var valMarks []cty.PathValueMarks
 			// Now that we know that the schema contains sensitive marks,
 			// Combine those marks together to ensure that the value is marked correctly but not double marked
-			val, marks = val.UnmarkDeepWithPaths()
+			val, valMarks = val.UnmarkDeepWithPaths()
 			schemaMarks := schema.ValueMarks(val, nil)
 
-			combined := combinePathValueMarks(marks, schemaMarks)
+			combined := combinePathValueMarks(valMarks, schemaMarks)
 			val = val.MarkWithPaths(combined)
 		}
 		if schema.Ephemeral {
 			// When the evaluated block is ephemeral, we want to mark its value
-			// as ephemeral too to be able to validate later where it's referenced
-			var existingMarks []cty.PathValueMarks
-			val, existingMarks = val.UnmarkDeepWithPaths()
+			// as ephemeral too to be able to validate later where it's referenced.
+			var valMarks []cty.PathValueMarks
+			val, valMarks = val.UnmarkDeepWithPaths()
+			for _, mark := range valMarks {
+				// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
+				// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
+				delete(mark.Marks, marks.Ephemeral)
+			}
+			schemaMarks := schema.ValueMarks(val, nil)
 
-			combined := combinePathValueMarks(existingMarks, []cty.PathValueMarks{{Path: make(cty.Path, 0), Marks: cty.NewValueMarks(marks.Ephemeral)}})
+			combined := combinePathValueMarks(valMarks, schemaMarks)
 			val = val.MarkWithPaths(combined)
 		}
 		instances[key] = val

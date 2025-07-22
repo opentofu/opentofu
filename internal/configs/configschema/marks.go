@@ -27,6 +27,16 @@ func copyAndExtendPath(path cty.Path, nextSteps ...cty.PathStep) cty.Path {
 func (b *Block) ValueMarks(val cty.Value, path cty.Path) []cty.PathValueMarks {
 	var pvm []cty.PathValueMarks
 
+	// When the block is marked as ephemeral, the whole value needs to be marked accordingly.
+	// Inner attributes should carry no ephemeral mark.
+	// The ephemerality of the attributes is given by the mark on the val and not by individual marks
+	// as it's the case for the sensitive mark.
+	if b.Ephemeral {
+		pvm = append(pvm, cty.PathValueMarks{
+			Path:  path, // raw received path is indicating that the whole value needs to be marked as ephemeral.
+			Marks: cty.NewValueMarks(marks.Ephemeral),
+		})
+	}
 	// We can mark attributes as sensitive even if the value is null
 	for name, attrS := range b.Attributes {
 		if attrS.Sensitive {

@@ -569,7 +569,12 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 				"nesting_map": {
 					Block: configschema.Block{
 						Attributes: map[string]*configschema.Attribute{
-							"foo": {Type: cty.String, Optional: true},
+							"foo": {
+								Type:     cty.String,
+								Optional: true,
+								// Sensitive is added here to ensure that the mark is kept after processing the ephemeral ones
+								Sensitive: true,
+							},
 						},
 					},
 					Nesting: configschema.NestingSet,
@@ -608,6 +613,16 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 									}),
 								}),
 							})),
+							AfterValMarks: []cty.PathValueMarks{
+								{
+									Path: cty.GetAttrPath("nesting_map").Index(cty.ObjectVal(map[string]cty.Value{"foo": cty.StringVal("test")})).GetAttr("foo"),
+									Marks: map[interface{}]struct{}{
+										// added the ephemeral mark here to validate that it is removed and the
+										// sensitive one is added based on the schema
+										marks.Ephemeral: {},
+									},
+								},
+							},
 						},
 					},
 				)
@@ -631,7 +646,37 @@ func TestEvaluatorGetResource_Ephemeral(t *testing.T) {
 				"value": cty.StringVal("tacos"),
 				"nesting_map": cty.SetVal([]cty.Value{
 					cty.ObjectVal(map[string]cty.Value{
-						"foo": cty.StringVal("test"),
+						// expected to have this attribute marked as sensitive but not as ephemeral
+						// since the ephemeral one is meant to be only at the root block level.
+						"foo": cty.StringVal("test").Mark(marks.Sensitive),
+					}),
+				}),
+			}).Mark(marks.Ephemeral),
+		},
+		"with object ready state and no changes": {
+			plans.BuildChanges(func(sync *plans.ChangesSync) {}).SyncWrapper(),
+			states.BuildState(func(state *states.SyncState) {
+				state.SetResourceInstanceCurrent(
+					rc.Addr().Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance),
+					&states.ResourceInstanceObjectSrc{
+						Status:    states.ObjectReady,
+						AttrsJSON: []byte(`{"id":"foo", "value":"tacos", "nesting_map": [{"foo": "test"}]}`),
+					},
+					addrs.AbsProviderConfig{
+						Provider: rc.Provider,
+						Module:   addrs.RootModule,
+					},
+					addrs.NoKey,
+				)
+			}).SyncWrapper(),
+			cty.ObjectVal(map[string]cty.Value{
+				"id":    cty.StringVal("foo"),
+				"value": cty.StringVal("tacos"),
+				"nesting_map": cty.SetVal([]cty.Value{
+					cty.ObjectVal(map[string]cty.Value{
+						// expected to have this attribute marked as sensitive but not as ephemeral
+						// since the ephemeral one is meant to be only at the root block level.
+						"foo": cty.StringVal("test").Mark(marks.Sensitive),
 					}),
 				}),
 			}).Mark(marks.Ephemeral),
