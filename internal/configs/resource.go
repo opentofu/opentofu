@@ -7,6 +7,8 @@ package configs
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -363,21 +365,13 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	}
 
 	if repetitionArgs > 1 {
-		var complainRng hcl.Range
-		switch {
-		case r.ForEach != nil:
-			complainRng = forEachRng
-		case r.Enabled != nil:
-			complainRng = enabledRng
-		default:
-			complainRng = countRng
-		}
+		complainRng, complainMsg := complainRngAndMsg(countRng, enabledRng, forEachRng)
 
 		diags = append(diags, &hcl.Diagnostic{
 			Severity: hcl.DiagError,
-			Summary:  `Invalid combination of "count", "lifecycle.enabled" and "for_each"`,
-			Detail:   `The "count", "lifecycle.enabled" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
-			Subject:  &complainRng,
+			Summary:  fmt.Sprintf(`Invalid combination of %s`, complainMsg),
+			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`, complainMsg),
+			Subject:  complainRng,
 		})
 	}
 
@@ -393,6 +387,43 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	}
 
 	return r, diags
+}
+
+func complainRngAndMsg(countRng, enabledRng, forEachRng hcl.Range) (*hcl.Range, string) {
+	var complainRngs []hcl.Range
+	var complainAttrs []string
+	if !countRng.Empty() {
+		complainRngs = append(complainRngs, countRng)
+		complainAttrs = append(complainAttrs, "\"count\"")
+	}
+	if !enabledRng.Empty() {
+		complainRngs = append(complainRngs, enabledRng)
+		complainAttrs = append(complainAttrs, "\"enabled\"")
+	}
+	if !forEachRng.Empty() {
+		complainRngs = append(complainRngs, forEachRng)
+		complainAttrs = append(complainAttrs, "\"for_each\"")
+	}
+
+	// We sort the complain ranges in order to understood who appeared first,
+	// and we use that as the valid one
+	sort.SliceStable(complainRngs, func(i, j int) bool {
+		return complainRngs[i].Start.Byte < complainRngs[j].Start.Byte
+	})
+
+	lastIndex := len(complainAttrs) - 1
+	complainRng := complainRngs[lastIndex]
+
+	var complainMsg string
+	if len(complainAttrs) >= 3 {
+		// Add an oxford comma to the last attribute
+		complainAttrs[lastIndex] = "and " + complainAttrs[lastIndex]
+		complainMsg = strings.Join(complainAttrs, ", ")
+	} else {
+		complainMsg = strings.Join(complainAttrs, " and ")
+	}
+
+	return &complainRng, complainMsg
 }
 
 func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Diagnostics) {
