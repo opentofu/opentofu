@@ -389,10 +389,6 @@ var moduleBlockSchema = &hcl.BodySchema{
 }
 
 var moduleLifecycleBlockSchema = &hcl.BodySchema{
-	// We tell HCL that these elements are all valid for "module" lifecycle
-	// blocks, but the rules are actually more restrictive than that. We deal
-	// with that after decoding so that we can return more specific error
-	// messages than HCL would typically return itself.
 	Attributes: []hcl.AttributeSchema{
 		{
 			Name: "enabled",
