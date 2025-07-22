@@ -118,7 +118,7 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFrom
 		By:                 callOutAddr,
 		// Used to identify the output on the consolidation diagnostics and
 		// make sure they are consolidated correctly. We use:
-		// `output name + deprecated message` as the key
+		// output value + deprecated message as the key
 		Key:     addr.OutputValue.Name + msg,
 		Message: msg,
 	})

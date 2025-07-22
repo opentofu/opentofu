@@ -521,7 +521,7 @@ func evalVariableDeprecation(
 			// Used to identify the input on the consolidation diagnostics and
 			// make sure they are showed separately, by using the address of the
 			// variable
-			Key:                addr.String(),
+			Key:                addr.ConfigCheckable().String(),
 			IsFromRemoteModule: variableFromRemoteModule,
 		},
 	})
