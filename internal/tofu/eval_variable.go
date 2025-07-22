@@ -520,7 +520,8 @@ func evalVariableDeprecation(
 		Extra: VariableDeprecationCause{
 			// Used to identify the input on the consolidation diagnostics and
 			// make sure they are showed separately, by using the address of the
-			// variable
+			// module variable. Since these always be different, variables won't consolidate,
+			// but after we have a reliable way to get the address on remote modules, we can consolidate them.
 			Key:                addr.ConfigCheckable().String(),
 			IsFromRemoteModule: variableFromRemoteModule,
 		},
