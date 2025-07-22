@@ -46,7 +46,7 @@ The current TSC members are:
 - Igor Savchenko ([@DiscyDel](https://github.com/DicsyDel)) - Scalr Inc.
 - James Humphries ([@Yantrio](https://github.com/Yantrio)) - Spacelift
 - Roger Simms ([@allofthesepeople](https://github.com/allofthesepeople)) - Harness Inc.
-- Zach Goldberg ([@ZachGoldberg](https://github.com/ZachGoldberg)) - Gruntwork, Inc.
+- Yousif Akbar ([@yhakbar](https://github.com/yhakbar)) - Gruntwork, Inc.
 
 Agendas and meeting notes can be found in the [opentofu/org/TSC](https://github.com/opentofu/org/tree/main/TSC) folder. Anyone may open a PR to add a new
 agenda item for the next TSC meeting.  More information on the TSC structure can be found in our [Governance](https://github.com/opentofu/org/blob/main/GOVERNANCE.md)
