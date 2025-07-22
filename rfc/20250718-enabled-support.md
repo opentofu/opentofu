@@ -107,3 +107,7 @@ There are a few types of values that cannot be used on this conditional:
 1. Sensitive values
 1. Null values
 1. Conditionals that do not evaluate to true/bool values
+
+## Future considerations
+
+The `enabled` field was placed in the `lifecycle` block rather than directly on resources/modules to avoid conflicts with existing resources that use "enabled" as an attribute name. A future language edition could promote it to a top-level field. See the discussion [here](https://github.com/opentofu/opentofu/issues/1306#issuecomment-2982113732).
