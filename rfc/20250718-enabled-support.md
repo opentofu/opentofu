@@ -51,6 +51,23 @@ https://opentofu.org/docs/language/modules/syntax/#meta-arguments
 
 It would be the right timing to start to support it, but only for the `enabled` field.
 
+### Migration from `count` to `enabled`
+
+Luckily, this support would be in-place already. When using a `count` for this conditional dependency, if
+the resource is changed to use `enabled`, a `move` will be done on the apply phase to remove the index and
+turn into a single instance.
+
+```
+OpenTofu will perform the following actions:
+
+  # null_resource.example[0] has moved to null_resource.example
+    resource "null_resource" "example" {
+        id = "8975736315378968412"
+    }
+
+Plan: 0 to add, 0 to change, 0 to destroy.
+```
+
 ### Usage of `enabled` together with `for_each` and `count`.
 
 These three different arguments would behave similarly, but with different semantics.
@@ -74,6 +91,7 @@ The behavior is going to be the same as if you wanted to destroy a resource:
 
 ```
 # aws_instance.demo_vm_2 will be destroyed
+# (because enabled is false)
   - resource "aws_instance" "demo_vm_2" {
       - ami                                  = "ami-07df274a488ca9195" -> null
       - arn                                  = "arn:aws:ec2:eu-central-1:532199187081:instance/i-0b63433033e61d818" -> null
