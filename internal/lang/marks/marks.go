@@ -119,7 +119,7 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFrom
 		// Used to identify the output on the consolidation diagnostics and
 		// make sure they are consolidated correctly. We use:
 		// output value + deprecated message as the key
-		Key:     addr.OutputValue.Name + msg,
+		Key:     fmt.Sprintf("%s\n%s", addr.OutputValue.Name, msg),
 		Message: msg,
 	})
 }

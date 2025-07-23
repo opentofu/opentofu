@@ -522,7 +522,7 @@ func evalVariableDeprecation(
 			// make sure they are showed separately, by using the address of the
 			// module variable. Since these always be different, variables won't consolidate,
 			// but after we have a reliable way to get the address on remote modules, we can consolidate them.
-			Key:                config.Name + config.Deprecated,
+			Key:                fmt.Sprintf("%s\n%s", config.Name, config.Deprecated),
 			IsFromRemoteModule: variableFromRemoteModule,
 		},
 	})
