@@ -394,6 +394,7 @@ type ConfigResource struct {
 	targetable
 	Module   Module
 	Resource Resource
+	Enabled  bool
 }
 
 // ParseConfigResource parses the module address from the given traversal
