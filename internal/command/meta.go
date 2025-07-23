@@ -19,7 +19,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-plugin"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
@@ -180,7 +179,10 @@ type Meta struct {
 	// This is essentially a more extreme version of ProviderDevOverrides where
 	// OpenTofu doesn't even worry about how the provider server gets launched,
 	// just trusting that someone else did it before running OpenTofu.
-	UnmanagedProviders map[addrs.Provider]*plugin.ReattachConfig
+	//
+	// FIXME: Temporarily disabled until we make an equivalent of this for
+	// the tofuproviders library.
+	//UnmanagedProviders map[addrs.Provider]*plugin.ReattachConfig
 
 	// AllowExperimentalFeatures controls whether a command that embeds this
 	// Meta is permitted to make use of experimental OpenTofu features.

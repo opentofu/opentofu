@@ -8,9 +8,9 @@ package grpcwrap
 import (
 	"context"
 
+	"github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin6"
 	"github.com/opentofu/opentofu/internal/plugin6/convert"
 	"github.com/opentofu/opentofu/internal/providers"
-	"github.com/opentofu/opentofu/internal/tfplugin6"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
@@ -29,6 +29,8 @@ func Provider6(p providers.Interface) tfplugin6.ProviderServer {
 type provider6 struct {
 	provider providers.Interface
 	schema   providers.GetProviderSchemaResponse
+
+	tfplugin6.UnimplementedProviderServer
 }
 
 func (p *provider6) GetProviderSchema(_ context.Context, req *tfplugin6.GetProviderSchema_Request) (*tfplugin6.GetProviderSchema_Response, error) {

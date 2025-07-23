@@ -11,26 +11,20 @@ import (
 	"fmt"
 	"sync"
 
-	plugin "github.com/hashicorp/go-plugin"
 	"github.com/zclconf/go-cty/cty"
 	ctyjson "github.com/zclconf/go-cty/cty/json"
 	"github.com/zclconf/go-cty/cty/msgpack"
+	"go.rpcplugin.org/rpcplugin"
 	"google.golang.org/grpc"
 
+	proto "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/logging"
 	"github.com/opentofu/opentofu/internal/plugin/convert"
 	"github.com/opentofu/opentofu/internal/providers"
-	proto "github.com/opentofu/opentofu/internal/tfplugin5"
 )
 
 var logger = logging.HCLogger()
-
-// GRPCProviderPlugin implements plugin.GRPCPlugin for the go-plugin package.
-type GRPCProviderPlugin struct {
-	plugin.Plugin
-	GRPCProvider func() proto.ProviderServer
-}
 
 var clientCapabilities = &proto.ClientCapabilities{
 	// DeferralAllowed tells the provider that it is allowed to respond to
@@ -43,26 +37,15 @@ var clientCapabilities = &proto.ClientCapabilities{
 	DeferralAllowed: true,
 }
 
-func (p *GRPCProviderPlugin) GRPCClient(ctx context.Context, broker *plugin.GRPCBroker, c *grpc.ClientConn) (interface{}, error) {
-	return &GRPCProvider{
-		client: proto.NewProviderClient(c),
-		ctx:    ctx,
-	}, nil
-}
-
-func (p *GRPCProviderPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {
-	proto.RegisterProviderServer(s, p.GRPCProvider())
-	return nil
-}
-
 // GRPCProvider handles the client, or core side of the plugin rpc connection.
 // The GRPCProvider methods are mostly a translation layer between the
 // tofu providers types and the grpc proto types, directly converting
 // between the two.
 type GRPCProvider struct {
-	// PluginClient provides a reference to the plugin.Client which controls the plugin process.
-	// This allows the GRPCProvider a way to shutdown the plugin process.
-	PluginClient *plugin.Client
+	// PluginClient provides a reference to the rpcplugin.Plugin which controls
+	// the plugin process. This allows the GRPCProvider a way to shutdown the
+	// plugin process.
+	PluginClient *rpcplugin.Plugin
 
 	// TestServer contains a grpc.Server to close when the GRPCProvider is being
 	// used in an end to end test of a provider.
@@ -945,8 +928,7 @@ func (p *GRPCProvider) Close(ctx context.Context) error {
 		return nil
 	}
 
-	p.PluginClient.Kill()
-	return nil
+	return p.PluginClient.Close()
 }
 
 // Decode a DynamicValue from either the JSON or MsgPack encoding.

@@ -6,19 +6,20 @@
 package command
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 
-	plugin "github.com/hashicorp/go-plugin"
 	"github.com/kardianos/osext"
+	"go.rpcplugin.org/rpcplugin"
+	"google.golang.org/grpc"
 
 	fileprovisioner "github.com/opentofu/opentofu/internal/builtin/provisioners/file"
 	localexec "github.com/opentofu/opentofu/internal/builtin/provisioners/local-exec"
 	remoteexec "github.com/opentofu/opentofu/internal/builtin/provisioners/remote-exec"
-	"github.com/opentofu/opentofu/internal/logging"
 	tfplugin "github.com/opentofu/opentofu/internal/plugin"
 	"github.com/opentofu/opentofu/internal/plugin/discovery"
 	"github.com/opentofu/opentofu/internal/provisioners"
@@ -132,19 +133,30 @@ func (m *Meta) provisionerFactories() map[string]provisioners.Factory {
 
 func provisionerFactory(meta discovery.PluginMeta) provisioners.Factory {
 	return func() (provisioners.Interface, error) {
-		cfg := &plugin.ClientConfig{
-			Cmd:              exec.Command(meta.Path),
-			HandshakeConfig:  tfplugin.Handshake,
-			VersionedPlugins: tfplugin.VersionedPlugins,
-			Managed:          true,
-			Logger:           logging.NewLogger("provisioner"),
-			AllowedProtocols: []plugin.Protocol{plugin.ProtocolGRPC},
-			AutoMTLS:         enableProviderAutoMTLS,
-			SyncStdout:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stdout", meta.Name)),
-			SyncStderr:       logging.PluginOutputMonitor(fmt.Sprintf("%s:stderr", meta.Name)),
+		plugin, err := rpcplugin.New(context.Background(), &rpcplugin.ClientConfig{
+			Cmd:       exec.Command(meta.Path),
+			Handshake: tfplugin.Handshake,
+			ProtoVersions: map[int]rpcplugin.ClientVersion{
+				5: rpcplugin.ClientVersionFunc(func(ctx context.Context, conn *grpc.ClientConn) (interface{}, error) {
+					return tfplugin.NewGRPCProvisioner(ctx, conn), nil
+				}),
+			},
+			// FIXME: Set Stderr to the write end of a pipe connected to
+			// something that interprets the stderr stream as a series
+			// of log lines similar to what go-plugin does. For now we
+			// just completely discard plugin stderr.
+		})
+		if err != nil {
+			return nil, err
 		}
-		client := plugin.NewClient(cfg)
-		return newProvisionerClient(client)
+		_, clientI, err := plugin.Client(context.Background())
+		if err != nil {
+			return nil, err
+		}
+
+		client := clientI.(*tfplugin.GRPCProvisioner)
+		client.PluginClient = plugin
+		return client, nil
 	}
 }
 
@@ -154,23 +166,4 @@ func internalProvisionerFactories() map[string]provisioners.Factory {
 		"local-exec":  provisioners.FactoryFixed(localexec.New()),
 		"remote-exec": provisioners.FactoryFixed(remoteexec.New()),
 	}
-}
-
-func newProvisionerClient(client *plugin.Client) (provisioners.Interface, error) {
-	// Request the RPC client so we can get the provisioner
-	// so we can build the actual RPC-implemented provisioner.
-	rpcClient, err := client.Client()
-	if err != nil {
-		return nil, err
-	}
-
-	raw, err := rpcClient.Dispense(tfplugin.ProvisionerPluginName)
-	if err != nil {
-		return nil, err
-	}
-
-	// store the client so that the plugin can kill the child process
-	p := raw.(*tfplugin.GRPCProvisioner)
-	p.PluginClient = client
-	return p, nil
 }

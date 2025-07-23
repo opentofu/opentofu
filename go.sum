@@ -313,6 +313,8 @@ github.com/apparentlymart/go-versions v1.0.2 h1:n5Gg9YvSLK8Zzpy743J7abh2jt7z7amm
 github.com/apparentlymart/go-versions v1.0.2/go.mod h1:YF5j7IQtrOAOnsGkniupEA5bfCjzd7i14yu0shZavyM=
 github.com/apparentlymart/opentofu-providers v0.0.0-20250723003136-e3478ad859e8 h1:kVD57egq9/QcrQO6alEpVG9t7bmwDPONytprqkxiQ1Y=
 github.com/apparentlymart/opentofu-providers v0.0.0-20250723003136-e3478ad859e8/go.mod h1:AXZ5WfhMTJ83qdvrDv7I/+zZk0roD7jpOdPG6wFgYsM=
+github.com/apparentlymart/opentofu-providers v0.0.0-20250724152916-b5540eaebb48 h1:Sm2WCW0Pfx55MwXe2NnMsGnj5UoT+ght1Y9/g1EfkUM=
+github.com/apparentlymart/opentofu-providers v0.0.0-20250724152916-b5540eaebb48/go.mod h1:AXZ5WfhMTJ83qdvrDv7I/+zZk0roD7jpOdPG6wFgYsM=
 github.com/armon/circbuf v0.0.0-20150827004946-bbbad097214e/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=
 github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2 h1:7Ip0wMmLHLRJdrloDxZfhMm0xrLXZS8+COSu2bXmEQs=
 github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2/go.mod h1:3U/XgcO3hCbHZ8TKRvWD2dDTCfh9M9ya+I9JpbB7O8o=

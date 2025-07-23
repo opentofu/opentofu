@@ -9,11 +9,11 @@ import (
 	"io"
 	"testing"
 
+	proto "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin5"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/opentofu/opentofu/internal/legacy/hcl2shim"
 	"github.com/opentofu/opentofu/internal/provisioners"
-	proto "github.com/opentofu/opentofu/internal/tfplugin5"
 	"github.com/zclconf/go-cty/cty"
 	"go.uber.org/mock/gomock"
 

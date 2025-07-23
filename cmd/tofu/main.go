@@ -7,10 +7,8 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -18,12 +16,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-plugin"
 	"github.com/mattn/go-shellwords"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/colorstring"
 
-	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/command/cliconfig"
 	"github.com/opentofu/opentofu/internal/command/format"
 	"github.com/opentofu/opentofu/internal/didyoumean"
@@ -220,11 +216,13 @@ func realMain() int {
 	// The user can declare that certain providers are being managed on
 	// OpenTofu's behalf using this environment variable. This is used
 	// primarily by the SDK's acceptance testing framework.
-	unmanagedProviders, err := parseReattachProviders(os.Getenv("TF_REATTACH_PROVIDERS"))
-	if err != nil {
-		Ui.Error(err.Error())
-		return 1
-	}
+	/*
+		unmanagedProviders, err := parseReattachProviders(os.Getenv("TF_REATTACH_PROVIDERS"))
+		if err != nil {
+			Ui.Error(err.Error())
+			return 1
+		}
+	*/
 
 	// Initialize the backends.
 	backendInit.Init(services)
@@ -262,7 +260,7 @@ func realMain() int {
 		// in case they need to refer back to it for any special reason, though
 		// they should primarily be working with the override working directory
 		// that we've now switched to above.
-		initCommands(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides, unmanagedProviders)
+		initCommands(ctx, originalWd, streams, config, services, modulePkgFetcher, providerSrc, providerDevOverrides /*, unmanagedProviders*/)
 	}
 
 	// Attempt to ensure the config directory exists.
@@ -274,7 +272,12 @@ func realMain() int {
 	}
 
 	// Make sure we clean up any managed plugins at the end of this
-	defer plugin.CleanupClients()
+	// FIXME: rpcplugin does not have its own stash of active plugins -- it
+	// thinks that's the caller's responsibility -- so we'll need to either
+	// trust that all of our codepaths actually shut the plugins down properly
+	// or implement our own little stash of active plugin clients here in
+	// OpenTofu and do cleanup with that instead.
+	//defer plugin.CleanupClients()
 
 	// Build the CLI so far, we do this so we can query the subcommand.
 	cliRunner := &cli.CLI{
@@ -421,6 +424,7 @@ func mergeEnvArgs(envName string, cmd string, args []string) ([]string, error) {
 
 // parse information on reattaching to unmanaged providers out of a
 // JSON-encoded environment variable.
+/*
 func parseReattachProviders(in string) (map[addrs.Provider]*plugin.ReattachConfig, error) {
 	unmanagedProviders := map[addrs.Provider]*plugin.ReattachConfig{}
 	if in != "" {
@@ -470,6 +474,7 @@ func parseReattachProviders(in string) (map[addrs.Provider]*plugin.ReattachConfi
 	}
 	return unmanagedProviders, nil
 }
+*/
 
 func extractChdirOption(args []string) (string, []string, error) {
 	if len(args) == 0 {

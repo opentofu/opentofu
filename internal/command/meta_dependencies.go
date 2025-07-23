@@ -147,10 +147,12 @@ func (m *Meta) annotateDependencyLocksWithOverrides(ret *depsfile.Locks) *depsfi
 		log.Printf("[DEBUG] Provider %s is overridden by dev_overrides", addr)
 		ret.SetProviderOverridden(addr)
 	}
-	for addr := range m.UnmanagedProviders {
-		log.Printf("[DEBUG] Provider %s is overridden as an \"unmanaged provider\"", addr)
-		ret.SetProviderOverridden(addr)
-	}
+	/*
+		for addr := range m.UnmanagedProviders {
+			log.Printf("[DEBUG] Provider %s is overridden as an \"unmanaged provider\"", addr)
+			ret.SetProviderOverridden(addr)
+		}
+	*/
 	if m.testingOverrides != nil {
 		for addr := range m.testingOverrides.Providers {
 			log.Printf("[DEBUG] Provider %s is overridden in Meta.testingOverrides", addr)
