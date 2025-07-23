@@ -23,7 +23,7 @@ services:
     command: /data/alpine.sh
     working_dir: /data
   debian-convenience:
-    image: debian:bullseye
+    image: debian:stable
     volumes:
       - source: ./
         target: /data
@@ -31,7 +31,7 @@ services:
     command: /data/deb.sh --convenience
     working_dir: /data
   debian-manual:
-    image: debian:bullseye
+    image: debian:stable
     volumes:
       - source: ./
         target: /data
