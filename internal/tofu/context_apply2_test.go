@@ -6261,7 +6261,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 			t.Fatalf("unexpected plan for %s (should be disabled)", resourceInstAddr)
 		}
 
-		newState, diags := tfCtx.Apply(context.Background(), plan, m)
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 
 		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
@@ -6271,7 +6271,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		outputState := newState.OutputValue(outputAddr)
 		if outputState == nil {
 			t.Errorf("missing state entry for %s", outputAddr)
-		} else if got := outputState.Value.Index(cty.Zero); !got.IsNull() {
+		} else if got, want := outputState.Value, cty.StringVal("default"); !want.RawEquals(got) {
 			t.Errorf("unexpected value for %s %#v; want null", outputAddr, got)
 		}
 
@@ -6298,7 +6298,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 			t.Fatalf("plan for %s has wrong action %s; want %s", resourceInstAddr, got, want)
 		}
 
-		newState, diags := tfCtx.Apply(context.Background(), plan, m)
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 
 		instState := newState.ResourceInstance(resourceInstAddr)
@@ -6309,7 +6309,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		outputState := newState.OutputValue(outputAddr)
 		if outputState == nil {
 			t.Errorf("missing state entry for %s", outputAddr)
-		} else if got, want := outputState.Value.Index(cty.Zero), cty.StringVal("boop"); !want.RawEquals(got) {
+		} else if got, want := outputState.Value, cty.StringVal("boop"); !want.RawEquals(got) {
 			t.Errorf("unexpected value for %s\ngot:  %#v\nwant: %#v", outputAddr, got, want)
 		}
 
@@ -6340,7 +6340,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 			t.Errorf("wrong action reason for %s %s; want %s", resourceInstAddr, got, want)
 		}
 
-		newState, diags := tfCtx.Apply(context.Background(), plan, m)
+		newState, diags := tfCtx.Apply(context.Background(), plan, m, nil)
 		assertNoDiagnostics(t, diags)
 
 		if instState := newState.ResourceInstance(resourceInstAddr); instState != nil {
@@ -6350,8 +6350,8 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		outputState := newState.OutputValue(outputAddr)
 		if outputState == nil {
 			t.Errorf("missing state entry for %s", outputAddr)
-		} else if got := outputState.Value.Index(cty.Zero); !got.IsNull() {
-			t.Errorf("unexpected value for %s %#v; want null", outputAddr, got)
+		} else if got, want := outputState.Value, cty.StringVal("default"); !want.RawEquals(got) {
+			t.Errorf("unexpected value for %s\ngot:  %#v\nwant: %#v", outputAddr, got, want)
 		}
 	}
 }

@@ -15,5 +15,5 @@ output "result" {
   // root module output value as if it wasn't declared at all,
   // but we want to make sure we're actually testing the result
   // of this resource directly.
-  value = [one(test.test[*].name)]
+  value = test.test != null ? test.test.name : "default"
 }
