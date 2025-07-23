@@ -57,9 +57,9 @@ The following options change how the apply command executes and reports on the a
   at least one error and thus the warning text might be useful context for
   the errors.
 
-- `-consolidate-warnings` - If OpenTofu produces any warnings, do not attempt
-  to consolidate similar messages. All locations for all warnings will be
-  listed.
+- `-consolidate-warnings=false` - If OpenTofu produces any warnings, no
+  consolidation will be performed. All locations, for all warnings will
+  be listed. Enabled by default.
 
 - `-consolidate-errors` - If OpenTofu produces any errors, attempt to
   consolidate similar messages into a single item.

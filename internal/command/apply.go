@@ -350,64 +350,64 @@ Usage: tofu [global options] apply [options] [PLAN]
 
 Options:
 
-  -auto-approve          Skip interactive approval of plan before applying.
+  -auto-approve                Skip interactive approval of plan before applying.
 
-  -backup=path           Path to backup the existing state file before
-                         modifying. Defaults to the "-state-out" path with
-                         ".backup" extension. Set to "-" to disable backup.
+  -backup=path                 Path to backup the existing state file before
+                               modifying. Defaults to the "-state-out" path with
+                               ".backup" extension. Set to "-" to disable backup.
 
-  -compact-warnings      If OpenTofu produces any warnings that are not
-                         accompanied by errors, show them in a more compact
-                         form that includes only the summary messages.
+  -compact-warnings            If OpenTofu produces any warnings that are not
+                               accompanied by errors, show them in a more compact
+                               form that includes only the summary messages.
 
-  -consolidate-warnings  If OpenTofu produces any warnings, no consolidation
-                         will be performed. All locations, for all warnings
-                         will be listed. Enabled by default.
+  -consolidate-warnings=false  If OpenTofu produces any warnings, no consolidation
+                               will be performed. All locations, for all warnings
+                               will be listed. Enabled by default.
 
-  -consolidate-errors    If OpenTofu produces any errors, no consolidation
-                         will be performed. All locations, for all errors
-                         will be listed. Disabled by default
+  -consolidate-errors          If OpenTofu produces any errors, no consolidation
+                               will be performed. All locations, for all errors
+                               will be listed. Disabled by default.
 
-  -destroy               Destroy OpenTofu-managed infrastructure.
-                         The command "tofu destroy" is a convenience alias
-                         for this option.
+  -destroy                     Destroy OpenTofu-managed infrastructure.
+                               The command "tofu destroy" is a convenience alias
+                               for this option.
 
-  -lock=false            Don't hold a state lock during the operation. This is
-                         dangerous if others might concurrently run commands
-                         against the same workspace.
+  -lock=false                  Don't hold a state lock during the operation.
+                               This is dangerous if others might concurrently
+                               run commands against the same workspace.
 
-  -lock-timeout=0s       Duration to retry a state lock.
+  -lock-timeout=0s             Duration to retry a state lock.
 
-  -input=true            Ask for input for variables if not directly set.
+  -input=true                  Ask for input for variables if not directly set.
 
-  -no-color              If specified, output won't contain any color.
+  -no-color                    If specified, output won't contain any color.
 
-  -concise               Disables progress-related messages in the output.
+  -concise                     Disables progress-related messages in the output.
 
-  -parallelism=n         Limit the number of parallel resource operations.
-                         Defaults to 10.
+  -parallelism=n               Limit the number of parallel resource operations.
+                               Defaults to 10.
 
-  -state=path            Path to read and save state (unless state-out
-                         is specified). Defaults to "terraform.tfstate".
+  -state=path                  Path to read and save state (unless state-out
+                               is specified). Defaults to "terraform.tfstate".
 
-  -state-out=path        Path to write state to that is different than
-                         "-state". This can be used to preserve the old
-                         state.
+  -state-out=path              Path to write state to that is different than
+                               "-state". This can be used to preserve the old
+                               state.
 
-  -show-sensitive        If specified, sensitive values will be displayed.
+  -show-sensitive              If specified, sensitive values will be displayed.
 
-  -json                  Produce output in a machine-readable JSON format,
-                         suitable for use in text editor integrations and
-                         other automated systems. Always disables color.
+  -json                        Produce output in a machine-readable JSON format,
+                               suitable for use in text editor integrations and
+                               other automated systems. Always disables color.
 
-  -deprecation=module:m  Specify what type of warnings are shown. Accepted
-                         values for "m": all, local, none. Default: all.
-                         When "all" is selected, OpenTofu will show the
-                         deprecation warnings for all modules. When "local"
-                         is selected, the warns will be shown only for the
-                         modules that are imported with a relative path.
-                         When "none" is selected, all the deprecation
-                         warnings will be dropped.
+  -deprecation=module:m        Specify what type of warnings are shown. Accepted
+                               values for "m": all, local, none. Default: all.
+                               When "all" is selected, OpenTofu will show the
+                               deprecation warnings for all modules. When "local"
+                               is selected, the warns will be shown only for the
+                               modules that are imported with a relative path.
+                               When "none" is selected, all the deprecation
+                               warnings will be dropped.
 
   If you don't provide a saved plan file then this command will also accept
   all of the plan-customization options accepted by the tofu plan command.
