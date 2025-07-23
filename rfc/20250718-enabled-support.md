@@ -84,6 +84,23 @@ is not on the graph. We prefer to loudly tell the user they're trying to access 
 available. In order to have a good user experience while they want to enable/disable stuff, we
 offer a way to silently fail while trying to access that, by using the `try` function.
 
+There's some discussion about this [topic](https://github.com/opentofu/opentofu/issues/1306#issuecomment-2398120132), and the better compromise we found is that a enabled 
+resource can be `null` when it's disabled, but no errors are going to be shown if they use the
+resource as `enabled=true` first, since we need to evaluate the `enabled` expression. In the opposite side,
+if the resource is `disabled`, and a reference is trying to access it, an error is going to be shown:
+
+```
+╷
+│ Error: Reference to disabled resource
+│
+│   on main.tf line 15, in output "test":
+│   15:   value = null_resource.example1.id
+│
+│ A managed resource "null_resource" "example1" is not enabled 
+│ for usage.
+╵
+```
+
 ### What happens when it's disabled
 
 Let's suppose we have a created a resource using the `lifecycle -> enabled` field and then we want to disable it.
