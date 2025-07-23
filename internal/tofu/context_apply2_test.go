@@ -5676,7 +5676,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		outputState := newState.OutputValue(outputAddr)
 		if outputState == nil {
 			t.Errorf("missing state entry for %s", outputAddr)
-		} else if got := outputState.Value.Index(cty.Zero); !got.IsNull() {
+		} else if got, want := outputState.Value, cty.StringVal("default"); !want.RawEquals(got) {
 			t.Errorf("unexpected value for %s %#v; want null", outputAddr, got)
 		}
 
@@ -5714,7 +5714,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		outputState := newState.OutputValue(outputAddr)
 		if outputState == nil {
 			t.Errorf("missing state entry for %s", outputAddr)
-		} else if got, want := outputState.Value.Index(cty.Zero), cty.StringVal("boop"); !want.RawEquals(got) {
+		} else if got, want := outputState.Value, cty.StringVal("boop"); !want.RawEquals(got) {
 			t.Errorf("unexpected value for %s\ngot:  %#v\nwant: %#v", outputAddr, got, want)
 		}
 
@@ -5755,7 +5755,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		outputState := newState.OutputValue(outputAddr)
 		if outputState == nil {
 			t.Errorf("missing state entry for %s", outputAddr)
-		} else if got := outputState.Value.Index(cty.Zero); !got.IsNull() {
+		} else if got, want := outputState.Value, cty.StringVal("default"); !want.RawEquals(got) {
 			t.Errorf("unexpected value for %s %#v; want null", outputAddr, got)
 		}
 	}
