@@ -8,6 +8,7 @@ package lang
 import (
 	"context"
 	"fmt"
+	"log"
 	"maps"
 	"reflect"
 	"strings"
@@ -16,16 +17,15 @@ import (
 	"github.com/hashicorp/hcl/v2/ext/dynblock"
 	"github.com/hashicorp/hcl/v2/hcldec"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/zclconf/go-cty/cty"
-	"github.com/zclconf/go-cty/cty/convert"
-	"github.com/zclconf/go-cty/cty/function"
-
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/configs/configschema"
 	"github.com/opentofu/opentofu/internal/instances"
 	"github.com/opentofu/opentofu/internal/lang/blocktoattr"
 	"github.com/opentofu/opentofu/internal/lang/marks"
 	"github.com/opentofu/opentofu/internal/tfdiags"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/convert"
+	"github.com/zclconf/go-cty/cty/function"
 )
 
 // ExpandBlock expands any "dynamic" blocks present in the given body. The
@@ -79,6 +79,8 @@ func (s *Scope) EvalBlock(ctx context.Context, body hcl.Body, schema *configsche
 
 	val, evalDiags := hcldec.Decode(body, spec, hclCtx)
 	diags = diags.Append(enhanceFunctionDiags(evalDiags))
+
+	diags = diags.Append(validEphemeralReferences(schema, val))
 
 	val, depDiags := marks.ExtractDeprecationDiagnosticsWithBody(val, body)
 	diags = diags.Append(depDiags)
@@ -623,4 +625,55 @@ func normalizeRefValue(val cty.Value, diags tfdiags.Diagnostics) (cty.Value, tfd
 		return cty.UnknownVal(val.Type()), diags
 	}
 	return val, diags
+}
+
+// validEphemeralReferences is checking if val is containing ephemeral marks.
+// The schema argument is used to figure out if the value is for an ephemeral
+// context. If it is, then we don't even validate ephemeral marks.
+// If val contains any ephemeral mark, we check if the attribute containing
+// an ephemeral value is a write-only one. If not, we generate a diagnostic.
+// The diagnostics returned by this method need to go through InConfigBody
+// by the caller of the evaluator to append additional context to the diagnostic
+// for an enhanced feedback to the user.
+func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags tfdiags.Diagnostics) {
+	// Ephemeral resources can reference values with any mark, so ignore this validation for ephemeral blocks
+	if schema == nil || schema.Ephemeral {
+		return diags
+	}
+
+	_, valueMarks := val.UnmarkDeepWithPaths()
+	for _, pathMark := range valueMarks {
+		_, ok := pathMark.Marks[marks.Ephemeral]
+		if !ok {
+			continue
+		}
+
+		// If the block is not ephemeral, then only its write-only attributes can reference ephemeral values.
+		// To figure it out, we need to find the attribute by the mark path.
+		// In cases of DynamicPseudoType attribute in the schema, the attribute that is actually
+		// referencing an ephemeral value will be missing from the schema.
+		// Therefore, we search for the first ancestor that exists in the schema.
+		attrPath := pathMark.Path
+		attr := schema.AttributeByPath(attrPath)
+		for attr == nil {
+			if len(attrPath) == 0 {
+				log.Printf("[WARN] no valid path found in schema for path \"%#v\"", pathMark.Path)
+				break
+			}
+			attrPath = attrPath[:len(attrPath)-1]
+			attr = schema.AttributeByPath(attrPath)
+		}
+		if attr != nil && attr.WriteOnly {
+			continue
+		}
+
+		diags = diags.Append(tfdiags.AttributeValue(
+			tfdiags.Error,
+			"Ephemeral value used in non-ephemeral context",
+			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", configschema.PathName(attrPath)),
+			attrPath,
+		))
+	}
+
+	return diags
 }

@@ -150,6 +150,22 @@ func TestGRPCProvider_GetSchema(t *testing.T) {
 
 	resp := p.GetProviderSchema(t.Context())
 	checkDiags(t, resp.Diagnostics)
+
+	{ // check ephemeral attribute of the schema blocks
+		if !resp.Provider.Block.Ephemeral {
+			t.Errorf("provider.Block.Ephemeral meant to be true")
+		}
+		checkResources := func(t *testing.T, r map[string]providers.Schema, want bool) {
+			for typ, schema := range r {
+				if schema.Block.Ephemeral != want {
+					t.Errorf("expected resource %q to have ephemeral as %t", typ, want)
+				}
+			}
+		}
+		checkResources(t, resp.ResourceTypes, false)
+		checkResources(t, resp.DataSources, false)
+		checkResources(t, resp.EphemeralResources, true)
+	}
 }
 
 // Ensure that gRPC errors are returned early.

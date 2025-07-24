@@ -48,6 +48,10 @@ func Contains(val cty.Value, mark valueMark) bool {
 // OpenTofu.
 const Sensitive = valueMark("Sensitive")
 
+// Ephemeral indicates that this value is marked as ephemeral in the context of
+// OpenTofu.
+const Ephemeral = valueMark("Ephemeral")
+
 // TypeType is used to indicate that the value contains a representation of
 // another value's type. This is part of the implementation of the console-only
 // `type` function.
