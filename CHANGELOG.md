@@ -1,5 +1,9 @@
 ## 1.10.4 (unreleased)
 
+BUG FIXES:
+
+- Fixed crash where sensitive set values used in for_each could cause a panic. ([#3070](https://github.com/opentofu/opentofu/pull/3070))
+
 ## 1.10.3
 
 BUG FIXES:
