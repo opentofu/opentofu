@@ -59,12 +59,18 @@ var (
 
 type DeprecationCause struct {
 	By      addrs.Referenceable
+	Key     string
 	Message string
 
 	// IsFromRemoteModule indicates if the cause of deprecation is coming from a remotely
 	// imported module relative to the root module.
 	// This is useful when the user wants to control the type of deprecation warnings OpenTofu will show.
 	IsFromRemoteModule bool
+}
+
+// ExtraInfoKey returns the key used for consolidation of deprecation diagnostics.
+func (dc DeprecationCause) ExtraInfoKey() string {
+	return dc.Key
 }
 
 type deprecationMark struct {
@@ -110,7 +116,11 @@ func DeprecatedOutput(v cty.Value, addr addrs.AbsOutputValue, msg string, isFrom
 	return Deprecated(v, DeprecationCause{
 		IsFromRemoteModule: isFromRemoteModule,
 		By:                 callOutAddr,
-		Message:            msg,
+		// Used to identify the output on the consolidation diagnostics and
+		// make sure they are consolidated correctly. We use:
+		// output value + deprecated message as the key
+		Key:     fmt.Sprintf("%s\n%s", addr.OutputValue.Name, msg),
+		Message: msg,
 	})
 }
 
