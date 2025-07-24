@@ -449,6 +449,10 @@ const (
 	prevRunState
 )
 
+func (n *NodeAbstractResourceInstance) updateStateHook(evalCtx EvalContext) error {
+	return updateStateHook(n.Addr, evalCtx, n.ResolvedProvider.ProviderConfig)
+}
+
 //go:generate go run golang.org/x/tools/cmd/stringer -type phaseState
 
 // writeResourceInstanceState saves the given object as the current object for
