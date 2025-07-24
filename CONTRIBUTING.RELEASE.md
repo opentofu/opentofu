@@ -1,30 +1,39 @@
 # OpenTofu release manual
 
 > [!WARNING]
-> This manual is intended for OpenTofu core and fork maintainers. If you are looking for the normal contribution guide, see [this file](CONTRIBUTING.md).
+> This manual is intended for OpenTofu maintainers. If you are looking for the normal contribution guide, refer to [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-This manual describes how to create an OpenTofu release. OpenTofu has two kinds of releases. Alpha and Beta releases are created
-from the `main` branch, while we split off a version (e.g. `v1.8`) branch before creating an `rc` or `stable`
-release.
+This document describes how to publish an OpenTofu release. OpenTofu has three kinds of releases:
+
+- Development snapshots, labeled as "alpha" releases, are built from the `main` branch representing in-progress work toward the next major or minor release series.
+- Prereleases, labelled as either "beta" or "rc", are built from a branch representing the release series they are previews of, such as `v1.8`.
+- Final releases, which have no special suffix and are intended for routine use, are also built from the corresponding release branch.
+
+We typically produce development snapshots and prereleases only prior to the first final release in each series. For example, `v1.8.0-beta1` comes before `v1.8.0`, but there will not typically be prereleases for subsequent patch releases in a series such as `v1.8.1-beta1`.
 
 --- 
 
 ## Naming in this document
 
-- **Alpha** is an early preview release. This is versioned `X.Y.0-alphaW`, where `X`,`Y` and `W` are numbers, such as `1.2.0-alpha1`.
-- **Beta** is a semi-stable preview release. This is versioned `X.Y.0-betaW`, where `X`,`Y` and `W` are numbers, such as `1.2.0-beta1`.
-- **RC** is a release candidate which does not have new features over a beta. This is versioned `X.Y.0-rcW`, where `X`,`Y` and `W` are numbers, such as `1.2.0-rc1`.
-- **Stable** is a release that has no new features and bug fixes over an RC. This is versioned `X.Y.0`, where `X` and `Y` are numbers, such as `1.2.0`.
-- **Point release** is a release that contains bugfixes only on top of a stable release. This is versioned `X.Y.Z` where `X`, `Y` and `Z` are numbers, such as `1.2.3`.
+- **Alpha** is a development snapshot, representing an arbitrary state of development that might be useful for early testing of new features. These are named as `vX.Y.0-alphaW`, where `X`,`Y` and `W` are numbers, such as `v1.2.0-alpha1`.
+- **Beta** is feature-complete for a new release series but still needs further testing to develop confidence about newly-implemented features. This are named as `vX.Y.0-betaW`, where `X`,`Y` and `W` are numbers, such as `v1.2.0-beta1`.
+- **RC** is a "release candidate" build that we believe is ready to be re-released as a final release. This are named as `vX.Y.0-rcW`, where `X`,`Y` and `W` are numbers, such as `v1.2.0-rc1`.
+- **Final** is a release that we believe is ready for routine use.
+    - The first final release in each series is is versioned `vX.Y.0`, where `X` and `Y` are numbers, such as `v1.2.0`. This exactly matches the latest release candidate aside from its compiled-in version number.
+    - **Patch releases** are final releases containing only low-risk bug fixes relative to the previous final release in the same series. These are named as `vX.Y.Z` where `X`, `Y` and `Z` are numbers, such as `v1.2.3`.
+
+"Beta" and "RC" are together described as "prereleases", since they have similar release ceremonies and differ only in how release-ready we consider the functionality to be.
 
 > [!WARNING]
-> Many tools depend on the release order on GitHub to determine the latest version. When creating a point release, make sure to release the oldest version first, then follow by the newer versions. Do not release an older point release without also releasing the newer versions or tooling _will_ break.
+> Some tools use the GitHub releases API to determine which releases are available, and may rely on the ordering of that result to decide the latest version rather than actually sorting the available versions by precedence.
+> Therefore we try to ensure that after we complete a set of releases the most recent one created was the one with the highest version number. For example, if we were publishing patch releases v1.2.1 and v1.3.1 and the latest release series is v1.4, we would publish v1.2.1 first, then v1.3.1 second, and then finally publish a new v1.4.x release _even if one isn't actually needed_ so that once we are done the latest release will be the v1.4.x release.
+> By this strategy, the first release returned by the GitHub API is only "wrong" briefly during our series of releases, but we leave it in a state that these naive tools can still find a suitable "latest release".
 
 ---
 
 ## Gathering the team for a release
 
-To create a release, make sure you have people on standby with the following credentials:
+We publish packages and release announcements to a variety of different locations. To fully complete a release you will need access to credentials for all of the following:
 
 - Cloudflare
 - PackageCloud
@@ -34,18 +43,51 @@ To create a release, make sure you have people on standby with the following cre
 
 ---
 
-## Preparing public relations collaterals for a release
+## Preparing release announcements
 
-Before you start creating a release, make sure you have the following marketing collaterals ready to be published:
+Before you start creating a release, make sure you have the following release anouncements ready to be published:
 
 <details><summary>
 
-### Alpha version (`X.Y.0-alphaW`)
+### Development snapshot (`vX.Y.0-alphaW`)
 
 </summary>
 
-- Feature Preview video for upcoming flagship features (see https://www.youtube.com/@opentofu for examples)
-- "Help us test..." blog post (see https://opentofu.org/blog/ for examples)
+- "Help us test..." blog post, similar to [Help us test OpenTofu 1.10.0-alpha1](https://opentofu.org/blog/help-us-test-opentofu-1-10-0-alpha1/).
+- Community Slack announcement
+- Linkedin and X posts
+
+(We are currently considering adopting automated scheduled development snapshots instead, such as nightly builds, in which case we are likely to stop publishing explicit announcements for development snapshots. However, we currently create them manually and announce them in a similar way as prereleases.)
+
+</details>
+
+<details><summary>
+
+### Prereleases (`vX.Y.0-betaW` or `vX.Y.0-rcW`)
+
+</summary>
+
+The _first_ prerelease (labelled "beta1")  is accompanied by a
+"Get ready for..." blog post, similar to
+[Get ready for OpenTofu Beta 1.9.0](https://opentofu.org/blog/opentofu-1-9-0-beta1/).
+
+For _all_ prereleases, we also publish:
+
+- Community Slack announcement
+- Linkedin and X posts
+
+beta2 and onwards should typically include only bugfixes relative to beta1,
+and so we don't publish a new blog post for each one.
+
+</details>
+
+<details><summary>
+
+### First final release in new series (`vX.Y.0`)
+
+</summary>
+
+- Release blog post with the feature and community highlights since the last release, similar to [OpenTofu 1.9.0 is available ...](https://opentofu.org/blog/opentofu-1-9-0/).
 - Community Slack announcement
 - Linkedin and X posts
 
@@ -53,46 +95,14 @@ Before you start creating a release, make sure you have the following marketing 
 
 <details><summary>
 
-### Beta (`X.Y.0-betaW`)
-
-</summary>
-
-- "Get ready for..." blog post (see https://opentofu.org/blog/ for examples)
-- Community Slack announcement
-- Linkedin and X posts
-
-</details>
-
-<details><summary>
-
-### Release Candidate (`X.Y.0-rcW`)
+### Subsequent patch releases in an existing series (`vX.Y.Z`)
 
 </summary>
 
 - Community Slack announcement
-- Linkedin and X posts
 
-</details>
-
-<details><summary>
-
-### Stable release (`X.Y.0`)
-
-</summary>
-
-- Release blog post with the feature and community highlights since the last release (see https://opentofu.org/blog/ for examples)
-- Community Slack announcement
-- Linkedin and X posts
-
-</details>
-
-<details><summary>
-
-### Point release (`X.Y.Z`)
-
-</summary>
-
-- Community Slack announcement
+Patch releases should include only bugfixes relative to their predecessors in
+the same series, and so we don't publish a new blog post for each one.
 
 </details>
 
@@ -105,7 +115,7 @@ Before you can create a release, you need to make sure the following files are u
 - [CHANGELOG.md](CHANGELOG.md) (Note: do not remove the `(unreleased)` string from the version number before the stable release.)
 - [version/VERSION](version/VERSION)
 
-Ideally, make sure these changes go in as the last PR before the release.
+These changes should be the final PR merged before the release.
 
 ---
 
@@ -114,11 +124,10 @@ Ideally, make sure these changes go in as the last PR before the release.
 Now that you have the files up to date, do the following:
 
 1. On your computer, make sure you have checked out the correct branch:
-   * `main` for `alpha` and `beta` releases
-   * `vX.Y` for any other releases (assuming you are releasing version `X.Y.Z`)
+   * `main` for "alpha" releases
+   * `vX.Y` for any other releases (assuming you are releasing `vX.Y.Z`)
 2. Make sure the branch is up-to-date by running `git pull`
-3. Create the correct tag: `git tag -m "X.Y.Z" vX.Y.Z` (assuming you are releasing version `X.Y.Z`)
-   * If you have a GPG key, consider adding the `-s` option to create a GPG-signed tag
+3. Create the correct tag: `git tag -m "vX.Y.Z" vX.Y.Z` (assuming you are releasing `vX.Y.Z`)
 4. Push the tag: `git push origin vX.Y.Z`
 
 ---
@@ -127,15 +136,15 @@ Now that you have the files up to date, do the following:
 
 Now comes the big step, creating the actual release.
 
-1. Head on over to the [Actions tab](https://github.com/opentofu/opentofu/actions) on the main repository
+1. Head on over to [the opentofu/opentofu repository's "Actions"](https://github.com/opentofu/opentofu/actions)
 2. Select the `release` workflow on the left side
 3. Click the `Run workflow` button, which opens a popup menu
 4. Select the correct branch:
-   * For `alpha` releases, select the `main` branch
-   * For all other releases, select the appropriate version branch
+   * For "alpha" releases, select the `main` branch
+   * For all other releases, select the appropriate release branch
 5. Enter the correct git tag name: `vX.Y.Z`
-6. If you are releasing the latest `X.Y` version, check the `Release as latest?` option.
-7. If you are releasing an `alpha`, `beta` or `rc` version, check the `Release as prerelease?` option.
+6. If you are releasing the latest `vX.Y` version, check the `Release as latest?` option.
+7. If you are releasing a development snapshot or prerelease version, check the `Release as prerelease?` option.
 8. Click the `Run workflow` button.
 
 Now the release process will commence and create a *draft* release on GitHub. If you did not check the prerelease option, it will also publish to Snapcraft and PackageCloud.
@@ -144,17 +153,17 @@ Now the release process will commence and create a *draft* release on GitHub. If
 
 ## Publishing the GitHub release
 
-The release process takes about 30 minutes. When it is complete, head over to the [Releases section](https://github.com/opentofu/opentofu/releases) of the main repository and find the new draft release. Change the following settings
+The release process takes about 30 minutes. When it is complete, head over to the [Releases section](https://github.com/opentofu/opentofu/releases) of the main repository and find the new draft release. Change the following settings:
 
 - Edit the text (see the examples below).
-- Check `Set as a pre-release` if you are releasing an alpha, beta, or release candidate.
-- Check `Set as the latest release` if you are releasing a stable or point release for the latest major version. Do not check this checkbox if you are releasing a point release for an older major version.
-- Check `Create a discussion for this release` if you are releasing a stable (`X.Y.0`) version.
-- Click `Publish release`
+- Check `Set as a pre-release` if you are releasing a development snapshot or prerelease version.
+- Check `Set as the latest release` if you are releasing a final release for the latest release series. Do not check this checkbox if you are releasing a point release for an older major version.
+- Check `Create a discussion for this release` if you are releasing the first final release of a new series (`vX.Y.0`).
+- Click `Publish release`.
 
 <details><summary>
 
-### Alpha, beta, or release candidate
+### Development snapshots and prereleases
 
 </summary>
 
@@ -185,7 +194,7 @@ The highlights are:
 
 <details><summary>
 
-### Stable release (`X.Y.0`)
+### First final release in new series (`vX.Y.0`)
 
 </summary>
 
@@ -203,20 +212,20 @@ We're proud to announce that OpenTofu 1.8.0 is now officially out! 🎉
 
 See the launch post on our blog: https://opentofu.org/blog/opentofu-1-8-0/
 
-For all the features, see the [detailed changelog](https://github.com/opentofu/opentofu/blob/v1.8.0/CHANGELOG.md).
+For all the features, refer to [the detailed changelog](https://github.com/opentofu/opentofu/blob/v1.8.0/CHANGELOG.md).
 
-You can find the full diff [here](https://github.com/opentofu/opentofu/compare/v1.7..v1.8.0).
+For full details, refer to [the full diff](https://github.com/opentofu/opentofu/compare/v1.7..v1.8.0).
 ```
 
 </details>
 
 <details><summary>
 
-### Point release (`X.Y.Z`)
+### Patch release (`X.Y.Z`)
 
 </summary>
 
-For point releases, simply copy the section from the [CHANGELOG.md](CHANGELOG.md) file.
+For patch releases, simply copy the relevant section from the [`CHANGELOG.md`](CHANGELOG.md) file.
 
 </details>
 
@@ -230,7 +239,7 @@ In order for the installer script to work, you will need to update the https://g
 
 ## Updating the website/documentation
 
-Depending on the release type, you will need to update the [opentofu.org](https://github.com/opentofu/opentofu.org) repository.
+For final releases (_not_ development snapshots and prereleases) you will need to update [the opentofu.org repository](https://github.com/opentofu/opentofu.org) to make the new documentation available.
 
 Before you begin, make sure that all submodules are up to date by running:
 
@@ -242,25 +251,9 @@ git submodule update
 > [!WARNING]
 > If you are using Windows, make sure your system supports symlinks by enabling developer mode and enabling symlinks in git.
 
-<details>
-<summary>
-
-## Updating govulncheck github workflow (only for stable releases)
-In [.github/workflows/govulncheck.yml](.github/workflows/govulncheck.yml), there is a matrix with the actively
-maintained versions of OpenTofu.
-When the new branch for the stable version is created, update the matrix above by adding the new branch and removing the deprecated version.
-
-### Alpha (`X.Y.Z-alphaW`), Beta (`X.Y.Z-betaW`) and Release Candidate (`X.Y.Z-rcW`)
-
-</summary>
-
-We do not release documentation for non-stable releases. There is no action needed beyond publishing the blog post.
-
-</details>
-
 <details><summary>
 
-### Stable (`X.Y.0`)
+### First release in a new series (`vX.Y.0`)
 
 </summary>
 
@@ -291,8 +284,8 @@ We do not release documentation for non-stable releases. There is no action need
      path: "",
    },
    ```
-5. After this is set, change the `lastVersion` option to point to your version.
-6. Now locate any version that is no longer supported and remove the following line to add a deprecation warning:
+5. After this is set, change the `lastVersion` option to refer to the newly-added version.
+6. Locate any version that is no longer supported and remove the following line to add a deprecation warning:
    ```
      banner: "none",
    ```
@@ -319,11 +312,11 @@ We do not release documentation for non-stable releases. There is no action need
 
 <details><summary>
 
-### Point release (`X.Y.Z`)
+### Patch release (`X.Y.Z`)
 
 </summary>
 
-For a point release, you merely need to make sure that the submodules for the supported versions are up to date. You can do this by running the following script:
+For a patch release, you only need to make sure that the submodules for the supported versions are up to date. You can do this by running the following script:
 
 ```bash
 cd opentofu-repo
@@ -368,7 +361,27 @@ Now test the following 3 installation methods to make sure all distribution poin
 
 Once you are happy that the release works, post the announcements to the following places:
 
-- Alpha: Community Slack, Linkedin, X, Blog, YouTube
-- Beta: Community Slack, Linkedin, X, Blog
-- Stable: Community Slack, Linkedin, X, Blog
-- Point release: Community Slack
+- Development snapshots: Community Slack, Linkedin, X, Blog, YouTube.
+- Prereleases: Community Slack, Linkedin, X. For the first beta, also the Blog.
+- First final release in new series: Community Slack, Linkedin, X, Blog.
+- Patch release: Community Slack.
+
+## Post-release Cleanup
+
+Once all of the above is complete, the release is finished as far as end-users are concerned.
+
+However, we have some other tasks to perform shortly after the release that support our ongoing development work.
+
+### First prerelease in a new series
+
+Our first prerelease for each release series marks that series being feature-complete, and so before we merge any more PRs we must create the new release branch, named after the first two segments of the release version number: `vX.Y`.
+
+Creating the new branch also implicitly marks that `main` is now tracking development for the _next_ release series. Any bugfixes that are relevant to the prereleases should typically be merged first into `main` and then backported to the release branch.
+
+Reset the changelog on `main` so that it contains only a section for the release series that is now seeing new feature development, and so that the list of links to prior release series includes a link to the changelog on the release branch just created.
+
+### First release in a new series
+
+[.github/workflows/govulncheck.yml](The `govulncheck.yml` GitHub Actions workflow) contains a list of the currently-supported versions of OpenTofu, for which we will generate GitHub issues for newly-published third party security advisories.
+
+    Add the branch name for the release branch of the new current release series, and remove any versions that are no longer supported.
