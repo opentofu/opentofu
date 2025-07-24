@@ -38,24 +38,49 @@ func appendDiags(diags tfdiags.Diagnostics, response any, err error) tfdiags.Dia
 	if wd, ok := response.(withClientDiags); ok {
 		diags = appendClientDiags(diags, wd)
 	}
-	if wd, ok := response.(withClientFunctionError); ok {
-		diags = appendClientFunctionErrorDiags(diags, wd)
-	}
 	diags = appendClientErrorDiags(diags, err)
 	return diags
 }
 
 func appendClientDiags(diags tfdiags.Diagnostics, wd withClientDiags) tfdiags.Diagnostics {
-	// TODO: implement
-	return diags
-}
-
-func appendClientFunctionErrorDiags(diags tfdiags.Diagnostics, we withClientFunctionError) tfdiags.Diagnostics {
-	// TODO: implement
+	for diag := range wd.Diagnostics().All() {
+		// TODO: Support AttributePath here once the upstream library has
+		// support for it. In that case we'd need to use tfdiags.AttributeValue
+		// instead of tfdiags.Sourceless here.
+		diags = diags.Append(tfdiags.Sourceless(
+			convertDiagnosticSeverity(diag.Severity()),
+			diag.Summary(),
+			diag.Detail(),
+		))
+	}
 	return diags
 }
 
 func appendClientErrorDiags(diags tfdiags.Diagnostics, err error) tfdiags.Diagnostics {
-	// TODO: implement
+	// FIXME: Make this recognize certain common error types and transform
+	// them into user-friendly diagnostics.
+	if err != nil {
+		diags = diags.Append(err)
+	}
 	return diags
+}
+
+func appendConvertSchemaDiags(diags tfdiags.Diagnostics, err error) tfdiags.Diagnostics {
+	if err == nil {
+		return diags
+	}
+	// FIXME: Make this into a real diagnostic
+	return diags.Append(err)
+}
+
+func convertDiagnosticSeverity(severity providerops.DiagnosticSeverity) tfdiags.Severity {
+	switch severity {
+	case providerops.DiagnosticError:
+		return tfdiags.Error
+	case providerops.DiagnosticWarning:
+		return tfdiags.Warning
+	default:
+		var zero tfdiags.Severity
+		return zero
+	}
 }
