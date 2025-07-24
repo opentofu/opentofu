@@ -744,6 +744,44 @@ func TestEvaluateForEach(t *testing.T) {
 			},
 			PlanReturnValue: map[string]cty.Value{},
 		},
+		"sensitive_set": {
+			Input: cty.SetVal([]cty.Value{cty.StringVal("a")}).Mark(marks.Sensitive),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				}},
+			ValidateReturnValue: cty.NullVal(cty.Set(cty.String)),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				}},
+			PlanReturnValue: map[string]cty.Value{},
+		},
+		"sensitive_set_elements": {
+			Input: cty.SetVal([]cty.Value{cty.StringVal("a").Mark(marks.Sensitive)}),
+			ValidateExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				}},
+			ValidateReturnValue: cty.NullVal(cty.Set(cty.String)),
+			PlanExpectedErrs: []expectedErr{
+				{
+					Summary:           "Invalid for_each argument",
+					Detail:            "Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments",
+					CausedByUnknown:   false,
+					CausedBySensitive: true,
+				}},
+			PlanReturnValue: map[string]cty.Value{},
+		},
 		"string": {
 			Input: cty.StringVal("i am definitely a set"),
 			ValidateExpectedErrs: []expectedErr{

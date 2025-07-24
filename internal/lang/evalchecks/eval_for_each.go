@@ -225,7 +225,8 @@ func performSetValueChecks(expr hcl.Expression, hclCtx *hcl.EvalContext, forEach
 
 	// A set of strings may contain null, which makes it impossible to
 	// convert to a map, so we must return an error
-	it := forEachVal.ElementIterator()
+	forEachValUnmarked, _ := forEachVal.UnmarkDeep()
+	it := forEachValUnmarked.ElementIterator()
 	for it.Next() {
 		item, _ := it.Element()
 		if item.IsNull() {
