@@ -21,7 +21,7 @@ require (
 	github.com/apparentlymart/go-shquot v0.0.1
 	github.com/apparentlymart/go-userdirs v0.0.0-20200915174352-b0c018a67c13
 	github.com/apparentlymart/go-versions v1.0.2
-	github.com/apparentlymart/opentofu-providers v0.0.0-20250724194801-5f262d220d38
+	github.com/apparentlymart/opentofu-providers v0.0.0-20250724234429-1ac1eb53eced
 	github.com/armon/circbuf v0.0.0-20190214190532-5111143e8da2
 	github.com/aws/aws-sdk-go-v2 v1.36.0
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.27

@@ -51,13 +51,13 @@ func (r rpcProvider) CallFunction(ctx context.Context, req providers.CallFunctio
 			}
 		}
 
-		if !spec.VariadicParameter.AllowUnknownValues {
+		if !param.AllowUnknownValues {
 			if !arg.IsWhollyKnown() {
 				resp.Result = cty.UnknownVal(spec.Return)
 				return resp
 			}
 		}
-		if !spec.VariadicParameter.AllowNullValue {
+		if !param.AllowNullValue {
 			if arg.IsNull() {
 				resp.Error = function.NewArgErrorf(i, "must not be null")
 				return resp

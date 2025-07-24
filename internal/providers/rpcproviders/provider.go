@@ -109,9 +109,8 @@ func (r rpcProvider) ValidateProviderConfig(ctx context.Context, req providers.V
 		return resp
 	}
 
-	clientResp, err := r.client.ConfigureProvider(ctx, &providerops.ConfigureProviderRequest{
-		Config:             providerschema.NewDynamicValue(req.Config, schema.Block.ImpliedType()),
-		ClientCapabilities: clientCapabilities,
+	clientResp, err := r.client.ValidateProviderConfig(ctx, &providerops.ValidateProviderConfigRequest{
+		Config: providerschema.NewDynamicValue(req.Config, schema.Block.ImpliedType()),
 	})
 	resp.Diagnostics = appendDiags(resp.Diagnostics, clientResp, err)
 	return resp
