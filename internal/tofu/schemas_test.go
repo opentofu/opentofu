@@ -42,6 +42,10 @@ func schemaOnlyProvidersForTesting(schemas map[addrs.Provider]providers.Provider
 	for providerAddr, schema := range schemas {
 		schema := schema
 
+		// mark ephemeral resources blocks accordingly
+		for _, s := range schema.EphemeralResources {
+			s.Block.Ephemeral = true
+		}
 		provider := &MockProvider{
 			GetProviderSchemaResponse: &schema,
 		}

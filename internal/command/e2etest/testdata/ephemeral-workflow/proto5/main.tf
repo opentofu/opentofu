@@ -25,16 +25,27 @@ ephemeral "simple_resource" "test_ephemeral" {
 
 resource "simple_resource" "test_res" {
   provider = simple.s1
-  // NOTE this is wrongly configured on purpose to force a revisit of the test once ephemeral marks are implemented.
-  // Once write only arguments are also implemented, adjust the implementation of the provider to support that too
-  // and use that new field instead.
-  value = ephemeral.simple_resource.test_ephemeral[0].value
+  value = "test value"
+  // NOTE write-only arguments can reference ephemeral values.
+  value_wo = ephemeral.simple_resource.test_ephemeral[0].value
+  provisioner "local-exec" {
+    command = "echo \"visible ${self.value}\""
+  }
+  provisioner "local-exec" {
+    command = "echo \"not visible ${self.value_wo}\""
+  }
 }
 
 data "simple_resource" "test_data2" {
   provider = simple.s1
-  // NOTE this is wrongly configured on purpose to force a revisit of the test once ephemeral marks are implemented
-  value = ephemeral.simple_resource.test_ephemeral[0].value
+  value = "test"
+  lifecycle {
+    precondition {
+      // NOTE: precondition blocks can reference ephemeral values
+      condition = ephemeral.simple_resource.test_ephemeral[0].value != null
+      error_message = "test message"
+    }
+  }
 }
 
 locals{
@@ -59,6 +70,15 @@ provider "simple" {
 resource "simple_resource" "test_res_second_provider" {
   provider = simple.s2
   value = "just a simple resource to ensure that the second provider it's working fine"
+}
+
+module "call" {
+  source = "./mod"
+  in = ephemeral.simple_resource.test_ephemeral[0].value // NOTE: because variable "in" is marked as ephemeral, this should work as expected.
+}
+
+output "out_ephemeral" {
+  value = module.call.out2 // TODO: Because the output ephemeral marking is not done yet entirely, this is working now but remove this output once the marking of outputs are done completely.
 }
 
 output "final_output" {
