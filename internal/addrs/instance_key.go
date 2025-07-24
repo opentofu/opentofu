@@ -71,6 +71,22 @@ func (k IntKey) Value() cty.Value {
 	return cty.NumberIntVal(int64(k))
 }
 
+// NilKey is the InstanceKey representation representing nil, as
+// used when the "count" argument is specified or if for_each is used with
+// a sequence type.
+type NilKey struct{}
+
+func (k NilKey) instanceKeySigil() {
+}
+
+func (k NilKey) String() string {
+	return "nil-key"
+}
+
+func (k NilKey) Value() cty.Value {
+	return cty.NilVal
+}
+
 // StringKey is the InstanceKey representation representing string indices, as
 // used when the "for_each" argument is specified with a map or object type.
 type StringKey string

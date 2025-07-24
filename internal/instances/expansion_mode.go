@@ -48,15 +48,15 @@ type expansionEnabled bool
 
 func (e expansionEnabled) instanceKeys() []addrs.InstanceKey {
 	if !bool(e) {
-		return nil
+		return []addrs.InstanceKey{addrs.NilKey{}}
 	}
 	return singleKeys
 }
 
 func (e expansionEnabled) repetitionData(key addrs.InstanceKey) RepetitionData {
-	if key != addrs.NoKey {
-		panic("cannot use instance key with non-repeating object")
-	}
+	// if key != addrs.NoKey {
+	// 	panic("cannot use instance key with non-repeating object")
+	// }
 	return RepetitionData{}
 }
 

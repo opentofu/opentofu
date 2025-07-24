@@ -106,6 +106,7 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 	var orphans []*states.Resource
 	for _, res := range state.Resources(n.Addr) {
 		found := false
+
 		for _, m := range moduleInstances {
 			if m.Equal(res.Addr.Module) {
 				found = true
@@ -133,7 +134,6 @@ func (n *nodeExpandPlannableResource) DynamicExpand(evalCtx EvalContext) (*Graph
 		a.Schema = n.Schema
 		a.ProvisionerSchemas = n.ProvisionerSchemas
 		a.ProviderMetas = n.ProviderMetas
-		a.Dependencies = n.dependencies
 
 		return &NodePlannableResourceInstanceOrphan{
 			NodeAbstractResourceInstance: a,
@@ -226,6 +226,12 @@ func (n *nodeExpandPlannableResource) expandResourceInstances(ctx context.Contex
 	if moreDiags.HasErrors() {
 		return diags.ErrWithWarnings()
 	}
+
+	// Check if are there any disabled references
+	// diags = diags.Append(ValidateEnabledReferences(ctx, n.Config, n.dependencies, globalCtx))
+	// if diags.HasErrors() {
+	// 	return diags.ErrWithWarnings()
+	// }
 
 	// Before we expand our resource into potentially many resource instances,
 	// we'll verify that any mention of this resource in n.forceReplace is
