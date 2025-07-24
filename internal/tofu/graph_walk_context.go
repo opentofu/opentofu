@@ -99,6 +99,7 @@ func (w *ContextGraphWalker) EvalContext() EvalContext {
 		VariableValues:     w.variableValues,
 		VariableValuesLock: &w.variableValuesLock,
 		PlanTimestamp:      w.PlanTimestamp,
+		InstanceExpander:   w.InstanceExpander,
 	}
 
 	ctx := &BuiltinEvalContext{

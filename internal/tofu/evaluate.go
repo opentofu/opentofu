@@ -69,6 +69,8 @@ type Evaluator struct {
 	Changes *plans.ChangesSync
 
 	PlanTimestamp time.Time
+
+	InstanceExpander *instances.Expander
 }
 
 // Scope creates an evaluation scope for the given module path and optional
@@ -485,76 +487,6 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 
 	var ret cty.Value
 
-	// compile the outputs into the correct value type for the each mode
-	switch {
-	case callConfig.Count != nil:
-		// figure out what the last index we have is
-		length := -1
-		for key := range moduleInstances {
-			intKey, ok := key.(addrs.IntKey)
-			if !ok {
-				// old key from state which is being dropped
-				continue
-			}
-			if int(intKey) >= length {
-				length = int(intKey) + 1
-			}
-		}
-
-		if length > 0 {
-			vals := make([]cty.Value, length)
-			for key, instance := range moduleInstances {
-				intKey, ok := key.(addrs.IntKey)
-				if !ok {
-					// old key from state which is being dropped
-					continue
-				}
-
-				vals[int(intKey)] = cty.ObjectVal(instance)
-			}
-
-			// Insert unknown values where there are any missing instances
-			for i, v := range vals {
-				if v.IsNull() {
-					vals[i] = cty.DynamicVal
-					continue
-				}
-			}
-			ret = cty.TupleVal(vals)
-		} else {
-			ret = cty.EmptyTupleVal
-		}
-
-	case callConfig.ForEach != nil:
-		vals := make(map[string]cty.Value)
-		for key, instance := range moduleInstances {
-			strKey, ok := key.(addrs.StringKey)
-			if !ok {
-				continue
-			}
-
-			vals[string(strKey)] = cty.ObjectVal(instance)
-		}
-
-		if len(vals) > 0 {
-			ret = cty.ObjectVal(vals)
-		} else {
-			ret = cty.EmptyObjectVal
-		}
-
-	default:
-		val, ok := moduleInstances[addrs.NoKey]
-		if !ok {
-			// create the object if there wasn't one known
-			val = map[string]cty.Value{}
-			for k := range outputConfigs {
-				val[k] = cty.DynamicVal
-			}
-		}
-
-		ret = cty.ObjectVal(val)
-	}
-
 	// The module won't be expanded during validation, so we need to return an
 	// unknown value. This will ensure the types looks correct, since we built
 	// the objects based on the configuration.
@@ -575,6 +507,68 @@ func (d *evaluationStateData) GetModule(_ context.Context, addr addrs.ModuleCall
 			ret = cty.UnknownVal(cty.Map(ty))
 		default:
 			ret = cty.UnknownVal(ty)
+		}
+	} else {
+		// compile the outputs into the correct value type for the each mode
+		switch {
+		case callConfig.Count != nil:
+			expandedModuleAddrs := d.Evaluator.InstanceExpander.ExpandModuleCall(d.ModulePath.ChildCall(addr.Name))
+
+			// figure out what the last index we have is
+			length := len(expandedModuleAddrs)
+
+			if length > 0 {
+				vals := make([]cty.Value, length)
+				for _, instanceAddr := range expandedModuleAddrs {
+					key := instanceAddr[len(instanceAddr)-1].InstanceKey
+
+					val := cty.DynamicVal // Default to DynamicVal if not yet initialized
+
+					if instance, ok := moduleInstances[key]; ok {
+						val = cty.ObjectVal(instance)
+					}
+
+					vals[int(key.(addrs.IntKey))] = val
+				}
+				ret = cty.TupleVal(vals)
+			} else {
+				ret = cty.EmptyTupleVal
+			}
+
+		case callConfig.ForEach != nil:
+			expandedModuleAddrs := d.Evaluator.InstanceExpander.ExpandModuleCall(d.ModulePath.ChildCall(addr.Name))
+
+			vals := make(map[string]cty.Value)
+
+			for _, instanceAddr := range expandedModuleAddrs {
+				key := instanceAddr[len(instanceAddr)-1].InstanceKey
+
+				val := cty.DynamicVal // Default to DynamicVal if not yet initialized
+
+				if instance, ok := moduleInstances[key]; ok {
+					val = cty.ObjectVal(instance)
+				}
+
+				vals[string(key.(addrs.StringKey))] = val
+			}
+
+			if len(vals) > 0 {
+				ret = cty.ObjectVal(vals)
+			} else {
+				ret = cty.EmptyObjectVal
+			}
+
+		default:
+			val, ok := moduleInstances[addrs.NoKey]
+			if !ok {
+				// create the object if there wasn't one known
+				val = map[string]cty.Value{}
+				for k := range outputConfigs {
+					val[k] = cty.DynamicVal
+				}
+			}
+
+			ret = cty.ObjectVal(val)
 		}
 	}
 

@@ -107,6 +107,24 @@ func (e *Expander) ExpandModule(addr addrs.Module) []addrs.ModuleInstance {
 	return e.expandModule(addr, false)
 }
 
+// TODO
+func (e *Expander) ExpandModuleCall(callAddr addrs.AbsModuleCall) []addrs.ModuleInstance {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	parentMod := e.findModule(callAddr.Module)
+	exp, ok := parentMod.moduleCalls[callAddr.Call]
+	if !ok {
+		panic(fmt.Sprintf("no expansion has been registered for %s", callAddr))
+	}
+
+	var result []addrs.ModuleInstance
+	for _, ik := range exp.instanceKeys() {
+		result = append(result, callAddr.Instance(ik))
+	}
+	return result
+}
+
 // expandModule allows skipping unexpanded module addresses by setting skipUnknown to true.
 // This is used by instances.Set, which is only concerned with the expanded
 // instances, and should not panic when looking up unknown addresses.
