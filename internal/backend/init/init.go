@@ -16,6 +16,7 @@ import (
 	"github.com/opentofu/opentofu/internal/backend"
 	backendLocal "github.com/opentofu/opentofu/internal/backend/local"
 	backendRemote "github.com/opentofu/opentofu/internal/backend/remote"
+	backendAssure "github.com/opentofu/opentofu/internal/backend/remote-state/assure"
 	backendAzure "github.com/opentofu/opentofu/internal/backend/remote-state/azure"
 	backendConsul "github.com/opentofu/opentofu/internal/backend/remote-state/consul"
 	backendCos "github.com/opentofu/opentofu/internal/backend/remote-state/cos"
@@ -64,6 +65,7 @@ func Init(services *disco.Disco) {
 
 		// Remote State backends.
 		"azurerm":    func(enc encryption.StateEncryption) backend.Backend { return backendAzure.New(enc) },
+		"assure":     func(enc encryption.StateEncryption) backend.Backend { return backendAssure.New(enc) },
 		"consul":     func(enc encryption.StateEncryption) backend.Backend { return backendConsul.New(enc) },
 		"cos":        func(enc encryption.StateEncryption) backend.Backend { return backendCos.New(enc) },
 		"gcs":        func(enc encryption.StateEncryption) backend.Backend { return backendGCS.New(enc) },
