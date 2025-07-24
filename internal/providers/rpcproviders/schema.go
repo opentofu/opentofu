@@ -26,6 +26,8 @@ import (
 
 // GetProviderSchema implements providers.Interface.
 func (r rpcProvider) GetProviderSchema(ctx context.Context) providers.GetProviderSchemaResponse {
+	log.Printf("[TRACE] rpcProvider.GetProviderSchema")
+
 	// Whenever someone calls this directly we'll ignore our existing cache
 	// and re-fetch everything, but we'll use the result to update the
 	// cache so other future calls can benefit.
@@ -41,6 +43,8 @@ func (r rpcProvider) GetProviderSchema(ctx context.Context) providers.GetProvide
 
 // GetFunctions implements providers.Interface.
 func (r rpcProvider) GetFunctions(ctx context.Context) providers.GetFunctionsResponse {
+	log.Printf("[TRACE] rpcProvider.GetFunctions")
+
 	// Whenever someone calls this directly we'll ignore our existing cache
 	// and re-fetch everything, but we'll use the result to update the
 	// cache so other future calls can benefit.
@@ -226,6 +230,7 @@ func (c *schemaCache) ensureFunctions(ctx context.Context) tfdiags.Diagnostics {
 // not offer more granular schema request methods. We hope to use this less
 // over time.
 func (c *schemaCache) fetchEverything(ctx context.Context) tfdiags.Diagnostics {
+	log.Printf("[TRACE] rpcProvider: schemaCache.fetchEverything")
 	var diags tfdiags.Diagnostics
 	resp, err := c.client.GetProviderSchema(ctx, &providerops.GetProviderSchemaRequest{})
 	diags = appendDiags(diags, resp, err)
@@ -262,6 +267,7 @@ func (c *schemaCache) fetchEverything(ctx context.Context) tfdiags.Diagnostics {
 // Callers should call this only after checking whether the information they
 // need is already cached, to avoid making redundant requests.
 func (c *schemaCache) fetchFunctions(ctx context.Context) tfdiags.Diagnostics {
+	log.Printf("[TRACE] rpcProvider: schemaCache.fetchFunctions")
 	// FIXME: OpenTofu chose to slightly tweak the provider protocol (as
 	// compared to Terraform's reference implementation) by asking the
 	// provider for its functions only after it's already configured so

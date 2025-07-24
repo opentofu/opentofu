@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerops"
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerschema"
@@ -19,6 +20,7 @@ import (
 
 // CallFunction implements providers.Interface.
 func (r rpcProvider) CallFunction(ctx context.Context, req providers.CallFunctionRequest) providers.CallFunctionResponse {
+	log.Printf("[TRACE] rpcProvider.CallFunction")
 	var resp providers.CallFunctionResponse
 
 	spec, diags := r.schema.GetFunction(ctx, req.Name)

@@ -8,6 +8,7 @@ package rpcproviders
 import (
 	"context"
 	"io"
+	"log"
 
 	"github.com/apparentlymart/opentofu-providers/tofuprovider"
 	"github.com/apparentlymart/opentofu-providers/tofuprovider/providerops"
@@ -65,6 +66,7 @@ func NewProvider(client tofuprovider.Provider) providers.Interface {
 
 // ConfigureProvider implements providers.Interface.
 func (r rpcProvider) ConfigureProvider(ctx context.Context, req providers.ConfigureProviderRequest) providers.ConfigureProviderResponse {
+	log.Printf("[TRACE] rpcProvider.ConfigureProvider")
 	var resp providers.ConfigureProviderResponse
 
 	schema, diags := r.schema.GetProviderConfig(ctx)
@@ -98,6 +100,7 @@ func (r rpcProvider) ConfigureProvider(ctx context.Context, req providers.Config
 
 // ValidateProviderConfig implements providers.Interface.
 func (r rpcProvider) ValidateProviderConfig(ctx context.Context, req providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
+	log.Printf("[TRACE] rpcProvider.ValidateProviderConfig")
 	var resp providers.ValidateProviderConfigResponse
 
 	schema, diags := r.schema.GetProviderConfig(ctx)
