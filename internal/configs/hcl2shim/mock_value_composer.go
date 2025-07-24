@@ -154,7 +154,7 @@ func (mvc MockValueComposer) composeMockValueForAttributes(attrs map[string]*con
 				diags = diags.Append(tfdiags.WholeContainingBody(
 					tfdiags.Error,
 					fmt.Sprintf("Invalid mock/override field `%v`", k),
-					fmt.Sprintf("Required field in configuration not provided"),
+					"Required field in configuration not provided",
 				))
 			}
 
