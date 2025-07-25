@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"sync"
 
 	plugin "github.com/hashicorp/go-plugin"
 	"github.com/zclconf/go-cty/cty"
@@ -87,41 +86,24 @@ type GRPCProvider struct {
 	// to use as the parent context for gRPC API calls.
 	ctx context.Context
 
-	mu sync.Mutex
-	// schema stores the schema for this provider. This is used to properly
-	// serialize the requests for schemas.
-	schema providers.GetProviderSchemaResponse
+	Schema *providers.CachedSchema
+
+	hasFetchedSchemas bool
 }
 
 var _ providers.Interface = new(GRPCProvider)
 
 func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.GetProviderSchemaResponse) {
 	logger.Trace("GRPCProvider: GetProviderSchema")
-	p.mu.Lock()
-	defer p.mu.Unlock()
 
-	// First, we check the global cache.
-	// The cache could contain this schema if an instance of this provider has previously been started.
-	if !p.Addr.IsZero() {
-		// Even if the schema is cached, GetProviderSchemaOptional could be false. This would indicate that once instantiated,
-		// this provider requires the get schema call to be made at least once, as it handles part of the provider's setup.
-		// At this point, we don't know if this is the first call to a provider instance or not, so we don't use the result in that case.
-		if schemaCached, ok := providers.SchemaCache.Get(p.Addr); ok && schemaCached.ServerCapabilities.GetProviderSchemaOptional {
-			logger.Trace("GRPCProvider: GetProviderSchema: serving from global schema cache", "address", p.Addr)
-			return schemaCached
-		}
+	p.Schema.Lock()
+	defer p.Schema.Unlock()
+
+	// Check to see if the schema cache has been populated AND we are allowed to use it.  Some providers require GetProviderSchema to be called on startup.
+	if p.Schema.Value != nil && (p.Schema.Value.ServerCapabilities.GetProviderSchemaOptional || p.hasFetchedSchemas) {
+		logger.Trace("GRPCProvider: GetProviderSchema: serving from schema cache", "address", p.Addr)
+		return *p.Schema.Value
 	}
-
-	// If the local cache is non-zero, we know this instance has called
-	// GetProviderSchema at least once, so has satisfied the possible requirement of `GetProviderSchemaOptional=false`.
-	// This means that we can return early now using the locally cached schema, without making this call again.
-	if p.schema.Provider.Block != nil {
-		return p.schema
-	}
-
-	resp.ResourceTypes = make(map[string]providers.Schema)
-	resp.DataSources = make(map[string]providers.Schema)
-	resp.Functions = make(map[string]providers.FunctionSpec)
 
 	// Some providers may generate quite large schemas, and the internal default
 	// grpc response size limit is 4MB. 64MB should cover most any use case, and
@@ -138,6 +120,18 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 		return resp
 	}
 
+	// Mark that this instance of the provider has fetched schemas
+	p.hasFetchedSchemas = true
+
+	// Check to see if the schema cache has been populated AND we are allowed to use it. We can skip decode if it's already been done by another instance.
+	if p.Schema.Value != nil {
+		logger.Trace("GRPCProvider: GetProviderSchema: serving from schema cache", "address", p.Addr)
+		return *p.Schema.Value
+	}
+
+	resp.ResourceTypes = make(map[string]providers.Schema)
+	resp.DataSources = make(map[string]providers.Schema)
+	resp.Functions = make(map[string]providers.FunctionSpec)
 	resp.Diagnostics = resp.Diagnostics.Append(convert.ProtoToDiagnostics(protoResp.Diagnostics))
 
 	if resp.Diagnostics.HasErrors() {
@@ -157,11 +151,15 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 	}
 
 	for name, res := range protoResp.ResourceSchemas {
-		resp.ResourceTypes[name] = convert.ProtoToProviderSchema(res)
+		if p.Schema.Filter.HasResource(addrs.ManagedResourceMode, name) {
+			resp.ResourceTypes[name] = convert.ProtoToProviderSchema(res)
+		}
 	}
 
 	for name, data := range protoResp.DataSourceSchemas {
-		resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+		if p.Schema.Filter.HasResource(addrs.DataResourceMode, name) {
+			resp.DataSources[name] = convert.ProtoToProviderSchema(data)
+		}
 	}
 
 	for name, fn := range protoResp.Functions {
@@ -173,22 +171,7 @@ func (p *GRPCProvider) GetProviderSchema(ctx context.Context) (resp providers.Ge
 		resp.ServerCapabilities.GetProviderSchemaOptional = protoResp.ServerCapabilities.GetProviderSchemaOptional
 	}
 
-	// Set the global provider cache so that future calls to this provider can use the cached value.
-	// Crucially, this doesn't look at GetProviderSchemaOptional, because the layers above could use this cache
-	// *without* creating an instance of this provider. And if there is no instance,
-	// then we don't need to set up anything (cause there is nothing to set up), so we need no call
-	// to the providers GetSchema rpc.
-	if !p.Addr.IsZero() {
-		providers.SchemaCache.Set(p.Addr, resp)
-	}
-
-	// Always store this here in the client for providers that are not able to use GetProviderSchemaOptional.
-	// Crucially, this indicates that we've made at least one call to GetProviderSchema to this instance of the provider,
-	// which means in the future we'll be able to return using this cache
-	// (because the possible setup contained in the GetProviderSchema call has happened).
-	// If GetProviderSchemaOptional is true then this cache won't actually ever be used, because the calls to this method
-	// will be satisfied by the global provider cache.
-	p.schema = resp
+	p.Schema.Value = &resp
 
 	return resp
 }

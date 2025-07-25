@@ -289,7 +289,7 @@ func testSession(t *testing.T, test testSessionTest) {
 		Providers: map[addrs.Provider]providers.Factory{
 			addrs.NewDefaultProvider("test"): providers.FactoryFixed(p),
 		},
-	})
+	}, nil)
 	if diags.HasErrors() {
 		t.Fatalf("failed to create context: %s", diags.Err())
 	}
