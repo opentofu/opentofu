@@ -200,8 +200,7 @@ func (p *Plan) ProviderAddrs() []addrs.AbsProviderConfig {
 	return ret
 }
 
-// VariableMapper checks that all the provided variables match what has been provided in the plan
-// They may be sourced from the environment, from cli args, and autoloaded tfvars files
+// VariableMapper checks that all the provided variables match what has been provided while building the plan.
 func (plan *Plan) VariableMapper() configs.StaticModuleVariables {
 	return func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
 		var diags hcl.Diagnostics

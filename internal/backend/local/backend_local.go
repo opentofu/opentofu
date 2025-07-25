@@ -297,8 +297,7 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 				diags = diags.Append(tfdiags.Sourceless(
 					tfdiags.Error,
 					"Mismatch between input and plan variable value",
-					// TODO this is not a great error message
-					fmt.Sprintf("Value %s for %s was provided, but does not match plan's value of %s", inputValue, varName, planValue),
+					fmt.Sprintf("Value saved in the plan file for variable %q is different from the one given to the current command.", varName),
 				))
 			}
 		}
