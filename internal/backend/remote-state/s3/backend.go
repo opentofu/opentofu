@@ -49,8 +49,8 @@ type Backend struct {
 	serverSideEncryption  bool
 	customerEncryptionKey []byte
 	acl                   string
-	lockfile_tags         map[string]string
-	statefile_tags        map[string]string
+	lockfileTags          map[string]string
+	statefileTags         map[string]string
 	kmsKeyID              string
 	ddbTable              string
 	workspaceKeyPrefix    string
@@ -686,10 +686,10 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 	b.keyName = stringAttr(obj, "key")
 	b.acl = stringAttr(obj, "acl")
 	if val, ok := stringMapAttrOk(obj, "statefile_tags"); ok {
-		b.statefile_tags = val
+		b.statefileTags = val
 	}
 	if val, ok := stringMapAttrOk(obj, "lockfile_tags"); ok {
-		b.lockfile_tags = val
+		b.lockfileTags = val
 	}
 	b.workspaceKeyPrefix = stringAttrDefault(obj, "workspace_key_prefix", "env:")
 	b.serverSideEncryption = boolAttr(obj, "encrypt")
