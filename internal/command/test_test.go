@@ -1500,6 +1500,18 @@ func TestTest_MockProviderValidation(t *testing.T) {
 							Type:     cty.String,
 							Optional: true,
 						},
+						"object_attr": {
+							Computed: true,
+							NestedType: &configschema.Object{
+								Nesting: configschema.NestingSingle,
+								Attributes: map[string]*configschema.Attribute{
+									"string_attr": {
+										Type:     cty.String,
+										Computed: true,
+									},
+								},
+							},
+						},
 						"computed_value": {
 							Type:     cty.String,
 							Computed: true,
@@ -1510,14 +1522,12 @@ func TestTest_MockProviderValidation(t *testing.T) {
 		},
 	}
 
-	streams, _ := terminal.StreamsForTesting(t)
-	view := views.NewView(streams)
+	view, done := testView(t)
 	ui := new(cli.MockUi)
 	meta := Meta{
 		testingOverrides: metaOverridesForProvider(provider.Provider),
 		Ui:               ui,
 		View:             view,
-		Streams:          streams,
 		ProviderSource:   providerSource,
 	}
 
@@ -1525,7 +1535,9 @@ func TestTest_MockProviderValidation(t *testing.T) {
 		Meta: meta,
 	}
 
-	if code := testCmd.Run(nil); code != 0 {
-		t.Fatalf("expected status code 0 but got %d: %s", code, ui.ErrorWriter)
+	code := testCmd.Run(nil)
+	output := done(t)
+	if code != 0 {
+		t.Fatalf("expected status code 0 but got %d: %s", code, output.All())
 	}
 }

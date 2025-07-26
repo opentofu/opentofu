@@ -14,6 +14,7 @@ import (
 	"github.com/opentofu/opentofu/internal/configs"
 	"github.com/opentofu/opentofu/internal/configs/hcl2shim"
 	"github.com/opentofu/opentofu/internal/providers"
+	"github.com/opentofu/opentofu/internal/tfdiags"
 	"github.com/zclconf/go-cty/cty"
 )
 
@@ -60,14 +61,16 @@ func newProviderForTestWithSchema(internal providers.Interface, schema providers
 }
 
 func (p providerForTest) ReadResource(_ context.Context, r providers.ReadResourceRequest) providers.ReadResourceResponse {
-	resSchema, _ := p.schema.SchemaForResourceType(addrs.ManagedResourceMode, r.TypeName)
-
-	mockValues := p.getMockValuesForManagedResource(r.TypeName)
-
 	var resp providers.ReadResourceResponse
 
-	resp.NewState, resp.Diagnostics = newMockValueComposer(r.TypeName).
-		ComposeBySchema(resSchema, r.ProviderMeta, mockValues)
+	resp.NewState = r.PriorState
+	if resp.NewState.IsNull() {
+		resp.Diagnostics = tfdiags.Diagnostics{}.Append(tfdiags.WholeContainingBody(
+			tfdiags.Error,
+			fmt.Sprintf("Unexpected null value for prior state in `%v`", r.TypeName),
+			"While reading a resource from a mock provider, the prior state was found to be missing.",
+		))
+	}
 
 	return resp
 }
