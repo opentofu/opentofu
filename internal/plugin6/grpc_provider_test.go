@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"testing"
 
+	proto "github.com/apparentlymart/opentofu-providers/tofuprovider/grpc/tfplugin6"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -21,7 +22,6 @@ import (
 	mockproto "github.com/opentofu/opentofu/internal/plugin6/mock_proto"
 	"github.com/opentofu/opentofu/internal/providers"
 	"github.com/opentofu/opentofu/internal/tfdiags"
-	proto "github.com/opentofu/opentofu/internal/tfplugin6"
 )
 
 var _ providers.Interface = (*GRPCProvider)(nil)
