@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hashicorp/hcl/v2"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/backend"
@@ -268,31 +267,7 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 	// we need to apply the plan.
 	run.Plan = plan
 
-	subCall := op.RootCall.WithVariables(func(variable *configs.Variable) (cty.Value, hcl.Diagnostics) {
-		var diags hcl.Diagnostics
-
-		name := variable.Name
-		v, ok := plan.VariableValues[name]
-		if !ok {
-			if variable.Required() {
-				// This should not happen...
-				return cty.DynamicVal, diags.Append(&hcl.Diagnostic{
-					Severity: hcl.DiagError,
-					Summary:  "Missing plan variable " + variable.Name,
-				})
-			}
-			return variable.Default, nil
-		}
-
-		parsed, parsedErr := v.Decode(cty.DynamicPseudoType)
-		if parsedErr != nil {
-			diags = diags.Append(&hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  parsedErr.Error(),
-			})
-		}
-		return parsed, diags
-	})
+	subCall := op.RootCall.WithVariables(plan.VariableMapper())
 
 	loader := configload.NewLoaderFromSnapshot(snap)
 	config, configDiags := loader.LoadConfig(ctx, snap.Modules[""].Dir, subCall)
@@ -301,6 +276,36 @@ func (b *Local) localRunForPlanFile(ctx context.Context, op *backend.Operation, 
 		return nil, snap, diags
 	}
 	run.Config = config
+
+	// Check that all provided variables are in the configuration
+	_, undeclaredDiags := backend.ParseUndeclaredVariableValues(op.Variables, config.Module.Variables)
+	diags = diags.Append(undeclaredDiags)
+	// Check that all variables provided match
+	for varName, varCfg := range config.Module.Variables {
+		if _, ok := op.Variables[varName]; ok {
+			// Variable provided via cli/files/env/etc...
+			inputValue, inputDiags := op.RootCall.Variables()(varCfg)
+			// Variable provided via the plan
+			planValue, planDiags := subCall.Variables()(varCfg)
+
+			diags = diags.Append(inputDiags).Append(planDiags)
+			if inputDiags.HasErrors() || planDiags.HasErrors() {
+				return nil, snap, diags
+			}
+
+			if inputValue.Equals(planValue).False() {
+				diags = diags.Append(tfdiags.Sourceless(
+					tfdiags.Error,
+					"Mismatch between input and plan variable value",
+					fmt.Sprintf("Value saved in the plan file for variable %q is different from the one given to the current command.", varName),
+				))
+			}
+		}
+	}
+
+	if diags.HasErrors() {
+		return nil, snap, diags
+	}
 
 	// NOTE: We're intentionally comparing the current locks with the
 	// configuration snapshot, rather than the lock snapshot in the plan file,

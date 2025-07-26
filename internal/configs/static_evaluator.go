@@ -52,6 +52,10 @@ func NewStaticModuleCall(addr addrs.Module, vars StaticModuleVariables, rootPath
 	}
 }
 
+func (s StaticModuleCall) Variables() StaticModuleVariables {
+	return s.vars
+}
+
 func (s StaticModuleCall) WithVariables(vars StaticModuleVariables) StaticModuleCall {
 	return StaticModuleCall{
 		addr:      s.addr,
