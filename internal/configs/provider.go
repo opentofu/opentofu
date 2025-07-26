@@ -46,6 +46,7 @@ type Provider struct {
 	// testing framework to instantiate test provider wrapper.
 	IsMocked          bool
 	MockResources     []*MockResource
+	MockFunctions     []*MockFunction
 	OverrideResources []*OverrideResource
 
 	ForEach   hcl.Expression

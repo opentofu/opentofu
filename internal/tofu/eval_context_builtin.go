@@ -160,7 +160,8 @@ func (c *BuiltinEvalContext) InitProvider(ctx context.Context, addr addrs.AbsPro
 
 			p = testP.
 				withMockResources(pc.MockResources).
-				withOverrideResources(pc.OverrideResources)
+				withOverrideResources(pc.OverrideResources).
+				withMockFunctions(pc.MockFunctions)
 		}
 	}
 

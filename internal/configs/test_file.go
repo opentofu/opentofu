@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
 
 	"github.com/opentofu/opentofu/internal/addrs"
 	"github.com/opentofu/opentofu/internal/getmodules"
@@ -320,6 +321,7 @@ type MockProvider struct {
 	// Fields below are specific to configs.MockProvider:
 
 	MockResources     []*MockResource
+	MockFunctions     []*MockFunction
 	OverrideResources []*OverrideResource
 }
 
@@ -385,6 +387,7 @@ func (p *MockProvider) validateOverrideResources() hcl.Diagnostics {
 
 const (
 	blockNameMockResource = "mock_resource"
+	blockNameMockFunction = "mock_function"
 	blockNameMockData     = "mock_data"
 )
 
@@ -394,6 +397,12 @@ type MockResource struct {
 	Mode     addrs.ResourceMode
 	Type     string
 	Defaults map[string]cty.Value
+}
+
+// MockFunction represents mocked function.
+type MockFunction struct {
+	Name     string
+	Function *function.Function
 }
 
 func (r MockResource) getBlockName() string {
@@ -917,6 +926,12 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 			if !resDiags.HasErrors() {
 				provider.MockResources = append(provider.MockResources, res)
 			}
+		case blockNameMockFunction:
+			fn, fnDiags := decodeMockFunctionBlock(block)
+			diags = append(diags, fnDiags...)
+			if !fnDiags.HasErrors() {
+				provider.MockFunctions = append(provider.MockFunctions, fn)
+			}
 		case blockNameOverrideData, blockNameOverrideResource:
 			res, resDiags := decodeOverrideResourceBlock(block)
 			diags = append(diags, resDiags...)
@@ -930,6 +945,14 @@ func decodeMockProviderBlock(block *hcl.Block) (*MockProvider, hcl.Diagnostics) 
 	diags = append(diags, provider.validateOverrideResources()...)
 
 	return provider, diags
+}
+
+func decodeMockFunctionBlock(block *hcl.Block) (*MockFunction, hcl.Diagnostics) {
+	fn := MockFunction{
+		Name: block.Labels[0],
+	}
+
+	return &fn, nil
 }
 
 func decodeMockResourceBlock(block *hcl.Block) (*MockResource, hcl.Diagnostics) {

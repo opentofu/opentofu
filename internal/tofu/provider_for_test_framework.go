@@ -28,6 +28,7 @@ type providerForTest struct {
 	schema   providers.ProviderSchema
 
 	mockResources     mockResourcesForTest
+	mockFunctions     mockFunctionsForTest
 	overrideResources overrideResourcesForTest
 
 	currentResourceAddress string
@@ -51,6 +52,9 @@ func newProviderForTestWithSchema(internal providers.Interface, schema providers
 		mockResources: mockResourcesForTest{
 			managed: make(map[string]resourceForTest),
 			data:    make(map[string]resourceForTest),
+		},
+		mockFunctions: mockFunctionsForTest{
+			functions: make(map[string]providers.FunctionSpec),
 		},
 		overrideResources: overrideResourcesForTest{
 			managed: make(map[string]resourceForTest),
@@ -125,6 +129,7 @@ func (p providerForTest) GetProviderSchema(ctx context.Context) providers.GetPro
 	providerSchema := p.internal.GetProviderSchema(ctx)
 	providerSchema.Provider = providers.Schema{}
 	providerSchema.ProviderMeta = providers.Schema{}
+	providerSchema.Functions = make(map[string]providers.FunctionSpec, 0)
 	return providerSchema
 }
 
@@ -162,11 +167,15 @@ func (p providerForTest) Stop(ctx context.Context) error {
 }
 
 func (p providerForTest) GetFunctions(ctx context.Context) providers.GetFunctionsResponse {
-	return p.internal.GetFunctions(ctx)
+	return providers.GetFunctionsResponse{
+		Functions: p.mockFunctions.functions,
+	}
 }
 
 func (p providerForTest) CallFunction(ctx context.Context, r providers.CallFunctionRequest) providers.CallFunctionResponse {
-	return p.internal.CallFunction(ctx, r)
+	return providers.CallFunctionResponse{
+		Result: cty.StringVal("foo"),
+	}
 }
 
 func (p providerForTest) Close(ctx context.Context) error {
@@ -190,6 +199,17 @@ func (p providerForTest) withMockResources(mockResources []*configs.MockResource
 
 		resources[res.Type] = resourceForTest{
 			values: res.Defaults,
+		}
+	}
+
+	return p
+}
+
+func (p providerForTest) withMockFunctions(mockFunctions []*configs.MockFunction) providerForTest {
+	for _, fn := range mockFunctions {
+		p.mockFunctions.functions[fn.Name] = providers.FunctionSpec{
+			Description: "Mocked function",
+			Return:      cty.DynamicPseudoType,
 		}
 	}
 
@@ -244,6 +264,9 @@ type mockResourceType = string
 type mockResourcesForTest struct {
 	managed map[mockResourceType]resourceForTest
 	data    map[mockResourceType]resourceForTest
+}
+type mockFunctionsForTest struct {
+	functions map[string]providers.FunctionSpec
 }
 
 type overrideResourceAddress = string
