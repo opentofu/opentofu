@@ -544,6 +544,8 @@ func appendInstanceObjectStateV4(rs *states.Resource, is *states.ResourceInstanc
 		rawKey = int(tk)
 	case addrs.StringKey:
 		rawKey = string(tk)
+	case addrs.NilKey:
+		rawKey = nil
 	default:
 		if key != addrs.NoKey {
 			diags = diags.Append(tfdiags.Sourceless(

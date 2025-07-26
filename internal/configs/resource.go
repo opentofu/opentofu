@@ -7,6 +7,8 @@ package configs
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
@@ -28,6 +30,7 @@ type Resource struct {
 	Config  hcl.Body
 	Count   hcl.Expression
 	ForEach hcl.Expression
+	Enabled hcl.Expression
 
 	ProviderConfigRef *ProviderConfigRef
 	Provider          addrs.Provider
@@ -69,6 +72,7 @@ type ManagedResource struct {
 	Provisioners []*Provisioner
 
 	CreateBeforeDestroy bool
+	Enabled             *hcl.Expression
 	PreventDestroy      bool
 	IgnoreChanges       []hcl.Traversal
 	IgnoreAllChanges    bool
@@ -149,21 +153,18 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 		})
 	}
 
+	repetitionArgs := 0
+	var countRng, forEachRng, enabledRng hcl.Range
 	if attr, exists := content.Attributes["count"]; exists {
 		r.Count = attr.Expr
+		countRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["for_each"]; exists {
 		r.ForEach = attr.Expr
-		// Cannot have count and for_each on the same resource block
-		if r.Count != nil {
-			diags = append(diags, &hcl.Diagnostic{
-				Severity: hcl.DiagError,
-				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
-				Subject:  &attr.NameRange,
-			})
-		}
+		forEachRng = attr.NameRange
+		repetitionArgs++
 	}
 
 	if attr, exists := content.Attributes["provider"]; exists {
@@ -208,6 +209,12 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 				valDiags := gohcl.DecodeExpression(attr.Expr, nil, &r.Managed.PreventDestroy)
 				diags = append(diags, valDiags...)
 				r.Managed.PreventDestroySet = true
+			}
+
+			if attr, exists := lcContent.Attributes["enabled"]; exists {
+				r.Enabled = attr.Expr
+				enabledRng = attr.NameRange
+				repetitionArgs++
 			}
 
 			if attr, exists := lcContent.Attributes["replace_triggered_by"]; exists {
@@ -357,6 +364,17 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 		}
 	}
 
+	if repetitionArgs > 1 {
+		complainRng, complainMsg := complainRngAndMsg(countRng, enabledRng, forEachRng)
+
+		diags = append(diags, &hcl.Diagnostic{
+			Severity: hcl.DiagError,
+			Summary:  fmt.Sprintf(`Invalid combination of %s`, complainMsg),
+			Detail:   fmt.Sprintf(`The %s meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`, complainMsg),
+			Subject:  complainRng,
+		})
+	}
+
 	// Now we can validate the connection block references if there are any destroy provisioners.
 	// TODO: should we eliminate standalone connection blocks?
 	if r.Managed.Connection != nil {
@@ -369,6 +387,43 @@ func decodeResourceBlock(block *hcl.Block, override bool) (*Resource, hcl.Diagno
 	}
 
 	return r, diags
+}
+
+func complainRngAndMsg(countRng, enabledRng, forEachRng hcl.Range) (*hcl.Range, string) {
+	var complainRngs []hcl.Range
+	var complainAttrs []string
+	if !countRng.Empty() {
+		complainRngs = append(complainRngs, countRng)
+		complainAttrs = append(complainAttrs, "\"count\"")
+	}
+	if !enabledRng.Empty() {
+		complainRngs = append(complainRngs, enabledRng)
+		complainAttrs = append(complainAttrs, "\"enabled\"")
+	}
+	if !forEachRng.Empty() {
+		complainRngs = append(complainRngs, forEachRng)
+		complainAttrs = append(complainAttrs, "\"for_each\"")
+	}
+
+	// We sort the complain ranges in order to understood who appeared first,
+	// and we use that as the valid one
+	sort.SliceStable(complainRngs, func(i, j int) bool {
+		return complainRngs[i].Start.Byte < complainRngs[j].Start.Byte
+	})
+
+	lastIndex := len(complainAttrs) - 1
+	complainRng := complainRngs[lastIndex]
+
+	var complainMsg string
+	if len(complainAttrs) >= 3 {
+		// Add an oxford comma to the last attribute
+		complainAttrs[lastIndex] = "and " + complainAttrs[lastIndex]
+		complainMsg = strings.Join(complainAttrs, ", ")
+	} else {
+		complainMsg = strings.Join(complainAttrs, " and ")
+	}
+
+	return &complainRng, complainMsg
 }
 
 func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Diagnostics) {
@@ -421,7 +476,7 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			diags = append(diags, &hcl.Diagnostic{
 				Severity: hcl.DiagError,
 				Summary:  `Invalid combination of "count" and "for_each"`,
-				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive, only one should be used to be explicit about the number of resources to be created.`,
+				Detail:   `The "count" and "for_each" meta-arguments are mutually-exclusive. Only one may be used to be explicit about the number of resources to be created.`,
 				Subject:  &attr.NameRange,
 			})
 		}
@@ -907,6 +962,9 @@ var resourceLifecycleBlockSchema = &hcl.BodySchema{
 		},
 		{
 			Name: "replace_triggered_by",
+		},
+		{
+			Name: "enabled",
 		},
 	},
 	Blocks: []hcl.BlockHeaderSchema{
