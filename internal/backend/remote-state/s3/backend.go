@@ -49,6 +49,8 @@ type Backend struct {
 	serverSideEncryption  bool
 	customerEncryptionKey []byte
 	acl                   string
+	lockfileTags          map[string]string
+	statefileTags         map[string]string
 	kmsKeyID              string
 	ddbTable              string
 	workspaceKeyPrefix    string
@@ -143,6 +145,16 @@ func (b *Backend) ConfigSchema() *configschema.Block {
 				Type:        cty.String,
 				Optional:    true,
 				Description: "Canned ACL to be applied to the state file",
+			},
+			"statefile_tags": {
+				Type:        cty.Map(cty.String),
+				Optional:    true,
+				Description: "Tags to be applied to the state file",
+			},
+			"lockfile_tags": {
+				Type:        cty.Map(cty.String),
+				Optional:    true,
+				Description: "Tags to be applied to the lockfile",
 			},
 			"access_key": {
 				Type:        cty.String,
@@ -673,6 +685,12 @@ func (b *Backend) Configure(ctx context.Context, obj cty.Value) tfdiags.Diagnost
 	b.bucketName = stringAttr(obj, "bucket")
 	b.keyName = stringAttr(obj, "key")
 	b.acl = stringAttr(obj, "acl")
+	if val, ok := stringMapAttrOk(obj, "statefile_tags"); ok {
+		b.statefileTags = val
+	}
+	if val, ok := stringMapAttrOk(obj, "lockfile_tags"); ok {
+		b.lockfileTags = val
+	}
 	b.workspaceKeyPrefix = stringAttrDefault(obj, "workspace_key_prefix", "env:")
 	b.serverSideEncryption = boolAttr(obj, "encrypt")
 	b.kmsKeyID = stringAttr(obj, "kms_key_id")

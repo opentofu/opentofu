@@ -140,6 +140,8 @@ func (b *Backend) remoteClient(name string) (*RemoteClient, error) {
 		serverSideEncryption:  b.serverSideEncryption,
 		customerEncryptionKey: b.customerEncryptionKey,
 		acl:                   b.acl,
+		statefileTags:         b.statefileTags,
+		lockfileTags:          b.lockfileTags,
 		kmsKeyID:              b.kmsKeyID,
 		ddbTable:              b.ddbTable,
 		skipS3Checksum:        b.skipS3Checksum,

@@ -1011,3 +1011,53 @@ const encryptionPolicy = `{
     }
   ]
 }`
+
+func TestConfigurePutObjectTags(t *testing.T) {
+	tests := []struct {
+		name   string
+		tags   map[string]string
+		result s3.PutObjectInput
+	}{
+		{
+			name:   "No tags",
+			tags:   nil,
+			result: s3.PutObjectInput{},
+		},
+		{
+			name: "Basic tags",
+			tags: map[string]string{
+				"abd": "def",
+			},
+			result: s3.PutObjectInput{
+				Tagging: aws.String("abd=def"),
+			},
+		},
+		{
+			name: "Complex values",
+			tags: map[string]string{
+				"opentofu.com/environment": "production",
+				"my-special-chars":         "&*&@$!(&)",
+			},
+			result: s3.PutObjectInput{
+				Tagging: aws.String("my-special-chars=%26%2A%26%40%24%21%28%26%29&opentofu.com%2Fenvironment=production"),
+			},
+		},
+	}
+	for _, tt := range tests {
+		c := RemoteClient{
+			statefileTags: tt.tags,
+		}
+		t.Run(tt.name, func(t *testing.T) {
+			pot := &s3.PutObjectInput{}
+			c.configurePutObjectTags(pot, c.statefileTags)
+
+			if pot.Tagging == nil && tt.result.Tagging == nil {
+				return
+			}
+
+			if *pot.Tagging != *tt.result.Tagging {
+				t.Errorf("configurePutObjectTags() = %v; want %v", *pot.Tagging, *tt.result.Tagging)
+			}
+		})
+	}
+}
