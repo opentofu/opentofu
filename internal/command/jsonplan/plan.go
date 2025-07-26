@@ -396,6 +396,16 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			r.PreviousAddress = rc.PrevRunAddr.String()
 		}
 
+		if addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+			// We need to write ephemeral resources to the plan file to be able to build
+			// the apply graph on `tofu apply <planfile>`.
+			// The DiffTransformer needs the changes from the plan to be able to generate
+			// executable resource instance graph nodes so we are adding the ephemeral resources too.
+			// Even though we are writing these, the actual values of the ephemeral *must not*
+			// be written to the plan so nullify these.
+			rc.ChangeSrc.Before = nil
+			rc.ChangeSrc.After = nil
+		}
 		dataSource := addr.Resource.Resource.Mode == addrs.DataResourceMode
 		// We create "delete" actions for data resources so we can clean up
 		// their entries in state, but this is an implementation detail that
@@ -514,6 +524,8 @@ func MarshalResourceChanges(resources []*plans.ResourceInstanceChangeSrc, schema
 			r.Mode = jsonstate.ManagedResourceMode
 		case addrs.DataResourceMode:
 			r.Mode = jsonstate.DataResourceMode
+		case addrs.EphemeralResourceMode:
+			r.Mode = jsonstate.EphemeralResourceMode
 		default:
 			return nil, fmt.Errorf("resource %s has an unsupported mode %s", r.Address, addr.Resource.Resource.Mode.String())
 		}
@@ -868,6 +880,8 @@ func actionString(action string) []string {
 		return []string{"delete", "create"}
 	case "Forget":
 		return []string{"forget"}
+	case "Open":
+		return []string{"open"}
 	default:
 		return []string{action}
 	}
@@ -899,6 +913,8 @@ func UnmarshalActions(actions []string) plans.Action {
 			return plans.NoOp
 		case "forget":
 			return plans.Forget
+		case "open":
+			return plans.Open
 		}
 	}
 

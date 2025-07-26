@@ -37,8 +37,24 @@ func NewChanges() *Changes {
 	return &Changes{}
 }
 
+// BuildChanges is a helper -- primarily intended for tests -- to build a state
+// using imperative code against the StateSync type while still acting as
+// an expression of type *State to assign into a containing struct.
+func BuildChanges(cb func(sync *ChangesSync)) *Changes {
+	c := NewChanges()
+	cb(c.SyncWrapper())
+	return c
+}
+
 func (c *Changes) Empty() bool {
 	for _, res := range c.Resources {
+		// We ignore Open actions which are specific to ephemeral resources.
+		// A configuration containing ephemeral resources will always have changes planned,
+		// but if there is no other change recorded, there is no need for a prompt
+		// on the user.
+		if res.Action == Open {
+			continue
+		}
 		if res.Action != NoOp || res.Moved() {
 			return false
 		}

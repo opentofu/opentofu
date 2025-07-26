@@ -73,6 +73,9 @@ const (
 	ActionDelete  ChangeAction = "delete"
 	ActionImport  ChangeAction = "import"
 	ActionForget  ChangeAction = "remove"
+	ActionOpen    ChangeAction = "open"
+	ActionRenew   ChangeAction = "renew"
+	ActionClose   ChangeAction = "close"
 )
 
 func ParseChangeAction(action plans.Action) ChangeAction {
@@ -91,6 +94,12 @@ func ParseChangeAction(action plans.Action) ChangeAction {
 		return ActionDelete
 	case plans.Forget:
 		return ActionForget
+	case plans.Open:
+		return ActionOpen
+	case plans.Renew:
+		return ActionRenew
+	case plans.Close:
+		return ActionClose
 	default:
 		return ActionNoOp
 	}

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/hashicorp/hcl/v2"
+	"github.com/opentofu/opentofu/internal/plans"
 	"github.com/zclconf/go-cty/cty"
 
 	"github.com/opentofu/opentofu/internal/addrs"
@@ -120,6 +121,104 @@ func TestNodeApplyableOutputExecute_sensitiveValueNotOutput(t *testing.T) {
 	if got, want := diags.Err().Error(), "Output refers to sensitive values"; !strings.Contains(got, want) {
 		t.Errorf("expected error to include %q, but was: %s", want, got)
 	}
+}
+
+func TestNodeApplyableOutputExecute_ephemerality(t *testing.T) {
+	t.Run("output not marked as ephemeral but got ephemeral value from evaluation", func(t *testing.T) {
+		evalCtx := new(MockEvalContext)
+		evalCtx.StateState = states.NewState().SyncWrapper()
+		evalCtx.ChecksState = checks.NewState(nil)
+
+		config := &configs.Output{Name: "map-output"}
+		addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
+		node := &NodeApplyableOutput{Config: config, Addr: addr}
+		val := cty.MapVal(map[string]cty.Value{
+			"a": cty.StringVal("b").Mark(marks.Ephemeral),
+		})
+		evalCtx.EvaluateExprResult = val
+
+		diags := node.Execute(t.Context(), evalCtx, walkApply)
+		if !diags.HasErrors() {
+			t.Fatal("expected execute error, but there was none")
+		}
+		if got, want := diags.Err().Error(), "Output does not allow ephemeral value: The value that was generated for the output is ephemeral, but it is not configured to allow one"; !strings.Contains(got, want) {
+			t.Errorf("expected error to include %q, but was: %s", want, got)
+		}
+	})
+	t.Run("output marked as ephemeral in root module", func(t *testing.T) {
+		evalCtx := new(MockEvalContext)
+		evalCtx.StateState = states.NewState().SyncWrapper()
+		evalCtx.ChecksState = checks.NewState(nil)
+
+		config := &configs.Output{Name: "map-output", Ephemeral: true}
+		addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
+		node := &NodeApplyableOutput{Config: config, Addr: addr}
+		val := cty.MapVal(map[string]cty.Value{
+			"a": cty.StringVal("b").Mark(marks.Ephemeral),
+		})
+		evalCtx.EvaluateExprResult = val
+
+		diags := node.Execute(t.Context(), evalCtx, walkApply)
+		if !diags.HasErrors() {
+			t.Fatal("expected execute error, but there was none")
+		}
+		if got, want := diags.Err().Error(), "Invalid output configuration: Root modules are not allowed to have outputs defined as ephemeral"; !strings.Contains(got, want) {
+			t.Errorf("expected error to include %q, but was: %s", want, got)
+		}
+	})
+	t.Run("output not marked as ephemeral but the registered change is ephemeral", func(t *testing.T) {
+		evalCtx := new(MockEvalContext)
+		evalCtx.StateState = states.NewState().SyncWrapper()
+		evalCtx.ChecksState = checks.NewState(nil)
+
+		config := &configs.Output{Name: "map-output"}
+		addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.RootModuleInstance)
+
+		change := &plans.OutputChange{
+			Addr: addr,
+			Change: plans.Change{
+				Action: plans.Create,
+				After:  cty.StringVal("new value"),
+			},
+		}
+		changeSrc, err := change.Encode()
+		if err != nil {
+			t.Fatalf("failed to encode the output change: %s", err)
+		}
+		changeSrc.AfterValMarks = []cty.PathValueMarks{{Marks: map[interface{}]struct{}{marks.Ephemeral: {}}}}
+		node := &NodeApplyableOutput{Config: config, Addr: addr, Change: changeSrc}
+
+		diags := node.Execute(t.Context(), evalCtx, walkApply)
+		if !diags.HasErrors() {
+			t.Fatal("expected execute error, but there was none")
+		}
+		if got, want := diags.Err().Error(), "Output does not allow ephemeral value: The value that was generated for the output is ephemeral, but it is not configured to allow one"; !strings.Contains(got, want) {
+			t.Errorf("expected error to include %q, but was: %s", want, got)
+		}
+	})
+
+	t.Run("output marked as ephemeral in child module and receives a non-ephemeral value", func(t *testing.T) {
+		evalCtx := new(MockEvalContext)
+		evalCtx.StateState = states.NewState().SyncWrapper()
+		evalCtx.ChecksState = checks.NewState(nil)
+
+		config := &configs.Output{Name: "map-output", Ephemeral: true}
+		addr := addrs.OutputValue{Name: config.Name}.Absolute(addrs.MustParseModuleInstanceStr("module.foo"))
+		node := &NodeApplyableOutput{Config: config, Addr: addr}
+		val := cty.MapVal(map[string]cty.Value{
+			"a": cty.StringVal("b"),
+		})
+		evalCtx.EvaluateExprResult = val
+
+		diags := node.Execute(t.Context(), evalCtx, walkApply)
+		if diags.HasErrors() {
+			t.Fatalf("expected to have no errors")
+		}
+		gotVal := evalCtx.State().OutputValue(addr)
+		if !val.RawEquals(gotVal.Value) {
+			t.Fatalf("expected value is not in the state. expected: %+v; in state: %+v", val, gotVal.Value)
+		}
+	})
 }
 
 func TestNodeApplyableOutputExecute_deprecatedOutput(t *testing.T) {

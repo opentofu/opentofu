@@ -96,6 +96,9 @@ type Hook interface {
 	PreApplyForget(addr addrs.AbsResourceInstance) (HookAction, error)
 	PostApplyForget(addr addrs.AbsResourceInstance) (HookAction, error)
 
+	// Deferred is called when a resource is deferred from the plan phase due to
+	// a specific given reason.
+	Deferred(addr addrs.AbsResourceInstance, reason string) (HookAction, error)
 	// Stopping is called if an external signal requests that OpenTofu
 	// gracefully abort an operation in progress.
 	//
@@ -197,6 +200,10 @@ func (h *NilHook) PreApplyForget(_ addrs.AbsResourceInstance) (HookAction, error
 }
 
 func (h *NilHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, error) {
 	return HookActionContinue, nil
 }
 

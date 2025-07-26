@@ -1084,6 +1084,9 @@ func (m *ModuleState) Orphans(c *configs.Module) []addrs.ResourceInstance {
 		for _, r := range c.DataResources {
 			inConfig[r.Addr().String()] = struct{}{}
 		}
+		for _, r := range c.EphemeralResources {
+			log.Printf("[ERROR] ephemeral resources detected in legacy state: %s", r.Addr().String())
+		}
 	}
 
 	var result []addrs.ResourceInstance

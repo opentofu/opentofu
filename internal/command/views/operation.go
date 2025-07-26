@@ -277,6 +277,10 @@ func (v *OperationJSON) PlannedChange(change *plans.ResourceInstanceChangeSrc) {
 		// Avoid rendering data sources on deletion
 		return
 	}
+	if change.Addr.Resource.Resource.Mode == addrs.EphemeralResourceMode {
+		// Ephemeral changes should not be rendered
+		return
+	}
 	v.view.PlannedChange(jsonentities.NewResourceInstanceChange(change))
 }
 

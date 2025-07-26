@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/opentofu/opentofu/internal/configs/configschema"
@@ -37,16 +38,44 @@ func Provider() providers.Interface {
 			},
 		},
 	}
+	// Only managed resource should have write-only arguments.
+	withWriteOnlyAttribute := func(s providers.Schema) providers.Schema {
+		b := *s.Block
+
+		b.Attributes["value_wo"] = &configschema.Attribute{
+			Optional:  true,
+			Type:      cty.String,
+			WriteOnly: true,
+		}
+		return providers.Schema{Block: &b}
+	}
 
 	return simple{
 		schema: providers.GetProviderSchemaResponse{
 			Provider: providers.Schema{
-				Block: nil,
+				// The "i_depend_on" field is just a simple configuration attribute of the provider
+				// to allow creation of dependencies between a resources from a previously
+				// initialized provider and this provider.
+				// The "i_depend_on" field is having no functionality behind, in the provider context,
+				// but it's just a way for the "provider" block to create depedencies
+				// to other blocks.
+				Block: &configschema.Block{
+					Attributes: map[string]*configschema.Attribute{
+						"i_depend_on": {
+							Type:        cty.String,
+							Description: "Non-functional configuration attribute of the provider. This is meant to be used only to create depedencies of other resources to the provider block",
+							Optional:    true,
+						},
+					},
+				},
 			},
 			ResourceTypes: map[string]providers.Schema{
-				"simple_resource": simpleResource,
+				"simple_resource": withWriteOnlyAttribute(simpleResource),
 			},
 			DataSources: map[string]providers.Schema{
+				"simple_resource": simpleResource,
+			},
+			EphemeralResources: map[string]providers.Schema{
 				"simple_resource": simpleResource,
 			},
 			ServerCapabilities: providers.ServerCapabilities{
@@ -69,6 +98,10 @@ func (s simple) ValidateResourceConfig(_ context.Context, req providers.Validate
 }
 
 func (s simple) ValidateDataResourceConfig(_ context.Context, req providers.ValidateDataResourceConfigRequest) (resp providers.ValidateDataResourceConfigResponse) {
+	return resp
+}
+
+func (s simple) ValidateEphemeralConfig(context.Context, providers.ValidateEphemeralConfigRequest) (resp providers.ValidateEphemeralConfigResponse) {
 	return resp
 }
 
@@ -144,6 +177,12 @@ func (s simple) ApplyResourceChange(_ context.Context, req providers.ApplyResour
 		m["id"] = cty.StringVal(time.Now().String())
 	}
 	resp.NewState = cty.ObjectVal(m)
+	// This is a special case that can be used together with ephemeral resources to be able to test the renewal process.
+	// When the "value" attribute of the resource is containing "with-renew" it will return later to allow
+	// the ephemeral resource to call renew at least once. Check also OpenEphemeralResource.
+	if v, ok := m["value_wo"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
+		<-time.After(time.Second)
+	}
 
 	return resp
 }
@@ -157,6 +196,29 @@ func (s simple) ReadDataSource(_ context.Context, req providers.ReadDataSourceRe
 	m := req.Config.AsValueMap()
 	m["id"] = cty.StringVal("static_id")
 	resp.State = cty.ObjectVal(m)
+	return resp
+}
+
+func (s simple) OpenEphemeralResource(_ context.Context, req providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	m := req.Config.AsValueMap()
+	m["id"] = cty.StringVal("static-ephemeral-id")
+	if v, ok := m["value"]; ok && !v.IsNull() && strings.Contains(v.AsString(), "with-renew") {
+		t := time.Now().Add(200 * time.Millisecond)
+		resp.RenewAt = &t
+	}
+	resp.Result = cty.ObjectVal(m)
+	resp.Private = []byte("static private data")
+	return resp
+}
+
+func (s simple) RenewEphemeralResource(_ context.Context, req providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	resp.Private = []byte(fmt.Sprintf("%s - renew", req.Private))
+	t := time.Now().Add(200 * time.Millisecond)
+	resp.RenewAt = &t
+	return resp
+}
+
+func (s simple) CloseEphemeralResource(context.Context, providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
 	return resp
 }
 

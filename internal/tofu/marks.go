@@ -128,3 +128,17 @@ func combinePathValueMarks(marks []cty.PathValueMarks, other []cty.PathValueMark
 
 	return combined
 }
+
+// removeEphemeralMarks is meant to remove the marks.Ephemeral from any cty.PathValueMarks.
+// This is needed to remove the aforementioned mark from the attributes of a value
+// before marking the whole value with marks.Ephemeral.
+func removeEphemeralMarks(ms []cty.PathValueMarks) []cty.PathValueMarks {
+	res := make([]cty.PathValueMarks, len(ms))
+	for i, mark := range ms {
+		// Since we are preparing to mark the whole value as ephemeral, we want to remove any other
+		// possible downstream ephemeral marks to avoid having the same mark on multiple layers.
+		delete(mark.Marks, marks.Ephemeral)
+		res[i] = mark
+	}
+	return res
+}

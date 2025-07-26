@@ -230,5 +230,41 @@ func TestObject_AttributeByPath(t *testing.T) {
 			}
 		})
 	}
+}
 
+func TestPathName(t *testing.T) {
+	cases := map[string]struct {
+		in   cty.Path
+		want string
+	}{
+		"path with no elements": {
+			cty.Path{},
+			"<unknown>",
+		},
+		"path with one GetAttrStep": {
+			cty.GetAttrPath("name"),
+			"name",
+		},
+		"path with two GetAttrStep": {
+			cty.Path{}.GetAttr("object").GetAttr("name"),
+			"name",
+		},
+		"path with last element IndexStep": {
+			cty.Path{}.GetAttr("object").IndexInt(0),
+			"object",
+		},
+		// doesn't really make sense to have path with only IndexStep, but want to be sure that the function works correctly
+		"path with only IndexStep elements": {
+			cty.Path{}.IndexInt(0).IndexInt(1),
+			"<unknown>",
+		},
+	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := PathName(tt.in)
+			if got != tt.want {
+				t.Errorf("unexpected result. want: %q; got: %q", tt.want, got)
+			}
+		})
+	}
 }

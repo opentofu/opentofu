@@ -459,12 +459,13 @@ func TestPruneUnusedNodesTransformer_rootModuleOutputValues(t *testing.T) {
 	}
 }
 
-// NoOp changes should not be participating in the destroy sequence
+// NoOp and Open changes should not be participating in the destroy sequence
 func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 	g := Graph{Path: addrs.RootModuleInstance}
 	g.Add(testDestroyNode("test_object.A"))
 	g.Add(testUpdateNode("test_object.B"))
 	g.Add(testDestroyNode("test_object.C"))
+	g.Add(testUpdateNode("ephemeral.test_object.D"))
 
 	state := states.NewState()
 	root := state.EnsureModule(addrs.RootModuleInstance)
@@ -480,9 +481,12 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 	root.SetResourceInstanceCurrent(
 		mustResourceInstanceAddr("test_object.B").Resource,
 		&states.ResourceInstanceObjectSrc{
-			Status:       states.ObjectReady,
-			AttrsJSON:    []byte(`{"id":"B","test_string":"x"}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A")},
+			Status:    states.ObjectReady,
+			AttrsJSON: []byte(`{"id":"B","test_string":"x"}`),
+			Dependencies: []addrs.ConfigResource{
+				mustConfigResourceAddr("test_object.A"),
+				mustConfigResourceAddr("ephemeral.test_object.D"),
+			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
@@ -492,8 +496,11 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 		&states.ResourceInstanceObjectSrc{
 			Status:    states.ObjectReady,
 			AttrsJSON: []byte(`{"id":"C","test_string":"x"}`),
-			Dependencies: []addrs.ConfigResource{mustConfigResourceAddr("test_object.A"),
-				mustConfigResourceAddr("test_object.B")},
+			Dependencies: []addrs.ConfigResource{
+				mustConfigResourceAddr("test_object.A"),
+				mustConfigResourceAddr("test_object.B"),
+				mustConfigResourceAddr("ephemeral.test_object.D"),
+			},
 		},
 		mustProviderConfig(`provider["registry.opentofu.org/hashicorp/test"]`),
 		addrs.NoKey,
@@ -504,13 +511,19 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 	}
 
 	tf := &DestroyEdgeTransformer{
-		// We only need a minimal object to indicate GraphNodeCreator change is
-		// a NoOp here.
 		Changes: &plans.Changes{
 			Resources: []*plans.ResourceInstanceChangeSrc{
+				// We only need a minimal object to indicate GraphNodeCreator change is
+				// a NoOp here.
 				{
 					Addr:      mustResourceInstanceAddr("test_object.B"),
 					ChangeSrc: plans.ChangeSrc{Action: plans.NoOp},
+				},
+				// We only need a minimal object to indicate GraphNodeCreator change is
+				// an Open here.
+				{
+					Addr:      mustResourceInstanceAddr("ephemeral.test_object.D"),
+					ChangeSrc: plans.ChangeSrc{Action: plans.Open},
 				},
 			},
 		},
@@ -520,6 +533,7 @@ func TestDestroyEdgeTransformer_noOp(t *testing.T) {
 	}
 
 	expected := strings.TrimSpace(`
+ephemeral.test_object.D
 test_object.A (destroy)
   test_object.C (destroy)
 test_object.B

@@ -122,6 +122,17 @@ func (cp *contextPlugins) ProviderSchema(ctx context.Context, addr addrs.Provide
 		}
 	}
 
+	for t, d := range resp.EphemeralResources {
+		if err := d.Block.InternalValidate(); err != nil {
+			return resp, fmt.Errorf("provider %s has invalid schema for ephemeral resource type %q, which is a bug in the provider: %w", addr, t, err)
+		}
+		if d.Version < 0 {
+			// We're not using the version numbers here yet, but we'll check
+			// for validity anyway in case we start using them in future.
+			return resp, fmt.Errorf("provider %s has invalid negative schema version for ephemeral resource type %q, which is a bug in the provider", addr, t)
+		}
+	}
+
 	return resp, nil
 }
 

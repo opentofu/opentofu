@@ -113,6 +113,21 @@ func (p providerForTest) ReadDataSource(_ context.Context, r providers.ReadDataS
 	return resp
 }
 
+func (p providerForTest) OpenEphemeralResource(_ context.Context, _ providers.OpenEphemeralResourceRequest) (resp providers.OpenEphemeralResourceResponse) {
+	//TODO ephemeral - implement me when adding testing support
+	panic("implement me")
+}
+
+func (p providerForTest) RenewEphemeralResource(_ context.Context, _ providers.RenewEphemeralResourceRequest) (resp providers.RenewEphemeralResourceResponse) {
+	//TODO ephemeral - implement me when adding testing support
+	panic("implement me")
+}
+
+func (p providerForTest) CloseEphemeralResource(_ context.Context, _ providers.CloseEphemeralResourceRequest) (resp providers.CloseEphemeralResourceResponse) {
+	//TODO ephemeral - implement me when adding testing support
+	panic("implement me")
+}
+
 // ValidateProviderConfig is irrelevant when provider is mocked or overridden.
 func (p providerForTest) ValidateProviderConfig(_ context.Context, _ providers.ValidateProviderConfigRequest) providers.ValidateProviderConfigResponse {
 	return providers.ValidateProviderConfigResponse{}
@@ -158,6 +173,10 @@ func (p providerForTest) ValidateDataResourceConfig(ctx context.Context, r provi
 
 func (p providerForTest) UpgradeResourceState(ctx context.Context, r providers.UpgradeResourceStateRequest) providers.UpgradeResourceStateResponse {
 	return p.internal.UpgradeResourceState(ctx, r)
+}
+
+func (p providerForTest) ValidateEphemeralConfig(ctx context.Context, request providers.ValidateEphemeralConfigRequest) providers.ValidateEphemeralConfigResponse {
+	return p.internal.ValidateEphemeralConfig(ctx, request)
 }
 
 func (p providerForTest) Stop(ctx context.Context) error {
