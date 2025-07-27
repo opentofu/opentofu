@@ -8,7 +8,7 @@ UPGRADE NOTES:
 
 ENHANCEMENTS:
 
-* **New Cloudflare R2 backend**: A new backend for storing state in Cloudflare R2 storage has been added. This backend uses native Cloudflare API endpoints for bucket operations and R2's S3-compatible endpoints for object operations, supporting API token authentication and jurisdiction-specific storage. ([#PENDING](https://github.com/opentofu/opentofu/pull/PENDING))
+* New Cloudflare R2 backend: A new backend for storing state in Cloudflare R2 storage has been added. This backend uses native Cloudflare API endpoints for bucket operations and R2's S3-compatible endpoints for object operations, supporting API token authentication and jurisdiction-specific storage. ([#3076](https://github.com/opentofu/opentofu/pull/3076))
 * OpenTofu will now suggest using `-exclude` if a provider reports that it cannot create a plan for a particular resource instance due to values that won't be known until the apply phase. ([#2643](https://github.com/opentofu/opentofu/pull/2643))
 * `tofu validate` now supports running in a module that contains provider configuration_aliases. ([#2905](https://github.com/opentofu/opentofu/pull/2905))
 * `tofu show` now supports `-config` and `-module=DIR` options, to be used in conjunction with `-json` to produce a machine-readable summary of either the whole configuration or a single module without first creating a plan. ([#2820](https://github.com/opentofu/opentofu/pull/2820), [#3003](https://github.com/opentofu/opentofu/pull/3003))
