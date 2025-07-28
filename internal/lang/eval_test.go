@@ -1142,7 +1142,7 @@ func TestValidEphemeralReference(t *testing.T) {
 				tfdiags.AttributeValue(
 					tfdiags.Error,
 					"Ephemeral value used in non-ephemeral context",
-					fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", "secret"),
+					fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", ".secret"),
 					cty.Path{cty.GetAttrStep{Name: "secret"}},
 				),
 			),
@@ -1179,7 +1179,7 @@ func TestValidEphemeralReference(t *testing.T) {
 				tfdiags.AttributeValue(
 					tfdiags.Error,
 					"Ephemeral value used in non-ephemeral context",
-					fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", "<unknown>"),
+					`Attribute "" is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.`,
 					cty.Path{},
 				),
 			),

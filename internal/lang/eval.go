@@ -670,7 +670,7 @@ func validEphemeralReferences(schema *configschema.Block, val cty.Value) (diags 
 		diags = diags.Append(tfdiags.AttributeValue(
 			tfdiags.Error,
 			"Ephemeral value used in non-ephemeral context",
-			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", configschema.PathName(attrPath)),
+			fmt.Sprintf("Attribute %q is referencing an ephemeral value but ephemeral values can be referenced only by other ephemeral attributes or by write-only ones.", tfdiags.FormatCtyPath(attrPath)),
 			attrPath,
 		))
 	}
