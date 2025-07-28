@@ -314,7 +314,7 @@ func assertPlannedValueValid(attrS *configschema.Attribute, priorV, configV, pla
 	}
 
 	if !configV.IsNull() && plannedV.IsNull() && attrS.WriteOnly {
-		return errs // TODO andrei check other places that might need a validation like this
+		return errs // TODO ephemeral - check other places that might need a validation like this (part of the write-only attributes work)
 	}
 	// If none of the above conditions match, the provider has made an invalid
 	// change to this attribute.
