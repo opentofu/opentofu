@@ -557,6 +557,11 @@ func decodeDataBlock(block *hcl.Block, override, nested bool) (*Resource, hcl.Di
 			// managed resources only, so we can emit a common error message
 			// for any given attributes that HCL accepted.
 			for name, attr := range lcContent.Attributes {
+				// Enabled is a special case, it is allowed for data resources
+				if name == "enabled" {
+					r.Enabled = attr.Expr
+					continue
+				}
 				diags = append(diags, &hcl.Diagnostic{
 					Severity: hcl.DiagError,
 					Summary:  "Invalid data resource lifecycle argument",
