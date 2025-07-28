@@ -450,28 +450,32 @@ Changes to Outputs:
 		}
 	}
 
-	// Run the test above for both supported plugin versions
-	t.Run("proto version 5", func(t *testing.T) {
-		pluginVersionRunner(t, "testdata/ephemeral-workflow/proto5", buildV5TestProvider)
-	})
-	t.Run("proto version 6", func(t *testing.T) {
-		pluginVersionRunner(t, "testdata/ephemeral-workflow/proto6", buildV6TestProvider)
-	})
-}
-
-func buildV5TestProvider(t *testing.T, workdir string) {
-	buildSimpleProvider(t, "5", workdir)
-}
-
-func buildV6TestProvider(t *testing.T, workdir string) {
-	buildSimpleProvider(t, "6", workdir)
+	cases := map[string]struct {
+		protoBinBuilder func(t *testing.T, workdir string)
+	}{
+		"proto version 5": {
+			protoBinBuilder: func(t *testing.T, workdir string) {
+				buildSimpleProvider(t, "5", workdir, "simple")
+			},
+		},
+		"proto version 6": {
+			protoBinBuilder: func(t *testing.T, workdir string) {
+				buildSimpleProvider(t, "6", workdir, "simple")
+			},
+		},
+	}
+	for name, tt := range cases {
+		t.Run(name, func(t *testing.T) {
+			pluginVersionRunner(t, "testdata/ephemeral-workflow", tt.protoBinBuilder)
+		})
+	}
 }
 
 // This function builds and moves to a directory called "cache" inside the workdir,
 // the version of the provider passed as argument.
 // Instead of using this function directly, the pre-configured functions buildV5TestProvider and
 // buildV6TestProvider can be used.
-func buildSimpleProvider(t *testing.T, version string, workdir string) {
+func buildSimpleProvider(t *testing.T, version string, workdir string, buildOutName string) {
 	if !canRunGoBuild {
 		// We're running in a separate-build-then-run context, so we can't
 		// currently execute this test which depends on being able to build
@@ -482,21 +486,24 @@ func buildSimpleProvider(t *testing.T, version string, workdir string) {
 	}
 
 	var (
-		providerName string
-		path         string
+		providerBinFileName string
+		implPkgName         string
 	)
 	switch version {
 	case "5":
-		providerName = "simple"
-		path = "provider-simple"
+		providerBinFileName = "simple"
+		implPkgName = "provider-simple"
 	case "6":
-		providerName = "simple6"
-		path = "provider-simple-v6"
+		providerBinFileName = "simple6"
+		implPkgName = "provider-simple-v6"
 	default:
 		t.Fatalf("invalid version for simple provider")
 	}
-	simple6Provider := filepath.Join(workdir, fmt.Sprintf("terraform-provider-%s", providerName))
-	simple6ProviderExe := e2e.GoBuild(fmt.Sprintf("github.com/opentofu/opentofu/internal/%s/main", path), simple6Provider)
+	if buildOutName != "" {
+		providerBinFileName = buildOutName
+	}
+	providerBuildOutDir := filepath.Join(workdir, fmt.Sprintf("terraform-provider-%s", providerBinFileName))
+	providerTmpBinPath := e2e.GoBuild(fmt.Sprintf("github.com/opentofu/opentofu/internal/%s/main", implPkgName), providerBuildOutDir)
 
 	extension := ""
 	if runtime.GOOS == "windows" {
@@ -507,10 +514,12 @@ func buildSimpleProvider(t *testing.T, version string, workdir string) {
 	// to using the -plugin-dir cli flag.
 	platform := getproviders.CurrentPlatform.String()
 	hashiDir := "cache/registry.opentofu.org/hashicorp/"
-	if err := os.MkdirAll(filepath.Join(workdir, hashiDir, fmt.Sprintf("%s/0.0.1/", providerName), platform), os.ModePerm); err != nil {
+	providerCacheDir := filepath.Join(workdir, hashiDir, fmt.Sprintf("%s/0.0.1/", providerBinFileName), platform)
+	if err := os.MkdirAll(providerCacheDir, os.ModePerm); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Rename(simple6ProviderExe, filepath.Join(workdir, hashiDir, fmt.Sprintf("%s/0.0.1/", providerName), platform, fmt.Sprintf("terraform-provider-%s", providerName))+extension); err != nil {
+	providerFinalBinaryFilePath := filepath.Join(workdir, hashiDir, fmt.Sprintf("%s/0.0.1/", providerBinFileName), platform, fmt.Sprintf("terraform-provider-%s", providerBinFileName)) + extension
+	if err := os.Rename(providerTmpBinPath, providerFinalBinaryFilePath); err != nil {
 		t.Fatal(err)
 	}
 }

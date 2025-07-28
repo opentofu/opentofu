@@ -20,6 +20,8 @@ data "simple_resource" "test_data1" {
 ephemeral "simple_resource" "test_ephemeral" {
   count = 2
   provider = simple.s1
+  // Having that "-with-renew" suffix, later when this value will be passed into "simple_resource.test_res.value_wo",
+  // the plugin will delay the response on some requests to allow ephemeral Renew calls to be performed.
   value = "${data.simple_resource.test_data1.value}-with-renew"
 }
 
