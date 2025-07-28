@@ -495,17 +495,6 @@ func (c *StateMvCommand) validateResourceMove(addrFrom, addrTo addrs.AbsResource
 	const msgInvalidRequest = "Invalid state move request"
 	var diags tfdiags.Diagnostics
 
-	if addrFrom.Resource.Mode == addrs.EphemeralResourceMode || addrTo.Resource.Mode == addrs.EphemeralResourceMode {
-		diags = diags.Append(
-			tfdiags.Sourceless(
-				tfdiags.Error,
-				msgInvalidRequest,
-				"Ephemeral resources cannot be used as sources or targets for the move action. Just update your configuration accordingly.",
-			),
-		)
-		return diags
-	}
-
 	if addrFrom.Resource.Mode != addrTo.Resource.Mode {
 		switch addrFrom.Resource.Mode {
 		case addrs.ManagedResourceMode:
