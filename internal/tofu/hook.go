@@ -99,6 +99,15 @@ type Hook interface {
 	// Deferred is called when a resource is deferred from the plan phase due to
 	// a specific given reason.
 	Deferred(addr addrs.AbsResourceInstance, reason string) (HookAction, error)
+
+	// PreRenew and PostRenew are called before and after the request to a provider
+	// to renew an ephemeral resource.
+	PreRenew(addr addrs.AbsResourceInstance) (HookAction, error)
+	PostRenew(addr addrs.AbsResourceInstance) (HookAction, error)
+	// PreClose and PostClose are called before and after the request to a provider
+	// to close an ephemeral resource.
+	PreClose(addr addrs.AbsResourceInstance) (HookAction, error)
+	PostClose(addr addrs.AbsResourceInstance) (HookAction, error)
 	// Stopping is called if an external signal requests that OpenTofu
 	// gracefully abort an operation in progress.
 	//
@@ -204,6 +213,22 @@ func (h *NilHook) PostApplyForget(_ addrs.AbsResourceInstance) (HookAction, erro
 }
 
 func (h *NilHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PreRenew(addr addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PostRenew(addr addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PreClose(addr addrs.AbsResourceInstance) (HookAction, error) {
+	return HookActionContinue, nil
+}
+
+func (h *NilHook) PostClose(addr addrs.AbsResourceInstance) (HookAction, error) {
 	return HookActionContinue, nil
 }
 

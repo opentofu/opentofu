@@ -3272,13 +3272,13 @@ func (n *NodeAbstractResourceInstance) closeEphemeralResource(ctx context.Contex
 	// and the new planned state does not matter in ephemeral resources context, especially
 	// in the context of the close operation.
 	diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-		return h.PreApply(n.Addr, states.CurrentGen, plans.Close, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
+		return h.PreClose(n.Addr)
 	}))
 	resp := provider.CloseEphemeralResource(ctx, req)
 	diags = diags.Append(resp.Diagnostics)
 
 	diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-		return h.PostApply(n.Addr, states.CurrentGen, cty.NullVal(cty.EmptyObject), diags.Err())
+		return h.PostClose(n.Addr)
 	}))
 	return diags.Append(diags)
 }
@@ -3301,7 +3301,7 @@ func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalC
 		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
 			// We are using cty.EmptyObject here because the prior state and the new planned state does not matter
 			// in ephemeral resources context, especially in the context of the renew operation.
-			return h.PreApply(n.Addr, states.CurrentGen, plans.Renew, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
+			return h.PreRenew(n.Addr)
 		}))
 		req := providers.RenewEphemeralResourceRequest{
 			TypeName: n.Addr.Resource.Resource.Type,
@@ -3309,7 +3309,7 @@ func (n *NodeAbstractResourceInstance) renewEphemeral(ctx context.Context, evalC
 		}
 		resp := provider.RenewEphemeralResource(ctx, req)
 		diags = diags.Append(evalContext.Hook(func(h Hook) (HookAction, error) {
-			return h.PostApply(n.Addr, states.CurrentGen, cty.NullVal(cty.EmptyObject), resp.Diagnostics.Err())
+			return h.PostRenew(n.Addr)
 		}))
 		diags = diags.Append(resp.Diagnostics)
 		renewAt = resp.RenewAt

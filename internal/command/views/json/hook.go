@@ -324,10 +324,7 @@ func startActionVerb(action plans.Action) string {
 		return "Removing"
 	case plans.Open:
 		return "Opening"
-	case plans.Renew:
-		return "Renewing"
-	case plans.Close:
-		return "Closing"
+		// NOTE: Renew and Close missing on purpose since those two have their own dedicated hooks.
 	case plans.NoOp:
 		// This should never be possible: a no-op planned change should not
 		// be applied. We'll fall back to "Applying".
@@ -358,10 +355,7 @@ func progressActionVerb(action plans.Action) string {
 		return "removing"
 	case plans.Open:
 		return "opening"
-	case plans.Renew:
-		return "renewing"
-	case plans.Close:
-		return "closing"
+		// NOTE: Renew and Close missing on purpose since those two have their own dedicated hooks.
 	case plans.NoOp:
 		// This should never be possible: a no-op planned change should not
 		// be applied. We'll fall back to "applying".
@@ -392,10 +386,7 @@ func actionNoun(action plans.Action) string {
 		return "Removal"
 	case plans.Open:
 		return "Open"
-	case plans.Renew:
-		return "Renew"
-	case plans.Close:
-		return "Close"
+		// NOTE: Renew and Close missing on purpose since those two have their own dedicated hooks.
 	case plans.NoOp:
 		// This should never be possible: a no-op planned change should not
 		// be applied. We'll fall back to "Apply".

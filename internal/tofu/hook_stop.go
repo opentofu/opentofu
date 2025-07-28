@@ -104,6 +104,22 @@ func (h *stopHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, 
 	return h.hook()
 }
 
+func (h *stopHook) PreRenew(addr addrs.AbsResourceInstance) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PostRenew(addr addrs.AbsResourceInstance) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PreClose(addr addrs.AbsResourceInstance) (HookAction, error) {
+	return h.hook()
+}
+
+func (h *stopHook) PostClose(addr addrs.AbsResourceInstance) (HookAction, error) {
+	return h.hook()
+}
+
 func (h *stopHook) Stopping() {}
 
 func (h *stopHook) PostStateUpdate(new *states.State) (HookAction, error) {

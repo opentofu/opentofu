@@ -145,6 +145,27 @@ type MockHook struct {
 	DeferredReturn HookAction
 	DeferredError  error
 
+	PreRenewCalled bool
+	PreRenewAddr   addrs.AbsResourceInstance
+	PreRenewReturn HookAction
+	PreRenewError  error
+
+	PostRenewCalled      bool
+	PostRenewAddr        addrs.AbsResourceInstance
+	PostRenewReturn      HookAction
+	PostRenewReturnError error
+
+	PreCloseCalled bool
+	PreCloseAddr   addrs.AbsResourceInstance
+	PreCloseAction plans.Action
+	PreCloseReturn HookAction
+	PreCloseError  error
+
+	PostCloseCalled      bool
+	PostCloseAddr        addrs.AbsResourceInstance
+	PostCloseReturn      HookAction
+	PostCloseReturnError error
+
 	StoppingCalled bool
 
 	PostStateUpdateCalled bool
@@ -361,6 +382,44 @@ func (h *MockHook) Deferred(_ addrs.AbsResourceInstance, _ string) (HookAction, 
 
 	h.DeferredCalled = true
 	return h.DeferredReturn, h.DeferredError
+}
+
+func (h *MockHook) PreRenew(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PreRenewCalled = true
+	h.PreRenewAddr = addr
+	return h.PreRenewReturn, h.PreRenewError
+}
+
+func (h *MockHook) PostRenew(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PostRenewCalled = true
+	h.PostRenewAddr = addr
+
+	return h.PostRenewReturn, h.PostRenewReturnError
+}
+
+func (h *MockHook) PreClose(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PreCloseCalled = true
+	h.PreCloseAddr = addr
+	return h.PreCloseReturn, h.PreCloseError
+}
+
+func (h *MockHook) PostClose(addr addrs.AbsResourceInstance) (HookAction, error) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.PostCloseCalled = true
+	h.PostCloseAddr = addr
+
+	return h.PostCloseReturn, h.PostCloseReturnError
 }
 
 func (h *MockHook) Stopping() {

@@ -213,7 +213,6 @@ ephemeral\.test_instance\.foo: Still opening\.\.\. \[id=test, \ds elapsed\]
 		h.periodicUiTimer = 1 * time.Second
 		h.resources = map[string]uiResourceState{
 			"ephemeral.test_instance.foo": {
-				Op:    uiResourceRenew,
 				Start: time.Now(),
 			},
 		}
@@ -224,28 +223,37 @@ ephemeral\.test_instance\.foo: Still opening\.\.\. \[id=test, \ds elapsed\]
 			Name: "foo",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		action, err := h.PreApply(addr, states.CurrentGen, plans.Renew, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
+		action, err := h.PreRenew(addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if action != tofu.HookActionContinue {
-			t.Fatalf("Expected hook to continue, given: %#v", action)
+			t.Errorf("Expected hook to continue, given: %#v", action)
 		}
 
-		time.Sleep(1100 * time.Millisecond)
+		<-time.After(1100 * time.Millisecond)
 
 		// stop the background writer
 		uiState := h.resources[addr.String()]
-		close(uiState.DoneCh)
+		// call PostRenew that will stop the waiting for the action
+		action, err = h.PostRenew(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if action != tofu.HookActionContinue {
+			t.Errorf("Expected hook to continue, given: %#v", action)
+		}
+		// wait for the waiting to stop completely
 		<-uiState.done
 
 		expectedRegexp := `ephemeral\.test_instance\.foo: Renewing\.\.\.
 ephemeral\.test_instance\.foo: Still renewing\.\.\. \[\ds elapsed\]
+ephemeral\.test_instance\.foo: Renew complete after \ds
 `
 		result := done(t)
 		output := result.Stdout()
 		if matched, _ := regexp.MatchString(expectedRegexp, output); !matched {
-			t.Fatalf("Output didn't match.\nExpected: %q\nGiven: %q", expectedRegexp, output)
+			t.Fatalf("Output didn't match.\nExpected: %q\nGot: %q", expectedRegexp, output)
 		}
 
 		expectedErrOutput := ""
@@ -261,7 +269,6 @@ ephemeral\.test_instance\.foo: Still renewing\.\.\. \[\ds elapsed\]
 		h.periodicUiTimer = 1 * time.Second
 		h.resources = map[string]uiResourceState{
 			"ephemeral.test_instance.foo": {
-				Op:    uiResourceClose,
 				Start: time.Now(),
 			},
 		}
@@ -272,23 +279,31 @@ ephemeral\.test_instance\.foo: Still renewing\.\.\. \[\ds elapsed\]
 			Name: "foo",
 		}.Instance(addrs.NoKey).Absolute(addrs.RootModuleInstance)
 
-		action, err := h.PreApply(addr, states.CurrentGen, plans.Close, cty.NullVal(cty.EmptyObject), cty.NullVal(cty.EmptyObject))
+		action, err := h.PreClose(addr)
 		if err != nil {
 			t.Fatal(err)
 		}
 		if action != tofu.HookActionContinue {
-			t.Fatalf("Expected hook to continue, given: %#v", action)
+			t.Errorf("Expected hook to continue, given: %#v", action)
 		}
 
-		time.Sleep(1100 * time.Millisecond)
-
+		<-time.After(1100 * time.Millisecond)
 		// stop the background writer
 		uiState := h.resources[addr.String()]
-		close(uiState.DoneCh)
+		// call PostClose that will stop the waiting for the action
+		action, err = h.PostClose(addr)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if action != tofu.HookActionContinue {
+			t.Errorf("Expected hook to continue, given: %#v", action)
+		}
+		// wait for the waiting to stop completely
 		<-uiState.done
 
 		expectedRegexp := `ephemeral\.test_instance\.foo: Closing\.\.\.
 ephemeral\.test_instance\.foo: Still closing\.\.\. \[\ds elapsed\]
+ephemeral\.test_instance\.foo: Close complete after \ds
 `
 		result := done(t)
 		output := result.Stdout()
