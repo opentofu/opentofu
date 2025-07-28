@@ -1,13 +1,3 @@
-variable "passphrase" {
-  type = string
-  default = "26281afb-83f1-47ec-9b2d-2aebf6417167"
-  sensitive = true
-}
-
-locals {
-  key_length = sensitive(32)
-}
-
 terraform {
   encryption {
     key_provider "pbkdf2" "basic" {
