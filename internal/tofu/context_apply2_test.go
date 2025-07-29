@@ -5756,7 +5756,7 @@ func TestContext2Apply_enabledForResource(t *testing.T) {
 		if outputState == nil {
 			t.Errorf("missing state entry for %s", outputAddr)
 		} else if got, want := outputState.Value, cty.StringVal("default"); !want.RawEquals(got) {
-			t.Errorf("unexpected value for %s %#v; want null", outputAddr, got)
+			t.Errorf("unexpected value for %s\ngot:  %#v\nwant: %#v", outputAddr, got, want)
 		}
 	}
 }
